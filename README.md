@@ -20,9 +20,12 @@ This directory contains the Sui-Chainlink integration.
 
 > NOTE: You can view the open ports and the commands used by inspecting the `/sui/docker-compose.yml` file. It is a work in-progress and will likely change.
 
+### Deploying Sample Contracts
 
-## TODO:
+Once you have the local Sui devnet running, you can deploy the sample contracts using:
 
-- [ ] Add the chainlink local environment to docker compose along with the necessary Dockerfiles
-- [ ] Write a basic script to upload a test contract onto the local devnet
-- [ ] Write a basic version of `chainreader` and `chainwriter`
+```bash
+./scripts/deploy_contracts.sh
+```
+
+This will build and deploy the contracts in `contracts/test` to your local Sui network.
