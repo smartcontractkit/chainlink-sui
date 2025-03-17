@@ -1,6 +1,6 @@
 services:
   sui:
-    image: mysten/sui-tools:devnet-arm64
+    image: mysten/sui-tools:devnet
     ports:
       - "9000:9000"
     command: ["sui", "start"]
