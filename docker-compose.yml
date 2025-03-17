@@ -1,0 +1,23 @@
+services:
+  sui:
+    image: mysten/sui-tools:devnet-arm64
+    ports:
+      - "9000:9000"
+    command: ["sui", "start"]
+    environment:
+      - SUI_CONFIG_DIR=/sui/config
+    volumes:
+      - sui-data:/sui
+    networks:
+      - chainlink
+      - sui
+
+networks:
+  chainlink:
+    external: true
+  sui:
+    name: sui
+    driver: bridge
+
+volumes:
+  sui-data:

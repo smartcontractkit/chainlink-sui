@@ -1,0 +1,11 @@
+# Move Build Output
+*/build/
+*/contract_address.txt
+
+# Move coverage and tracing information
+.trace
+*.mvcov
+
+# sui CLI / local testnet files
+.sui
+**/*.rdb
