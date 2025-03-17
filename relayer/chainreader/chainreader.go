@@ -3,6 +3,7 @@ package chainreader
 import (
 	"context"
 	"fmt"
+	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -14,7 +15,6 @@ import (
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	"github.com/smartcontractkit/chainlink-common/pkg/utils"
 	// TODO: enable after codec and txm is implemented
 	// "github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/txm"
 )
@@ -24,7 +24,7 @@ type suiChainReader struct {
 
 	logger           logger.Logger
 	config           ChainReaderConfig
-	starter          utils.StartStopOnce
+	starter          services.StateMachine
 	packageAddresses map[string]string
 	client           *sui.Client
 }
