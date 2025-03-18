@@ -15,16 +15,24 @@ tasks:
             MODULE: [".", "./relayer"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags=unit ./...
 
+  integration-setup:
+    desc: "Setup required for integration tests"
+    cmds:
+      - echo "Setting up integration test environment"
+      - sui genesis --force --with-faucet
+
   integration:
     desc: "Run integration tests"
+    deps: [integration-setup]
     cmds:
       - for:
           matrix:
             MODULE: [".", "./relayer"]
-        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags=integration ./...
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags="integration" ./...
 
   integration-testnet:
     desc: "Run integration tests in testnet"
+    deps: [integration-setup]
     cmds:
       - for:
           matrix:

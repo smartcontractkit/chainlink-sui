@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -44,6 +46,18 @@ func LoadAccountFromEnv(t *testing.T, log logger.Logger) (ed25519.PrivateKey, ed
 	}
 
 	return nil, nil, ""
+}
+
+func GetAccountAndKeyFromSui(t *testing.T, lgr logger.Logger) string {
+	t.Helper()
+	cmd := exec.Command("sui", "client", "active-address")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Failed to get active address: %s", string(output))
+
+	accountAddress := strings.ReplaceAll(string(output), "\n", "")
+	lgr.Info("Active address: ", accountAddress)
+
+	return accountAddress
 }
 
 // GenerateAccountKeyPair Generates a public/private keypair with the ed25519 signature algorithm, then derives the address from the public key.

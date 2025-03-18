@@ -33,8 +33,19 @@ func TestChainReaderLocal(t *testing.T) {
 	}
 	require.NoError(t, err)
 
-	err = testutils.StartSuiNode(testutils.CLI)
+	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
+
+	// Ensure the process is killed when the test completes.
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			perr := cmd.Process.Kill()
+			if perr != nil {
+				t.Logf("Failed to kill process: %v", perr)
+			}
+		}
+	})
+
 	log.Debugw("Started Sui node")
 
 	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
