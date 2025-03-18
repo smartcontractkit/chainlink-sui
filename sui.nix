@@ -4,7 +4,7 @@
 }:
 stdenv.mkDerivation rec {
   name = "sui-cli-${version}";
-  version = "1.44.3"; # Update as needed. Should be a mainnet release version
+  version = "1.44.3"; # Update as needed. Should be a mainnet release version from https://github.com/MystenLabs/sui/releases
 
   dontUnpack = true;
 
