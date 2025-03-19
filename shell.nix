@@ -3,8 +3,7 @@
   pkgs,
   lib,
 }:
-# juno requires building with clang, not gcc
-(pkgs.mkShell.override {stdenv = pkgs.clangStdenv;}) {
+(pkgs.pkgs.mkShell {
   buildInputs = with pkgs;
     [
       # Go 1.23 + tools
@@ -15,5 +14,8 @@
 
       # Sui CLI custom derivation
       (pkgs.callPackage ./sui.nix {})
+    ]
+    ++ lib.optionals stdenv.hostPlatform.isDarwin [
+      libiconv
     ];
-}
+})
