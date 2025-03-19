@@ -3,8 +3,10 @@ package chainreader
 import (
 	"context"
 	"fmt"
-	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	"github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/codec"
 	"strings"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -26,10 +28,10 @@ type suiChainReader struct {
 	config           ChainReaderConfig
 	starter          services.StateMachine
 	packageAddresses map[string]string
-	client           *sui.Client
+	client           sui.ISuiAPI
 }
 
-func NewChainReader(lgr logger.Logger, client *sui.Client, config ChainReaderConfig) pkgtypes.ContractReader {
+func NewChainReader(lgr logger.Logger, client sui.ISuiAPI, config ChainReaderConfig) pkgtypes.ContractReader {
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
 		client:           client,
@@ -174,13 +176,20 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 	fmt.Print(resp)
 
-	//// Get the first return value (Sui functions can return multiple values)
-	//returnData := resp.Result
-	//
-	//// Decode the return value into the provided structure
-	//return codec.DecodeSuiJsonValue(returnData, returnVal)
+	// TODO: objectId is currently assumed to me in the `method` section of the `readIdentifier`
+	object, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
+		ObjectId: method,
+		Options: models.SuiObjectDataOptions{
+			ShowContent: true,
+		},
+	})
 
-	return nil
+	if err != nil {
+		return fmt.Errorf("failed to get object: %w", err)
+	}
+
+	// Decode the return value into the provided structure
+	return codec.DecodeSuiJsonValue(object.Data.Content, returnVal)
 }
 
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types.BatchGetLatestValuesRequest) (types.BatchGetLatestValuesResult, error) {
