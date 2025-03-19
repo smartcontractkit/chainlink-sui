@@ -11,8 +11,6 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/mitchellh/mapstructure"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -93,13 +91,15 @@ func (s *suiChainReader) Unbind(ctx context.Context, bindings []types.BoundContr
 	return nil
 }
 
+// GetLatestValue A method to get the latest value of an object managed by one of the contracts in the Sui network integration.
+// Note that the `readIdentifier` here is split into 3 parts in a `-` delimited string. The third part being the Object ID.
 func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier string, confidenceLevel primitives.ConfidenceLevel, params, returnVal any) error {
 	// Decode the readIdentifier - a combination of address, contract, and readName as a concatenated string
 	readComponents := strings.Split(readIdentifier, "-")
 	if len(readComponents) != 3 {
 		return fmt.Errorf("invalid read identifier: %s", readIdentifier)
 	}
-	_address, contractName, method := readComponents[0], readComponents[1], readComponents[2]
+	_address, contractName, objectId := readComponents[0], readComponents[1], readComponents[2]
 
 	// Source the read configuration, by contract name
 	address, ok := s.packageAddresses[contractName]
@@ -112,43 +112,14 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return fmt.Errorf("bound address %s for package %s does not match read address %s", address, contractName, _address)
 	}
 
-	moduleConfig, ok := s.config.Modules[contractName]
+	_, ok = s.config.Modules[contractName]
 	if !ok {
 		return fmt.Errorf("no such contract: %s", contractName)
 	}
 
-	functionConfig, ok := moduleConfig.Functions[method]
-	if !ok {
-		return fmt.Errorf("no such method: %s", method)
-	}
-
-	// Extract parameters from the params object
-	argMap := make(map[string]interface{})
-	if err := mapstructure.Decode(params, &argMap); err != nil {
-		return fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
-	// Prepare arguments for the function call
-	args := []interface{}{}
-
-	if functionConfig.Params != nil {
-		for _, paramConfig := range functionConfig.Params {
-			argValue, ok := argMap[paramConfig.Name]
-			if !ok {
-				if paramConfig.Required {
-					return fmt.Errorf("missing argument: %s", paramConfig.Name)
-				}
-				argValue = paramConfig.DefaultValue
-			}
-
-			// No need for BCS serialization in Sui calls via JSON-RPC
-			args = append(args, argValue)
-		}
-	}
-
 	// NOTE: objectId is currently assumed to me in the `method` section of the `readIdentifier`
 	object, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
-		ObjectId: method,
+		ObjectId: objectId,
 		Options: models.SuiObjectDataOptions{
 			ShowContent: true,
 		},
