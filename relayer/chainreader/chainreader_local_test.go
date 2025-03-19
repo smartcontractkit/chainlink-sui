@@ -43,8 +43,7 @@ func TestChainReaderLocal(t *testing.T) {
 
 	err = testutils.FundWithFaucet(logger, constant.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
-
-	//runChainReaderTest(t, logger, rpcUrl, accountAddress, publicKey, privateKey)
+	
 	runChainReaderCounterTest(t, logger, testutils.LocalUrl)
 }
 
@@ -80,9 +79,6 @@ func runChainReaderCounterTest(t *testing.T, logger logger.Logger, rpcUrl string
 	require.NoError(t, err)
 
 	logger.Debugw("ChainReader setup complete")
-
-	//counterId := testutils.FindCounterID(t, client, packageId)
-	//require.NoError(t, err)
 
 	// Test GetLatestValue for different data types
 	t.Run("GetLatestValue_Uint64", func(t *testing.T) {

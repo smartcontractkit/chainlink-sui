@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
