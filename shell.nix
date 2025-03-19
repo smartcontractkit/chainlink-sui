@@ -6,6 +6,8 @@
 (pkgs.pkgs.mkShell {
   buildInputs = with pkgs;
     [
+      # Required for Sui CLI (Move compilation)
+      git
       # Go 1.23 + tools
       go_1_23
       gopls
