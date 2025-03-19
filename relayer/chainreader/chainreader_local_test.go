@@ -52,16 +52,20 @@ func runChainReaderCounterTest(t *testing.T, logger logger.Logger, rpcUrl string
 	client := sui.NewSuiClient(rpcUrl)
 
 	// start by deploying the counter contract to local net
-	packageId, err := testutils.DeployCounterContract(t)
+	packageId, counterObjectId, err := testutils.DeployCounterContract(t)
 	require.NoError(t, err)
 
 	// Set up the ChainReader
 	chainReaderConfig := ChainReaderConfig{
 		Modules: map[string]*ChainReaderModule{
-			"counterContract": {
-				Name:      "counter",
-				Functions: map[string]*ChainReaderFunction{},
-				Events:    map[string]*ChainReaderEvent{},
+			"counter": {
+				Name: "counter",
+				Functions: map[string]*ChainReaderFunction{
+					counterObjectId: {
+						Name: counterObjectId,
+					},
+				},
+				Events: map[string]*ChainReaderEvent{},
 			},
 		},
 	}
@@ -77,8 +81,8 @@ func runChainReaderCounterTest(t *testing.T, logger logger.Logger, rpcUrl string
 
 	logger.Debugw("ChainReader setup complete")
 
-	counterId := testutils.FindCounterID(t, client, packageId)
-	require.NoError(t, err)
+	//counterId := testutils.FindCounterID(t, client, packageId)
+	//require.NoError(t, err)
 
 	// Test GetLatestValue for different data types
 	t.Run("GetLatestValue_Uint64", func(t *testing.T) {
@@ -86,7 +90,7 @@ func runChainReaderCounterTest(t *testing.T, logger logger.Logger, rpcUrl string
 		var retUint64 uint64
 		err = chainReader.GetLatestValue(
 			context.Background(),
-			strings.Join([]string{packageId, counterBinding.Name, counterId}, "-"),
+			strings.Join([]string{packageId, counterBinding.Name, counterObjectId}, "-"),
 			primitives.Finalized,
 			struct {
 				Value uint64

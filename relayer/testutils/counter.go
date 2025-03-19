@@ -88,7 +88,7 @@ func FindCounterID(t *testing.T, c sui.ISuiAPI, packageId string) string {
 
 // Deploys and initializes the counter contract
 // Returns the package ID
-func DeployCounterContract(t *testing.T) (string, error) {
+func DeployCounterContract(t *testing.T) (string, string, error) {
 	logger := logger.Test(t)
 	t.Helper()
 
@@ -141,14 +141,6 @@ func DeployCounterContract(t *testing.T) (string, error) {
 
 	logger.Debugw("Published counter contract", "packageID", packageId)
 
-	//var publishData map[string]interface{}
-	//err = json.Unmarshal(publishOutput, &publishData)
-	//require.NoError(t, err, "Failed to parse publish output as JSON")
-	//
-	//// Extract the package ID from the JSON response
-	//packageId, ok := publishData["packageId"].(string)
-	//require.True(t, ok, "Failed to extract packageId from publish output")
-
 	// Initialize the counter
 	// Call the init function to create the counter
 	// Initialize the counter using the Sui CLI
@@ -162,11 +154,32 @@ func DeployCounterContract(t *testing.T) (string, error) {
 
 	initOutput, err := initCmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to initialize counter: %w, output: %s", err, string(initOutput))
+		return "", "", fmt.Errorf("failed to initialize counter: %w, output: %s", err, string(initOutput))
 	}
+
+	// Extract the ObjectID from the initialization output
+	lines = strings.Split(string(initOutput), "\n")
+	var objectID string
+	for _, line := range lines {
+		if strings.Contains(line, "ObjectID:") {
+			parts := strings.Fields(line)
+			for _, part := range parts {
+				if strings.HasPrefix(part, "0x") {
+					objectID = part
+					break
+				}
+			}
+		}
+		if objectID != "" {
+			break
+		}
+	}
+	require.NotEmpty(t, objectID, "Failed to extract ObjectID from initialization output")
+
+	logger.Debugw("Initialized counter contract", "objectID", objectID)
 
 	// Wait for the transaction to be confirmed
 	time.Sleep(2 * time.Second)
 
-	return packageId, nil
+	return packageId, objectID, nil
 }

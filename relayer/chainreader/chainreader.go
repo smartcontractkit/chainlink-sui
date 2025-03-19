@@ -3,8 +3,9 @@ package chainreader
 import (
 	"context"
 	"fmt"
-	"github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/codec"
 	"strings"
+
+	"github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/codec"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -108,7 +109,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return fmt.Errorf("no bound address for package %s", contractName)
 	}
 
-	// Notice: the address in the readIdentifier should match the bound address, by contract name
+	// The address in the readIdentifier should match the bound address, by contract name
 	if address != _address {
 		return fmt.Errorf("bound address %s for package %s does not match read address %s", address, contractName, _address)
 	}
@@ -147,36 +148,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		}
 	}
 
-	var moduleName string
-	if moduleConfig.Name != "" {
-		moduleName = moduleConfig.Name
-	} else {
-		moduleName = contractName
-	}
-
-	var functionName string
-	if functionConfig.Name != "" {
-		functionName = functionConfig.Name
-	} else {
-		functionName = method
-	}
-
-	// Call the move function
-	resp, err := s.client.MoveCall(ctx, models.MoveCallRequest{
-		PackageObjectId: address,
-		Module:          moduleName,
-		Function:        functionName,
-		TypeArguments:   []interface{}{},
-		Arguments:       args,
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to call view function: %w", err)
-	}
-
-	fmt.Print(resp)
-
-	// TODO: objectId is currently assumed to me in the `method` section of the `readIdentifier`
+	// NOTE: objectId is currently assumed to me in the `method` section of the `readIdentifier`
 	object, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
 		ObjectId: method,
 		Options: models.SuiObjectDataOptions{
@@ -188,8 +160,18 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return fmt.Errorf("failed to get object: %w", err)
 	}
 
+	s.logger.Debugw("Sui GetObject", "object", object.Data.Content.Fields)
+
+	// Extract the value field from the object
+	valueField, ok := object.Data.Content.Fields["value"]
+	if !ok {
+		return fmt.Errorf("object does not contain a 'value' field")
+	}
+
+	s.logger.Debugw("Extracted value from object", "value", valueField)
+
 	// Decode the return value into the provided structure
-	return codec.DecodeSuiJsonValue(object.Data.Content, returnVal)
+	return codec.DecodeSuiJsonValue(valueField, returnVal)
 }
 
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types.BatchGetLatestValuesRequest) (types.BatchGetLatestValuesResult, error) {
