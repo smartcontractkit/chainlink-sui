@@ -1,4 +1,4 @@
-module github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer
+module github.com/smartcontractkit/chainlink-sui/relayer
 
 go 1.24.0
 
