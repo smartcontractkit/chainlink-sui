@@ -18,7 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	"github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/testutils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 func TestChainReaderLocal(t *testing.T) {
@@ -43,7 +43,7 @@ func TestChainReaderLocal(t *testing.T) {
 
 	err = testutils.FundWithFaucet(logger, constant.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
-	
+
 	runChainReaderCounterTest(t, logger, testutils.LocalUrl)
 }
 
@@ -59,12 +59,6 @@ func runChainReaderCounterTest(t *testing.T, logger logger.Logger, rpcUrl string
 		Modules: map[string]*ChainReaderModule{
 			"counter": {
 				Name: "counter",
-				Functions: map[string]*ChainReaderFunction{
-					counterObjectId: {
-						Name: counterObjectId,
-					},
-				},
-				Events: map[string]*ChainReaderEvent{},
 			},
 		},
 	}
