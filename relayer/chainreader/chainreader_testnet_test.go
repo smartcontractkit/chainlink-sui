@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	// "github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/testutils"
+	// "github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 func TestChainReaderDevnet(t *testing.T) {

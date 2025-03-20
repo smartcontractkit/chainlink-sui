@@ -14,7 +14,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
-	// "github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/testutils"
+	// "github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 func TestChainReaderLocal(t *testing.T) {
