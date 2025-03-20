@@ -17,7 +17,7 @@ jobs:
       - uses: ./.github/actions/changes
         id: c
         with:
-          folder: .
+          folder: contracts
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -26,9 +26,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-
-#      - name: Install Aptos CLI
-#        uses: aptos-labs/actions/install-aptos-cli@ce57287eb852b9819c1d74fecc3be187677559fd # v0.1
 
       - uses: actions-rs/toolchain@v1
         with:
