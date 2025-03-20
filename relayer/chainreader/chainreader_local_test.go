@@ -24,7 +24,7 @@ func TestChainReaderLocal(t *testing.T) {
 	privateKey, publicKey, accountAddress := testutils.LoadAccountFromEnv(t, logger)
 	// if the env does not contain a private key to be loaded, create one
 	if privateKey == nil {
-		privateKey, publicKey, accountAddress = testutils.CreateAccount(t, logger)
+		privateKey, publicKey, accountAddress = testutils.GenerateAccountKeyPair(t, logger)
 	}
 
 	err := testutils.StartSuiNode(testutils.CLI)
