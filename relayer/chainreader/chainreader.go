@@ -12,8 +12,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/smartcontractkit/chainlink-common/pkg/utils"
 	// TODO: enable after codec and txm is implemented
-	// "github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/codec"
-	// "github.com/smartcontractkit/chainlink-internal-integrations/sui/relayer/txm"
+	// "github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	// "github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
 type suiChainReader struct {
