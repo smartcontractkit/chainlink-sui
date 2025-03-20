@@ -2,8 +2,10 @@ package testutils
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 
@@ -39,6 +41,20 @@ func LoadAccountFromEnv(t *testing.T, logger logger.Logger) (ed25519.PrivateKey,
 	}
 
 	return nil, nil, ""
+}
+
+// GenerateAccountKeyPair Generates a public/private keypair with the ed25519 signature algorithm, then derives the address from the public key.
+// Returns (private key, public key, address, error).
+func GenerateAccountKeyPair(t *testing.T, logger logger.Logger) (ed25519.PrivateKey, ed25519.PublicKey, string, error) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err, "Failed to generate new account")
+
+	// Generate Sui address from public key
+	accountAddress := DeriveAddressFromPublicKey(publicKey)
+
+	logger.Debugw("Created account", "publicKey", hex.EncodeToString([]byte(publicKey)), "accountAddress", accountAddress)
+
+	return privateKey, publicKey, accountAddress, nil
 }
 
 // DeriveAddressFromPublicKey derives a Sui address from an ed25519 public key

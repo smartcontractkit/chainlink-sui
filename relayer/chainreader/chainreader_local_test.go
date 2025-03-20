@@ -4,9 +4,6 @@ package chainreader
 
 import (
 	"context"
-	"crypto/ed25519"
-	"crypto/rand"
-	"encoding/hex"
 	"math/big"
 	"strings"
 	"testing"
@@ -25,16 +22,9 @@ func TestChainReaderLocal(t *testing.T) {
 	logger := logger.Test(t)
 
 	privateKey, publicKey, accountAddress := testutils.LoadAccountFromEnv(t, logger)
+	// if the env does not contain a private key to be loaded, create one
 	if privateKey == nil {
-		newPublicKey, newPrivateKey, err := ed25519.GenerateKey(rand.Reader)
-		require.NoError(t, err)
-		privateKey = newPrivateKey
-		publicKey = newPublicKey
-
-		// Generate Sui address from public key
-		accountAddress = testutils.DeriveAddressFromPublicKey(publicKey)
-
-		logger.Debugw("Created account", "publicKey", hex.EncodeToString([]byte(publicKey)), "accountAddress", accountAddress)
+		privateKey, publicKey, accountAddress = testutils.CreateAccount(t, logger)
 	}
 
 	err := testutils.StartSuiNode(testutils.CLI)
