@@ -31,4 +31,9 @@ module test::counter {
     ) {
         counter.value = counter.value + (a * b);
     }
+
+    /// Get the value of the count
+    public entry fun get_count(counter: &Counter): u64 {
+        counter.value
+    }
 }

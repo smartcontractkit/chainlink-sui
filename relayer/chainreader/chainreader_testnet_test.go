@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	// "github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 func TestChainReaderDevnet(t *testing.T) {
@@ -22,7 +22,7 @@ func runTestnetTest(t *testing.T, rpcUrl string) {
 
 	privateKey, publicKey, accountAddress := testutils.LoadAccountFromEnv(t, logger)
 	if privateKey == nil {
-		t.Fatal("PRIVATE_KEY or ADDRESS environment variable is not set")
+		t.Skip("PRIVATE_KEY or ADDRESS environment variable is not set, skipping testnet test")
 	}
 
 	runChainReaderTest(t, logger, rpcUrl, accountAddress, publicKey, privateKey)
