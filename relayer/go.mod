@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/smartcontractkit/chainlink-common v0.4.1
 	github.com/stretchr/testify v1.9.0
+	github.com/block-vision/sui-go-sdk v1.0.6
 )
 
 require (
