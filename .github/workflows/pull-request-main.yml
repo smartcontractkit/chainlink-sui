@@ -7,21 +7,38 @@ on:
 
 jobs:
   ci-lint:
-    name: Lint - ${{ matrix.module }}
+    name: Go Lint - ${{ matrix.module }} Module
     runs-on: ubuntu-latest
     strategy:
       matrix:
         # List the directories where each module’s go.mod lives.
         module:
           - .
-          - ./relayer
+          - relayer
           # - path/to/another/module  # Add other module paths as needed.
     steps:
-      - name: Linting Go in main module
-        uses: smartcontractkit/.github/actions/ci-lint-go@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # ci-lint-go@0.3.1
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup go
+        uses: smartcontractkit/.github/actions/setup-golang@6eb3d3122e5ddd4933ab60e1dfe39e5c38092b04 # setup-golang@0.3.2
+
+      - name: Setup golangci-lint
+        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
         with:
-          golangci-lint-version: v1.64.8
-          go-directory: ${{ matrix.module }}
+          version: v1.64.8
+          working-directory: ${{ matrix.module }}
+
+      - name: Print lint report artifact
+        shell: bash
+        run: (test -f ${{ matrix.module }}/golangci-lint-report.xml && cat ${{ matrix.module }}/golangci-lint-report.xml) || true
+
+      - name: Store lint report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.module }}-golangci-lint-report
+          path: ${{ matrix.module }}/golangci-lint-report.xml
 
   ci-lint-misc:
     name: Lint GH Actions and scripts
@@ -31,13 +48,13 @@ jobs:
         uses: smartcontractkit/.github/actions/ci-lint-misc@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # ci-lint-misc@0.1.4
 
   ci-test:
-    name: Test - ${{ matrix.module }}
+    name: Go Test - ${{ matrix.module }} Module
     runs-on: ubuntu-latest
     strategy:
       matrix:
         module:
           - .
-          - ./relayer
+          - relayer
           # - path/to/another/module  # Add other module paths as needed.
     steps:
       # I want to use the smartcontractkit/.github/actions/ci-test-go@ci-test-go/0.3.5 action to build and test my Go code in the matrix.module directories
