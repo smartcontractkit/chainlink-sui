@@ -78,8 +78,6 @@ func FindCounterID(t *testing.T, c sui.ISuiAPI, packageId string) string {
 		},
 	})
 
-	fmt.Println(resp)
-
 	require.NoError(t, err)
 	require.Greater(t, len(resp.Data), 0, "No counter objects found")
 
