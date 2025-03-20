@@ -14,10 +14,10 @@ jobs:
         # List the directories where each module’s go.mod lives.
         module:
           - .
-          - relayer
+          - ./relayer
           # - path/to/another/module  # Add other module paths as needed.
     steps:
-      - name: Linting Go in ${{ matrix.module }}
+      - name: Linting Go in main module
         uses: smartcontractkit/.github/actions/ci-lint-go@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # ci-lint-go@0.3.1
         with:
           golangci-lint-version: v1.64.8
@@ -37,7 +37,7 @@ jobs:
       matrix:
         module:
           - .
-          - relayer
+          - ./relayer
           # - path/to/another/module  # Add other module paths as needed.
     steps:
       # I want to use the smartcontractkit/.github/actions/ci-test-go@ci-test-go/0.3.5 action to build and test my Go code in the matrix.module directories
