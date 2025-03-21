@@ -22,3 +22,11 @@ tasks:
           matrix:
             MODULE: [".", "./relayer"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags=integration ./...
+
+  sui_unit:
+    desc: "Run Sui contract unit tests"
+    cmds:
+      - for:
+          matrix:
+            MODULE: [".", "./contracts"]
+        cmd: cd {{ .ITEM.MODULE }} && sui move test

@@ -5,15 +5,15 @@ module chainlink_common::allowlist {
         id: UID,
         allowlist_enabled: bool,
         // it's possible to use vec_set for allowlist
-        allowlist: vector<address>
+        allowlist: vector<address>,
     }
 
     public struct AllowlistRemove has copy, drop {
-        sender: address
+        sender: address,
     }
 
     public struct AllowlistAdd has copy, drop {
-        sender: address
+        sender: address,
     }
 
     const E_ALLOWLIST_NOT_ENABLED: u64 = 1;
@@ -22,7 +22,7 @@ module chainlink_common::allowlist {
         AllowlistState {
             id: object::new(ctx),
             allowlist_enabled: !vector::is_empty(&allowlist),
-            allowlist
+            allowlist,
         }
     }
 
@@ -46,7 +46,9 @@ module chainlink_common::allowlist {
     }
 
     public fun apply_allowlist_updates(
-        state: &mut AllowlistState, removes: vector<address>, adds: vector<address>
+        state: &mut AllowlistState,
+        removes: vector<address>,
+        adds: vector<address>,
     ) {
         let mut i = 0;
         let mut len = vector::length(&removes);
@@ -58,7 +60,7 @@ module chainlink_common::allowlist {
             if (found) {
                 vector::swap_remove(&mut state.allowlist, j);
                 event::emit(AllowlistRemove {
-                    sender: *remove_address
+                    sender: *remove_address,
                 });
             };
             i = i + 1;
@@ -75,7 +77,7 @@ module chainlink_common::allowlist {
                 if (add_address != @0x0 && !found) {
                     vector::push_back(&mut state.allowlist, *add_address);
                     event::emit(AllowlistAdd {
-                        sender: *add_address
+                        sender: *add_address,
                     });
                 };
                 i = i + 1;
@@ -95,9 +97,8 @@ module chainlink_common::allowlist {
 
 #[test_only]
 module chainlink_common::allowlist_test {
-    use sui::test_scenario;
-
     use chainlink_common::allowlist;
+    use sui::test_scenario;
 
     fun set_up_test(allowlist: vector<address>, ctx: &mut TxContext): allowlist::AllowlistState {
         allowlist::new(allowlist, ctx)
@@ -132,14 +133,8 @@ module chainlink_common::allowlist_test {
         assert!(vector::length(&allowlist::get_allowlist(&state)) == 2, 1);
 
         // The given addresses are allowed
-        assert!(
-            allowlist::is_allowed(&state, *vector::borrow(&init_allowlist, 0)),
-            1
-        );
-        assert!(
-            allowlist::is_allowed(&state, *vector::borrow(&init_allowlist, 1)),
-            1
-        );
+        assert!(allowlist::is_allowed(&state, *vector::borrow(&init_allowlist, 0)), 1);
+        assert!(allowlist::is_allowed(&state, *vector::borrow(&init_allowlist, 1)), 1);
 
         assert!(!allowlist::is_allowed(&state, @0x3), 1);
 
@@ -182,13 +177,9 @@ module chainlink_common::allowlist_test {
 
         allowlist::apply_allowlist_updates(&mut state, vector::empty(), adds);
 
-        // assert_add_events_emitted(adds);
-
         let removes = vector[@0x1];
 
         allowlist::apply_allowlist_updates(&mut state, removes, vector::empty());
-
-        // assert_remove_events_emitted(removes);
 
         assert!(vector::length(&allowlist::get_allowlist(&state)) == 1, 1);
         assert!(allowlist::is_allowed(&state, @0x2), 1);
