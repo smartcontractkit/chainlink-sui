@@ -15,7 +15,7 @@ stdenv.mkDerivation rec {
     else if stdenv.isLinux then
       pkgs.fetchzip {
         url = "https://github.com/MystenLabs/sui/releases/download/mainnet-v${version}/sui-mainnet-v${version}-ubuntu-x86_64.tgz";
-        sha256 = "sha256-bC21R4Zu2+XYK5hJb1T8wPNXWZZ/jiJw/fIOJB6QhDI=";  # Should be replaced when bumping versions
+        sha256 = "sha256-yB8UpJ1N5TllMA75b+xVQxoJIXRd2K2JS93BAFBnibE=";  # Should be replaced when bumping versions
         stripRoot = false;
       }
     else

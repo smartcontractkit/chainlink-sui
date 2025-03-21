@@ -19,7 +19,7 @@ import (
 )
 
 func TestChainReaderLocal(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 
 	log := logger.Test(t)
 

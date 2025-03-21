@@ -7,38 +7,18 @@ on:
 
 jobs:
   ci-lint:
-    name: Go Lint - ${{ matrix.module }} Module
+    name: Go Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # List the directories where each module’s go.mod lives.
-        module:
-          - .
-          - relayer
-          # - path/to/another/module  # Add other module paths as needed.
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup go
-        uses: smartcontractkit/.github/actions/setup-golang@6eb3d3122e5ddd4933ab60e1dfe39e5c38092b04 # setup-golang@0.3.2
+      - name: Setup Nix
+        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
 
-      - name: Setup golangci-lint
-        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
-        with:
-          version: v1.64.8
-          working-directory: ${{ matrix.module }}
-
-      - name: Print lint report artifact
-        shell: bash
-        run: (test -f ${{ matrix.module }}/golangci-lint-report.xml && cat ${{ matrix.module }}/golangci-lint-report.xml) || true
-
-      - name: Store lint report artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.module }}-golangci-lint-report
-          path: ${{ matrix.module }}/golangci-lint-report.xml
+      - name: Run GolangCI Lint
+        run: |
+          nix develop --command task lint
 
   ci-lint-misc:
     name: Lint GH Actions and scripts
