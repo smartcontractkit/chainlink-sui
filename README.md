@@ -28,6 +28,15 @@ The devShell provides all the system tools and dependencies required to develop 
 (nix:nix-shell-env) $ sui version # sui 1.44.3-615516edb0ed
 ```
 
+### Running Tasks
+
+We use [Task](https://taskfile.dev/) to execute development tasks. You can find every task referenced in the [Taskfile](./Taskfile.yml)
+
+```bash
+(nix:nix-shell-env) $ task lint
+(nix:nix-shell-env) $ task lint:fix
+```
+
 ## Get something running
 
 ### Prerequisites

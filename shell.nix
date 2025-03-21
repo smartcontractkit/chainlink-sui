@@ -6,6 +6,10 @@
 (pkgs.pkgs.mkShell {
   buildInputs = with pkgs;
     [
+      # Development
+      go-task
+      golangci-lint
+
       # Required for Sui CLI (Move compilation)
       git
       # Go 1.24 + tools
