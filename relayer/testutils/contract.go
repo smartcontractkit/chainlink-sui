@@ -1,31 +1,33 @@
 package testutils
 
 import (
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/stretchr/testify/require"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/stretchr/testify/require"
 )
 
 func BuildContract(t *testing.T, contractPath string) {
-	logger := logger.Test(t)
 	t.Helper()
 
-	logger.Infow("Building contract", "path", contractPath)
+	log := logger.Test(t)
+
+	log.Infow("Building contract", "path", contractPath)
 
 	cmd := exec.Command("sui", "move", "build", "--path", contractPath, "--dev")
-	logger.Debugw("Executing build command", "command", cmd.String())
+	log.Debugw("Executing build command", "command", cmd.String())
 
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "Failed to build contract: %s", string(output))
 }
 
 func PublishContract(t *testing.T, contractPath string, gasBudget *int) string {
-	logger := logger.Test(t)
 	t.Helper()
+	log := logger.Test(t)
 
-	logger.Infow("Publishing contract", "path", contractPath)
+	log.Infow("Publishing contract", "path", contractPath)
 
 	gasBudgetArg := "200000000"
 	if gasBudget != nil {
@@ -56,7 +58,7 @@ func PublishContract(t *testing.T, contractPath string, gasBudget *int) string {
 		}
 	}
 	require.NotEmpty(t, packageId, "Failed to extract packageId from publish output")
-	logger.Debugw("Published contract", "packageID", packageId)
+	log.Debugw("Published contract", "packageID", packageId)
 
 	return packageId
 }
