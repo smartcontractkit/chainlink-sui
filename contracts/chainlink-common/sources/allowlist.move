@@ -91,16 +91,6 @@ module chainlink_common::allowlist {
         } = state;
         object::delete(id);
     }
-
-    // #[test_only]
-    // public fun new_add_event(add: address): AllowlistAdd {
-    //     AllowlistAdd { sender: add }
-    // }
-    //
-    // #[test_only]
-    // public fun new_remove_event(remove: address): AllowlistRemove {
-    //     AllowlistRemove { sender: remove }
-    // }
 }
 
 #[test_only]
@@ -151,7 +141,6 @@ module chainlink_common::allowlist_test {
             1
         );
 
-        // Other addresses are not allowed
         assert!(!allowlist::is_allowed(&state, @0x3), 1);
 
         allowlist::destroy_allowlist(state);
@@ -231,59 +220,8 @@ module chainlink_common::allowlist_test {
         // Since removes happen before adds, the account should still be allowed
         assert!(allowlist::is_allowed(&state, account_to_allow), 1);
 
-        // assert_remove_events_emitted(adds_and_removes);
-        // Events don't get purged after calling event::emitted_events so we'll have
-        // both the first and the second add event in the emitted events
-        // vector::push_back(&mut adds_and_removes, account_to_allow);
-        // assert_add_events_emitted(adds_and_removes);
-
         allowlist::destroy_allowlist(state);
 
         test_scenario::end(scenario);
     }
-//
-//     inline fun assert_add_events_emitted(
-//         added_addresses: vector<address>
-//     ) {
-//         let expected = vector::map<address, allowlist::AllowlistAdd>(
-//             added_addresses,
-//             |add| allowlist::new_add_event(add)
-//         );
-//         let got = event::emitted_events<allowlist::AllowlistAdd>();
-//         let number_of_adds = vector::length(&expected);
-//
-//         // Assert that exactly one event was emitted for each add
-//         assert!(vector::length(&got) == number_of_adds, 1);
-//
-//         // Assert that the emitted events match the expected events
-//         for (i in 0..number_of_adds) {
-//             assert!(
-//                 vector::borrow(&expected, i) == vector::borrow(&got, i),
-//                 1
-//             );
-//         }
-//     }
-//
-//     inline fun assert_remove_events_emitted(
-//         added_addresses: vector<address>
-//     ) {
-//         let expected = vector::map<address, allowlist::AllowlistRemove>(
-//             added_addresses,
-//             |add| allowlist::new_remove_event(add)
-//         );
-//         let got = event::emitted_events<allowlist::AllowlistRemove>();
-//         let number_of_adds = vector::length(&expected);
-//
-//         // Assert that exactly one event was emitted for each add
-//         assert!(vector::length(&got) == number_of_adds, 1);
-//
-//         // Assert that the emitted events match the expected events
-//         for (i in 0..number_of_adds) {
-//             assert!(
-//                 vector::borrow(&expected, i) == vector::borrow(&got, i),
-//                 1
-//             );
-//         }
-//     }
-//
 }
