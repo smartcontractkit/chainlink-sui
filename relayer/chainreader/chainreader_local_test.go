@@ -100,7 +100,7 @@ func runChainReaderCounterTest(t *testing.T, logger logger.Logger, rpcUrl string
 // 		"echo",
 // 		"init",
 // 		[]string{},      // type args
-// 		[]interface{}{}, // args
+// 		[]any{}, // args
 // 	)
 // 	require.NoError(t, err)
 
@@ -267,7 +267,7 @@ func runChainReaderCounterTest(t *testing.T, logger logger.Logger, rpcUrl string
 // 				"echo",
 // 				"echo_with_events",
 // 				[]string{}, // type args
-// 				[]interface{}{
+// 				[]any{
 // 					uint64(i + 1),                  // number
 // 					"Event " + uuid.New().String(), // text
 // 					[]byte("test data"),            // bytes

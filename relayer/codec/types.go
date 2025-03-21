@@ -9,5 +9,5 @@ type SuiFunctionParam struct {
 	// Whether the parameter is required
 	Required bool
 	// Default value to use if not provided
-	DefaultValue interface{}
+	DefaultValue any
 }

@@ -82,12 +82,13 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []types.BoundContrac
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []types.BoundContract) error {
 	for _, binding := range bindings {
 		key := binding.Name
-		if _, ok := s.packageAddresses[key]; ok {
-			delete(s.packageAddresses, key)
-		} else {
+
+		if _, ok := s.packageAddresses[key]; !ok {
 			return fmt.Errorf("no such binding: %s", key)
 		}
+		delete(s.packageAddresses, key)
 	}
+
 	return nil
 }
 
@@ -96,7 +97,8 @@ func (s *suiChainReader) Unbind(ctx context.Context, bindings []types.BoundContr
 func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier string, confidenceLevel primitives.ConfidenceLevel, params, returnVal any) error {
 	// Decode the readIdentifier - a combination of address, contract, and readName as a concatenated string
 	readComponents := strings.Split(readIdentifier, "-")
-	if len(readComponents) != 3 {
+	expectedComponents := 3
+	if len(readComponents) != expectedComponents {
 		return fmt.Errorf("invalid read identifier: %s", readIdentifier)
 	}
 	_address, contractName, objectId := readComponents[0], readComponents[1], readComponents[2]
