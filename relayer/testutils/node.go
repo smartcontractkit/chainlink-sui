@@ -44,7 +44,7 @@ func StartSuiNode(nodeType NodeEnvType) error {
 		}
 	case CLI:
 		// Start the local sui node
-		cmd := exec.Command("sui", "start", "--with-faucet")
+		cmd := exec.Command("sui", "start", "--with-faucet", "--force-regenesis")
 		err := cmd.Start()
 		if err != nil {
 			return err

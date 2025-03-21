@@ -22,3 +22,11 @@ tasks:
           matrix:
             MODULE: [".", "./relayer"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags=integration ./...
+
+  integration-testnet:
+    desc: "Run integration tests in testnet"
+    cmds:
+      - for:
+          matrix:
+            MODULE: [".", "./relayer"]
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags="integration testnet" ./...
