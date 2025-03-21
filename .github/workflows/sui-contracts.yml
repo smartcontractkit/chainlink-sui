@@ -27,12 +27,14 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch mainnet sui
-        shell: bash
+      - name: Install Sui CLI
+        run: |
+          curl -L -o sui.tar.gz https://github.com/MystenLabs/sui/releases/download/mainnet-v1.44.3/sui-mainnet-v1.44.3-ubuntu-x86_64.tgz
+          tar -xzf sui.tar.gz
+          chmod +x sui
+          sudo mv sui /usr/local/bin/
+          echo "Trying to run Sui CLI"
+          sui --version
 
       - name: Run tests
         run: contracts/scripts/test.sh
