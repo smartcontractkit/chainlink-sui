@@ -2,7 +2,7 @@ version: "3"
 
 tasks:
   default:
-    desc: "Run the entire test suite"
+    desc: "Run unit and integration tests"
     cmds:
       - task: unit
       - task: integration
