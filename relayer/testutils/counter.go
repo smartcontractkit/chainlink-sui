@@ -3,13 +3,14 @@ package testutils
 import (
 	"context"
 	"fmt"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -25,8 +26,8 @@ func HasCounterObject(t *testing.T, c sui.Client, packageId string) bool {
 	resp, err := c.SuiXGetOwnedObjects(ctx, models.SuiXGetOwnedObjectsRequest{
 		Address: packageId,
 		Query: models.SuiObjectResponseQuery{
-			Filter: map[string]interface{}{
-				"MatchType": map[string]interface{}{
+			Filter: map[string]any{
+				"MatchType": map[string]any{
 					"TypeName": packageId + "::counter::Counter",
 				},
 			},
@@ -69,7 +70,7 @@ func FindCounterID(t *testing.T, c sui.ISuiAPI, packageId string) string {
 	resp, err := c.SuiXGetOwnedObjects(ctx, models.SuiXGetOwnedObjectsRequest{
 		Address: packageId,
 		Query: models.SuiObjectResponseQuery{
-			Filter: map[string]interface{}{
+			Filter: map[string]any{
 				"StructType": packageId + "::counter::Counter",
 			},
 			Options: models.SuiObjectDataOptions{
@@ -79,7 +80,7 @@ func FindCounterID(t *testing.T, c sui.ISuiAPI, packageId string) string {
 	})
 
 	require.NoError(t, err)
-	require.Greater(t, len(resp.Data), 0, "No counter objects found")
+	require.NotEmpty(t, resp.Data)
 
 	return resp.Data[0].Data.ObjectId
 }
@@ -87,9 +88,9 @@ func FindCounterID(t *testing.T, c sui.ISuiAPI, packageId string) string {
 // Deploys and initializes the counter contract
 // Returns the package ID
 func DeployCounterContract(t *testing.T) (string, string, error) {
-	logger := logger.Test(t)
 	t.Helper()
 
+	log := logger.Test(t)
 	// Compile and publish the counter contract
 	packagePath := "/contracts/test/"
 
@@ -101,11 +102,11 @@ func DeployCounterContract(t *testing.T) (string, string, error) {
 	projectRoot := filepath.Dir(filepath.Dir(cwd))
 	contractPath := filepath.Join(projectRoot, packagePath)
 
-	logger.Infow("Deploying counter contract", "path", contractPath)
+	log.Infow("Deploying counter contract", "path", contractPath)
 
 	// Build the contract
 	cmd := exec.Command("sui", "move", "build", "--path", contractPath, "--dev")
-	logger.Debugw("Executing counter build command", "command", cmd.String())
+	log.Debugw("Executing counter build command", "command", cmd.String())
 
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "Failed to build contract: %s", string(output))
@@ -137,7 +138,7 @@ func DeployCounterContract(t *testing.T) (string, string, error) {
 	}
 	require.NotEmpty(t, packageId, "Failed to extract packageId from publish output")
 
-	logger.Debugw("Published counter contract", "packageID", packageId)
+	log.Debugw("Published counter contract", "packageID", packageId)
 
 	// Initialize the counter
 	// Call the init function to create the counter
@@ -148,7 +149,7 @@ func DeployCounterContract(t *testing.T) (string, string, error) {
 		"--function", "initialize",
 		"--gas-budget", "20000000")
 
-	logger.Debugw("Executing counter init command", "command", initCmd.String())
+	log.Debugw("Executing counter init command", "command", initCmd.String())
 
 	initOutput, err := initCmd.CombinedOutput()
 	if err != nil {
@@ -174,10 +175,12 @@ func DeployCounterContract(t *testing.T) (string, string, error) {
 	}
 	require.NotEmpty(t, objectID, "Failed to extract ObjectID from initialization output")
 
-	logger.Debugw("Initialized counter contract", "objectID", objectID)
+	log.Debugw("Initialized counter contract", "objectID", objectID)
 
 	// Wait for the transaction to be confirmed
-	time.Sleep(2 * time.Second)
+	// TODO: Implement a more robust way to wait for the transaction to be confirmed
+	const DefaultTxConfirmDelay = 2 * time.Second
+	time.Sleep(DefaultTxConfirmDelay)
 
 	return packageId, objectID, nil
 }

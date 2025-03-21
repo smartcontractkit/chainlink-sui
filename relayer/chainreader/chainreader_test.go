@@ -7,12 +7,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 )
 
 func TestChainReaderBindUnbind(t *testing.T) {
+	t.Parallel()
+
 	mockLogger := logger.Test(t)
 	config := ChainReaderConfig{
 		Modules: map[string]*ChainReaderModule{
@@ -37,7 +40,7 @@ func TestChainReaderBindUnbind(t *testing.T) {
 			Address: "0x1234567890abcdef1234567890abcdef",
 		},
 	})
-	assert.NoError(t, err, "Binding should succeed")
+	require.NoError(t, err, "Binding should succeed")
 
 	// Test unbinding the contract
 	err = reader.Unbind(context.Background(), []types.BoundContract{
@@ -46,7 +49,7 @@ func TestChainReaderBindUnbind(t *testing.T) {
 			Address: "0x1234567890abcdef1234567890abcdef",
 		},
 	})
-	assert.NoError(t, err, "Unbinding should succeed")
+	require.NoError(t, err, "Unbinding should succeed")
 
 	// Test binding a contract with invalid address
 	err = reader.Bind(context.Background(), []types.BoundContract{

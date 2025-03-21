@@ -5,15 +5,17 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 // LoadAccountFromEnv loads a test account from environment variables
-func LoadAccountFromEnv(t *testing.T, logger logger.Logger) (ed25519.PrivateKey, ed25519.PublicKey, string) {
+func LoadAccountFromEnv(t *testing.T, log logger.Logger) (ed25519.PrivateKey, ed25519.PublicKey, string) {
+	t.Helper()
 	// First try to load from private key
 	privateKeyHex := os.Getenv("PRIVATE_KEY")
 	if privateKeyHex != "" {
@@ -29,14 +31,15 @@ func LoadAccountFromEnv(t *testing.T, logger logger.Logger) (ed25519.PrivateKey,
 		publicKey := privateKey[32:]
 		address := DeriveAddressFromPublicKey(publicKey)
 
-		logger.Debugw("Loaded account from PRIVATE_KEY", "address", address)
+		log.Debugw("Loaded account from PRIVATE_KEY", "address", address)
+
 		return privateKey, publicKey, address
 	}
 
 	// Then try to load from address
 	address := os.Getenv("ADDRESS")
 	if address != "" {
-		logger.Debugw("Only ADDRESS provided, can't use for signing", "address", address)
+		log.Debugw("Only ADDRESS provided, can't use for signing", "address", address)
 		return nil, nil, address
 	}
 
@@ -45,14 +48,16 @@ func LoadAccountFromEnv(t *testing.T, logger logger.Logger) (ed25519.PrivateKey,
 
 // GenerateAccountKeyPair Generates a public/private keypair with the ed25519 signature algorithm, then derives the address from the public key.
 // Returns (private key, public key, address, error).
-func GenerateAccountKeyPair(t *testing.T, logger logger.Logger) (ed25519.PrivateKey, ed25519.PublicKey, string, error) {
+func GenerateAccountKeyPair(t *testing.T, log logger.Logger) (ed25519.PrivateKey, ed25519.PublicKey, string, error) {
+	t.Helper()
+
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err, "Failed to generate new account")
 
 	// Generate Sui address from public key
 	accountAddress := DeriveAddressFromPublicKey(publicKey)
 
-	logger.Debugw("Created account", "publicKey", hex.EncodeToString([]byte(publicKey)), "accountAddress", accountAddress)
+	log.Debugw("Created account", "publicKey", hex.EncodeToString([]byte(publicKey)), "accountAddress", accountAddress)
 
 	return privateKey, publicKey, accountAddress, nil
 }
@@ -64,6 +69,7 @@ func DeriveAddressFromPublicKey(publicKey ed25519.PublicKey) string {
 
 // NewTestKeystore creates a new test keystore
 func NewTestKeystore(t *testing.T) *TestKeystore {
+	t.Helper()
 	return &TestKeystore{t: t, keys: map[string]ed25519.PrivateKey{}}
 }
 

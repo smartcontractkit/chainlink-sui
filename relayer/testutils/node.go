@@ -1,11 +1,13 @@
 package testutils
 
 import (
-	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/block-vision/sui-go-sdk/sui"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 // NodeEnvType represents the type of Sui node environment to run the localnet with
@@ -50,7 +52,9 @@ func StartSuiNode(nodeType NodeEnvType) error {
 	}
 
 	// Wait for the node to start
-	time.Sleep(5 * time.Second)
+	const DefaultDelay = 5 * time.Second
+	time.Sleep(DefaultDelay)
+
 	return nil
 }
 
@@ -63,26 +67,27 @@ func StartSuiNode(nodeType NodeEnvType) error {
 // - network: The network from which the faucet tokens are requested. Use "sui/constant" (e.g., "constant.SuiLocalnet").
 // - recipient: The recipient's address to fund.
 // Returns an error if the faucet request fails or if there is an issue determining the faucet host.
-func FundWithFaucet(logger logger.Logger, network string, recipient string) error {
+func FundWithFaucet(log logger.Logger, network string, recipient string) error {
 	// In a real implementation, this would call the Sui faucet API
 	// For simplicity in testing, we'll just log that we're "funding" the account
-	logger.Infow("Funding account with test tokens", "address", recipient)
+	log.Infow("Funding account with test tokens", "address", recipient)
 
 	faucetHost, err := sui.GetFaucetHost(network)
 	if err != nil {
-		logger.Errorw("GetFaucetHost err:", err)
+		log.Errorw("GetFaucetHost err:", err)
 		return err
 	}
 
-	logger.Infow("Faucet Host found", "host", faucetHost)
+	log.Infow("Faucet Host found", "host", faucetHost)
 
 	header := map[string]string{}
 	err = sui.RequestSuiFromFaucet(faucetHost, recipient, header)
 	if err != nil {
-		logger.Error(err.Error())
+		log.Error(err.Error())
 		return err
 	}
 
-	logger.Info("Request DevNet Sui From Faucet success")
+	log.Info("Request DevNet Sui From Faucet success")
+
 	return nil
 }

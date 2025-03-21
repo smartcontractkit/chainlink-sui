@@ -8,7 +8,7 @@ import (
 )
 
 // DecodeSuiJsonValue takes Sui JSON-RPC response data and decodes it into the provided target
-func DecodeSuiJsonValue(data interface{}, target interface{}) error {
+func DecodeSuiJsonValue(data any, target any) error {
 	if target == nil {
 		return fmt.Errorf("target cannot be nil")
 	}
@@ -23,6 +23,7 @@ func DecodeSuiJsonValue(data interface{}, target interface{}) error {
 	targetValue := reflect.ValueOf(target).Elem()
 	targetType := targetValue.Type()
 
+	//nolint:exhaustive // default case handles remaining kinds
 	switch targetType.Kind() {
 	case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		// Handle numeric types
@@ -31,8 +32,10 @@ func DecodeSuiJsonValue(data interface{}, target interface{}) error {
 		// Handle string type
 		if str, ok := data.(string); ok {
 			targetValue.SetString(str)
+
 			return nil
 		}
+
 		return fmt.Errorf("expected string, got %T", data)
 	case reflect.Slice:
 		// Handle slices
@@ -43,6 +46,7 @@ func DecodeSuiJsonValue(data interface{}, target interface{}) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal data: %w", err)
 		}
+
 		return json.Unmarshal(jsonBytes, target)
 	default:
 		// Attempt direct JSON unmarshaling for other types
@@ -50,14 +54,16 @@ func DecodeSuiJsonValue(data interface{}, target interface{}) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal data: %w", err)
 		}
+
 		return json.Unmarshal(jsonBytes, target)
 	}
 }
 
 // decodeNumeric handles numeric types (u64, u32, etc.)
-func decodeNumeric(data interface{}, targetValue reflect.Value) error {
+func decodeNumeric(data any, targetValue reflect.Value) error {
 	switch v := data.(type) {
 	case float64:
+		//nolint:exhaustive // default case handles remaining kinds
 		switch targetValue.Kind() {
 		case reflect.Uint64:
 			targetValue.SetUint(uint64(v))
@@ -70,6 +76,7 @@ func decodeNumeric(data interface{}, targetValue reflect.Value) error {
 		default:
 			return fmt.Errorf("unsupported target type for numeric value: %s", targetValue.Type())
 		}
+
 		return nil
 	case string:
 		// Numeric values can be returned as strings in JSON
@@ -78,13 +85,18 @@ func decodeNumeric(data interface{}, targetValue reflect.Value) error {
 			return fmt.Errorf("failed to parse string as number: %w", err)
 		}
 		targetValue.SetUint(n)
+
 		return nil
 	case json.Number:
 		n, err := v.Int64()
 		if err != nil {
 			return fmt.Errorf("failed to parse JSON number: %w", err)
 		}
+		if n < 0 {
+			return fmt.Errorf("cannot convert negative value %d to uint", n)
+		}
 		targetValue.SetUint(uint64(n))
+
 		return nil
 	default:
 		return fmt.Errorf("unsupported data type for numeric target: %T", data)
@@ -92,8 +104,8 @@ func decodeNumeric(data interface{}, targetValue reflect.Value) error {
 }
 
 // decodeSlice handles slice types
-func decodeSlice(data interface{}, targetValue reflect.Value) error {
-	sourceSlice, ok := data.([]interface{})
+func decodeSlice(data any, targetValue reflect.Value) error {
+	sourceSlice, ok := data.([]any)
 	if !ok {
 		return fmt.Errorf("expected slice, got %T", data)
 	}
@@ -110,5 +122,6 @@ func decodeSlice(data interface{}, targetValue reflect.Value) error {
 	}
 
 	targetValue.Set(slice)
+
 	return nil
 }
