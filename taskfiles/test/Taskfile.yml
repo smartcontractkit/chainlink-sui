@@ -1,0 +1,24 @@
+version: "3"
+
+tasks:
+  default:
+    desc: "Run the entire test suite"
+    cmds:
+      - task: unit
+      - task: integration
+
+  unit:
+    desc: "Run unit tests"
+    cmds:
+      - for:
+          matrix:
+            MODULE: [".", "./relayer"]
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags=unit ./...
+
+  integration:
+    desc: "Run integration tests"
+    cmds:
+      - for:
+          matrix:
+            MODULE: [".", "./relayer"]
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags=integration ./...
