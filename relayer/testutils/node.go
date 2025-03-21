@@ -23,6 +23,8 @@ const (
 	CLI
 )
 
+const SuiLocalEndpoint = "127.0.0.1:9000"
+
 // StartSuiNode starts a local Sui node using Docker
 func StartSuiNode(nodeType NodeEnvType) error {
 	switch nodeType {
@@ -56,7 +58,7 @@ func StartSuiNode(nodeType NodeEnvType) error {
 
 	// Wait for the node to start
 	const defaultDelay = 10 * time.Second
-	err := waitForConnection(constant.SuiLocalEndpoint, defaultDelay)
+	err := waitForConnection(SuiLocalEndpoint, defaultDelay)
 	if err != nil {
 		return err
 	}
