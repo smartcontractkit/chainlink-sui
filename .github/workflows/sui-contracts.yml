@@ -31,7 +31,7 @@ jobs:
         with:
           toolchain: stable
 
-      - run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch devnet sui
+      - run: cargo install --locked --git https://github.com/MystenLabs/sui.git --branch mainnet sui
         shell: bash
 
       - name: Run tests
