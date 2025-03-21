@@ -63,6 +63,13 @@ func StartSuiNode(nodeType NodeEnvType) error {
 		return err
 	}
 
+	// TODO: This creates a default local address, e.g. for publishing contracts. We should not need this. Any interaction with the chain should be through a controlled wallet
+	cmd := exec.Command("sui", "client", "new-address", "ed25519")
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+
 	err = waitForConnection(constant.FaucetLocalnetEndpoint, defaultDelay)
 	if err != nil {
 		return err
