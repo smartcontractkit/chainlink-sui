@@ -23,6 +23,7 @@ func BuildContract(t *testing.T, contractPath string) {
 	require.NoError(t, err, "Failed to build contract: %s", string(output))
 }
 
+// TODO: This should be published through the SDK
 func PublishContract(t *testing.T, contractPath string, gasBudget *int) string {
 	t.Helper()
 	log := logger.Test(t)

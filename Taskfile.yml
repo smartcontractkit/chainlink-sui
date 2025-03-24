@@ -6,4 +6,7 @@ includes:
   lint:
     taskfile: ./taskfiles/lint/Taskfile.yml
 
+  test:
+    taskfile: ./taskfiles/test/Taskfile.yml
+
   # Keep adding as needed
