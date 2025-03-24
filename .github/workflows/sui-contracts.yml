@@ -32,4 +32,4 @@ jobs:
 
       - name: Run tests
         run: |
-          nix develop --command task test:sui_unit
+          nix develop --command task sui_test

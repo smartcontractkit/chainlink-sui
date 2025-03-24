@@ -6,7 +6,6 @@ tasks:
     cmds:
       - task: unit
       - task: integration
-      - task: sui_unit
 
   unit:
     desc: "Run unit tests"
