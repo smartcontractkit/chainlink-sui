@@ -87,6 +87,8 @@ func FindCounterID(t *testing.T, c sui.ISuiAPI, packageId string) string {
 
 // Deploys and initializes the counter contract
 // Returns the package ID
+// TODO: Depending on the CLI to publish and call contracts causes non-deterministic test failures
+//   - Consider using the Sui SDK to publish contracts
 func DeployCounterContract(t *testing.T) (string, string, error) {
 	t.Helper()
 

@@ -37,4 +37,5 @@ jobs:
 #          sui --version
 
       - name: Run tests
-        run: contracts/scripts/test.sh
+        run: |
+          nix develop --command task test:sui_unit

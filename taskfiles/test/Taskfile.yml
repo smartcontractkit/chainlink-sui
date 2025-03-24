@@ -2,10 +2,11 @@ version: "3"
 
 tasks:
   default:
-    desc: "Run the entire test suite"
+    desc: "Run unit and integration tests"
     cmds:
       - task: unit
       - task: integration
+      - task: sui_unit
 
   unit:
     desc: "Run unit tests"
@@ -22,6 +23,14 @@ tasks:
           matrix:
             MODULE: [".", "./relayer"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags=integration ./...
+
+  integration-testnet:
+    desc: "Run integration tests in testnet"
+    cmds:
+      - for:
+          matrix:
+            MODULE: [".", "./relayer"]
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags="integration testnet" ./...
 
   sui_unit:
     desc: "Run Sui contract unit tests"

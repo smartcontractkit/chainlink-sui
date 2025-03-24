@@ -1,10 +1,13 @@
 package testutils
 
 import (
+	"fmt"
+	"net"
 	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/block-vision/sui-go-sdk/constant"
 	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -19,6 +22,8 @@ const (
 	// CLI represents running a Sui node via the Sui CLI
 	CLI
 )
+
+const SuiLocalEndpoint = "127.0.0.1:9000"
 
 // StartSuiNode starts a local Sui node using Docker
 func StartSuiNode(nodeType NodeEnvType) error {
@@ -44,7 +49,7 @@ func StartSuiNode(nodeType NodeEnvType) error {
 		}
 	case CLI:
 		// Start the local sui node
-		cmd := exec.Command("sui", "start", "--with-faucet")
+		cmd := exec.Command("sui", "start", "--with-faucet", "--force-regenesis")
 		err := cmd.Start()
 		if err != nil {
 			return err
@@ -52,10 +57,34 @@ func StartSuiNode(nodeType NodeEnvType) error {
 	}
 
 	// Wait for the node to start
-	const DefaultDelay = 5 * time.Second
-	time.Sleep(DefaultDelay)
+	const defaultDelay = 10 * time.Second
+	err := waitForConnection(SuiLocalEndpoint, defaultDelay)
+	if err != nil {
+		return err
+	}
+
+	err = waitForConnection(constant.FaucetLocalnetEndpoint, defaultDelay)
+	if err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func waitForConnection(url string, timeout time.Duration) error {
+	url = strings.TrimPrefix(url, "http://")
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", url, 1*time.Second)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		//nolint:mnd
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timed out waiting for %s", url)
 }
 
 // FundWithFaucet Funds a Sui account with test tokens using the Sui faucet API.
