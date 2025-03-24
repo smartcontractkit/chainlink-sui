@@ -31,7 +31,3 @@ tasks:
           matrix:
             MODULE: [".", "./relayer"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags="integration testnet" ./...
-
-  sui_unit:
-    desc: "Run Sui contract unit tests"
-    cmd: ./contracts/scripts/test.sh
