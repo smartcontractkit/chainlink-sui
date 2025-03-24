@@ -9,4 +9,7 @@ includes:
   test:
     taskfile: ./taskfiles/test/Taskfile.yml
 
+  sui_test:
+    taskfile: ./taskfiles/sui_test/Taskfile.yml
+
   # Keep adding as needed

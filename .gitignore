@@ -1,0 +1,9 @@
+# secrets
+*.env
+
+
+# misc
+/.vscode
+*.log
+.idea
+**/build/**

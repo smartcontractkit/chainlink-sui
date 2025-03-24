@@ -1,0 +1,11 @@
+version: "3"
+
+tasks:
+  default:
+    desc: "Run Sui Move tests"
+    cmds:
+      - task: unit
+
+  unit:
+    desc: "Run Sui contract unit tests"
+    cmd: ./contracts/scripts/test.sh
