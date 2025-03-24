@@ -63,13 +63,6 @@ func StartSuiNode(nodeType NodeEnvType) error {
 		return err
 	}
 
-	// TODO: This creates a default local address, e.g. for publishing contracts. We should not need this. Any interaction with the chain should be through a controlled wallet
-	cmd := exec.Command("sui", "client", "new-address", "ed25519")
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-
 	err = waitForConnection(constant.FaucetLocalnetEndpoint, defaultDelay)
 	if err != nil {
 		return err
@@ -79,11 +72,7 @@ func StartSuiNode(nodeType NodeEnvType) error {
 }
 
 func waitForConnection(url string, timeout time.Duration) error {
-	// Remove "http://" prefix if present
-	if strings.HasPrefix(url, "http://") {
-		url = strings.TrimPrefix(url, "http://")
-	}
-
+	url = strings.TrimPrefix(url, "http://")
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		conn, err := net.DialTimeout("tcp", url, 1*time.Second)
@@ -91,8 +80,10 @@ func waitForConnection(url string, timeout time.Duration) error {
 			conn.Close()
 			return nil
 		}
+		//nolint:mnd
 		time.Sleep(500 * time.Millisecond)
 	}
+
 	return fmt.Errorf("timed out waiting for %s", url)
 }
 

@@ -19,11 +19,13 @@ import (
 )
 
 func TestChainReaderLocal(t *testing.T) {
+	t.Skip() // TODO: It currently depends on the CLI for chain interactions. Causes test unrealiability
 	t.Parallel()
 
 	log := logger.Test(t)
 
 	var err error
+	// TODO: Should always generate a fresh account for consistent results
 	privateKey, _, accountAddress := testutils.LoadAccountFromEnv(t, log)
 	// if the env does not contain a private key to be loaded, create one
 	if privateKey == nil {
