@@ -1,4 +1,4 @@
-module chainlink_common::allowlist {
+module ccip::allowlist {
     use sui::event;
 
     public struct AllowlistState has key, store {
@@ -96,8 +96,8 @@ module chainlink_common::allowlist {
 }
 
 #[test_only]
-module chainlink_common::allowlist_test {
-    use chainlink_common::allowlist;
+module ccip::allowlist_test {
+    use ccip::allowlist;
     use sui::test_scenario;
 
     fun set_up_test(allowlist: vector<address>, ctx: &mut TxContext): allowlist::AllowlistState {

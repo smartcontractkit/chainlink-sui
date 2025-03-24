@@ -25,8 +25,4 @@ tasks:
 
   sui_unit:
     desc: "Run Sui contract unit tests"
-    cmds:
-      - for:
-          matrix:
-            MODULE: [".", "./contracts"]
-        cmd: cd {{ .ITEM.MODULE }} && sui move test
+    cmd: ./contracts/scripts/test.sh
