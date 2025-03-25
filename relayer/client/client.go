@@ -9,8 +9,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
-const LocalEndpoint = "http://localhost:9000"
-
 type SuiClient interface {
 	MoveCall(ctx context.Context, req models.MoveCallRequest) (models.TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)

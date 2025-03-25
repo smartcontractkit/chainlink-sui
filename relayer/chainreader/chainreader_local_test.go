@@ -18,10 +18,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
+//nolint:paralleltest
 func TestChainReaderLocal(t *testing.T) {
-	t.Skip() // TODO: It currently depends on the CLI for chain interactions. Causes test unrealiability
-	t.Parallel()
-
 	log := logger.Test(t)
 
 	var err error
@@ -54,6 +52,7 @@ func TestChainReaderLocal(t *testing.T) {
 	runChainReaderCounterTest(t, log, testutils.LocalUrl)
 }
 
+//nolint:paralleltest
 func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 
@@ -84,6 +83,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	log.Debugw("ChainReader setup complete")
 
 	// Test GetLatestValue for different data types
+	//nolint:paralleltest
 	t.Run("GetLatestValue_Uint64", func(t *testing.T) {
 		t.Parallel()
 		expectedUint64 := uint64(0)

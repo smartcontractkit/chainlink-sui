@@ -138,7 +138,7 @@ func TestEnqueueIntegration(t *testing.T) {
 	listObjectId, err := testutils.ExtractObjectId(t, deploymentOutput, "TodoList")
 	require.NoError(t, err)
 
-	rpcURL := client.LocalEndpoint
+	rpcURL := testutils.LocalUrl
 	suiClient, _, txManager := setupClients(t, rpcURL, _keystore, accountAddress)
 
 	// Step 2: Define multiple test scenarios
