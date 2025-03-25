@@ -23,14 +23,7 @@ func TestChainReaderLocal(t *testing.T) {
 	log := logger.Test(t)
 
 	var err error
-	// TODO: Should always generate a fresh account for consistent results
-	privateKey, _, accountAddress := testutils.LoadAccountFromEnv(t, log)
-	// if the env does not contain a private key to be loaded, create one
-	if privateKey == nil {
-		_, _, accountAddress, err = testutils.GenerateAccountKeyPair(t, log)
-	}
-	require.NoError(t, err)
-
+	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
@@ -57,10 +50,25 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 
 	client := sui.NewSuiClient(rpcUrl)
+	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
+
+	err := testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
+	require.NoError(t, err)
+
+	contractPath := testutils.BuildSetup(t, "contracts/test")
+	testutils.BuildContract(t, contractPath)
+
+	packageId, deploymentOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	require.NoError(t, err)
+
+	log.Debugw("Published Contract", "packageId", packageId)
+
+	counterObjectId, err := testutils.ExtractObjectId(t, deploymentOutput, "Counter")
+	require.NoError(t, err)
 
 	// start by deploying the counter contract to local net
-	packageId, counterObjectId, err := testutils.DeployCounterContract(t)
-	require.NoError(t, err)
+	//packageId, counterObjectId, err := testutils.DeployCounterContract(t)
+	//require.NoError(t, err)
 
 	// Set up the ChainReader
 	chainReaderConfig := ChainReaderConfig{

@@ -107,15 +107,11 @@ func DeployCounterContract(t *testing.T) (string, string, error) {
 	log.Infow("Deploying counter contract", "path", contractPath)
 
 	// Build the contract
-	cmd := exec.Command("sui", "move", "build", "--path", contractPath, "--dev")
-	log.Debugw("Executing counter build command", "command", cmd.String())
-
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err, "Failed to build contract: %s", string(output))
+	BuildContract(t, contractPath)
 
 	// Publish the contract
 	publishCmd := exec.Command("sui", "client", "publish",
-		"--gas-budget", "200000000",
+		"--gas-budget", "20000000",
 		"--dev", contractPath)
 
 	publishOutput, err := publishCmd.CombinedOutput()

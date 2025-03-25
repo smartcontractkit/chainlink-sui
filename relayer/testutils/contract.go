@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"log"
@@ -9,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/require"
@@ -61,6 +66,39 @@ func BuildContract(t *testing.T, contractPath string) {
 	require.NoError(t, err, "Failed to build contract: %s", string(output))
 }
 
+// LoadCompiledModules given a path to an already built contract, this method will
+// find all the files ending with `.mv`
+func LoadCompiledModules(packageName string, contractPath string) ([]string, error) {
+	var modules []string
+
+	dir := filepath.Join(contractPath, "/build/", packageName, "bytecode_modules/")
+
+	// check each item in the directory
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// find `.mv` files
+		if !info.IsDir() && filepath.Ext(path) == ".mv" {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			encoded := base64.StdEncoding.EncodeToString(data)
+			modules = append(modules, encoded)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return modules, nil
+}
+
 // PublishContract publishes a Move contract to the Sui network and extracts its package ID.
 //
 // The function constructs and executes a "sui client publish" command using the provided
@@ -72,6 +110,7 @@ func BuildContract(t *testing.T, contractPath string) {
 // Parameters:
 //
 //	t            - A testing.T instance for error reporting.
+//	packageName  - A string representing the contract name (package name in Move.toml).
 //	contractPath - A string representing the filesystem path to the Move contract.
 //	gasBudget    - A pointer to an int that specifies the gas budget for the publish transaction.
 //	               If nil, a default value is used.
@@ -81,9 +120,11 @@ func BuildContract(t *testing.T, contractPath string) {
 //	packageId    - The package ID extracted from the JSON output, typically for a published contract.
 //	output       - The cleaned JSON output from the publish command.
 //	error        - An error if the publish operation fails or if a valid package ID is not found.
-func PublishContract(t *testing.T, contractPath string, gasBudget *int) (string, string, error) {
+func PublishContract(t *testing.T, packageName string, contractPath string, accountAddress string, gasBudget *int) (string, string, error) {
 	t.Helper()
 	lgr := logger.Test(t)
+	s := sui.NewSuiClient(LocalUrl)
+	ctx := context.Background()
 
 	lgr.Infow("Publishing contract", "path", contractPath)
 
@@ -91,6 +132,19 @@ func PublishContract(t *testing.T, contractPath string, gasBudget *int) (string,
 	if gasBudget != nil {
 		gasBudgetArg = string(rune(*gasBudget))
 	}
+
+	modules, err := LoadCompiledModules(packageName, contractPath)
+	require.NoError(t, err)
+
+	txnResults, err := s.Publish(ctx, models.PublishRequest{
+		Sender:          accountAddress,
+		CompiledModules: modules,
+		Dependencies:    []string{},
+		GasBudget:       gasBudgetArg,
+	})
+	require.NoError(t, err, "Failed to publish contract: %s", err)
+
+	lgr.Debugw("Published contract", "txnResults", txnResults)
 
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,

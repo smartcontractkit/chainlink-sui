@@ -4,7 +4,7 @@ version = "1.0.0"
 authors = []
 
 [addresses]
-test = "_"
+test = "0x0"
 
 [dev-addresses]
 test = "0x0"
