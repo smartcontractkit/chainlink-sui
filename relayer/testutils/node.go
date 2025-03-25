@@ -7,9 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/constant"
 	"github.com/block-vision/sui-go-sdk/sui"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
@@ -24,35 +22,38 @@ const (
 )
 
 const SuiLocalEndpoint = "127.0.0.1:9000"
+const FaucetLocalEndpoint = "127.0.0.1:9123"
 
 // StartSuiNode starts a local Sui node using Docker
-func StartSuiNode(nodeType NodeEnvType) error {
+func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
+	var cmd *exec.Cmd
+
 	switch nodeType {
 	case Docker:
 		// Check if the container is already running
-		cmd := exec.Command("docker", "ps", "-q", "-f", "name=sui-local")
+		cmd = exec.Command("docker", "ps", "-q", "-f", "name=sui-local")
 		output, err := cmd.Output()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// If the container is already running, return
 		if len(strings.TrimSpace(string(output))) > 0 {
-			return nil
+			return cmd, nil
 		}
 
 		// Start the container
 		cmd = exec.Command("docker", "run", "--rm", "-d", "--name", "sui-local", "-p", "9000:9000", "mysten/sui-node:devnet")
 		err = cmd.Run()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	case CLI:
 		// Start the local sui node
-		cmd := exec.Command("sui", "start", "--with-faucet", "--force-regenesis")
+		cmd = exec.Command("sui", "start", "--with-faucet", "--force-regenesis")
 		err := cmd.Start()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -60,15 +61,15 @@ func StartSuiNode(nodeType NodeEnvType) error {
 	const defaultDelay = 10 * time.Second
 	err := waitForConnection(SuiLocalEndpoint, defaultDelay)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	err = waitForConnection(constant.FaucetLocalnetEndpoint, defaultDelay)
+	// wait for Faucet to be available
+	err = waitForConnection(FaucetLocalEndpoint, defaultDelay)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return cmd, nil
 }
 
 func waitForConnection(url string, timeout time.Duration) error {
