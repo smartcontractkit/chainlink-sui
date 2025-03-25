@@ -58,12 +58,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	testutils.BuildContract(t, contractPath)
 
-	packageId, deploymentOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	packageId, _, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
 	log.Debugw("Published Contract", "packageId", packageId)
 
-	counterObjectId, err := testutils.ExtractObjectId(t, deploymentOutput, "Counter")
+	initializeOutput := testutils.CallContractFromCLI(t, packageId, accountAddress, "counter", "initialize", nil)
+	require.NoError(t, err)
+
+	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	// start by deploying the counter contract to local net

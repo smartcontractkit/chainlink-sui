@@ -1,27 +1,47 @@
 package testutils
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/require"
 )
 
-// Response represents the minimal fields expected in the JSON output.
-type Response struct {
-	ObjectChanges []any `json:"objectChanges"`
+type ObjectChange struct {
+	Type            string   `json:"type"` // "published", "created", etc.
+	Sender          string   `json:"sender,omitempty"`
+	Owner           Owner    `json:"owner,omitempty"`
+	ObjectType      string   `json:"objectType,omitempty"`
+	ObjectID        string   `json:"objectId,omitempty"`
+	Version         string   `json:"version,omitempty"`
+	PreviousVersion string   `json:"previousVersion,omitempty"`
+	Digest          string   `json:"digest,omitempty"`
+	PackageID       string   `json:"packageId,omitempty"` // Only in type == "published"
+	Modules         []string `json:"modules,omitempty"`   // Only in type == "published"
+}
+
+type Owner struct {
+	AddressOwner *string      `json:"AddressOwner,omitempty"`
+	Shared       *SharedOwner `json:"Shared,omitempty"`
+	Immutable    *string      `json:"Immutable,omitempty"`
+}
+
+type SharedOwner struct {
+	InitialSharedVersion int `json:"initial_shared_version"`
+}
+
+type TxnMetaWithObjectChanges struct {
+	ObjectChanges []ObjectChange `json:"objectChanges"`
 }
 
 func BuildSetup(t *testing.T, packagePath string) string {
@@ -40,14 +60,13 @@ func BuildSetup(t *testing.T, packagePath string) string {
 	return contractPath
 }
 
-func cleanJSONOutput(output string) string {
-	idx := strings.Index(output, "{")
-	if idx == -1 {
-		// No JSON object found, return original output.
-		return output
+func findDigestIndex(input string) (int, error) {
+	digestRegex := regexp.MustCompile(`"digest":\s*"[A-Za-z0-9]+"`)
+	loc := digestRegex.FindStringIndex(input)
+	if loc == nil {
+		return -1, errors.New("digest not found")
 	}
-
-	return output[idx:]
+	return loc[0], nil
 }
 
 func BuildContract(t *testing.T, contractPath string) {
@@ -120,11 +139,9 @@ func LoadCompiledModules(packageName string, contractPath string) ([]string, err
 //	packageId    - The package ID extracted from the JSON output, typically for a published contract.
 //	output       - The cleaned JSON output from the publish command.
 //	error        - An error if the publish operation fails or if a valid package ID is not found.
-func PublishContract(t *testing.T, packageName string, contractPath string, accountAddress string, gasBudget *int) (string, string, error) {
+func PublishContract(t *testing.T, packageName string, contractPath string, accountAddress string, gasBudget *int) (string, TxnMetaWithObjectChanges, error) {
 	t.Helper()
 	lgr := logger.Test(t)
-	s := sui.NewSuiClient(LocalUrl)
-	ctx := context.Background()
 
 	lgr.Infow("Publishing contract", "path", contractPath)
 
@@ -133,18 +150,17 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		gasBudgetArg = string(rune(*gasBudget))
 	}
 
-	modules, err := LoadCompiledModules(packageName, contractPath)
-	require.NoError(t, err)
-
-	txnResults, err := s.Publish(ctx, models.PublishRequest{
-		Sender:          accountAddress,
-		CompiledModules: modules,
-		Dependencies:    []string{},
-		GasBudget:       gasBudgetArg,
-	})
-	require.NoError(t, err, "Failed to publish contract: %s", err)
-
-	lgr.Debugw("Published contract", "txnResults", txnResults)
+	// TODO: re-enable this code once we have a way to decode the txn results
+	// modules, err := LoadCompiledModules(packageName, contractPath)
+	// require.NoError(t, err)
+	// txnResults, err := s.Publish(ctx, models.PublishRequest{
+	// 	Sender:          accountAddress,
+	// 	CompiledModules: modules,
+	// 	Dependencies:    []string{},
+	// 	GasBudget:       gasBudgetArg,
+	// })
+	// require.NoError(t, err, "Failed to publish contract: %s", err)
+	// lgr.Debugw("Published contract", "txnResults", string(txnResults.TxBytes))
 
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
@@ -155,45 +171,80 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	publishOutput, err := publishCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
 
-	cleanedOutput := cleanJSONOutput(string(publishOutput))
+	// This is a hack to skip the warnings from the CLI output by searching for "digest" with regex
+	// and then extracting the JSON from there.
+	idx, err := findDigestIndex(string(publishOutput))
+	require.NoError(t, err)
+	cleanedOutput := "{" + string(publishOutput)[idx:]
+
+	lgr.Debug(cleanedOutput)
 
 	// Unmarshal the JSON into a map.
-	var result map[string]any
-	if err := json.Unmarshal([]byte(cleanedOutput), &result); err != nil {
+	var parsedPublishTxn TxnMetaWithObjectChanges
+	if err := json.Unmarshal([]byte(cleanedOutput), &parsedPublishTxn); err != nil {
 		log.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 
-	changes, ok := result["objectChanges"].([]any)
-	if !ok {
-		return "", "", errors.New("objectChanges key not found or not a slice")
-	}
+	changes := parsedPublishTxn.ObjectChanges
 
 	var packageId string
 	for _, change := range changes {
-		m, ok := change.(map[string]any)
-		if !ok {
-			continue
+		if change.Type == "published" {
+			packageId = change.PackageID
+			break
 		}
-		if m["type"] == "published" {
-			if p, ok := m["packageId"].(string); ok {
-				packageId = p
-				break
-			}
+	}
+	require.NotEmpty(t, packageId, "Package ID not found")
+
+	return packageId, parsedPublishTxn, nil
+}
+
+func CallContractFromCLI(t *testing.T, packageId string, accountAddress string, module string, function string, gasBudget *int) TxnMetaWithObjectChanges {
+	t.Helper()
+
+	gasBudgetArg := "200000000"
+	if gasBudget != nil {
+		gasBudgetArg = string(rune(*gasBudget))
+	}
+
+	initializeCmd := exec.Command("sui", "client", "call",
+		"--package", packageId,
+		"--module", module,
+		"--function", function,
+		"--gas-budget", gasBudgetArg,
+		"--json",
+	)
+
+	initializeOutput, err := initializeCmd.CombinedOutput()
+	require.NoError(t, err, "Failed to initialize contract: %s", string(initializeOutput))
+
+	// Unmarshal the JSON into a map.
+	var parsedInitializeTxn TxnMetaWithObjectChanges
+	if err := json.Unmarshal([]byte(initializeOutput), &parsedInitializeTxn); err != nil {
+		log.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	return parsedInitializeTxn
+}
+
+// QueryCreatedObjectID queries the created object ID for a given package ID, module, and struct name.
+func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, structName string) (string, error) {
+	expectedType := fmt.Sprintf("%s::%s::%s", packageID, module, structName)
+
+	for _, change := range objectChanges {
+		if change.Type == "created" && change.ObjectType == expectedType {
+			return change.ObjectID, nil
 		}
 	}
 
-	if packageId == "" {
-		return "", "", errors.New("package ID not found")
-	}
-
-	return packageId, cleanedOutput, nil
+	return "", fmt.Errorf("object of type %s not found", expectedType)
 }
 
 // ExtractObjectId parses the JSON output from a Sui publish command and extracts an object identifier
 // associated with a specific Move struct name. It expects the JSON to contain an "objectChanges" array,
 // which may include various types of changes such as "published" and "created". When a "published"
 // entry is present, the function extracts the "packageId", whereas for other types it might extract
-// the "objectId" if that’s what’s required.
+// the "objectId" if that's what's required.
 //
 // Parameters:
 //

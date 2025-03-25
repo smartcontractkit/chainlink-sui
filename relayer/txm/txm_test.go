@@ -132,10 +132,10 @@ func TestEnqueueIntegration(t *testing.T) {
 
 	contractPath := testutils.BuildSetup(t, "contracts/cw_tests")
 	testutils.BuildContract(t, contractPath)
-	packageId, deploymentOutput, err := testutils.PublishContract(t, contractPath, nil)
+	packageId, deploymentOutput, err := testutils.PublishContract(t, "cw_tests", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
-	listObjectId, err := testutils.ExtractObjectId(t, deploymentOutput, "TodoList")
+	listObjectId, err := testutils.QueryCreatedObjectID(deploymentOutput.ObjectChanges, packageId, "cw_tests", "TodoList")
 	require.NoError(t, err)
 
 	rpcURL := testutils.LocalUrl
