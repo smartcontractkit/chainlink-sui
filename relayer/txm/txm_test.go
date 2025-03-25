@@ -23,17 +23,9 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-// DeploymentSettings holds the deployment result from the deploy script.
-type DeploymentSettings struct {
-	Network      string `json:"network"`
-	PackageID    string `json:"packageId"`
-	AdminAddress string `json:"adminAddress"`
-	ListID       string `json:"listObjectId"`
-}
-
 // TodoList represents the structure of stored data.
-type TodoList struct {
-	Items []string `bcs:"items"`
+type Counter struct {
+	Value string `json:"value"`
 }
 
 // setupClients initializes the Sui and relayer clients.
@@ -85,20 +77,20 @@ func fetchObjectDetails(t *testing.T, suiClient sui.ISuiAPI, objectID string) *m
 	return &objectDetails
 }
 
-// extractTodoList parses object details into a TodoList struct.
-func extractTodoList(t *testing.T, payload any) *TodoList {
+// extractStruct parses object details into a struct
+func extractStruct[T any](t *testing.T, payload any) *T {
 	t.Helper()
 	jsonBytes, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("Failed to marshal data: %v", err)
 	}
 
-	var todoList TodoList
-	if err := json.Unmarshal(jsonBytes, &todoList); err != nil {
+	var obj T
+	if err := json.Unmarshal(jsonBytes, &obj); err != nil {
 		t.Fatalf("Failed to unmarshal payload: %v", err)
 	}
 
-	return &todoList
+	return &obj
 }
 
 //nolint:paralleltest
@@ -127,12 +119,12 @@ func TestEnqueueIntegration(t *testing.T) {
 	err = testutils.FundWithFaucet(_logger, constant.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
 
-	contractPath := testutils.BuildSetup(t, "contracts/cw_tests")
+	contractPath := testutils.BuildSetup(t, "contracts/test/")
 	testutils.BuildContract(t, contractPath)
 	packageId, deploymentOutput, err := testutils.PublishContract(t, contractPath, nil)
 	require.NoError(t, err)
 
-	listObjectId, err := testutils.ExtractObjectId(t, deploymentOutput, "TodoList")
+	listObjectId, err := testutils.ExtractObjectId(t, deploymentOutput, "Counter")
 	require.NoError(t, err)
 
 	rpcURL := client.LocalEndpoint
@@ -155,22 +147,22 @@ func TestEnqueueIntegration(t *testing.T) {
 			txID:          "integration-test-txID-1",
 			txMeta:        &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:        accountAddress,
-			function:      fmt.Sprintf("%s::cw_tests::add", packageId),
-			typeArgs:      []string{"address", "string"},
-			args:          []any{listObjectId, "test entry 1"},
+			function:      fmt.Sprintf("%s::counter::increment", packageId),
+			typeArgs:      []string{"address"},
+			args:          []any{listObjectId},
 			expectErr:     false,
-			expectedValue: "test entry 1",
+			expectedValue: "1",
 		},
 		{
 			name:          "Another enqueue test",
 			txID:          "integration-test-txID-2",
 			txMeta:        &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:        accountAddress,
-			function:      fmt.Sprintf("%s::cw_tests::add", packageId),
-			typeArgs:      []string{"address", "string"},
-			args:          []any{listObjectId, "test entry 2"},
+			function:      fmt.Sprintf("%s::counter::increment", packageId),
+			typeArgs:      []string{"address"},
+			args:          []any{listObjectId},
 			expectErr:     false,
-			expectedValue: "test entry 2",
+			expectedValue: "2",
 		},
 	}
 
@@ -186,8 +178,8 @@ func TestEnqueueIntegration(t *testing.T) {
 			} else {
 				// Step 4: Validate results
 				objectDetails := fetchObjectDetails(t, suiClient, listObjectId)
-				todoList := extractTodoList(t, objectDetails.Data.Content.Fields)
-				assert.Contains(t, todoList.Items, tc.expectedValue, "TodoList should contain the expected value")
+				counter := extractStruct[Counter](t, objectDetails.Data.Content.Fields)
+				assert.Contains(t, counter.Value, tc.expectedValue, "Counter value does not match")
 			}
 		})
 	}
