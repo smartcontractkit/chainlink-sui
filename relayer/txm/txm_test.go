@@ -20,7 +20,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
@@ -53,10 +52,8 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 	}
 
 	// Get the private key from the keystore using the account address
-	privateKey, err := _keystore.GetPrivateKeyFromAddress(accountAddress)
+	signerInstance, err := _keystore.GetSignerFromAddress(accountAddress)
 	require.NoError(t, err)
-
-	signerInstance := signer.NewPrivateKeySigner(privateKey)
 
 	txManager, err := NewSuiTxm(logg, relayerClient, _keystore, true, signerInstance)
 	if err != nil {
@@ -123,7 +120,7 @@ func TestEnqueueIntegration(t *testing.T) {
 		}
 	})
 
-	_keystore, err := keystore.NewSuiKeystore(_logger, "")
+	_keystore, err := keystore.NewSuiKeystore(_logger, "", keystore.PrivateKeySigner)
 	require.NoError(t, err)
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, _logger)
 

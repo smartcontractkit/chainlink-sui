@@ -9,22 +9,37 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 var SuiDefaultKeystorePath = os.Getenv("HOME") + "/.sui/sui_config/sui.keystore"
 
 const keyWithSchemeLength = 33
 
+// SignerType is an integer-based enum for different signer implementations.
+type SignerType int
+
+const (
+	// PrivateKeySigner represents a signer that uses a local private key.
+	PrivateKeySigner SignerType = iota
+	// UnknownSigner represents an unknown signer type.
+	UnknownSigner SignerType = -1
+)
+
 type Keystore interface {
-	GetPrivateKeyFromAddress(address string) (ed25519.PrivateKey, error)
+	GetSignerFromAddress(address string) (suiSigner.SuiSigner, error)
+	KeyStorePath() string
+	SignerType() SignerType
 }
 
 type SuiKeystore struct {
 	logger       logger.Logger
 	keyStorePath string
+	signerType   SignerType
 }
 
-func NewSuiKeystore(log logger.Logger, keyStorePath string) (SuiKeystore, error) {
+func NewSuiKeystore(log logger.Logger, keyStorePath string, signerType SignerType) (SuiKeystore, error) {
 	if keyStorePath == "" {
 		keyStorePath = SuiDefaultKeystorePath
 	}
@@ -32,10 +47,22 @@ func NewSuiKeystore(log logger.Logger, keyStorePath string) (SuiKeystore, error)
 	return SuiKeystore{
 		logger:       log,
 		keyStorePath: keyStorePath,
+		signerType:   signerType,
 	}, nil
 }
 
-func (s SuiKeystore) GetPrivateKeyFromAddress(address string) (ed25519.PrivateKey, error) {
+func (s SuiKeystore) GetSignerFromAddress(address string) (suiSigner.SuiSigner, error) {
+	switch s.signerType {
+	case PrivateKeySigner:
+		return s.buildPrivateKeySigner(address)
+	case UnknownSigner:
+		return nil, fmt.Errorf("unknown signer type: %d", s.signerType)
+	default:
+		return nil, fmt.Errorf("unsupported signer type: %d", s.signerType)
+	}
+}
+
+func (s SuiKeystore) buildPrivateKeySigner(address string) (suiSigner.SuiSigner, error) {
 	data, err := os.ReadFile(s.keyStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read keystore file: %w", err)
@@ -63,9 +90,17 @@ func (s SuiKeystore) GetPrivateKeyFromAddress(address string) (ed25519.PrivateKe
 		signerAccount := signer.NewSigner(privateKeyBytes)
 		if signerAccount.Address == address {
 			ed25519PrivateKey := ed25519.NewKeyFromSeed(privateKeyBytes)
-			return ed25519PrivateKey, nil
+			return suiSigner.NewPrivateKeySigner(ed25519PrivateKey), nil
 		}
 	}
 
-	return nil, fmt.Errorf("no matching private key found for address %s", address)
+	return nil, fmt.Errorf("no private key found for address: %s", address)
+}
+
+func (s SuiKeystore) KeyStorePath() string {
+	return s.keyStorePath
+}
+
+func (s SuiKeystore) SignerType() SignerType {
+	return s.signerType
 }
