@@ -6,6 +6,10 @@ module ccip::ocr3_base {
     use sui::event;
 
     const MAX_NUM_ORACLES: u64 = 256;
+    const OCR_PLUGIN_TYPE_COMMIT: u8 = 1;
+    const OCR_PLUGIN_TYPE_EXECUTION: u8 = 2;
+    const PUBLIC_KEY_NUM_BYTES: u64 = 32;
+
     const E_BIG_F_MUST_BE_POSITIVE: u64 = 1;
     const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 2;
     const E_TOO_MANY_SIGNERS: u64 = 3;
@@ -14,25 +18,18 @@ module ccip::ocr3_base {
     const E_NO_TRANSMITTERS: u64 = 6;
     const E_REPEATED_SIGNERS: u64 = 7;
     const E_REPEATED_TRANSMITTERS: u64 = 8;
-    // not used
-    // const E_ORACLE_CANNOT_BE_ZERO_ADDRESS: u64 = 9;
-    const E_CONFIG_DIGEST_MISMATCH: u64 = 10;
-    const E_UNAUTHORIZED_TRANSMITTER: u64 = 11;
-    const E_WRONG_NUMBER_OF_SIGNATURES: u64 = 12;
-    const E_COULD_NOT_VALIDATE_SIGNER_KEY: u64 = 13;
-    const E_INVALID_REPORT_CONTEXT_LENGTH: u64 = 14;
-    const E_INVALID_CONFIG_DIGEST_LENGTH: u64 = 15;
-    const E_INVALID_SEQUENCE_LENGTH: u64 = 16;
-    const E_UNAUTHORIZED_SIGNER: u64 = 17;
-    const E_NON_UNIQUE_SIGNATURES: u64 = 18;
-    const E_INVALID_SIGNATURE: u64 = 19;
-    // const E_FORKED_CHAIN: u64 = 20;
-    // const E_WRONG_CHAIN_ID: u64 = 21;
-    const E_OUT_OF_BYTES: u64 = 22;
-    const E_WRONG_PUBKEY_SIZE: u64 = 23;
-    const OCR_PLUGIN_TYPE_COMMIT: u8 = 1;
-    const OCR_PLUGIN_TYPE_EXECUTION: u8 = 2;
-    const PUBLIC_KEY_NUM_BYTES: u64 = 32;
+    const E_CONFIG_DIGEST_MISMATCH: u64 = 9;
+    const E_UNAUTHORIZED_TRANSMITTER: u64 = 10;
+    const E_WRONG_NUMBER_OF_SIGNATURES: u64 = 11;
+    const E_COULD_NOT_VALIDATE_SIGNER_KEY: u64 = 12;
+    const E_INVALID_REPORT_CONTEXT_LENGTH: u64 = 13;
+    const E_INVALID_CONFIG_DIGEST_LENGTH: u64 = 14;
+    const E_INVALID_SEQUENCE_LENGTH: u64 = 15;
+    const E_UNAUTHORIZED_SIGNER: u64 = 16;
+    const E_NON_UNIQUE_SIGNATURES: u64 = 17;
+    const E_INVALID_SIGNATURE: u64 = 18;
+    const E_OUT_OF_BYTES: u64 = 19;
+    const E_WRONG_PUBKEY_SIZE: u64 = 20;
 
     public struct UnvalidatedPublicKey has copy, drop, store {
         bytes: vector<u8>
@@ -168,7 +165,6 @@ module ccip::ocr3_base {
         false
     }
 
-    // Sui Move table does not have upsert, have to remove and add
     fun assign_transmitter_oracles(
         transmitter_oracles: &mut table::Table<u8, vector<address>>,
         ocr_plugin_type: u8,
@@ -185,6 +181,7 @@ module ccip::ocr3_base {
         table::add(transmitter_oracles, ocr_plugin_type, *transmitters);
     }
 
+    // TODO: explore more valid public key checks
     fun assign_signer_oracles(
         signer_oracles: &mut table::Table<u8, vector<UnvalidatedPublicKey>>,
         ocr_plugin_type: u8,
@@ -221,32 +218,27 @@ module ccip::ocr3_base {
         signatures: vector<vector<u8>>
     ) {
         let mut seen = bit_vector::new(vector::length(signers));
-        let mut i = 0;
-        let len = vector::length(&signatures);
-        while (i < len) {
-            let signature_bytes = vector::borrow(&signatures, i);
-
-            let public_key =
-                new_unvalidated_public_key_from_bytes(
-                    slice(signature_bytes, 0, 32)
+        vector::do_ref!(
+            &signatures,
+            |signature_bytes| {
+                let public_key =
+                    new_unvalidated_public_key_from_bytes(slice(signature_bytes, 0, 32));
+                let (exists, index) = vector::index_of(signers, &public_key);
+                assert!(exists, E_UNAUTHORIZED_SIGNER);
+                assert!(
+                    !bit_vector::is_index_set(&seen, index),
+                    E_NON_UNIQUE_SIGNATURES
                 );
-            let (exists, index) = vector::index_of(signers, &public_key);
-            assert!(exists, E_UNAUTHORIZED_SIGNER);
-            assert!(
-                !bit_vector::is_index_set(&seen, index),
-                E_NON_UNIQUE_SIGNATURES
-            );
-            bit_vector::set(&mut seen, index);
-            let signature = slice(signature_bytes, 32, 96);
+                bit_vector::set(&mut seen, index);
+                let signature = slice(signature_bytes, 32, 64);
 
-            let verified =
+                let verified =
                 ed25519::ed25519_verify(
                     &signature, &public_key.bytes, &hashed_report
                 );
-            assert!(verified, E_INVALID_SIGNATURE);
-
-            i = i + 1;
-        };
+                assert!(verified, E_INVALID_SIGNATURE);
+            }
+        );
     }
 
     fun new_unvalidated_public_key_from_bytes(bytes: vector<u8>): UnvalidatedPublicKey {
@@ -305,7 +297,7 @@ module ccip::ocr3_base {
             E_CONFIG_DIGEST_MISMATCH
         );
 
-        // TODO: verify if this is necessary
+        // TODO: verify if this is feasible
         // assert_chain_not_forked(ocr3_state);
 
         let plugin_transmitters =
@@ -331,22 +323,20 @@ module ccip::ocr3_base {
         event::emit(Transmitted { ocr_plugin_type, config_digest, sequence_number });
     }
 
-    // does this function need to be an entry function?
-    // Sui Move does not allow &mut param in entry function
+    // used by offramp, hence not marked as entry
     public fun set_ocr3_config(
-        _caller: address,
+        // caller: address,
         ocr3_state: &mut OCR3BaseState,
         config_digest: vector<u8>,
         ocr_plugin_type: u8,
         big_f: u8,
         is_signature_verification_enabled: bool,
         signers: vector<vector<u8>>,
-        transmitters: vector<address>
-        // ctx: &mut TxContext
+        transmitters: vector<address>,
+        _ctx: &mut TxContext
     ) {
         // TODO: implement this check in auth
-        // auth::assert_only_owner(caller);
-        // tx_context::sender(ctx);
+        // auth::assert_only_owner(tx_context::sender(ctx));
         assert!(big_f != 0, E_BIG_F_MUST_BE_POSITIVE);
 
         let ocr_config = if (table::contains(&ocr3_state.ocr3_configs, ocr_plugin_type)) {
@@ -376,8 +366,7 @@ module ccip::ocr3_base {
             config_info.is_signature_verification_enabled = is_signature_verification_enabled;
         } else {
             assert!(
-                config_info.is_signature_verification_enabled
-                    == is_signature_verification_enabled,
+                config_info.is_signature_verification_enabled == is_signature_verification_enabled,
                 E_STATIC_CONFIG_CANNOT_BE_CHANGED
             );
         };
