@@ -123,6 +123,7 @@ func DeployCounterContract(t *testing.T) (string, string, error) {
 
 	// Extract the package ID from the output
 	lines := strings.Split(string(publishOutput), "\n")
+
 	var packageId string
 	for _, line := range lines {
 		if strings.Contains(line, "PackageID:") {
