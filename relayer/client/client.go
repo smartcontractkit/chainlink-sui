@@ -7,11 +7,15 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type SuiClient interface {
 	MoveCall(ctx context.Context, req models.MoveCallRequest) (models.TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
+	ReadObjectId(ctx context.Context, objectId string) (any, error)
+	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}) (models.TxnMetaData, error)
+	SignAndSendTransaction(ctx context.Context, transaction models.SuiTransactionBlockData, signer signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
 }
 
 type Client struct {

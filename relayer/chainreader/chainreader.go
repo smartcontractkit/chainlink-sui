@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -101,7 +102,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	if len(readComponents) != expectedComponents {
 		return fmt.Errorf("invalid read identifier: %s", readIdentifier)
 	}
-	_address, contractName, objectId := readComponents[0], readComponents[1], readComponents[2]
+	_address, contractName, objectIdOrFunction := readComponents[0], readComponents[1], readComponents[2]
 
 	// Source the read configuration, by contract name
 	address, ok := s.packageAddresses[contractName]
@@ -119,27 +120,82 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return fmt.Errorf("no such contract: %s", contractName)
 	}
 
-	// NOTE: objectId is currently assumed to me in the `method` section of the `readIdentifier`
-	object, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
-		ObjectId: objectId,
-		Options: models.SuiObjectDataOptions{
-			ShowContent: true,
-		},
-	})
+	var valueField any
+	// Since the last part of the readIdentifier can be either a function or an object ID, we need to check to determine
+	// how to proceed to get the value.
+	if strings.HasPrefix(objectIdOrFunction, "0x") {
+		objectId := objectIdOrFunction
+		object, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
+			ObjectId: objectId,
+			Options: models.SuiObjectDataOptions{
+				ShowContent: true,
+			},
+		})
 
-	if err != nil {
-		return fmt.Errorf("failed to get object: %w", err)
+		if err != nil {
+			return fmt.Errorf("failed to get object: %w", err)
+		}
+
+		s.logger.Debugw("Sui GetObject", "object", object.Data.Content.Fields)
+
+		// Extract the value field from the object
+		valueField, ok = object.Data.Content.Fields["value"]
+		if !ok {
+			return fmt.Errorf("object does not contain a 'value' field")
+		}
+
+		s.logger.Debugw("Extracted value from object", "value", valueField)
+	} else {
+		method := objectIdOrFunction
+		// We need to call the function from the contract
+		moduleConfig, ok := s.config.Modules[contractName]
+		if !ok {
+			return fmt.Errorf("no such contract: %s", contractName)
+		}
+
+		functionConfig, ok := moduleConfig.Functions[method]
+		if !ok {
+			return fmt.Errorf("no such method: %s", method)
+		}
+
+		// Extract parameters from the params object
+		argMap := make(map[string]interface{})
+		if err := mapstructure.Decode(params, &argMap); err != nil {
+			return fmt.Errorf("failed to parse arguments: %w", err)
+		}
+
+		// Prepare arguments for the function call
+		args := []interface{}{}
+
+		if functionConfig.Params != nil {
+			for _, paramConfig := range functionConfig.Params {
+				argValue, ok := argMap[paramConfig.Name]
+				if !ok {
+					if paramConfig.Required {
+						return fmt.Errorf("missing argument: %s", paramConfig.Name)
+					}
+					argValue = paramConfig.DefaultValue
+				}
+
+				// No need for BCS serialization in Sui calls via JSON-RPC
+				args = append(args, argValue)
+			}
+		}
+
+		_, err := s.client.MoveCall(ctx, models.MoveCallRequest{
+			PackageObjectId: address,
+			Module:          moduleConfig.Name,
+			Function:        method,
+			TypeArguments:   []interface{}{},
+			Arguments:       args,
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to call function: %w", err)
+		}
+
+		// TODO: sign and send transaction
 	}
-
-	s.logger.Debugw("Sui GetObject", "object", object.Data.Content.Fields)
-
-	// Extract the value field from the object
-	valueField, ok := object.Data.Content.Fields["value"]
-	if !ok {
-		return fmt.Errorf("object does not contain a 'value' field")
-	}
-
-	s.logger.Debugw("Extracted value from object", "value", valueField)
 
 	// Decode the return value into the provided structure
 	return codec.DecodeSuiJsonValue(valueField, returnVal)
