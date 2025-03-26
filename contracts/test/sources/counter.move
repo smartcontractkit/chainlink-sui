@@ -1,9 +1,10 @@
 module test::counter {
-    use sui::object::{Self, UID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
 
-    struct Counter has key, store {
+    public struct AdminCap has key, store {
+        id: UID
+    }
+
+    public struct Counter has key, store {
         id: UID,
         value: u64
     }
@@ -13,7 +14,13 @@ module test::counter {
             id: object::new(ctx), 
             value: 0 
         };
+
+        let admin_cap = AdminCap {
+            id: object::new(ctx)
+        };
+
         transfer::share_object(counter);
+        transfer::transfer(admin_cap, ctx.sender());
     }
 
     /// Create and share a Counter object
@@ -30,6 +37,24 @@ module test::counter {
         counter.value = counter.value + 1;
     }
 
+    public fun increment_by_one(counter: &mut Counter, _ctx: &mut TxContext): u64 {
+        counter.value = counter.value + 1;
+        counter.value
+    }
+
+    public fun increment_by_one_no_context(counter: &mut Counter): u64 {
+        counter.value = counter.value + 1;
+        counter.value
+    }
+
+    public fun increment_by_two(_: &AdminCap, counter: &mut Counter, _ctx: &mut TxContext) {
+        counter.value = counter.value + 2;
+    }
+
+    public entry fun increment_by_two_no_context(_: &AdminCap, counter: &mut Counter) {
+        counter.value = counter.value + 2;
+    }
+
     /// Increment counter by a*b
     public entry fun increment_mult(
         counter: &mut Counter,
@@ -42,6 +67,10 @@ module test::counter {
 
     /// Get the value of the count
     public entry fun get_count(counter: &Counter): u64 {
+        counter.value
+    }
+
+    public fun get_count_no_entry(counter: &Counter): u64 {
         counter.value
     }
 }
