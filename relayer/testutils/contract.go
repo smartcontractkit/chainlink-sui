@@ -150,18 +150,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 		gasBudgetArg = string(rune(*gasBudget))
 	}
 
-	// TODO: re-enable this code once we have a way to decode the txn results
-	// modules, err := LoadCompiledModules(packageName, contractPath)
-	// require.NoError(t, err)
-	// txnResults, err := s.Publish(ctx, models.PublishRequest{
-	// 	Sender:          accountAddress,
-	// 	CompiledModules: modules,
-	// 	Dependencies:    []string{},
-	// 	GasBudget:       gasBudgetArg,
-	// })
-	// require.NoError(t, err, "Failed to publish contract: %s", err)
-	// lgr.Debugw("Published contract", "txnResults", string(txnResults.TxBytes))
-
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
 		"--json",
