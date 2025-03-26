@@ -35,7 +35,7 @@ module ccip::rmn_remote {
     }
 
     public struct Report has drop {
-        dest_chain_id: u64,
+        // dest_chain_id: u64,
         dest_chain_selector: u64,
         rmn_remote_contract_address: address,
         off_ramp_address: address,
@@ -142,7 +142,7 @@ module ccip::rmn_remote {
     fun calculate_digest(report: &Report): vector<u8> {
         let mut digest = vector[];
         eth_abi::encode_bytes32(&mut digest, get_report_digest_header());
-        eth_abi::encode_u64(&mut digest, report.dest_chain_id);
+        // eth_abi::encode_u64(&mut digest, report.dest_chain_id);
         eth_abi::encode_u64(&mut digest, report.dest_chain_selector);
         eth_abi::encode_address(&mut digest, report.rmn_remote_contract_address);
         eth_abi::encode_address(&mut digest, report.off_ramp_address);
@@ -163,7 +163,7 @@ module ccip::rmn_remote {
     fun calculate_report(report: &Report): vector<u8> {
         let mut digest = vector[];
         eth_abi::encode_bytes32(&mut digest, get_report_digest_header());
-        eth_abi::encode_u64(&mut digest, report.dest_chain_id);
+        // eth_abi::encode_u64(&mut digest, report.dest_chain_id);
         eth_abi::encode_u64(&mut digest, report.dest_chain_selector);
         eth_abi::encode_address(&mut digest, report.rmn_remote_contract_address);
         eth_abi::encode_address(&mut digest, report.off_ramp_address);
@@ -239,9 +239,8 @@ module ccip::rmn_remote {
             i = i + 1;
         };
 
+        // there is no direct way to get chain id from Sui Move, removing dest_chain_id
         let report = Report {
-            dest_chain_id: 0,
-            // TODO: figure out how to get the current chain id
             // dest_chain_id: (chain_id::get() as u64),
             dest_chain_selector: state.local_chain_selector,
             rmn_remote_contract_address: @ccip,
@@ -413,7 +412,7 @@ module ccip::rmn_remote {
     }
 
     public fun get_report_digest_header(): vector<u8> {
-        hash::keccak256(&b"RMN_V1_6_ANY2APTOS_REPORT")
+        hash::keccak256(&b"RMN_V1_6_ANY2SUI_REPORT")
     }
 
     public entry fun curse(state: &mut RMNRemoteState, subject: vector<u8>, ctx: &mut TxContext) {
