@@ -78,6 +78,7 @@ func BuildContract(t *testing.T, contractPath string) {
 
 	cmd := exec.Command("sui", "move", "build", "--path",
 		contractPath,
+		"--dev",
 	)
 	lgr.Debugw("Executing build command", "command", cmd.String())
 
@@ -153,7 +154,9 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
 		"--json",
+		"--silence-warnings",
 		contractPath,
+		"--dev",
 	)
 
 	publishOutput, err := publishCmd.CombinedOutput()
