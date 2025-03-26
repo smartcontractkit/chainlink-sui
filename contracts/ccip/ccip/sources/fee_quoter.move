@@ -1,19 +1,5 @@
 /// This module is responsible for storage and retrieval of fee token and token transfer
 /// information and pricing.
-///
-/// TODO:
-/// at the moment, this module updates prices from received OCR3 reports.
-/// on EVM, the FeeQuoter contract takes the newer value between the prices stored locally
-/// (which are from OCR3 reports or from keystone reports), and that of a configured OCR2
-/// data feed price value.
-/// on Aptos, we have keystone feeds only and could:
-/// - allow configuration of feed_ids to query the keystone feeds router/registry module
-/// - support dynamic dispatch registration with the keystone forwarder module to receive
-///   keystone reports directly.
-/// only one of the two should be necessary since the data source for both should be the same
-/// (ie. keystone reports) and contain the same data points.
-/// the first option should be preferred since it does not require additional complexity with
-/// dynamic dispatch and additional report deserialization.
 module ccip::fee_quoter {
     use sui::event;
     use std::string::{Self, String};
@@ -197,7 +183,7 @@ module ccip::fee_quoter {
     // }
 
     // TODO: configure out the ownership check and check if state is initialized
-    public entry fun initialize(
+    public fun initialize(
         ownerCap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         max_fee_juels_per_msg: u64,
@@ -206,26 +192,16 @@ module ccip::fee_quoter {
         fee_tokens: vector<address>,
         ctx: &mut TxContext
     ) {
-        // this assert is not needed since we are using the ownerCap
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state_exists = option::is_some(&state_cap);
-        // // Or using object ID
-        // let state_exists = object::exists_with_id<FeeQuoterState>(id);
-        //
-        // assert!(!state_exists, ERROR_ALREADY_INITIALIZED);
-
         assert!(
-            state_object::contains(ref, FEE_QUOTER_STATE_NAME),
+            !state_object::contains(ref, FEE_QUOTER_STATE_NAME),
             E_ALREADY_INITIALIZED
         );
 
+        // TODO: how to perform some checks for link token
         // assert!(
         //     object::object_exists<CoinMetadata>(link_token),
         //     E_INVALID_LINK_TOKEN
         // );
-
-        // let state_object_signer = state_object::object_signer();
 
         let state = FeeQuoterState {
             id: object::new(ctx),
@@ -239,24 +215,17 @@ module ccip::fee_quoter {
             token_transfer_fee_configs: table::new<u64, table::Table<address, TokenTransferFeeConfig>>(ctx),
             premium_multiplier_wei_per_eth: table::new<address, u64>(ctx),
         };
-        // move_to(&state_object_signer, state);
-        // transfer::transfer(state, tx_context::sender(ctx));
         state_object::add(ownerCap, ref, FEE_QUOTER_STATE_NAME, state);
     }
 
     // TODO: check the ownership of the state object
-    public entry fun apply_fee_token_updates(
+    public fun apply_fee_token_updates(
         ownerCap: &OwnerCap,
-        // state: &mut FeeQuoterState,
         ref: &mut CCIPObjectRef,
         fee_tokens_to_remove: vector<address>,
         fee_tokens_to_add: vector<address>,
         _ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state = borrow_state_mut();
-
         let state = state_object::borrow_mut<FeeQuoterState>(ownerCap, ref, FEE_QUOTER_STATE_NAME);
 
         // Remove tokens
@@ -286,11 +255,9 @@ module ccip::fee_quoter {
         );
     }
 
-    // Note that unlike EVM, this only allows changes for a single dest chain selector
-    // at a time.
-    public entry fun apply_token_transfer_fee_config_updates(
+    // Note that unlike EVM, this only allows changes for a single dest chain selector at a time.
+    public fun apply_token_transfer_fee_config_updates(
         ownerCap: &OwnerCap,
-        // state: &mut FeeQuoterState,
         ref: &mut CCIPObjectRef,
         dest_chain_selector: u64,
         add_tokens: vector<address>,
@@ -303,9 +270,6 @@ module ccip::fee_quoter {
         remove_tokens: vector<address>,
         ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state = borrow_state_mut();
         let state = state_object::borrow_mut<FeeQuoterState>(ownerCap, ref, FEE_QUOTER_STATE_NAME);
 
         if (!table::contains(
@@ -397,9 +361,8 @@ module ccip::fee_quoter {
         );
     }
 
-    public entry fun apply_dest_chain_config_updates(
+    public fun apply_dest_chain_config_updates(
         ownerCap: &OwnerCap,
-        // state: &mut FeeQuoterState,
         ref: &mut CCIPObjectRef,
         dest_chain_selector: u64,
         is_enabled: bool,
@@ -423,10 +386,6 @@ module ccip::fee_quoter {
         network_fee_usd_cents: u32,
         _ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state = borrow_state_mut();
-
         let state = state_object::borrow_mut<FeeQuoterState>(ownerCap, ref, FEE_QUOTER_STATE_NAME);
 
         assert!(
@@ -481,17 +440,13 @@ module ccip::fee_quoter {
         }
     }
 
-    public entry fun apply_premium_multiplier_wei_per_eth_updates(
+    public fun apply_premium_multiplier_wei_per_eth_updates(
         ownerCap: &OwnerCap,
-        // state: &mut FeeQuoterState,
         ref: &mut CCIPObjectRef,
         tokens: vector<address>,
         premium_multiplier_wei_per_eth: vector<u64>,
         _ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state = borrow_state_mut();
         let state = state_object::borrow_mut<FeeQuoterState>(ownerCap, ref, FEE_QUOTER_STATE_NAME);
 
         vector::zip_do_ref!(
@@ -516,11 +471,7 @@ module ccip::fee_quoter {
         );
     }
 
-    public fun get_static_config(
-        ref: &CCIPObjectRef
-        // state: &FeeQuoterState
-    ): StaticConfig {
-        // let state = borrow_state();
+    public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
         let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
         StaticConfig {
             max_fee_juels_per_msg: state.max_fee_juels_per_msg,
@@ -531,7 +482,6 @@ module ccip::fee_quoter {
 
     public fun get_token_transfer_fee_config(
         ref: &CCIPObjectRef,
-        // state: &FeeQuoterState,
         dest_chain_selector: u64,
         token: address
     ): TokenTransferFeeConfig {
@@ -550,7 +500,6 @@ module ccip::fee_quoter {
         ref: &CCIPObjectRef,
         tokens: vector<address>
     ): (vector<TimestampedPrice>) {
-        // let state = borrow_state();
         let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
         vector::map_ref!(&tokens, |token| get_token_price_internal(state, *token))
     }
@@ -566,7 +515,6 @@ module ccip::fee_quoter {
     public fun get_token_and_gas_prices(
         ref: &CCIPObjectRef, clock: &clock::Clock, token: address, dest_chain_selector: u64
     ): (u256, u256) {
-        // let state = borrow_state();
         let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
         let dest_chain_config = get_dest_chain_config_internal(
             state, dest_chain_selector
@@ -661,7 +609,6 @@ module ccip::fee_quoter {
 
     public(package) fun update_prices(
         ownerCap: &OwnerCap,
-        // state: &mut FeeQuoterState,
         ref: &mut CCIPObjectRef,
         clock: &clock::Clock,
         source_tokens: vector<address>,
@@ -681,8 +628,6 @@ module ccip::fee_quoter {
 
         let state = state_object::borrow_mut<FeeQuoterState>(ownerCap, ref, FEE_QUOTER_STATE_NAME);
         let timestamp_secs = clock::timestamp_ms(clock) / 1000;
-        // let state = borrow_state_mut();
-        // let timestamp_secs = timestamp::now_seconds();
 
         vector::zip_do_ref!(
             &source_tokens,
@@ -692,7 +637,6 @@ module ccip::fee_quoter {
                     price: *usd_per_token,
                     timestamp_secs
                 };
-                // table::upsert(&mut state.usd_per_token, *token, timestamped_price);
 
                 if (table::contains(&state.usd_per_token, *token)) {
                     let _old_value = table::remove(&mut state.usd_per_token, *token);
@@ -717,11 +661,6 @@ module ccip::fee_quoter {
                     price: *usd_per_unit_gas,
                     timestamp_secs
                 };
-                // table::upsert(
-                //     &mut state.usd_per_unit_gas_by_dest_chain,
-                //     *dest_chain_selector,
-                //     timestamped_price
-                // );
 
                 if (table::contains(&state.usd_per_unit_gas_by_dest_chain, *dest_chain_selector)) {
                     let _old_value = table::remove(&mut state.usd_per_unit_gas_by_dest_chain, *dest_chain_selector);
@@ -741,7 +680,6 @@ module ccip::fee_quoter {
 
     public(package) fun get_validated_fee(
         ownerCap: &OwnerCap,
-        // state: &mut FeeQuoterState,
         ref: &mut CCIPObjectRef,
         clock: &clock::Clock,
         dest_chain_selector: u64,
@@ -753,7 +691,6 @@ module ccip::fee_quoter {
         let (local_token_addresses, local_token_amounts) =
             internal::get_sui2any_token_transfers(message);
 
-        // let state = borrow_state_mut();
         let state = state_object::borrow_mut<FeeQuoterState>(ownerCap, ref, FEE_QUOTER_STATE_NAME);
 
         let dest_chain_config = get_dest_chain_config_internal(
@@ -1237,6 +1174,7 @@ module ccip::fee_quoter {
             };
             (extra_args, allow_out_of_order_execution)
         } else {
+            // TODO: add support for Aptos?
             abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
         }
     }

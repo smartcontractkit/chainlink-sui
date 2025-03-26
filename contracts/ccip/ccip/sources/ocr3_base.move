@@ -4,32 +4,36 @@ module ccip::ocr3_base {
     use sui::table;
     use sui::hash;
     use sui::event;
+    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+
+    const OCR3_BASE_STATE_NAME: vector<u8> = b"OCR3BaseState";
 
     const MAX_NUM_ORACLES: u64 = 256;
     const OCR_PLUGIN_TYPE_COMMIT: u8 = 1;
     const OCR_PLUGIN_TYPE_EXECUTION: u8 = 2;
     const PUBLIC_KEY_NUM_BYTES: u64 = 32;
 
-    const E_BIG_F_MUST_BE_POSITIVE: u64 = 1;
-    const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 2;
-    const E_TOO_MANY_SIGNERS: u64 = 3;
-    const E_BIG_F_TOO_HIGH: u64 = 4;
-    const E_TOO_MANY_TRANSMITTERS: u64 = 5;
-    const E_NO_TRANSMITTERS: u64 = 6;
-    const E_REPEATED_SIGNERS: u64 = 7;
-    const E_REPEATED_TRANSMITTERS: u64 = 8;
-    const E_CONFIG_DIGEST_MISMATCH: u64 = 9;
-    const E_UNAUTHORIZED_TRANSMITTER: u64 = 10;
-    const E_WRONG_NUMBER_OF_SIGNATURES: u64 = 11;
-    const E_COULD_NOT_VALIDATE_SIGNER_KEY: u64 = 12;
-    const E_INVALID_REPORT_CONTEXT_LENGTH: u64 = 13;
-    const E_INVALID_CONFIG_DIGEST_LENGTH: u64 = 14;
-    const E_INVALID_SEQUENCE_LENGTH: u64 = 15;
-    const E_UNAUTHORIZED_SIGNER: u64 = 16;
-    const E_NON_UNIQUE_SIGNATURES: u64 = 17;
-    const E_INVALID_SIGNATURE: u64 = 18;
-    const E_OUT_OF_BYTES: u64 = 19;
-    const E_WRONG_PUBKEY_SIZE: u64 = 20;
+    const E_ALREADY_INITIALIZED: u64 = 1;
+    const E_BIG_F_MUST_BE_POSITIVE: u64 = 2;
+    const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 3;
+    const E_TOO_MANY_SIGNERS: u64 = 4;
+    const E_BIG_F_TOO_HIGH: u64 = 5;
+    const E_TOO_MANY_TRANSMITTERS: u64 = 6;
+    const E_NO_TRANSMITTERS: u64 = 7;
+    const E_REPEATED_SIGNERS: u64 = 8;
+    const E_REPEATED_TRANSMITTERS: u64 = 9;
+    const E_CONFIG_DIGEST_MISMATCH: u64 = 10;
+    const E_UNAUTHORIZED_TRANSMITTER: u64 = 11;
+    const E_WRONG_NUMBER_OF_SIGNATURES: u64 = 12;
+    const E_COULD_NOT_VALIDATE_SIGNER_KEY: u64 = 13;
+    const E_INVALID_REPORT_CONTEXT_LENGTH: u64 = 14;
+    const E_INVALID_CONFIG_DIGEST_LENGTH: u64 = 15;
+    const E_INVALID_SEQUENCE_LENGTH: u64 = 16;
+    const E_UNAUTHORIZED_SIGNER: u64 = 17;
+    const E_NON_UNIQUE_SIGNATURES: u64 = 18;
+    const E_INVALID_SIGNATURE: u64 = 19;
+    const E_OUT_OF_BYTES: u64 = 20;
+    const E_WRONG_PUBKEY_SIZE: u64 = 21;
 
     public struct UnvalidatedPublicKey has copy, drop, store {
         bytes: vector<u8>
@@ -68,8 +72,8 @@ module ccip::ocr3_base {
         transmitters: vector<address>
     }
 
-    public struct OCR3BaseState has store {
-        chain_id: u8,
+    public struct OCR3BaseState has key, store {
+        id: UID,
         // ocr plugin type -> ocr config
         ocr3_configs: table::Table<u8, OCRConfig>,
         // ocr plugin type -> signers
@@ -86,30 +90,32 @@ module ccip::ocr3_base {
         OCR_PLUGIN_TYPE_EXECUTION
     }
 
-    // TODO: verify if we can get chain id from Sui Move
-    public fun new(ctx: &mut TxContext): OCR3BaseState {
-        // assert!(chain_id != chain_ids::sui_mainnet() && chain_id != chain_ids::sui_testnet() && chain_id != chain_ids::sui_custom(), E_WRONG_CHAIN_ID);
-        OCR3BaseState {
-            // chain_id,
-            chain_id: 0,
+    public fun initialize(
+        ownerCap: &OwnerCap,
+        ref: &mut CCIPObjectRef,
+        ctx: &mut TxContext
+    ) {
+        assert!(
+            !state_object::contains(ref, OCR3_BASE_STATE_NAME),
+            E_ALREADY_INITIALIZED
+        );
+
+        let state = OCR3BaseState {
+            id: object::new(ctx),
             ocr3_configs: table::new<u8, OCRConfig>(ctx),
             signer_oracles: table::new<u8, vector<UnvalidatedPublicKey>>(ctx),
             transmitter_oracles: table::new<u8, vector<address>>(ctx)
-        }
+        };
+
+        state_object::add(ownerCap, ref, OCR3_BASE_STATE_NAME, state);
     }
 
-    // this function relies on the ability to get chain id from Sui Move
-    // public fun assert_chain_not_forked(ocr3_state: &OCR3BaseState) {
-    //     assert!(
-    //         chain_id::get() == ocr3_state.chain_id,
-    //         E_FORKED_CHAIN
-    //     );
-    // }
-
     public fun latest_config_details(
-        ocr3_state: &OCR3BaseState, ocr_plugin_type: u8
+        ref: &CCIPObjectRef, ocr_plugin_type: u8
     ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
-        let ocr_config = table::borrow(&ocr3_state.ocr3_configs, ocr_plugin_type);
+        let state = state_object::borrow<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME);
+
+        let ocr_config = table::borrow(&state.ocr3_configs, ocr_plugin_type);
         let config_info = &ocr_config.config_info;
         (
             config_info.config_digest,
@@ -263,13 +269,16 @@ module ccip::ocr3_base {
     }
 
     public fun transmit(
-        ocr3_state: &mut OCR3BaseState,
+        ownerCap: &OwnerCap,
+        ref: &mut CCIPObjectRef,
         transmitter: address,
         ocr_plugin_type: u8,
         report_context: vector<vector<u8>>,
         report: vector<u8>,
         signatures: vector<vector<u8>>
     ) {
+        let ocr3_state = state_object::borrow_mut<OCR3BaseState>(ownerCap, ref, OCR3_BASE_STATE_NAME);
+
         let ocr_config = table::borrow(&ocr3_state.ocr3_configs, ocr_plugin_type);
         let config_info = &ocr_config.config_info;
 
@@ -297,8 +306,7 @@ module ccip::ocr3_base {
             E_CONFIG_DIGEST_MISMATCH
         );
 
-        // TODO: verify if this is feasible
-        // assert_chain_not_forked(ocr3_state);
+        // it's impossible to check chain id in Sui Move
 
         let plugin_transmitters =
             table::borrow(&ocr3_state.transmitter_oracles, ocr_plugin_type);
@@ -323,10 +331,9 @@ module ccip::ocr3_base {
         event::emit(Transmitted { ocr_plugin_type, config_digest, sequence_number });
     }
 
-    // used by offramp, hence not marked as entry
     public fun set_ocr3_config(
-        // caller: address,
-        ocr3_state: &mut OCR3BaseState,
+        ownerCap: &OwnerCap,
+        ref: &mut CCIPObjectRef,
         config_digest: vector<u8>,
         ocr_plugin_type: u8,
         big_f: u8,
@@ -335,9 +342,9 @@ module ccip::ocr3_base {
         transmitters: vector<address>,
         _ctx: &mut TxContext
     ) {
-        // TODO: implement this check in auth
-        // auth::assert_only_owner(tx_context::sender(ctx));
         assert!(big_f != 0, E_BIG_F_MUST_BE_POSITIVE);
+
+        let ocr3_state = state_object::borrow_mut<OCR3BaseState>(ownerCap, ref, OCR3_BASE_STATE_NAME);
 
         let ocr_config = if (table::contains(&ocr3_state.ocr3_configs, ocr_plugin_type)) {
             table::borrow_mut(&mut ocr3_state.ocr3_configs, ocr_plugin_type)

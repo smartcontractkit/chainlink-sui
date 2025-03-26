@@ -4,6 +4,8 @@ module ccip::state_object {
     const E_MODULE_ALREADY_EXISTS: u64 = 1;
     const E_MODULE_DOES_NOT_EXISTS: u64 = 2;
 
+    // currently we only create 1 capability to manage all the CCIP components like fee_quoter, rmn_remote
+    // TODO: figure out if we need to create multiple capabilities for each CCIP component
     public struct OwnerCap has key, store {
         id: UID
     }
@@ -27,17 +29,17 @@ module ccip::state_object {
     }
 
     // TODO: we may need to include link token here
-    public(package) fun add<T: key + store>(_: &OwnerCap, ref: &mut CCIPObjectRef, name: vector<u8>, obj: T) {
+    public fun add<T: key + store>(_: &OwnerCap, ref: &mut CCIPObjectRef, name: vector<u8>, obj: T) {
         // TODO: or remove an existing object with this name?
         assert!(!dof::exists_(&ref.id, name), E_MODULE_ALREADY_EXISTS);
         dof::add(&mut ref.id, name, obj);
     }
 
-    public(package) fun contains(ref: &CCIPObjectRef, name: vector<u8>): bool {
+    public fun contains(ref: &CCIPObjectRef, name: vector<u8>): bool {
         dof::exists_(&ref.id, name)
     }
 
-    public(package) fun remove<T: key + store>(_: &OwnerCap, ref: &mut CCIPObjectRef, name: vector<u8>): T {
+    public fun remove<T: key + store>(_: &OwnerCap, ref: &mut CCIPObjectRef, name: vector<u8>): T {
         assert!(dof::exists_(&ref.id, name), E_MODULE_DOES_NOT_EXISTS);
         dof::remove(&mut ref.id, name)
     }

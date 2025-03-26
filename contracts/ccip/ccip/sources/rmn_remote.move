@@ -6,7 +6,6 @@ module ccip::rmn_remote {
     use sui::ecdsa_k1;
     use std::string::{Self, String};
 
-    // use ccip::auth;
     use ccip::eth_abi;
     use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
     use ccip::merkle_proof;
@@ -16,8 +15,6 @@ module ccip::rmn_remote {
         local_chain_selector: u64,
         config: Config,
         config_count: u32,
-        // there is no support to retrieve all the keys
-        // signers: table::Table<vector<u8>, bool>,
         // most operations are O(n) with vec map, but it's easy to retrieve all the keys
         signers: vec_map::VecMap<vector<u8>, bool>,
         cursed_subjects: vec_map::VecMap<vector<u8>, bool>
@@ -79,15 +76,12 @@ module ccip::rmn_remote {
     const E_THRESHOLD_NOT_MET: u64 = 10;
     const E_UNEXPECTED_SIGNER: u64 = 11;
     const E_ZERO_VALUE_NOT_ALLOWED: u64 = 12;
-    // const E_IS_BLESSED_NOT_AVAILABLE: u64 = 13;
-    // const E_NOT_OWNER: u64 = 14;
-    const E_MERKLE_ROOT_LENGTH_MISMATCH: u64 = 15;
-    const E_INVALID_DIGEST_LENGTH: u64 = 16;
-    const E_SIGNERS_MISMATCH: u64 = 17;
-    // const E_COULD_NOT_VALIDATE_SIGNER_KEY: u64 = 18;
-    const E_INVALID_SUBJECT_LENGTH: u64 = 19;
-    const E_INVALID_PUBLIC_KEY_LENGTH: u64 = 20;
-    // const E_UNKNOWN_FUNCTION: u64 = 21;
+    const E_MERKLE_ROOT_LENGTH_MISMATCH: u64 = 13;
+    const E_INVALID_DIGEST_LENGTH: u64 = 14;
+    const E_SIGNERS_MISMATCH: u64 = 15;
+    const E_INVALID_SUBJECT_LENGTH: u64 = 16;
+    const E_INVALID_PUBLIC_KEY_LENGTH: u64 = 17;
+    // const E_UNKNOWN_FUNCTION: u64 = 18;
 
     public fun type_and_version(): String {
         string::utf8(b"RMNRemote 1.6.0")
@@ -101,17 +95,14 @@ module ccip::rmn_remote {
     //     };
     // }
 
-    // TODO: configure out the ownership model
-    public entry fun initialize(
+    public fun initialize(
         ownerCap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         local_chain_selector: u64,
         ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
         assert!(
-            state_object::contains(ref, RMN_REMOTE_STATE_NAME),
+            !state_object::contains(ref, RMN_REMOTE_STATE_NAME),
             E_ALREADY_INITIALIZED
         );
 
@@ -120,7 +111,6 @@ module ccip::rmn_remote {
             E_ZERO_VALUE_NOT_ALLOWED
         );
 
-        // let state_object_signer = state_object::object_signer();
         let state = RMNRemoteState {
             id: object::new(ctx),
             local_chain_selector,
@@ -134,36 +124,12 @@ module ccip::rmn_remote {
             cursed_subjects: vec_map::empty<vector<u8>, bool>()
         };
 
-        // move_to(&state_object_signer, state);
-        // transfer::transfer(state, ctx.sender());
         state_object::add(ownerCap, ref, RMN_REMOTE_STATE_NAME, state);
-    }
-
-    fun calculate_digest(report: &Report): vector<u8> {
-        let mut digest = vector[];
-        eth_abi::encode_bytes32(&mut digest, get_report_digest_header());
-        // eth_abi::encode_u64(&mut digest, report.dest_chain_id);
-        eth_abi::encode_u64(&mut digest, report.dest_chain_selector);
-        eth_abi::encode_address(&mut digest, report.rmn_remote_contract_address);
-        eth_abi::encode_address(&mut digest, report.off_ramp_address);
-        eth_abi::encode_bytes32(&mut digest, report.rmn_home_contract_config_digest);
-        vector::do_ref!(
-            &report.merkle_roots,
-            |merkle_root| {
-                let merkle_root: &MerkleRoot = merkle_root;
-                eth_abi::encode_u64(&mut digest, merkle_root.source_chain_selector);
-                eth_abi::encode_u64(&mut digest, merkle_root.min_sequence_number);
-                eth_abi::encode_u64(&mut digest, merkle_root.max_sequence_number);
-                eth_abi::encode_bytes32(&mut digest, merkle_root.merkle_root);
-            }
-        );
-        hash::keccak256(&digest)
     }
 
     fun calculate_report(report: &Report): vector<u8> {
         let mut digest = vector[];
         eth_abi::encode_bytes32(&mut digest, get_report_digest_header());
-        // eth_abi::encode_u64(&mut digest, report.dest_chain_id);
         eth_abi::encode_u64(&mut digest, report.dest_chain_selector);
         eth_abi::encode_address(&mut digest, report.rmn_remote_contract_address);
         eth_abi::encode_address(&mut digest, report.off_ramp_address);
@@ -184,14 +150,12 @@ module ccip::rmn_remote {
 
     public fun verify(
         ref: &CCIPObjectRef,
-        // state: &RMNRemoteState,
         merkle_root_source_chain_selectors: vector<u64>,
         merkle_root_min_sequence_numbers: vector<u64>,
         merkle_root_max_sequence_numbers: vector<u64>,
         merkle_root_values: vector<vector<u8>>,
         signatures: vector<vector<u8>>
     ): bool {
-        // let state = borrow_state();
         let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
         assert!(state.config_count > 0, E_CONFIG_NOT_SET);
@@ -241,7 +205,6 @@ module ccip::rmn_remote {
 
         // there is no direct way to get chain id from Sui Move, removing dest_chain_id
         let report = Report {
-            // dest_chain_id: (chain_id::get() as u64),
             dest_chain_selector: state.local_chain_selector,
             rmn_remote_contract_address: @ccip,
             off_ramp_address: @ccip,
@@ -255,14 +218,16 @@ module ccip::rmn_remote {
         let mut i = 0;
         while (i < signatures_len) {
             let signature_bytes = *vector::borrow(&signatures, i);
-            // let signature = secp256k1::ecdsa_signature_from_bytes(signature_bytes);
 
             assert!(vector::length(&signature_bytes) == SIGNATURE_NUM_BYTES, E_INVALID_SIGNATURE);
 
             // rmn only generates signatures with v = 27, subtract the ethereum recover id offset of 27 to get zero.
+            // according to Sui Move document: https://docs.sui.io/references/framework/sui/ecdsa_k1#sui_ecdsa_k1_secp256k1_ecrecover
+            // the digest is not hashed. hence the digest in calculate_report is not keccack256 hashed
             let public_key_bytes = ecdsa_k1::secp256k1_ecrecover(&signature_bytes, &digest, 0);
 
             // trim the first 12 bytes of the hash to recover the ethereum address.
+            // there is no vector::trim function available
             let mut eth_address = vector::empty();
             let key_hash = &hash::keccak256(&public_key_bytes);
             let len = 32;
@@ -272,9 +237,6 @@ module ccip::rmn_remote {
                 vector::push_back(&mut eth_address, *vector::borrow(key_hash, j));
                 j = j + 1;
             };
-            // let eth_address = vector::trim(
-            //     &mut hash::keccak256(public_key_bytes), 12
-            // );
 
             assert!(
                 vec_map::contains(&state.signers, &eth_address),
@@ -298,18 +260,16 @@ module ccip::rmn_remote {
         true
     }
 
-    public entry fun set_config(
-        // caller: &signer,
-        state: &mut RMNRemoteState,
+    public fun set_config(
+        ownerCap: &OwnerCap,
+        ref: &mut CCIPObjectRef,
         rmn_home_contract_config_digest: vector<u8>,
         signer_onchain_public_keys: vector<vector<u8>>,
         node_indexes: vector<u64>,
         f_sign: u64,
         _ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state = borrow_state_mut();
+        let state = state_object::borrow_mut<RMNRemoteState>(ownerCap, ref, RMN_REMOTE_STATE_NAME);
 
         assert!(
             vector::length(&rmn_home_contract_config_digest) == 32,
@@ -343,7 +303,7 @@ module ccip::rmn_remote {
             E_NOT_ENOUGH_SIGNERS
         );
 
-        // table::drop(state.signers);
+        // smart_table::clear(&mut state.signers);
         let keys = vec_map::keys(&state.signers);
         let mut i = 0;
         let keys_len = vector::length(&keys);
@@ -353,47 +313,34 @@ module ccip::rmn_remote {
             i = i + 1;
         };
 
-        // let signers = vector::zip_map_ref!(
-        //     &signer_onchain_public_keys,
-        //     &node_indexes,
-        //     |signer_public_key_bytes, node_indexes| {
-        //         let signer_public_key_bytes: vector<u8> = *signer_public_key_bytes;
-        //         let node_index: u64 = *node_indexes;
-        //         // expect an ethereum address of 20 bytes.
-        //         assert!(
-        //             vector::length(&signer_public_key_bytes) == 20,
-        //             E_INVALID_PUBLIC_KEY_LENGTH
-        //         );
-        //         assert!(
-        //             !table::contains(&state.signers, signer_public_key_bytes),
-        //             E_DUPLICATE_SIGNER
-        //         );
-        //         table::add(&mut state.signers, signer_public_key_bytes, true);
-        //         Signer { onchain_public_key: signer_public_key_bytes, node_index }
-        //     }
-        // );
-
         let signers = vector::zip_map_ref!(
-        &signer_onchain_public_keys,
-        &node_indexes,
-        |signer_public_key_bytes, node_indexes| {
-        let signer_public_key_bytes: vector<u8> = *signer_public_key_bytes;
-        let node_index: u64 = *node_indexes;
-        // expect an ethereum address of 20 bytes.
-        assert!(
-        vector::length(&signer_public_key_bytes) == 20,
-        E_INVALID_PUBLIC_KEY_LENGTH
-        );
-        assert!(
-        !vec_map::contains(&state.signers, &signer_public_key_bytes),
-        E_DUPLICATE_SIGNER
-        );
-        vec_map::insert(&mut state.signers, signer_public_key_bytes, true);
-        Signer { onchain_public_key: signer_public_key_bytes, node_index }
-        }
+            &signer_onchain_public_keys,
+            &node_indexes,
+            |signer_public_key_bytes, node_indexes| {
+                let signer_public_key_bytes: vector<u8> = *signer_public_key_bytes;
+                let node_index: u64 = *node_indexes;
+                // expect an ethereum address of 20 bytes.
+                assert!(
+                    vector::length(&signer_public_key_bytes) == 20,
+                    E_INVALID_PUBLIC_KEY_LENGTH
+                );
+                assert!(
+                    !vec_map::contains(&state.signers, &signer_public_key_bytes),
+                    E_DUPLICATE_SIGNER
+                );
+                vec_map::insert(&mut state.signers, signer_public_key_bytes, true);
+                Signer {
+                    onchain_public_key: signer_public_key_bytes,
+                    node_index
+                }
+            }
         );
 
-        let new_config = Config { rmn_home_contract_config_digest, signers, f_sign };
+        let new_config = Config {
+            rmn_home_contract_config_digest,
+            signers,
+            f_sign
+        };
         state.config = new_config;
 
         let new_config_count = state.config_count + 1;
@@ -402,12 +349,15 @@ module ccip::rmn_remote {
         event::emit(ConfigSet { version: new_config_count, config: new_config });
     }
 
-    public fun get_versioned_config(state: &RMNRemoteState): (u32, Config) {
-        // let state = borrow_state();
+    public fun get_versioned_config(ref: &CCIPObjectRef): (u32, Config) {
+        let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+
         (state.config_count, state.config)
     }
 
-    public fun get_local_chain_selector(state: &RMNRemoteState): u64 {
+    public fun get_local_chain_selector(ref: &CCIPObjectRef): u64 {
+        let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+
         state.local_chain_selector
     }
 
@@ -415,87 +365,88 @@ module ccip::rmn_remote {
         hash::keccak256(&b"RMN_V1_6_ANY2SUI_REPORT")
     }
 
-    public entry fun curse(state: &mut RMNRemoteState, subject: vector<u8>, ctx: &mut TxContext) {
-        curse_multiple(state, vector[subject], ctx);
+    public fun curse(ownerCap: &OwnerCap, ref: &mut CCIPObjectRef, subject: vector<u8>, ctx: &mut TxContext) {
+        curse_multiple(ownerCap, ref, vector[subject], ctx);
     }
 
-    public entry fun curse_multiple(
-        state: &mut RMNRemoteState, subjects: vector<vector<u8>>, _ctx: &mut TxContext
+    public fun curse_multiple(
+        ownerCap: &OwnerCap, ref: &mut CCIPObjectRef, subjects: vector<vector<u8>>, _ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state = borrow_state_mut();
+        let state = state_object::borrow_mut<RMNRemoteState>(ownerCap, ref, RMN_REMOTE_STATE_NAME);
 
         vector::do_ref!(
-        &subjects,
-        |subject| {
-        let subject: vector<u8> = *subject;
-        assert!(
-        vector::length(&subject) == 16,
-        E_INVALID_SUBJECT_LENGTH
-        );
-        assert!(
-        !vec_map::contains(&state.cursed_subjects, &subject),
-        E_ALREADY_CURSED
-        );
-        vec_map::insert(&mut state.cursed_subjects, subject, true);
-        }
+            &subjects,
+            |subject| {
+                let subject: vector<u8> = *subject;
+                assert!(
+                    vector::length(&subject) == 16,
+                    E_INVALID_SUBJECT_LENGTH
+                );
+                assert!(
+                    !vec_map::contains(&state.cursed_subjects, &subject),
+                    E_ALREADY_CURSED
+                );
+                vec_map::insert(&mut state.cursed_subjects, subject, true);
+            }
         );
         event::emit(Cursed { subjects });
     }
 
-    public entry fun uncurse(state: &mut RMNRemoteState, subject: vector<u8>, ctx: &mut TxContext) {
-        uncurse_multiple(state, vector[subject], ctx);
+    public fun uncurse(
+        ownerCap: &OwnerCap,
+        ref: &mut CCIPObjectRef,
+        subject: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        uncurse_multiple(ownerCap, ref, vector[subject], ctx);
     }
 
-    public entry fun uncurse_multiple(
-        state: &mut RMNRemoteState, subjects: vector<vector<u8>>, _ctx: &mut TxContext
+    public fun uncurse_multiple(
+        ownerCap: &OwnerCap,
+        ref: &mut CCIPObjectRef,
+        subjects: vector<vector<u8>>,
+        _ctx: &mut TxContext
     ) {
-        // auth::assert_only_owner(signer::address_of(caller));
-
-        // let state = borrow_state_mut();
+        let state = state_object::borrow_mut<RMNRemoteState>(ownerCap, ref, RMN_REMOTE_STATE_NAME);
 
         vector::do_ref!(
-        &subjects,
-        |subject| {
-        let subject: vector<u8> = *subject;
-        assert!(
-        vec_map::contains(&state.cursed_subjects, &subject),
-        E_NOT_CURSED
-        );
-        vec_map::remove(&mut state.cursed_subjects, &subject);
-        }
+            &subjects,
+            |subject| {
+                let subject: vector<u8> = *subject;
+                assert!(
+                    vec_map::contains(&state.cursed_subjects, &subject),
+                    E_NOT_CURSED
+                );
+                vec_map::remove(&mut state.cursed_subjects, &subject);
+            }
         );
         event::emit(Uncursed { subjects });
     }
 
-    public fun get_cursed_subjects(state: &RMNRemoteState): vector<vector<u8>> {
+    public fun get_cursed_subjects(ref: &CCIPObjectRef): vector<vector<u8>> {
+        let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+
         vec_map::keys(&state.cursed_subjects)
     }
 
     #[allow(implicit_const_copy)]
-    public fun is_cursed_global(state: &RMNRemoteState): bool {
+    public fun is_cursed_global(ref: &CCIPObjectRef): bool {
+        let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+
         vec_map::contains(&state.cursed_subjects, &GLOBAL_CURSE_SUBJECT)
     }
 
-    public fun is_cursed(state: &RMNRemoteState, subject: vector<u8>): bool {
-        vec_map::contains(&state.cursed_subjects, &subject)
-            || is_cursed_global(state)
+    public fun is_cursed(ref: &CCIPObjectRef, subject: vector<u8>): bool {
+        let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+
+        vec_map::contains(&state.cursed_subjects, &subject) || is_cursed_global(ref)
     }
 
-    public fun is_cursed_u128(state: &RMNRemoteState, subject_value: u128): bool {
+    public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {
         let mut subject = bcs::to_bytes(&subject_value);
         vector::reverse(&mut subject);
-        is_cursed(state, subject)
+        is_cursed(ref, subject)
     }
-
-    // fun borrow_state(): &RMNRemoteState {
-    //     borrow_global<RMNRemoteState>(state_object::object_address())
-    // }
-    //
-    // fun borrow_state_mut(): &mut RMNRemoteState {
-    //     borrow_global_mut<RMNRemoteState>(state_object::object_address())
-    // }
 
     //
     // MCMS entrypoint
