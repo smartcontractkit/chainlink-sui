@@ -6,12 +6,11 @@ import (
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
-	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -26,10 +25,10 @@ type suiChainReader struct {
 	config           ChainReaderConfig
 	starter          services.StateMachine
 	packageAddresses map[string]string
-	client           sui.ISuiAPI
+	client           client.SuiClient
 }
 
-func NewChainReader(lgr logger.Logger, client sui.ISuiAPI, config ChainReaderConfig) pkgtypes.ContractReader {
+func NewChainReader(lgr logger.Logger, client client.SuiClient, config ChainReaderConfig) pkgtypes.ContractReader {
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
 		client:           client,
@@ -125,26 +124,17 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	// how to proceed to get the value.
 	if strings.HasPrefix(objectIdOrFunction, "0x") {
 		objectId := objectIdOrFunction
-		object, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
-			ObjectId: objectId,
-			Options: models.SuiObjectDataOptions{
-				ShowContent: true,
-			},
-		})
 
+		object, err := s.client.ReadObjectId(ctx, objectId)
 		if err != nil {
 			return fmt.Errorf("failed to get object: %w", err)
 		}
 
-		s.logger.Debugw("Sui GetObject", "object", object.Data.Content.Fields)
-
 		// Extract the value field from the object
-		valueField, ok = object.Data.Content.Fields["value"]
+		valueField, ok = object["value"]
 		if !ok {
 			return fmt.Errorf("object does not contain a 'value' field")
 		}
-
-		s.logger.Debugw("Extracted value from object", "value", valueField)
 	} else {
 		method := objectIdOrFunction
 		// We need to call the function from the contract
@@ -182,19 +172,14 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			}
 		}
 
-		_, err := s.client.MoveCall(ctx, models.MoveCallRequest{
-			PackageObjectId: address,
-			Module:          moduleConfig.Name,
-			Function:        method,
-			TypeArguments:   []interface{}{},
-			Arguments:       args,
-		})
-
+		response, err := s.client.ReadFunction(ctx, address, moduleConfig.Name, method, args, []interface{}{}, nil)
 		if err != nil {
 			return fmt.Errorf("failed to call function: %w", err)
 		}
 
-		// TODO: sign and send transaction
+		s.logger.Debugw("Sui ReadFunction", "response", response)
+
+		// TODO: read the value from the response
 	}
 
 	// Decode the return value into the provided structure

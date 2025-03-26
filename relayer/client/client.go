@@ -15,8 +15,8 @@ import (
 type SuiClient interface {
 	MoveCall(ctx context.Context, req models.MoveCallRequest) (models.TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
-	ReadObjectId(ctx context.Context, objectId string) (any, error)
-	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}) (models.TxnMetaData, error)
+	ReadObjectId(ctx context.Context, objectId string) (map[string]interface{}, error)
+	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
 	SignAndSendTransaction(ctx context.Context, transaction models.SuiTransactionBlockData, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
 }
 
