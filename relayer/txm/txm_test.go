@@ -38,14 +38,14 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	relayerClient, err := client.NewClient(logg, suiClient, nil, 10*time.Second)
-	if err != nil {
-		t.Fatalf("Failed to create relayer client: %v", err)
-	}
-
 	// Get the private key from the keystore using the account address
 	signerInstance, err := _keystore.GetSignerFromAddress(accountAddress)
 	require.NoError(t, err)
+
+	relayerClient, err := client.NewClient(logg, suiClient, nil, 10*time.Second, &signerInstance)
+	if err != nil {
+		t.Fatalf("Failed to create relayer client: %v", err)
+	}
 
 	txManager, err := NewSuiTxm(logg, relayerClient, _keystore, true, signerInstance)
 	if err != nil {
@@ -121,14 +121,16 @@ func TestEnqueueIntegration(t *testing.T) {
 
 	contractPath := testutils.BuildSetup(t, "contracts/test/")
 	testutils.BuildContract(t, contractPath)
-	packageId, deploymentOutput, err := testutils.PublishContract(t, "cw_tests", contractPath, accountAddress, nil)
+	packageId, _, err := testutils.PublishContract(t, "cw_tests", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
-	listObjectId, err := testutils.ExtractObjectId(t, deploymentOutput, "Counter")
+	initializeOutput := testutils.CallContractFromCLI(t, packageId, accountAddress, "counter", "initialize", nil)
 	require.NoError(t, err)
 
-	rpcURL := testutils.LocalUrl
-	suiClient, _, txManager := setupClients(t, rpcURL, _keystore, accountAddress)
+	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
+	require.NoError(t, err)
+
+	suiClient, _, txManager := setupClients(t, testutils.LocalUrl, _keystore, accountAddress)
 
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
@@ -149,7 +151,7 @@ func TestEnqueueIntegration(t *testing.T) {
 			sender:        accountAddress,
 			function:      fmt.Sprintf("%s::counter::increment", packageId),
 			typeArgs:      []string{"address"},
-			args:          []any{listObjectId},
+			args:          []any{counterObjectId},
 			expectErr:     false,
 			expectedValue: "1",
 		},
@@ -160,7 +162,7 @@ func TestEnqueueIntegration(t *testing.T) {
 			sender:        accountAddress,
 			function:      fmt.Sprintf("%s::counter::increment", packageId),
 			typeArgs:      []string{"address"},
-			args:          []any{listObjectId},
+			args:          []any{counterObjectId},
 			expectErr:     false,
 			expectedValue: "2",
 		},
@@ -177,7 +179,7 @@ func TestEnqueueIntegration(t *testing.T) {
 				assert.Error(t, err, "Expected an error but Enqueue succeeded")
 			} else {
 				// Step 4: Validate results
-				objectDetails := fetchObjectDetails(t, suiClient, listObjectId)
+				objectDetails := fetchObjectDetails(t, suiClient, counterObjectId)
 				counter := extractStruct[Counter](t, objectDetails.Data.Content.Fields)
 				assert.Contains(t, counter.Value, tc.expectedValue, "Counter value does not match")
 			}
