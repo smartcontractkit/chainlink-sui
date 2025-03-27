@@ -1403,7 +1403,8 @@ module ccip::fee_quoter_test {
         // we can verify the content of config but that requires an additional
         // function to expose fields within the config due to the fact that this
         // test is outside the module.
-        let _config = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+        let _config1 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+        let _config2 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_2);
 
         tear_down_test(scenario, owner_cap, ref);
     }
@@ -1429,6 +1430,48 @@ module ccip::fee_quoter_test {
             vector[],
             ctx
         );
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = fee_quoter::E_TOKEN_NOT_SUPPORTED)]
+    public fun test_apply_token_transfer_fee_config_updates_remove_token() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+        initialize(&owner_cap, &mut ref, ctx);
+
+        fee_quoter::apply_token_transfer_fee_config_updates(
+            &owner_cap,
+            &mut ref,
+            10,
+            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
+            vector[100, 200],
+            vector[3000, 4000],
+            vector[500, 600],
+            vector[700, 800],
+            vector[900, 1000],
+            vector[true, false],
+            vector[],
+            ctx
+        );
+
+        fee_quoter::apply_token_transfer_fee_config_updates(
+            &owner_cap,
+            &mut ref,
+            10,
+            vector[],
+            vector[],
+            vector[],
+            vector[],
+            vector[],
+            vector[],
+            vector[],
+            vector[MOCK_ADDRESS_1], // remove MOCK_ADDRESS_1
+            ctx
+        );
+
+        fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
 
         tear_down_test(scenario, owner_cap, ref);
     }

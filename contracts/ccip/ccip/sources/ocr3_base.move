@@ -45,7 +45,7 @@ module ccip::ocr3_base {
     //     role: u8
     // }
 
-    public struct ConfigInfo has store, drop {
+    public struct ConfigInfo has store, drop, copy {
         config_digest: vector<u8>,
         big_f: u8,
         n: u8,
@@ -66,7 +66,7 @@ module ccip::ocr3_base {
         big_f: u8
     }
 
-    public struct OCRConfig has store, drop {
+    public struct OCRConfig has store, drop, copy {
         config_info: ConfigInfo,
         signers: vector<vector<u8>>,
         transmitters: vector<address>
@@ -112,19 +112,11 @@ module ccip::ocr3_base {
 
     public fun latest_config_details(
         ref: &CCIPObjectRef, ocr_plugin_type: u8
-    ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
+    ): OCRConfig {
         let state = state_object::borrow<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME);
 
         let ocr_config = table::borrow(&state.ocr3_configs, ocr_plugin_type);
-        let config_info = &ocr_config.config_info;
-        (
-            config_info.config_digest,
-            config_info.big_f,
-            config_info.n,
-            config_info.is_signature_verification_enabled,
-            ocr_config.signers,
-            ocr_config.transmitters
-        )
+        *ocr_config
     }
 
     // equivalent of uint64(uint256(reportContext[1]))
