@@ -734,17 +734,119 @@ module ccip::rmn_remote_test {
         tear_down_test(scenario, owner_cap, ref);
     }
 
-    // #[test]
-    // public fun test_curse() {
-    //     let (mut scenario, owner_cap, mut ref) = set_up_test();
-    //     let ctx = scenario.ctx();
-    //
-    //     rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
-    //     rmn_remote::curse(&owner_cap, &mut ref, b"00000000000000000003", ctx);
-    //
-    //     // let cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
-    //     // assert!(vector::length(&cursed_subjects) == 1);
-    //
-    //     tear_down_test(scenario, owner_cap, ref);
-    // }
+    #[test]
+    public fun test_curse() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+
+        rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
+        rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
+
+        let cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
+        assert!(vector::length(&cursed_subjects) == 1);
+
+        assert!(rmn_remote::is_cursed(&ref, b"0000000000000003"));
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = rmn_remote::E_INVALID_SUBJECT_LENGTH)]
+    public fun test_curse_invalid_subject_length() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+
+        rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
+        rmn_remote::curse(&owner_cap, &mut ref, b"00003", ctx);
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = rmn_remote::E_ALREADY_CURSED)]
+    public fun test_curse_already_cursed() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+
+        rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
+        rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
+        rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    public fun test_curse_multiple() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+
+        rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
+        rmn_remote::curse_multiple(
+            &owner_cap,
+            &mut ref,
+            vector[
+                b"0000000000000003",
+                b"0000000000000004",
+            ],
+            ctx
+        );
+
+        let cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
+        assert!(vector::length(&cursed_subjects) == 2);
+
+        assert!(rmn_remote::is_cursed(&ref, b"0000000000000003"));
+        assert!(rmn_remote::is_cursed(&ref, b"0000000000000004"));
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    public fun test_uncurse() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+
+        rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
+        rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
+        let mut cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
+        assert!(vector::length(&cursed_subjects) == 1);
+        assert!(rmn_remote::is_cursed(&ref, b"0000000000000003"));
+
+        rmn_remote::uncurse(&owner_cap, &mut ref, b"0000000000000003", ctx);
+        cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
+        assert!(vector::length(&cursed_subjects) == 0);
+        assert!(!rmn_remote::is_cursed(&ref, b"0000000000000003"));
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    public fun test_is_cursed_global() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+
+        rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
+        rmn_remote::curse(&owner_cap, &mut ref, x"01000000000000000000000000000001", ctx);
+
+        let cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
+        assert!(vector::length(&cursed_subjects) == 1);
+        assert!(rmn_remote::is_cursed_global(&ref));
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    public fun test_is_cursed_u128() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+
+        rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
+        rmn_remote::curse(&owner_cap, &mut ref, x"00000000000000000000000000000100", ctx); // hex(256)
+
+        assert!(rmn_remote::is_cursed_u128(&ref, 256));
+        assert!(!rmn_remote::is_cursed_u128(&ref, 100));
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    // TODO: add tests for verify
 }
