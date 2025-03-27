@@ -8,7 +8,10 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
+	sui_p "github.com/pattonkan/sui-go/sui"
+	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type TxOpts struct {
@@ -16,11 +19,13 @@ type TxOpts struct {
 	GasBudget string
 }
 
-func SignAndSendTx(ctx context.Context, signer signer.Signer, client sui.ISuiAPI, unsignedTx models.TxnMetaData) (*models.SuiTransactionBlockResponse, error) {
-	signedTx := unsignedTx.SignSerializedSigWith(signer.PriKey)
+func SignAndSendTx(ctx context.Context, signer signer.Signer, client sui.ISuiAPI, txBytes []byte) (*models.SuiTransactionBlockResponse, error) {
+	relayerSigner := rel.NewPrivateKeySigner(signer.PriKey)
+	signatures, err := relayerSigner.Sign(txBytes)
+
 	blockReq := &models.SuiExecuteTransactionBlockRequest{
-		TxBytes:   signedTx.TxBytes,
-		Signature: []string{signedTx.Signature},
+		TxBytes:   EncodeBase64(txBytes),
+		Signature: signatures,
 		Options: models.SuiTransactionBlockOptions{
 			ShowInput:          true,
 			ShowRawInput:       true,
@@ -28,7 +33,7 @@ func SignAndSendTx(ctx context.Context, signer signer.Signer, client sui.ISuiAPI
 			ShowObjectChanges:  true,
 			ShowBalanceChanges: true,
 		},
-		// RequestType:
+		RequestType: "WaitForLocalExecution",
 	}
 
 	tx, err := client.SuiExecuteTransactionBlock(ctx, *blockReq)
@@ -41,29 +46,41 @@ func SignAndSendTx(ctx context.Context, signer signer.Signer, client sui.ISuiAPI
 	return &tx, nil
 }
 
-func BuildCallRequest(opts TxOpts, signerAddress, packageObjectId, module, function string, args []any) models.MoveCallRequest {
-	return models.MoveCallRequest{
-		Signer:          signerAddress,
-		PackageObjectId: packageObjectId,
-		Module:          module,
-		Function:        function,
-		TypeArguments:   []any{},
-		Arguments:       args,
-		Gas:             &opts.GasObject,
-		GasBudget:       opts.GasBudget,
-		ExecutionMode:   "WaitForCommit",
+func BuildCallTransaction(opts TxOpts, packageObjectId, module, function string, args []any) (*suiptb.ProgrammableTransactionBuilder, error) {
+	ptb := suiptb.NewTransactionDataTransactionBuilder()
+
+	pkgObjectId, err := ToSuiAddress(packageObjectId)
+	if err != nil {
+		return nil, err
 	}
+
+	var callArgs []suiptb.Argument
+	for _, arg := range args {
+		callArgs = append(callArgs, ptb.MustPure(arg))
+	}
+
+	ptb.Command(suiptb.Command{
+		MoveCall: &suiptb.ProgrammableMoveCall{
+			Package:       pkgObjectId,
+			Module:        module,
+			Function:      function,
+			TypeArguments: []sui_p.TypeTag{},
+			Arguments:     callArgs,
+		}},
+	)
+
+	return ptb, nil
 }
 
 // To allow PTB, each method returns a .BuildTx() method (don't require client or signer) that would return the tx payload and .Execute() method (require signer and client) that would build and send the tx to the network
 type IMethod interface {
-	Build(opts TxOpts, signerAddress string) (models.TxnMetaData, error)
+	Build(opts TxOpts, signerAddress string) (*suiptb.ProgrammableTransactionBuilder, error)
 	Execute(ctx context.Context, opts TxOpts, signer signer.Signer, client sui.ISuiAPI) (*models.SuiTransactionBlockResponse, error)
 }
 
 var _ IMethod = (*Method)(nil)
 
-type BuildFunc func(opts TxOpts, signerAddress string) (models.TxnMetaData, error)
+type BuildFunc func(opts TxOpts, signerAddress string) (*suiptb.ProgrammableTransactionBuilder, error)
 type ExecuteFunc func(ctx context.Context, opts TxOpts, signer signer.Signer, client sui.ISuiAPI) (*models.SuiTransactionBlockResponse, error)
 
 type Method struct {
@@ -78,7 +95,7 @@ func NewMethod(buildFunc BuildFunc, execFunc ExecuteFunc) *Method {
 	}
 }
 
-func (m *Method) Build(opts TxOpts, signerAddress string) (models.TxnMetaData, error) {
+func (m *Method) Build(opts TxOpts, signerAddress string) (*suiptb.ProgrammableTransactionBuilder, error) {
 	return m.buildFunc(opts, signerAddress)
 }
 
@@ -88,11 +105,17 @@ func (m *Method) Execute(ctx context.Context, opts TxOpts, signer signer.Signer,
 
 func MakeExecute(buildFn BuildFunc) ExecuteFunc {
 	return func(ctx context.Context, opts TxOpts, signer signer.Signer, client sui.ISuiAPI) (*models.SuiTransactionBlockResponse, error) {
-		unsignedTx, err := buildFn(opts, string(signer.PubKey))
+		ptb, err := buildFn(opts, string(signer.PubKey))
 		if err != nil {
 			return nil, err
 		}
-		return SignAndSendTx(ctx, signer, client, unsignedTx)
+
+		txBytes, err := FinishTransactionFromBuilder(ctx, ptb, signer.Address, client)
+		if err != nil {
+			return nil, err
+		}
+
+		return SignAndSendTx(ctx, signer, client, txBytes)
 	}
 }
 

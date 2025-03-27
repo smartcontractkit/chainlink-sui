@@ -2,6 +2,7 @@ package counter
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/constant"
@@ -14,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPublishCounter(t *testing.T) {
+func TestCounter(t *testing.T) {
 	t.Parallel()
 	log := logger.Test(t)
 
@@ -39,9 +40,13 @@ func TestPublishCounter(t *testing.T) {
 	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, signer.Address)
 	require.NoError(t, err)
 
-	objID, tx, err := PublishCounter(context.Background(), bind.TxOpts{}, *signer, client)
+	counter, tx, err := PublishCounter(context.Background(), bind.TxOpts{}, *signer, client)
 	require.NoError(t, err)
 
-	require.NotNil(t, objID)
+	require.NotNil(t, counter)
 	require.NotNil(t, tx)
+
+	incrementRes, err := counter.Increment(counter.objectID).Execute(context.Background(), bind.TxOpts{}, *signer, client)
+	require.NoError(t, err)
+	fmt.Println(incrementRes)
 }

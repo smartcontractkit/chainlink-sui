@@ -6,6 +6,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
@@ -33,7 +34,7 @@ func PublishCounter(ctx context.Context, opts bind.TxOpts, signer signer.Signer,
 	}
 
 	req := bind.BuildPublishRequest(artifact, opts, signer.Address)
-	objId, tx, err := bind.PublishPackage(ctx, signer, client, req)
+	objId, tx, err := bind.PublishPackage(ctx, opts, signer, client, req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,8 +43,8 @@ func PublishCounter(ctx context.Context, opts bind.TxOpts, signer signer.Signer,
 }
 
 type ICounter interface {
-	Increment(objectId string) (bind.IMethod, error)
-	IncrementMult(objectId string, a, b uint64) (bind.IMethod, error)
+	Increment(objectId string) bind.IMethod
+	// IncrementMult(objectId string, a, b uint64) (bind.IMethod, error)
 }
 
 type Counter struct {
@@ -83,31 +84,18 @@ func (c *Counter) EncodeIncrementMult(counterObjectId string, a, b uint64) (enco
 	)
 }
 
-func (c *Counter) Increment(counterObjectId string) (bind.IMethod, error) {
-	build := func(opts bind.TxOpts, signer string) (models.TxnMetaData, error) {
+func (c *Counter) Increment(counterObjectId string) bind.IMethod {
+	build := func(opts bind.TxOpts, signer string) (*suiptb.ProgrammableTransactionBuilder, error) {
 		payload, err := c.EncodeIncrement(counterObjectId)
 		if err != nil {
-			return models.TxnMetaData{}, err
+			return nil, err
 		}
-		req := bind.BuildCallRequest(opts, signer, c.objectID, "Counter", "increment", payload)
-		// TODO: This should not use client (should be a local computation), and shouldn't need context
-		unsignedTx, err := c.client.MoveCall(context.Background(), req)
-		return unsignedTx, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build)), nil
-}
-
-func (c *Counter) IncrementMult(counterObjectId string, a, b uint64) (bind.IMethod, error) {
-	build := func(opts bind.TxOpts, signer string) (models.TxnMetaData, error) {
-		payload, err := c.EncodeIncrementMult(counterObjectId, a, b)
+		ptb, err := bind.BuildCallTransaction(opts, c.objectID, "counter", "increment", payload)
 		if err != nil {
-			return models.TxnMetaData{}, err
+			return nil, err
 		}
-		req := bind.BuildCallRequest(opts, signer, c.objectID, "Counter", "increment_mult", payload)
-		// TODO: This should not use client (should be a local computation), and shouldn't need context
-		unsignedTx, err := c.client.MoveCall(context.Background(), req)
-		return unsignedTx, nil
+		return ptb, nil
 	}
-	return bind.NewMethod(build, bind.MakeExecute(build)), nil
+
+	return bind.NewMethod(build, bind.MakeExecute(build))
 }
