@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/fardream/go-bcs/bcs"
 
@@ -18,7 +19,7 @@ import (
 	"github.com/pattonkan/sui-go/suiclient"
 )
 
-type ObjectID = string
+type PackageID = string
 
 // TODO: Should make use of opts
 func PublishPackage(
@@ -28,7 +29,7 @@ func PublishPackage(
 	signer signer.Signer,
 	client sui.ISuiAPI,
 	req models.PublishRequest,
-) (ObjectID, *models.SuiTransactionBlockResponse, error) {
+) (PackageID, *models.SuiTransactionBlockResponse, error) {
 	var modules [][]byte
 	for _, encodedModule := range req.CompiledModules {
 		decodedModule := decodeBase64(encodedModule)
@@ -80,17 +81,27 @@ func PublishPackage(
 	}
 
 	// Find the object ID from the transaction
-	objectId, err := findObjectIdFromPublishTx(*tx)
+	pkgId, err := FindPackageIdFromPublishTx(*tx)
 	if err != nil {
 		return "", nil, err
 	}
 
-	return objectId, tx, err
+	return pkgId, tx, err
 }
 
-func findObjectIdFromPublishTx(tx models.SuiTransactionBlockResponse) (string, error) {
+func FindPackageIdFromPublishTx(tx models.SuiTransactionBlockResponse) (string, error) {
 	for _, change := range tx.ObjectChanges {
 		if change.Type == "published" {
+			return change.PackageId, nil
+		}
+	}
+
+	return "", errors.New("package ID not found in transaction")
+}
+
+func FindObjectIdFromPublishTx(tx *models.SuiTransactionBlockResponse, module string) (string, error) {
+	for _, change := range tx.ObjectChanges {
+		if change.Type == "created" && strings.Contains(change.ObjectType, module) {
 			return change.ObjectId, nil
 		}
 	}
@@ -160,7 +171,7 @@ func FinishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableT
 	}
 
 	// TODO: Should be configurable with txopts
-	gasBudget := uint64(20000000)
+	gasBudget := uint64(200000000)
 	txData := suiptb.NewTransactionData(
 		address,
 		pt,

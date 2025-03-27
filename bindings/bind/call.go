@@ -46,10 +46,10 @@ func SignAndSendTx(ctx context.Context, signer signer.Signer, client sui.ISuiAPI
 	return &tx, nil
 }
 
-func BuildCallTransaction(opts TxOpts, packageObjectId, module, function string, args []any) (*suiptb.ProgrammableTransactionBuilder, error) {
+func BuildCallTransaction(opts TxOpts, packageID, module, function string, args []any) (*suiptb.ProgrammableTransactionBuilder, error) {
 	ptb := suiptb.NewTransactionDataTransactionBuilder()
 
-	pkgObjectId, err := ToSuiAddress(packageObjectId)
+	pkgObjectId, err := ToSuiAddress(packageID)
 	if err != nil {
 		return nil, err
 	}

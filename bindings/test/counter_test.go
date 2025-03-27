@@ -2,7 +2,6 @@ package counter
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/constant"
@@ -46,7 +45,14 @@ func TestCounter(t *testing.T) {
 	require.NotNil(t, counter)
 	require.NotNil(t, tx)
 
-	incrementRes, err := counter.Increment(counter.objectID).Execute(context.Background(), bind.TxOpts{}, *signer, client)
+	counterObjectId, err := bind.FindObjectIdFromPublishTx(tx, "counter")
 	require.NoError(t, err)
-	fmt.Println(incrementRes)
+
+	// two increments
+	_, err = counter.Increment(counterObjectId).Execute(context.Background(), bind.TxOpts{}, *signer, client)
+	require.NoError(t, err)
+	_, err = counter.Increment(counterObjectId).Execute(context.Background(), bind.TxOpts{}, *signer, client)
+	require.NoError(t, err)
+
+	// TODO: Check counter value
 }
