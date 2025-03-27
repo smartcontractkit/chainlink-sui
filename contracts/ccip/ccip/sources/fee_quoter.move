@@ -198,7 +198,9 @@ module ccip::fee_quoter {
             E_ALREADY_INITIALIZED
         );
 
-        // TODO: how to perform some checks for link token
+        // TODO: how to perform some checks for link token. this technically just needs
+        // to be a unique identifier of link token. we don't request any data from it.
+        // Could be the object ID of treasury cap or coin metadata
         // assert!(
         //     object::object_exists<CoinMetadata>(link_token),
         //     E_INVALID_LINK_TOKEN
@@ -219,7 +221,6 @@ module ccip::fee_quoter {
         state_object::add(ownerCap, ref, FEE_QUOTER_STATE_NAME, state);
     }
 
-    // TODO: check the ownership of the state object
     public fun apply_fee_token_updates(
         ownerCap: &OwnerCap,
         ref: &mut CCIPObjectRef,
@@ -1224,7 +1225,6 @@ module ccip::fee_quoter {
 
     public fun process_message_args(
         ref: &CCIPObjectRef,
-        // state: &FeeQuoterState,
         dest_chain_selector: u64,
         fee_token: address,
         fee_token_amount: u64,
@@ -1233,7 +1233,6 @@ module ccip::fee_quoter {
         dest_pool_datas: vector<vector<u8>>
     ): (u64, bool, vector<u8>, vector<vector<u8>>) {
         let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
-        // let state = borrow_state();
         let msg_fee_juels =
             if (fee_token == state.link_token) {
                 fee_token_amount

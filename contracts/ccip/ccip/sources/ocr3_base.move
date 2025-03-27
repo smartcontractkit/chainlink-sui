@@ -212,7 +212,6 @@ module ccip::ocr3_base {
         table::add(signer_oracles, ocr_plugin_type, validated_signers);
     }
 
-    // Sui Move ed25519 does not
     // TODO: verify if we can provide more validation for public key
     fun validate_public_key(pubkey: &vector<u8>): bool {
         vector::length(pubkey) == 32
