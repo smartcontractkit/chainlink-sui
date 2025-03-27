@@ -1278,4 +1278,158 @@ module ccip::fee_quoter {
             dest_exec_data_per_token
         )
     }
+
+    #[test_only]
+    public fun get_fee_tokens(ref: &CCIPObjectRef ): vector<address> {
+        let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+        state.fee_tokens
+    }
+}
+
+#[test_only]
+module ccip::fee_quoter_test {
+    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+    use ccip::fee_quoter;
+    use sui::test_scenario::{Self, Scenario};
+
+    const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
+    const MOCK_ADDRESS_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
+    const MOCK_ADDRESS_2: address = @0xf5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4;
+    const MOCK_ADDRESS_3: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7;
+    const MOCK_ADDRESS_4: address = @0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d;
+    const MOCK_ADDRESS_5: address = @0xd1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2;
+
+    fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
+        let mut scenario = test_scenario::begin(@0x1);
+        let ctx = scenario.ctx();
+
+        let (owner_cap, ref) = state_object::create(ctx);
+
+        (scenario, owner_cap, ref)
+    }
+
+    fun initialize(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
+        fee_quoter::initialize(
+            owner_cap,
+            ref,
+            2000,
+            MOCK_ADDRESS_1,
+            1000,
+            vector[
+                MOCK_ADDRESS_1,
+                MOCK_ADDRESS_2,
+                MOCK_ADDRESS_3
+            ],
+            ctx
+        );
+    }
+
+    fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, ref: CCIPObjectRef) {
+        state_object::destroy_owner_cap(owner_cap);
+        state_object::destroy_state_object(ref);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    public fun test_initialize() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+        initialize(&owner_cap, &mut ref, ctx);
+
+        let _state = state_object::borrow<fee_quoter::FeeQuoterState>(&ref, FEE_QUOTER_STATE_NAME);
+
+        let fee_tokens = fee_quoter::get_fee_tokens(&ref);
+        assert!(fee_tokens == vector[
+            MOCK_ADDRESS_1,
+            MOCK_ADDRESS_2,
+            MOCK_ADDRESS_3
+        ]);
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    public fun test_apply_fee_token_updates() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+        initialize(&owner_cap, &mut ref, ctx);
+
+        fee_quoter::apply_fee_token_updates(
+            &owner_cap,
+            &mut ref,
+            vector[
+                MOCK_ADDRESS_1,
+                MOCK_ADDRESS_2
+            ],
+            vector[
+                MOCK_ADDRESS_4,
+                MOCK_ADDRESS_5
+            ],
+            ctx
+        );
+
+        let fee_tokens = fee_quoter::get_fee_tokens(&ref);
+        assert!(fee_tokens == vector[
+            MOCK_ADDRESS_3,
+            MOCK_ADDRESS_4,
+            MOCK_ADDRESS_5
+        ]);
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    public fun test_apply_token_transfer_fee_config_updates() {
+        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+        initialize(&owner_cap, &mut ref, ctx);
+
+        fee_quoter::apply_token_transfer_fee_config_updates(
+            &owner_cap,
+            &mut ref,
+            10,
+            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
+            vector[100, 200],
+            vector[3000, 4000],
+            vector[500, 600],
+            vector[700, 800],
+            vector[900, 1000],
+            vector[true, false],
+            vector[],
+            ctx
+        );
+
+        // a successful get means the config is created.
+        // we can verify the content of config but that requires an additional
+        // function to expose fields within the config due to the fact that this
+        // test is outside the module.
+        let _config = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = fee_quoter::E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH)]
+    public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
+        let ( mut scenario, owner_cap, mut ref) = set_up_test();
+        let ctx = scenario.ctx();
+        initialize(&owner_cap, &mut ref, ctx);
+
+        fee_quoter::apply_token_transfer_fee_config_updates(
+            &owner_cap,
+            &mut ref,
+            10,
+            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
+            vector[100, 200],
+            vector[3000], // only one value
+            vector[500, 600],
+            vector[700, 800],
+            vector[900, 1000],
+            vector[true, false],
+            vector[],
+            ctx
+        );
+
+        tear_down_test(scenario, owner_cap, ref);
+    }
 }
