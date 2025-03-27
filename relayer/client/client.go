@@ -17,7 +17,7 @@ type SuiClient interface {
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]interface{}, error)
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
-	SignAndSendTransaction(ctx context.Context, transaction models.SuiTransactionBlockData, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
+	SignAndSendTransaction(ctx context.Context, txBytes string, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
 }
 
 type Client struct {
@@ -84,6 +84,7 @@ func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]
 
 // ReadFunction calls a Move contract function and returns the value.
 // The implementation internally signs the transactions with the signer attached to the client.
+// This method also calls the Move contract in "devInspect" execution mode since it is only reading values.
 func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
@@ -95,6 +96,7 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 		TypeArguments:   argTypes,
 		Arguments:       args,
 		Signer:          packageId, // Using packageId as signer for read operations
+		ExecutionMode:   models.TransactionExecutionDevInspect,
 	})
 
 	if err != nil {
