@@ -36,11 +36,13 @@ module ccip::fee_quoter {
     public struct FeeQuoterState has key, store {
         id: UID,
         max_fee_juels_per_msg: u64,
-        // TODO: figure out if we should use CoinMetadata for link token or object ID for CoinMetadata or Treasury Cap object
+        // TODO: figure out if we should use CoinMetadata for link token or object ID for Treasury Cap object
+        // TODO: we will need a link token contract
         link_token: address,
         token_price_staleness_threshold: u64,
         fee_tokens: vector<address>,
         usd_per_unit_gas_by_dest_chain: table::Table<u64, TimestampedPrice>,
+        // TODO: we need to know the token address for common tokens like USDC, SUI, etc
         usd_per_token: table::Table<address, TimestampedPrice>,
         dest_chain_configs: table::Table<u64, DestChainConfig>,
         // dest chain selector -> local token -> TokenTransferFeeConfig
@@ -182,7 +184,6 @@ module ccip::fee_quoter {
     //     };
     // }
 
-    // TODO: configure out the ownership check and check if state is initialized
     public fun initialize(
         ownerCap: &OwnerCap,
         ref: &mut CCIPObjectRef,
@@ -1015,11 +1016,9 @@ module ccip::fee_quoter {
     }
 
     public fun get_premium_multiplier_wei_per_eth(
-        // state: &mut FeeQuoterState,
         ref: &mut CCIPObjectRef,
         token: address
     ): u64 {
-        // let state = borrow_state();
         let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
         get_premium_multiplier_wei_per_eth_internal(state, token)
     }
@@ -1036,7 +1035,6 @@ module ccip::fee_quoter {
 
     fun decode_evm_extra_args(extra_args: vector<u8>): (u256, bool) {
         // TODO: we need extra validation here. if extra_args length is less than tag length + data length,
-        // vector::slice will revert.
         let extra_args_len = vector::length(&extra_args);
         let args_tag = slice(&extra_args, 0, 4);
         let args_data = slice(&extra_args, 4, extra_args_len - 4);
@@ -1069,7 +1067,6 @@ module ccip::fee_quoter {
         extra_args: vector<u8>
     ): (u32, u64, bool, vector<u8>, vector<vector<u8>>) {
         // TODO: we need extra validation here. if extra_args length is less than tag length + data length,
-        // vector::slice will revert.
         let extra_args_len = vector::length(&extra_args);
         let args_tag = slice(&extra_args, 0, 4);
         assert!(
