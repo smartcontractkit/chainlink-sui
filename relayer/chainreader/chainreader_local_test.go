@@ -4,10 +4,12 @@ package chainreader
 
 import (
 	"context"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 
 	"github.com/block-vision/sui-go-sdk/constant"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -76,15 +78,24 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	// start by deploying the counter contract to local net
-	//packageId, counterObjectId, err := testutils.DeployCounterContract(t)
-	//require.NoError(t, err)
-
 	// Set up the ChainReader
 	chainReaderConfig := ChainReaderConfig{
 		Modules: map[string]*ChainReaderModule{
 			"counter": {
 				Name: "counter",
+				Functions: map[string]*ChainReaderFunction{
+					"get_count": {
+						Name: "get_count",
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:         "address",
+								Name:         "counter_id",
+								DefaultValue: counterObjectId,
+								Required:     true,
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -113,6 +124,30 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			struct {
 				Value uint64
 			}{Value: expectedUint64},
+			&retUint64,
+		)
+		require.NoError(t, err)
+		require.Equal(t, expectedUint64, retUint64)
+	})
+
+	//nolint:paralleltest
+	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
+		t.Parallel()
+		expectedUint64 := uint64(0)
+		var retUint64 uint64
+
+		log.Debugw("Testing get_count",
+			"counterObjectId", counterObjectId,
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, counterBinding.Name, "get_count"}, "-"),
+			primitives.Finalized,
+			map[string]interface{}{
+				"counter_id": counterObjectId,
+			},
 			&retUint64,
 		)
 		require.NoError(t, err)

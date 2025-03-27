@@ -85,9 +85,21 @@ func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]
 // ReadFunction calls a Move contract function and returns the value.
 // The implementation internally signs the transactions with the signer attached to the client.
 // This method also calls the Move contract in "devInspect" execution mode since it is only reading values.
-func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error) {
+func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}, sender string) (models.SuiTransactionBlockResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
+
+	// if signer == nil {
+	// 	// fallback to the default signer if no override is provided
+	// 	signer = c.signer
+	// }
+
+	// sender, err := (*signer).GetAddress()
+	// if err != nil {
+	// 	return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to get address: %v", err)
+	// }
+
+	c.log.Debugw("Preparing to call move function", "packageId", packageId, "module", module, "function", function, "args", args, "argTypes", argTypes, "sender", sender)
 
 	txn, err := c.client.MoveCall(ctx, models.MoveCallRequest{
 		PackageObjectId: packageId,
@@ -95,20 +107,22 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 		Function:        function,
 		TypeArguments:   argTypes,
 		Arguments:       args,
-		Signer:          packageId, // Using packageId as signer for read operations
+		Signer:          sender,
+		GasBudget:       "2000000",
 		ExecutionMode:   models.TransactionExecutionDevInspect,
 	})
-
 	if err != nil {
 		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to move call: %v", err)
 	}
 
-	if signer == nil {
-		// fallback to the default signer if no override is provided
-		signer = c.signer
+	results, err := c.SignAndSendTransaction(ctx, txn.TxBytes, nil)
+	if err != nil {
+		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to dev inspect transaction: %v", err)
 	}
 
-	return c.SignAndSendTransaction(ctx, txn.TxBytes, signer)
+	c.log.Debugw("Dev inspect results", "results", results)
+
+	return results, nil
 }
 
 // SignAndSendTransaction given a plain (non-encoded) transaction, signs it and sends it to the node.

@@ -156,6 +156,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 		// Prepare arguments for the function call
 		args := []interface{}{}
+		argTypes := []interface{}{}
 
 		if functionConfig.Params != nil {
 			for _, paramConfig := range functionConfig.Params {
@@ -167,13 +168,35 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 					argValue = paramConfig.DefaultValue
 				}
 
-				// No need for BCS serialization in Sui calls via JSON-RPC
-				args = append(args, argValue)
+				// Use the same encoding approach as txm.go
+				encodedValue, err := codec.EncodeToSuiValue(paramConfig.Type, argValue)
+				if err != nil {
+					return fmt.Errorf("failed to encode value for parameter %s: %w", paramConfig.Name, err)
+				}
+
+				args = append(args, encodedValue)
+				argTypes = append(argTypes, paramConfig.Type)
 			}
 		}
 
-		response, err := s.client.ReadFunction(ctx, address, moduleConfig.Name, method, args, []interface{}{}, nil)
+		s.logger.Debugw("Calling ReadFunction",
+			"address", address,
+			"module", moduleConfig.Name,
+			"method", method,
+			"encodedArgs", args,
+			"argTypes", argTypes,
+		)
+
+		response, err := s.client.ReadFunction(ctx, address, moduleConfig.Name, method, args, argTypes, nil)
 		if err != nil {
+			s.logger.Errorw("ReadFunction failed",
+				"error", err,
+				"address", address,
+				"module", moduleConfig.Name,
+				"method", method,
+				"args", args,
+				"argTypes", argTypes,
+			)
 			return fmt.Errorf("failed to call function: %w", err)
 		}
 
