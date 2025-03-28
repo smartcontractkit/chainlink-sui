@@ -2,8 +2,6 @@ package bind
 
 import (
 	"encoding/json"
-
-	"github.com/block-vision/sui-go-sdk/models"
 )
 
 type PackageArtifact struct {
@@ -18,14 +16,4 @@ func ToArtifact(artifactJSON string) (PackageArtifact, error) {
 		return PackageArtifact{}, err
 	}
 	return artifact, nil
-}
-
-func BuildPublishRequest(artifact PackageArtifact, opts TxOpts, signer string) models.PublishRequest {
-	return models.PublishRequest{
-		Sender:          signer,
-		CompiledModules: artifact.Modules,
-		Dependencies:    artifact.Dependencies,
-		Gas:             &opts.GasObject,
-		GasBudget:       opts.GasBudget,
-	}
 }

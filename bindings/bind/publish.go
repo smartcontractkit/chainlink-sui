@@ -2,37 +2,40 @@ package bind
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
-	"strconv"
 	"strings"
-
-	"github.com/fardream/go-bcs/bcs"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	sui_pattokan "github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
-	"github.com/pattonkan/sui-go/suiclient"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 type PackageID = string
 
-// TODO: Should make use of opts
+type PublishRequest struct {
+	CompiledModules []string `json:"compiled_modules"`
+	Dependencies    []string `json:"dependencies"`
+}
+
 func PublishPackage(
 	ctx context.Context,
 	opts TxOpts,
 	// TODO: Replace by a Signer common interface
 	signer signer.Signer,
 	client sui.ISuiAPI,
-	req models.PublishRequest,
+	req PublishRequest,
 ) (PackageID, *models.SuiTransactionBlockResponse, error) {
 	var modules [][]byte
 	for _, encodedModule := range req.CompiledModules {
-		decodedModule := decodeBase64(encodedModule)
+		decodedModule, err := codec.DecodeBase64(encodedModule)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to decode module: %v", err)
+		}
 		modules = append(modules, decodedModule)
 	}
 
@@ -40,16 +43,14 @@ func PublishPackage(
 	for _, dep := range req.Dependencies {
 		suiAddressDep, err := ToSuiAddress(dep)
 		if err != nil {
-			// TODO: Give better error desc
-			return "", nil, err
+			return "", nil, fmt.Errorf("failed to convert dependency address: %v", err)
 		}
 		deps = append(deps, suiAddressDep)
 	}
 
 	signerAddress, err := ToSuiAddress(signer.Address)
 	if err != nil {
-		// TODO: Give better error desc
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to convert signer address: %v", err)
 	}
 
 	// Construct the Transaction using PTB
@@ -64,7 +65,7 @@ func PublishPackage(
 		}})
 
 	// Finish transaction details and encode it
-	txBytes, err := FinishTransactionFromBuilder(ctx, ptb, signer.Address, client)
+	txBytes, err := FinishTransactionFromBuilder(ctx, ptb, opts, signer.Address, client)
 	if err != nil {
 		return "", nil, err
 	}
@@ -107,83 +108,4 @@ func FindObjectIdFromPublishTx(tx *models.SuiTransactionBlockResponse, module st
 	}
 
 	return "", errors.New("object ID not found in transaction")
-}
-
-func decodeBase64(encoded string) []byte {
-	data, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		log.Fatalf("Error decoding base64: %v", err)
-	}
-	return data
-}
-
-func EncodeBase64(data []byte) string {
-	return base64.StdEncoding.EncodeToString(data)
-}
-
-// Fetches every coin owned by the address. Assumes the first one in the list is the SUI coin
-// TODO: Should check this is the coin we want to use, maybe through args
-func getGasCoinData(ctx context.Context, address string, client sui.ISuiAPI) (*sui_pattokan.ObjectRef, error) {
-	coin, err := client.SuiXGetAllCoins(ctx, models.SuiXGetAllCoinsRequest{
-		Owner: address,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get coins: %v", err)
-	}
-
-	if len(coin.Data) == 0 {
-		return nil, fmt.Errorf("no coin data found for signer: %s", address)
-	}
-
-	coinAddress, err := ToSuiAddress(coin.Data[0].CoinObjectId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get coin address: %v", err)
-	}
-
-	version, err := strconv.ParseUint(coin.Data[0].Version, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid version: %v", err)
-	}
-
-	digest, err := sui_pattokan.NewDigest(coin.Data[0].Digest)
-	if err != nil {
-		return nil, fmt.Errorf("invalid coin digest: %v", err)
-	}
-
-	return &sui_pattokan.ObjectRef{
-		ObjectId: coinAddress,
-		Version:  version,
-		Digest:   digest,
-	}, nil
-}
-
-func FinishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, signer string, client sui.ISuiAPI) ([]byte, error) {
-	pt := ptb.Finish()
-
-	address, err := ToSuiAddress(signer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert signer address")
-	}
-
-	coinData, err := getGasCoinData(ctx, signer, client)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Should be configurable with txopts
-	gasBudget := uint64(200000000)
-	txData := suiptb.NewTransactionData(
-		address,
-		pt,
-		[]*sui_pattokan.ObjectRef{coinData},
-		gasBudget,
-		suiclient.DefaultGasPrice,
-	)
-
-	txBytes, err := bcs.Marshal(txData)
-	if err != nil {
-		return nil, err
-	}
-
-	return txBytes, nil
 }

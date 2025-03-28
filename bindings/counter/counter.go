@@ -33,33 +33,31 @@ func PublishCounter(ctx context.Context, opts bind.TxOpts, signer signer.Signer,
 		return nil, nil, err
 	}
 
-	req := bind.BuildPublishRequest(artifact, opts, signer.Address)
-	packageid, tx, err := bind.PublishPackage(ctx, opts, signer, client, req)
+	packageid, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+		CompiledModules: artifact.Modules,
+		Dependencies:    artifact.Dependencies,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return NewCounter(packageid, client), tx, nil
+	return NewCounter(packageid), tx, nil
 }
 
 type ICounter interface {
 	Increment(objectId string) bind.IMethod
-	// IncrementMult(objectId string, a, b uint64) (bind.IMethod, error)
+	// TODO: Add rest of methods
 }
 
 type Counter struct {
 	packageID bind.PackageID
-	client    sui.ISuiAPI
-	// TODO: find relevant information to store
 }
 
 var _ ICounter = (*Counter)(nil)
 
-func NewCounter(packageID string, client sui.ISuiAPI) *Counter {
+func NewCounter(packageID string) *Counter {
 	return &Counter{
 		packageID: packageID,
-		// TODO: Remove after txs are built locally
-		client: client,
 	}
 }
 
