@@ -2,16 +2,16 @@ package bind
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/signer"
+	sui_signer "github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/fardream/go-bcs/bcs"
 	sui_pattokan "github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
@@ -23,9 +23,12 @@ type TxOpts struct {
 	GasPrice  *uint64
 }
 
-func SignAndSendTx(ctx context.Context, signer signer.Signer, client sui.ISuiAPI, txBytes []byte) (*models.SuiTransactionBlockResponse, error) {
+func SignAndSendTx(ctx context.Context, signer sui_signer.Signer, client sui.ISuiAPI, txBytes []byte) (*models.SuiTransactionBlockResponse, error) {
 	relayerSigner := rel.NewPrivateKeySigner(signer.PriKey)
 	signatures, err := relayerSigner.Sign(txBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign tx: %w", err)
+	}
 
 	blockReq := &models.SuiExecuteTransactionBlockRequest{
 		TxBytes:   codec.EncodeBase64(txBytes),
@@ -42,12 +45,14 @@ func SignAndSendTx(ctx context.Context, signer signer.Signer, client sui.ISuiAPI
 
 	tx, err := client.SuiExecuteTransactionBlock(ctx, *blockReq)
 	if err != nil {
-		msg := fmt.Sprintf("tx failed calling move method: %v", err)
-		return nil, errors.New(msg)
+		msg := fmt.Errorf("tx failed calling move method: %w", err)
+		return nil, msg
 	}
 
 	return &tx, nil
 }
+
+const defaultGasBudget = 200000000
 
 func FinishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, opts TxOpts, signer string, client sui.ISuiAPI) ([]byte, error) {
 	pt := ptb.Finish()
@@ -67,7 +72,7 @@ func FinishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableT
 		return nil, err
 	}
 
-	gasBudget := uint64(200000000)
+	gasBudget := uint64(defaultGasBudget)
 	if opts.GasBudget != nil {
 		gasBudget = *opts.GasBudget
 	}

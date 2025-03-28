@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/signer"
+	sui_signer "github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	sui_pattokan "github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
@@ -26,31 +26,31 @@ func PublishPackage(
 	ctx context.Context,
 	opts TxOpts,
 	// TODO: Replace by a Signer common interface
-	signer signer.Signer,
+	signer sui_signer.Signer,
 	client sui.ISuiAPI,
 	req PublishRequest,
 ) (PackageID, *models.SuiTransactionBlockResponse, error) {
-	var modules [][]byte
+	var modules = make([][]byte, 0, len(req.CompiledModules))
 	for _, encodedModule := range req.CompiledModules {
 		decodedModule, err := codec.DecodeBase64(encodedModule)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to decode module: %v", err)
+			return "", nil, fmt.Errorf("failed to decode module: %w", err)
 		}
 		modules = append(modules, decodedModule)
 	}
 
-	var deps []*sui_pattokan.Address
+	deps := make([]*sui_pattokan.Address, 0, len(req.Dependencies))
 	for _, dep := range req.Dependencies {
 		suiAddressDep, err := ToSuiAddress(dep)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to convert dependency address: %v", err)
+			return "", nil, fmt.Errorf("failed to convert dependency address: %w", err)
 		}
 		deps = append(deps, suiAddressDep)
 	}
 
 	signerAddress, err := ToSuiAddress(signer.Address)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to convert signer address: %v", err)
+		return "", nil, fmt.Errorf("failed to convert signer address: %w", err)
 	}
 
 	// Construct the Transaction using PTB
@@ -58,6 +58,9 @@ func PublishPackage(
 	arg := ptb.PublishUpgradeable(modules, deps)
 	// The program object is transferred to the signer address once deployed
 	recArg, err := ptb.Pure(signerAddress)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create tx argument: %w", err)
+	}
 	ptb.Command(suiptb.Command{
 		TransferObjects: &suiptb.ProgrammableTransferObjects{
 			Objects: []suiptb.Argument{arg},
@@ -73,7 +76,7 @@ func PublishPackage(
 	// Sign and send Transaction
 	tx, err := SignAndSendTx(ctx, signer, client, txBytes)
 	if err != nil {
-		msg := fmt.Errorf("failed to execute tx when publishing: %v", err)
+		msg := fmt.Errorf("failed to execute tx when publishing: %w", err)
 		return "", nil, msg
 	}
 

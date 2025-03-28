@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/constant"
-	"github.com/block-vision/sui-go-sdk/signer"
+	sui_signer "github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 
@@ -35,7 +36,7 @@ func TestCounter(t *testing.T) {
 	pk, _, _, err := testutils.GenerateAccountKeyPair(t, log)
 	require.NoError(t, err)
 
-	signer := signer.NewSigner(pk.Seed())
+	signer := sui_signer.NewSigner(pk.Seed())
 	client := sui.NewSuiClient("http://localhost:9000")
 
 	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, signer.Address)

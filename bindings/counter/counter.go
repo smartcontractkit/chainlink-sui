@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/signer"
+	sui_signer "github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
@@ -27,13 +28,13 @@ const CounterJSON = `{
   ]
 }`
 
-func PublishCounter(ctx context.Context, opts bind.TxOpts, signer signer.Signer, client sui.ISuiAPI) (*Counter, *models.SuiTransactionBlockResponse, error) {
+func PublishCounter(ctx context.Context, opts bind.TxOpts, signer sui_signer.Signer, client sui.ISuiAPI) (*Counter, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.ToArtifact(CounterJSON)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	packageid, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -41,7 +42,7 @@ func PublishCounter(ctx context.Context, opts bind.TxOpts, signer signer.Signer,
 		return nil, nil, err
 	}
 
-	return NewCounter(packageid), tx, nil
+	return NewCounter(packageId), tx, nil
 }
 
 type ICounter interface {
@@ -91,6 +92,7 @@ func (c *Counter) Increment(counterObjectId string) bind.IMethod {
 		if err != nil {
 			return nil, err
 		}
+
 		return ptb, nil
 	}
 

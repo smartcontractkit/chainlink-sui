@@ -15,5 +15,6 @@ func ToArtifact(artifactJSON string) (PackageArtifact, error) {
 	if err := json.Unmarshal([]byte(artifactJSON), &artifact); err != nil {
 		return PackageArtifact{}, err
 	}
+
 	return artifact, nil
 }

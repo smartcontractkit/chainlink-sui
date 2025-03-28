@@ -20,7 +20,7 @@ func ToSuiAddress(address string) (*sui_pattokan.Address, error) {
 func FetchDefaultGasCoinRef(ctx context.Context, client sui.ISuiAPI, address string) (*sui_pattokan.ObjectRef, error) {
 	suiCoins, err := fetchOwnedSuiCoins(ctx, client, address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch owned SUI coins: %v", err)
+		return nil, fmt.Errorf("failed to fetch owned SUI coins: %w", err)
 	}
 	if len(suiCoins) == 0 {
 		return nil, fmt.Errorf("no SUI coins found for address: %s", address)
@@ -33,12 +33,12 @@ func ToSuiObjectRef(ctx context.Context, client sui.ISuiAPI, objectId string, ad
 	// Convert the object ID to a Sui address
 	suiAddress, err := ToSuiAddress(objectId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert object ID to address: %v", err)
+		return nil, fmt.Errorf("failed to convert object ID to address: %w", err)
 	}
 
 	refs, err := fetchOwnedSuiCoins(ctx, client, address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert object ID to address: %v", err)
+		return nil, fmt.Errorf("failed to convert object ID to address: %w", err)
 	}
 
 	for _, ref := range refs {
@@ -55,7 +55,7 @@ func fetchOwnedSuiCoins(ctx context.Context, client sui.ISuiAPI, address string)
 		Owner: address,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get default Gas coins: %v", err)
+		return nil, fmt.Errorf("failed to get default Gas coins: %w", err)
 	}
 
 	if len(coin.Data) == 0 {
@@ -67,17 +67,17 @@ func fetchOwnedSuiCoins(ctx context.Context, client sui.ISuiAPI, address string)
 		if isSuiCoin(data) {
 			coinAddress, err := ToSuiAddress(data.CoinObjectId)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get coin address: %v", err)
+				return nil, fmt.Errorf("failed to get coin address: %w", err)
 			}
 
 			version, err := strconv.ParseUint(data.Version, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid version: %v", err)
+				return nil, fmt.Errorf("invalid version: %w", err)
 			}
 
 			digest, err := sui_pattokan.NewDigest(data.Digest)
 			if err != nil {
-				return nil, fmt.Errorf("invalid coin digest: %v", err)
+				return nil, fmt.Errorf("invalid coin digest: %w", err)
 			}
 			coinRefs = append(coinRefs, &sui_pattokan.ObjectRef{
 				ObjectId: coinAddress,
@@ -91,8 +91,5 @@ func fetchOwnedSuiCoins(ctx context.Context, client sui.ISuiAPI, address string)
 }
 
 func isSuiCoin(coin models.CoinData) bool {
-	if coin.CoinType == "0x2::sui::SUI" {
-		return true
-	}
-	return false
+	return coin.CoinType == "0x2::sui::SUI"
 }
