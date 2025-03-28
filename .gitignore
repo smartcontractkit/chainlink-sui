@@ -5,5 +5,5 @@
 # misc
 /.vscode
 *.log
-.idea
+.idea/**
 **/build/**

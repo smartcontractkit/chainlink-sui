@@ -123,7 +123,7 @@ module ccip::ocr3_base {
     public fun deserialize_sequence_bytes(
         sequence_bytes: vector<u8>
     ): u64 {
-        let len = vector::length(&sequence_bytes);
+        let len = sequence_bytes.length();
         let mut result: u64 = 0;
         let mut i = len - 8;
         while (i < len) {
@@ -147,7 +147,7 @@ module ccip::ocr3_base {
     }
 
     fun has_duplicates<T>(a: &vector<T>): bool {
-        let len = vector::length(a);
+        let len = a.length();
         let mut i = 0;
 
         while (i < len) {
@@ -206,7 +206,7 @@ module ccip::ocr3_base {
 
     // TODO: verify if we can provide more validation for public key
     fun validate_public_key(pubkey: &vector<u8>): bool {
-        vector::length(pubkey) == 32
+        pubkey.length() == 32
     }
 
     fun verify_signature(
@@ -214,7 +214,7 @@ module ccip::ocr3_base {
         hashed_report: vector<u8>,
         signatures: vector<vector<u8>>
     ) {
-        let mut seen = bit_vector::new(vector::length(signers));
+        let mut seen = bit_vector::new(signers.length());
         vector::do_ref!(
             &signatures,
             |signature_bytes| {
@@ -239,14 +239,14 @@ module ccip::ocr3_base {
     }
 
     fun new_unvalidated_public_key_from_bytes(bytes: vector<u8>): UnvalidatedPublicKey {
-        assert!(std::vector::length(&bytes) == PUBLIC_KEY_NUM_BYTES, E_WRONG_PUBKEY_SIZE);
+        assert!(bytes.length() == PUBLIC_KEY_NUM_BYTES, E_WRONG_PUBKEY_SIZE);
         UnvalidatedPublicKey { bytes }
     }
 
     /// Returns a new vector containing `len` elements from `vec`
     /// starting at index `start`. Panics if `start + len` exceeds the vector length.
     fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
-        let vec_len = vector::length(vec);
+        let vec_len = vec.length();
         // Ensure we have enough elements for the slice.
         assert!(start + len <= vec_len, E_OUT_OF_BYTES);
         let mut new_vec = vector::empty<T>();
@@ -274,19 +274,19 @@ module ccip::ocr3_base {
         let config_info = &ocr_config.config_info;
 
         assert!(
-            vector::length(&report_context) == 2,
+            report_context.length() == 2,
             E_INVALID_REPORT_CONTEXT_LENGTH
         );
 
         let config_digest = *vector::borrow(&report_context, 0);
         assert!(
-            vector::length(&config_digest) == 32,
+            config_digest.length() == 32,
             E_INVALID_CONFIG_DIGEST_LENGTH
         );
 
         let sequence_bytes = *vector::borrow(&report_context, 1);
         assert!(
-            vector::length(&sequence_bytes) == 32,
+            sequence_bytes.length() == 32,
             E_INVALID_SEQUENCE_LENGTH
         );
 
@@ -308,7 +308,7 @@ module ccip::ocr3_base {
 
         if (config_info.is_signature_verification_enabled) {
             assert!(
-                vector::length(&signatures) == (config_info.big_f as u64) + 1,
+                signatures.length() == (config_info.big_f as u64) + 1,
                 E_WRONG_NUMBER_OF_SIGNATURES
             );
 
@@ -370,31 +370,31 @@ module ccip::ocr3_base {
         };
 
         assert!(
-            vector::length(&transmitters) <= MAX_NUM_ORACLES,
+            transmitters.length() <= MAX_NUM_ORACLES,
             E_TOO_MANY_TRANSMITTERS
         );
         assert!(
-            vector::length(&transmitters) > 0,
+            transmitters.length() > 0,
             E_NO_TRANSMITTERS
         );
 
         if (is_signature_verification_enabled) {
             assert!(
-                vector::length(&signers) <= MAX_NUM_ORACLES,
+                signers.length() <= MAX_NUM_ORACLES,
                 E_TOO_MANY_SIGNERS
             );
             assert!(
-                vector::length(&signers) > 3 * (big_f as u64),
+                signers.length() > 3 * (big_f as u64),
                 E_BIG_F_TOO_HIGH
             );
             // NOTE: Transmitters cannot exceed signers. Transmitters do not have to be >= 3F + 1 because they can
             // match >= 3fChain + 1, where fChain <= F. fChain is not represented in MultiOCR3Base - so we skip this check.
             assert!(
-                vector::length(&signers) >= vector::length(&transmitters),
+                signers.length() >= transmitters.length(),
                 E_TOO_MANY_TRANSMITTERS
             );
 
-            config_info.n = vector::length(&signers) as u8;
+            config_info.n = signers.length() as u8;
 
             ocr_config.signers = signers;
 

@@ -55,8 +55,8 @@ module ccip::eth_abi {
     public fun encode_bytes32(
         out: &mut vector<u8>, value: vector<u8>
     ) {
-        assert!(vector::length(&value) <= 32, E_INVALID_LENGTH);
-        let padding_len = 32 - vector::length(&value);
+        assert!(value.length() <= 32, E_INVALID_LENGTH);
+        let padding_len = 32 - value.length();
         let mut i = 0;
         while (i < padding_len) {
             vector::push_back(out, 0);
@@ -66,10 +66,10 @@ module ccip::eth_abi {
     }
 
     public fun encode_bytes(out: &mut vector<u8>, value: vector<u8>) {
-        encode_u256(out, (vector::length(&value) as u256));
+        encode_u256(out, (value.length() as u256));
 
         vector::append(out, value);
-        let padding_len = 32 - (vector::length(&value) % 32);
+        let padding_len = 32 - (value.length() % 32);
         let mut i = 0;
         while (i < padding_len) {
             vector::push_back(out, 0);
@@ -78,7 +78,7 @@ module ccip::eth_abi {
     }
 
     public fun encode_selector(out: &mut vector<u8>, value: vector<u8>) {
-        assert!(vector::length(&value) == 4, E_INVALID_SELECTOR);
+        assert!(value.length() == 4, E_INVALID_SELECTOR);
         vector::append(out, value);
     }
 
@@ -98,7 +98,7 @@ module ccip::eth_abi {
     public fun encode_packed_bytes32(
         out: &mut vector<u8>, value: vector<u8>
     ) {
-        assert!(vector::length(&value) <= 32, E_INVALID_LENGTH);
+        assert!(value.length() <= 32, E_INVALID_LENGTH);
         vector::append(out, value)
     }
 
@@ -147,7 +147,7 @@ module ccip::eth_abi {
         let cur = stream.cur;
 
         assert!(
-            cur + 32 <= vector::length(data),
+            cur + 32 <= data.length(),
             E_OUT_OF_BYTES
         );
 
@@ -176,7 +176,7 @@ module ccip::eth_abi {
 
     public fun decode_u256_value(mut value_bytes: vector<u8>): u256 {
         assert!(
-            vector::length(&value_bytes) == 32,
+            value_bytes.length() == 32,
             E_INVALID_U256_LENGTH
         );
         vector::reverse(&mut value_bytes);
@@ -190,7 +190,7 @@ module ccip::eth_abi {
         let cur = stream.cur;
 
         assert!(
-            cur + 32 <= vector::length(data),
+            cur + 32 <= data.length(),
             E_OUT_OF_BYTES
         );
 
@@ -205,7 +205,7 @@ module ccip::eth_abi {
     /// Returns a new vector containing `len` elements from `vec`
     /// starting at index `start`. Panics if `start + len` exceeds the vector length.
     fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
-        let vec_len = vector::length(vec);
+        let vec_len = vec.length();
         // Ensure we have enough elements for the slice.
         assert!(start + len <= vec_len, E_OUT_OF_BYTES);
         let mut new_vec = vector::empty<T>();
@@ -235,7 +235,7 @@ module ccip::eth_abi {
         let cur = stream.cur;
 
         assert!(
-            cur + 32 <= vector::length(data),
+            cur + 32 <= data.length(),
             E_OUT_OF_BYTES
         );
 
@@ -277,7 +277,7 @@ module ccip::eth_abi {
         let cur = stream.cur;
 
         assert!(
-            cur + length + padding_len <= vector::length(data),
+            cur + length + padding_len <= data.length(),
             E_OUT_OF_BYTES
         );
 
@@ -293,7 +293,7 @@ module ccip::eth_abi {
         let cur = stream.cur;
 
         assert!(
-            cur + 32 <= vector::length(data),
+            cur + 32 <= data.length(),
             E_OUT_OF_BYTES
         );
 

@@ -288,29 +288,29 @@ module ccip::fee_quoter {
                 &mut state.token_transfer_fee_configs, dest_chain_selector
             );
 
-        let add_tokens_len = vector::length(&add_tokens);
+        let add_tokens_len = add_tokens.length();
         assert!(
-            add_tokens_len == vector::length(&add_min_fee_usd_cents),
+            add_tokens_len == add_min_fee_usd_cents.length(),
             E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
         );
         assert!(
-            add_tokens_len == vector::length(&add_max_fee_usd_cents),
+            add_tokens_len == add_max_fee_usd_cents.length(),
             E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
         );
         assert!(
-            add_tokens_len == vector::length(&add_deci_bps),
+            add_tokens_len == add_deci_bps.length(),
             E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
         );
         assert!(
-            add_tokens_len == vector::length(&add_dest_gas_overhead),
+            add_tokens_len == add_dest_gas_overhead.length(),
             E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
         );
         assert!(
-            add_tokens_len == vector::length(&add_dest_bytes_overhead),
+            add_tokens_len == add_dest_bytes_overhead.length(),
             E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
         );
         assert!(
-            add_tokens_len == vector::length(&add_is_enabled),
+            add_tokens_len == add_is_enabled.length(),
             E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
         );
 
@@ -619,12 +619,12 @@ module ccip::fee_quoter {
         gas_usd_per_unit_gas: vector<u256>
     ) {
         assert!(
-            vector::length(&source_tokens) == vector::length(&source_usd_per_token),
+            source_tokens.length() == source_usd_per_token.length(),
             E_TOKEN_UPDATE_MISMATCH
         );
         assert!(
-            vector::length(&gas_dest_chain_selectors)
-                == vector::length(&gas_usd_per_unit_gas),
+            gas_dest_chain_selectors.length()
+                == gas_usd_per_unit_gas.length(),
             E_GAS_UPDATE_MISMATCH
         );
 
@@ -710,8 +710,8 @@ module ccip::fee_quoter {
 
         let chain_family_selector = dest_chain_config.chain_family_selector;
 
-        let data_len = vector::length(&data);
-        let tokens_len = vector::length(&local_token_addresses);
+        let data_len = data.length();
+        let tokens_len = local_token_addresses.length();
         validate_message(dest_chain_config, data_len, tokens_len);
 
         let gas_limit =
@@ -823,7 +823,7 @@ module ccip::fee_quoter {
     }
 
     fun validate_evm_address(encoded_address: vector<u8>) {
-        let encoded_address_len = vector::length(&encoded_address);
+        let encoded_address_len = encoded_address.length();
         assert!(
             encoded_address_len == 32, E_INVALID_EVM_ADDRESS
         );
@@ -843,14 +843,14 @@ module ccip::fee_quoter {
     fun validate_svm_address(
         encoded_address: vector<u8>, must_be_non_zero: bool
     ) {
-        let encoded_address_len = vector::length(&encoded_address);
+        let encoded_address_len = encoded_address.length();
         assert!(
             encoded_address_len == 32, E_INVALID_SVM_ADDRESS
         );
 
         if (must_be_non_zero) {
             assert!(
-                vector::length(&encoded_address) == 32,
+                encoded_address.length()== 32,
                 E_INVALID_SVM_ADDRESS
             );
             let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
@@ -864,7 +864,7 @@ module ccip::fee_quoter {
     fun resolve_evm_gas_limit(
         dest_chain_config: &DestChainConfig, extra_args: vector<u8>
     ): u256 {
-        let extra_args_len = vector::length(&extra_args);
+        let extra_args_len = extra_args.length();
         if (extra_args_len == 0) {
             dest_chain_config.default_tx_gas_limit as u256
         } else {
@@ -887,7 +887,7 @@ module ccip::fee_quoter {
         extra_args: vector<u8>,
         require_valid_token_receiver: bool
     ): u256 {
-        let extra_args_len = vector::length(&extra_args);
+        let extra_args_len = extra_args.length();
         assert!(extra_args_len > 0, E_INVALID_EXTRA_ARGS_DATA);
         let (
             compute_units,
@@ -906,7 +906,7 @@ module ccip::fee_quoter {
         );
         if (require_valid_token_receiver) {
             assert!(
-                vector::length(&token_receiver) == 32,
+                token_receiver.length() == 32,
                 E_INVALID_TOKEN_RECEIVER
             );
             let token_receiver_uint = eth_abi::decode_u256_value(token_receiver);
@@ -1036,7 +1036,7 @@ module ccip::fee_quoter {
 
     fun decode_evm_extra_args(extra_args: vector<u8>): (u256, bool) {
         // TODO: we need extra validation here. if extra_args length is less than tag length + data length,
-        let extra_args_len = vector::length(&extra_args);
+        let extra_args_len = extra_args.length();
         let args_tag = slice(&extra_args, 0, 4);
         let args_data = slice(&extra_args, 4, extra_args_len - 4);
 
@@ -1068,7 +1068,7 @@ module ccip::fee_quoter {
         extra_args: vector<u8>
     ): (u32, u64, bool, vector<u8>, vector<vector<u8>>) {
         // TODO: we need extra validation here. if extra_args length is less than tag length + data length,
-        let extra_args_len = vector::length(&extra_args);
+        let extra_args_len = extra_args.length();
         let args_tag = slice(&extra_args, 0, 4);
         assert!(
             args_tag == SVM_EXTRA_ARGS_V1_TAG,
@@ -1161,7 +1161,7 @@ module ccip::fee_quoter {
             ) = decode_svm_extra_args(extra_args);
             if (is_message_with_token_transfers) {
                 assert!(
-                    vector::length(&token_receiver) == 32,
+                    token_receiver.length() == 32,
                     E_INVALID_TOKEN_RECEIVER
                 );
                 let token_receiver_uint = eth_abi::decode_u256_value(token_receiver);
@@ -1185,7 +1185,7 @@ module ccip::fee_quoter {
     ): vector<vector<u8>> {
         let chain_family_selector = dest_chain_config.chain_family_selector;
 
-        let tokens_len = vector::length(&dest_token_addresses);
+        let tokens_len = dest_token_addresses.length();
 
         let mut dest_exec_data_per_token = vector[];
         let mut i = 0;

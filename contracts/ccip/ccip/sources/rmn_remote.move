@@ -144,7 +144,6 @@ module ccip::rmn_remote {
                 eth_abi::encode_bytes32(&mut digest, merkle_root.merkle_root);
             }
         );
-        // hash::keccak256(&digest)
         digest
     }
 
@@ -160,23 +159,23 @@ module ccip::rmn_remote {
 
         assert!(state.config_count > 0, E_CONFIG_NOT_SET);
 
-        let signatures_len = vector::length(&signatures);
+        let signatures_len = signatures.length();
         assert!(
             signatures_len >= (state.config.f_sign + 1),
             E_THRESHOLD_NOT_MET
         );
 
-        let merkle_root_len = vector::length(&merkle_root_source_chain_selectors);
+        let merkle_root_len = merkle_root_source_chain_selectors.length();
         assert!(
-            merkle_root_len == vector::length(&merkle_root_min_seq_nrs),
+            merkle_root_len == merkle_root_min_seq_nrs.length(),
             E_MERKLE_ROOT_LENGTH_MISMATCH
         );
         assert!(
-            merkle_root_len == vector::length(&merkle_root_max_seq_nrs),
+            merkle_root_len == merkle_root_max_seq_nrs.length(),
             E_MERKLE_ROOT_LENGTH_MISMATCH
         );
         assert!(
-            merkle_root_len == vector::length(&merkle_root_values),
+            merkle_root_len == merkle_root_values.length(),
             E_MERKLE_ROOT_LENGTH_MISMATCH
         );
 
@@ -219,7 +218,7 @@ module ccip::rmn_remote {
         while (i < signatures_len) {
             let signature_bytes = *vector::borrow(&signatures, i);
 
-            assert!(vector::length(&signature_bytes) == SIGNATURE_NUM_BYTES, E_INVALID_SIGNATURE);
+            assert!(signature_bytes.length() == SIGNATURE_NUM_BYTES, E_INVALID_SIGNATURE);
 
             // rmn only generates signatures with v = 27, subtract the ethereum recover id offset of 27 to get zero.
             // according to Sui Move document: https://docs.sui.io/references/framework/sui/ecdsa_k1#sui_ecdsa_k1_secp256k1_ecrecover
@@ -272,7 +271,7 @@ module ccip::rmn_remote {
         let state = state_object::borrow_mut<RMNRemoteState>(ownerCap, ref, RMN_REMOTE_STATE_NAME);
 
         assert!(
-            vector::length(&rmn_home_contract_config_digest) == 32,
+            rmn_home_contract_config_digest.length() == 32,
             E_INVALID_DIGEST_LENGTH
         );
 
@@ -281,9 +280,9 @@ module ccip::rmn_remote {
             E_ZERO_VALUE_NOT_ALLOWED
         );
 
-        let signers_len = vector::length(&signer_onchain_public_keys);
+        let signers_len = signer_onchain_public_keys.length();
         assert!(
-            signers_len == vector::length(&node_indexes),
+            signers_len == node_indexes.length(),
             E_SIGNERS_MISMATCH
         );
 
@@ -306,7 +305,7 @@ module ccip::rmn_remote {
         // smart_table::clear(&mut state.signers);
         let keys = vec_map::keys(&state.signers);
         let mut i = 0;
-        let keys_len = vector::length(&keys);
+        let keys_len = keys.length();
         while (i < keys_len) {
             let key = *vector::borrow(&keys, i);
             vec_map::remove(&mut state.signers, &key);
@@ -321,7 +320,7 @@ module ccip::rmn_remote {
                 let node_index: u64 = *node_indexes;
                 // expect an ethereum address of 20 bytes.
                 assert!(
-                    vector::length(&signer_public_key_bytes) == 20,
+                    signer_public_key_bytes.length() == 20,
                     E_INVALID_PUBLIC_KEY_LENGTH
                 );
                 assert!(
@@ -379,7 +378,7 @@ module ccip::rmn_remote {
             |subject| {
                 let subject: vector<u8> = *subject;
                 assert!(
-                    vector::length(&subject) == 16,
+                    subject.length() == 16,
                     E_INVALID_SUBJECT_LENGTH
                 );
                 assert!(
@@ -609,7 +608,7 @@ module ccip::rmn_remote_test {
 
         let (digest, signers, f_sign) = rmn_remote::get_config(&config);
         assert!(digest == b"00000000000000000000000000000001");
-        assert!(vector::length(&signers) == 3);
+        assert!(signers.length() == 3);
         assert!(f_sign == 1);
 
         tear_down_test(scenario, owner_cap, ref);
@@ -743,7 +742,7 @@ module ccip::rmn_remote_test {
         rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
 
         let cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
-        assert!(vector::length(&cursed_subjects) == 1);
+        assert!(cursed_subjects.length() == 1);
 
         assert!(rmn_remote::is_cursed(&ref, b"0000000000000003"));
 
@@ -813,7 +812,7 @@ module ccip::rmn_remote_test {
 
         rmn_remote::uncurse(&owner_cap, &mut ref, b"0000000000000003", ctx);
         cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
-        assert!(vector::length(&cursed_subjects) == 0);
+        assert!(cursed_subjects.length() == 0);
         assert!(!rmn_remote::is_cursed(&ref, b"0000000000000003"));
 
         tear_down_test(scenario, owner_cap, ref);
@@ -828,7 +827,7 @@ module ccip::rmn_remote_test {
         rmn_remote::curse(&owner_cap, &mut ref, x"01000000000000000000000000000001", ctx);
 
         let cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
-        assert!(vector::length(&cursed_subjects) == 1);
+        assert!(cursed_subjects.length() == 1);
         assert!(rmn_remote::is_cursed_global(&ref));
 
         tear_down_test(scenario, owner_cap, ref);
