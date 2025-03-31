@@ -108,7 +108,7 @@ func FundWithFaucet(log logger.Logger, network string, recipient string) error {
 	log.Infow("Faucet Host found", "host", faucetHost)
 
 	header := map[string]string{}
-	err = sui.RequestSuiFromFaucet(faucetHost, recipient, header)
+	err = sui.RequestSuiFromFaucet("http://127.0.0.1:9123", recipient, header)
 	if err != nil {
 		log.Error(err.Error())
 		return err

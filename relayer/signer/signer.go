@@ -112,7 +112,7 @@ func (s *PrivateKeySigner) GetAddress() (string, error) {
 	digest := blake2b.Sum256(flaggedPubKey)
 
 	// Take the first 20 bytes of the hash as the address
-	addressBytes := digest[:20]
+	addressBytes := digest[:32]
 
 	// Convert to hex string with "0x" prefix
 	address := "0x" + hex.EncodeToString(addressBytes)

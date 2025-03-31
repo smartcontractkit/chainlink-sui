@@ -52,17 +52,16 @@ func TestClient(t *testing.T) {
 	t.Run("FunctionRead", func(t *testing.T) {
 		t.Parallel()
 
-		args := []interface{}{counterObjectId}
-		argTypes := []interface{}{}
+		args := []string{counterObjectId}
+		argTypes := []string{"address"}
 
-		response, err := relayerClient.ReadFunction(
+		response, err := relayerClient.DevInspectAlt(
 			context.Background(),
 			packageId,
 			"counter",
 			"get_count",
 			args,
 			argTypes,
-			accountAddress,
 		)
 		require.NoError(t, err)
 
