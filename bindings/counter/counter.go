@@ -83,12 +83,12 @@ func (c *Counter) EncodeIncrementMult(counterObjectId string, a, b uint64) (enco
 }
 
 func (c *Counter) Increment(counterObjectId string) bind.IMethod {
-	build := func(opts bind.TxOpts, signer string) (*suiptb.ProgrammableTransactionBuilder, error) {
+	build := func() (*suiptb.ProgrammableTransactionBuilder, error) {
 		payload, err := c.EncodeIncrement(counterObjectId)
 		if err != nil {
 			return nil, err
 		}
-		ptb, err := bind.BuildCallTransaction(opts, c.packageID, "counter", "increment", payload)
+		ptb, err := bind.BuildCallTransaction(c.packageID, "counter", "increment", payload)
 		if err != nil {
 			return nil, err
 		}

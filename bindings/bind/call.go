@@ -15,13 +15,13 @@ import (
 
 // To allow PTB, each method returns a .Build() method (don't require client or signer) that would return the tx payload and .Execute() method (require signer and client) that would build and send the tx to the network
 type IMethod interface {
-	Build(opts TxOpts, signerAddress string) (*suiptb.ProgrammableTransactionBuilder, error)
+	Build() (*suiptb.ProgrammableTransactionBuilder, error)
 	Execute(ctx context.Context, opts TxOpts, signer sui_signer.Signer, client sui.ISuiAPI) (*models.SuiTransactionBlockResponse, error)
 }
 
 var _ IMethod = (*Method)(nil)
 
-type BuildFunc func(opts TxOpts, signerAddress string) (*suiptb.ProgrammableTransactionBuilder, error)
+type BuildFunc func() (*suiptb.ProgrammableTransactionBuilder, error)
 type ExecuteFunc func(ctx context.Context, opts TxOpts, signer sui_signer.Signer, client sui.ISuiAPI) (*models.SuiTransactionBlockResponse, error)
 
 type Method struct {
@@ -36,8 +36,8 @@ func NewMethod(buildFunc BuildFunc, execFunc ExecuteFunc) *Method {
 	}
 }
 
-func (m *Method) Build(opts TxOpts, signerAddress string) (*suiptb.ProgrammableTransactionBuilder, error) {
-	return m.buildFunc(opts, signerAddress)
+func (m *Method) Build() (*suiptb.ProgrammableTransactionBuilder, error) {
+	return m.buildFunc()
 }
 
 func (m *Method) Execute(ctx context.Context, opts TxOpts, signer sui_signer.Signer, client sui.ISuiAPI) (*models.SuiTransactionBlockResponse, error) {
@@ -46,7 +46,7 @@ func (m *Method) Execute(ctx context.Context, opts TxOpts, signer sui_signer.Sig
 
 func MakeExecute(buildFn BuildFunc) ExecuteFunc {
 	return func(ctx context.Context, opts TxOpts, signer sui_signer.Signer, client sui.ISuiAPI) (*models.SuiTransactionBlockResponse, error) {
-		ptb, err := buildFn(opts, string(signer.PubKey))
+		ptb, err := buildFn()
 		if err != nil {
 			return nil, err
 		}
@@ -60,7 +60,7 @@ func MakeExecute(buildFn BuildFunc) ExecuteFunc {
 	}
 }
 
-func BuildCallTransaction(opts TxOpts, packageID, module, function string, args []any) (*suiptb.ProgrammableTransactionBuilder, error) {
+func BuildCallTransaction(packageID, module, function string, args []any) (*suiptb.ProgrammableTransactionBuilder, error) {
 	ptb := suiptb.NewTransactionDataTransactionBuilder()
 
 	pkgObjectId, err := ToSuiAddress(packageID)
