@@ -13,6 +13,8 @@ tasks:
       - |
         echo "Fixing Go lint issues..."
         pushd relayer
+          gofmt -s -w .
+          golangci-lint run --fix
+        popd
         gofmt -s -w .
         golangci-lint run --fix
-        popd

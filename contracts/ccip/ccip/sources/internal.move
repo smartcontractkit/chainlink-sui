@@ -27,13 +27,13 @@ module ccip::internal {
         fee_token_store: address,
         extra_args: vector<u8>
     ): Sui2AnyMessage {
-        let tokens_len = vector::length(&token_addresses);
+        let tokens_len = token_addresses.length();
         assert!(
-            tokens_len == vector::length(&token_amounts),
+            tokens_len == token_amounts.length(),
             E_TOKEN_ARGUMENTS_MISMATCH
         );
         assert!(
-            tokens_len == vector::length(&token_store_addresses),
+            tokens_len == token_store_addresses.length(),
             E_TOKEN_ARGUMENTS_MISMATCH
         );
         let mut converted_token_amounts = vector[];
@@ -76,7 +76,7 @@ module ccip::internal {
     ): (vector<address>, vector<u64>) {
         let mut token_addresses = vector[];
         let mut token_amounts = vector[];
-        let len = vector::length(&message.token_amounts);
+        let len = message.token_amounts.length();
         let mut i = 0;
         while (i < len) {
             let token_amount = vector::borrow(&message.token_amounts, i);
