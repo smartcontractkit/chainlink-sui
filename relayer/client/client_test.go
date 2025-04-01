@@ -16,6 +16,7 @@ import (
 )
 
 func TestClient(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 
 	log := logger.Test(t)
@@ -25,7 +26,9 @@ func TestClient(t *testing.T) {
 
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	keystoreInstance, err := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
+	require.NoError(t, err)
 	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
+	require.NoError(t, err)
 	relayerClient, err := NewClient(log, testutils.LocalUrl, nil, 10*time.Second, &signer)
 	require.NoError(t, err)
 
@@ -50,7 +53,7 @@ func TestClient(t *testing.T) {
 	t.Run("FunctionRead", func(t *testing.T) {
 		t.Parallel()
 
-		args := []interface{}{counterObjectId}
+		args := []any{counterObjectId}
 		argTypes := []string{"address"}
 
 		response, err := relayerClient.ReadFunction(

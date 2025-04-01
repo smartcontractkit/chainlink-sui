@@ -22,8 +22,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-//nolint:paralleltest
 func TestChainReaderLocal(t *testing.T) {
+	t.Parallel()
 	log := logger.Test(t)
 
 	var err error
@@ -53,13 +53,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
-	keystoreInstance, err := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
-	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
-	relayerClient, err := client.NewClient(log, rpcUrl, nil, 10*time.Second, &signer)
-	require.NoError(t, err)
+	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
+	require.NoError(t, keystoreErr)
+	signer, signerErr := keystoreInstance.GetSignerFromAddress(accountAddress)
+	require.NoError(t, signerErr)
+	relayerClient, clientErr := client.NewClient(log, rpcUrl, nil, 10*time.Second, &signer)
+	require.NoError(t, clientErr)
 
-	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
-	require.NoError(t, err)
+	faucetFundErr := testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
+	require.NoError(t, faucetFundErr)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	testutils.BuildContract(t, contractPath)
@@ -141,7 +143,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			context.Background(),
 			strings.Join([]string{packageId, counterBinding.Name, "get_count"}, "-"),
 			primitives.Finalized,
-			map[string]interface{}{
+			map[string]any{
 				"counter_id": counterObjectId,
 			},
 			&retUint64,

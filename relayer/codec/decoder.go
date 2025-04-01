@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+const BYTE_SIZE = 8
+
 // DecodeSuiJsonValue takes Sui JSON-RPC response data and decodes it into the provided target
 func DecodeSuiJsonValue(data any, target any) error {
 	if target == nil {
@@ -102,8 +104,8 @@ func decodeNumeric(data any, targetValue reflect.Value) error {
 		if len(v) > 0 {
 			var result uint64
 			// Process bytes in little-endian order (least significant byte first)
-			for i := 0; i < len(v) && i < 8; i++ {
-				result |= uint64(v[i]) << (8 * i)
+			for i := 0; i < len(v) && i < BYTE_SIZE; i++ {
+				result |= uint64(v[i]) << (BYTE_SIZE * i)
 			}
 			targetValue.SetUint(result)
 

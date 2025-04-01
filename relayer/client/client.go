@@ -23,9 +23,9 @@ import (
 type SuiClient interface {
 	MoveCall(ctx context.Context, req models.MoveCallRequest) (models.TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
-	ReadObjectId(ctx context.Context, objectId string) (map[string]interface{}, error)
-	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []string) (*suiAltClient.ExecutionResultType, error)
-	SignAndSendTransaction(ctx context.Context, txBytes string, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
+	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
+	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiAltClient.ExecutionResultType, error)
+	SignAndSendTransaction(ctx context.Context, txBytes string, signerOverride *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
 }
 
 type Client struct {
@@ -37,7 +37,7 @@ type Client struct {
 	signer             *signer.SuiSigner
 }
 
-func NewClient(log logger.Logger, rpcUrl string, maxRetries *int, transactionTimeout time.Duration, signer *signer.SuiSigner) (*Client, error) {
+func NewClient(log logger.Logger, rpcUrl string, maxRetries *int, transactionTimeout time.Duration, defaultSigner *signer.SuiSigner) (*Client, error) {
 	baseClient := sui.NewSuiClient(rpcUrl)
 	ptbClient := suiAltClient.NewClient(rpcUrl)
 
@@ -47,7 +47,7 @@ func NewClient(log logger.Logger, rpcUrl string, maxRetries *int, transactionTim
 		ptbClient:          ptbClient,
 		maxRetries:         maxRetries,
 		transactionTimeout: transactionTimeout,
-		signer:             signer,
+		signer:             defaultSigner,
 	}, nil
 }
 
@@ -77,7 +77,7 @@ func (c *Client) MoveCall(ctx context.Context, req models.MoveCallRequest) (mode
 }
 
 // ReadObjectId reads an object from the Sui blockchain
-func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]interface{}, error) {
+func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
@@ -98,7 +98,7 @@ func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]
 // ReadFunction calls a Move contract function and returns the value.
 // The implementation internally signs the transactions with the signer attached to the client.
 // This method also calls the Move contract in "devInspect" execution mode since it is only reading values.
-func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []string) (*suiAltClient.ExecutionResultType, error) {
+func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiAltClient.ExecutionResultType, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
@@ -119,8 +119,8 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 	// Convert each string type into a "TypeArg"
 	typeTagArgs := make([]suiAlt.TypeTag, len(argTypes))
 	for i, argType := range argTypes {
-		typeTag, err := suiAlt.NewTypeTag(argType)
-		if err != nil {
+		typeTag, tagErr := suiAlt.NewTypeTag(argType)
+		if tagErr != nil {
 			return nil, fmt.Errorf("failed to create type tag: %w", err)
 		}
 		typeTagArgs[i] = *typeTag
@@ -129,8 +129,8 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 	// Convert each arg into a "CallArg" type
 	callArgs := make([]suiPtb.CallArg, len(args))
 	for i, arg := range args {
-		encodedArg, err := codec.EncodePtbFunctionParam(argTypes[i], arg)
-		if err != nil {
+		encodedArg, encodedArgErr := codec.EncodePtbFunctionParam(argTypes[i], arg)
+		if encodedArgErr != nil {
 			return nil, fmt.Errorf("failed to encode argument: %w", err)
 		}
 		callArgs[i] = encodedArg
@@ -173,13 +173,13 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 
 // SignAndSendTransaction given a plain (non-encoded) transaction, signs it and sends it to the node.
 // The implementation uses the signer attached (default) to the client or the signer provided in the argument if specified.
-func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error) {
+func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerOverride *signer.SuiSigner) (models.SuiTransactionBlockResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
-	if signer == nil {
+	if signerOverride == nil {
 		// fallback to the default signer if no override is provided
-		signer = c.signer
+		signerOverride = c.signer
 	}
 
 	txBytes, err := base64.StdEncoding.DecodeString(txBytesRaw)
@@ -187,7 +187,7 @@ func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, 
 		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %w", err)
 	}
 
-	signatures, err := (*signer).Sign(txBytes)
+	signatures, err := (*signerOverride).Sign(txBytes)
 	if err != nil {
 		return models.SuiTransactionBlockResponse{}, fmt.Errorf("error signing transaction: %w", err)
 	}

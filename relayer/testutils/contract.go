@@ -212,7 +212,7 @@ func CallContractFromCLI(t *testing.T, packageId string, accountAddress string, 
 
 	// Unmarshal the JSON into a map.
 	var parsedInitializeTxn TxnMetaWithObjectChanges
-	if err := json.Unmarshal([]byte(initializeOutput), &parsedInitializeTxn); err != nil {
+	if err := json.Unmarshal(initializeOutput, &parsedInitializeTxn); err != nil {
 		log.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 

@@ -29,10 +29,10 @@ type suiChainReader struct {
 	client           client.Client
 }
 
-func NewChainReader(lgr logger.Logger, client client.Client, config ChainReaderConfig) pkgtypes.ContractReader {
+func NewChainReader(lgr logger.Logger, abstractClient client.Client, config ChainReaderConfig) pkgtypes.ContractReader {
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
-		client:           client,
+		client:           abstractClient,
 		config:           config,
 		packageAddresses: map[string]string{},
 	}
@@ -156,7 +156,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		}
 
 		// Prepare arguments for the function call
-		args := []interface{}{}
+		args := []any{}
 		argTypes := []string{}
 
 		if functionConfig.Params != nil {
@@ -196,10 +196,10 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			return fmt.Errorf("failed to call function: %w", err)
 		}
 
-		s.logger.Debugw("Sui ReadFunction", "response", response.ReturnValues[0].([]interface{}))
+		s.logger.Debugw("Sui ReadFunction", "response", response.ReturnValues[0])
 
 		// Extract the array from the response
-		rawArray := response.ReturnValues[0].([]interface{})
+		rawArray := response.ReturnValues[0].([]any)
 		s.logger.Debugw("Raw array value", "array", rawArray)
 
 		// TODO: move this into a helper when merging code with bindings
