@@ -98,6 +98,17 @@ func decodeNumeric(data any, targetValue reflect.Value) error {
 		targetValue.SetUint(uint64(n))
 
 		return nil
+	case []byte:
+		if len(v) > 0 {
+			var result uint64
+			// Process bytes in little-endian order (least significant byte first)
+			for i := 0; i < len(v) && i < 8; i++ {
+				result |= uint64(v[i]) << (8 * i)
+			}
+			targetValue.SetUint(result)
+			return nil
+		}
+		return fmt.Errorf("empty byte array cannot be converted to numeric value")
 	default:
 		return fmt.Errorf("unsupported data type for numeric target: %T", data)
 	}

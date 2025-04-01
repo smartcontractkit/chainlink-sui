@@ -25,10 +25,10 @@ type suiChainReader struct {
 	config           ChainReaderConfig
 	starter          services.StateMachine
 	packageAddresses map[string]string
-	client           client.SuiClient
+	client           client.Client
 }
 
-func NewChainReader(lgr logger.Logger, client client.SuiClient, config ChainReaderConfig) pkgtypes.ContractReader {
+func NewChainReader(lgr logger.Logger, client client.Client, config ChainReaderConfig) pkgtypes.ContractReader {
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
 		client:           client,
@@ -149,14 +149,14 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		}
 
 		// Extract parameters from the params object
-		argMap := make(map[string]interface{})
+		argMap := make(map[string]any)
 		if err := mapstructure.Decode(params, &argMap); err != nil {
 			return fmt.Errorf("failed to parse arguments: %w", err)
 		}
 
 		// Prepare arguments for the function call
 		args := []interface{}{}
-		argTypes := []interface{}{}
+		argTypes := []string{}
 
 		if functionConfig.Params != nil {
 			for _, paramConfig := range functionConfig.Params {
@@ -168,13 +168,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 					argValue = paramConfig.DefaultValue
 				}
 
-				// Use the same encoding approach as txm.go
-				encodedValue, err := codec.EncodeToSuiValue(paramConfig.Type, argValue)
-				if err != nil {
-					return fmt.Errorf("failed to encode value for parameter %s: %w", paramConfig.Name, err)
-				}
-
-				args = append(args, encodedValue)
+				args = append(args, argValue)
 				argTypes = append(argTypes, paramConfig.Type)
 			}
 		}
@@ -187,7 +181,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			"argTypes", argTypes,
 		)
 
-		response, err := s.client.ReadFunction(ctx, address, moduleConfig.Name, method, args, argTypes, nil)
+		response, err := s.client.ReadFunction(ctx, address, moduleConfig.Name, method, args, argTypes)
 		if err != nil {
 			s.logger.Errorw("ReadFunction failed",
 				"error", err,
@@ -200,9 +194,23 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			return fmt.Errorf("failed to call function: %w", err)
 		}
 
-		s.logger.Debugw("Sui ReadFunction", "response", response)
+		s.logger.Debugw("Sui ReadFunction", "response", response.ReturnValues[0].([]interface{}))
 
-		// TODO: read the value from the response
+		// Extract the array from the response
+		rawArray := response.ReturnValues[0].([]interface{})
+		s.logger.Debugw("Raw array value", "array", rawArray)
+
+		// TODO: move this into a helper when merging code with bindings
+		// Convert the array of interface{} to []byte
+		byteArray := make([]byte, len(rawArray))
+		for i, v := range rawArray {
+			// Convert each element to byte
+			if num, ok := v.(float64); ok {
+				byteArray[i] = byte(num)
+			}
+		}
+
+		valueField = byteArray
 	}
 
 	// Decode the return value into the provided structure

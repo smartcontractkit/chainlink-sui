@@ -7,26 +7,29 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/pattonkan/sui-go/sui"
+	"github.com/pattonkan/sui-go/sui/suiptb"
 )
 
-func EncodeFunctionParams(argMap map[string]any, params []SuiFunctionParam) ([]string, []any, error) {
-	types := make([]string, len(params))
-	values := make([]any, len(params))
-
-	for i, paramConfig := range params {
-		argValue, ok := argMap[paramConfig.Name]
-		if !ok {
-			if paramConfig.Required {
-				return nil, nil, fmt.Errorf("missing argument: %s", paramConfig.Name)
-			}
-			argValue = paramConfig.DefaultValue
+// EncodePtbFunctionParam converts any type into a CallArg for the suiptb SDK
+func EncodePtbFunctionParam(typeName string, value any) (suiptb.CallArg, error) {
+	switch typeName {
+	case "address":
+		addr, err := sui.ObjectIdFromHex(value.(string))
+		if err != nil {
+			return suiptb.CallArg{}, err
 		}
-
-		types[i] = paramConfig.Type
-		values[i] = argValue
+		return suiptb.CallArg{
+			Object: &suiptb.ObjectArg{
+				SharedObject: &suiptb.SharedObjectArg{
+					Id: addr,
+				},
+			},
+		}, nil
+	default:
+		return suiptb.CallArg{}, fmt.Errorf("unimplemented PTB type conversion: %s", typeName)
 	}
-
-	return types, values, nil
 }
 
 func EncodeToSuiValue(typeName string, value any) (any, error) {

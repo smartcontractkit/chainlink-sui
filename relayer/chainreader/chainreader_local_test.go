@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 
 	"github.com/block-vision/sui-go-sdk/constant"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -54,11 +53,10 @@ func TestChainReaderLocal(t *testing.T) {
 func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 
-	suiClient := sui.NewSuiClient(rpcUrl)
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	keystoreInstance, err := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
 	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
-	relayerClient, err := client.NewClient(log, suiClient, nil, 10*time.Second, &signer)
+	relayerClient, err := client.NewClient(log, rpcUrl, nil, 10*time.Second, &signer)
 	require.NoError(t, err)
 
 	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
@@ -105,7 +103,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		Address: packageId, // Package ID of the deployed counter contract
 	}
 
-	chainReader := NewChainReader(log, relayerClient, chainReaderConfig)
+	chainReader := NewChainReader(log, *relayerClient, chainReaderConfig)
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding})
 	require.NoError(t, err)
 

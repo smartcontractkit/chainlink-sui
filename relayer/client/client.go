@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -21,7 +22,7 @@ type SuiClient interface {
 	MoveCall(ctx context.Context, req models.MoveCallRequest) (models.TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]interface{}, error)
-	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
+	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []string) (models.SuiTransactionBlockResponse, error)
 	SignAndSendTransaction(ctx context.Context, txBytes string, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
 }
 
@@ -95,8 +96,7 @@ func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]
 // ReadFunction calls a Move contract function and returns the value.
 // The implementation internally signs the transactions with the signer attached to the client.
 // This method also calls the Move contract in "devInspect" execution mode since it is only reading values.
-// TODO: Abstract args types when merging work with bindings. The args are currently in the form of strings which isn't always the case.
-func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []string, argTypes []string) ([]suiAltClient.ExecutionResultType, error) {
+func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []string) (*suiAltClient.ExecutionResultType, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
@@ -112,6 +112,7 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 	// Create a new client instance pointing to your Sui node's RPC endpoint.
 	ptb := suiPtb.NewTransactionDataTransactionBuilder()
 
+	// Convert each string type into a "TypeArg"
 	typeTagArgs := make([]suiAlt.TypeTag, len(argTypes))
 	for i, argType := range argTypes {
 		typeTag, err := suiAlt.NewTypeTag(argType)
@@ -121,26 +122,19 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 		typeTagArgs[i] = *typeTag
 	}
 
+	// Convert each arg into a "CallArg" type
 	callArgs := make([]suiPtb.CallArg, len(args))
 	for i, arg := range args {
-		objectId, err := suiAlt.ObjectIdFromHex(arg)
+		encodedArg, err := codec.EncodePtbFunctionParam(argTypes[i], arg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create object ID: %v", err)
+			return nil, fmt.Errorf("failed to encode argument: %v", err)
 		}
-		// Convert string argument to CallArg
-		// Assuming the string is an object ID/address
-		callArgs[i] = suiPtb.CallArg{
-			Object: &suiPtb.ObjectArg{
-				SharedObject: &suiPtb.SharedObjectArg{
-					Id: objectId,
-				},
-			},
-		}
+		callArgs[i] = encodedArg
 	}
 
 	err = ptb.MoveCall(packageIdObj, module, function, []suiAlt.TypeTag{}, callArgs)
 	if err != nil {
-		return []suiAltClient.ExecutionResultType{}, fmt.Errorf("failed to move call: %v", err)
+		return nil, fmt.Errorf("failed to move call: %v", err)
 	}
 
 	pt := ptb.Finish()
@@ -154,7 +148,7 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 
 	txBytes, err := bcs.Marshal(tx.V1.Kind)
 	if err != nil {
-		return []suiAltClient.ExecutionResultType{}, fmt.Errorf("failed to marshal transaction: %v", err)
+		return nil, fmt.Errorf("failed to marshal transaction: %v", err)
 	}
 
 	resp, err := c.ptbClient.DevInspectTransactionBlock(ctx, &suiAltClient.DevInspectTransactionBlockRequest{
@@ -162,12 +156,15 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 		TxKindBytes:   txBytes,
 	})
 	if err != nil {
-		return []suiAltClient.ExecutionResultType{}, fmt.Errorf("failed to move call: %v", err)
+		return nil, fmt.Errorf("failed to call read function: %v", err)
+	}
+	if len(resp.Results) == 0 {
+		return nil, fmt.Errorf("failed to call read function: no results")
 	}
 
 	c.log.Debugw("Dev inspect results", "results", resp)
 
-	return resp.Results, nil
+	return &resp.Results[0], nil
 }
 
 // SignAndSendTransaction given a plain (non-encoded) transaction, signs it and sends it to the node.
