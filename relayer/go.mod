@@ -10,8 +10,6 @@ require (
 	github.com/stretchr/testify v1.9.0
 )
 
-replace github.com/block-vision/sui-go-sdk v1.0.6 => github.com/faisal-chainlink/sui-go-sdk v0.0.0-20250328170924-9a589e32bd59
-
 require (
 	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
