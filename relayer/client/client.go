@@ -22,7 +22,7 @@ type SuiClient interface {
 	MoveCall(ctx context.Context, req models.MoveCallRequest) (models.TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]interface{}, error)
-	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []string) (models.SuiTransactionBlockResponse, error)
+	ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []string) (*suiAltClient.ExecutionResultType, error)
 	SignAndSendTransaction(ctx context.Context, txBytes string, signer *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
 }
 

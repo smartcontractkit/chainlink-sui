@@ -218,8 +218,46 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 }
 
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types.BatchGetLatestValuesRequest) (types.BatchGetLatestValuesResult, error) {
-	// not implemented
-	return types.BatchGetLatestValuesResult{}, nil
+	result := make(types.BatchGetLatestValuesResult)
+
+	for contract, batch := range request {
+		batchResults := make(types.ContractBatchResults, len(batch))
+		resultChan := make(chan struct {
+			index  int
+			result types.BatchReadResult
+		}, len(batch))
+
+		for i, read := range batch {
+			go func(index int, read types.BatchRead) {
+				readResult := types.BatchReadResult{ReadName: read.ReadName}
+
+				err := s.GetLatestValue(ctx, contract.ReadIdentifier(read.ReadName), primitives.Finalized, read.Params, read.ReturnVal)
+				readResult.SetResult(read.ReturnVal, err)
+
+				select {
+				case resultChan <- struct {
+					index  int
+					result types.BatchReadResult
+				}{index, readResult}:
+				case <-ctx.Done():
+					return
+				}
+			}(i, read)
+		}
+
+		for range batch {
+			select {
+			case res := <-resultChan:
+				batchResults[res.index] = res.result
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		result[contract] = batchResults
+	}
+
+	return result, nil
 }
 
 func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]types.Sequence, error) {
