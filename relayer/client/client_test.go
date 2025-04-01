@@ -15,9 +15,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
+//nolint:paralleltest
 func TestClient(t *testing.T) {
-	t.Parallel()
-
 	log := logger.Test(t)
 
 	_, err := testutils.StartSuiNode(testutils.CLI)
@@ -49,9 +48,8 @@ func TestClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test GetLatestValue for different data types
+	//nolint:paralleltest
 	t.Run("FunctionRead", func(t *testing.T) {
-		t.Parallel()
-
 		args := []any{counterObjectId}
 		argTypes := []string{"address"}
 
