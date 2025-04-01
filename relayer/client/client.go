@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fardream/go-bcs/bcs"
-	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
-
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/fardream/go-bcs/bcs"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
@@ -30,15 +28,20 @@ type SuiClient interface {
 type Client struct {
 	log                logger.Logger
 	client             sui.ISuiAPI
+	ptbClient          *suiAltClient.ClientImpl
 	maxRetries         *int
 	transactionTimeout time.Duration
 	signer             *signer.SuiSigner
 }
 
-func NewClient(log logger.Logger, client sui.ISuiAPI, maxRetries *int, transactionTimeout time.Duration, signer *signer.SuiSigner) (*Client, error) {
+func NewClient(log logger.Logger, rpcUrl string, maxRetries *int, transactionTimeout time.Duration, signer *signer.SuiSigner) (*Client, error) {
+	baseClient := sui.NewSuiClient(rpcUrl)
+	ptbClient := suiAltClient.NewClient(rpcUrl)
+
 	return &Client{
 		log:                log,
-		client:             client,
+		client:             baseClient,
+		ptbClient:          ptbClient,
 		maxRetries:         maxRetries,
 		transactionTimeout: transactionTimeout,
 		signer:             signer,
@@ -92,100 +95,8 @@ func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]
 // ReadFunction calls a Move contract function and returns the value.
 // The implementation internally signs the transactions with the signer attached to the client.
 // This method also calls the Move contract in "devInspect" execution mode since it is only reading values.
-func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}) (models.SuiTransactionBlockResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
-	defer cancel()
-
-	// get the account address from the signer attached to the client
-	sender, err := (*c.signer).GetAddress()
-	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to get address: %v", err)
-	}
-
-	c.log.Debugw("Preparing to call move function", "packageId", packageId, "module", module, "function", function, "args", args, "argTypes", argTypes, "sender", sender)
-
-	txn, err := c.client.MoveCall(ctx, models.MoveCallRequest{
-		PackageObjectId: packageId,
-		Module:          module,
-		Function:        function,
-		TypeArguments:   argTypes,
-		Arguments:       args,
-		Signer:          sender,
-		GasBudget:       "200000",
-		Gas:             nil,
-		ExecutionMode:   models.TransactionExecutionDevInspect,
-	})
-	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to move call: %v", err)
-	}
-
-	// use the default signer
-	// results, err := c.SignAndSendTransaction(ctx, txn.TxBytes, nil)
-	// if err != nil {
-	// 	return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to dev inspect transaction: %v", err)
-	// }
-
-	results, err := c.client.SuiDevInspectTransactionBlock(ctx, models.SuiDevInspectTransactionBlockRequest{
-		TxBytes: txn.TxBytes,
-		Sender:  sender,
-	})
-	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to dev inspect transaction: %v", err)
-	}
-
-	c.log.Debugw("Dev inspect results", "results", results)
-
-	return results, nil
-}
-
-// DevInspectRequest defines the JSON-RPC request structure.
-type DevInspectRequest struct {
-	JSONRPC string        `json:"jsonrpc"`
-	ID      int           `json:"id"`
-	Method  string        `json:"method"`
-	Params  []interface{} `json:"params"`
-}
-
-func (c *Client) DevInspectCall(ctx context.Context, packageId string, module string, function string, args []interface{}, argTypes []interface{}) (any, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
-	defer cancel()
-
-	// get the account address from the signer attached to the client
-	sender, err := (*c.signer).GetAddress()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get address: %v", err)
-	}
-
-	encodedTxn, err := bcs.Marshal([]interface{}{
-		sender,
-		packageId,
-		module,
-		function,
-		argTypes,
-		args,
-		"-", // GasObject - leaving empty
-		"100000",
-		"DevInspect",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal move call request: %v", err)
-	}
-
-	c.log.Debugw("Encoded transaction", "encodedTxn", encodedTxn)
-
-	resp, err := c.client.SuiDevInspectTransactionBlock(ctx, models.SuiDevInspectTransactionBlockRequest{
-		TxBytes: string(encodedTxn),
-		Sender:  sender,
-	})
-
-	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to dev inspect transaction: %v", err)
-	}
-
-	return resp, nil
-}
-
-func (c *Client) DevInspectAlt(ctx context.Context, packageId string, module string, function string, args []string, argTypes []string) (any, error) {
+// TODO: Abstract args types when merging work with bindings. The args are currently in the form of strings which isn't always the case.
+func (c *Client) ReadFunction(ctx context.Context, packageId string, module string, function string, args []string, argTypes []string) ([]suiAltClient.ExecutionResultType, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
@@ -199,7 +110,6 @@ func (c *Client) DevInspectAlt(ctx context.Context, packageId string, module str
 	}
 
 	// Create a new client instance pointing to your Sui node's RPC endpoint.
-	client := suiAltClient.NewClient(testutils.LocalUrl)
 	ptb := suiPtb.NewTransactionDataTransactionBuilder()
 
 	typeTagArgs := make([]suiAlt.TypeTag, len(argTypes))
@@ -228,11 +138,9 @@ func (c *Client) DevInspectAlt(ctx context.Context, packageId string, module str
 		}
 	}
 
-	c.log.Debugw("Encoded transaction", "callArgs", callArgs, "typeArgs", typeTagArgs)
-
 	err = ptb.MoveCall(packageIdObj, module, function, []suiAlt.TypeTag{}, callArgs)
 	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to move call: %v", err)
+		return []suiAltClient.ExecutionResultType{}, fmt.Errorf("failed to move call: %v", err)
 	}
 
 	pt := ptb.Finish()
@@ -246,20 +154,20 @@ func (c *Client) DevInspectAlt(ctx context.Context, packageId string, module str
 
 	txBytes, err := bcs.Marshal(tx.V1.Kind)
 	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to marshal transaction: %v", err)
+		return []suiAltClient.ExecutionResultType{}, fmt.Errorf("failed to marshal transaction: %v", err)
 	}
 
-	resp, err := client.DevInspectTransactionBlock(ctx, &suiAltClient.DevInspectTransactionBlockRequest{
+	resp, err := c.ptbClient.DevInspectTransactionBlock(ctx, &suiAltClient.DevInspectTransactionBlockRequest{
 		SenderAddress: address,
 		TxKindBytes:   txBytes,
 	})
 	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to move call: %v", err)
+		return []suiAltClient.ExecutionResultType{}, fmt.Errorf("failed to move call: %v", err)
 	}
 
 	c.log.Debugw("Dev inspect results", "results", resp)
 
-	return resp, nil
+	return resp.Results, nil
 }
 
 // SignAndSendTransaction given a plain (non-encoded) transaction, signs it and sends it to the node.
