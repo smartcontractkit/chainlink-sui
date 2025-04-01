@@ -1,25 +1,21 @@
 module test::echo {
     use std::string::String;
-    use std::vector;
     use sui::event;
-    use sui::object::{Self, UID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
 
-    struct SingleValueEvent has copy, drop {
+    public struct SingleValueEvent has copy, drop {
         value: u64
     }
 
-    struct DoubleValueEvent has copy, drop {
+    public struct DoubleValueEvent has copy, drop {
         number: u64,
         text: String
     }
 
-    struct TripleValueEvent has copy, drop {
+    public struct TripleValueEvent has copy, drop {
         values: vector<vector<u8>>
     }
 
-    struct EventStore has key {
+    public struct EventStore has key {
         id: UID
     }
 
@@ -43,37 +39,31 @@ module test::echo {
         event::emit(SingleValueEvent { value: number });
         event::emit(DoubleValueEvent { number, text });
 
-        let values = vector::empty<vector<u8>>();
+        let mut values = vector::empty<vector<u8>>();
         vector::push_back(&mut values, bytes);
         event::emit(TripleValueEvent { values });
     }
 
-    #[view]
     public fun echo_u64(val: u64): u64 {
         val
     }
 
-    #[view]
     public fun echo_u256(val: u256): u256 {
         val
     }
 
-    #[view]
     public fun echo_u32_u64_tuple(val1: u32, val2: u64): (u32, u64) {
         (val1, val2)
     }
 
-    #[view]
     public fun echo_string(val: String): String {
         val
     }
 
-    #[view]
     public fun echo_byte_vector(val: vector<u8>): vector<u8> {
         val
     }
 
-    #[view]
     public fun echo_byte_vector_vector(val: vector<vector<u8>>): vector<vector<u8>> {
         val
     }
