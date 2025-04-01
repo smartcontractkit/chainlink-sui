@@ -17,7 +17,6 @@ import (
 
 func TestClient(t *testing.T) {
 	t.Parallel()
-	t.Helper()
 
 	log := logger.Test(t)
 
