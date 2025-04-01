@@ -6,6 +6,7 @@ require (
 	github.com/block-vision/sui-go-sdk v1.0.6
 	github.com/fardream/go-bcs v0.7.0
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/pattonkan/sui-go v0.1.0
 	github.com/smartcontractkit/chainlink-common v0.4.1
 	github.com/stretchr/testify v1.9.0
 )
@@ -13,7 +14,6 @@ require (
 require (
 	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
-	github.com/pattonkan/sui-go v0.1.0 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 )
 
