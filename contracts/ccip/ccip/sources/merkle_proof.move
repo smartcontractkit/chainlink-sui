@@ -11,9 +11,9 @@ module ccip::merkle_proof {
     }
 
     public fun vector_u8_gt(a: &vector<u8>, b: &vector<u8>): bool {
-        let len = vector::length(a);
+        let len = a.length();
         assert!(
-            len == vector::length(b), E_VECTOR_LENGTH_MISMATCH
+            len == b.length(), E_VECTOR_LENGTH_MISMATCH
         );
 
         let mut i = 0;
@@ -43,8 +43,8 @@ module ccip::merkle_proof {
     //     proofs: &vector<vector<u8>>,
     //     proof_flag_bits: u256
     // ): vector<u8> {
-    //     let leaves_len = vector::length(leaves);
-    //     let proofs_len = vector::length(proofs);
+    //     let leaves_len = leaves.length();
+    //     let proofs_len = proofs.length();
     //
     //     assert!(leaves_len > 0, E_LEAVES_CANNOT_BE_EMPTY);
     //     assert!(
@@ -72,7 +72,7 @@ module ccip::merkle_proof {
     //                 leaf_pos = leaf_pos + 1;
     //             } else {
     //                 assert!(
-    //                     hash_pos < vector::length(&hashes),
+    //                     hash_pos < hashes.length(),
     //                     E_INVALID_PROOF
     //                 );
     //                 a = *vector::borrow(&hashes, hash_pos);
@@ -90,7 +90,7 @@ module ccip::merkle_proof {
     //             leaf_pos = leaf_pos + 1;
     //         } else {
     //             assert!(
-    //                 hash_pos < vector::length(&hashes),
+    //                 hash_pos < hashes.length(),
     //                 E_INVALID_PROOF
     //             );
     //             b = *vector::borrow(&hashes, hash_pos);
