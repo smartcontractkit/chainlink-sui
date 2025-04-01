@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
@@ -191,6 +192,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 				"args", args,
 				"argTypes", argTypes,
 			)
+
 			return fmt.Errorf("failed to call function: %w", err)
 		}
 

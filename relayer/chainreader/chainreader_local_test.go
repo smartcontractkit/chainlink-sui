@@ -49,7 +49,6 @@ func TestChainReaderLocal(t *testing.T) {
 	runChainReaderCounterTest(t, log, testutils.LocalUrl)
 }
 
-//nolint:paralleltest
 func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 
@@ -110,7 +109,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	log.Debugw("ChainReader setup complete")
 
 	// Test GetLatestValue for different data types
-	//nolint:paralleltest
+
 	t.Run("GetLatestValue_Uint64", func(t *testing.T) {
 		t.Parallel()
 		expectedUint64 := uint64(0)
@@ -128,7 +127,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.Equal(t, expectedUint64, retUint64)
 	})
 
-	//nolint:paralleltest
 	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
 		t.Parallel()
 		expectedUint64 := uint64(0)

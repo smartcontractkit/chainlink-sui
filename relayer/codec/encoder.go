@@ -20,6 +20,7 @@ func EncodePtbFunctionParam(typeName string, value any) (suiptb.CallArg, error) 
 		if err != nil {
 			return suiptb.CallArg{}, err
 		}
+
 		return suiptb.CallArg{
 			Object: &suiptb.ObjectArg{
 				SharedObject: &suiptb.SharedObjectArg{

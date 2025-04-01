@@ -66,6 +66,7 @@ func findDigestIndex(input string) (int, error) {
 	if loc == nil {
 		return -1, errors.New("digest not found")
 	}
+
 	return loc[0], nil
 }
 

@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"time"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/fardream/go-bcs/bcs"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	suiAlt "github.com/pattonkan/sui-go/sui"
@@ -87,7 +89,7 @@ func (c *Client) ReadObjectId(ctx context.Context, objectId string) (map[string]
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get object by ID: %v", err)
+		return nil, fmt.Errorf("failed to get object by ID: %w", err)
 	}
 
 	return object.Data.Content.Fields, nil
@@ -103,10 +105,12 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 	addressHex, _ := (*c.signer).GetAddress()
 	address, err := suiAlt.AddressFromHex(addressHex)
 	if err != nil {
+		return nil, err
 	}
 
 	packageIdObj, err := suiAlt.PackageIdFromHex(packageId)
 	if err != nil {
+		return nil, err
 	}
 
 	// Create a new client instance pointing to your Sui node's RPC endpoint.
@@ -117,7 +121,7 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 	for i, argType := range argTypes {
 		typeTag, err := suiAlt.NewTypeTag(argType)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create type tag: %v", err)
+			return nil, fmt.Errorf("failed to create type tag: %w", err)
 		}
 		typeTagArgs[i] = *typeTag
 	}
@@ -127,14 +131,14 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 	for i, arg := range args {
 		encodedArg, err := codec.EncodePtbFunctionParam(argTypes[i], arg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode argument: %v", err)
+			return nil, fmt.Errorf("failed to encode argument: %w", err)
 		}
 		callArgs[i] = encodedArg
 	}
 
 	err = ptb.MoveCall(packageIdObj, module, function, []suiAlt.TypeTag{}, callArgs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to move call: %v", err)
+		return nil, fmt.Errorf("failed to move call: %w", err)
 	}
 
 	pt := ptb.Finish()
@@ -148,7 +152,7 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 
 	txBytes, err := bcs.Marshal(tx.V1.Kind)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal transaction: %v", err)
+		return nil, fmt.Errorf("failed to marshal transaction: %w", err)
 	}
 
 	resp, err := c.ptbClient.DevInspectTransactionBlock(ctx, &suiAltClient.DevInspectTransactionBlockRequest{
@@ -156,7 +160,7 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 		TxKindBytes:   txBytes,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to call read function: %v", err)
+		return nil, fmt.Errorf("failed to call read function: %w", err)
 	}
 	if len(resp.Results) == 0 {
 		return nil, fmt.Errorf("failed to call read function: no results")
@@ -180,12 +184,12 @@ func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, 
 
 	txBytes, err := base64.StdEncoding.DecodeString(txBytesRaw)
 	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %v", err)
+		return models.SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %w", err)
 	}
 
 	signatures, err := (*signer).Sign(txBytes)
 	if err != nil {
-		return models.SuiTransactionBlockResponse{}, fmt.Errorf("error signing transaction: %v", err)
+		return models.SuiTransactionBlockResponse{}, fmt.Errorf("error signing transaction: %w", err)
 	}
 
 	return c.SendTransaction(ctx, TransactionBlockRequest{
