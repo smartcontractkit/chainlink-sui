@@ -1,25 +1,21 @@
 module test::echo {
     use std::string::String;
-    use std::vector;
     use sui::event;
-    use sui::object::{Self, UID};
-    use sui::transfer;
-    use sui::tx_context::TxContext;
 
-    struct SingleValueEvent has copy, drop {
+    public struct SingleValueEvent has copy, drop {
         value: u64
     }
 
-    struct DoubleValueEvent has copy, drop {
+    public struct DoubleValueEvent has copy, drop {
         number: u64,
         text: String
     }
 
-    struct TripleValueEvent has copy, drop {
+    public struct TripleValueEvent has copy, drop {
         values: vector<vector<u8>>
     }
 
-    struct EventStore has key {
+    public struct EventStore has key {
         id: UID
     }
 
@@ -43,7 +39,7 @@ module test::echo {
         event::emit(SingleValueEvent { value: number });
         event::emit(DoubleValueEvent { number, text });
 
-        let values = vector::empty<vector<u8>>();
+        let mut values = vector::empty<vector<u8>>();
         vector::push_back(&mut values, bytes);
         event::emit(TripleValueEvent { values });
     }
