@@ -1,7 +1,7 @@
 module test::counter {
     use sui::object::{Self, UID};
     use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::TxContext;
 
     struct Counter has key, store {
         id: UID,

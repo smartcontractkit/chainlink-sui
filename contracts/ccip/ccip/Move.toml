@@ -6,17 +6,6 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet", override = true }
 
 [addresses]
-ccip = "_"
-mcms = "_"
-# If set to 0x0, will not register mcms entrypoints
-mcms_register_entrypoints = "_"
-
-[dev-addresses]
-## CCIP Core: 1xxx
-ccip = "0x1000"
-
-# MCMS: 4xxx
-mcms = "0x4000"
-mcms_register_entrypoints = "0x4001"
-
-[dev-dependencies]
+ccip = "0x0"
+mcms = "0x0"
+mcms_register_entrypoints = "0x0"
