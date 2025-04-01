@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -162,4 +163,8 @@ func encodeVector(typeName string, value any) ([]any, error) {
 	}
 
 	return encodedElements, nil
+}
+
+func EncodeBase64(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
 }

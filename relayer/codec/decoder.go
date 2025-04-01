@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -139,4 +140,8 @@ func decodeSlice(data any, targetValue reflect.Value) error {
 	targetValue.Set(slice)
 
 	return nil
+}
+
+func DecodeBase64(encoded string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(encoded)
 }
