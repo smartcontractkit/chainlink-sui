@@ -25,7 +25,7 @@ type SuiClient interface {
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiAltClient.ExecutionResultType, error)
-	SignAndSendTransaction(ctx context.Context, txBytes string, signerOverride *signer.SuiSigner) (models.SuiTransactionBlockResponse, error)
+	SignAndSendTransaction(ctx context.Context, txBytes string, signerOverride *signer.SuiSigner, executionRequestType TransactionRequestType) (models.SuiTransactionBlockResponse, error)
 }
 
 type Client struct {
