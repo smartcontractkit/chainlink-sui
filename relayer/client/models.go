@@ -9,6 +9,14 @@ type TransactionBlockOptions struct {
 	ShowBalanceChanges bool `json:"showBalanceChanges,omitempty"`
 }
 
+// TransactionRequestType defines the possible request types for transaction execution
+type TransactionRequestType string
+
+const (
+	WaitForEffectsCert    TransactionRequestType = "WaitForEffectsCert"
+	WaitForLocalExecution TransactionRequestType = "WaitForLocalExecution"
+)
+
 // TransactionBlockRequest represents the request the SuiExecuteTransactionBlock endpoint.
 // https://docs.sui.io/sui-api-ref#sui_executetransactionblock
 type TransactionBlockRequest struct {

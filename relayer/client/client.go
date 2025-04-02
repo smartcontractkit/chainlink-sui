@@ -173,7 +173,11 @@ func (c *Client) ReadFunction(ctx context.Context, packageId string, module stri
 
 // SignAndSendTransaction given a plain (non-encoded) transaction, signs it and sends it to the node.
 // The implementation uses the signer attached (default) to the client or the signer provided in the argument if specified.
-func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerOverride *signer.SuiSigner) (models.SuiTransactionBlockResponse, error) {
+// The transaction bytes should be in base64 encoded format.
+// The executionRequestType parameter determines how the transaction is executed (e.g., "WaitForLocalExecution").
+// Returns a SuiTransactionBlockResponse containing the transaction results, including inputs, effects, and changes.
+// If signing or sending fails, an error is returned with context about the failure.
+func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerOverride *signer.SuiSigner, executionRequestType TransactionRequestType) (models.SuiTransactionBlockResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
@@ -202,6 +206,6 @@ func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, 
 			ShowObjectChanges:  true,
 			ShowBalanceChanges: true,
 		},
-		RequestType: "WaitForLocalExecution",
+		RequestType: string(executionRequestType),
 	})
 }
