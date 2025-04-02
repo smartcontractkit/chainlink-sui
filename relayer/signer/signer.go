@@ -57,13 +57,15 @@ func SerializeSuiSignature(signature, pubKey []byte) string {
 	return base64.StdEncoding.EncodeToString(serializedSignature)
 }
 
+var _ SuiSigner = (*PrivateKeySigner)(nil)
+
 type PrivateKeySigner struct {
 	privateKey ed25519.PrivateKey
 }
 
 var IntentBytes = []byte{0, 0, 0}
 
-func NewPrivateKeySigner(privateKey ed25519.PrivateKey) *PrivateKeySigner {
+func NewPrivateKeySigner(privateKey ed25519.PrivateKey) SuiSigner {
 	return &PrivateKeySigner{
 		privateKey: privateKey,
 	}

@@ -25,7 +25,7 @@ tasks:
     desc: "Run bindings tests"
     deps: [integration-setup]
     cmds:
-      - go test ./bindings/... -tags="integration"
+      - go test -v ./bindings/... -tags="integration"
 
   integration:
     desc: "Run integration tests"

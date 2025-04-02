@@ -5,7 +5,6 @@ go 1.24.1
 replace github.com/smartcontractkit/chainlink-sui/relayer => ./relayer
 
 require (
-	github.com/block-vision/sui-go-sdk v1.0.6
 	github.com/fardream/go-bcs v0.8.7
 	github.com/pattonkan/sui-go v0.1.0
 	github.com/smartcontractkit/chainlink-common v0.5.0
@@ -14,6 +13,7 @@ require (
 )
 
 require (
+	github.com/block-vision/sui-go-sdk v1.0.6 // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/gabriel-vasile/mimetype v1.4.6 // indirect

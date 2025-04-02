@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/block-vision/sui-go-sdk/models"
-	sui_signer "github.com/block-vision/sui-go-sdk/signer"
-	"github.com/block-vision/sui-go-sdk/sui"
-	sui_pattokan "github.com/pattonkan/sui-go/sui"
+	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
+	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type PackageID = string
@@ -26,10 +25,10 @@ func PublishPackage(
 	ctx context.Context,
 	opts TxOpts,
 	// TODO: Replace by a Signer common interface
-	signer sui_signer.Signer,
-	client sui.ISuiAPI,
+	signer rel.SuiSigner,
+	client suiclient.ClientImpl,
 	req PublishRequest,
-) (PackageID, *models.SuiTransactionBlockResponse, error) {
+) (PackageID, *suiclient.SuiTransactionBlockResponse, error) {
 	var modules = make([][]byte, 0, len(req.CompiledModules))
 	for _, encodedModule := range req.CompiledModules {
 		decodedModule, err := codec.DecodeBase64(encodedModule)
@@ -39,7 +38,7 @@ func PublishPackage(
 		modules = append(modules, decodedModule)
 	}
 
-	deps := make([]*sui_pattokan.Address, 0, len(req.Dependencies))
+	deps := make([]*sui.Address, 0, len(req.Dependencies))
 	for _, dep := range req.Dependencies {
 		suiAddressDep, err := ToSuiAddress(dep)
 		if err != nil {
@@ -48,7 +47,11 @@ func PublishPackage(
 		deps = append(deps, suiAddressDep)
 	}
 
-	signerAddress, err := ToSuiAddress(signer.Address)
+	_signerAddress, err := signer.GetAddress()
+	if err != nil {
+		return "", nil, err
+	}
+	signerAddress, err := ToSuiAddress(_signerAddress)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to convert signer address: %w", err)
 	}
@@ -68,7 +71,7 @@ func PublishPackage(
 		}})
 
 	// Finish transaction details and encode it
-	txBytes, err := FinishTransactionFromBuilder(ctx, ptb, opts, signer.Address, client)
+	txBytes, err := FinishTransactionFromBuilder(ctx, ptb, opts, _signerAddress, client)
 	if err != nil {
 		return "", nil, err
 	}
@@ -80,8 +83,8 @@ func PublishPackage(
 		return "", nil, msg
 	}
 
-	if tx.Effects.Status.Status == "failure" {
-		return "", nil, fmt.Errorf("transaction failed: %v", tx.Effects.Status.Error)
+	if tx.Effects.Data.V1.Status.Status == FailureResultType {
+		return "", nil, fmt.Errorf("transaction failed: %v", tx.Effects.Data.V1.Status.Status)
 	}
 
 	// Find the object ID from the transaction
@@ -93,20 +96,20 @@ func PublishPackage(
 	return pkgId, tx, err
 }
 
-func FindPackageIdFromPublishTx(tx models.SuiTransactionBlockResponse) (string, error) {
+func FindPackageIdFromPublishTx(tx suiclient.SuiTransactionBlockResponse) (string, error) {
 	for _, change := range tx.ObjectChanges {
-		if change.Type == "published" {
-			return change.PackageId, nil
+		if change.Data.Published != nil {
+			return change.Data.Published.PackageId.String(), nil
 		}
 	}
 
 	return "", errors.New("package ID not found in transaction")
 }
 
-func FindObjectIdFromPublishTx(tx *models.SuiTransactionBlockResponse, module string) (string, error) {
+func FindObjectIdFromPublishTx(tx *suiclient.SuiTransactionBlockResponse, module, object string) (string, error) {
 	for _, change := range tx.ObjectChanges {
-		if change.Type == "created" && strings.Contains(change.ObjectType, module) {
-			return change.ObjectId, nil
+		if change.Data.Created != nil && strings.Contains(change.Data.Created.ObjectType, fmt.Sprintf("%v::%v", module, object)) {
+			return change.Data.Created.ObjectId.String(), nil
 		}
 	}
 

@@ -2,13 +2,14 @@ package counter
 
 import (
 	"context"
+	"strconv"
 
-	"github.com/block-vision/sui-go-sdk/models"
-	sui_signer "github.com/block-vision/sui-go-sdk/signer"
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
+	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 // This should be auto-generated when compiling, same as the bindings
@@ -28,7 +29,7 @@ const CounterJSON = `{
   ]
 }`
 
-func PublishCounter(ctx context.Context, opts bind.TxOpts, signer sui_signer.Signer, client sui.ISuiAPI) (*Counter, *models.SuiTransactionBlockResponse, error) {
+func PublishCounter(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl) (*Counter, *suiclient.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.ToArtifact(CounterJSON)
 	if err != nil {
 		return nil, nil, err
@@ -42,53 +43,122 @@ func PublishCounter(ctx context.Context, opts bind.TxOpts, signer sui_signer.Sig
 		return nil, nil, err
 	}
 
-	return NewCounter(packageId), tx, nil
+	return NewCounter(packageId, client), tx, nil
 }
 
 type ICounter interface {
+	// We require ctx even for building
 	Increment(objectId string) bind.IMethod
+	GetCount(objectId string) bind.IMethod
 	// TODO: Add rest of methods
+
+	// Connect adds/changes the client used in the contract
+	Connect(client suiclient.ClientImpl)
+	// Gets the object information. This case, only the object value
+	Inspect(ctx context.Context, objectId string) (uint64, error)
 }
 
 type Counter struct {
 	packageID bind.PackageID
+	client    suiclient.ClientImpl
 }
 
 var _ ICounter = (*Counter)(nil)
 
-func NewCounter(packageID string) *Counter {
+func NewCounter(packageID string, client suiclient.ClientImpl) *Counter {
 	return &Counter{
 		packageID: packageID,
+		client:    client,
 	}
 }
 
-func (c *Counter) EncodeIncrement(counterObjectId string) (encodedArgs []any, err error) {
-	return bind.Encode(
-		[]string{
-			"address",
-		},
-		[]any{counterObjectId},
-	)
+func (c *Counter) Connect(client suiclient.ClientImpl) {
+	c.client = client
 }
 
-func (c *Counter) EncodeIncrementMult(counterObjectId string, a, b uint64) (encodedArgs []any, err error) {
-	return bind.Encode(
-		[]string{
-			"address",
-			"u64",
-			"u64",
+func (c *Counter) BuildIncrement(ctx context.Context, counterObjectId string) (*suiptb.ProgrammableTransactionBuilder, error) {
+	object, err := bind.ReadObject(ctx, counterObjectId, c.client)
+	if err != nil {
+		return nil, err
+	}
+
+	pkgObjectId, err := bind.ToSuiAddress(c.packageID)
+	if err != nil {
+		return nil, err
+	}
+	counterId, err := bind.ToSuiAddress(counterObjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	ptb := suiptb.NewTransactionDataTransactionBuilder()
+	arg0, err := ptb.Obj(suiptb.ObjectArg{
+		SharedObject: &suiptb.SharedObjectArg{
+			Id:                   counterId,
+			Mutable:              true,
+			InitialSharedVersion: *object.Data.Owner.Shared.InitialSharedVersion,
 		},
-		[]any{counterObjectId, a, b},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ptb.Command(suiptb.Command{
+		MoveCall: &suiptb.ProgrammableMoveCall{
+			Package:       pkgObjectId,
+			Module:        "counter",
+			Function:      "increment",
+			TypeArguments: []sui.TypeTag{},
+			Arguments:     []suiptb.Argument{arg0},
+		}},
 	)
+
+	return ptb, err
+}
+
+func (c *Counter) BuildGetCount(ctx context.Context, counterObjectId string) (*suiptb.ProgrammableTransactionBuilder, error) {
+	object, err := bind.ReadObject(ctx, counterObjectId, c.client)
+	if err != nil {
+		return nil, err
+	}
+
+	pkgObjectId, err := bind.ToSuiAddress(c.packageID)
+	if err != nil {
+		return nil, err
+	}
+	counterId, err := bind.ToSuiAddress(counterObjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	ptb := suiptb.NewTransactionDataTransactionBuilder()
+	arg0, err := ptb.Obj(suiptb.ObjectArg{
+		SharedObject: &suiptb.SharedObjectArg{
+			Id:                   counterId,
+			Mutable:              true,
+			InitialSharedVersion: *object.Data.Owner.Shared.InitialSharedVersion,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ptb.Command(suiptb.Command{
+		MoveCall: &suiptb.ProgrammableMoveCall{
+			Package:       pkgObjectId,
+			Module:        "counter",
+			Function:      "get_count",
+			TypeArguments: []sui.TypeTag{},
+			Arguments:     []suiptb.Argument{arg0},
+		}},
+	)
+
+	return ptb, err
 }
 
 func (c *Counter) Increment(counterObjectId string) bind.IMethod {
-	build := func() (*suiptb.ProgrammableTransactionBuilder, error) {
-		payload, err := c.EncodeIncrement(counterObjectId)
-		if err != nil {
-			return nil, err
-		}
-		ptb, err := bind.BuildCallTransaction(c.packageID, "counter", "increment", payload)
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		ptb, err := c.BuildIncrement(ctx, counterObjectId)
 		if err != nil {
 			return nil, err
 		}
@@ -96,5 +166,37 @@ func (c *Counter) Increment(counterObjectId string) bind.IMethod {
 		return ptb, nil
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build))
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *Counter) GetCount(counterObjectId string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		ptb, err := c.BuildGetCount(ctx, counterObjectId)
+		if err != nil {
+			return nil, err
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *Counter) Inspect(ctx context.Context, counterObjectId string) (uint64, error) {
+	obj, err := bind.ReadObject(ctx, counterObjectId, c.client)
+	if err != nil {
+		return 0, err
+	}
+	var count string
+	err = bind.GetCustomValueFromObjectData(*obj.Data, &count)
+	if err != nil {
+		return 0, err
+	}
+	// Convert count string to uint64
+	countUint, err := strconv.ParseUint(count, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return countUint, nil
 }
