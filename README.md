@@ -28,6 +28,27 @@ The devShell provides all the system tools and dependencies required to develop 
 (nix:nix-shell-env) $ sui version # sui 1.44.3-615516edb0ed
 ```
 
+To make sure that you're `sui` environment is ready, you can first check the active
+address using the cli
+
+```bash
+(nix:nix-shell-env) $ sui client active-address
+```
+
+Then you can proceed to make sure that you can the `local` RPC available in the
+list of sui cli environments
+
+```bash
+(nix:nix-shell-env) $ sui client envs
+```
+
+And if you don't see "local", you can add it as follows
+
+```bash
+sui client new-env --alias local --rpc http://127.0.0.1:9000
+sui client switch --env local
+```
+
 ### Running Tasks
 
 We use [Task](https://taskfile.dev/) to execute development tasks. You can find every task referenced in the [Taskfile](./Taskfile.yml)

@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mitchellh/mapstructure"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
-	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -25,13 +26,13 @@ type suiChainReader struct {
 	config           ChainReaderConfig
 	starter          services.StateMachine
 	packageAddresses map[string]string
-	client           sui.ISuiAPI
+	client           client.Client
 }
 
-func NewChainReader(lgr logger.Logger, client sui.ISuiAPI, config ChainReaderConfig) pkgtypes.ContractReader {
+func NewChainReader(lgr logger.Logger, abstractClient client.Client, config ChainReaderConfig) pkgtypes.ContractReader {
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
-		client:           client,
+		client:           abstractClient,
 		config:           config,
 		packageAddresses: map[string]string{},
 	}
@@ -101,7 +102,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	if len(readComponents) != expectedComponents {
 		return fmt.Errorf("invalid read identifier: %s", readIdentifier)
 	}
-	_address, contractName, objectId := readComponents[0], readComponents[1], readComponents[2]
+	_address, contractName, objectIdOrFunction := readComponents[0], readComponents[1], readComponents[2]
 
 	// Source the read configuration, by contract name
 	address, ok := s.packageAddresses[contractName]
@@ -119,35 +120,146 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return fmt.Errorf("no such contract: %s", contractName)
 	}
 
-	// NOTE: objectId is currently assumed to me in the `method` section of the `readIdentifier`
-	object, err := s.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
-		ObjectId: objectId,
-		Options: models.SuiObjectDataOptions{
-			ShowContent: true,
-		},
-	})
+	var valueField any
+	// Since the last part of the readIdentifier can be either a function or an object ID, we need to check to determine
+	// how to proceed to get the value.
+	if strings.HasPrefix(objectIdOrFunction, "0x") {
+		objectId := objectIdOrFunction
 
-	if err != nil {
-		return fmt.Errorf("failed to get object: %w", err)
+		object, err := s.client.ReadObjectId(ctx, objectId)
+		if err != nil {
+			return fmt.Errorf("failed to get object: %w", err)
+		}
+
+		// Extract the value field from the object
+		valueField, ok = object["value"]
+		if !ok {
+			return fmt.Errorf("object does not contain a 'value' field")
+		}
+	} else {
+		method := objectIdOrFunction
+		// We need to call the function from the contract
+		moduleConfig, ok := s.config.Modules[contractName]
+		if !ok {
+			return fmt.Errorf("no such contract: %s", contractName)
+		}
+
+		functionConfig, ok := moduleConfig.Functions[method]
+		if !ok {
+			return fmt.Errorf("no such method: %s", method)
+		}
+
+		// Extract parameters from the params object
+		argMap := make(map[string]any)
+		if err := mapstructure.Decode(params, &argMap); err != nil {
+			return fmt.Errorf("failed to parse arguments: %w", err)
+		}
+
+		// Prepare arguments for the function call
+		args := []any{}
+		argTypes := []string{}
+
+		if functionConfig.Params != nil {
+			for _, paramConfig := range functionConfig.Params {
+				argValue, ok := argMap[paramConfig.Name]
+				if !ok {
+					if paramConfig.Required {
+						return fmt.Errorf("missing argument: %s", paramConfig.Name)
+					}
+					argValue = paramConfig.DefaultValue
+				}
+
+				args = append(args, argValue)
+				argTypes = append(argTypes, paramConfig.Type)
+			}
+		}
+
+		s.logger.Debugw("Calling ReadFunction",
+			"address", address,
+			"module", moduleConfig.Name,
+			"method", method,
+			"encodedArgs", args,
+			"argTypes", argTypes,
+		)
+
+		response, err := s.client.ReadFunction(ctx, address, moduleConfig.Name, method, args, argTypes)
+		if err != nil {
+			s.logger.Errorw("ReadFunction failed",
+				"error", err,
+				"address", address,
+				"module", moduleConfig.Name,
+				"method", method,
+				"args", args,
+				"argTypes", argTypes,
+			)
+
+			return fmt.Errorf("failed to call function: %w", err)
+		}
+
+		s.logger.Debugw("Sui ReadFunction", "response", response.ReturnValues[0])
+
+		// Extract the array from the response
+		rawArray := response.ReturnValues[0].([]any)
+		s.logger.Debugw("Raw array value", "array", rawArray)
+
+		// TODO: move this into a helper when merging code with bindings
+		// Convert the array of interface{} to []byte
+		byteArray := make([]byte, len(rawArray))
+		for i, v := range rawArray {
+			// Convert each element to byte
+			if num, ok := v.(float64); ok {
+				byteArray[i] = byte(num)
+			}
+		}
+
+		valueField = byteArray
 	}
-
-	s.logger.Debugw("Sui GetObject", "object", object.Data.Content.Fields)
-
-	// Extract the value field from the object
-	valueField, ok := object.Data.Content.Fields["value"]
-	if !ok {
-		return fmt.Errorf("object does not contain a 'value' field")
-	}
-
-	s.logger.Debugw("Extracted value from object", "value", valueField)
 
 	// Decode the return value into the provided structure
 	return codec.DecodeSuiJsonValue(valueField, returnVal)
 }
 
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types.BatchGetLatestValuesRequest) (types.BatchGetLatestValuesResult, error) {
-	// not implemented
-	return types.BatchGetLatestValuesResult{}, nil
+	result := make(types.BatchGetLatestValuesResult)
+
+	for contract, batch := range request {
+		batchResults := make(types.ContractBatchResults, len(batch))
+		resultChan := make(chan struct {
+			index  int
+			result types.BatchReadResult
+		}, len(batch))
+
+		for i, read := range batch {
+			go func(index int, read types.BatchRead) {
+				readResult := types.BatchReadResult{ReadName: read.ReadName}
+
+				err := s.GetLatestValue(ctx, contract.ReadIdentifier(read.ReadName), primitives.Finalized, read.Params, read.ReturnVal)
+				readResult.SetResult(read.ReturnVal, err)
+
+				select {
+				case resultChan <- struct {
+					index  int
+					result types.BatchReadResult
+				}{index, readResult}:
+				case <-ctx.Done():
+					return
+				}
+			}(i, read)
+		}
+
+		for range batch {
+			select {
+			case res := <-resultChan:
+				batchResults[res.index] = res.result
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		result[contract] = batchResults
+	}
+
+	return result, nil
 }
 
 func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]types.Sequence, error) {

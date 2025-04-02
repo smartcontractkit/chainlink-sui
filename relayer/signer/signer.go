@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/hex"
 	"log"
 
 	"golang.org/x/crypto/blake2b"
@@ -20,6 +21,9 @@ const (
 type SuiSigner interface {
 	// Sign signs the given message and returns the serialized signature.
 	Sign(message []byte) ([]string, error)
+
+	// GetAddress returns the Sui address derived from the signer's public key
+	GetAddress() (string, error)
 }
 
 // SerializeSuiSignature formats and serializes a signature for use with Sui transactions.
@@ -93,6 +97,27 @@ func (s *PrivateKeySigner) Sign(message []byte) ([]string, error) {
 	serializedSignature := SerializeSuiSignature(sigBytes, pubKey)
 
 	return []string{serializedSignature}, nil
+}
+
+// GetAddress returns the Sui address derived from the signer's public key
+func (s *PrivateKeySigner) GetAddress() (string, error) {
+	pubKey := s.privateKey.Public().(ed25519.PublicKey)
+
+	// Prepend the Ed25519 flag byte to the public key
+	flaggedPubKey := make([]byte, 1+len(pubKey))
+	flaggedPubKey[0] = byte(SigFlagEd25519)
+	copy(flaggedPubKey[1:], pubKey)
+
+	// Hash the flagged public key
+	digest := blake2b.Sum256(flaggedPubKey)
+
+	// Take the first 20 bytes of the hash as the address
+	addressBytes := digest[:32]
+
+	// Convert to hex string with "0x" prefix
+	address := "0x" + hex.EncodeToString(addressBytes)
+
+	return address, nil
 }
 
 // TODO: add docstring and reference to block-vision implementation

@@ -21,9 +21,6 @@ const (
 	CLI
 )
 
-const SuiLocalEndpoint = "127.0.0.1:9000"
-const FaucetLocalEndpoint = "127.0.0.1:9123"
-
 // StartSuiNode starts a local Sui node using Docker
 func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 	var cmd *exec.Cmd
@@ -59,12 +56,12 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 
 	// Wait for the node to start
 	const defaultDelay = 10 * time.Second
-	err := waitForConnection(SuiLocalEndpoint, defaultDelay)
+	err := waitForConnection(LocalUrl, defaultDelay)
 	if err != nil {
 		return nil, err
 	}
 	// wait for Faucet to be available
-	err = waitForConnection(FaucetLocalEndpoint, defaultDelay)
+	err = waitForConnection(LocalFaucetUrl, defaultDelay)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +108,7 @@ func FundWithFaucet(log logger.Logger, network string, recipient string) error {
 	log.Infow("Faucet Host found", "host", faucetHost)
 
 	header := map[string]string{}
-	err = sui.RequestSuiFromFaucet(faucetHost, recipient, header)
+	err = sui.RequestSuiFromFaucet("http://127.0.0.1:9123", recipient, header)
 	if err != nil {
 		log.Error(err.Error())
 		return err

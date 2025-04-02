@@ -4,11 +4,18 @@ go 1.24.0
 
 require (
 	github.com/block-vision/sui-go-sdk v1.0.6
+	github.com/fardream/go-bcs v0.7.0
+	github.com/mitchellh/mapstructure v1.5.0
+	github.com/pattonkan/sui-go v0.1.0
 	github.com/smartcontractkit/chainlink-common v0.4.1
 	github.com/stretchr/testify v1.9.0
 )
 
-require github.com/tyler-smith/go-bip39 v1.1.0 // indirect
+require (
+	github.com/btcsuite/btcutil v1.0.2 // indirect
+	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -22,7 +29,7 @@ require (
 	github.com/go-playground/validator/v10 v10.22.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect

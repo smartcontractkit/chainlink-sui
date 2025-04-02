@@ -6,33 +6,28 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 
 	"github.com/block-vision/sui-go-sdk/constant"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
 func TestChainReaderLocal(t *testing.T) {
-	t.Skip() // TODO: It currently depends on the CLI for chain interactions. Causes test unrealiability
 	t.Parallel()
-
 	log := logger.Test(t)
 
 	var err error
-	// TODO: Should always generate a fresh account for consistent results
-	privateKey, _, accountAddress := testutils.LoadAccountFromEnv(t, log)
-	// if the env does not contain a private key to be loaded, create one
-	if privateKey == nil {
-		_, _, accountAddress, err = testutils.GenerateAccountKeyPair(t, log)
-	}
-	require.NoError(t, err)
-
+	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
@@ -57,10 +52,29 @@ func TestChainReaderLocal(t *testing.T) {
 func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 
-	client := sui.NewSuiClient(rpcUrl)
+	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
+	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
+	require.NoError(t, keystoreErr)
+	signer, signerErr := keystoreInstance.GetSignerFromAddress(accountAddress)
+	require.NoError(t, signerErr)
+	relayerClient, clientErr := client.NewClient(log, rpcUrl, nil, 10*time.Second, &signer)
+	require.NoError(t, clientErr)
 
-	// start by deploying the counter contract to local net
-	packageId, counterObjectId, err := testutils.DeployCounterContract(t)
+	faucetFundErr := testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
+	require.NoError(t, faucetFundErr)
+
+	contractPath := testutils.BuildSetup(t, "contracts/test")
+	testutils.BuildContract(t, contractPath)
+
+	packageId, _, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	require.NoError(t, err)
+
+	log.Debugw("Published Contract", "packageId", packageId)
+
+	initializeOutput := testutils.CallContractFromCLI(t, packageId, accountAddress, "counter", "initialize", nil)
+	require.NoError(t, err)
+
+	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	// Set up the ChainReader
@@ -68,6 +82,19 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		Modules: map[string]*ChainReaderModule{
 			"counter": {
 				Name: "counter",
+				Functions: map[string]*ChainReaderFunction{
+					"get_count": {
+						Name: "get_count",
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:         "address",
+								Name:         "counter_id",
+								DefaultValue: counterObjectId,
+								Required:     true,
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -77,13 +104,14 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		Address: packageId, // Package ID of the deployed counter contract
 	}
 
-	chainReader := NewChainReader(log, client, chainReaderConfig)
+	chainReader := NewChainReader(log, *relayerClient, chainReaderConfig)
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding})
 	require.NoError(t, err)
 
 	log.Debugw("ChainReader setup complete")
 
 	// Test GetLatestValue for different data types
+
 	t.Run("GetLatestValue_Uint64", func(t *testing.T) {
 		t.Parallel()
 		expectedUint64 := uint64(0)
@@ -95,6 +123,29 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			struct {
 				Value uint64
 			}{Value: expectedUint64},
+			&retUint64,
+		)
+		require.NoError(t, err)
+		require.Equal(t, expectedUint64, retUint64)
+	})
+
+	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
+		t.Parallel()
+		expectedUint64 := uint64(0)
+		var retUint64 uint64
+
+		log.Debugw("Testing get_count",
+			"counterObjectId", counterObjectId,
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, counterBinding.Name, "get_count"}, "-"),
+			primitives.Finalized,
+			map[string]any{
+				"counter_id": counterObjectId,
+			},
 			&retUint64,
 		)
 		require.NoError(t, err)

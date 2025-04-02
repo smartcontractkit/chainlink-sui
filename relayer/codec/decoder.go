@@ -8,6 +8,8 @@ import (
 	"strconv"
 )
 
+const BYTE_SIZE = 8
+
 // DecodeSuiJsonValue takes Sui JSON-RPC response data and decodes it into the provided target
 func DecodeSuiJsonValue(data any, target any) error {
 	if target == nil {
@@ -99,6 +101,19 @@ func decodeNumeric(data any, targetValue reflect.Value) error {
 		targetValue.SetUint(uint64(n))
 
 		return nil
+	case []byte:
+		if len(v) > 0 {
+			var result uint64
+			// Process bytes in little-endian order (least significant byte first)
+			for i := 0; i < len(v) && i < BYTE_SIZE; i++ {
+				result |= uint64(v[i]) << (BYTE_SIZE * i)
+			}
+			targetValue.SetUint(result)
+
+			return nil
+		}
+
+		return fmt.Errorf("empty byte array cannot be converted to numeric value")
 	default:
 		return fmt.Errorf("unsupported data type for numeric target: %T", data)
 	}
