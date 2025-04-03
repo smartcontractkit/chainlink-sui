@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fardream/go-bcs/bcs"
-
 	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
@@ -89,71 +86,4 @@ func DevInspectTx(ctx context.Context, signer rel.SuiSigner, client suiclient.Cl
 	}
 
 	return tx, nil
-}
-
-const defaultGasBudget = 200000000
-
-func FinishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, opts TxOpts, signer string, client suiclient.ClientImpl) ([]byte, error) {
-	txData, err := finishTransactionFromBuilder(ctx, ptb, opts, signer, client)
-	if err != nil {
-		return nil, err
-	}
-
-	txBytes, err := bcs.Marshal(txData)
-	if err != nil {
-		return nil, err
-	}
-
-	return txBytes, nil
-}
-
-func FinishDevInspectTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, opts TxOpts, signer string, client suiclient.ClientImpl) ([]byte, error) {
-	txData, err := finishTransactionFromBuilder(ctx, ptb, opts, signer, client)
-	if err != nil {
-		return nil, err
-	}
-
-	txBytes, err := bcs.Marshal(txData.V1.Kind)
-	if err != nil {
-		return nil, err
-	}
-
-	return txBytes, nil
-}
-
-func finishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, opts TxOpts, signer string, client suiclient.ClientImpl) (*suiptb.TransactionData, error) {
-	pt := ptb.Finish()
-
-	address, err := ToSuiAddress(signer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert signer address")
-	}
-
-	var coinData *sui.ObjectRef
-	if opts.GasObject != "" {
-		coinData, err = ToSuiObjectRef(ctx, client, opts.GasObject, signer)
-	} else {
-		coinData, err = FetchDefaultGasCoinRef(ctx, client, signer)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	gasBudget := uint64(defaultGasBudget)
-	if opts.GasBudget != nil {
-		gasBudget = *opts.GasBudget
-	}
-	gasPrice := suiclient.DefaultGasPrice
-	if opts.GasPrice != nil {
-		gasPrice = *opts.GasPrice
-	}
-	txData := suiptb.NewTransactionData(
-		address,
-		pt,
-		[]*sui.ObjectRef{coinData},
-		gasBudget,
-		gasPrice,
-	)
-
-	return &txData, nil
 }

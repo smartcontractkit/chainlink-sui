@@ -2,6 +2,7 @@ package counter
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/pattonkan/sui-go/sui"
@@ -42,8 +43,12 @@ func PublishCounter(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner,
 	if err != nil {
 		return nil, nil, err
 	}
+	counter, err := NewCounter(packageId, client)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return NewCounter(packageId, client), tx, nil
+	return counter, tx, nil
 }
 
 type ICounter interface {
@@ -59,108 +64,46 @@ type ICounter interface {
 }
 
 type Counter struct {
-	packageID bind.PackageID
+	packageID *sui.Address
 	client    suiclient.ClientImpl
 }
 
 var _ ICounter = (*Counter)(nil)
 
-func NewCounter(packageID string, client suiclient.ClientImpl) *Counter {
-	return &Counter{
-		packageID: packageID,
-		client:    client,
+func NewCounter(packageID string, client suiclient.ClientImpl) (*Counter, error) {
+	pkgObjectId, err := bind.ToSuiAddress(packageID)
+	if err != nil {
+		return nil, fmt.Errorf("package ID is not a Sui address: %w", err)
 	}
+
+	return &Counter{
+		packageID: pkgObjectId,
+		client:    client,
+	}, nil
 }
 
 func (c *Counter) Connect(client suiclient.ClientImpl) {
 	c.client = client
 }
 
-func (c *Counter) BuildIncrement(ctx context.Context, counterObjectId string) (*suiptb.ProgrammableTransactionBuilder, error) {
-	object, err := bind.ReadObject(ctx, counterObjectId, c.client)
-	if err != nil {
-		return nil, err
-	}
-
-	pkgObjectId, err := bind.ToSuiAddress(c.packageID)
-	if err != nil {
-		return nil, err
-	}
-	counterId, err := bind.ToSuiAddress(counterObjectId)
-	if err != nil {
-		return nil, err
-	}
-
-	ptb := suiptb.NewTransactionDataTransactionBuilder()
-	arg0, err := ptb.Obj(suiptb.ObjectArg{
-		SharedObject: &suiptb.SharedObjectArg{
-			Id:                   counterId,
-			Mutable:              true,
-			InitialSharedVersion: *object.Data.Owner.Shared.InitialSharedVersion,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ptb.Command(suiptb.Command{
-		MoveCall: &suiptb.ProgrammableMoveCall{
-			Package:       pkgObjectId,
-			Module:        "counter",
-			Function:      "increment",
-			TypeArguments: []sui.TypeTag{},
-			Arguments:     []suiptb.Argument{arg0},
-		}},
-	)
-
-	return ptb, err
-}
-
-func (c *Counter) BuildGetCount(ctx context.Context, counterObjectId string) (*suiptb.ProgrammableTransactionBuilder, error) {
-	object, err := bind.ReadObject(ctx, counterObjectId, c.client)
-	if err != nil {
-		return nil, err
-	}
-
-	pkgObjectId, err := bind.ToSuiAddress(c.packageID)
-	if err != nil {
-		return nil, err
-	}
-	counterId, err := bind.ToSuiAddress(counterObjectId)
-	if err != nil {
-		return nil, err
-	}
-
-	ptb := suiptb.NewTransactionDataTransactionBuilder()
-	arg0, err := ptb.Obj(suiptb.ObjectArg{
-		SharedObject: &suiptb.SharedObjectArg{
-			Id:                   counterId,
-			Mutable:              true,
-			InitialSharedVersion: *object.Data.Owner.Shared.InitialSharedVersion,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ptb.Command(suiptb.Command{
-		MoveCall: &suiptb.ProgrammableMoveCall{
-			Package:       pkgObjectId,
-			Module:        "counter",
-			Function:      "get_count",
-			TypeArguments: []sui.TypeTag{},
-			Arguments:     []suiptb.Argument{arg0},
-		}},
-	)
-
-	return ptb, err
-}
-
 func (c *Counter) Increment(counterObjectId string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		ptb, err := c.BuildIncrement(ctx, counterObjectId)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment", counterObjectId)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *Counter) IncrementMult(counterObjectId string, a, b uint64) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_mult", counterObjectId, a, b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment_mult", err)
 		}
 
 		return ptb, nil
@@ -171,9 +114,9 @@ func (c *Counter) Increment(counterObjectId string) bind.IMethod {
 
 func (c *Counter) GetCount(counterObjectId string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		ptb, err := c.BuildGetCount(ctx, counterObjectId)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count", counterObjectId)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_count", err)
 		}
 
 		return ptb, nil

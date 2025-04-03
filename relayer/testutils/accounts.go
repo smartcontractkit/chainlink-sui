@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,7 +54,13 @@ func GetAccountAndKeyFromSui(t *testing.T, lgr logger.Logger) string {
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "Failed to get active address: %s", string(output))
 
-	accountAddress := strings.ReplaceAll(string(output), "\n", "")
+	// Extract the account address using regex to handle any potential formatting
+	re := regexp.MustCompile(`0x[a-fA-F0-9]+`)
+	matches := re.FindString(string(output))
+	if matches == "" {
+		require.Fail(t, "Failed to extract account address from output: %s", string(output))
+	}
+	accountAddress := matches
 	lgr.Info("Active address: ", accountAddress)
 
 	return accountAddress

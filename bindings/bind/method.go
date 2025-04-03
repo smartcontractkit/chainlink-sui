@@ -75,7 +75,7 @@ func MakeExecute(buildFn BuildFunc) ExecuteFunc {
 		}
 
 		if receipt.Effects.Data.V1.Status.Status == FailureResultType {
-			return nil, fmt.Errorf("transaction failed: %v", receipt.Effects.Data.V1.Status.Status)
+			return nil, fmt.Errorf("transaction failed: %v", receipt.Effects.Data.V1.Status.Error)
 		}
 
 		return receipt, nil
@@ -104,7 +104,7 @@ func MakeInspect(buildFn BuildFunc) InspectFunc {
 		}
 
 		if receipt.Effects.Data.V1.Status.Status == FailureResultType {
-			return nil, fmt.Errorf("transaction inspect failed: %v", receipt.Effects.Data.V1.Status.Status)
+			return nil, fmt.Errorf("transaction inspect failed: %v", receipt.Effects.Data.V1.Status.Error)
 		}
 
 		return receipt, nil

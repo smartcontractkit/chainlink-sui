@@ -46,3 +46,9 @@ func toSuiSignature(sig string) (*suisigner.Signature, error) {
 		},
 	}, nil
 }
+
+func IsSuiAddress(address string) bool {
+	_, err := ToSuiAddress(address)
+
+	return err == nil
+}

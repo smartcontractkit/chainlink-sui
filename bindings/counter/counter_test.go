@@ -68,4 +68,12 @@ func TestCounter(t *testing.T) {
 	value, err := counter.Inspect(ctx, counterObjectId)
 	require.NoError(t, err)
 	require.Equal(t, uint64(2), value)
+
+	incrementMult := counter.IncrementMult(counterObjectId, 4, 5)
+	_, err = incrementMult.Execute(ctx, bind.TxOpts{}, signer, *client)
+	require.NoError(t, err)
+
+	value, err = counter.Inspect(ctx, counterObjectId)
+	require.NoError(t, err)
+	require.Equal(t, uint64(22), value)
 }
