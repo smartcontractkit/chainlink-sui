@@ -183,15 +183,11 @@ module ccip::rmn_remote {
         let mut merkle_roots = vector[];
         let mut i = 0;
         while (i < merkle_root_len) {
-            let source_chain_selector =
-                *vector::borrow(&merkle_root_source_chain_selectors, i);
-            let min_seq_nr =
-                *vector::borrow(&merkle_root_min_seq_nrs, i);
-            let max_seq_nr =
-                *vector::borrow(&merkle_root_max_seq_nrs, i);
-            let merkle_root = *vector::borrow(&merkle_root_values, i);
-            vector::push_back(
-                &mut merkle_roots,
+            let source_chain_selector = merkle_root_source_chain_selectors[i];
+            let min_seq_nr = merkle_root_min_seq_nrs[i];
+            let max_seq_nr = merkle_root_max_seq_nrs[i];
+            let merkle_root = merkle_root_values[i];
+            merkle_roots.push_back(
                 MerkleRoot {
                     source_chain_selector,
                     min_seq_nr,
@@ -216,7 +212,7 @@ module ccip::rmn_remote {
         let mut previous_eth_address = vector[];
         let mut i = 0;
         while (i < signatures_len) {
-            let signature_bytes = *vector::borrow(&signatures, i);
+            let signature_bytes = signatures[i];
 
             assert!(signature_bytes.length() == SIGNATURE_NUM_BYTES, E_INVALID_SIGNATURE);
 
@@ -233,16 +229,16 @@ module ccip::rmn_remote {
             let mut j: u64 = 12;
             while (j < len) {
                 // Copy each element starting at index 12 into the new vector.
-                vector::push_back(&mut eth_address, *vector::borrow(key_hash, j));
+                eth_address.push_back(key_hash[j]);
                 j = j + 1;
             };
 
             assert!(
-                vec_map::contains(&state.signers, &eth_address),
+                state.signers.contains(&eth_address),
                 E_UNEXPECTED_SIGNER
             );
             assert!(
-                vec_map::contains(&state.signers, &eth_address),
+                state.signers.contains(&eth_address),
                 E_UNEXPECTED_SIGNER
             );
             if (i > 0) {
@@ -288,8 +284,8 @@ module ccip::rmn_remote {
 
         let mut i = 1;
         while (i < signers_len) {
-            let previous_node_index = *vector::borrow(&node_indexes, i - 1);
-            let current_node_index = *vector::borrow(&node_indexes, i);
+            let previous_node_index = node_indexes[i - 1];
+            let current_node_index = node_indexes[i];
             assert!(
                 previous_node_index < current_node_index,
                 E_INVALID_SIGNER_ORDER
@@ -307,7 +303,7 @@ module ccip::rmn_remote {
         let mut i = 0;
         let keys_len = keys.length();
         while (i < keys_len) {
-            let key = *vector::borrow(&keys, i);
+            let key = keys[i];
             vec_map::remove(&mut state.signers, &key);
             i = i + 1;
         };
@@ -324,7 +320,7 @@ module ccip::rmn_remote {
                     E_INVALID_PUBLIC_KEY_LENGTH
                 );
                 assert!(
-                    !vec_map::contains(&state.signers, &signer_public_key_bytes),
+                    !state.signers.contains(&signer_public_key_bytes),
                     E_DUPLICATE_SIGNER
                 );
                 vec_map::insert(&mut state.signers, signer_public_key_bytes, true);
@@ -382,7 +378,7 @@ module ccip::rmn_remote {
                     E_INVALID_SUBJECT_LENGTH
                 );
                 assert!(
-                    !vec_map::contains(&state.cursed_subjects, &subject),
+                    !state.cursed_subjects.contains(&subject),
                     E_ALREADY_CURSED
                 );
                 vec_map::insert(&mut state.cursed_subjects, subject, true);
@@ -413,7 +409,7 @@ module ccip::rmn_remote {
             |subject| {
                 let subject: vector<u8> = *subject;
                 assert!(
-                    vec_map::contains(&state.cursed_subjects, &subject),
+                    state.cursed_subjects.contains(&subject),
                     E_NOT_CURSED
                 );
                 vec_map::remove(&mut state.cursed_subjects, &subject);
@@ -432,13 +428,13 @@ module ccip::rmn_remote {
     public fun is_cursed_global(ref: &CCIPObjectRef): bool {
         let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
-        vec_map::contains(&state.cursed_subjects, &GLOBAL_CURSE_SUBJECT)
+        state.cursed_subjects.contains(&GLOBAL_CURSE_SUBJECT)
     }
 
     public fun is_cursed(ref: &CCIPObjectRef, subject: vector<u8>): bool {
         let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
-        vec_map::contains(&state.cursed_subjects, &subject) || is_cursed_global(ref)
+        state.cursed_subjects.contains(&subject) || is_cursed_global(ref)
     }
 
     public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {

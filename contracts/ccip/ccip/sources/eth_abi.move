@@ -59,7 +59,7 @@ module ccip::eth_abi {
         let padding_len = 32 - value.length();
         let mut i = 0;
         while (i < padding_len) {
-            vector::push_back(out, 0);
+            out.push_back(0);
             i = i + 1;
         };
         vector::append(out, value)
@@ -72,7 +72,7 @@ module ccip::eth_abi {
         let padding_len = 32 - (value.length() % 32);
         let mut i = 0;
         while (i < padding_len) {
-            vector::push_back(out, 0);
+            out.push_back(0);
             i = i + 1;
         }
     }
@@ -103,7 +103,7 @@ module ccip::eth_abi {
     }
 
     public fun encode_packed_u8(out: &mut vector<u8>, value: u8) {
-        vector::push_back(out, value)
+        out.push_back(value);
     }
 
     public fun encode_packed_u32(out: &mut vector<u8>, value: u32) {
@@ -157,7 +157,7 @@ module ccip::eth_abi {
         let mut value_bytes = vector[];
         while (i < 12) {
             assert!(
-                *vector::borrow(data, cur + i) == 0,
+                data[cur + i] == 0,
                 E_INVALID_ADDRESS
             );
             value_bytes.push_back(0);
@@ -166,7 +166,7 @@ module ccip::eth_abi {
 
         // add the remaining 20 bytes
         while (i < 32) {
-            value_bytes.push_back(*vector::borrow(data, cur + i));
+            value_bytes.push_back(data[cur + i]);
             i = i + 1;
         };
         stream.cur = cur + 32;
@@ -212,7 +212,7 @@ module ccip::eth_abi {
         let mut i = start;
         while (i < start + len) {
             // Copy each element from the original vector into the new vector.
-            vector::push_back(&mut new_vec, *vector::borrow(vec, i));
+            new_vec.push_back(vec[i]);
             i = i + 1;
         };
         new_vec
@@ -257,7 +257,7 @@ module ccip::eth_abi {
         let mut i = 0;
 
         while (i < len) {
-            vector::push_back(&mut v, $f($stream));
+            v.push_back($f($stream));
             i = i + 1;
         };
 

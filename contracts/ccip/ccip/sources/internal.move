@@ -39,13 +39,10 @@ module ccip::internal {
         let mut converted_token_amounts = vector[];
         let mut i = 0;
         while (i < tokens_len) {
-            let token = *vector::borrow(&token_addresses, i);
-            let amount = *vector::borrow(&token_amounts, i);
-            let token_store = *vector::borrow(&token_store_addresses, i);
-            vector::push_back(
-                &mut converted_token_amounts,
-                Sui2AnyTokenAmount { token, amount, token_store }
-            );
+            let token = token_addresses[i];
+            let amount = token_amounts[i];
+            let token_store = token_store_addresses[i];
+            converted_token_amounts.push_back(Sui2AnyTokenAmount { token, amount, token_store });
             i = i + 1;
         };
         Sui2AnyMessage {
@@ -79,9 +76,9 @@ module ccip::internal {
         let len = message.token_amounts.length();
         let mut i = 0;
         while (i < len) {
-            let token_amount = vector::borrow(&message.token_amounts, i);
-            vector::push_back(&mut token_addresses, token_amount.token);
-            vector::push_back(&mut token_amounts, token_amount.amount);
+            let token_amount = &message.token_amounts[i];
+            token_addresses.push_back(token_amount.token);
+            token_amounts.push_back(token_amount.amount);
             i = i + 1;
         };
         (token_addresses, token_amounts)

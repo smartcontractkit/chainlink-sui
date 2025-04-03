@@ -127,7 +127,7 @@ module ccip::ocr3_base {
         let mut result: u64 = 0;
         let mut i = len - 8;
         while (i < len) {
-            result = (result << 8) + (*vector::borrow(&sequence_bytes, i) as u64);
+            result = (result << 8) + (sequence_bytes[i] as u64);
             i = i + 1;
         };
         result
@@ -153,7 +153,7 @@ module ccip::ocr3_base {
         while (i < len) {
             let mut j = i + 1;
             while (j < len) {
-                if (vector::borrow(a, i) == vector::borrow(a, j)) {
+                if (&a[i] == &a[j]) {
                     return true
                 };
                 j = j + 1;
@@ -253,7 +253,7 @@ module ccip::ocr3_base {
         let mut i = start;
         while (i < start + len) {
             // Copy each element from the original vector into the new vector.
-            vector::push_back(&mut new_vec, *vector::borrow(vec, i));
+            new_vec.push_back(vec[i]);
             i = i + 1;
         };
         new_vec
@@ -278,13 +278,13 @@ module ccip::ocr3_base {
             E_INVALID_REPORT_CONTEXT_LENGTH
         );
 
-        let config_digest = *vector::borrow(&report_context, 0);
+        let config_digest = report_context[0];
         assert!(
             config_digest.length() == 32,
             E_INVALID_CONFIG_DIGEST_LENGTH
         );
 
-        let sequence_bytes = *vector::borrow(&report_context, 1);
+        let sequence_bytes = report_context[1];
         assert!(
             sequence_bytes.length() == 32,
             E_INVALID_SEQUENCE_LENGTH

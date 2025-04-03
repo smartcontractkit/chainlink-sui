@@ -21,7 +21,7 @@ module ccip::allowlist {
     public fun new(allowlist: vector<address>, ctx: &mut TxContext): AllowlistState {
         AllowlistState {
             id: object::new(ctx),
-            allowlist_enabled: !vector::is_empty(&allowlist),
+            allowlist_enabled: !allowlist.is_empty(),
             allowlist,
         }
     }
@@ -42,7 +42,7 @@ module ccip::allowlist {
         if (!state.allowlist_enabled) {
             return true
         };
-        vector::contains(&state.allowlist, &sender)
+        state.allowlist.contains(&sender)
     }
 
     public fun apply_allowlist_updates(
@@ -54,7 +54,7 @@ module ccip::allowlist {
         let mut len = removes.length();
         while (i < len) {
             // get the address to remove
-            let remove_address = vector::borrow(&removes, i);
+            let remove_address = &removes[i];
             // find the index of the address in the allowlist
             let (found, j) = vector::index_of(&state.allowlist, remove_address);
             if (found) {
@@ -66,16 +66,16 @@ module ccip::allowlist {
             i = i + 1;
         };
 
-        if (!vector::is_empty(&adds)) {
+        if (!adds.is_empty()) {
             assert!(state.allowlist_enabled, E_ALLOWLIST_NOT_ENABLED);
 
             i = 0;
             len = adds.length();
             while (i < len) {
-                let add_address = vector::borrow(&adds, i);
+                let add_address = &adds[i];
                 let (found, _) = vector::index_of(&state.allowlist, add_address);
                 if (add_address != @0x0 && !found) {
-                    vector::push_back(&mut state.allowlist, *add_address);
+                    state.allowlist.push_back(*add_address);
                     event::emit(AllowlistAdd {
                         sender: *add_address,
                     });
@@ -111,7 +111,7 @@ module ccip::allowlist_test {
         let state = set_up_test(vector::empty(), scenario.ctx());
 
         assert!(!allowlist::get_allowlist_enabled(&state));
-        assert!(vector::is_empty(&allowlist::get_allowlist(&state)));
+        assert!(allowlist::get_allowlist(&state).is_empty());
 
         // Any address is allowed when the allowlist is disabled
         assert!(allowlist::is_allowed(&state, @0x1111111111111));
@@ -133,8 +133,8 @@ module ccip::allowlist_test {
         assert!(allowlist::get_allowlist(&state).length() == 2);
 
         // The given addresses are allowed
-        assert!(allowlist::is_allowed(&state, *vector::borrow(&init_allowlist, 0)));
-        assert!(allowlist::is_allowed(&state, *vector::borrow(&init_allowlist, 1)));
+        assert!(allowlist::is_allowed(&state, init_allowlist[0]));
+        assert!(allowlist::is_allowed(&state, init_allowlist[1]));
 
         assert!(!allowlist::is_allowed(&state, @0x3));
 
@@ -167,11 +167,11 @@ module ccip::allowlist_test {
 
         allowlist::set_allowlist_enabled(&mut state, true);
 
-        assert!(vector::is_empty(&allowlist::get_allowlist(&state)));
+        assert!(allowlist::get_allowlist(&state).is_empty());
 
         allowlist::apply_allowlist_updates(&mut state, vector::empty(), vector::empty());
 
-        assert!(vector::is_empty(&allowlist::get_allowlist(&state)));
+        assert!(allowlist::get_allowlist(&state).is_empty());
 
         let adds = vector[@0x1, @0x2];
 
