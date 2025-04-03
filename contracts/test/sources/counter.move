@@ -47,11 +47,11 @@ module test::counter {
         counter.value
     }
 
-    public fun increment_by_two(_: &AdminCap, counter: &mut Counter, _ctx: &mut TxContext) {
+    public fun increment_by_two(_admin: &AdminCap, counter: &mut Counter, _ctx: &mut TxContext) {
         counter.value = counter.value + 2;
     }
 
-    public entry fun increment_by_two_no_context(_: &AdminCap, counter: &mut Counter) {
+    public entry fun increment_by_two_no_context(_admin: &AdminCap, counter: &mut Counter) {
         counter.value = counter.value + 2;
     }
 
