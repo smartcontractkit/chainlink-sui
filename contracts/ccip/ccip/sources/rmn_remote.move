@@ -1,14 +1,14 @@
 module ccip::rmn_remote {
     use std::bcs;
-    use sui::hash;
-    use sui::event;
-    use sui::vec_map;
     use sui::ecdsa_k1;
+    use sui::event;
+    use sui::hash;
     use std::string::{Self, String};
+    use sui::vec_map::{Self, VecMap};
 
     use ccip::eth_abi;
-    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
     use ccip::merkle_proof;
+    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
 
     public struct RMNRemoteState has key, store {
         id: UID,
@@ -16,8 +16,8 @@ module ccip::rmn_remote {
         config: Config,
         config_count: u32,
         // most operations are O(n) with vec map, but it's easy to retrieve all the keys
-        signers: vec_map::VecMap<vector<u8>, bool>,
-        cursed_subjects: vec_map::VecMap<vector<u8>, bool>
+        signers: VecMap<vector<u8>, bool>,
+        cursed_subjects: VecMap<vector<u8>, bool>
     }
 
     public struct Config has copy, drop, store {
@@ -45,6 +45,11 @@ module ccip::rmn_remote {
         min_seq_nr: u64,
         max_seq_nr: u64,
         merkle_root: vector<u8>
+    }
+
+    public struct VersionedConfig has copy, drop {
+        version: u32,
+        config: Config
     }
 
     public struct ConfigSet has copy, drop {
@@ -96,7 +101,7 @@ module ccip::rmn_remote {
     // }
 
     public fun initialize(
-        ownerCap: &OwnerCap,
+        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         local_chain_selector: u64,
         ctx: &mut TxContext
@@ -124,7 +129,7 @@ module ccip::rmn_remote {
             cursed_subjects: vec_map::empty<vector<u8>, bool>()
         };
 
-        state_object::add(ownerCap, ref, RMN_REMOTE_STATE_NAME, state);
+        state_object::add(owner_cap, ref, RMN_REMOTE_STATE_NAME, state);
     }
 
     fun calculate_report(report: &Report): vector<u8> {
@@ -134,8 +139,7 @@ module ccip::rmn_remote {
         eth_abi::encode_address(&mut digest, report.rmn_remote_contract_address);
         eth_abi::encode_address(&mut digest, report.off_ramp_address);
         eth_abi::encode_bytes32(&mut digest, report.rmn_home_contract_config_digest);
-        vector::do_ref!(
-            &report.merkle_roots,
+        report.merkle_roots.do_ref!(
             |merkle_root| {
                 let merkle_root: &MerkleRoot = merkle_root;
                 eth_abi::encode_u64(&mut digest, merkle_root.source_chain_selector);
@@ -237,10 +241,6 @@ module ccip::rmn_remote {
                 state.signers.contains(&eth_address),
                 E_UNEXPECTED_SIGNER
             );
-            assert!(
-                state.signers.contains(&eth_address),
-                E_UNEXPECTED_SIGNER
-            );
             if (i > 0) {
                 assert!(
                     merkle_proof::vector_u8_gt(&eth_address, &previous_eth_address),
@@ -255,8 +255,12 @@ module ccip::rmn_remote {
         true
     }
 
+    public fun get_arm(): address {
+        @ccip
+    }
+
     public fun set_config(
-        ownerCap: &OwnerCap,
+        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         rmn_home_contract_config_digest: vector<u8>,
         signer_onchain_public_keys: vector<vector<u8>>,
@@ -264,7 +268,7 @@ module ccip::rmn_remote {
         f_sign: u64,
         _ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut<RMNRemoteState>(ownerCap, ref, RMN_REMOTE_STATE_NAME);
+        let state = state_object::borrow_mut<RMNRemoteState>(owner_cap, ref, RMN_REMOTE_STATE_NAME);
 
         assert!(
             rmn_home_contract_config_digest.length() == 32,
@@ -344,10 +348,10 @@ module ccip::rmn_remote {
         event::emit(ConfigSet { version: new_config_count, config: new_config });
     }
 
-    public fun get_versioned_config(ref: &CCIPObjectRef): (u32, Config) {
+    public fun get_versioned_config(ref: &CCIPObjectRef): VersionedConfig {
         let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
-        (state.config_count, state.config)
+        VersionedConfig { version: state.config_count, config: state.config }
     }
 
     public fun get_local_chain_selector(ref: &CCIPObjectRef): u64 {
@@ -360,14 +364,14 @@ module ccip::rmn_remote {
         hash::keccak256(&b"RMN_V1_6_ANY2SUI_REPORT")
     }
 
-    public fun curse(ownerCap: &OwnerCap, ref: &mut CCIPObjectRef, subject: vector<u8>, ctx: &mut TxContext) {
-        curse_multiple(ownerCap, ref, vector[subject], ctx);
+    public fun curse(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef, subject: vector<u8>, ctx: &mut TxContext) {
+        curse_multiple(owner_cap, ref, vector[subject], ctx);
     }
 
     public fun curse_multiple(
-        ownerCap: &OwnerCap, ref: &mut CCIPObjectRef, subjects: vector<vector<u8>>, _ctx: &mut TxContext
+        owner_cap: &OwnerCap, ref: &mut CCIPObjectRef, subjects: vector<vector<u8>>, _ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut<RMNRemoteState>(ownerCap, ref, RMN_REMOTE_STATE_NAME);
+        let state = state_object::borrow_mut<RMNRemoteState>(owner_cap, ref, RMN_REMOTE_STATE_NAME);
 
         vector::do_ref!(
             &subjects,
@@ -388,21 +392,21 @@ module ccip::rmn_remote {
     }
 
     public fun uncurse(
-        ownerCap: &OwnerCap,
+        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         subject: vector<u8>,
         ctx: &mut TxContext
     ) {
-        uncurse_multiple(ownerCap, ref, vector[subject], ctx);
+        uncurse_multiple(owner_cap, ref, vector[subject], ctx);
     }
 
     public fun uncurse_multiple(
-        ownerCap: &OwnerCap,
+        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         subjects: vector<vector<u8>>,
         _ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut<RMNRemoteState>(ownerCap, ref, RMN_REMOTE_STATE_NAME);
+        let state = state_object::borrow_mut<RMNRemoteState>(owner_cap, ref, RMN_REMOTE_STATE_NAME);
 
         vector::do_ref!(
             &subjects,
@@ -421,7 +425,7 @@ module ccip::rmn_remote {
     public fun get_cursed_subjects(ref: &CCIPObjectRef): vector<vector<u8>> {
         let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
-        vec_map::keys(&state.cursed_subjects)
+        state.cursed_subjects.keys()
     }
 
     #[allow(implicit_const_copy)]
@@ -446,6 +450,11 @@ module ccip::rmn_remote {
     #[test_only]
     public fun get_config(config: &Config): (vector<u8>, vector<Signer>, u64) {
         (config.rmn_home_contract_config_digest, config.signers, config.f_sign)
+    }
+
+    #[test_only]
+    public fun get_version(vc: &VersionedConfig): (u32, Config) {
+        (vc.version, vc.config)
     }
 
     //
@@ -523,64 +532,65 @@ module ccip::rmn_remote {
 
 #[test_only]
 module ccip::rmn_remote_test {
-    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+    use ccip::state_object::{Self, OwnerCap, UserCap, CCIPObjectRef};
     use ccip::rmn_remote;
     use sui::test_scenario::{Self, Scenario};
 
     const RMN_REMOTE_STATE_NAME: vector<u8> = b"RMNRemoteState";
 
-    fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
+    fun set_up_test(): (Scenario, OwnerCap, UserCap, CCIPObjectRef) {
         let mut scenario = test_scenario::begin(@0x1);
         let ctx = scenario.ctx();
 
-        let (owner_cap, ref) = state_object::create(ctx);
-        (scenario, owner_cap, ref)
+        let (owner_cap, user_cap, ref) = state_object::create(ctx);
+        (scenario, owner_cap, user_cap, ref)
     }
 
-    fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, ref: CCIPObjectRef) {
+    fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, user_cap: UserCap, ref: CCIPObjectRef) {
         state_object::destroy_owner_cap(owner_cap);
+        state_object::destroy_user_cap(user_cap);
         state_object::destroy_state_object(ref);
         test_scenario::end(scenario);
     }
 
     #[test]
     public fun test_initialize() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
         let _state = state_object::borrow<rmn_remote::RMNRemoteState>(&ref, RMN_REMOTE_STATE_NAME);
         assert!(rmn_remote::get_local_chain_selector(&ref) == 1);
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_ZERO_VALUE_NOT_ALLOWED)]
     public fun test_initialize_zero_chain_selector() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 0, ctx);
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_ALREADY_INITIALIZED)]
     public fun test_initialize_already_initialized() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     public fun test_set_config() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -598,7 +608,8 @@ module ccip::rmn_remote_test {
             ctx
         );
 
-        let (version, config) = rmn_remote::get_versioned_config(&ref);
+        let vc = &rmn_remote::get_versioned_config(&ref);
+        let (version, config) = rmn_remote::get_version(vc);
 
         assert!(version == 1);
 
@@ -607,13 +618,13 @@ module ccip::rmn_remote_test {
         assert!(signers.length() == 3);
         assert!(f_sign == 1);
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_INVALID_DIGEST_LENGTH)]
     public fun test_set_config_invalid_digest_length() {
-        let( mut scenario, owner_cap, mut ref) = set_up_test();
+        let( mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -631,13 +642,13 @@ module ccip::rmn_remote_test {
             ctx
         );
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_ZERO_VALUE_NOT_ALLOWED)]
     public fun test_set_config_zero_digest() {
-        let( mut scenario, owner_cap, mut ref) = set_up_test();
+        let(mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -655,13 +666,13 @@ module ccip::rmn_remote_test {
             ctx
         );
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_NOT_ENOUGH_SIGNERS)]
     public fun test_set_config_not_enough_signers() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -679,13 +690,13 @@ module ccip::rmn_remote_test {
             ctx
         );
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_SIGNERS_MISMATCH)]
     public fun test_set_config_signers_mismatch() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -702,13 +713,13 @@ module ccip::rmn_remote_test {
             ctx
         );
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_INVALID_SIGNER_ORDER)]
     public fun test_set_config_invalid_signer_order() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -726,12 +737,12 @@ module ccip::rmn_remote_test {
             ctx
         );
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     public fun test_curse() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -742,37 +753,37 @@ module ccip::rmn_remote_test {
 
         assert!(rmn_remote::is_cursed(&ref, b"0000000000000003"));
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_INVALID_SUBJECT_LENGTH)]
     public fun test_curse_invalid_subject_length() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
         rmn_remote::curse(&owner_cap, &mut ref, b"00003", ctx);
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = rmn_remote::E_ALREADY_CURSED)]
     public fun test_curse_already_cursed() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
         rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
         rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     public fun test_curse_multiple() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -787,23 +798,23 @@ module ccip::rmn_remote_test {
         );
 
         let cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
-        assert!(vector::length(&cursed_subjects) == 2);
+        assert!(cursed_subjects.length() == 2);
 
         assert!(rmn_remote::is_cursed(&ref, b"0000000000000003"));
         assert!(rmn_remote::is_cursed(&ref, b"0000000000000004"));
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     public fun test_uncurse() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
         rmn_remote::curse(&owner_cap, &mut ref, b"0000000000000003", ctx);
         let mut cursed_subjects = rmn_remote::get_cursed_subjects(&ref);
-        assert!(vector::length(&cursed_subjects) == 1);
+        assert!(cursed_subjects.length() == 1);
         assert!(rmn_remote::is_cursed(&ref, b"0000000000000003"));
 
         rmn_remote::uncurse(&owner_cap, &mut ref, b"0000000000000003", ctx);
@@ -811,12 +822,12 @@ module ccip::rmn_remote_test {
         assert!(cursed_subjects.length() == 0);
         assert!(!rmn_remote::is_cursed(&ref, b"0000000000000003"));
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     public fun test_is_cursed_global() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -826,12 +837,12 @@ module ccip::rmn_remote_test {
         assert!(cursed_subjects.length() == 1);
         assert!(rmn_remote::is_cursed_global(&ref));
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     #[test]
     public fun test_is_cursed_u128() {
-        let (mut scenario, owner_cap, mut ref) = set_up_test();
+        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
         let ctx = scenario.ctx();
 
         rmn_remote::initialize(&owner_cap, &mut ref, 1, ctx);
@@ -840,7 +851,7 @@ module ccip::rmn_remote_test {
         assert!(rmn_remote::is_cursed_u128(&ref, 256));
         assert!(!rmn_remote::is_cursed_u128(&ref, 100));
 
-        tear_down_test(scenario, owner_cap, ref);
+        tear_down_test(scenario, owner_cap, user_cap, ref);
     }
 
     // TODO: add tests for verify

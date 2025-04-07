@@ -1,7 +1,7 @@
 // module to do the equivalent packing as ethereum's abi.encode and abi.encodePacked
 module ccip::eth_abi {
-    use sui::bcs;
     use sui::address;
+    use sui::bcs;
 
     const E_OUT_OF_BYTES: u64 = 1;
     // E_INVALID_BYTES32 is not used. keep it for now to match Aptos error code
