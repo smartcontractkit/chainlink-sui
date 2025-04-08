@@ -2,8 +2,17 @@
 
 [move]
 version = 3
-manifest_digest = "41D94F503D5CF50F272937BD3BEF58B12EF2F8040B00AA1B56A16D33E19AAD10"
-deps_digest = "F8BBB0CCB2491CA29A3DF03D6F92277A4F3574266507ACD77214D37ECA3F3082"
+manifest_digest = "463ACF9F475CD99FF561CE2EA22E7B85DF34ABCD7A8E1B729D09CA388364EDEA"
+deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
+dependencies = [
+  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
+  { id = "Sui", name = "Sui" },
+]
+
+[[move.package]]
+id = "ChainlinkManyChainMultisig"
+source = { local = "../../mcms/mcms" }
+
 dependencies = [
   { id = "Sui", name = "Sui" },
 ]
@@ -24,11 +33,3 @@ dependencies = [
 compiler-version = "1.45.3"
 edition = "2024.beta"
 flavor = "sui"
-
-[env]
-
-[env.devnet]
-chain-id = "8d119d9c"
-original-published-id = "0xfed029114a84e4c68944c057163244fbd3055ccbd4a93de3d3317caaa67799a0"
-latest-published-id = "0xfed029114a84e4c68944c057163244fbd3055ccbd4a93de3d3317caaa67799a0"
-published-version = "1"

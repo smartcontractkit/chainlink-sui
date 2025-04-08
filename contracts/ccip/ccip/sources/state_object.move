@@ -191,14 +191,15 @@ module ccip::state_object {
 
 #[test_only]
 module ccip::state_object_test {
-    use ccip::state_object::{Self, CCIPObjectRef};
     use sui::test_scenario::{Self, Scenario};
+
+    use ccip::state_object::{Self, CCIPObjectRef};
 
     const SENDER_1: address = @0x1;
     const SENDER_2: address = @0x2;
 
     fun set_up_test(): (Scenario, CCIPObjectRef, TestObject) {
-        let mut scenario = test_scenario::begin(@0x1);
+        let mut scenario = test_scenario::begin(SENDER_1);
         let ctx = scenario.ctx();
 
         let ref = state_object::create(ctx);

@@ -1,19 +1,21 @@
 module ccip::ocr3_base {
     use std::bit_vector;
+
     use sui::ed25519;
-    use sui::table;
-    use sui::hash;
     use sui::event;
+    use sui::hash;
+    use sui::table;
+
     use ccip::state_object::{Self, CCIPObjectRef};
 
     const OCR3_BASE_STATE_NAME: vector<u8> = b"OCR3BaseState";
 
     const MAX_NUM_ORACLES: u64 = 256;
-    const OCR_PLUGIN_TYPE_COMMIT: u8 = 1;
-    const OCR_PLUGIN_TYPE_EXECUTION: u8 = 2;
+    const OCR_PLUGIN_TYPE_COMMIT: u8 = 0;
+    const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
     const PUBLIC_KEY_NUM_BYTES: u64 = 32;
 
-    const E_ALREADY_INITIALIZED: u64 = 1;
+    // const E_ALREADY_INITIALIZED: u64 = 1;
     const E_BIG_F_MUST_BE_POSITIVE: u64 = 2;
     const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 3;
     const E_TOO_MANY_SIGNERS: u64 = 4;
@@ -90,23 +92,13 @@ module ccip::ocr3_base {
         OCR_PLUGIN_TYPE_EXECUTION
     }
 
-    public fun initialize(
-        ref: &mut CCIPObjectRef,
-        ctx: &mut TxContext
-    ) {
-        assert!(
-            !state_object::contains(ref, OCR3_BASE_STATE_NAME),
-            E_ALREADY_INITIALIZED
-        );
-
-        let state = OCR3BaseState {
+    public fun new(ctx: &mut TxContext): OCR3BaseState {
+        OCR3BaseState {
             id: object::new(ctx),
             ocr3_configs: table::new<u8, OCRConfig>(ctx),
             signer_oracles: table::new<u8, vector<UnvalidatedPublicKey>>(ctx),
             transmitter_oracles: table::new<u8, vector<address>>(ctx)
-        };
-
-        state_object::add(ref, OCR3_BASE_STATE_NAME, state, ctx);
+        }
     }
 
     public fun latest_config_details(
@@ -114,7 +106,7 @@ module ccip::ocr3_base {
     ): OCRConfig {
         let state = state_object::borrow<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME);
 
-        let ocr_config = table::borrow(&state.ocr3_configs, ocr_plugin_type);
+        let ocr_config = &state.ocr3_configs[ocr_plugin_type];
         *ocr_config
     }
 
@@ -132,17 +124,12 @@ module ccip::ocr3_base {
         result
     }
 
-    // equivalent of keccak256(abi.encodePacked(keccak256(report), reportContext))
     fun hash_report(
-        report: vector<u8>, config_digest: vector<u8>, sequence_bytes: vector<u8>
+        mut report: vector<u8>, config_digest: vector<u8>, sequence_bytes: vector<u8>
     ): vector<u8> {
-        let mut bytes = vector[];
-
-        vector::append(&mut bytes, hash::keccak256(&report));
-        vector::append(&mut bytes, config_digest);
-        vector::append(&mut bytes, sequence_bytes);
-
-        hash::keccak256(&bytes)
+        report.append(config_digest);
+        report.append(sequence_bytes);
+        hash::blake2b256(&report)
     }
 
     fun has_duplicates<T>(a: &vector<T>): bool {
@@ -259,16 +246,19 @@ module ccip::ocr3_base {
     }
 
     // TODO: verify the permission control
-    public fun transmit(
-        ref: &mut CCIPObjectRef,
+    // TODO: verify that this is only called by offramp
+    // TODO: if is_signature_verification_enabled is false, we don't verify the signatures?
+    public(package) fun transmit(
+        ocr3_state: &OCR3BaseState,
         transmitter: address,
         ocr_plugin_type: u8,
         report_context: vector<vector<u8>>,
         report: vector<u8>,
         signatures: vector<vector<u8>>,
-        ctx: &mut TxContext
+        _ctx: &TxContext
     ) {
-        let ocr3_state = state_object::borrow_mut_with_ctx<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME, ctx);
+        // let offramp_state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
+        // let ocr3_state = offramp_state.ocr3_base_state;
 
         let ocr_config = table::borrow(&ocr3_state.ocr3_configs, ocr_plugin_type);
         let config_info = &ocr_config.config_info;
@@ -299,10 +289,9 @@ module ccip::ocr3_base {
 
         // it's impossible to check chain id in Sui Move
 
-        let plugin_transmitters =
-            table::borrow(&ocr3_state.transmitter_oracles, ocr_plugin_type);
+        let plugin_transmitters = ocr3_state.transmitter_oracles[ocr_plugin_type];
         assert!(
-            vector::contains(plugin_transmitters, &transmitter),
+            plugin_transmitters.contains(&transmitter),
             E_UNAUTHORIZED_TRANSMITTER
         );
 
@@ -313,8 +302,7 @@ module ccip::ocr3_base {
             );
 
             let hashed_report = hash_report(report, config_digest, sequence_bytes);
-            let plugin_signers =
-                table::borrow(&ocr3_state.signer_oracles, ocr_plugin_type);
+            let plugin_signers = &ocr3_state.signer_oracles[ocr_plugin_type];
             verify_signature(plugin_signers, hashed_report, signatures);
         };
 
@@ -414,5 +402,13 @@ module ccip::ocr3_base {
         event::emit(
             ConfigSet { ocr_plugin_type, config_digest, signers, transmitters, big_f }
         );
+    }
+
+    #[test]
+    fun deserialize_sequence_number() {
+        let report_context_one =
+            x"0000000000000000000000000000000000000000000000000000000000000009";
+        let ocr_sequence_number = deserialize_sequence_bytes(report_context_one);
+        assert!(ocr_sequence_number == 9, 1);
     }
 }
