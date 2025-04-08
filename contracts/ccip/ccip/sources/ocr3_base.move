@@ -4,7 +4,7 @@ module ccip::ocr3_base {
     use sui::table;
     use sui::hash;
     use sui::event;
-    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef};
 
     const OCR3_BASE_STATE_NAME: vector<u8> = b"OCR3BaseState";
 
@@ -91,7 +91,6 @@ module ccip::ocr3_base {
     }
 
     public fun initialize(
-        ownerCap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         ctx: &mut TxContext
     ) {
@@ -107,7 +106,7 @@ module ccip::ocr3_base {
             transmitter_oracles: table::new<u8, vector<address>>(ctx)
         };
 
-        state_object::add(ownerCap, ref, OCR3_BASE_STATE_NAME, state);
+        state_object::add(ref, OCR3_BASE_STATE_NAME, state, ctx);
     }
 
     public fun latest_config_details(
@@ -259,16 +258,17 @@ module ccip::ocr3_base {
         new_vec
     }
 
+    // TODO: verify the permission control
     public fun transmit(
-        ownerCap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         transmitter: address,
         ocr_plugin_type: u8,
         report_context: vector<vector<u8>>,
         report: vector<u8>,
-        signatures: vector<vector<u8>>
+        signatures: vector<vector<u8>>,
+        ctx: &mut TxContext
     ) {
-        let ocr3_state = state_object::borrow_mut<OCR3BaseState>(ownerCap, ref, OCR3_BASE_STATE_NAME);
+        let ocr3_state = state_object::borrow_mut_with_ctx<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME, ctx);
 
         let ocr_config = table::borrow(&ocr3_state.ocr3_configs, ocr_plugin_type);
         let config_info = &ocr_config.config_info;
@@ -323,7 +323,6 @@ module ccip::ocr3_base {
     }
 
     public fun set_ocr3_config(
-        ownerCap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         config_digest: vector<u8>,
         ocr_plugin_type: u8,
@@ -331,11 +330,11 @@ module ccip::ocr3_base {
         is_signature_verification_enabled: bool,
         signers: vector<vector<u8>>,
         transmitters: vector<address>,
-        _ctx: &mut TxContext
+        ctx: &mut TxContext
     ) {
         assert!(big_f != 0, E_BIG_F_MUST_BE_POSITIVE);
 
-        let ocr3_state = state_object::borrow_mut<OCR3BaseState>(ownerCap, ref, OCR3_BASE_STATE_NAME);
+        let ocr3_state = state_object::borrow_mut_with_ctx<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME, ctx);
 
         let ocr_config = if (table::contains(&ocr3_state.ocr3_configs, ocr_plugin_type)) {
             table::borrow_mut(&mut ocr3_state.ocr3_configs, ocr_plugin_type)

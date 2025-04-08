@@ -2,7 +2,7 @@ module ccip::nonce_manager {
     use std::string::{Self, String};
     use sui::table::{Self, Table};
 
-    use ccip::state_object::{Self, OwnerCap, UserCap, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef};
 
     public struct NonceManagerState has key, store {
         id: UID,
@@ -17,7 +17,7 @@ module ccip::nonce_manager {
         string::utf8(b"NonceManager 1.6.0")
     }
 
-    public fun initialize(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
+    public fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
         assert!(
             !state_object::contains(ref, NONCE_MANAGER_STATE_NAME),
             E_ALREADY_INITIALIZED
@@ -27,7 +27,7 @@ module ccip::nonce_manager {
             id: object::new(ctx),
             outbound_nonces: table::new(ctx)
         };
-        state_object::add(owner_cap, ref, NONCE_MANAGER_STATE_NAME, state);
+        state_object::add(ref, NONCE_MANAGER_STATE_NAME, state, ctx);
     }
 
     public fun get_outbound_nonce(
@@ -49,13 +49,12 @@ module ccip::nonce_manager {
     }
 
     public(package) fun get_incremented_outbound_nonce(
-        user_cap: &UserCap,
         ref: &mut CCIPObjectRef,
         dest_chain_selector: u64,
         sender: address,
         ctx: &mut TxContext
     ): u64 {
-        let state = state_object::borrow_mut_from_user<NonceManagerState>(user_cap, ref, NONCE_MANAGER_STATE_NAME);
+        let state = state_object::borrow_mut_from_user<NonceManagerState>(ref, NONCE_MANAGER_STATE_NAME);
 
         if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {
             table::add(
@@ -78,40 +77,34 @@ module ccip::nonce_manager {
 #[test_only]
 module ccip::nonce_manager_test {
     use ccip::nonce_manager;
-    use ccip::state_object::{Self, OwnerCap, UserCap, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef};
     use sui::test_scenario::{Self, Scenario};
 
     const NONCE_MANAGER_STATE_NAME: vector<u8> = b"NonceManagerState";
 
-    fun set_up_test(): (Scenario, OwnerCap, UserCap, CCIPObjectRef) {
+    fun set_up_test(): (Scenario, CCIPObjectRef) {
         let mut scenario = test_scenario::begin(@0x1);
         let ctx = scenario.ctx();
 
-        let (owner_cap, user_cap, ref) = state_object::create(ctx);
+        let ref = state_object::create(ctx);
 
-        (scenario, owner_cap, user_cap, ref)
+        (scenario, ref)
     }
 
-    fun initialize(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        nonce_manager::initialize(
-            owner_cap,
-            ref,
-            ctx
-        );
+    fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
+        nonce_manager::initialize(ref, ctx);
     }
 
-    fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, user_cap: UserCap, ref: CCIPObjectRef) {
-        state_object::destroy_owner_cap(owner_cap);
-        state_object::destroy_user_cap(user_cap);
+    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
         state_object::destroy_state_object(ref);
         test_scenario::end(scenario);
     }
 
     #[test]
     public fun test_initialize() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         let _state = state_object::borrow<nonce_manager::NonceManagerState>(&ref, NONCE_MANAGER_STATE_NAME);
 
@@ -122,20 +115,19 @@ module ccip::nonce_manager_test {
             )
         );
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     public fun test_get_incremented_outbound_nonce() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         let mut nonce = nonce_manager::get_outbound_nonce(&ref, 1, @0x1);
         assert!(nonce == 0);
 
         let mut incremented_nonce = nonce_manager::get_incremented_outbound_nonce(
-            &user_cap,
             &mut ref,
             1,
             @0x1,
@@ -147,7 +139,6 @@ module ccip::nonce_manager_test {
         assert!(nonce == 1);
 
         incremented_nonce = nonce_manager::get_incremented_outbound_nonce(
-            &user_cap,
             &mut ref,
             1,
             @0x1,
@@ -158,6 +149,6 @@ module ccip::nonce_manager_test {
         nonce = nonce_manager::get_outbound_nonce(&ref, 1, @0x1);
         assert!(nonce == 2);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 }

@@ -8,7 +8,7 @@ module ccip::fee_quoter {
 
     use ccip::eth_abi;
     use ccip::internal;
-    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef};
 
     const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
     const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
@@ -186,7 +186,6 @@ module ccip::fee_quoter {
     // }
 
     public fun initialize(
-        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         max_fee_juels_per_msg: u64,
         link_token: address,
@@ -219,17 +218,16 @@ module ccip::fee_quoter {
             token_transfer_fee_configs: table::new<u64, table::Table<address, TokenTransferFeeConfig>>(ctx),
             premium_multiplier_wei_per_eth: table::new<address, u64>(ctx),
         };
-        state_object::add(owner_cap, ref, FEE_QUOTER_STATE_NAME, state);
+        state_object::add(ref, FEE_QUOTER_STATE_NAME, state, ctx);
     }
 
     public fun apply_fee_token_updates(
-        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         fee_tokens_to_remove: vector<address>,
         fee_tokens_to_add: vector<address>,
-        _ctx: &mut TxContext
+        ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut<FeeQuoterState>(owner_cap, ref, FEE_QUOTER_STATE_NAME);
+        let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         // Remove tokens
         vector::do_ref!(
@@ -260,7 +258,6 @@ module ccip::fee_quoter {
 
     // Note that unlike EVM, this only allows changes for a single dest chain selector at a time.
     public fun apply_token_transfer_fee_config_updates(
-        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         dest_chain_selector: u64,
         add_tokens: vector<address>,
@@ -273,7 +270,7 @@ module ccip::fee_quoter {
         remove_tokens: vector<address>,
         ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut<FeeQuoterState>(owner_cap, ref, FEE_QUOTER_STATE_NAME);
+        let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         if (!table::contains(
             &state.token_transfer_fee_configs, dest_chain_selector
@@ -365,7 +362,6 @@ module ccip::fee_quoter {
     }
 
     public fun apply_dest_chain_config_updates(
-        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         dest_chain_selector: u64,
         is_enabled: bool,
@@ -387,9 +383,9 @@ module ccip::fee_quoter {
         gas_multiplier_wei_per_eth: u64,
         gas_price_staleness_threshold: u32,
         network_fee_usd_cents: u32,
-        _ctx: &mut TxContext
+        ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut<FeeQuoterState>(owner_cap, ref, FEE_QUOTER_STATE_NAME);
+        let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         assert!(
             dest_chain_selector != 0,
@@ -445,13 +441,12 @@ module ccip::fee_quoter {
     }
 
     public fun apply_premium_multiplier_wei_per_eth_updates(
-        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         tokens: vector<address>,
         premium_multiplier_wei_per_eth: vector<u64>,
-        _ctx: &mut TxContext
+        ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut<FeeQuoterState>(owner_cap, ref, FEE_QUOTER_STATE_NAME);
+        let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         vector::zip_do_ref!(
             &tokens,
@@ -611,14 +606,15 @@ module ccip::fee_quoter {
         to_token_amount as u64
     }
 
+    // TODO: revisit the permission control
     public(package) fun update_prices(
-        owner_cap: &OwnerCap,
         ref: &mut CCIPObjectRef,
         clock: &clock::Clock,
         source_tokens: vector<address>,
         source_usd_per_token: vector<u256>,
         gas_dest_chain_selectors: vector<u64>,
-        gas_usd_per_unit_gas: vector<u256>
+        gas_usd_per_unit_gas: vector<u256>,
+        ctx: &TxContext
     ) {
         assert!(
             source_tokens.length() == source_usd_per_token.length(),
@@ -629,7 +625,7 @@ module ccip::fee_quoter {
             E_GAS_UPDATE_MISMATCH
         );
 
-        let state = state_object::borrow_mut<FeeQuoterState>(owner_cap, ref, FEE_QUOTER_STATE_NAME);
+        let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
         let timestamp = clock::timestamp_ms(clock) / 1000;
 
         vector::zip_do_ref!(
@@ -1294,7 +1290,7 @@ module ccip::fee_quoter_test {
     use std::bcs;
     use sui::clock;
 
-    use ccip::state_object::{Self, OwnerCap, UserCap, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef};
     use ccip::fee_quoter;
 
     const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
@@ -1306,18 +1302,17 @@ module ccip::fee_quoter_test {
     const MOCK_ADDRESS_4: address = @0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d;
     const MOCK_ADDRESS_5: address = @0xd1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2;
 
-    fun set_up_test(): (Scenario, OwnerCap, UserCap, CCIPObjectRef) {
+    fun set_up_test(): (Scenario, CCIPObjectRef) {
         let mut scenario = test_scenario::begin(@0x1);
         let ctx = scenario.ctx();
 
-        let (owner_cap, user_cap, ref) = state_object::create(ctx);
+        let ref = state_object::create(ctx);
 
-        (scenario, owner_cap, user_cap, ref)
+        (scenario, ref)
     }
 
-    fun initialize(owner_cap: &OwnerCap, ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
+    fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
         fee_quoter::initialize(
-            owner_cap,
             ref,
             2000,
             MOCK_ADDRESS_1,
@@ -1331,18 +1326,16 @@ module ccip::fee_quoter_test {
         );
     }
 
-    fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, user_cap: UserCap, ref: CCIPObjectRef) {
-        state_object::destroy_owner_cap(owner_cap);
-        state_object::destroy_user_cap(user_cap);
+    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
         state_object::destroy_state_object(ref);
         test_scenario::end(scenario);
     }
 
     #[test]
     public fun test_initialize() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         let _state = state_object::borrow<fee_quoter::FeeQuoterState>(&ref, FEE_QUOTER_STATE_NAME);
 
@@ -1353,17 +1346,16 @@ module ccip::fee_quoter_test {
             MOCK_ADDRESS_3
         ]);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     public fun test_apply_fee_token_updates() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_fee_token_updates(
-            &owner_cap,
             &mut ref,
             vector[
                 MOCK_ADDRESS_1,
@@ -1383,17 +1375,16 @@ module ccip::fee_quoter_test {
             MOCK_ADDRESS_5
         ]);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     public fun test_apply_token_transfer_fee_config_updates() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_token_transfer_fee_config_updates(
-            &owner_cap,
             &mut ref,
             10,
             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
@@ -1414,18 +1405,17 @@ module ccip::fee_quoter_test {
         let _config1 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
         let _config2 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_2);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = fee_quoter::E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH)]
     public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
-        let ( mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_token_transfer_fee_config_updates(
-            &owner_cap,
             &mut ref,
             10,
             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
@@ -1439,18 +1429,17 @@ module ccip::fee_quoter_test {
             ctx
         );
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     #[expected_failure(abort_code = fee_quoter::E_TOKEN_NOT_SUPPORTED)]
     public fun test_apply_token_transfer_fee_config_updates_remove_token() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_token_transfer_fee_config_updates(
-            &owner_cap,
             &mut ref,
             10,
             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
@@ -1465,7 +1454,6 @@ module ccip::fee_quoter_test {
         );
 
         fee_quoter::apply_token_transfer_fee_config_updates(
-            &owner_cap,
             &mut ref,
             10, // dest_chain_selector
             vector[], // source_tokens
@@ -1481,17 +1469,16 @@ module ccip::fee_quoter_test {
 
         fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     public fun test_apply_premium_multiplier_wei_per_eth_updates() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_premium_multiplier_wei_per_eth_updates(
-            &owner_cap,
             &mut ref,
             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
             vector[1000, 2000], // premium_multiplier_wei_per_eth
@@ -1501,25 +1488,25 @@ module ccip::fee_quoter_test {
         assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_1) == 1000);
         assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_2) == 2000);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     public fun test_update_prices() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         let mut clock = clock::create_for_testing(ctx);
         clock::increment_for_testing(&mut clock, 20000);
         fee_quoter::update_prices(
-            &owner_cap,
             &mut ref,
             &clock,
             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
             vector[1000, 2000], // source_usd_per_token
             vector[100, 1000], // gas_dest_chain_selectors
-            vector[3000, 4000] // gas_usd_per_unit_gas
+            vector[3000, 4000], // gas_usd_per_unit_gas
+            ctx
         );
 
         // prices are successfully updated if we can find the config for the dest chain selector / token address
@@ -1527,17 +1514,16 @@ module ccip::fee_quoter_test {
         let _token_price = fee_quoter::get_token_price(&ref, MOCK_ADDRESS_1);
 
         clock::destroy_for_testing(clock);
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[test]
     public fun test_apply_dest_chain_config_updates() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_dest_chain_config_updates(
-            &owner_cap,
             &mut ref,
             100, // dest_chain_selector
             true, // is_enabled
@@ -1564,18 +1550,17 @@ module ccip::fee_quoter_test {
 
         let _config = fee_quoter::get_dest_chain_config(&ref, 100);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[allow(implicit_const_copy)]
     #[test]
     public fun test_process_message_args_evm() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_dest_chain_config_updates(
-            &owner_cap,
             &mut ref,
             100, // dest_chain_selector
             true, // is_enabled
@@ -1601,7 +1586,6 @@ module ccip::fee_quoter_test {
         );
 
         fee_quoter::apply_token_transfer_fee_config_updates(
-            &owner_cap,
             &mut ref,
             100,
             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
@@ -1641,18 +1625,17 @@ module ccip::fee_quoter_test {
         assert!(converted_extra_args == evm_extra_args);
         assert!(dest_exec_data_per_token == vector[x"00000000000000000000000000000000000000000000000000000000000002bc"]);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 
     #[allow(implicit_const_copy)]
     #[test]
     public fun test_process_message_args_svm() {
-        let (mut scenario, owner_cap, user_cap, mut ref) = set_up_test();
+        let (mut scenario, mut ref) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&owner_cap, &mut ref, ctx);
+        initialize(&mut ref, ctx);
 
         fee_quoter::apply_dest_chain_config_updates(
-            &owner_cap,
             &mut ref,
             100, // dest_chain_selector
             true, // is_enabled
@@ -1678,7 +1661,6 @@ module ccip::fee_quoter_test {
         );
 
         fee_quoter::apply_token_transfer_fee_config_updates(
-            &owner_cap,
             &mut ref,
             100, // dest_chain_selector
             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_4], // source_tokens
@@ -1718,6 +1700,6 @@ module ccip::fee_quoter_test {
         assert!(converted_extra_args == svm_extra_args);
         assert!(dest_exec_data_per_token == vector[x"00000000000000000000000000000000000000000000000000000000000002bc"]);
 
-        tear_down_test(scenario, owner_cap, user_cap, ref);
+        tear_down_test(scenario, ref);
     }
 }
