@@ -5,25 +5,6 @@ import (
 	"sync"
 )
 
-// Define transaction states as constants.
-// These states represent the lifecycle of a transaction in the system.
-const (
-	// StatePending represents a transaction that has been created but not yet submitted.
-	StatePending = "Pending"
-
-	// StateSubmitted represents a transaction that has been submitted to the network.
-	StateSubmitted = "Submitted"
-
-	// StateFinalized represents a transaction that has been successfully executed and finalized.
-	StateFinalized = "Finalized"
-
-	// StateRetriable represents a transaction that encountered an issue but can be retried.
-	StateRetriable = "Retriable"
-
-	// StateFailed represents a transaction that has failed permanently.
-	StateFailed = "Failed"
-)
-
 // TxmStore defines the interface for managing transaction lifecycle.
 // It provides methods for adding, retrieving, updating, and deleting transactions,
 // as well as querying transactions by their current state.
@@ -32,13 +13,17 @@ type TxmStore interface {
 	// Returns an error if a transaction with the same ID already exists.
 	AddTransaction(tx SuiTx) error
 
+	// IncrementAttempts increments the attempt count of a transaction.
+	// Returns an error if the transaction is not found.
+	IncrementAttempts(transactionID string) error
+
 	// GetTransaction retrieves a transaction by its ID.
 	// Returns the transaction and nil if found, otherwise returns an empty transaction and an error.
 	GetTransaction(transactionID string) (SuiTx, error)
 
 	// ChangeState updates the state of a transaction.
 	// Returns an error if the transaction is not found or if the state transition is invalid.
-	ChangeState(transactionID string, state string) error
+	ChangeState(transactionID string, state TransactionState) error
 
 	// DeleteTransaction removes a transaction from the store.
 	// Returns an error if the transaction is not found.
@@ -46,7 +31,7 @@ type TxmStore interface {
 
 	// GetTransactionsByState retrieves all transactions in a given state.
 	// Returns a slice of transactions and nil if successful, otherwise returns nil and an error.
-	GetTransactionsByState(state string) ([]SuiTx, error)
+	GetTransactionsByState(state TransactionState) ([]SuiTx, error)
 }
 
 // InMemoryStore implements the TxmStore interface using in-memory data structures.
@@ -59,9 +44,9 @@ type TxmStore interface {
 // This design allows for efficient filtering of transactions by state without
 // maintaining duplicate copies of transaction data or performing expensive iterations.
 type InMemoryStore struct {
-	mu           sync.RWMutex                   // Mutex to control concurrent access to the data structures
-	transactions map[string]*SuiTx              // Main map to store pointers to transactions by ID
-	stateBuckets map[string]map[string]struct{} // Auxiliary maps to store transaction IDs by state for efficient lookups
+	mu           sync.RWMutex                             // Mutex to control concurrent access to the data structures
+	transactions map[string]*SuiTx                        // Main map to store pointers to transactions by ID
+	stateBuckets map[TransactionState]map[string]struct{} // Auxiliary maps to store transaction IDs by state for efficient lookups
 }
 
 // NewTxmStoreImpl creates and initializes a new InMemoryStore instance.
@@ -69,7 +54,7 @@ type InMemoryStore struct {
 func NewTxmStoreImpl() *InMemoryStore {
 	return &InMemoryStore{
 		transactions: make(map[string]*SuiTx),
-		stateBuckets: map[string]map[string]struct{}{
+		stateBuckets: map[TransactionState]map[string]struct{}{
 			StatePending:   make(map[string]struct{}),
 			StateSubmitted: make(map[string]struct{}),
 			StateFinalized: make(map[string]struct{}),
@@ -84,7 +69,7 @@ func NewTxmStoreImpl() *InMemoryStore {
 // and the state buckets accordingly.
 // Returns an error if a transaction with the same ID already exists.
 func (s *InMemoryStore) AddTransaction(tx SuiTx) error {
-	id := tx.transactionID
+	id := tx.TransactionID
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -95,7 +80,7 @@ func (s *InMemoryStore) AddTransaction(tx SuiTx) error {
 		return fmt.Errorf("transaction already exists")
 	}
 
-	tx.state = StatePending
+	tx.State = StatePending
 
 	// Add to the main transactions map
 	s.transactions[id] = &tx
@@ -104,6 +89,21 @@ func (s *InMemoryStore) AddTransaction(tx SuiTx) error {
 	s.stateBuckets[StatePending][id] = struct{}{}
 
 	return nil
+}
+
+func (s *InMemoryStore) IncrementAttempts(transactionID string) error {
+	// Check if the transaction already exists
+	_, err := s.GetTransaction(transactionID)
+	if err == nil {
+		// Update the existing transaction
+		s.mu.Lock()
+		s.transactions[transactionID].IncrementAttempts()
+		s.mu.Unlock()
+
+		return nil
+	}
+
+	return err
 }
 
 // GetTransaction retrieves a transaction by its ID.
@@ -129,7 +129,7 @@ func (s *InMemoryStore) GetTransaction(transactionID string) (SuiTx, error) {
 // - Retriable -> Submitted, Failed, or Finalized
 // - Finalized and Failed are terminal states
 // Returns an error if the transaction is not found or if the state transition is invalid.
-func (s *InMemoryStore) ChangeState(transactionID string, newState string) error {
+func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -138,7 +138,7 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState string) error
 		return fmt.Errorf("transaction not found")
 	}
 
-	oldState := tx.state
+	oldState := tx.State
 
 	// Check if the state transition is valid
 	switch oldState {
@@ -154,19 +154,19 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState string) error
 		return fmt.Errorf("finalized state cannot transition to any other state")
 	case StateRetriable:
 		if newState != StateSubmitted && newState != StateFailed && newState != StateFinalized {
-			return fmt.Errorf("invalid state transition from %s to %s", oldState, newState)
+			return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
 		}
 	case StateFailed:
-		return fmt.Errorf("invalid state transition from %s to %s", oldState, newState)
+		return fmt.Errorf("invalid state transition from %v to %v", oldState, newState)
 	default:
-		return fmt.Errorf("invalid state: %s", oldState)
+		return fmt.Errorf("invalid state: %v", oldState)
 	}
 
 	// Remove from the old state bucket
 	delete(s.stateBuckets[oldState], transactionID)
 
 	// Update the transaction's state
-	tx.state = newState
+	tx.State = newState
 
 	// Add the transaction ID to the new state bucket
 	s.stateBuckets[newState][transactionID] = struct{}{}
@@ -191,7 +191,7 @@ func (s *InMemoryStore) DeleteTransaction(transactionID string) error {
 	}
 
 	// Get transaction state
-	state := tx.state
+	state := tx.State
 
 	// Remove from the main transactions map
 	delete(s.transactions, transactionID)
@@ -205,13 +205,13 @@ func (s *InMemoryStore) DeleteTransaction(transactionID string) error {
 // GetTransactionsByState retrieves all transactions in a given state.
 // It acquires a read lock to ensure thread safety.
 // Returns a slice of transactions and nil if successful, otherwise returns nil and an error.
-func (s *InMemoryStore) GetTransactionsByState(state string) ([]SuiTx, error) {
+func (s *InMemoryStore) GetTransactionsByState(state TransactionState) ([]SuiTx, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	stateMap, exists := s.stateBuckets[state]
 	if !exists {
-		return nil, fmt.Errorf("invalid state: %s", state)
+		return nil, fmt.Errorf("invalid state: %v", state)
 	}
 
 	// Collect transaction pointers from the main transactions map

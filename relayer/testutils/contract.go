@@ -169,8 +169,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	require.NoError(t, err)
 	cleanedOutput := "{" + string(publishOutput)[idx:]
 
-	lgr.Debug(cleanedOutput)
-
 	// Unmarshal the JSON into a map.
 	var parsedPublishTxn TxnMetaWithObjectChanges
 	if err := json.Unmarshal([]byte(cleanedOutput), &parsedPublishTxn); err != nil {

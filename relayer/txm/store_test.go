@@ -13,13 +13,13 @@ import (
 
 func GetTransaction() SuiTx {
 	return SuiTx{
-		transactionID: "1",
-		sender:        "0x123",
-		metadata:      nil,
-		timestamp:     0,
-		payload:       []byte("payload"),
-		attempt:       0,
-		state:         StatePending,
+		TransactionID: "1",
+		Sender:        "0x123",
+		Metadata:      nil,
+		Timestamp:     0,
+		Payload:       []byte("payload"),
+		Attempt:       0,
+		State:         StatePending,
 	}
 }
 
@@ -78,7 +78,7 @@ func TestChangeState(t *testing.T) {
 	require.NoError(t, err, "expected no error when changing the state of a transaction")
 	updatedTx, err := store.GetTransaction("1")
 	require.NoError(t, err, "expected no error when retrieving the updated transaction")
-	assert.Equal(t, StateSubmitted, updatedTx.state, "transaction state should be updated")
+	assert.Equal(t, StateSubmitted, updatedTx.State, "transaction state should be updated")
 	txs, err := store.GetTransactionsByState(StatePending)
 	require.NoError(t, err, "expected no error when retrieving transactions by state")
 	assert.Empty(t, txs, "expected no transactions in the old state bucket")
@@ -123,10 +123,10 @@ func TestGetTransactionsByState(t *testing.T) {
 
 	tx1 := GetTransaction()
 	tx2 := GetTransaction()
-	tx2.transactionID = "2"
+	tx2.TransactionID = "2"
 
 	tx3 := GetTransaction()
-	tx3.transactionID = "3"
+	tx3.TransactionID = "3"
 
 	_ = store.AddTransaction(tx1)
 	_ = store.AddTransaction(tx2)
@@ -152,7 +152,7 @@ func TestGetTransactionsByInvalidState(t *testing.T) {
 	t.Parallel()
 	store := NewTxmStoreImpl()
 
-	_, err := store.GetTransactionsByState("InvalidState")
+	_, err := store.GetTransactionsByState(999) // Invalid state
 	assert.Error(t, err, "expected an error when retrieving transactions by an invalid state")
 }
 
@@ -209,7 +209,7 @@ func TestConcurrentReadAndWrite(t *testing.T) {
 			require.NoError(t, localErr, "expected no error when retrieving the transaction")
 
 			// Perform state transition based on current state
-			switch localTx.state {
+			switch localTx.State {
 			case StatePending:
 				localErr := store.ChangeState("1", StateSubmitted)
 				require.NoError(t, localErr, "expected no error when changing the state to Submitted")
@@ -223,6 +223,8 @@ func TestConcurrentReadAndWrite(t *testing.T) {
 				require.NoError(t, localErr, "expected no error when changing the state to Finalized")
 				atomic.AddInt32(&transitionCounter, 1)
 			case StateFinalized:
+				// No more transitions possible
+			case StateFailed:
 				// No more transitions possible
 			}
 
@@ -243,6 +245,6 @@ func TestConcurrentReadAndWrite(t *testing.T) {
 	assert.Positive(t, transitionCounter, "expected some state transitions to occur")
 
 	// The transaction should end up in one of these valid states
-	validFinalStates := []string{StateSubmitted, StateRetriable, StateFinalized}
-	assert.Contains(t, validFinalStates, finalTx.state, "expected the transaction to be in a valid state")
+	validFinalStates := []TransactionState{StateSubmitted, StateRetriable, StateFinalized}
+	assert.Contains(t, validFinalStates, finalTx.State, "expected the transaction to be in a valid state")
 }

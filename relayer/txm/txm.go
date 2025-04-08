@@ -2,18 +2,16 @@ package txm
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
+	"sync"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
@@ -21,121 +19,137 @@ import (
 const expectedFunctionTokens = 3
 
 type TxManager interface {
-	Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) error
+	services.Service
+	Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error)
+	GetTransactionStatus(ctx context.Context, transactionID string) (commontypes.TransactionStatus, error)
 }
 
 type SuiTxm struct {
-	lggr               logger.Logger
-	suiGateway         client.SuiClient
-	keyStoreRepository keystore.Keystore
-	IsExecutionLocal   bool
-	signer             signer.SuiSigner
+	lggr                  logger.Logger
+	suiGateway            client.SuiClient
+	keyStoreRepository    keystore.Keystore
+	transactionRepository TxmStore
+	configuration         Config
+	signer                signer.SuiSigner
+	done                  sync.WaitGroup
+	broadcastChannel      chan string
+	stopChannel           chan struct{}
 }
 
-func NewSuiTxm(lggr logger.Logger, gateway client.SuiClient, k keystore.Keystore, isExecutionLocal bool, sig signer.SuiSigner) (*SuiTxm, error) {
+var _ TxManager = (*SuiTxm)(nil)
+
+func NewSuiTxm(lggr logger.Logger, gateway client.SuiClient, k keystore.Keystore, conf Config, sig signer.SuiSigner, transactionsRepository TxmStore) (*SuiTxm, error) {
 	return &SuiTxm{
-		lggr:               logger.Named(lggr, "SuiTxm"),
-		suiGateway:         gateway,
-		keyStoreRepository: k,
-		IsExecutionLocal:   isExecutionLocal,
-		signer:             sig,
+		lggr:                  logger.Named(lggr, "SuiTxm"),
+		suiGateway:            gateway,
+		keyStoreRepository:    k,
+		transactionRepository: transactionsRepository,
+		configuration:         conf,
+		signer:                sig,
+		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
+		stopChannel:           make(chan struct{}),
 	}, nil
 }
 
-func (s *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) error {
+func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error) {
+	if transactionID == "" {
+		transactionID = TransactionIDGenerator()
+	} else {
+		// Check if the transaction ID already exists in the transactions map
+		// If the transaction ID already exists, return an error
+		_, err := txm.transactionRepository.GetTransaction(transactionID)
+		if err == nil {
+			return nil, errors.New("transaction already exists")
+		}
+	}
+
 	functionTokens := strings.Split(function, "::")
 	if len(functionTokens) != expectedFunctionTokens {
 		msg := fmt.Sprintf("unexpected function name, expected 3 tokens, got %d", len(functionTokens))
-		s.lggr.Error(msg)
+		txm.lggr.Error(msg)
 
-		return errors.New(msg)
+		return nil, errors.New(msg)
 	}
 
-	packageObjectId := functionTokens[0]
-	moduleName := functionTokens[1]
-	functionName := functionTokens[2]
-
-	if len(paramTypes) != len(paramValues) {
-		msg := fmt.Sprintf("unexpected number of parameters, expected %d, got %d", len(paramTypes), len(paramValues))
-		s.lggr.Error(msg)
-
-		return errors.New(msg)
+	suiFunction := &SuiFunction{
+		PackageId: functionTokens[0],
+		Module:    functionTokens[1],
+		Name:      functionTokens[2],
 	}
 
-	functionValues := make([]any, len(paramValues))
-	for i, v := range paramValues {
-		value, err := codec.EncodeToSuiValue(paramTypes[i], v)
-		if err != nil {
-			s.lggr.Errorf("failed to encode value: %v", err)
-			return err
-		}
-
-		functionValues[i] = value
-	}
-
-	rsp, err := s.suiGateway.MoveCall(ctx, models.MoveCallRequest{
-		Signer:          signerAddress,
-		PackageObjectId: packageObjectId,
-		Module:          moduleName,
-		Function:        functionName,
-		// We will only need to pass the type arguments if the function is generic
-		// TODO: must implement logic to check if the function is generic
-		TypeArguments: []any{},
-		Arguments:     functionValues,
-		GasBudget:     txMetadata.GasLimit.String(),
-	})
-
+	transaction, err := GenerateTransaction(ctx, txm.lggr, txm.signer, txm.suiGateway, transactionID, txMetadata, signerAddress, suiFunction, typeArgs, paramTypes, paramValues)
 	if err != nil {
-		msg := fmt.Sprintf("failed to move call: %v", err)
-		s.lggr.Error(msg)
-
-		return errors.New(msg)
+		txm.lggr.Errorw("Failed to generate transaction", "error", err)
 	}
 
-	txBytes, err := base64.StdEncoding.DecodeString(rsp.TxBytes)
+	err = txm.transactionRepository.AddTransaction(*transaction)
 	if err != nil {
-		msg := fmt.Sprintf("failed to decode tx bytes: %v", err)
-		s.lggr.Error(msg)
-
-		return errors.New(msg)
+		txm.lggr.Errorw("Failed to add transaction to repository", "error", err)
 	}
 
-	signatures, err := s.signer.Sign(txBytes)
+	txm.broadcastChannel <- transactionID
+	txm.lggr.Infow("Transaction added to broadcast channel", "transactionID", transactionID)
+	txm.lggr.Infow("Transaction enqueued", "transactionID", transactionID)
+
+	return transaction, nil
+}
+
+// GetTransactionStatus implements TxManager.
+func (txm *SuiTxm) GetTransactionStatus(ctx context.Context, transactionID string) (commontypes.TransactionStatus, error) {
+	tx, err := txm.transactionRepository.GetTransaction(transactionID)
 	if err != nil {
-		log.Fatalf("Error signing transaction: %v", err)
+		txm.lggr.Errorw("Failed to get transaction", "transactionID", transactionID, "error", err)
+		return commontypes.Unknown, err
 	}
 
-	var requestType string
-
-	if s.IsExecutionLocal {
-		requestType = "WaitForLocalExecution"
-	} else {
-		requestType = "WaitForCommit"
+	switch tx.State {
+	case StatePending:
+		txm.lggr.Infow("Transaction is pending", "transactionID", transactionID)
+		return commontypes.Pending, nil
+	case StateSubmitted:
+		txm.lggr.Infow("Transaction is submitted", "transactionID", transactionID)
+		return commontypes.Unconfirmed, nil
+	case StateFinalized:
+		txm.lggr.Infow("Transaction is finalized", "transactionID", transactionID)
+		return commontypes.Finalized, nil
+	case StateRetriable:
+		txm.lggr.Infow("Transaction is retriable", "transactionID", transactionID)
+		return commontypes.Failed, nil
+	case StateFailed:
+		txm.lggr.Infow("Transaction has failed", "transactionID", transactionID)
+		return commontypes.Fatal, nil
+	default:
+		txm.lggr.Errorw("Unknown transaction state", "transactionID", transactionID, "state", tx.State)
+		return commontypes.Unknown, errors.New("unknown transaction state")
 	}
+}
 
-	payload := client.TransactionBlockRequest{
-		TxBytes:    rsp.TxBytes,
-		Signatures: signatures,
-		Options: client.TransactionBlockOptions{
-			ShowInput:          true,
-			ShowRawInput:       true,
-			ShowEffects:        true,
-			ShowObjectChanges:  true,
-			ShowBalanceChanges: true,
-		},
-		RequestType: requestType,
-	}
+func (txm *SuiTxm) Close() error {
+	txm.lggr.Infow("Closing SuiTxm")
+	txm.stopChannel <- struct{}{}
+	txm.lggr.Infow("SuiTxm closed")
 
-	rsp2, err := s.suiGateway.SendTransaction(ctx, payload)
+	return nil
+}
 
-	if err != nil {
-		msg := fmt.Sprintf("failed to send transaction: %v", err)
-		s.lggr.Error(msg)
+// TODO: implement
+func (txm *SuiTxm) HealthReport() map[string]error {
+	panic("unimplemented")
+}
 
-		return errors.New(msg)
-	}
+// TODO: implement
+func (txm *SuiTxm) Name() string {
+	panic("unimplemented")
+}
 
-	s.lggr.Debugw("Transaction sent: %+v", rsp2)
+// TODO: implement
+func (txm *SuiTxm) Ready() error {
+	panic("unimplemented")
+}
+
+func (txm *SuiTxm) Start(ctx context.Context) error {
+	txm.done.Add(1) // waitgroup: broadcaster, TODO: more will follow
+	go txm.broadcastLoop(ctx)
 
 	return nil
 }

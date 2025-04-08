@@ -37,6 +37,8 @@ type Client struct {
 	signer             *signer.SuiSigner
 }
 
+var _ SuiClient = (*Client)(nil)
+
 func NewClient(log logger.Logger, rpcUrl string, maxRetries *int, transactionTimeout time.Duration, defaultSigner *signer.SuiSigner) (*Client, error) {
 	baseClient := sui.NewSuiClient(rpcUrl)
 	ptbClient := suiAltClient.NewClient(rpcUrl)

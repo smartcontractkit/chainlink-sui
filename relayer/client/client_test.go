@@ -19,8 +19,16 @@ import (
 func TestClient(t *testing.T) {
 	log := logger.Test(t)
 
-	_, err := testutils.StartSuiNode(testutils.CLI)
+	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			perr := cmd.Process.Kill()
+			if perr != nil {
+				t.Logf("Failed to kill process: %v", perr)
+			}
+		}
+	})
 
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	keystoreInstance, err := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
@@ -36,7 +44,7 @@ func TestClient(t *testing.T) {
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	testutils.BuildContract(t, contractPath)
 
-	packageId, _, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	packageId, _, err := testutils.PublishContract(t, "test", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
 	log.Debugw("Published Contract", "packageId", packageId)

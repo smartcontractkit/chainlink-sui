@@ -4,29 +4,27 @@ package txm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/constant"
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-// TodoList represents the structure of stored data.
-type Counter struct {
-	Value string `json:"value"`
-}
+// TODO: uncomment the following struct when
+// type Counter struct {
+// 	Value string `json:"value"`
+// }
 
 // setupClients initializes the Sui and relayer clients.
 func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, accountAddress string) (sui.ISuiAPI, *client.Client, *SuiTxm) {
@@ -47,50 +45,15 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
 
-	txManager, err := NewSuiTxm(logg, relayerClient, _keystore, true, signerInstance)
+	store := NewTxmStoreImpl()
+	conf := DefaultConfigSet
+
+	txManager, err := NewSuiTxm(logg, relayerClient, _keystore, conf, signerInstance, store)
 	if err != nil {
 		t.Fatalf("Failed to create SuiTxm: %v", err)
 	}
 
 	return suiClient, relayerClient, txManager
-}
-
-// fetchObjectDetails retrieves an object from the Sui network.
-func fetchObjectDetails(t *testing.T, suiClient sui.ISuiAPI, objectID string) *models.SuiObjectResponse {
-	t.Helper()
-	objectDetails, err := suiClient.SuiGetObject(context.Background(), models.SuiGetObjectRequest{
-		ObjectId: objectID,
-		Options: models.SuiObjectDataOptions{
-			ShowContent:             true,
-			ShowDisplay:             true,
-			ShowType:                true,
-			ShowBcs:                 true,
-			ShowOwner:               true,
-			ShowPreviousTransaction: true,
-			ShowStorageRebate:       true,
-		},
-	})
-	if err != nil {
-		t.Fatalf("Failed to get object details: %v", err)
-	}
-
-	return &objectDetails
-}
-
-// extractStruct parses object details into a struct
-func extractStruct[T any](t *testing.T, payload any) *T {
-	t.Helper()
-	jsonBytes, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("Failed to marshal data: %v", err)
-	}
-
-	var obj T
-	if err := json.Unmarshal(jsonBytes, &obj); err != nil {
-		t.Fatalf("Failed to unmarshal payload: %v", err)
-	}
-
-	return &obj
 }
 
 //nolint:paralleltest
@@ -121,7 +84,7 @@ func TestEnqueueIntegration(t *testing.T) {
 
 	contractPath := testutils.BuildSetup(t, "contracts/test/")
 	testutils.BuildContract(t, contractPath)
-	packageId, _, err := testutils.PublishContract(t, "cw_tests", contractPath, accountAddress, nil)
+	packageId, _, err := testutils.PublishContract(t, "test", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
 	initializeOutput := testutils.CallContractFromCLI(t, packageId, accountAddress, "counter", "initialize", nil)
@@ -130,7 +93,8 @@ func TestEnqueueIntegration(t *testing.T) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, _, txManager := setupClients(t, testutils.LocalUrl, _keystore, accountAddress)
+	// TODO: add suiClient in another PR
+	_, _, txManager := setupClients(t, testutils.LocalUrl, _keystore, accountAddress)
 
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
@@ -168,21 +132,40 @@ func TestEnqueueIntegration(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
+	err = txManager.Start(ctx)
+	require.NoError(t, err, "Failed to start transaction manager")
+
 	// Step 3: Execute each test scenario
 	//nolint:paralleltest
 	for _, tc := range testScenarios {
 		t.Run(tc.name, func(t *testing.T) {
-			err := txManager.Enqueue(context.Background(), tc.txID, tc.txMeta,
+			tx, err := txManager.Enqueue(ctx, tc.txID, tc.txMeta,
 				tc.sender, tc.function, nil, tc.typeArgs, tc.args, false)
 
 			if tc.expectErr {
 				assert.Error(t, err, "Expected an error but Enqueue succeeded")
 			} else {
-				// Step 4: Validate results
-				objectDetails := fetchObjectDetails(t, suiClient, counterObjectId)
-				counter := extractStruct[Counter](t, objectDetails.Data.Content.Fields)
-				assert.Contains(t, counter.Value, tc.expectedValue, "Counter value does not match")
+				require.Eventually(t, func() bool {
+					status, statusErr := txManager.GetTransactionStatus(ctx, (*tx).TransactionID)
+					if statusErr != nil {
+						return false
+					}
+
+					return status == commontypes.Unconfirmed
+				}, 60*time.Second, 1*time.Second, "Transaction should eventually reach expected status")
+
+				transaction, err := txManager.transactionRepository.GetTransaction(tc.txID)
+				require.NoError(t, err, "Failed to get transaction from repository")
+				assert.Equal(t, StateSubmitted, transaction.State, "Transaction state should be Unconfirmed")
+				assert.Equal(t, 1, transaction.Attempt, "Transaction attempts should be 1")
+
+				// TODO: this will be moved to a separate test once we implmement the confirmer routine
+				// objectDetails := fetchObjectDetails(t, suiClient, counterObjectId)
+				// counter := extractStruct[Counter](t, objectDetails.Data.Content.Fields)
+				// assert.Contains(t, counter.Value, tc.expectedValue, "Counter value does not match")
 			}
 		})
 	}
+	txManager.Close()
 }
