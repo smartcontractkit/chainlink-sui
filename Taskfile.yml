@@ -12,4 +12,7 @@ includes:
   sui_test:
     taskfile: ./taskfiles/sui_test/Taskfile.yml
 
+  bindings:
+    taskfile: ./taskfiles/bindings/Taskfile.yml
+
   # Keep adding as needed

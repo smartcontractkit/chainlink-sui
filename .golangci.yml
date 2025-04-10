@@ -34,7 +34,6 @@ linters:
     - nilerr
     - nilnil
     - nlreturn
-    - nolintlint
     - paralleltest
     - prealloc
     - reassign

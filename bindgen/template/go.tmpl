@@ -1,0 +1,101 @@
+{{- /*gotype: github.com/smartcontractkit/chainlink-aptos/cmd/bindgen/template.tmplData*/ -}}
+// Code generated - DO NOT EDIT.
+// This file is a generated binding and any manual changes will be lost.
+
+package module{{.Module}}
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/pattonkan/sui-go/sui"
+	"github.com/pattonkan/sui-go/sui/suiptb"
+	"github.com/pattonkan/sui-go/suiclient"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
+)
+
+// Built with `sui move build --dump-bytecode-as-base64 --with-unpublished-dependencies`
+const {{toUpperCamel .Module}}JSON = `
+{{ toJSON .Artifact }}
+`
+
+func Publish{{toUpperCamel .Module}}(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl) (*{{toUpperCamel .Module}}Contract, *suiclient.SuiTransactionBlockResponse, error) {
+	artifact, err := bind.ToArtifact({{toUpperCamel .Module}}JSON)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+		CompiledModules: artifact.Modules,
+		Dependencies:    artifact.Dependencies,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	contract, err := New{{toUpperCamel .Module}}(packageId, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return contract, tx, nil
+}
+
+type I{{toUpperCamel .Module}} interface {
+{{ range .Funcs}}
+  {{.Name}}({{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) bind.IMethod
+{{- end}}
+	// Connect adds/changes the client used in the contract
+	Connect(client suiclient.ClientImpl)
+}
+
+type {{toUpperCamel .Module}}Contract struct {
+	packageID *sui.Address
+	client    suiclient.ClientImpl
+}
+
+var _ I{{toUpperCamel .Module}} = (*{{toUpperCamel .Module}}Contract)(nil)
+
+func New{{toUpperCamel .Module}}(packageID string, client suiclient.ClientImpl) (*{{toUpperCamel .Module}}Contract, error) {
+	pkgObjectId, err := bind.ToSuiAddress(packageID)
+	if err != nil {
+		return nil, fmt.Errorf("package ID is not a Sui address: %w", err)
+	}
+
+  return &{{toUpperCamel .Module}}Contract{
+		packageID: pkgObjectId,
+		client:    client,
+	}, nil
+}
+
+func (c *{{toUpperCamel .Module}}Contract) Connect(client suiclient.ClientImpl) {
+	c.client = client
+}
+
+// Structs
+
+{{$structs := .Structs}}
+{{range $structs}}
+type {{.Name}} struct { {{range $field := .Fields}}
+  {{$field.Name}} {{$field.Type.GoType}} `move:"{{$field.Type.MoveType}}"` {{end}}
+}
+{{end}}
+
+// Functions
+
+{{range .Funcs}}
+func (c *{{toUpperCamel $.Module}}Contract) {{.Name}}({{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "{{$.Module}}", "{{.MoveName}}", false, "", {{range .Params}} {{.Name}},{{end}})
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "{{$.Module}}", "{{.MoveName}}", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+{{end}}

@@ -7,7 +7,6 @@ import (
 type PackageArtifact struct {
 	Modules      []string `json:"modules"`
 	Dependencies []string `json:"dependencies"`
-	Digest       []int    `json:"digest"`
 }
 
 func ToArtifact(artifactJSON string) (PackageArtifact, error) {

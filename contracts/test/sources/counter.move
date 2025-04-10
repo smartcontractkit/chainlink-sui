@@ -43,7 +43,7 @@ module test::counter {
     }
 
     /// Increment counter by 1
-    public entry fun increment(counter: &mut Counter, _ctx: &mut TxContext) {
+    public entry fun increment(counter: &mut Counter) {
         counter.value = counter.value + 1;
         
         // Emit an event

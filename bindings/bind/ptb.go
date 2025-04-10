@@ -3,6 +3,7 @@ package bind
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/fardream/go-bcs/bcs"
 	"github.com/pattonkan/sui-go/sui"
@@ -12,37 +13,42 @@ import (
 
 const defaultGasBudget = 200000000
 
-func BuildPTBFromArgs(ctx context.Context, client suiclient.ClientImpl, packageId *sui.Address, module string, function string, args ...any) (*suiptb.ProgrammableTransactionBuilder, error) {
+/*
+BuildPTBFromArgs creates a Programmable Transaction Builder (PTB) for a Sui Move call.
+It converts Go values to Sui-compatible arguments and constructs a transaction that calls
+the specified Move function.
+
+Parameters:
+  - ctx: The context for the operation
+  - client: The Sui client used for fetching object information.
+  - packageId: The address of the Move package to call
+  - module: The name of the Move module
+  - function: The name of the function to call
+  - isObjectCreatedTransferred: Whether the function creates an object that should be transferred
+  - recipient: The address that should receive any created objects (used only if isObjectCreatedTransferred is true)
+  - args: The arguments to pass to the Move function
+*/
+func BuildPTBFromArgs(
+	ctx context.Context,
+	client suiclient.ClientImpl,
+	packageId *sui.Address,
+	module string,
+	function string,
+	isObjectCreatedTransferred bool,
+	recipient string,
+	args ...any) (*suiptb.ProgrammableTransactionBuilder, error) {
 	ptb := suiptb.NewTransactionDataTransactionBuilder()
 
 	ptbArgs := make([]suiptb.Argument, 0, len(args))
 	for _, arg := range args {
-		var ptbArg suiptb.Argument
-		var err error
-
-		switch arg := arg.(type) {
-		case string:
-			if IsSuiAddress(arg) {
-				// Fetch object information. Build argument based on it
-				object, e := ReadObject(ctx, arg, client)
-				if e != nil {
-					return nil, e
-				}
-				ptbArg, err = ptb.Obj(toObjectArg(object))
-			} else {
-				ptbArg, err = ptb.Pure(arg)
-			}
-		// Rest of Sui primitive types work the same. Objects are the only difference
-		default:
-			ptbArg, err = ptb.Pure(arg)
-		}
+		ptbArg, err := toPTBArg(ctx, ptb, client, arg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert argument %v to Sui type: %w", arg, err)
 		}
 		ptbArgs = append(ptbArgs, ptbArg)
 	}
 
-	ptb.Command(suiptb.Command{
+	obj := ptb.Command(suiptb.Command{
 		MoveCall: &suiptb.ProgrammableMoveCall{
 			Package:       packageId,
 			Module:        module,
@@ -52,7 +58,75 @@ func BuildPTBFromArgs(ctx context.Context, client suiclient.ClientImpl, packageI
 		}},
 	)
 
+	// Add the instruction to transfer the object if the function creates one
+	if isObjectCreatedTransferred {
+		recAddress, err := ToSuiAddress(recipient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert signer address: %w", err)
+		}
+		recArg, err := ptb.Pure(recAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode recipient address: %w", err)
+		}
+		ptb.Command(suiptb.Command{
+			TransferObjects: &suiptb.ProgrammableTransferObjects{
+				Objects: []suiptb.Argument{obj},
+				Address: recArg,
+			}})
+	}
+
 	return ptb, nil
+}
+
+// TODO: ptb.Pure() can panic because of pattonkan/sui-go@v0.1.0/utils/indexmap/indexmap.go:43. If there's a repeated element in a vector will panic
+func toPTBArg(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, client suiclient.ClientImpl, arg any) (suiptb.Argument, error) {
+	switch arg := arg.(type) {
+	case string:
+		if IsSuiAddress(arg) {
+			// Fetch object information. If it's an object, build argument based on it
+			object, e := ReadObject(ctx, arg, client)
+
+			// If we can't read the object, or if it's an error, or if the data is nil,
+			// we assume it's just an address
+			if e != nil || object.Error != nil || object.Data == nil {
+				address, err := ToSuiAddress(arg)
+				if err != nil {
+					return suiptb.Argument{}, fmt.Errorf("failed to convert address %s to Sui type: %w", arg, err)
+				}
+
+				return ptb.Pure(address)
+			}
+			// It's an object
+			return ptb.Obj(toObjectArg(object.Data))
+		}
+
+		return ptb.Pure(arg)
+	case []byte:
+		return ptb.Pure(arg)
+	default:
+		// This could be recursive, but only to support the very rare case of <vector<vector<address>>
+		rv := reflect.ValueOf(arg)
+		if rv.Kind() == reflect.Slice {
+			var vec []any
+			for i := range rv.Len() {
+				el := rv.Index(i).String()
+				if IsSuiAddress(el) {
+					address, err := ToSuiAddress(el)
+					if err != nil {
+						return suiptb.Argument{}, fmt.Errorf("failed to convert address %s to Sui type: %w", arg, err)
+					}
+					vec = append(vec, address)
+				} else {
+					el := rv.Index(i).Interface()
+					vec = append(vec, el)
+				}
+			}
+
+			return ptb.Pure(vec)
+		}
+
+		return ptb.Pure(arg)
+	}
 }
 
 func FinishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, opts TxOpts, signer string, client suiclient.ClientImpl) ([]byte, error) {
@@ -120,22 +194,22 @@ func finishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableT
 	return &txData, nil
 }
 
-func toObjectArg(object *suiclient.SuiObjectResponse) suiptb.ObjectArg {
-	if object.Data.Owner.Shared != nil {
+func toObjectArg(object *suiclient.SuiObjectData) suiptb.ObjectArg {
+	if object != nil && object.Owner != nil && object.Owner.ObjectOwnerInternal != nil && object.Owner.ObjectOwnerInternal.Shared != nil && object.Owner.ObjectOwnerInternal.Shared.InitialSharedVersion != nil {
 		return suiptb.ObjectArg{
 			SharedObject: &suiptb.SharedObjectArg{
-				Id:                   object.Data.ObjectId,
+				Id:                   object.ObjectId,
 				Mutable:              true,
-				InitialSharedVersion: *object.Data.Owner.Shared.InitialSharedVersion,
+				InitialSharedVersion: *object.Owner.Shared.InitialSharedVersion,
 			},
 		}
 	}
 	// TODO: Could there be a receiving object option?
 	return suiptb.ObjectArg{
 		ImmOrOwnedObject: &sui.ObjectRef{
-			ObjectId: object.Data.ObjectId,
-			Version:  object.Data.Version.Uint64(),
-			Digest:   object.Data.Digest,
+			ObjectId: object.ObjectId,
+			Version:  object.Version.Uint64(),
+			Digest:   object.Digest,
 		},
 	}
 }
