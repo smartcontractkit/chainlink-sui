@@ -59,7 +59,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	require.NoError(t, keystoreErr)
 	signer, signerErr := keystoreInstance.GetSignerFromAddress(accountAddress)
 	require.NoError(t, signerErr)
-	relayerClient, clientErr := client.NewClient(log, rpcUrl, nil, 10*time.Second, &signer)
+	relayerClient, clientErr := client.NewClient(log, rpcUrl, nil, 10*time.Second, &signer, 5)
 	require.NoError(t, clientErr)
 
 	faucetFundErr := testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)

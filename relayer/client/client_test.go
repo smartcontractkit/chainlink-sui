@@ -36,7 +36,8 @@ func TestClient(t *testing.T) {
 	require.NoError(t, err)
 	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
 	require.NoError(t, err)
-	relayerClient, err := client.NewClient(log, testutils.LocalUrl, nil, 10*time.Second, &signer)
+	maxConcurrent := int64(3)
+	relayerClient, err := client.NewClient(log, testutils.LocalUrl, nil, 10*time.Second, &signer, maxConcurrent)
 	require.NoError(t, err)
 
 	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
@@ -69,5 +70,55 @@ func TestClient(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.NotNil(t, response)
+	})
+
+	//nolint:paralleltest
+	t.Run("WithRateLimit", func(t *testing.T) {
+		// Block operations with channel to observe concurrency
+		completionCh := make(chan int, 50) // Buffer large enough for all completions
+
+		// Block until manual release to measure concurrency precisely
+		// This ensures we can observe exactly how many goroutines acquired the semaphore
+		blockingOperation := func(id int) {
+			// Make request that will block
+			ctx := context.Background()
+			go func() {
+				defer func() {
+					completionCh <- id // Signal this request completed
+				}()
+
+				err := relayerClient.WithRateLimit(ctx, func(ctx context.Context) error {
+					time.Sleep(1 * time.Second)
+					return nil
+				})
+				require.NoError(t, err)
+			}()
+		}
+
+		// Start more requests than our concurrency limit
+		numRequests := 100
+		for i := range numRequests {
+			blockingOperation(i)
+		}
+
+		// Wait a moment to ensure requests have time to acquire semaphore
+		time.Sleep(500 * time.Millisecond)
+
+		// Count how many completed without unblocking
+		completeCount := 0
+	countLoop:
+		for {
+			select {
+			case <-completionCh:
+				completeCount++
+			case <-time.After(100 * time.Millisecond):
+				break countLoop
+			}
+		}
+
+		// Verify only maxConcurrent requests completed
+		require.True(t, completeCount <= int(maxConcurrent),
+			"Too many requests (%d) completed, limit is %d",
+			completeCount, maxConcurrent)
 	})
 }

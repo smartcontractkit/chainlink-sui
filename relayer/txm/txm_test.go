@@ -38,7 +38,7 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 	signerInstance, err := _keystore.GetSignerFromAddress(accountAddress)
 	require.NoError(t, err)
 
-	relayerClient, err := client.NewClient(logg, rpcURL, nil, 10*time.Second, &signerInstance)
+	relayerClient, err := client.NewClient(logg, rpcURL, nil, 10*time.Second, &signerInstance, 5)
 	if err != nil {
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
