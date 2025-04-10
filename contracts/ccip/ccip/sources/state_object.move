@@ -157,6 +157,10 @@ module ccip::state_object {
         event::emit(OwnershipTransferred { from: caller, to })
     }
 
+    public(package) fun get_current_owner(ref: &CCIPObjectRef): address {
+        ref.current_owner
+    }
+
     #[test_only]
     public(package) fun create(ctx: &mut TxContext): CCIPObjectRef {
         CCIPObjectRef {
@@ -164,11 +168,6 @@ module ccip::state_object {
             current_owner: ctx.sender(),
             pending_transfer: option::none()
         }
-    }
-
-    #[test_only]
-    public(package) fun get_current_owner(ref: &CCIPObjectRef): address {
-        ref.current_owner
     }
 
     #[test_only]

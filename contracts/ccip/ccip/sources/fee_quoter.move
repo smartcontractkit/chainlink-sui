@@ -172,6 +172,7 @@ module ccip::fee_quoter {
     const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
     // const E_UNKNOWN_FUNCTION: u64 = 30;
     const E_OUT_OF_BOUND: u64 = 31;
+    const E_ONLY_CALLABLE_BY_OWNER: u64 = 32;
 
     public fun type_and_version(): String {
         string::utf8(b"FeeQuoter 1.6.0")
@@ -193,6 +194,10 @@ module ccip::fee_quoter {
         fee_tokens: vector<address>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         assert!(
             !state_object::contains(ref, FEE_QUOTER_STATE_NAME),
             E_ALREADY_INITIALIZED
@@ -227,6 +232,10 @@ module ccip::fee_quoter {
         fee_tokens_to_add: vector<address>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         // Remove tokens
@@ -270,6 +279,10 @@ module ccip::fee_quoter {
         remove_tokens: vector<address>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         if (!table::contains(
@@ -385,6 +398,10 @@ module ccip::fee_quoter {
         network_fee_usd_cents: u32,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         assert!(
@@ -446,6 +463,10 @@ module ccip::fee_quoter {
         premium_multiplier_wei_per_eth: vector<u64>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         vector::zip_do_ref!(
@@ -727,7 +748,6 @@ module ccip::fee_quoter {
                 validate_32byte_address(receiver, must_be_non_zero);
                 svm_gas_limit
             } else {
-                // TODO: add support for Aptos?
                 abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
             };
 
@@ -737,7 +757,7 @@ module ccip::fee_quoter {
                 state, clock, dest_chain_config, dest_chain_selector
             );
 
-        // TODO: this should probably be premium_fee_usd_octa for aptos?
+        // TODO: this should probably be premium_fee_usd_octa for sui?
         let (mut premium_fee_usd_wei, token_transfer_gas, token_transfer_bytes_overhead) =
         if (tokens_len > 0) {
             get_token_transfer_cost(
@@ -1144,7 +1164,8 @@ module ccip::fee_quoter {
         extra_args: vector<u8>
     ): (vector<u8>, bool) {
         let chain_family_selector = dest_chain_config.chain_family_selector;
-        if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM) {
+        if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
+            || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS) {
             let (gas_limit, allow_out_of_order_execution) =
                 decode_generic_extra_args(extra_args);
             let extra_args_v2 =
@@ -1201,7 +1222,8 @@ module ccip::fee_quoter {
 
             if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM) {
                 validate_evm_address(dest_token_address);
-            } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
+            } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM
+                || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS) {
                 validate_32byte_address(dest_token_address, /* must_be_non_zero= */ true);
             };
 

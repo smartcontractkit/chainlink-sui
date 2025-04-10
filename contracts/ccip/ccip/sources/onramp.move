@@ -116,6 +116,7 @@ module ccip::onramp {
     // const E_UNEXPECTED_WITHDRAW_AMOUNT: u64 = 16;
     // const E_UNEXPECTED_FUNGIBLE_ASSET: u64 = 17;
     // const E_UNKNOWN_FUNCTION: u64 = 18;
+    const E_ONLY_CALLABLE_BY_OWNER: u64 = 19;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -138,6 +139,10 @@ module ccip::onramp {
         dest_chain_allowlist_enabled: vector<bool>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         assert!(
             !state_object::contains(ref, ON_RAMP_STATE_NAME),
             E_ALREADY_INITIALIZED
@@ -292,6 +297,10 @@ module ccip::onramp {
         allowlist_admin: address,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<OnRampState>(ref, ON_RAMP_STATE_NAME, ctx);
 
         set_dynamic_config_internal(state, allowlist_admin);
@@ -304,7 +313,12 @@ module ccip::onramp {
         dest_chain_allowlist_enabled: vector<bool>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<OnRampState>(ref, ON_RAMP_STATE_NAME, ctx);
+
         apply_dest_chain_config_updates_internal(
             state,
             dest_chain_selectors,

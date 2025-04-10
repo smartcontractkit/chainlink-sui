@@ -42,6 +42,7 @@ module ccip_router::router {
         )
     }
 
+    // ccip_send does not have a return value. EOA calls cannot receive a return value.
     public fun ccip_send(
         ref: &mut CCIPObjectRef,
         clock: &Clock,
@@ -72,6 +73,7 @@ module ccip_router::router {
         );
     }
 
+    // ccip_send_with_message_id has a return value. Contract calls can receive a return value.
     public fun ccip_send_with_message_id(
         ref: &mut CCIPObjectRef,
         clock: &Clock,

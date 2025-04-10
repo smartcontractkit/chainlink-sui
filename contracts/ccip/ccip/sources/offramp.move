@@ -197,6 +197,7 @@ module ccip::offramp {
     const E_SIGNATURE_VERIFICATION_REQUIRED_IN_COMMIT_PLUGIN: u64 = 22;
     const E_SIGNATURE_VERIFICATION_NOT_ALLOWED_IN_EXECUTION_PLUGIN: u64 = 23;
     // const E_UNKNOWN_FUNCTION: u64 = 24;
+    const E_ONLY_CALLABLE_BY_OWNER: u64 = 25;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -220,6 +221,10 @@ module ccip::offramp {
         source_chains_on_ramp: vector<vector<u8>>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         assert!(
             !state_object::contains(ref, OFF_RAMP_STATE_NAME),
             E_ALREADY_INITIALIZED
@@ -1091,6 +1096,11 @@ module ccip::offramp {
     public fun set_dynamic_config(
         ref: &mut CCIPObjectRef, permissionless_execution_threshold_seconds: u32, ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
+
         let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
         set_dynamic_config_internal(
             state,
@@ -1115,6 +1125,11 @@ module ccip::offramp {
         source_chains_on_ramp: vector<vector<u8>>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
+
         let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
         apply_source_chain_config_updates_internal(
             state,

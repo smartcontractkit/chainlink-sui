@@ -36,6 +36,7 @@ module ccip::ocr3_base {
     const E_INVALID_SIGNATURE: u64 = 19;
     const E_OUT_OF_BYTES: u64 = 20;
     const E_WRONG_PUBKEY_SIZE: u64 = 21;
+    const E_ONLY_CALLABLE_BY_OWNER: u64 = 22;
 
     public struct UnvalidatedPublicKey has copy, drop, store {
         bytes: vector<u8>
@@ -74,6 +75,7 @@ module ccip::ocr3_base {
         transmitters: vector<address>
     }
 
+    // this struct is stored in offramp state object
     public struct OCR3BaseState has key, store {
         id: UID,
         // ocr plugin type -> ocr config
@@ -92,6 +94,8 @@ module ccip::ocr3_base {
         OCR_PLUGIN_TYPE_EXECUTION
     }
 
+    // there is no init or initialize functions in ocr3 base
+    // ocr3 base state is only created and stored in offramp state
     public fun new(ctx: &mut TxContext): OCR3BaseState {
         OCR3BaseState {
             id: object::new(ctx),
@@ -257,9 +261,6 @@ module ccip::ocr3_base {
         signatures: vector<vector<u8>>,
         _ctx: &TxContext
     ) {
-        // let offramp_state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
-        // let ocr3_state = offramp_state.ocr3_base_state;
-
         let ocr_config = table::borrow(&ocr3_state.ocr3_configs, ocr_plugin_type);
         let config_info = &ocr_config.config_info;
 
@@ -320,6 +321,10 @@ module ccip::ocr3_base {
         transmitters: vector<address>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         assert!(big_f != 0, E_BIG_F_MUST_BE_POSITIVE);
 
         let ocr3_state = state_object::borrow_mut_with_ctx<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME, ctx);

@@ -86,6 +86,7 @@ module ccip::rmn_remote {
     const E_INVALID_SUBJECT_LENGTH: u64 = 16;
     const E_INVALID_PUBLIC_KEY_LENGTH: u64 = 17;
     // const E_UNKNOWN_FUNCTION: u64 = 18;
+    const E_ONLY_CALLABLE_BY_OWNER: u64 = 19;
 
     public fun type_and_version(): String {
         string::utf8(b"RMNRemote 1.6.0")
@@ -104,6 +105,10 @@ module ccip::rmn_remote {
         local_chain_selector: u64,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         assert!(
             !state_object::contains(ref, RMN_REMOTE_STATE_NAME),
             E_ALREADY_INITIALIZED
@@ -200,7 +205,6 @@ module ccip::rmn_remote {
             i = i + 1;
         };
 
-        // there is no direct way to get chain id from Sui Move, removing dest_chain_id
         let report = Report {
             dest_chain_selector: state.local_chain_selector,
             rmn_remote_contract_address: @ccip,
@@ -265,6 +269,10 @@ module ccip::rmn_remote {
         f_sign: u64,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME, ctx);
 
         assert!(
@@ -368,6 +376,10 @@ module ccip::rmn_remote {
     public fun curse_multiple(
         ref: &mut CCIPObjectRef, subjects: vector<vector<u8>>, ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME, ctx);
 
         vector::do_ref!(
@@ -401,6 +413,10 @@ module ccip::rmn_remote {
         subjects: vector<vector<u8>>,
         ctx: &mut TxContext
     ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         let state = state_object::borrow_mut_with_ctx<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME, ctx);
 
         vector::do_ref!(

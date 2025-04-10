@@ -12,12 +12,17 @@ module ccip::nonce_manager {
 
     const NONCE_MANAGER_STATE_NAME: vector<u8> = b"NonceManagerState";
     const E_ALREADY_INITIALIZED: u64 = 1;
+    const E_ONLY_CALLABLE_BY_OWNER: u64 = 2;
 
     public fun type_and_version(): String {
         string::utf8(b"NonceManager 1.6.0")
     }
 
     public fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_ONLY_CALLABLE_BY_OWNER
+        );
         assert!(
             !state_object::contains(ref, NONCE_MANAGER_STATE_NAME),
             E_ALREADY_INITIALIZED
