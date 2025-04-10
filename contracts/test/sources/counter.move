@@ -1,4 +1,14 @@
 module test::counter {
+    use sui::object::{Self, UID, ID};
+    use sui::transfer;
+    use sui::tx_context::{Self, TxContext};
+    use sui::event;
+
+    // Event emitted when counter is incremented
+    public struct CounterIncremented has copy, drop {
+        counter_id: ID,
+        new_value: u64
+    }
 
     public struct AdminCap has key, store {
         id: UID
@@ -35,24 +45,56 @@ module test::counter {
     /// Increment counter by 1
     public entry fun increment(counter: &mut Counter, _ctx: &mut TxContext) {
         counter.value = counter.value + 1;
+        
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
     }
 
     public fun increment_by_one(counter: &mut Counter, _ctx: &mut TxContext): u64 {
         counter.value = counter.value + 1;
+        
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
+        
         counter.value
     }
 
     public fun increment_by_one_no_context(counter: &mut Counter): u64 {
         counter.value = counter.value + 1;
+        
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
+        
         counter.value
     }
 
     public fun increment_by_two(_admin: &AdminCap, counter: &mut Counter, _ctx: &mut TxContext) {
         counter.value = counter.value + 2;
+        
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
     }
 
     public entry fun increment_by_two_no_context(_admin: &AdminCap, counter: &mut Counter) {
         counter.value = counter.value + 2;
+        
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
     }
 
     /// Increment counter by a*b
@@ -63,6 +105,12 @@ module test::counter {
         _ctx: &mut TxContext
     ) {
         counter.value = counter.value + (a * b);
+        
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
     }
 
     /// Get the value of the count

@@ -3,8 +3,10 @@ package chainreader
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -18,6 +20,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 )
+
+const defaultQueryLimit = 10
 
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
@@ -263,6 +267,132 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types
 }
 
 func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]types.Sequence, error) {
-	// not implemented
-	return nil, nil
+	// Validate contract has a bound address
+	address, ok := s.packageAddresses[contract.Name]
+	if !ok {
+		return nil, fmt.Errorf("no bound address for package %s", contract.Name)
+	}
+
+	// Check that the address in the contract matches the bound address
+	if address != contract.Address {
+		return nil, fmt.Errorf("bound address %s for package %s does not match provided address %s", address, contract.Name, contract.Address)
+	}
+
+	// Check for module configuration
+	moduleConfig, ok := s.config.Modules[contract.Name]
+	if !ok {
+		return nil, fmt.Errorf("no such contract: %s", contract.Name)
+	}
+
+	// Extract event field name from the filter
+	eventFieldName := filter.Key
+
+	// Extract offset from filter expressions if present (pagination support)
+	// TODO: refactor this
+	var eventOffset uint64 = 0
+	for _, expr := range filter.Expressions {
+		if expr.IsPrimitive() {
+			if comparator, comparatorOk := expr.Primitive.(*primitives.Comparator); comparatorOk && comparator.Name == "offset" {
+				for _, valueComparator := range comparator.ValueComparators {
+					if valueComparator.Operator == primitives.Eq {
+						value, castOk := valueComparator.Value.(uint64)
+						if !castOk {
+							return nil, fmt.Errorf("offset value is not an integer: %v", valueComparator.Value)
+						}
+						eventOffset = value
+					}
+				}
+			}
+		}
+	}
+
+	// Check event configuration
+	eventConfig, ok := moduleConfig.Events[eventFieldName]
+	if !ok {
+		return nil, fmt.Errorf("no such event: %s", eventFieldName)
+	}
+
+	// Extract limit from limitAndSort
+	limit := uint64(defaultQueryLimit)
+	if count := limitAndSort.Limit.Count; count > 0 {
+		limit = count
+	}
+
+	// Determine sorting direction
+	// TODO: Improve this -- this is a temporary solution for sorting, it simply tries to extract the first sortBy.
+	descending := true
+
+	// for _, sortBy := range limitAndSort.SortBy {
+	//	if seqSort, ok := sortBy.(query.SortBySequence); ok {
+	//		if seqSort.GetDirection() == query.Desc {
+	//			descending = true
+	//			break
+	//		}
+	//	}
+	// }
+
+	// Setup the cursor
+	var cursor *models.EventId
+	if limitAndSort.Limit.Cursor != "" {
+		cursor = &models.EventId{
+			// TODO: get the tx digest from the cursor
+			TxDigest: "",
+			EventSeq: limitAndSort.Limit.Cursor,
+		}
+	}
+
+	// Query events from Sui blockchain
+	eventsResponse, err := s.client.QueryEvents(
+		ctx,
+		models.EventFilterByMoveEventModule{
+			MoveEventModule: models.MoveEventModule{
+				Package: address,
+				Module:  contract.Name,
+				Event:   eventConfig.EventType,
+			},
+		},
+		limit,
+		cursor,
+		descending,
+	)
+	if err != nil {
+		s.logger.Errorw("Failed to query events",
+			"error", err,
+			"address", address,
+			"module", moduleConfig.Name,
+			"eventType", eventConfig.EventType,
+			"limit", limit,
+			"offset", eventOffset,
+		)
+
+		return nil, fmt.Errorf("failed to query events: %+w", err)
+	}
+
+	// if eventsResponse.HasNextPage {
+	// TODO: handle pagination - recursion or while loop until no more events
+	// }
+
+	// Transform events into the expected Sequence format
+	sequences := make([]types.Sequence, 0, len(eventsResponse.Data))
+	for _, event := range eventsResponse.Data {
+		// Create new instance of eventData for each event
+		eventData := reflect.New(reflect.TypeOf(sequenceDataType).Elem()).Interface()
+
+		s.logger.Debugw("event", "ParsedJson", event.ParsedJson)
+
+		// Decode the event data
+		err := codec.DecodeSuiJsonValue(event.ParsedJson, eventData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode event data: %+w", err)
+		}
+
+		sequence := types.Sequence{
+			// TODO: is this referring to a value within the event's data or the pagination cursor?
+			Cursor: "",
+			Data:   eventData,
+		}
+		sequences = append(sequences, sequence)
+	}
+
+	return sequences, nil
 }

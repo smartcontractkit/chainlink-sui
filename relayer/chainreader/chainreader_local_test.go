@@ -12,10 +12,12 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 
 	"github.com/block-vision/sui-go-sdk/constant"
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -66,15 +68,12 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	testutils.BuildContract(t, contractPath)
 
-	packageId, _, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	packageId, publishOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
 	log.Debugw("Published Contract", "packageId", packageId)
 
-	initializeOutput := testutils.CallContractFromCLI(t, packageId, accountAddress, "counter", "initialize", nil)
-	require.NoError(t, err)
-
-	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
+	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	// Set up the ChainReader
@@ -95,6 +94,12 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						},
 					},
 				},
+				Events: map[string]*ChainReaderEvent{
+					"counter_incremented": {
+						Name:      "counter_incremented",
+						EventType: "CounterIncremented",
+					},
+				},
 			},
 		},
 	}
@@ -113,7 +118,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	// Test GetLatestValue for different data types
 
 	t.Run("GetLatestValue_Uint64", func(t *testing.T) {
-		t.Parallel()
 		expectedUint64 := uint64(0)
 		var retUint64 uint64
 		err = chainReader.GetLatestValue(
@@ -130,7 +134,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
-		t.Parallel()
 		expectedUint64 := uint64(0)
 		var retUint64 uint64
 
@@ -150,5 +153,90 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		)
 		require.NoError(t, err)
 		require.Equal(t, expectedUint64, retUint64)
+	})
+
+	t.Run("QueryKey_Events", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		// Increment the counter to emit an event
+		log.Debugw("Incrementing counter to emit event", "counterObjectId", counterObjectId)
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := models.MoveCallRequest{
+			PackageObjectId: packageId,
+			Module:          "counter",
+			Function:        "increment",
+			TypeArguments:   []any{},
+			Arguments:       []any{counterObjectId},
+			Signer:          accountAddress,
+			ExecutionMode:   "Commit",
+			GasBudget:       "2000000",
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
+		require.NoError(t, err)
+
+		txnResult, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, nil, "WaitForLocalExecution")
+		require.NoError(t, err)
+
+		log.Debugw("Transaction result", "result", txnResult)
+
+		// Query for counter increment events
+		type CounterEvent struct {
+			CounterID string `json:"counter_id"`
+			NewValue  uint64 `json:"new_value"`
+		}
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "counter_incremented",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count: 50,
+			},
+		}
+
+		log.Debugw("Querying for counter events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", counterBinding.Name,
+			"eventType", "CounterIncremented")
+
+		sequences := []types.Sequence{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var counterEvent CounterEvent
+			sequences, err = chainReader.QueryKey(
+				ctx,
+				counterBinding,
+				filter,
+				limitAndSort,
+				&counterEvent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", "error", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		// Verify the event data
+		event := sequences[0].Data.(*CounterEvent)
+		require.NotNil(t, event)
+		log.Debugw("Event data", "counterId", event.CounterID, "newValue", event.NewValue)
+		require.Equal(t, uint64(1), event.NewValue, "Expected counter value to be 1")
 	})
 }

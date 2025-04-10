@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 const BYTE_SIZE = 8
@@ -35,7 +37,6 @@ func DecodeSuiJsonValue(data any, target any) error {
 		// Handle string type
 		if str, ok := data.(string); ok {
 			targetValue.SetString(str)
-
 			return nil
 		}
 
@@ -44,13 +45,23 @@ func DecodeSuiJsonValue(data any, target any) error {
 		// Handle slices
 		return decodeSlice(data, targetValue)
 	case reflect.Struct:
-		// Handle structs by marshaling to JSON and then unmarshaling
-		jsonBytes, err := json.Marshal(data)
-		if err != nil {
-			return fmt.Errorf("failed to marshal data: %w", err)
+		// Use mapstructure for struct types
+		config := &mapstructure.DecoderConfig{
+			DecodeHook: mapstructure.ComposeDecodeHookFunc(
+				numericStringHook,
+				mapstructure.StringToTimeDurationHookFunc(),
+			),
+			Result:           target,
+			WeaklyTypedInput: true,
+			TagName:          "json",
 		}
 
-		return json.Unmarshal(jsonBytes, target)
+		decoder, err := mapstructure.NewDecoder(config)
+		if err != nil {
+			return fmt.Errorf("failed to create decoder: %w", err)
+		}
+
+		return decoder.Decode(data)
 	default:
 		// Attempt direct JSON unmarshaling for other types
 		jsonBytes, err := json.Marshal(data)
@@ -144,4 +155,48 @@ func decodeSlice(data any, targetValue reflect.Value) error {
 
 func DecodeBase64(encoded string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(encoded)
+}
+
+// Add new numericStringHook for mapstructure
+func numericStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
+	if f.Kind() != reflect.String {
+		return data, nil
+	}
+
+	str, ok := data.(string)
+	if !ok {
+		return data, nil
+	}
+
+	switch t.Kind() {
+	case reflect.String:
+		return data, nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		val, err := strconv.ParseUint(str, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse string to uint: %w", err)
+		}
+
+		return reflect.ValueOf(val).Convert(t).Interface(), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		val, err := strconv.ParseInt(str, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse string to int: %w", err)
+		}
+
+		return reflect.ValueOf(val).Convert(t).Interface(), nil
+	case reflect.Float32, reflect.Float64:
+		val, err := strconv.ParseFloat(str, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse string to float: %w", err)
+		}
+
+		return reflect.ValueOf(val).Convert(t).Interface(), nil
+	case reflect.Invalid, reflect.Bool, reflect.Complex64, reflect.Complex128,
+		reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
+		reflect.Pointer, reflect.Slice, reflect.Struct, reflect.UnsafePointer, reflect.Uintptr:
+		return data, nil
+	default:
+		return data, nil
+	}
 }

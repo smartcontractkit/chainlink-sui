@@ -84,13 +84,10 @@ func TestEnqueueIntegration(t *testing.T) {
 
 	contractPath := testutils.BuildSetup(t, "contracts/test/")
 	testutils.BuildContract(t, contractPath)
-	packageId, _, err := testutils.PublishContract(t, "test", contractPath, accountAddress, nil)
+	packageId, publishOutput, err := testutils.PublishContract(t, "cw_tests", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
-	initializeOutput := testutils.CallContractFromCLI(t, packageId, accountAddress, "counter", "initialize", nil)
-	require.NoError(t, err)
-
-	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
+	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	// TODO: add suiClient in another PR

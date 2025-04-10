@@ -44,15 +44,12 @@ func TestClient(t *testing.T) {
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	testutils.BuildContract(t, contractPath)
 
-	packageId, _, err := testutils.PublishContract(t, "test", contractPath, accountAddress, nil)
+	packageId, publishOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
 	require.NoError(t, err)
 
 	log.Debugw("Published Contract", "packageId", packageId)
 
-	initializeOutput := testutils.CallContractFromCLI(t, packageId, accountAddress, "counter", "initialize", nil)
-	require.NoError(t, err)
-
-	counterObjectId, err := testutils.QueryCreatedObjectID(initializeOutput.ObjectChanges, packageId, "counter", "Counter")
+	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	// Test GetLatestValue for different data types

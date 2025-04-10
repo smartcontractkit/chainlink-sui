@@ -26,6 +26,7 @@ type SuiClient interface {
 	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiAltClient.ExecutionResultType, error)
 	SignAndSendTransaction(ctx context.Context, txBytes string, signerOverride *signer.SuiSigner, executionRequestType TransactionRequestType) (models.SuiTransactionBlockResponse, error)
+	QueryEvents(ctx context.Context, filter models.EventFilterByMoveEventModule, limit uint64, cursor *models.EventId, descending bool) (models.PaginatedEventsResponse, error)
 }
 
 type Client struct {
@@ -210,4 +211,43 @@ func (c *Client) SignAndSendTransaction(ctx context.Context, txBytesRaw string, 
 		},
 		RequestType: string(executionRequestType),
 	})
+}
+
+// QueryEvents queries events from the Sui network with flexible filtering options.
+// When used with package/module/eventType parameters, it constructs a MoveEventType filter.
+// Parameters:
+// - ctx: Context for the request
+// - filter: The event filter object which specifies the package, the module and the event type
+// - cursor: (optional) the EventId cursor to offset the result by
+// - descending: Whether to sort in descending order
+// Returns events matching the criteria or an error.
+func (c *Client) QueryEvents(
+	ctx context.Context,
+	filter models.EventFilterByMoveEventModule,
+	limit uint64,
+	cursor *models.EventId,
+	descending bool,
+) (models.PaginatedEventsResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
+	defer cancel()
+
+	// Execute the query to get paginated events
+	response, err := c.client.SuiXQueryEvents(ctx, models.SuiXQueryEventsRequest{
+		SuiEventFilter:  filter,
+		Cursor:          cursor,
+		Limit:           limit,
+		DescendingOrder: descending,
+	})
+	if err != nil {
+		return models.PaginatedEventsResponse{}, fmt.Errorf("failed to query events: %w", err)
+	}
+
+	c.log.Debugw("Query events",
+		"filter", fmt.Sprintf("%+v", filter),
+		"limit", limit,
+		"cursor", cursor,
+		"response", fmt.Sprintf("%+v", response),
+	)
+
+	return response, nil
 }
