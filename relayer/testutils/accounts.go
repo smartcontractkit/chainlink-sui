@@ -1,18 +1,29 @@
 package testutils
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/fardream/go-bcs/bcs"
+	"github.com/pattonkan/sui-go/sui/suiptb"
+	"github.com/pattonkan/sui-go/suiclient"
 	"github.com/stretchr/testify/require"
 
+	suiAlt "github.com/pattonkan/sui-go/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 // LoadAccountFromEnv loads a test account from environment variables
@@ -85,6 +96,56 @@ func GenerateAccountKeyPair(t *testing.T, log logger.Logger) (ed25519.PrivateKey
 // DeriveAddressFromPublicKey derives a Sui address from an ed25519 public key
 func DeriveAddressFromPublicKey(publicKey ed25519.PublicKey) string {
 	return "0x" + hex.EncodeToString(publicKey)
+}
+
+func DrainAccountCoins(ctx context.Context, lgr logger.Logger, signerInstance *signer.SuiSigner, cli client.SuiClient, suiCoins []models.CoinData, receiver string) error {
+	addr, err := (*signerInstance).GetAddress()
+	if err != nil {
+		return fmt.Errorf("failed to get address: %w", err)
+	}
+	senderAddress, _ := suiAlt.AddressFromHex(addr)
+	receiverAddresss, _ := suiAlt.AddressFromHex(receiver)
+
+	coins := make([]*suiAlt.ObjectRef, 0)
+
+	for _, coin := range suiCoins {
+		objectId := suiAlt.MustObjectIdFromHex(coin.CoinObjectId)
+
+		version, _ := strconv.ParseUint(coin.Version, 10, 64)
+		digest := suiAlt.MustNewDigest(coin.Digest)
+
+		coinObject := &suiAlt.ObjectRef{
+			ObjectId: objectId,
+			Version:  version,
+			Digest:   digest,
+		}
+		coins = append(coins, coinObject)
+	}
+
+	ptb := suiptb.NewTransactionDataTransactionBuilder()
+	_ = ptb.PayAllSui(
+		receiverAddresss,
+	)
+	pt := ptb.Finish()
+
+	tx := suiptb.NewTransactionData(
+		senderAddress,
+		pt,
+		coins,
+		suiclient.DefaultGasBudget,
+		suiclient.DefaultGasPrice,
+	)
+	txBytesBCS, err := bcs.Marshal(tx)
+	if err != nil {
+		return fmt.Errorf("failed to marshal transaction: %w", err)
+	}
+
+	_, err = cli.SignAndSendTransaction(ctx, base64.StdEncoding.EncodeToString(txBytesBCS), signerInstance, client.WaitForLocalExecution)
+	if err != nil {
+		return fmt.Errorf("failed to sign and send transaction: %w", err)
+	}
+
+	return nil
 }
 
 // NewTestKeystore creates a new test keystore

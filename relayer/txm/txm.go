@@ -17,6 +17,7 @@ import (
 )
 
 const expectedFunctionTokens = 3
+const numberGoroutines = 2
 
 type TxManager interface {
 	services.Service
@@ -77,14 +78,20 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 		Name:      functionTokens[2],
 	}
 
-	transaction, err := GenerateTransaction(ctx, txm.lggr, txm.signer, txm.suiGateway, transactionID, txMetadata, signerAddress, suiFunction, typeArgs, paramTypes, paramValues)
+	transaction, err := GenerateTransaction(
+		ctx, txm.lggr, txm.signer, txm.suiGateway,
+		txm.configuration.RequestType, transactionID, txMetadata, signerAddress,
+		suiFunction, typeArgs, paramTypes, paramValues,
+	)
 	if err != nil {
 		txm.lggr.Errorw("Failed to generate transaction", "error", err)
+		return nil, err
 	}
 
 	err = txm.transactionRepository.AddTransaction(*transaction)
 	if err != nil {
 		txm.lggr.Errorw("Failed to add transaction to repository", "error", err)
+		return nil, err
 	}
 
 	txm.broadcastChannel <- transactionID
@@ -148,8 +155,10 @@ func (txm *SuiTxm) Ready() error {
 }
 
 func (txm *SuiTxm) Start(ctx context.Context) error {
-	txm.done.Add(1) // waitgroup: broadcaster, TODO: more will follow
+	txm.lggr.Infow("Starting SuiTxm")
+	txm.done.Add(numberGoroutines) // waitgroup: broadcaster, confirmer
 	go txm.broadcastLoop(ctx)
+	go txm.confimerLoop(ctx)
 
 	return nil
 }

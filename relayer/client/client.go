@@ -20,6 +20,13 @@ import (
 	suiAltClient "github.com/pattonkan/sui-go/suiclient"
 )
 
+const maxCoinsPageSize = 50
+
+type TransactionResult struct {
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
 type SuiClient interface {
 	MoveCall(ctx context.Context, req models.MoveCallRequest) (models.TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (models.SuiTransactionBlockResponse, error)
@@ -27,6 +34,8 @@ type SuiClient interface {
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiAltClient.ExecutionResultType, error)
 	SignAndSendTransaction(ctx context.Context, txBytes string, signerOverride *signer.SuiSigner, executionRequestType TransactionRequestType) (models.SuiTransactionBlockResponse, error)
 	QueryEvents(ctx context.Context, filter models.EventFilterByMoveEventModule, limit uint64, cursor *models.EventId, descending bool) (models.PaginatedEventsResponse, error)
+	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
+	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
 }
 
 type Client struct {
@@ -250,4 +259,79 @@ func (c *Client) QueryEvents(
 	)
 
 	return response, nil
+}
+
+// GetTransactionStatus implements SuiClient.
+func (c *Client) GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
+	defer cancel()
+
+	req := models.SuiGetTransactionBlockRequest{
+		Digest: digest,
+		Options: models.SuiTransactionBlockOptions{
+			ShowInput:          true,
+			ShowRawInput:       true,
+			ShowEffects:        true,
+			ShowObjectChanges:  true,
+			ShowBalanceChanges: true,
+		},
+	}
+
+	resp, err := c.client.SuiGetTransactionBlock(ctx, req)
+	if err != nil {
+		return TransactionResult{}, fmt.Errorf("failed to get transaction status: %w", err)
+	}
+
+	return TransactionResult{
+		Status: resp.Effects.Status.Status,
+		Error:  resp.Effects.Status.Error,
+	}, nil
+}
+
+func (c *Client) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
+	defer cancel()
+
+	result := []models.CoinData{}
+	pageLimit := uint64(maxCoinsPageSize) // Set the maximum page size
+	var cursor *string                    // Start with nil cursor for first page
+
+	// Loop until we've fetched all pages
+	for {
+		// Create request with pagination parameters
+		request := models.SuiXGetAllCoinsRequest{
+			Owner:  address,
+			Limit:  pageLimit,
+			Cursor: cursor,
+		}
+
+		// Fetch this page of coins
+		resp, err := c.client.SuiXGetAllCoins(ctx, request)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get coins by address: %w", err)
+		}
+
+		// Add coins from this page to our result set
+		result = append(result, resp.Data...)
+
+		// Log how many coins we've collected so far
+		c.log.Debugw("Fetched coins page",
+			"address", address,
+			"page_size", len(resp.Data),
+			"total_so_far", len(result))
+
+		if !resp.HasNextPage {
+			// No more pages, exit the loop
+			break
+		}
+		// Update cursor for next request
+		cursor = &resp.NextCursor
+
+		// Check if context is cancelled before making next request
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+	}
+
+	return result, nil
 }

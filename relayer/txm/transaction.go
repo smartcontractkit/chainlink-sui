@@ -49,6 +49,7 @@ type SuiTx struct {
 	RequestType   string
 	Attempt       int
 	State         TransactionState
+	Digest        string
 }
 
 func (tx *SuiTx) IncrementAttempts() {
@@ -93,7 +94,7 @@ func TransactionIDGenerator() string {
 // The returned SuiTx will have:
 //   - State: "Pending"
 //   - Attempt: 1
-//   - RequestType: "Call"
+//   - RequestType: "WaitForEffectsCert" or "WaitForLocalExecution"
 //   - Timestamp: Current UTC timestamp
 //   - Payload: The BCS-serialized transaction bytes
 //   - Signatures: Array of signatures produced by the signer service
@@ -102,6 +103,7 @@ func GenerateTransaction(
 	lggr logger.Logger,
 	signerService signer.SuiSigner,
 	suiClient client.SuiClient,
+	requestType string,
 	transactionID string, txMetadata *commontypes.TxMeta,
 	signerAddress string, function *SuiFunction,
 	typeArgs []string, paramTypes []string, paramValues []any,
@@ -166,8 +168,9 @@ func GenerateTransaction(
 		Timestamp:     GetCurrentUnixTimestamp(),
 		Payload:       txBytes,
 		Signatures:    signatures,
-		RequestType:   "Call",
+		RequestType:   requestType,
 		Attempt:       0,
 		State:         StatePending,
+		Digest:        "",
 	}, nil
 }

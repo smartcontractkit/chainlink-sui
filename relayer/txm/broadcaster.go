@@ -58,7 +58,6 @@ func (txm *SuiTxm) broadcastLoop(loopCtx context.Context) {
 
 func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []SuiTx) {
 	for _, tx := range transactions {
-		txm.lggr.Infow("Submitting transaction", "txID", tx.TransactionID)
 		// Process the transaction for broadcasting
 		payload := client.TransactionBlockRequest{
 			TxBytes:    base64.StdEncoding.EncodeToString(tx.Payload),
@@ -73,27 +72,24 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			RequestType: tx.RequestType,
 		}
 
-		resp, _ := txm.suiGateway.SendTransaction(loopCtx, payload)
+		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
+		if err != nil {
+			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "error", err)
+			// TODO: handle error based on the type of error
+		}
+		txm.lggr.Infow("Transaction broadcasted", resp)
+		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.Digest)
+		if err != nil {
+			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
+			continue
+		}
 
-		txm.lggr.Debugw("Transaction response:", resp)
-		err := txm.transactionRepository.IncrementAttempts(tx.TransactionID)
+		err = txm.transactionRepository.IncrementAttempts(tx.TransactionID)
 		if err != nil {
 			txm.lggr.Errorw("Failed to increment transaction attempts", "txID", tx.TransactionID, "error", err)
 			continue
 		}
-		err = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
-		if err != nil {
-			// By default falls back to Retryable. The confirmer routine will make sure to retry
-			// the transaction if it is in a retriable state.
-			txm.lggr.Errorw("Failed to update transaction state", "txID", tx.TransactionID, "error", err)
-			err = txm.transactionRepository.ChangeState(tx.TransactionID, StateRetriable)
-			if err != nil {
-				txm.lggr.Errorw("Failed to update transaction state to retriable", "txID", tx.TransactionID, "error", err)
-				continue
-			}
-
-			continue
-		}
+		_ = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)
 	}
 }
 

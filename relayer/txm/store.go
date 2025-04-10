@@ -25,6 +25,10 @@ type TxmStore interface {
 	// Returns an error if the transaction is not found or if the state transition is invalid.
 	ChangeState(transactionID string, state TransactionState) error
 
+	// UpdateDigest updates the digest of a transaction.
+	// Returns an error if the transaction is not found.
+	UpdateTransactionDigest(transactionID string, digest string) error
+
 	// DeleteTransaction removes a transaction from the store.
 	// Returns an error if the transaction is not found.
 	DeleteTransaction(transactionID string) error
@@ -32,6 +36,8 @@ type TxmStore interface {
 	// GetTransactionsByState retrieves all transactions in a given state.
 	// Returns a slice of transactions and nil if successful, otherwise returns nil and an error.
 	GetTransactionsByState(state TransactionState) ([]SuiTx, error)
+
+	GetInflightTransactions() ([]SuiTx, error)
 }
 
 // InMemoryStore implements the TxmStore interface using in-memory data structures.
@@ -48,6 +54,8 @@ type InMemoryStore struct {
 	transactions map[string]*SuiTx                        // Main map to store pointers to transactions by ID
 	stateBuckets map[TransactionState]map[string]struct{} // Auxiliary maps to store transaction IDs by state for efficient lookups
 }
+
+var _ TxmStore = (*InMemoryStore)(nil)
 
 // NewTxmStoreImpl creates and initializes a new InMemoryStore instance.
 // It initializes the transactions map and state buckets for all possible transaction states.
@@ -178,6 +186,24 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 	return nil
 }
 
+// UpdateTransactionDigest implements TxmStore.
+func (s *InMemoryStore) UpdateTransactionDigest(transactionID string, digest string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, exists := s.transactions[transactionID]
+	if !exists {
+		return fmt.Errorf("transaction not found")
+	}
+
+	tx.Digest = digest
+
+	// Update the transaction in the main transactions map
+	s.transactions[transactionID] = tx
+
+	return nil
+}
+
 // DeleteTransaction removes a transaction from the store.
 // It removes the transaction from both the transactions map and the appropriate state bucket.
 // Returns an error if the transaction is not found.
@@ -222,4 +248,19 @@ func (s *InMemoryStore) GetTransactionsByState(state TransactionState) ([]SuiTx,
 	}
 
 	return transactions, nil
+}
+
+// GetInflightTransactions implements TxmStore.
+func (s *InMemoryStore) GetInflightTransactions() ([]SuiTx, error) {
+	inFlightStatus := []TransactionState{StateSubmitted, StateRetriable}
+	txs := []SuiTx{}
+	for _, status := range inFlightStatus {
+		txsByStatus, err := s.GetTransactionsByState(status)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get transactions by state %v: %w", status, err)
+		}
+		txs = append(txs, txsByStatus...)
+	}
+
+	return txs, nil
 }

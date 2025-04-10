@@ -1,6 +1,6 @@
 //go:build integration
 
-package client
+package client_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/test-go/testify/require"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -35,7 +36,7 @@ func TestClient(t *testing.T) {
 	require.NoError(t, err)
 	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
 	require.NoError(t, err)
-	relayerClient, err := NewClient(log, testutils.LocalUrl, nil, 10*time.Second, &signer)
+	relayerClient, err := client.NewClient(log, testutils.LocalUrl, nil, 10*time.Second, &signer)
 	require.NoError(t, err)
 
 	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)

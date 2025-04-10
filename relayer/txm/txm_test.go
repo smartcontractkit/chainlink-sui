@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/constant"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -18,18 +17,17 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
+	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-// TODO: uncomment the following struct when
-// type Counter struct {
-// 	Value string `json:"value"`
-// }
+type Counter struct {
+	Value string `json:"value"`
+}
 
 // setupClients initializes the Sui and relayer clients.
-func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, accountAddress string) (sui.ISuiAPI, *client.Client, *SuiTxm) {
+func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, accountAddress string) (*client.Client, *SuiTxm, signer.SuiSigner) {
 	t.Helper()
-	suiClient := sui.NewSuiClient(rpcURL)
 
 	logg, err := logger.New()
 	if err != nil {
@@ -53,7 +51,7 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 		t.Fatalf("Failed to create SuiTxm: %v", err)
 	}
 
-	return suiClient, relayerClient, txManager
+	return relayerClient, txManager, signerInstance
 }
 
 //nolint:paralleltest
@@ -90,42 +88,83 @@ func TestEnqueueIntegration(t *testing.T) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	// TODO: add suiClient in another PR
-	_, _, txManager := setupClients(t, testutils.LocalUrl, _keystore, accountAddress)
+	suiClient, txManager, signerInstance := setupClients(t, testutils.LocalUrl, _keystore, accountAddress)
 
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
-		name          string
-		txID          string
-		txMeta        *commontypes.TxMeta
-		sender        string
-		function      string
-		typeArgs      []string
-		args          []any
-		expectErr     bool
-		expectedValue string
+		name            string
+		txID            string
+		txMeta          *commontypes.TxMeta
+		sender          string
+		function        string
+		typeArgs        []string
+		args            []any
+		expectErr       bool
+		expectedValue   string
+		finalState      commontypes.TransactionStatus
+		storeFinalState TransactionState
+		numberAttemps   int
+		drainAccount    bool
 	}{
 		{
-			name:          "Basic enqueue test",
-			txID:          "integration-test-txID-1",
-			txMeta:        &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:        accountAddress,
-			function:      fmt.Sprintf("%s::counter::increment", packageId),
-			typeArgs:      []string{"address"},
-			args:          []any{counterObjectId},
-			expectErr:     false,
-			expectedValue: "1",
+			name:            "Valid enqueue test",
+			txID:            "integration-test-txID-1",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:          accountAddress,
+			function:        fmt.Sprintf("%s::counter::increment", packageId),
+			typeArgs:        []string{"address"},
+			args:            []any{counterObjectId},
+			expectErr:       false,
+			expectedValue:   "1",
+			finalState:      commontypes.Finalized,
+			storeFinalState: StateFinalized,
+			numberAttemps:   1,
+			drainAccount:    false,
 		},
 		{
-			name:          "Another enqueue test",
-			txID:          "integration-test-txID-2",
-			txMeta:        &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:        accountAddress,
-			function:      fmt.Sprintf("%s::counter::increment", packageId),
-			typeArgs:      []string{"address"},
-			args:          []any{counterObjectId},
-			expectErr:     false,
-			expectedValue: "2",
+			name:            "Another valid enqueue test",
+			txID:            "integration-test-txID-2",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:          accountAddress,
+			function:        fmt.Sprintf("%s::counter::increment", packageId),
+			typeArgs:        []string{"address"},
+			args:            []any{counterObjectId},
+			expectErr:       false,
+			expectedValue:   "2",
+			finalState:      commontypes.Finalized,
+			storeFinalState: StateFinalized,
+			numberAttemps:   1,
+			drainAccount:    false,
+		},
+		{
+			name:            "Invalid enqueue test (wrong function)",
+			txID:            "wrong-function-test-txID",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:          accountAddress,
+			function:        fmt.Sprintf("%s::counter::i-do-not-exist", packageId),
+			typeArgs:        []string{"address"},
+			args:            []any{counterObjectId},
+			expectErr:       true,
+			expectedValue:   "",
+			finalState:      commontypes.Failed,
+			storeFinalState: StateFailed,
+			numberAttemps:   1,
+			drainAccount:    false,
+		},
+		{
+			name:            "Invalid enqueue test (no gas in wallet)",
+			txID:            "low-gas-test-txID",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:          accountAddress,
+			function:        fmt.Sprintf("%s::counter::increment", packageId),
+			typeArgs:        []string{"address"},
+			args:            []any{counterObjectId},
+			expectErr:       true,
+			expectedValue:   "",
+			finalState:      commontypes.Failed,
+			storeFinalState: StateFailed,
+			numberAttemps:   1,
+			drainAccount:    true,
 		},
 	}
 
@@ -137,6 +176,22 @@ func TestEnqueueIntegration(t *testing.T) {
 	//nolint:paralleltest
 	for _, tc := range testScenarios {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.drainAccount {
+				txManager.lggr.Infow("Draining account coins from account address", accountAddress)
+				coins, err := suiClient.GetCoinsByAddress(ctx, accountAddress)
+				burnAddress := "0x000000000000000000000000000000000000dead"
+				require.NoError(t, err, "Failed to get coin objects")
+				err = testutils.DrainAccountCoins(ctx, txManager.lggr, &signerInstance, suiClient, coins, burnAddress)
+				require.NoError(t, err, "Failed to drain account coins")
+
+				// Wait a moment for transactions to be confirmed
+				time.Sleep(2 * time.Second)
+
+				coins, err = suiClient.GetCoinsByAddress(ctx, accountAddress)
+				require.NoError(t, err, "Failed to get coin objects")
+				assert.Empty(t, coins, "Expected no coins left in the account")
+			}
+
 			tx, err := txManager.Enqueue(ctx, tc.txID, tc.txMeta,
 				tc.sender, tc.function, nil, tc.typeArgs, tc.args, false)
 
@@ -149,18 +204,22 @@ func TestEnqueueIntegration(t *testing.T) {
 						return false
 					}
 
-					return status == commontypes.Unconfirmed
-				}, 60*time.Second, 1*time.Second, "Transaction should eventually reach expected status")
+					return status == tc.finalState
+				}, 60*time.Second, 1*time.Second, "Transaction final state not reached")
+
+				tx2, err := txManager.transactionRepository.GetTransaction((*tx).TransactionID)
+				require.NoError(t, err, "Failed to get transaction from repository")
+				assert.NotNil(t, tx2.Digest, "Transaction digest should not be nil")
 
 				transaction, err := txManager.transactionRepository.GetTransaction(tc.txID)
 				require.NoError(t, err, "Failed to get transaction from repository")
-				assert.Equal(t, StateSubmitted, transaction.State, "Transaction state should be Unconfirmed")
-				assert.Equal(t, 1, transaction.Attempt, "Transaction attempts should be 1")
+				assert.Equal(t, tc.storeFinalState, transaction.State, "Transaction state should be Finalized")
+				assert.Equal(t, tc.numberAttemps, transaction.Attempt, "Transaction attempts should be 1")
 
-				// TODO: this will be moved to a separate test once we implmement the confirmer routine
-				// objectDetails := fetchObjectDetails(t, suiClient, counterObjectId)
-				// counter := extractStruct[Counter](t, objectDetails.Data.Content.Fields)
-				// assert.Contains(t, counter.Value, tc.expectedValue, "Counter value does not match")
+				objectDetails, err := suiClient.ReadObjectId(ctx, counterObjectId)
+				require.NoError(t, err, "Failed to get object details")
+				counter := testutils.ExtractStruct[Counter](t, objectDetails)
+				assert.Contains(t, counter.Value, tc.expectedValue, "Counter value does not match")
 			}
 		})
 	}
