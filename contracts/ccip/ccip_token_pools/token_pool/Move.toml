@@ -1,10 +1,9 @@
 [package]
-name = "ChainlinkCCIP"
+name = "CCIPTokenPool"
 edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet", override = true }
-ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
+ChainlinkCCIP = { local = "../../ccip" }
 
 [addresses]
 ccip = "0x1000"
