@@ -217,11 +217,11 @@ module ccip::fee_quoter {
             link_token,
             token_price_staleness_threshold,
             fee_tokens,
-            usd_per_unit_gas_by_dest_chain: table::new<u64, TimestampedPrice>(ctx),
-            usd_per_token: table::new<address, TimestampedPrice>(ctx),
-            dest_chain_configs: table::new<u64, DestChainConfig>(ctx),
-            token_transfer_fee_configs: table::new<u64, table::Table<address, TokenTransferFeeConfig>>(ctx),
-            premium_multiplier_wei_per_eth: table::new<address, u64>(ctx),
+            usd_per_unit_gas_by_dest_chain: table::new(ctx),
+            usd_per_token: table::new(ctx),
+            dest_chain_configs: table::new(ctx),
+            token_transfer_fee_configs: table::new(ctx),
+            premium_multiplier_wei_per_eth: table::new(ctx),
         };
         state_object::add(ref, FEE_QUOTER_STATE_NAME, state, ctx);
     }
@@ -291,7 +291,7 @@ module ccip::fee_quoter {
             table::add(
                 &mut state.token_transfer_fee_configs,
                 dest_chain_selector,
-                table::new<address, TokenTransferFeeConfig>(ctx)
+                table::new(ctx)
             );
         };
         let token_transfer_fee_configs =

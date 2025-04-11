@@ -115,6 +115,7 @@ module ccip::token_admin_registry {
         string::utf8(b"TokenAdminRegistry 1.6.0")
     }
 
+    // TODO: add MCMS support
     public fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
         // if (@mcms_register_entrypoints != @0x0) {
         //     mcms_registry::register_entrypoint(
@@ -124,7 +125,7 @@ module ccip::token_admin_registry {
 
         let state = TokenAdminRegistryState {
             id: object::new(ctx),
-            token_configs: table::new<address, TokenConfig>(ctx)
+            token_configs: table::new(ctx)
         };
 
         state_object::add(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, state, ctx);

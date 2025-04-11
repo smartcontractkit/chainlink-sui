@@ -104,7 +104,7 @@ module ccip::onramp {
     const E_UNKNOWN_DEST_CHAIN_SELECTOR: u64 = 4;
     const E_DEST_CHAIN_NOT_ENABLED: u64 = 5;
     const E_SENDER_NOT_ALLOWED: u64 = 6;
-    // const E_ONLY_CALLABLE_BY_OWNER_OR_ALLOWLIST_ADMIN: u64 = 7;
+    const E_ONLY_CALLABLE_BY_OWNER_OR_ALLOWLIST_ADMIN: u64 = 7;
     const E_INVALID_ALLOWLIST_REQUEST: u64 = 8;
     const E_INVALID_ALLOWLIST_ADDRESS: u64 = 9;
     // const E_UNSUPPORTED_TOKEN: u64 = 10;
@@ -152,7 +152,7 @@ module ccip::onramp {
             id: object::new(ctx),
             chain_selector,
             allowlist_admin: @0x0,
-            dest_chain_configs: table::new<u64, DestChainConfig>(ctx)
+            dest_chain_configs: table::new(ctx)
         };
 
         set_dynamic_config_internal(&mut state, allowlist_admin);
@@ -368,13 +368,13 @@ module ccip::onramp {
         dest_chain_remove_allowed_senders: vector<vector<address>>,
         ctx: &mut TxContext
     ) {
+        let immutable_state = state_object::borrow<OnRampState>(ref, ON_RAMP_STATE_NAME);
+        let caller = ctx.sender();
+        assert!(
+            state_object::get_current_owner(ref) == caller || immutable_state.allowlist_admin == caller,
+            E_ONLY_CALLABLE_BY_OWNER_OR_ALLOWLIST_ADMIN
+        );
         let state = state_object::borrow_mut_with_ctx<OnRampState>(ref, ON_RAMP_STATE_NAME, ctx);
-
-        // assert!(
-        //     signer::address_of(caller) == auth::owner()
-        //         || signer::address_of(caller) == state.allowlist_admin,
-        //     E_ONLY_CALLABLE_BY_OWNER_OR_ALLOWLIST_ADMIN
-        // );
 
         let dest_chains_len = dest_chain_selectors.length();
         assert!(

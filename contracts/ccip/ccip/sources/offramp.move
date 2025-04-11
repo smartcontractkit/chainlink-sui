@@ -240,8 +240,8 @@ module ccip::offramp {
             chain_selector,
             permissionless_execution_threshold_seconds,
             source_chain_configs: vec_map::empty<u64, SourceChainConfig>(),
-            execution_states: table::new<u64, Table<u64, u8>>(ctx),
-            roots: table::new<vector<u8>, u64>(ctx),
+            execution_states: table::new(ctx),
+            roots: table::new(ctx),
             latest_price_sequence_number: 0
         };
 
@@ -321,7 +321,7 @@ module ccip::offramp {
                         on_ramp: vector[]
                     }
                 );
-                state.execution_states.add(source_chain_selector, table::new<u64, u8>(ctx));
+                state.execution_states.add(source_chain_selector, table::new(ctx));
             };
 
             let config = state.source_chain_configs.get_mut(&source_chain_selector);

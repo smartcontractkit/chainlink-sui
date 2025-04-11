@@ -99,9 +99,9 @@ module ccip::ocr3_base {
     public fun new(ctx: &mut TxContext): OCR3BaseState {
         OCR3BaseState {
             id: object::new(ctx),
-            ocr3_configs: table::new<u8, OCRConfig>(ctx),
-            signer_oracles: table::new<u8, vector<UnvalidatedPublicKey>>(ctx),
-            transmitter_oracles: table::new<u8, vector<address>>(ctx)
+            ocr3_configs: table::new(ctx),
+            signer_oracles: table::new(ctx),
+            transmitter_oracles: table::new(ctx)
         }
     }
 
