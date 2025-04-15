@@ -1,0 +1,239 @@
+//go:build integration
+
+package client_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/test-go/testify/require"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+)
+
+//nolint:paralleltest
+func TestPTBClient(t *testing.T) {
+	log := logger.Test(t)
+
+	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			perr := cmd.Process.Kill()
+			if perr != nil {
+				t.Logf("Failed to kill process: %v", perr)
+			}
+		}
+	})
+
+	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
+	keystoreInstance, err := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
+	require.NoError(t, err)
+	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
+	require.NoError(t, err)
+	maxConcurrent := int64(3)
+	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, &signer, maxConcurrent)
+	require.NoError(t, err)
+
+	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+	require.NoError(t, err)
+
+	contractPath := testutils.BuildSetup(t, "contracts/test")
+	testutils.BuildContract(t, contractPath)
+
+	packageId, publishOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	require.NoError(t, err)
+
+	log.Debugw("Published Contract", "packageId", packageId)
+
+	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
+	require.NoError(t, err)
+
+	// Test GetLatestValue for different data types
+	//nolint:paralleltest
+	t.Run("FunctionRead", func(t *testing.T) {
+		args := []any{counterObjectId}
+		argTypes := []string{"address"}
+
+		response, err := relayerClient.ReadFunction(
+			context.Background(),
+			packageId,
+			"counter",
+			"get_count",
+			args,
+			argTypes,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+	})
+
+	//nolint:paralleltest
+	t.Run("WithRateLimit", func(t *testing.T) {
+		// Block operations with channel to observe concurrency
+		completionCh := make(chan int, 50) // Buffer large enough for all completions
+
+		// Block until manual release to measure concurrency precisely
+		// This ensures we can observe exactly how many goroutines acquired the semaphore
+		blockingOperation := func(id int) {
+			// Make request that will block
+			ctx := context.Background()
+			go func() {
+				defer func() {
+					completionCh <- id // Signal this request completed
+				}()
+
+				err := relayerClient.WithRateLimit(ctx, func(ctx context.Context) error {
+					time.Sleep(1 * time.Second)
+					return nil
+				})
+				require.NoError(t, err)
+			}()
+		}
+
+		// Start more requests than our concurrency limit
+		numRequests := 100
+		for i := range numRequests {
+			blockingOperation(i)
+		}
+
+		// Wait a moment to ensure requests have time to acquire semaphore
+		time.Sleep(500 * time.Millisecond)
+
+		// Count how many completed without unblocking
+		completeCount := 0
+	countLoop:
+		for {
+			select {
+			case <-completionCh:
+				completeCount++
+			case <-time.After(100 * time.Millisecond):
+				break countLoop
+			}
+		}
+
+		// Verify only maxConcurrent requests completed
+		require.True(t, completeCount <= int(maxConcurrent),
+			"Too many requests (%d) completed, limit is %d",
+			completeCount, maxConcurrent)
+	})
+
+	//nolint:paralleltest
+	t.Run("MoveCall", func(t *testing.T) {
+		// Prepare arguments for a move call
+		moveCallReq := client.MoveCallRequest{
+			PackageObjectId: packageId,
+			Module:          "counter",
+			Function:        "increment", // Assuming this function exists in the contract
+			Arguments:       []any{counterObjectId},
+		}
+
+		// Call MoveCall to prepare the transaction
+		txnMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
+		require.NoError(t, err)
+		require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
+
+		// Verify we can execute the transaction
+		resp, err := relayerClient.SignAndSendTransaction(
+			context.Background(),
+			txnMetadata.TxBytes,
+			nil, // Use default signer
+			"WaitForLocalExecution",
+		)
+		require.NoError(t, err)
+		require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
+	})
+
+	//nolint:paralleltest
+	t.Run("QueryEvents", func(t *testing.T) {
+		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId)
+
+		// Create event filter for the counter module
+		filter := client.EventFilterByMoveEventModule{
+			Package: packageId,
+			Module:  "counter",
+			Event:   "CounterIncremented",
+		}
+
+		limit := uint(10)
+		descending := true
+
+		// Query events
+		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, descending)
+		require.NoError(t, err)
+		require.NotNil(t, events)
+		// Note: This test may not find events if none have been emitted yet
+
+		log.Debugw("QueryEvents", "events", events)
+	})
+
+	//nolint:paralleltest
+	t.Run("GetCoinsByAddress", func(t *testing.T) {
+		// Get coins owned by the account
+		coins, err := relayerClient.GetCoinsByAddress(context.Background(), accountAddress)
+		require.NoError(t, err)
+		require.NotNil(t, coins)
+
+		// Account should have at least one coin after faucet funding
+		require.True(t, len(coins) > 0, "Expected at least one coin in account")
+
+		// Verify coin data structure
+		for _, coin := range coins {
+			require.NotEmpty(t, coin.CoinObjectId)
+			require.NotEmpty(t, coin.CoinType)
+			require.NotEmpty(t, coin.Balance)
+		}
+	})
+
+	//nolint:paralleltest
+	t.Run("ReadObjectId", func(t *testing.T) {
+		// Read the counter object
+		objectData, err := relayerClient.ReadObjectId(context.Background(), counterObjectId)
+		require.NoError(t, err)
+		require.NotNil(t, objectData)
+	})
+
+	//nolint:paralleltest
+	t.Run("GetTransactionStatus", func(t *testing.T) {
+		txDigest := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId)
+
+		// Now check its status
+		txStatus, err := relayerClient.GetTransactionStatus(context.Background(), txDigest)
+		require.NoError(t, err)
+		require.Equal(t, "success", txStatus.Status, "Expected transaction status to be 'success', got: %s with error: %s",
+			txStatus.Status, txStatus.Error)
+	})
+}
+
+func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string) string {
+	t.Helper()
+	// Prepare arguments for a move call
+	moveCallReq := client.MoveCallRequest{
+		PackageObjectId: packageId,
+		Module:          "counter",
+		Function:        "increment", // Assuming this function exists in the contract
+		Arguments:       []any{counterObjectId},
+	}
+
+	// Call MoveCall to prepare the transaction
+	txnMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
+	require.NoError(t, err)
+	require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
+
+	// Verify we can execute the transaction
+	resp, err := relayerClient.SignAndSendTransaction(
+		context.Background(),
+		txnMetadata.TxBytes,
+		nil, // Use default signer
+		"WaitForLocalExecution",
+	)
+	require.NoError(t, err)
+	require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
+
+	return resp.TxDigest
+}

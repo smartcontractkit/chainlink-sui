@@ -189,34 +189,6 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	return packageId, parsedPublishTxn, nil
 }
 
-func CallContractFromCLI(t *testing.T, packageId string, accountAddress string, module string, function string, gasBudget *int) TxnMetaWithObjectChanges {
-	t.Helper()
-
-	gasBudgetArg := "200000000"
-	if gasBudget != nil {
-		gasBudgetArg = string(rune(*gasBudget))
-	}
-
-	initializeCmd := exec.Command("sui", "client", "call",
-		"--package", packageId,
-		"--module", module,
-		"--function", function,
-		"--gas-budget", gasBudgetArg,
-		"--json",
-	)
-
-	initializeOutput, err := initializeCmd.CombinedOutput()
-	require.NoError(t, err, "Failed to initialize contract: %s", string(initializeOutput))
-
-	// Unmarshal the JSON into a map.
-	var parsedInitializeTxn TxnMetaWithObjectChanges
-	if err := json.Unmarshal(initializeOutput, &parsedInitializeTxn); err != nil {
-		log.Fatalf("failed to unmarshal JSON: %v", err)
-	}
-
-	return parsedInitializeTxn
-}
-
 // QueryCreatedObjectID queries the created object ID for a given package ID, module, and struct name.
 func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, structName string) (string, error) {
 	expectedType := fmt.Sprintf("%s::%s::%s", packageID, module, structName)

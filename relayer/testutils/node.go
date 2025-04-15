@@ -3,11 +3,13 @@ package testutils
 import (
 	"fmt"
 	"net"
+	netUrl "net/url"
 	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/pattonkan/sui-go/sui"
+	"github.com/pattonkan/sui-go/suiclient"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
@@ -56,12 +58,13 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 
 	// Wait for the node to start
 	const defaultDelay = 10 * time.Second
-	err := waitForConnection(LocalUrl, defaultDelay)
+	const backoffDelay = 100 * time.Millisecond
+	err := waitForConnection(LocalUrl, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
 	// wait for Faucet to be available
-	err = waitForConnection(LocalFaucetUrl, defaultDelay)
+	err = waitForConnection(LocalFaucetUrl, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
@@ -69,20 +72,62 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func waitForConnection(url string, timeout time.Duration) error {
-	url = strings.TrimPrefix(url, "http://")
+func waitForConnection(url string, timeout time.Duration, backoffDelay time.Duration) error {
+	// Parse the URL to extract host and port
+	parsedURL, err := netUrl.Parse(url)
+	if err != nil {
+		return fmt.Errorf("invalid URL %s: %w", url, err)
+	}
+
+	host := parsedURL.Host
+	if host == "" {
+		// Handle case where URL might just be "host:port"
+		host = parsedURL.Path
+	}
+
+	// Add default port if missing
+	if !strings.Contains(host, ":") {
+		if parsedURL.Scheme == "https" {
+			host += ":443"
+		} else {
+			host += ":80"
+		}
+	}
+
+	// Use exponential backoff for retries
 	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", url, 1*time.Second)
+
+	for attempt := 1; time.Now().Before(deadline); attempt++ {
+		conn, err := net.DialTimeout("tcp", host, 1*time.Second)
 		if err == nil {
 			conn.Close()
 			return nil
 		}
-		//nolint:mnd
-		time.Sleep(500 * time.Millisecond)
+
+		// Calculate next backoff with exponential increase
+		nextBackoff := backoffDelay * time.Duration(attempt)
+
+		// Don't sleep longer than remaining time
+		remainingTime := time.Until(deadline)
+		if remainingTime < nextBackoff {
+			nextBackoff = remainingTime
+		}
+
+		if remainingTime <= 0 {
+			break
+		}
+
+		time.Sleep(nextBackoff)
 	}
 
-	return fmt.Errorf("timed out waiting for %s", url)
+	return fmt.Errorf("timed out waiting for %s after %s", host, timeout)
+}
+
+func GetFaucetHost(network string) string {
+	switch network {
+	default:
+		return LocalFaucetUrl
+	}
 }
 
 // FundWithFaucet Funds a Sui account with test tokens using the Sui faucet API.
@@ -91,30 +136,29 @@ func waitForConnection(url string, timeout time.Duration) error {
 // It logs the funding details and attempts to request tokens from the faucet.
 // Parameters:
 // - logger: A logger instance used to log the funding process.
-// - network: The network from which the faucet tokens are requested. Use "sui/constant" (e.g., "constant.SuiLocalnet").
+// - network: The network from which the faucet tokens are requested. Use "sui/constant" (e.g., "SuiLocalnet").
 // - recipient: The recipient's address to fund.
 // Returns an error if the faucet request fails or if there is an issue determining the faucet host.
 func FundWithFaucet(log logger.Logger, network string, recipient string) error {
-	// In a real implementation, this would call the Sui faucet API
-	// For simplicity in testing, we'll just log that we're "funding" the account
 	log.Infow("Funding account with test tokens", "address", recipient)
 
-	faucetHost, err := sui.GetFaucetHost(network)
+	faucetHost := GetFaucetHost(network)
+
+	log.Infow("Faucet host", "host", faucetHost)
+
+	// Using pattonkan SDK for faucet request
+	recipientAddr, err := sui.AddressFromHex(recipient)
 	if err != nil {
-		log.Errorw("GetFaucetHost err:", err)
+		log.Errorw("Invalid recipient address", "err", err)
 		return err
 	}
 
-	log.Infow("Faucet Host found", "host", faucetHost)
-
-	header := map[string]string{}
-	err = sui.RequestSuiFromFaucet("http://127.0.0.1:9123", recipient, header)
-	if err != nil {
-		log.Error(err.Error())
-		return err
+	// Request funds from faucet
+	faucetRequestErr := suiclient.RequestFundFromFaucet(recipientAddr, faucetHost)
+	if faucetRequestErr != nil {
+		log.Errorw("Failed to request funds from faucet", "err", faucetRequestErr)
+		return faucetRequestErr
 	}
-
-	log.Info("Request DevNet Sui From Faucet success")
 
 	return nil
 }

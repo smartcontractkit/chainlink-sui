@@ -21,8 +21,6 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-const maxCoinsPageSize = 50
-
 type TransactionResult struct {
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
