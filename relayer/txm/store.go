@@ -2,7 +2,10 @@ package txm
 
 import (
 	"fmt"
+	"math/big"
 	"sync"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 )
 
 // TxmStore defines the interface for managing transaction lifecycle.
@@ -28,6 +31,12 @@ type TxmStore interface {
 	// UpdateDigest updates the digest of a transaction.
 	// Returns an error if the transaction is not found.
 	UpdateTransactionDigest(transactionID string, digest string) error
+
+	// UpdateTransactionGas updates the gas budget of a transaction.
+	// Returns an error if the transaction is not found.
+	UpdateTransactionGas(transactionID string, gasBudget *big.Int) error
+
+	UpdateTransactionError(transactionID string, txError *suierrors.SuiError) error
 
 	// DeleteTransaction removes a transaction from the store.
 	// Returns an error if the transaction is not found.
@@ -263,4 +272,32 @@ func (s *InMemoryStore) GetInflightTransactions() ([]SuiTx, error) {
 	}
 
 	return txs, nil
+}
+
+// UpdateTransactionGas implements TxmStore.
+func (s *InMemoryStore) UpdateTransactionGas(transactionID string, gasBudget *big.Int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, exists := s.transactions[transactionID]
+	if !exists {
+		return fmt.Errorf("transaction not found")
+	}
+	tx.Metadata.GasLimit = gasBudget
+
+	return nil
+}
+
+// UpdateTransactionError implements TxmStore.
+func (s *InMemoryStore) UpdateTransactionError(transactionID string, txError *suierrors.SuiError) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, exists := s.transactions[transactionID]
+	if !exists {
+		return fmt.Errorf("transaction not found")
+	}
+	tx.TxError = txError
+
+	return nil
 }

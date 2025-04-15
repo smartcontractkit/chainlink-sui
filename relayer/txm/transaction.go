@@ -12,6 +12,7 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
@@ -50,6 +51,8 @@ type SuiTx struct {
 	Attempt       int
 	State         TransactionState
 	Digest        string
+	LastUpdatedAt uint64
+	TxError       *suierrors.SuiError
 }
 
 func (tx *SuiTx) IncrementAttempts() {
@@ -172,5 +175,7 @@ func GenerateTransaction(
 		Attempt:       0,
 		State:         StatePending,
 		Digest:        "",
+		LastUpdatedAt: GetCurrentUnixTimestamp(),
+		TxError:       nil,
 	}, nil
 }

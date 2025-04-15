@@ -30,6 +30,8 @@ type SuiTxm struct {
 	suiGateway            client.SuiClient
 	keyStoreRepository    keystore.Keystore
 	transactionRepository TxmStore
+	retryManager          RetryManager
+	gasManager            GasManager
 	configuration         Config
 	signer                signer.SuiSigner
 	done                  sync.WaitGroup
@@ -39,12 +41,18 @@ type SuiTxm struct {
 
 var _ TxManager = (*SuiTxm)(nil)
 
-func NewSuiTxm(lggr logger.Logger, gateway client.SuiClient, k keystore.Keystore, conf Config, sig signer.SuiSigner, transactionsRepository TxmStore) (*SuiTxm, error) {
+func NewSuiTxm(
+	lggr logger.Logger, gateway client.SuiClient, k keystore.Keystore,
+	conf Config, sig signer.SuiSigner, transactionsRepository TxmStore,
+	retryManager RetryManager, gasManager GasManager,
+) (*SuiTxm, error) {
 	return &SuiTxm{
 		lggr:                  logger.Named(lggr, "SuiTxm"),
 		suiGateway:            gateway,
 		keyStoreRepository:    k,
 		transactionRepository: transactionsRepository,
+		retryManager:          retryManager,
+		gasManager:            gasManager,
 		configuration:         conf,
 		signer:                sig,
 		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
@@ -133,7 +141,9 @@ func (txm *SuiTxm) GetTransactionStatus(ctx context.Context, transactionID strin
 
 func (txm *SuiTxm) Close() error {
 	txm.lggr.Infow("Closing SuiTxm")
-	txm.stopChannel <- struct{}{}
+	close(txm.stopChannel)
+
+	txm.done.Wait()
 	txm.lggr.Infow("SuiTxm closed")
 
 	return nil
@@ -158,7 +168,7 @@ func (txm *SuiTxm) Start(ctx context.Context) error {
 	txm.lggr.Infow("Starting SuiTxm")
 	txm.done.Add(numberGoroutines) // waitgroup: broadcaster, confirmer
 	go txm.broadcastLoop(ctx)
-	go txm.confimerLoop(ctx)
+	go txm.confirmerLoop(ctx)
 
 	return nil
 }

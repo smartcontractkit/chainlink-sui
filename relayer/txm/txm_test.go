@@ -46,7 +46,11 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 	store := NewTxmStoreImpl()
 	conf := DefaultConfigSet
 
-	txManager, err := NewSuiTxm(logg, relayerClient, _keystore, conf, signerInstance, store)
+	retryManager := NewDefaultRetryManager(5)
+	gasLimit := big.NewInt(10000000)
+	gasManager := NewSuiGasManager(logg, *gasLimit, 0)
+
+	txManager, err := NewSuiTxm(logg, relayerClient, _keystore, conf, signerInstance, store, retryManager, gasManager)
 	if err != nil {
 		t.Fatalf("Failed to create SuiTxm: %v", err)
 	}

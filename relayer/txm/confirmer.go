@@ -2,6 +2,7 @@ package txm
 
 import (
 	"context"
+	"errors"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -9,7 +10,13 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 )
 
-func (txm *SuiTxm) confimerLoop(loopCtx context.Context) {
+const (
+	success = "success"
+	failure = "failure"
+)
+
+func (txm *SuiTxm) confirmerLoop(loopCtx context.Context) {
+	defer txm.done.Done()
 	txm.lggr.Infow("Starting confimer loop")
 
 	_, cancel := services.StopRChan(txm.stopChannel).NewCtx()
@@ -18,6 +25,7 @@ func (txm *SuiTxm) confimerLoop(loopCtx context.Context) {
 	basePeriod := txm.configuration.ConfirmerPoolPeriodSeconds
 	// Create initial ticker with jitter
 	ticker, jitteredDuration := GetTicker(basePeriod)
+
 	defer ticker.Stop()
 
 	txm.lggr.Infow("Created confirmer ticker",
@@ -34,7 +42,6 @@ func (txm *SuiTxm) confimerLoop(loopCtx context.Context) {
 			txm.lggr.Infow("Loop context cancelled")
 			return
 		case <-ticker.C:
-			// Check for confirmations
 			txm.lggr.Debugw("Ticker fired, checking transaction confirmations")
 			checkConfirmations(loopCtx, txm)
 		}
@@ -51,6 +58,7 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 		txm.lggr.Debugw("Checking transaction confirmations", "transactionID", tx.TransactionID)
 		switch tx.State {
 		case StateSubmitted:
+			txm.lggr.Debugw("Transaction is in submitted state", "transactionID", tx.TransactionID)
 			resp, err := txm.suiGateway.GetTransactionStatus(loopCtx, tx.Digest)
 			if err != nil {
 				txm.lggr.Errorw("Error getting transaction status", "transactionID", tx.TransactionID, "error", err)
@@ -58,14 +66,14 @@ func checkConfirmations(loopCtx context.Context, txm *SuiTxm) {
 			}
 
 			switch resp.Status {
-			case "success":
+			case success:
 				err := handleSuccess(txm, tx)
 				if err != nil {
 					txm.lggr.Errorw("Error handling successful transaction", "transactionID", tx.TransactionID, "error", err)
 					continue
 				}
-			case "failure":
-				err := handleTransactionError(txm, tx, &resp)
+			case failure:
+				err := handleTransactionError(loopCtx, txm, tx, &resp)
 				if err != nil {
 					continue
 				}
@@ -92,23 +100,79 @@ func handleSuccess(txm *SuiTxm, tx SuiTx) error {
 	return nil
 }
 
-func handleTransactionError(txm *SuiTxm, tx SuiTx, result *client.TransactionResult) error {
-	errorMessage := suierrors.ParseSuiErrorMessage(result.Error)
+func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *client.TransactionResult) error {
+	txm.lggr.Debugw("Handling transaction error", "transactionID", tx.TransactionID, "error", result.Error)
+	isRetryable, strategy := txm.retryManager.IsRetryable(&tx, result.Error)
+	txError := suierrors.ParseSuiErrorMessage(result.Error)
 
-	if suierrors.IsRetryable(errorMessage) {
-		txm.lggr.Infow("Transaction retriable, retrying", "transactionID", tx.TransactionID)
-		err := txm.transactionRepository.ChangeState(tx.TransactionID, StateRetriable)
-		if err != nil {
-			txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
-			return err
+	if txError == nil {
+		txm.lggr.Errorw("Failed to parse transaction error", "transactionID", tx.TransactionID, "error", result.Error)
+		return errors.New("failed to parse transaction error")
+	}
+
+	if isRetryable {
+		txm.lggr.Infow("Transaction is retriable", "transactionID", tx.TransactionID, "strategy", strategy)
+		switch strategy {
+		case ExponentialBackoff:
+			// TODO: for another PR implement exponential backoff
+			txm.lggr.Infow("Exponential backoff strategy not implemented")
+		case GasBump:
+			updatedGas, err := txm.gasManager.GasBump(ctx, &tx)
+			if err != nil {
+				txm.lggr.Errorw("Failed to bump gas", "transactionID", tx.TransactionID, "error", err)
+				err = txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed)
+				if err != nil {
+					txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
+				}
+				err = txm.transactionRepository.UpdateTransactionError(tx.TransactionID, txError)
+				if err != nil {
+					txm.lggr.Errorw("Failed to update transaction error", "transactionID", tx.TransactionID, "error", err)
+				}
+
+				return nil
+			}
+
+			err = txm.transactionRepository.UpdateTransactionGas(tx.TransactionID, &updatedGas)
+			if err != nil {
+				txm.lggr.Errorw("Failed to update transaction gas", "transactionID", tx.TransactionID, "error", err)
+				return err
+			}
+			err = txm.transactionRepository.IncrementAttempts(tx.TransactionID)
+			if err != nil {
+				txm.lggr.Errorw("Failed to increment transaction attempts", "transactionID", tx.TransactionID, "error", err)
+				return nil
+			}
+
+			// Change state to retriable
+			err = txm.transactionRepository.ChangeState(tx.TransactionID, StateRetriable)
+			if err != nil {
+				txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
+				return err
+			}
+
+			// Re-enqueue
+			txm.broadcastChannel <- tx.TransactionID
+		case NoRetry:
+			txm.lggr.Infow("Transaction is not retriable", "transactionID", tx.TransactionID, "error", result.Error)
+			err := txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed)
+			if err != nil {
+				txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
+				return err
+			}
 		}
 	} else {
-		txm.lggr.Infow("Transaction is not retryable, marking as failed", "transactionID", tx.TransactionID)
+		txm.lggr.Infow("Transaction is not retriable", "transactionID", tx.TransactionID, "result", result)
 		err := txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed)
 		if err != nil {
 			txm.lggr.Errorw("Failed to update transaction state", "transactionID", tx.TransactionID, "error", err)
 			return err
 		}
+		err = txm.transactionRepository.UpdateTransactionError(tx.TransactionID, txError)
+		if err != nil {
+			txm.lggr.Errorw("Failed to update transaction error", "transactionID", tx.TransactionID, "error", err)
+			return err
+		}
+		txm.lggr.Infow("Transaction failed", "transactionID", tx.TransactionID)
 	}
 
 	return nil
