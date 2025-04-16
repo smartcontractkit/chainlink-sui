@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/google/uuid"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -41,18 +40,19 @@ const (
 )
 
 type SuiTx struct {
-	TransactionID string
-	Sender        string
-	Metadata      *commontypes.TxMeta
-	Timestamp     uint64
-	Payload       []byte
-	Signatures    []string
-	RequestType   string
-	Attempt       int
-	State         TransactionState
-	Digest        string
-	LastUpdatedAt uint64
-	TxError       *suierrors.SuiError
+	TransactionID  string
+	Sender         string
+	Metadata       *commontypes.TxMeta
+	Timestamp      uint64
+	Payload        []byte
+	FunctionInputs *SuiFunction
+	Signatures     []string
+	RequestType    string
+	Attempt        int
+	State          TransactionState
+	Digest         string
+	LastUpdatedAt  uint64
+	TxError        *suierrors.SuiError
 }
 
 func (tx *SuiTx) IncrementAttempts() {
@@ -105,7 +105,7 @@ func GenerateTransaction(
 	ctx context.Context,
 	lggr logger.Logger,
 	signerService signer.SuiSigner,
-	suiClient client.SuiClient,
+	suiClient client.SuiPTBClient,
 	requestType string,
 	transactionID string, txMetadata *commontypes.TxMeta,
 	signerAddress string, function *SuiFunction,
@@ -133,7 +133,7 @@ func GenerateTransaction(
 		functionValues[i] = value
 	}
 
-	rsp, err := suiClient.MoveCall(ctx, models.MoveCallRequest{
+	rsp, err := suiClient.MoveCall(ctx, client.MoveCallRequest{
 		Signer:          signerAddress,
 		PackageObjectId: packageObjectId,
 		Module:          moduleName,
@@ -165,17 +165,18 @@ func GenerateTransaction(
 	}
 
 	return &SuiTx{
-		TransactionID: transactionID,
-		Sender:        signerAddress,
-		Metadata:      &commontypes.TxMeta{},
-		Timestamp:     GetCurrentUnixTimestamp(),
-		Payload:       txBytes,
-		Signatures:    signatures,
-		RequestType:   requestType,
-		Attempt:       0,
-		State:         StatePending,
-		Digest:        "",
-		LastUpdatedAt: GetCurrentUnixTimestamp(),
-		TxError:       nil,
+		TransactionID:  transactionID,
+		Sender:         signerAddress,
+		Metadata:       &commontypes.TxMeta{},
+		Timestamp:      GetCurrentUnixTimestamp(),
+		Payload:        txBytes,
+		FunctionInputs: function,
+		Signatures:     signatures,
+		RequestType:    requestType,
+		Attempt:        0,
+		State:          StatePending,
+		Digest:         "",
+		LastUpdatedAt:  GetCurrentUnixTimestamp(),
+		TxError:        nil,
 	}, nil
 }

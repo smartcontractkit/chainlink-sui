@@ -37,11 +37,20 @@ type PTBClient struct {
 	transactionTimeout time.Duration
 	signer             *signer.SuiSigner
 	rateLimiter        *semaphore.Weighted
+	defaultRequestType TransactionRequestType
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)
 
-func NewPTBClient(log logger.Logger, rpcUrl string, maxRetries *int, transactionTimeout time.Duration, defaultSigner *signer.SuiSigner, maxConcurrentRequests int64) (*PTBClient, error) {
+func NewPTBClient(
+	log logger.Logger,
+	rpcUrl string,
+	maxRetries *int,
+	transactionTimeout time.Duration,
+	defaultSigner *signer.SuiSigner,
+	maxConcurrentRequests int64,
+	defaultRequestType TransactionRequestType,
+) (*PTBClient, error) {
 	client := suiclient.NewClient(rpcUrl)
 
 	if maxConcurrentRequests <= 0 {
@@ -55,6 +64,7 @@ func NewPTBClient(log logger.Logger, rpcUrl string, maxRetries *int, transaction
 		transactionTimeout: transactionTimeout,
 		signer:             defaultSigner,
 		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
+		defaultRequestType: defaultRequestType,
 	}, nil
 }
 
@@ -129,9 +139,9 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 		}
 
 		// Convert string request type to the appropriate type
-		requestType := "WaitForLocalExecution"
+		requestType := c.defaultRequestType
 		if payload.RequestType != "" {
-			requestType = payload.RequestType
+			requestType = TransactionRequestType(payload.RequestType)
 		}
 
 		blockReq := &suiclient.ExecuteTransactionBlockRequest{

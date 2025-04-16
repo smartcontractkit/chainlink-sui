@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -30,10 +29,10 @@ type suiChainReader struct {
 	config           ChainReaderConfig
 	starter          services.StateMachine
 	packageAddresses map[string]string
-	client           client.Client
+	client           client.PTBClient
 }
 
-func NewChainReader(lgr logger.Logger, abstractClient client.Client, config ChainReaderConfig) pkgtypes.ContractReader {
+func NewChainReader(lgr logger.Logger, abstractClient client.PTBClient, config ChainReaderConfig) pkgtypes.ContractReader {
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
 		client:           abstractClient,
@@ -313,9 +312,9 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 	}
 
 	// Extract limit from limitAndSort
-	limit := uint64(defaultQueryLimit)
+	limit := uint(defaultQueryLimit)
 	if count := limitAndSort.Limit.Count; count > 0 {
-		limit = count
+		limit = uint(count)
 	}
 
 	// Determine sorting direction
@@ -331,28 +330,18 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 	//	}
 	// }
 
-	// Setup the cursor
-	var cursor *models.EventId
-	if limitAndSort.Limit.Cursor != "" {
-		cursor = &models.EventId{
-			// TODO: get the tx digest from the cursor
-			TxDigest: "",
-			EventSeq: limitAndSort.Limit.Cursor,
-		}
-	}
+	// TODO: convert the Cursor from the query into an EventId
 
 	// Query events from Sui blockchain
 	eventsResponse, err := s.client.QueryEvents(
 		ctx,
-		models.EventFilterByMoveEventModule{
-			MoveEventModule: models.MoveEventModule{
-				Package: address,
-				Module:  contract.Name,
-				Event:   eventConfig.EventType,
-			},
+		client.EventFilterByMoveEventModule{
+			Package: address,
+			Module:  contract.Name,
+			Event:   eventConfig.EventType,
 		},
-		limit,
-		cursor,
+		&limit,
+		nil,
 		descending,
 	)
 	if err != nil {

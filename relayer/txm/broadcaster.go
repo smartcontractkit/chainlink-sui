@@ -73,20 +73,34 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		}
 
 		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
-		if err != nil {
-			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "error", err)
-			// TODO: handle error based on the type of error
-		}
-		txm.lggr.Infow("Transaction broadcasted", resp)
-		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.Digest)
-		if err != nil {
-			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
+		// We increment the attempts here regardless of the error
+		// This is because we want to keep track of how many times we tried to broadcast the transaction
+		// Even in the case the transaction is malformed (e.g wrong function name)
+		attemptErr := txm.transactionRepository.IncrementAttempts(tx.TransactionID)
+		if attemptErr != nil {
+			txm.lggr.Errorw("Failed to increment transaction attempts", "txID", tx.TransactionID, "error", attemptErr)
 			continue
 		}
 
-		err = txm.transactionRepository.IncrementAttempts(tx.TransactionID)
 		if err != nil {
-			txm.lggr.Errorw("Failed to increment transaction attempts", "txID", tx.TransactionID, "error", err)
+			// In the case there is an error submitting
+			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.FunctionInputs, "error", err)
+			// Update the transaction state to Failed if the digest is empty
+			// An empty digest indicates a total failure of the transaction
+			if resp.TxDigest == "" {
+				txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.FunctionInputs)
+				err = txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed)
+				if err != nil {
+					txm.lggr.Errorw("Failed to change transaction state to Failed", "txID", tx.TransactionID, "error", err)
+				}
+			}
+
+			continue
+		}
+		txm.lggr.Infow("Transaction broadcasted", resp)
+		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.TxDigest)
+		if err != nil {
+			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)
 			continue
 		}
 		_ = txm.transactionRepository.ChangeState(tx.TransactionID, StateSubmitted)

@@ -38,7 +38,7 @@ func TestPTBClient(t *testing.T) {
 	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
 	require.NoError(t, err)
 	maxConcurrent := int64(3)
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, &signer, maxConcurrent)
+	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, &signer, maxConcurrent, "WaitForLocalExecution")
 	require.NoError(t, err)
 
 	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)

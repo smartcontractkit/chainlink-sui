@@ -11,8 +11,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 
-	"github.com/block-vision/sui-go-sdk/constant"
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -45,7 +43,7 @@ func TestChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	err = testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
+	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
 
 	runChainReaderCounterTest(t, log, testutils.LocalUrl)
@@ -59,10 +57,10 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	require.NoError(t, keystoreErr)
 	signer, signerErr := keystoreInstance.GetSignerFromAddress(accountAddress)
 	require.NoError(t, signerErr)
-	relayerClient, clientErr := client.NewClient(log, rpcUrl, nil, 10*time.Second, &signer, 5)
+	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, &signer, 5, "WaitForLocalExecution")
 	require.NoError(t, clientErr)
 
-	faucetFundErr := testutils.FundWithFaucet(log, constant.SuiLocalnet, accountAddress)
+	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
@@ -163,14 +161,13 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		log.Debugw("Incrementing counter to emit event", "counterObjectId", counterObjectId)
 
 		// Use relayerClient to call increment instead of using CLI
-		moveCallReq := models.MoveCallRequest{
+		moveCallReq := client.MoveCallRequest{
 			PackageObjectId: packageId,
 			Module:          "counter",
 			Function:        "increment",
 			TypeArguments:   []any{},
 			Arguments:       []any{counterObjectId},
 			Signer:          accountAddress,
-			ExecutionMode:   "Commit",
 			GasBudget:       "2000000",
 		}
 

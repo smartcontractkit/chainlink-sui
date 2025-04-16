@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/fardream/go-bcs/bcs"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -98,7 +97,7 @@ func DeriveAddressFromPublicKey(publicKey ed25519.PublicKey) string {
 	return "0x" + hex.EncodeToString(publicKey)
 }
 
-func DrainAccountCoins(ctx context.Context, lgr logger.Logger, signerInstance *signer.SuiSigner, cli client.SuiClient, suiCoins []models.CoinData, receiver string) error {
+func DrainAccountCoins(ctx context.Context, lgr logger.Logger, signerInstance *signer.SuiSigner, cli *client.PTBClient, suiCoins []client.CoinData, receiver string) error {
 	addr, err := (*signerInstance).GetAddress()
 	if err != nil {
 		return fmt.Errorf("failed to get address: %w", err)

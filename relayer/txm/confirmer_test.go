@@ -38,7 +38,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 
 	// For this test, we simulate a failure with error "simulated gas error".
 	// The confirmer will then invoke the retry logic.
-	fakeClient := &testutils.FakeSuiClient{
+	fakeClient := &testutils.FakeSuiPTBClient{
 		Status: client.TransactionResult{
 			Status: "failure",
 			Error:  "ErrGasBudgetTooHigh",

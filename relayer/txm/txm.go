@@ -27,7 +27,7 @@ type TxManager interface {
 
 type SuiTxm struct {
 	lggr                  logger.Logger
-	suiGateway            client.SuiClient
+	suiGateway            client.SuiPTBClient
 	keyStoreRepository    keystore.Keystore
 	transactionRepository TxmStore
 	retryManager          RetryManager
@@ -42,7 +42,7 @@ type SuiTxm struct {
 var _ TxManager = (*SuiTxm)(nil)
 
 func NewSuiTxm(
-	lggr logger.Logger, gateway client.SuiClient, k keystore.Keystore,
+	lggr logger.Logger, gateway client.SuiPTBClient, k keystore.Keystore,
 	conf Config, sig signer.SuiSigner, transactionsRepository TxmStore,
 	retryManager RetryManager, gasManager GasManager,
 ) (*SuiTxm, error) {

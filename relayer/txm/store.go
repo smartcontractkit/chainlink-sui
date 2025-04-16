@@ -160,8 +160,8 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 	// Check if the state transition is valid
 	switch oldState {
 	case StatePending:
-		if newState != StateSubmitted {
-			return fmt.Errorf("pending state must transition to submitted")
+		if newState != StateSubmitted && newState != StateFailed {
+			return fmt.Errorf("pending state must transition to submitted or failed")
 		}
 	case StateSubmitted:
 		if newState == StatePending {
