@@ -1,6 +1,6 @@
 //go:build integration
 
-package txm
+package txm_test
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
 type Counter struct {
@@ -26,7 +27,7 @@ type Counter struct {
 }
 
 // setupClients initializes the Sui and relayer clients.
-func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, accountAddress string) (*client.PTBClient, *SuiTxm, signer.SuiSigner) {
+func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, accountAddress string) (*client.PTBClient, *txm.SuiTxm, signer.SuiSigner, *txm.InMemoryStore) {
 	t.Helper()
 
 	logg, err := logger.New()
@@ -43,19 +44,19 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
 
-	store := NewTxmStoreImpl()
-	conf := DefaultConfigSet
+	store := txm.NewTxmStoreImpl()
+	conf := txm.DefaultConfigSet
 
-	retryManager := NewDefaultRetryManager(5)
+	retryManager := txm.NewDefaultRetryManager(5)
 	gasLimit := big.NewInt(10000000)
-	gasManager := NewSuiGasManager(logg, *gasLimit, 0)
+	gasManager := txm.NewSuiGasManager(logg, *gasLimit, 0)
 
-	txManager, err := NewSuiTxm(logg, relayerClient, _keystore, conf, signerInstance, store, retryManager, gasManager)
+	txManager, err := txm.NewSuiTxm(logg, relayerClient, _keystore, conf, signerInstance, store, retryManager, gasManager)
 	if err != nil {
 		t.Fatalf("Failed to create SuiTxm: %v", err)
 	}
 
-	return relayerClient, txManager, signerInstance
+	return relayerClient, txManager, signerInstance, store
 }
 
 //nolint:paralleltest
@@ -92,7 +93,7 @@ func TestEnqueueIntegration(t *testing.T) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, txManager, signerInstance := setupClients(t, testutils.LocalUrl, _keystore, accountAddress)
+	suiClient, txManager, signerInstance, transactionRepository := setupClients(t, testutils.LocalUrl, _keystore, accountAddress)
 
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
@@ -106,7 +107,7 @@ func TestEnqueueIntegration(t *testing.T) {
 		expectErr       bool
 		expectedValue   string
 		finalState      commontypes.TransactionStatus
-		storeFinalState TransactionState
+		storeFinalState txm.TransactionState
 		numberAttemps   int
 		drainAccount    bool
 	}{
@@ -121,7 +122,7 @@ func TestEnqueueIntegration(t *testing.T) {
 			expectErr:       false,
 			expectedValue:   "1",
 			finalState:      commontypes.Finalized,
-			storeFinalState: StateFinalized,
+			storeFinalState: txm.StateFinalized,
 			numberAttemps:   1,
 			drainAccount:    false,
 		},
@@ -136,11 +137,10 @@ func TestEnqueueIntegration(t *testing.T) {
 			expectErr:       false,
 			expectedValue:   "2",
 			finalState:      commontypes.Finalized,
-			storeFinalState: StateFinalized,
+			storeFinalState: txm.StateFinalized,
 			numberAttemps:   1,
 			drainAccount:    false,
 		},
-		// TODO: re-enable when expected failure flow is clarified
 		{
 			name:            "Invalid enqueue test (wrong function)",
 			txID:            "wrong-function-test-txID",
@@ -152,7 +152,7 @@ func TestEnqueueIntegration(t *testing.T) {
 			expectErr:       false,
 			expectedValue:   "",
 			finalState:      commontypes.Fatal,
-			storeFinalState: StateFailed,
+			storeFinalState: txm.StateFailed,
 			numberAttemps:   1,
 			drainAccount:    false,
 		},
@@ -167,7 +167,7 @@ func TestEnqueueIntegration(t *testing.T) {
 			expectErr:       true,
 			expectedValue:   "",
 			finalState:      commontypes.Failed,
-			storeFinalState: StateFailed,
+			storeFinalState: txm.StateFailed,
 			numberAttemps:   1,
 			drainAccount:    true,
 		},
@@ -182,11 +182,11 @@ func TestEnqueueIntegration(t *testing.T) {
 	for _, tc := range testScenarios {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.drainAccount {
-				txManager.lggr.Infow("Draining account coins from account address", accountAddress)
+				_logger.Infow("Draining account coins from account address", accountAddress)
 				coins, err := suiClient.GetCoinsByAddress(ctx, accountAddress)
 				burnAddress := "0x000000000000000000000000000000000000dead"
 				require.NoError(t, err, "Failed to get coin objects")
-				err = testutils.DrainAccountCoins(ctx, txManager.lggr, &signerInstance, suiClient, coins, burnAddress)
+				err = testutils.DrainAccountCoins(ctx, _logger, &signerInstance, suiClient, coins, burnAddress)
 				require.NoError(t, err, "Failed to drain account coins")
 
 				// Wait a moment for transactions to be confirmed
@@ -212,11 +212,11 @@ func TestEnqueueIntegration(t *testing.T) {
 					return status == tc.finalState
 				}, 60*time.Second, 1*time.Second, "Transaction final state not reached")
 
-				tx2, err := txManager.transactionRepository.GetTransaction((*tx).TransactionID)
+				tx2, err := transactionRepository.GetTransaction((*tx).TransactionID)
 				require.NoError(t, err, "Failed to get transaction from repository")
 				assert.NotNil(t, tx2.Digest, "Transaction digest should not be nil")
 
-				transaction, err := txManager.transactionRepository.GetTransaction(tc.txID)
+				transaction, err := transactionRepository.GetTransaction(tc.txID)
 				require.NoError(t, err, "Failed to get transaction from repository")
 				assert.Equal(t, tc.storeFinalState, transaction.State, "Transaction state should be Finalized")
 				assert.Equal(t, tc.numberAttemps, transaction.Attempt, "Transaction attempts should be 1")
