@@ -195,7 +195,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Setup limit and sort
 		limitAndSort := query.LimitAndSort{
 			Limit: query.Limit{
-				Count: 50,
+				Count:  50,
+				Cursor: "",
 			},
 		}
 

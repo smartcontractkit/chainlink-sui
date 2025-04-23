@@ -61,9 +61,11 @@ type TxnMetaData struct {
 }
 
 type SuiTransactionBlockResponse struct {
-	TxDigest string                                 `json:"txDigest"`
-	Status   SuiExecutionStatus                     `json:"status"`
-	Effects  suiclient.SuiTransactionBlockEffectsV1 `json:"effects"`
+	TxDigest  string                                 `json:"txDigest"`
+	Status    SuiExecutionStatus                     `json:"status"`
+	Effects   suiclient.SuiTransactionBlockEffectsV1 `json:"effects"`
+	Timestamp uint64                                 `json:"timestamp"`
+	Height    uint64                                 `json:"height"`
 }
 
 type EventFilterByMoveEventModule struct {
@@ -111,4 +113,8 @@ type CoinData struct {
 type SuiExecutionStatus struct {
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
+}
+
+type QuerySortOptions struct {
+	Descending bool `json:"descending"`
 }

@@ -24,7 +24,7 @@ type SuiPTBClient interface {
 	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
 	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerOverride *signer.SuiSigner, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
-	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *suiclient.EventId, descending bool) (*suiclient.EventPage, error)
+	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]CoinData, error)
 }
@@ -256,7 +256,7 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 	return convertSuiResponse(response), nil
 }
 
-func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *suiclient.EventId, descending bool) (*suiclient.EventPage, error) {
+func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error) {
 	var result *suiclient.EventPage
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
 		// Create package ID
@@ -274,12 +274,23 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 			},
 		}
 
+		// Convert cursor to SDK client format
+		var queryCursor *suiclient.EventId
+		if cursor != nil {
+			queryCursor = &suiclient.EventId{
+				TxDigest: *sui.MustNewDigest(cursor.TxDigest),
+				EventSeq: cursor.EventSeq,
+			}
+		} else {
+			queryCursor = nil
+		}
+
 		// Create the query request
 		req := &suiclient.QueryEventsRequest{
 			Query:           queryFilter,
-			Cursor:          cursor,
+			Cursor:          queryCursor,
 			Limit:           limit,
-			DescendingOrder: descending,
+			DescendingOrder: sortOptions.Descending,
 		}
 
 		response, err := c.client.QueryEvents(ctx, req)
@@ -401,4 +412,29 @@ func convertSuiResponse(resp *suiclient.SuiTransactionBlockResponse) SuiTransact
 		},
 		Effects: *resp.Effects.Data.V1,
 	}
+}
+
+func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error) {
+	response, err := c.client.GetTransactionBlock(ctx, &suiclient.GetTransactionBlockRequest{
+		Digest: sui.MustNewDigest(txDigest),
+		Options: &suiclient.SuiTransactionBlockResponseOptions{
+			ShowBalanceChanges: false,
+			ShowEffects:        false,
+			ShowObjectChanges:  false,
+			ShowRawInput:       false,
+			ShowInput:          false,
+			ShowEvents:         false,
+			ShowRawEffects:     false,
+		},
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block: %w", err)
+	}
+
+	return &SuiTransactionBlockResponse{
+		TxDigest:  response.Digest.String(),
+		Height:    response.Checkpoint.Uint64(),
+		Timestamp: response.TimestampMs.Uint64(),
+	}, nil
 }

@@ -38,7 +38,7 @@ func (c *FakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRa
 	return client.SuiTransactionBlockResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) QueryEvents(ctx context.Context, filter client.EventFilterByMoveEventModule, limit *uint, cursor *suiclient.EventId, descending bool) (*suiclient.EventPage, error) {
+func (c *FakeSuiPTBClient) QueryEvents(ctx context.Context, filter client.EventFilterByMoveEventModule, limit *uint, cursor *client.EventId, sortOptions *client.QuerySortOptions) (*suiclient.EventPage, error) {
 	return &suiclient.EventPage{}, nil
 }
 
@@ -53,4 +53,8 @@ func (c *FakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string
 // WithRateLimit is provided to maintain compatibility with previous implementations
 func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
 	return f(ctx)
+}
+
+func (c *FakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (*client.SuiTransactionBlockResponse, error) {
+	return &client.SuiTransactionBlockResponse{}, nil
 }

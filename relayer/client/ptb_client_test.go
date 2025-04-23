@@ -160,16 +160,50 @@ func TestPTBClient(t *testing.T) {
 			Event:   "CounterIncremented",
 		}
 
-		limit := uint(10)
+		limit := uint(1)
 		descending := true
 
 		// Query events
-		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, descending)
+		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, &client.QuerySortOptions{
+			Descending: descending,
+		})
 		require.NoError(t, err)
 		require.NotNil(t, events)
-		// Note: This test may not find events if none have been emitted yet
+		require.Equal(t, 1, len(events.Data))
 
-		log.Debugw("QueryEvents", "events", events)
+		// Query events again with the cursor of the previous query
+		cursor := client.EventId{
+			TxDigest: events.Data[0].Id.TxDigest.String(),
+			EventSeq: events.Data[0].Id.EventSeq,
+		}
+		eventsWithCursor, errWithCursor := relayerClient.QueryEvents(context.Background(), filter, &limit, &cursor, &client.QuerySortOptions{
+			Descending: descending,
+		})
+		require.NoError(t, errWithCursor)
+		require.NotNil(t, eventsWithCursor)
+		require.Equal(t, 1, len(eventsWithCursor.Data))
+	})
+
+	//nolint:paralleltest
+	t.Run("QueryEvents_(high_limit)", func(t *testing.T) {
+		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId)
+
+		// Create event filter for the counter module
+		filter := client.EventFilterByMoveEventModule{
+			Package: packageId,
+			Module:  "counter",
+			Event:   "CounterIncremented",
+		}
+
+		limit := uint(100)
+		descending := true
+
+		// Query events
+		events, err := relayerClient.QueryEvents(context.Background(), filter, &limit, nil, &client.QuerySortOptions{
+			Descending: descending,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, events)
 	})
 
 	//nolint:paralleltest

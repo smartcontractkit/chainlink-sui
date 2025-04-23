@@ -81,7 +81,6 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			txm.lggr.Errorw("Failed to increment transaction attempts", "txID", tx.TransactionID, "error", attemptErr)
 			continue
 		}
-
 		if err != nil {
 			// In the case there is an error submitting
 			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.FunctionInputs, "error", err)

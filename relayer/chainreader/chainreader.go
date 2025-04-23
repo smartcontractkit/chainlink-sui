@@ -2,8 +2,10 @@ package chainreader
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -20,7 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 )
 
-const defaultQueryLimit = 10
+const defaultQueryLimit = 25
 
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
@@ -286,25 +288,6 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 	// Extract event field name from the filter
 	eventFieldName := filter.Key
 
-	// Extract offset from filter expressions if present (pagination support)
-	// TODO: refactor this
-	var eventOffset uint64 = 0
-	for _, expr := range filter.Expressions {
-		if expr.IsPrimitive() {
-			if comparator, comparatorOk := expr.Primitive.(*primitives.Comparator); comparatorOk && comparator.Name == "offset" {
-				for _, valueComparator := range comparator.ValueComparators {
-					if valueComparator.Operator == primitives.Eq {
-						value, castOk := valueComparator.Value.(uint64)
-						if !castOk {
-							return nil, fmt.Errorf("offset value is not an integer: %v", valueComparator.Value)
-						}
-						eventOffset = value
-					}
-				}
-			}
-		}
-	}
-
 	// Check event configuration
 	eventConfig, ok := moduleConfig.Events[eventFieldName]
 	if !ok {
@@ -318,19 +301,26 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 	}
 
 	// Determine sorting direction
-	// TODO: Improve this -- this is a temporary solution for sorting, it simply tries to extract the first sortBy.
 	descending := true
+	for _, sortBy := range limitAndSort.SortBy {
+		if seqSort, ok := sortBy.(query.SortBySequence); ok {
+			if seqSort.GetDirection() == query.Asc {
+				descending = false
+				break
+			}
+		}
+	}
 
-	// for _, sortBy := range limitAndSort.SortBy {
-	//	if seqSort, ok := sortBy.(query.SortBySequence); ok {
-	//		if seqSort.GetDirection() == query.Desc {
-	//			descending = true
-	//			break
-	//		}
-	//	}
-	// }
-
-	// TODO: convert the Cursor from the query into an EventId
+	var cursor *client.EventId
+	if limitAndSort.Limit.Cursor != "" {
+		// unmarshal the cursor
+		err := json.Unmarshal([]byte(limitAndSort.Limit.Cursor), &cursor)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal cursor: %w", err)
+		}
+	} else {
+		cursor = nil
+	}
 
 	// Query events from Sui blockchain
 	eventsResponse, err := s.client.QueryEvents(
@@ -341,8 +331,10 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 			Event:   eventConfig.EventType,
 		},
 		&limit,
-		nil,
-		descending,
+		cursor,
+		&client.QuerySortOptions{
+			Descending: descending,
+		},
 	)
 	if err != nil {
 		s.logger.Errorw("Failed to query events",
@@ -351,15 +343,10 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 			"module", moduleConfig.Name,
 			"eventType", eventConfig.EventType,
 			"limit", limit,
-			"offset", eventOffset,
 		)
 
 		return nil, fmt.Errorf("failed to query events: %+w", err)
 	}
-
-	// if eventsResponse.HasNextPage {
-	// TODO: handle pagination - recursion or while loop until no more events
-	// }
 
 	// Transform events into the expected Sequence format
 	sequences := make([]types.Sequence, 0, len(eventsResponse.Data))
@@ -375,10 +362,27 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 			return nil, fmt.Errorf("failed to decode event data: %+w", err)
 		}
 
+		marshalledCursor, err := json.Marshal(client.EventId{
+			TxDigest: event.Id.TxDigest.String(),
+			EventSeq: event.Id.EventSeq,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal event cursor: %+w", err)
+		}
+
+		block, err := s.client.BlockByDigest(ctx, event.Id.TxDigest.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get block by digest: %+w", err)
+		}
+
 		sequence := types.Sequence{
-			// TODO: is this referring to a value within the event's data or the pagination cursor?
-			Cursor: "",
+			Cursor: string(marshalledCursor),
 			Data:   eventData,
+			Head: pkgtypes.Head{
+				Timestamp: block.Timestamp,
+				Hash:      []byte(block.TxDigest),
+				Height:    strconv.FormatUint(block.Height, 10),
+			},
 		}
 		sequences = append(sequences, sequence)
 	}
