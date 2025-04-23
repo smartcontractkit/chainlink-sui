@@ -32,10 +32,6 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 	nrRetries := 3
 	retryManager := txm.NewDefaultRetryManager(nrRetries)
 
-	// Create a fake gas manager that returns an updated gas value.
-	maxGasBudget := big.NewInt(12000000)
-	gasManager := txm.NewSuiGasManager(lggr, *maxGasBudget, 0)
-
 	// For this test, we simulate a failure with error "simulated gas error".
 	// The confirmer will then invoke the retry logic.
 	fakeClient := &testutils.FakeSuiPTBClient{
@@ -44,6 +40,10 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 			Error:  "ErrGasBudgetTooHigh",
 		},
 	}
+
+	// Create a fake gas manager that returns an updated gas value.
+	maxGasBudget := big.NewInt(12000000)
+	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, 0)
 
 	// For the confirmer, the keystore is not used; create a dummy signer.
 	dummyPrivateKey := make([]byte, ed25519.PrivateKeySize)

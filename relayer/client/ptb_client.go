@@ -27,6 +27,7 @@ type SuiPTBClient interface {
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]CoinData, error)
+	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
 }
 
 // PTBClient implements SuiClient interface using the bindings/bind package
@@ -192,6 +193,20 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (map[stri
 	})
 
 	return result, err
+}
+
+func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
+	response, err := c.client.DryRunTransaction(ctx, sui.Base64Data(txBytes))
+	if err != nil {
+		return 0, fmt.Errorf("failed to dry run transaction: %w", err)
+	}
+
+	// Referenced from https://docs.sui.io/concepts/tokenomics/gas-in-sui
+	fee := response.Effects.Data.V1.GasUsed.StorageCost.Uint64() -
+		response.Effects.Data.V1.GasUsed.StorageRebate.Uint64() +
+		response.Effects.Data.V1.GasUsed.ComputationCost.Uint64()
+
+	return fee, nil
 }
 
 func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {

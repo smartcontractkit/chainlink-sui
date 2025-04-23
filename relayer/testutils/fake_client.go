@@ -55,6 +55,10 @@ func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context
 	return f(ctx)
 }
 
+func (c *FakeSuiPTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
+	return 0, nil
+}
+
 func (c *FakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (*client.SuiTransactionBlockResponse, error) {
 	return &client.SuiTransactionBlockResponse{}, nil
 }

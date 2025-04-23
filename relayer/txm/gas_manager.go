@@ -6,10 +6,14 @@ package txm
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 const (
@@ -56,6 +60,7 @@ type SuiGasManager struct {
 	lggr               logger.Logger
 	maxGasBudget       big.Int
 	percentualIncrease int64
+	ptbClient          client.SuiPTBClient
 }
 
 var _ GasManager = (*SuiGasManager)(nil)
@@ -69,7 +74,7 @@ var _ GasManager = (*SuiGasManager)(nil)
 //
 // Returns:
 //   - *SuiGasManager: A pointer to the initialized SuiGasManager.
-func NewSuiGasManager(lggr logger.Logger, maxGasBudget big.Int, percentualIncrase int64) *SuiGasManager {
+func NewSuiGasManager(lggr logger.Logger, ptbClient client.SuiPTBClient, maxGasBudget big.Int, percentualIncrase int64) *SuiGasManager {
 	if percentualIncrase == 0 {
 		percentualIncrase = gasLimitPercentualIncrease
 	}
@@ -78,21 +83,29 @@ func NewSuiGasManager(lggr logger.Logger, maxGasBudget big.Int, percentualIncras
 		lggr:               lggr,
 		maxGasBudget:       maxGasBudget,
 		percentualIncrease: percentualIncrase,
+		ptbClient:          ptbClient,
 	}
 }
 
-// EstimateGasBudget is currently unimplemented and will panic if invoked.
-// It is intended to provide a mechanism to estimate the necessary gas budget for a transaction.
+// EstimateGasBudget estimates the gas budget for a transaction. Note that this is not an entirely
+// gas-less operation, it requires a very small amount of gas to estimate the gas budget.
 //
 // Parameters:
 //   - ctx: Context allowing cancellation and timeouts.
 //   - tx: The Sui transaction for which the gas budget is being estimated.
 //
 // Returns:
-//   - uint64: The estimated gas budget (not available).
-//   - error: An error if the estimation is attempted.
+//   - uint64: The estimated gas budget.
+//   - error: An error if the estimation fails.
 func (s *SuiGasManager) EstimateGasBudget(ctx context.Context, tx *SuiTx) (uint64, error) {
-	return 0, errors.New("gas estimation not implemented")
+	txBytes := base64.StdEncoding.EncodeToString(tx.Payload)
+
+	gasBudget, err := s.ptbClient.EstimateGas(ctx, txBytes)
+	if err != nil {
+		return 0, fmt.Errorf("failed to estimate gas budget: %w", err)
+	}
+
+	return gasBudget, nil
 }
 
 // GasBump computes a new gas budget for a transaction by increasing its current gas limit.

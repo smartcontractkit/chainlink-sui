@@ -49,7 +49,7 @@ func setupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 
 	retryManager := txm.NewDefaultRetryManager(5)
 	gasLimit := big.NewInt(10000000)
-	gasManager := txm.NewSuiGasManager(logg, *gasLimit, 0)
+	gasManager := txm.NewSuiGasManager(logg, relayerClient, *gasLimit, 0)
 
 	txManager, err := txm.NewSuiTxm(logg, relayerClient, _keystore, conf, signerInstance, store, retryManager, gasManager)
 	if err != nil {
