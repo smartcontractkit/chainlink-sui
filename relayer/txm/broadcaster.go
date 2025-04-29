@@ -83,11 +83,11 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		}
 		if err != nil {
 			// In the case there is an error submitting
-			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.FunctionInputs, "error", err)
+			txm.lggr.Errorw("Failed to broadcast transaction", "txID", tx.TransactionID, "function inputs", tx.Functions, "error", err)
 			// Update the transaction state to Failed if the digest is empty
 			// An empty digest indicates a total failure of the transaction
 			if resp.TxDigest == "" {
-				txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.FunctionInputs)
+				txm.lggr.Errorw("Transaction failed without a digest", "txID", tx.TransactionID, "function inputs", tx.Functions)
 				err = txm.transactionRepository.ChangeState(tx.TransactionID, StateFailed)
 				if err != nil {
 					txm.lggr.Errorw("Failed to change transaction state to Failed", "txID", tx.TransactionID, "error", err)

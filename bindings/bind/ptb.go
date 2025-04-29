@@ -41,7 +41,7 @@ func BuildPTBFromArgs(
 
 	ptbArgs := make([]suiptb.Argument, 0, len(args))
 	for _, arg := range args {
-		ptbArg, err := toPTBArg(ctx, ptb, client, arg)
+		ptbArg, err := ToPTBArg(ctx, ptb, client, arg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert argument %v to Sui type: %w", arg, err)
 		}
@@ -79,7 +79,7 @@ func BuildPTBFromArgs(
 }
 
 // TODO: ptb.Pure() can panic because of pattonkan/sui-go@v0.1.0/utils/indexmap/indexmap.go:43. If there's a repeated element in a vector will panic
-func toPTBArg(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, client suiclient.ClientImpl, arg any) (suiptb.Argument, error) {
+func ToPTBArg(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, client suiclient.ClientImpl, arg any) (suiptb.Argument, error) {
 	switch arg := arg.(type) {
 	case string:
 		if IsSuiAddress(arg) {
@@ -97,7 +97,7 @@ func toPTBArg(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, c
 				return ptb.Pure(address)
 			}
 			// It's an object
-			return ptb.Obj(toObjectArg(object.Data))
+			return ptb.Obj(ToObjectArg(object.Data))
 		}
 
 		return ptb.Pure(arg)
@@ -194,7 +194,7 @@ func finishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableT
 	return &txData, nil
 }
 
-func toObjectArg(object *suiclient.SuiObjectData) suiptb.ObjectArg {
+func ToObjectArg(object *suiclient.SuiObjectData) suiptb.ObjectArg {
 	if object != nil && object.Owner != nil && object.Owner.ObjectOwnerInternal != nil && object.Owner.ObjectOwnerInternal.Shared != nil && object.Owner.ObjectOwnerInternal.Shared.InitialSharedVersion != nil {
 		return suiptb.ObjectArg{
 			SharedObject: &suiptb.SharedObjectArg{

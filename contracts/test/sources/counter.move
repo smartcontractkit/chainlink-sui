@@ -37,7 +37,7 @@ module test::counter {
     public entry fun initialize(ctx: &mut TxContext) {
         let counter = Counter { 
             id: object::new(ctx), 
-            value: 0 
+            value: 0
         };
         transfer::share_object(counter);
     }
@@ -51,6 +51,14 @@ module test::counter {
             counter_id: object::id(counter),
             new_value: counter.value
         });
+    }
+
+    /// Create a "Counter" object and return it (give up ownership without sharing)
+    public fun create(ctx: &mut TxContext): Counter {
+        Counter {
+            id: object::new(ctx),
+            value: 0
+        }
     }
 
     public fun increment_by_one(counter: &mut Counter, _ctx: &mut TxContext): u64 {
@@ -90,6 +98,16 @@ module test::counter {
     public entry fun increment_by_two_no_context(_admin: &AdminCap, counter: &mut Counter) {
         counter.value = counter.value + 2;
         
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
+    }
+
+    public entry fun increment_by(counter: &mut Counter, by: u64) {
+        counter.value = counter.value + by;
+
         // Emit an event
         event::emit(CounterIncremented {
             counter_id: object::id(counter),

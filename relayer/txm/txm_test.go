@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -21,6 +23,8 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
+
+const WAIT_TIME_NEXT_TEST = 2 * time.Second
 
 type Counter struct {
 	Value string `json:"value"`
@@ -229,4 +233,135 @@ func TestEnqueueIntegration(t *testing.T) {
 		})
 	}
 	txManager.Close()
+}
+
+//nolint:paralleltest
+func TestEnqueuePTBIntegration(t *testing.T) {
+	_logger := logger.Test(t)
+	metadata := []testutils.Contracts{
+		{
+			Path:     "contracts/test/",
+			Name:     "test",
+			ModuleID: "0x1",
+			Objects: []testutils.ContractObject{
+				{
+					ObjectID:    "0x1",
+					PackageName: "counter",
+					StructName:  "Counter",
+				},
+			},
+		},
+	}
+
+	// Used to wait for the tear down of one test before starting the next
+	// since they both depend on the Sui node running on the same port
+	time.Sleep(WAIT_TIME_NEXT_TEST)
+	testState := testutils.BootstrapTestEnvironment(t, testutils.CLI, metadata)
+	txManager := testState.TxManager
+
+	_logger.Infow("Test environment bootstrapped")
+
+	countContract := testState.Contracts[0]
+	packageId := countContract.ModuleID
+	objectId := countContract.Objects[0].ObjectID
+
+	chainWriterConfig := chainwriter.ChainWriterConfig{
+		Modules: map[string]*chainwriter.ChainWriterModule{
+			"counter": {
+				Name:     countContract.Name,
+				ModuleID: packageId,
+				Functions: map[string]*chainwriter.ChainWriterFunction{
+					"ptb_call": {
+						Name:        "ptb_call",
+						FromAddress: testState.AccountAddress,
+						Params:      []codec.SuiFunctionParam{},
+						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  strPtr("counter"),
+								Function:  strPtr("increment"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "counter",
+										Type:     "object_id",
+										Required: true,
+									},
+								},
+								Order: 1,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ptbConstructor := chainwriter.NewPTBConstructor(chainWriterConfig, testState.SuiGateway, _logger)
+
+	// Step 2: Define multiple test scenarios
+	testScenarios := []struct {
+		name            string
+		txID            string
+		txMeta          *commontypes.TxMeta
+		sender          string
+		function        string
+		typeArgs        []string
+		args            map[string]any
+		expectErr       bool
+		expectedValue   string
+		finalState      commontypes.TransactionStatus
+		storeFinalState txm.TransactionState
+		numberAttemps   int
+		drainAccount    bool
+	}{
+		{
+			name:     "Valid PTB enqueue test",
+			txID:     "integration-test-txID-1",
+			txMeta:   &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:   testState.AccountAddress,
+			function: "ptb_call",
+			typeArgs: []string{},
+			args: map[string]any{
+				"counter": objectId,
+			},
+			expectErr:       false,
+			expectedValue:   "1",
+			finalState:      commontypes.Finalized,
+			storeFinalState: txm.StateFinalized,
+			numberAttemps:   1,
+			drainAccount:    false,
+		},
+	}
+
+	ctx := context.Background()
+	err := txManager.Start(ctx)
+	require.NoError(t, err, "Failed to start transaction manager")
+
+	// Step 3: Execute each test scenario
+	//nolint:paralleltest
+	for _, tc := range testScenarios {
+		t.Run(tc.name, func(t *testing.T) {
+			builder, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.function, tc.args)
+			require.NoError(t, err, "Failed to build PTB commands")
+			ptb := builder.Finish()
+			tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.sender, &ptb, false)
+			require.NoError(t, err, "Failed to enqueue PTB")
+
+			require.Eventually(t, func() bool {
+				status, statusErr := txManager.GetTransactionStatus(ctx, (*tx).TransactionID)
+				if statusErr != nil {
+					return false
+				}
+
+				return status == tc.finalState
+			}, 10*time.Second, 1*time.Second, "Transaction final state not reached")
+		})
+	}
+	txManager.Close()
+}
+
+// Helper function to convert a string to a string pointer
+func strPtr(s string) *string {
+	return &s
 }

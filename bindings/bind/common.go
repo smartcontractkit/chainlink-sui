@@ -45,6 +45,7 @@ func SignAndSendTx(ctx context.Context, signer rel.SuiSigner, client suiclient.C
 			ShowEffects:        true,
 			ShowObjectChanges:  true,
 			ShowBalanceChanges: true,
+			ShowEvents:         true,
 		},
 		RequestType: "WaitForLocalExecution",
 	}

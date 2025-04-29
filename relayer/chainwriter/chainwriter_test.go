@@ -24,6 +24,11 @@ type Counter struct {
 	Value string `json:"value"`
 }
 
+// Helper function to convert a string to a string pointer
+func strPtr(s string) *string {
+	return &s
+}
+
 //nolint:paralleltest
 func TestChainWriterSubmitTransaction(t *testing.T) {
 	_logger := logger.Test(t)
@@ -43,6 +48,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	}
 
 	testState := testutils.BootstrapTestEnvironment(t, testutils.CLI, metadata)
+	countContract := testState.Contracts[0]
+	packageId := countContract.ModuleID
+	objectID := countContract.Objects[0].ObjectID
 	// ChainWriter configuration
 	chainWriterConfig := chainwriter.ChainWriterConfig{
 		Modules: map[string]*chainwriter.ChainWriterModule{
@@ -64,11 +72,37 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 					},
 				},
 			},
+			chainwriter.PTBChainWriterModuleName: {
+				Name:     chainwriter.PTBChainWriterModuleName,
+				ModuleID: "0x2",
+				Functions: map[string]*chainwriter.ChainWriterFunction{
+					"ptb_call": {
+						Name:        "ptb_call",
+						FromAddress: testState.AccountAddress,
+						Params:      []codec.SuiFunctionParam{},
+						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  strPtr("counter"),
+								Function:  strPtr("increment"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "counter",
+										Type:     "object_id",
+										Required: true,
+									},
+								},
+								Order: 1,
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
 	_logger.Infow("ChainWriterConfig", "config", chainWriterConfig)
-	objectID := testState.Contracts[0].Objects[0].ObjectID
 
 	chainWriter, err := chainwriter.NewSuiChainWriter(_logger, testState.TxManager, chainWriterConfig, false)
 	require.NoError(t, err)
@@ -105,6 +139,19 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			args:           map[string]any{"counter": objectID},
 			expectError:    nil,
 			expectedResult: "1",
+			status:         commonTypes.Finalized,
+			numberAttemps:  1,
+		},
+		{
+			name:           "Test ChainWriter with PTB",
+			txID:           "test-ptb-txID",
+			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:         testState.AccountAddress,
+			contractName:   chainwriter.PTBChainWriterModuleName,
+			functionName:   "ptb_call",
+			args:           map[string]any{"counter": objectID},
+			expectError:    nil,
+			expectedResult: "2",
 			status:         commonTypes.Finalized,
 			numberAttemps:  1,
 		},

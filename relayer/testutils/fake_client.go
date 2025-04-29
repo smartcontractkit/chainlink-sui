@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/pattonkan/sui-go/sui/suiptb"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
@@ -55,10 +57,18 @@ func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context
 	return f(ctx)
 }
 
+func (c *FakeSuiPTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any) (suiptb.Argument, error) {
+	return suiptb.Argument{}, nil
+}
+
 func (c *FakeSuiPTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
 	return 0, nil
 }
 
 func (c *FakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (*client.SuiTransactionBlockResponse, error) {
 	return &client.SuiTransactionBlockResponse{}, nil
+}
+
+func (c *FakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder) (*suiclient.SuiTransactionBlockResponse, error) {
+	return &suiclient.SuiTransactionBlockResponse{}, nil
 }

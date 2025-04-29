@@ -18,20 +18,22 @@ import (
 const ServiceName = "SuiChainWriter"
 
 type SuiChainWriter struct {
-	lggr     logger.Logger
-	txm      txm.TxManager
-	config   ChainWriterConfig
-	simulate bool
+	lggr       logger.Logger
+	txm        txm.TxManager
+	config     ChainWriterConfig
+	simulate   bool
+	ptbFactory *PTBConstructor
 
 	services.StateMachine
 }
 
 func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config ChainWriterConfig, simulate bool) (*SuiChainWriter, error) {
 	return &SuiChainWriter{
-		lggr:     logger.Named(lggr, ServiceName),
-		txm:      txManager,
-		config:   config,
-		simulate: simulate,
+		lggr:       logger.Named(lggr, ServiceName),
+		txm:        txManager,
+		config:     config,
+		simulate:   simulate,
+		ptbFactory: NewPTBConstructor(config, txManager.GetClient(), lggr),
 	}, nil
 }
 
@@ -59,8 +61,52 @@ func convertFunctionParams(argMap map[string]any, params []codec.SuiFunctionPara
 	return types, values, nil
 }
 
-// SubmitTransaction implements types.ContractWriter
-func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName string, method string, args any, transactionID string, toAddress string, meta *commonTypes.TxMeta, value *big.Int) error {
+// SubmitTransaction is the primary entry point for submitting transactions via the SuiChainWriter.
+// It acts as a router, determining whether to enqueue a standard smart contract call or a
+// Programmable Transaction Block (PTB) based on the provided contractName.
+// If contractName matches PTBChainWriterModuleName, it assumes a PTB submission and calls enqueuePTB.
+// Otherwise, it treats the request as a standard Move function call and calls enqueueSmartContractCall.
+// This function implements the commonTypes.ContractWriter interface.
+//
+// Parameters:
+//   - ctx: The context for the operation, allowing for cancellation and timeouts.
+//   - contractName: The identifier for the target module or a special identifier (PTBChainWriterModuleName)
+//     indicating a PTB submission defined in the configuration.
+//   - method: The specific function name within the module (for standard calls) or the virtual function
+//     name defined in the PTB configuration.
+//   - args: The arguments required by the function or PTB commands, typically passed as a map or struct.
+//   - transactionID: A unique identifier for this transaction attempt.
+//   - toAddress: The target address for the transaction (Note: Often implicitly handled by the module/function config in Sui).
+//   - meta: Transaction metadata, primarily used for specifying gas limits (*commontypes.TxMeta).
+//   - _ *big.Int: An unused parameter, present for interface compatibility.
+//
+// Returns:
+//   - error: An error if the configuration is missing, argument processing fails, or the underlying
+//     transaction enqueue operation in the TxManager fails.
+func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName string, method string, args any, transactionID string, toAddress string, meta *commonTypes.TxMeta, _ *big.Int) error {
+	if contractName == PTBChainWriterModuleName {
+		return enqueuePTB(ctx, s, contractName, method, args, transactionID, meta)
+	}
+
+	return enqueueSmartContractCall(ctx, s, contractName, method, args, transactionID, meta)
+}
+
+// enqueueSmartContractCall handles the process of enqueuing a standard smart contract (Move function) call.
+// It retrieves module and function configurations, converts arguments, constructs the full function signature,
+// and then calls the TxManager's Enqueue method to generate, sign, store, and queue the transaction.
+//
+// Parameters:
+//   - ctx: Context for the operation.
+//   - s: The SuiChainWriter instance containing configuration and TxManager.
+//   - contractName: The name of the contract module as defined in the configuration.
+//   - method: The name of the function to call within the contract module.
+//   - args: The arguments for the function call, provided as a map or struct.
+//   - transactionID: The unique identifier for the transaction.
+//   - meta: Transaction metadata (e.g., gas limits).
+//
+// Returns:
+//   - error: An error if configuration is not found, argument conversion fails, or the TxManager Enqueue call fails.
+func enqueueSmartContractCall(ctx context.Context, s *SuiChainWriter, contractName string, method string, args any, transactionID string, meta *commonTypes.TxMeta) error {
 	moduleConfig, exists := s.config.Modules[contractName]
 	if !exists {
 		s.lggr.Errorw("Contract not found", "contractName", contractName)
@@ -93,6 +139,59 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 	tx, err := s.txm.Enqueue(ctx, transactionID, meta, functionConfig.FromAddress, suiFunction, typeArgs, paramTypes, paramValues, s.simulate)
 	if err != nil {
 		s.lggr.Errorw("Error enqueuing transaction", "error", err)
+		return err
+	}
+	s.lggr.Infow("Transaction enqueued", "transactionID", tx.TransactionID, "functionName", method)
+
+	return nil
+}
+
+// enqueuePTB handles the process of enqueuing a Programmable Transaction Block (PTB).
+// It retrieves the PTB configuration, builds the PTB commands using the PTBConstructor,
+// finalizes the PTB, and then calls the TxManager's EnqueuePTB method to generate, sign, store,
+// and queue the PTB transaction.
+//
+// Parameters:
+//   - ctx: Context for the operation.
+//   - s: The SuiChainWriter instance containing configuration, PTBConstructor, and TxManager.
+//   - ptbName: The name of the PTB configuration as defined in the Modules map.
+//   - method: The virtual function name within the PTB configuration that defines the command sequence.
+//   - args: The arguments needed to build the PTB commands, provided as a map or struct.
+//   - transactionID: The unique identifier for the transaction.
+//   - meta: Transaction metadata (e.g., gas limits).
+//
+// Returns:
+//   - error: An error if configuration is not found, argument decoding fails, PTB command building fails,
+//     or the TxManager EnqueuePTB call fails.
+func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method string, args any, transactionID string, meta *commonTypes.TxMeta) error {
+	moduleConfig, exists := s.config.Modules[ptbName]
+	if !exists {
+		s.lggr.Errorw("PBT not found", "PTB name", ptbName)
+		return commonTypes.ErrNotFound
+	}
+
+	functionConfig, exists := moduleConfig.Functions[method]
+	if !exists {
+		s.lggr.Errorw("Function not found", "functionName", method)
+		return commonTypes.ErrNotFound
+	}
+
+	argMap := make(map[string]any)
+	err := mapstructure.Decode(args, &argMap)
+	if err != nil {
+		s.lggr.Errorw("Error decoding args", "error", err)
+		return err
+	}
+	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, argMap)
+	if err != nil {
+		s.lggr.Errorw("Error building PTB commands", "error", err)
+		return err
+	}
+
+	ptb := ptbCommands.Finish()
+	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.FromAddress, &ptb, s.simulate)
+	if err != nil {
+		s.lggr.Errorw("Error enqueuing PTB", "error", err)
 		return err
 	}
 	s.lggr.Infow("Transaction enqueued", "transactionID", tx.TransactionID, "functionName", method)

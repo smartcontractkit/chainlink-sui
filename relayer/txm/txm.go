@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -22,7 +23,9 @@ const numberGoroutines = 2
 type TxManager interface {
 	services.Service
 	Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error)
+	EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress string, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error)
 	GetTransactionStatus(ctx context.Context, transactionID string) (commontypes.TransactionStatus, error)
+	GetClient() client.SuiPTBClient
 }
 
 type SuiTxm struct {
@@ -38,8 +41,6 @@ type SuiTxm struct {
 	broadcastChannel      chan string
 	stopChannel           chan struct{}
 }
-
-var _ TxManager = (*SuiTxm)(nil)
 
 func NewSuiTxm(
 	lggr logger.Logger, gateway client.SuiPTBClient, k keystore.Keystore,
@@ -60,6 +61,24 @@ func NewSuiTxm(
 	}, nil
 }
 
+// Enqueue generates a standard Move call transaction, adds it to the transaction store,
+// and queues it for broadcasting. It handles transaction ID generation (if needed),
+// function signature parsing, parameter encoding, transaction generation, signing, and storage.
+//
+// Parameters:
+//   - ctx: Context for the operation.
+//   - transactionID: A specific ID for the transaction. If empty, a new ID is generated.
+//   - txMetadata: Transaction metadata, potentially including gas limits.
+//   - signerAddress: The address of the account signing and sending the transaction.
+//   - function: The full function signature (e.g., "packageId::module::functionName").
+//   - typeArgs: Type arguments for generic Move functions.
+//   - paramTypes: The types of the parameters being passed to the Move function.
+//   - paramValues: The actual values of the parameters.
+//   - simulateTx: Boolean flag indicating whether to simulate the transaction (currently unused in GenerateTransaction).
+//
+// Returns:
+//   - *SuiTx: The generated and stored transaction object.
+//   - error: An error if the transaction ID exists, function parsing fails, transaction generation fails, or storage fails.
 func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error) {
 	if transactionID == "" {
 		transactionID = TransactionIDGenerator()
@@ -105,6 +124,50 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 	txm.broadcastChannel <- transactionID
 	txm.lggr.Infow("Transaction added to broadcast channel", "transactionID", transactionID)
 	txm.lggr.Infow("Transaction enqueued", "transactionID", transactionID)
+
+	return transaction, nil
+}
+
+// EnqueuePTB generates a transaction based on a pre-constructed Programmable Transaction Block (PTB),
+// adds it to the transaction store, and queues it for broadcasting.
+// It determines gas limits, selects gas coins, signs the transaction, and stores it.
+// It's part of the TxManager interface implementation.
+//
+// Parameters:
+//   - ctx: Context for the operation.
+//   - transactionID: Unique identifier for the transaction.
+//   - txMetadata: Transaction metadata, potentially including gas limits.
+//   - signerAddress: The address of the account signing and sending the transaction.
+//   - ptb: The ProgrammableTransaction block containing the sequence of commands.
+//   - simulateTx: Boolean flag indicating whether to simulate the transaction (currently unused).
+//
+// Returns:
+//   - *SuiTx: The generated and stored transaction object.
+//   - error: An error if transaction generation or storage fails.
+func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress string, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error) {
+	txm.lggr.Infow("Enqueuing PTB", "transactionID", transactionID, "ptb", ptb)
+
+	transaction, err := GeneratePTBTransaction(
+		ctx, txm.lggr, txm.signer, txm.suiGateway,
+		txm.configuration.RequestType, transactionID, txMetadata, signerAddress,
+		ptb, simulateTx,
+	)
+	if err != nil {
+		txm.lggr.Errorw("Failed to generate PTB transaction", "error", err)
+		return nil, err
+	}
+
+	txm.lggr.Infow("PTB transaction generated", "transactionID", transactionID, "ptb", transaction)
+
+	err = txm.transactionRepository.AddTransaction(*transaction)
+	if err != nil {
+		txm.lggr.Errorw("Failed to add transaction to repository", "error", err)
+		return nil, err
+	}
+
+	txm.broadcastChannel <- transactionID
+	txm.lggr.Infow("PTB Transaction added to broadcast channel", "transactionID", transactionID)
+	txm.lggr.Infow("PTB Transaction enqueued", "transactionID", transactionID)
 
 	return transaction, nil
 }
@@ -172,3 +235,10 @@ func (txm *SuiTxm) Start(ctx context.Context) error {
 
 	return nil
 }
+
+// GetClient returns the Sui client instance used by the transaction manager.
+func (txm *SuiTxm) GetClient() client.SuiPTBClient {
+	return txm.suiGateway
+}
+
+var _ TxManager = (*SuiTxm)(nil)
