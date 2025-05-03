@@ -187,7 +187,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			"argTypes", argTypes,
 		)
 
-		response, err := s.client.ReadFunction(ctx, address, moduleConfig.Name, method, args, argTypes)
+		response, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, address, moduleConfig.Name, method, args, argTypes)
 		if err != nil {
 			s.logger.Errorw("ReadFunction failed",
 				"error", err,

@@ -25,25 +25,21 @@ func TestNewSuiKeystore(t *testing.T) {
 	tests := []struct {
 		name        string
 		keyPath     string
-		signerType  keystore.SignerType
 		expectedErr bool
 	}{
 		{
 			name:        "Default parameters",
 			keyPath:     "",
-			signerType:  keystore.PrivateKeySigner,
 			expectedErr: false,
 		},
 		{
 			name:        "Custom keystore path",
 			keyPath:     "/tmp/test-keystore",
-			signerType:  keystore.PrivateKeySigner,
 			expectedErr: false,
 		},
 		{
 			name:        "Custom signer type",
 			keyPath:     "",
-			signerType:  keystore.PrivateKeySigner,
 			expectedErr: false,
 		},
 	}
@@ -51,7 +47,7 @@ func TestNewSuiKeystore(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ks, err := keystore.NewSuiKeystore(log, tc.keyPath, tc.signerType)
+			ks, err := keystore.NewSuiKeystore(log, tc.keyPath)
 
 			if tc.expectedErr {
 				require.Error(t, err)
@@ -64,12 +60,6 @@ func TestNewSuiKeystore(t *testing.T) {
 					assert.Equal(t, keystore.SuiDefaultKeystorePath, ks.KeyStorePath())
 				} else {
 					assert.Equal(t, tc.keyPath, ks.KeyStorePath())
-				}
-
-				if tc.signerType == keystore.PrivateKeySigner {
-					assert.Equal(t, keystore.PrivateKeySigner, ks.SignerType())
-				} else {
-					assert.Equal(t, tc.signerType, ks.SignerType())
 				}
 			}
 		})
@@ -107,25 +97,16 @@ func TestGetSignerFromAddress(t *testing.T) {
 	tests := []struct {
 		name        string
 		address     string
-		signerType  keystore.SignerType
 		expectedErr bool
 	}{
 		{
 			name:        "Valid address",
 			address:     address,
-			signerType:  keystore.PrivateKeySigner,
 			expectedErr: false,
 		},
 		{
 			name:        "Invalid address",
 			address:     "0x123456",
-			signerType:  keystore.PrivateKeySigner,
-			expectedErr: true,
-		},
-		{
-			name:        "Unsupported signer type",
-			address:     address,
-			signerType:  -1,
 			expectedErr: true,
 		},
 	}
@@ -133,17 +114,17 @@ func TestGetSignerFromAddress(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ks, err := keystore.NewSuiKeystore(log, tempKeystorePath, tc.signerType)
+			ks, err := keystore.NewSuiKeystore(log, tempKeystorePath)
 			require.NoError(t, err)
 
-			signer, err := ks.GetSignerFromAddress(tc.address)
+			privateKey, err := ks.GetPrivateKeyByAddress(tc.address)
 
 			if tc.expectedErr {
 				require.Error(t, err)
-				assert.Nil(t, signer)
+				assert.Nil(t, privateKey)
 			} else {
 				require.NoError(t, err)
-				assert.NotNil(t, signer)
+				assert.NotNil(t, privateKey)
 			}
 		})
 	}
@@ -154,10 +135,10 @@ func TestNonexistentKeystorePath(t *testing.T) {
 	log := logger.Test(t)
 
 	nonexistentPath := "/nonexistent/path/to/keystore"
-	ks, err := keystore.NewSuiKeystore(log, nonexistentPath, keystore.PrivateKeySigner)
+	ks, err := keystore.NewSuiKeystore(log, nonexistentPath)
 	require.NoError(t, err)
 
-	_, err = ks.GetSignerFromAddress("0x123456")
+	_, err = ks.GetPrivateKeyByAddress("0x123456")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read keystore file")
 }
@@ -173,10 +154,10 @@ func TestInvalidKeystoreFormat(t *testing.T) {
 	err := os.WriteFile(tempKeystorePath, []byte("invalid json"), 0600)
 	require.NoError(t, err)
 
-	ks, err := keystore.NewSuiKeystore(log, tempKeystorePath, keystore.PrivateKeySigner)
+	ks, err := keystore.NewSuiKeystore(log, tempKeystorePath)
 	require.NoError(t, err)
 
-	_, err = ks.GetSignerFromAddress("0x123456")
+	_, err = ks.GetPrivateKeyByAddress("0x123456")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse keystore JSON")
 }

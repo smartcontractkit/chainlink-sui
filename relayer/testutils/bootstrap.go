@@ -8,11 +8,11 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/constant"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
@@ -26,10 +26,9 @@ const (
 type TestState struct {
 	AccountAddress  string
 	SuiGateway      *client.PTBClient
-	KeystoreGateway keystore.Keystore
+	KeystoreGateway *keystore.SuiKeystore
 	TxManager       *txm.SuiTxm
 	TxStore         *txm.InMemoryStore
-	Signer          signer.SuiSigner
 	Contracts       []Contracts
 	Cmd             exec.Cmd
 }
@@ -48,7 +47,7 @@ type Contracts struct {
 }
 
 // setupClients initializes the Sui and relayer clients.
-func SetupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, accountAddress string) (*client.PTBClient, *txm.SuiTxm, signer.SuiSigner, *txm.InMemoryStore) {
+func SetupClients(t *testing.T, rpcURL string, _keystore loop.Keystore) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
 	t.Helper()
 
 	logg, err := logger.New()
@@ -56,11 +55,7 @@ func SetupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	// Get the private key from the keystore using the account address
-	signerInstance, err := _keystore.GetSignerFromAddress(accountAddress)
-	require.NoError(t, err)
-
-	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, &signerInstance, maxConcurrentRequests, "WaitForLocalExecution")
+	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, _keystore, maxConcurrentRequests, "WaitForLocalExecution")
 	if err != nil {
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
@@ -72,12 +67,12 @@ func SetupClients(t *testing.T, rpcURL string, _keystore keystore.Keystore, acco
 	gasLimit := big.NewInt(defaultGasLimit)
 	gasManager := txm.NewSuiGasManager(logg, relayerClient, *gasLimit, 0)
 
-	txManager, err := txm.NewSuiTxm(logg, relayerClient, _keystore, conf, signerInstance, store, retryManager, gasManager)
+	txManager, err := txm.NewSuiTxm(logg, relayerClient, _keystore, conf, store, retryManager, gasManager)
 	if err != nil {
 		t.Fatalf("Failed to create SuiTxm: %v", err)
 	}
 
-	return relayerClient, txManager, signerInstance, store
+	return relayerClient, txManager, store
 }
 
 // BootstrapTestEnvironment sets up a complete test environment for a Sui relayer integration test.
@@ -151,7 +146,7 @@ func BootstrapTestEnvironment(t *testing.T, nodeType NodeEnvType, contractsMetad
 		}
 	})
 
-	_keystore, err := keystore.NewSuiKeystore(_logger, "", keystore.PrivateKeySigner)
+	_keystore, err := keystore.NewSuiKeystore(_logger, "")
 	require.NoError(t, err)
 	accountAddress := GetAccountAndKeyFromSui(t, _logger)
 
@@ -190,15 +185,14 @@ func BootstrapTestEnvironment(t *testing.T, nodeType NodeEnvType, contractsMetad
 		_logger.Debugw("Contract state", contractsState)
 	}
 
-	suiClient, txManager, signerInstance, txStore := SetupClients(t, LocalUrl, _keystore, accountAddress)
+	suiClient, txManager, txStore := SetupClients(t, LocalUrl, _keystore)
 
 	return &TestState{
 		AccountAddress:  accountAddress,
 		SuiGateway:      suiClient,
-		KeystoreGateway: _keystore,
+		KeystoreGateway: &_keystore,
 		TxManager:       txManager,
 		TxStore:         txStore,
-		Signer:          signerInstance,
 		Contracts:       contractsState,
 		Cmd:             *cmd,
 	}

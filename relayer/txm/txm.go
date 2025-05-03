@@ -9,12 +9,12 @@ import (
 
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 const expectedFunctionTokens = 3
@@ -22,8 +22,8 @@ const numberGoroutines = 2
 
 type TxManager interface {
 	services.Service
-	Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error)
-	EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress string, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error)
+	Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error)
+	EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error)
 	GetTransactionStatus(ctx context.Context, transactionID string) (commontypes.TransactionStatus, error)
 	GetClient() client.SuiPTBClient
 }
@@ -31,31 +31,30 @@ type TxManager interface {
 type SuiTxm struct {
 	lggr                  logger.Logger
 	suiGateway            client.SuiPTBClient
-	keyStoreRepository    keystore.Keystore
+	keystoreService       loop.Keystore
 	transactionRepository TxmStore
 	retryManager          RetryManager
 	gasManager            GasManager
 	configuration         Config
-	signer                signer.SuiSigner
+	Starter               commonutils.StartStopOnce
 	done                  sync.WaitGroup
 	broadcastChannel      chan string
 	stopChannel           chan struct{}
 }
 
 func NewSuiTxm(
-	lggr logger.Logger, gateway client.SuiPTBClient, k keystore.Keystore,
-	conf Config, sig signer.SuiSigner, transactionsRepository TxmStore,
+	lggr logger.Logger, gateway client.SuiPTBClient, k loop.Keystore,
+	conf Config, transactionsRepository TxmStore,
 	retryManager RetryManager, gasManager GasManager,
 ) (*SuiTxm, error) {
 	return &SuiTxm{
 		lggr:                  logger.Named(lggr, "SuiTxm"),
 		suiGateway:            gateway,
-		keyStoreRepository:    k,
+		keystoreService:       k,
 		transactionRepository: transactionsRepository,
 		retryManager:          retryManager,
 		gasManager:            gasManager,
 		configuration:         conf,
-		signer:                sig,
 		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
 		stopChannel:           make(chan struct{}),
 	}, nil
@@ -69,7 +68,7 @@ func NewSuiTxm(
 //   - ctx: Context for the operation.
 //   - transactionID: A specific ID for the transaction. If empty, a new ID is generated.
 //   - txMetadata: Transaction metadata, potentially including gas limits.
-//   - signerAddress: The address of the account signing and sending the transaction.
+//   - signerPublicKey: The public key of the account signing and sending the transaction.
 //   - function: The full function signature (e.g., "packageId::module::functionName").
 //   - typeArgs: Type arguments for generic Move functions.
 //   - paramTypes: The types of the parameters being passed to the Move function.
@@ -79,7 +78,7 @@ func NewSuiTxm(
 // Returns:
 //   - *SuiTx: The generated and stored transaction object.
 //   - error: An error if the transaction ID exists, function parsing fails, transaction generation fails, or storage fails.
-func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error) {
+func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error) {
 	if transactionID == "" {
 		transactionID = TransactionIDGenerator()
 	} else {
@@ -106,8 +105,8 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 	}
 
 	transaction, err := GenerateTransaction(
-		ctx, txm.lggr, txm.signer, txm.suiGateway,
-		txm.configuration.RequestType, transactionID, txMetadata, signerAddress,
+		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
+		txm.configuration.RequestType, transactionID, txMetadata,
 		suiFunction, typeArgs, paramTypes, paramValues,
 	)
 	if err != nil {
@@ -137,19 +136,19 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 //   - ctx: Context for the operation.
 //   - transactionID: Unique identifier for the transaction.
 //   - txMetadata: Transaction metadata, potentially including gas limits.
-//   - signerAddress: The address of the account signing and sending the transaction.
+//   - signerPublicKey: The public key of the account signing and sending the transaction.
 //   - ptb: The ProgrammableTransaction block containing the sequence of commands.
 //   - simulateTx: Boolean flag indicating whether to simulate the transaction (currently unused).
 //
 // Returns:
 //   - *SuiTx: The generated and stored transaction object.
 //   - error: An error if transaction generation or storage fails.
-func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerAddress string, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error) {
+func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error) {
 	txm.lggr.Infow("Enqueuing PTB", "transactionID", transactionID, "ptb", ptb)
 
 	transaction, err := GeneratePTBTransaction(
-		ctx, txm.lggr, txm.signer, txm.suiGateway,
-		txm.configuration.RequestType, transactionID, txMetadata, signerAddress,
+		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
+		txm.configuration.RequestType, transactionID, txMetadata,
 		ptb, simulateTx,
 	)
 	if err != nil {
@@ -203,37 +202,40 @@ func (txm *SuiTxm) GetTransactionStatus(ctx context.Context, transactionID strin
 }
 
 func (txm *SuiTxm) Close() error {
-	txm.lggr.Infow("Closing SuiTxm")
-	close(txm.stopChannel)
+	return txm.Starter.StopOnce("SuiTxm", func() error {
+		txm.lggr.Infow("Closing SuiTxm")
+		close(txm.stopChannel)
+		txm.done.Wait()
+		txm.lggr.Infow("SuiTxm closed")
 
-	txm.done.Wait()
-	txm.lggr.Infow("SuiTxm closed")
-
-	return nil
+		return nil
+	})
 }
 
 // TODO: implement
 func (txm *SuiTxm) HealthReport() map[string]error {
-	panic("unimplemented")
+	return map[string]error{txm.Name(): txm.Starter.Healthy()}
 }
 
 // TODO: implement
 func (txm *SuiTxm) Name() string {
-	panic("unimplemented")
+	return txm.lggr.Name()
 }
 
 // TODO: implement
 func (txm *SuiTxm) Ready() error {
-	panic("unimplemented")
+	return txm.Starter.Ready()
 }
 
 func (txm *SuiTxm) Start(ctx context.Context) error {
-	txm.lggr.Infow("Starting SuiTxm")
-	txm.done.Add(numberGoroutines) // waitgroup: broadcaster, confirmer
-	go txm.broadcastLoop(ctx)
-	go txm.confirmerLoop(ctx)
+	return txm.Starter.StartOnce("SuiTxm", func() error {
+		txm.lggr.Infow("Starting SuiTxm")
+		txm.done.Add(numberGoroutines) // waitgroup: broadcaster, confirmer
+		go txm.broadcastLoop(ctx)
+		go txm.confirmerLoop(ctx)
 
-	return nil
+		return nil
+	})
 }
 
 // GetClient returns the Sui client instance used by the transaction manager.

@@ -12,6 +12,7 @@ import (
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 
 	"github.com/fardream/go-bcs/bcs"
@@ -19,7 +20,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 const defaultGasBudget = 200000000
@@ -87,8 +87,9 @@ func TransactionIDGenerator() string {
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and timeouts
+//   - pubKey: Public key of the account that will sign and submit the transaction
 //   - lggr: Logger for recording operation details and errors
-//   - signerService: Service for signing the generated transaction bytes
+//   - keystoreService: Service for signing the generated transaction bytes
 //   - suiClient: Client for interacting with the Sui blockchain
 //   - transactionID: Unique identifier for the transaction
 //   - txMetadata: Transaction metadata including gas configuration
@@ -111,12 +112,13 @@ func TransactionIDGenerator() string {
 //   - Signatures: Array of signatures produced by the signer service
 func GenerateTransaction(
 	ctx context.Context,
+	pubKey []byte,
 	lggr logger.Logger,
-	signerService signer.SuiSigner,
+	keystoreService loop.Keystore,
 	suiClient client.SuiPTBClient,
 	requestType string,
 	transactionID string, txMetadata *commontypes.TxMeta,
-	signerAddress string, function *SuiFunction,
+	function *SuiFunction,
 	typeArgs []string, paramTypes []string, paramValues []any,
 ) (*SuiTx, error) {
 	packageObjectId := function.PackageId
@@ -141,6 +143,13 @@ func GenerateTransaction(
 		functionValues[i] = value
 	}
 
+	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
+	if err != nil {
+		lggr.Errorf("failed to get address from public key: %v", err)
+		return nil, err
+	}
+
+	// TODO: we will need to replace this by a BSC serialization
 	rsp, err := suiClient.MoveCall(ctx, client.MoveCallRequest{
 		Signer:          signerAddress,
 		PackageObjectId: packageObjectId,
@@ -167,10 +176,14 @@ func GenerateTransaction(
 		return nil, errors.New(msg)
 	}
 
-	signatures, err := signerService.Sign(txBytes)
+	signatures, err := keystoreService.Sign(ctx, signerAddress, txBytes)
 	if err != nil {
 		lggr.Errorf("Error signing transaction: %v", err)
+		return nil, err
 	}
+
+	// Convert []byte signature to []string
+	signatureStrings := []string{client.SerializeSuiSignature(signatures, pubKey)}
 
 	return &SuiTx{
 		TransactionID: transactionID,
@@ -179,7 +192,7 @@ func GenerateTransaction(
 		Timestamp:     GetCurrentUnixTimestamp(),
 		Payload:       txBytes,
 		Functions:     []*SuiFunction{function},
-		Signatures:    signatures,
+		Signatures:    signatureStrings,
 		RequestType:   requestType,
 		Attempt:       0,
 		State:         StatePending,
@@ -201,8 +214,9 @@ func GenerateTransaction(
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and timeouts.
+//   - pubKey: Public key of the account that will sign and submit the transaction.
 //   - lggr: Logger for recording operation details and errors.
-//   - signerService: Service for signing the generated transaction bytes.
+//   - keystoreService: Service for signing the generated transaction bytes.
 //   - suiClient: Client for interacting with the Sui blockchain.
 //   - requestType: The type of request for transaction execution (e.g., "WaitForEffectsCert").
 //   - transactionID: Unique identifier for the transaction.
@@ -216,16 +230,22 @@ func GenerateTransaction(
 //   - error: An error if any step of transaction generation fails (e.g., fetching coins, selecting gas coins, marshaling, signing).
 func GeneratePTBTransaction(
 	ctx context.Context,
+	pubKey []byte,
 	lggr logger.Logger,
-	signerService signer.SuiSigner,
+	keystoreService loop.Keystore,
 	suiClient client.SuiPTBClient,
 	requestType string,
 	transactionID string,
 	txMetadata *commontypes.TxMeta,
-	signerAddress string,
 	ptb *suiptb.ProgrammableTransaction,
 	simulateTx bool,
 ) (*SuiTx, error) {
+	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
+	if err != nil {
+		lggr.Errorf("failed to get address from public key: %v", err)
+		return nil, err
+	}
+
 	address, err := sui.AddressFromHex(signerAddress)
 	if err != nil {
 		lggr.Errorf("failed to get address from hex: %v", err)
@@ -281,10 +301,13 @@ func GeneratePTBTransaction(
 		return nil, err
 	}
 
-	signatures, err := signerService.Sign(ptbBytes)
+	signatures, err := keystoreService.Sign(ctx, signerAddress, ptbBytes)
 	if err != nil {
 		lggr.Errorf("Error signing transaction: %v", err)
+		return nil, err
 	}
+
+	signatureStrings := []string{client.SerializeSuiSignature(signatures, pubKey)}
 
 	functions := []*SuiFunction{}
 	for _, command := range ptb.Commands {
@@ -302,7 +325,7 @@ func GeneratePTBTransaction(
 		Timestamp:     GetCurrentUnixTimestamp(),
 		Payload:       ptbBytes,
 		Functions:     functions,
-		Signatures:    signatures,
+		Signatures:    signatureStrings,
 		RequestType:   requestType,
 		Attempt:       0,
 		State:         StatePending,

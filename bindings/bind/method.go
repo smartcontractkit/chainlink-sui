@@ -98,7 +98,7 @@ func MakeInspect(buildFn BuildFunc) InspectFunc {
 			return nil, err
 		}
 
-		receipt, err := DevInspectTx(ctx, signer, client, txBytes)
+		receipt, err := DevInspectTx(ctx, address, client, txBytes)
 		if err != nil {
 			return nil, err
 		}

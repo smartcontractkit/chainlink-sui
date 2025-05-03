@@ -19,8 +19,9 @@ type ChainReaderModule struct {
 type ChainReaderFunction struct {
 	// The function name (optional). When not provided, the key in the map under which this function
 	// is stored is used.
-	Name   string
-	Params []codec.SuiFunctionParam
+	Name          string
+	SignerAddress string
+	Params        []codec.SuiFunctionParam
 }
 
 type ChainReaderEvent struct {

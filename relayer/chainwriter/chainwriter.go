@@ -136,7 +136,7 @@ func enqueueSmartContractCall(ctx context.Context, s *SuiChainWriter, contractNa
 
 	suiFunction := fmt.Sprintf("%s::%s::%s", moduleConfig.ModuleID, contractName, method)
 
-	tx, err := s.txm.Enqueue(ctx, transactionID, meta, functionConfig.FromAddress, suiFunction, typeArgs, paramTypes, paramValues, s.simulate)
+	tx, err := s.txm.Enqueue(ctx, transactionID, meta, functionConfig.PublicKey, suiFunction, typeArgs, paramTypes, paramValues, s.simulate)
 	if err != nil {
 		s.lggr.Errorw("Error enqueuing transaction", "error", err)
 		return err
@@ -189,7 +189,7 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 	}
 
 	ptb := ptbCommands.Finish()
-	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.FromAddress, &ptb, s.simulate)
+	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.PublicKey, &ptb, s.simulate)
 	if err != nil {
 		s.lggr.Errorw("Error enqueuing PTB", "error", err)
 		return err

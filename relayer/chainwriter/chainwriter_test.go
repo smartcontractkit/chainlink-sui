@@ -4,6 +4,7 @@ package chainwriter_test
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"math/big"
 	"testing"
@@ -48,6 +49,10 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	}
 
 	testState := testutils.BootstrapTestEnvironment(t, testutils.CLI, metadata)
+	privateKey, err := testState.KeystoreGateway.GetPrivateKeyByAddress(testState.AccountAddress)
+	require.NoError(t, err)
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	publicKeyBytes := []byte(publicKey)
 	countContract := testState.Contracts[0]
 	packageId := countContract.ModuleID
 	objectID := countContract.Objects[0].ObjectID
@@ -59,8 +64,8 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 				ModuleID: testState.Contracts[0].ModuleID,
 				Functions: map[string]*chainwriter.ChainWriterFunction{
 					"increment": {
-						Name:        "increment",
-						FromAddress: testState.AccountAddress,
+						Name:      "increment",
+						PublicKey: publicKeyBytes,
 						Params: []codec.SuiFunctionParam{
 							{
 								Name:         "counter",
@@ -77,9 +82,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 				ModuleID: "0x2",
 				Functions: map[string]*chainwriter.ChainWriterFunction{
 					"ptb_call": {
-						Name:        "ptb_call",
-						FromAddress: testState.AccountAddress,
-						Params:      []codec.SuiFunctionParam{},
+						Name:      "ptb_call",
+						PublicKey: publicKeyBytes,
+						Params:    []codec.SuiFunctionParam{},
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,

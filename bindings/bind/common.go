@@ -59,13 +59,8 @@ func SignAndSendTx(ctx context.Context, signer rel.SuiSigner, client suiclient.C
 	return tx, nil
 }
 
-func DevInspectTx(ctx context.Context, signer rel.SuiSigner, client suiclient.ClientImpl, txBytes []byte) (*suiclient.DevInspectTransactionBlockResponse, error) {
-	_address, err := signer.GetAddress()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get address: %w", err)
-	}
-
-	address, err := ToSuiAddress(_address)
+func DevInspectTx(ctx context.Context, signerAddress string, client suiclient.ClientImpl, txBytes []byte) (*suiclient.DevInspectTransactionBlockResponse, error) {
+	address, err := ToSuiAddress(signerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert address: %w", err)
 	}

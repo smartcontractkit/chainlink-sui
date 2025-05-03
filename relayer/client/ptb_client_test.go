@@ -4,6 +4,7 @@ package client_test
 
 import (
 	"context"
+	"crypto/ed25519"
 	"testing"
 	"time"
 
@@ -33,12 +34,13 @@ func TestPTBClient(t *testing.T) {
 	})
 
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
-	keystoreInstance, err := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
+	keystoreInstance, err := keystore.NewSuiKeystore(log, "")
 	require.NoError(t, err)
-	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
+	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
 	require.NoError(t, err)
+	publicKeyBytes := []byte(privateKey.Public().(ed25519.PublicKey))
 	maxConcurrent := int64(3)
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, &signer, maxConcurrent, "WaitForLocalExecution")
+	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, keystoreInstance, maxConcurrent, "WaitForLocalExecution")
 	require.NoError(t, err)
 
 	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
@@ -63,6 +65,7 @@ func TestPTBClient(t *testing.T) {
 
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
+			accountAddress,
 			packageId,
 			"counter",
 			"get_count",
@@ -127,6 +130,7 @@ func TestPTBClient(t *testing.T) {
 	t.Run("MoveCall", func(t *testing.T) {
 		// Prepare arguments for a move call
 		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
 			PackageObjectId: packageId,
 			Module:          "counter",
 			Function:        "increment", // Assuming this function exists in the contract
@@ -142,7 +146,7 @@ func TestPTBClient(t *testing.T) {
 		resp, err := relayerClient.SignAndSendTransaction(
 			context.Background(),
 			txnMetadata.TxBytes,
-			nil, // Use default signer
+			publicKeyBytes,
 			"WaitForLocalExecution",
 		)
 		require.NoError(t, err)
@@ -151,7 +155,7 @@ func TestPTBClient(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("QueryEvents", func(t *testing.T) {
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId)
+		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 
 		// Create event filter for the counter module
 		filter := client.EventFilterByMoveEventModule{
@@ -186,7 +190,7 @@ func TestPTBClient(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("QueryEvents_(high_limit)", func(t *testing.T) {
-		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId)
+		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 
 		// Create event filter for the counter module
 		filter := client.EventFilterByMoveEventModule{
@@ -234,7 +238,7 @@ func TestPTBClient(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("GetTransactionStatus", func(t *testing.T) {
-		txDigest := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId)
+		txDigest := IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 
 		// Now check its status
 		txStatus, err := relayerClient.GetTransactionStatus(context.Background(), txDigest)
@@ -244,10 +248,11 @@ func TestPTBClient(t *testing.T) {
 	})
 }
 
-func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string) string {
+func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) string {
 	t.Helper()
 	// Prepare arguments for a move call
 	moveCallReq := client.MoveCallRequest{
+		Signer:          accountAddress,
 		PackageObjectId: packageId,
 		Module:          "counter",
 		Function:        "increment", // Assuming this function exists in the contract
@@ -263,7 +268,7 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 	resp, err := relayerClient.SignAndSendTransaction(
 		context.Background(),
 		txnMetadata.TxBytes,
-		nil, // Use default signer
+		signerPublicKey,
 		"WaitForLocalExecution",
 	)
 	require.NoError(t, err)

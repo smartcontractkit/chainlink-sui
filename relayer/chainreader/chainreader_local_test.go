@@ -4,6 +4,7 @@ package chainreader
 
 import (
 	"context"
+	"crypto/ed25519"
 	"strings"
 	"testing"
 	"time"
@@ -53,11 +54,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
 
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
-	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
+	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "")
 	require.NoError(t, keystoreErr)
-	signer, signerErr := keystoreInstance.GetSignerFromAddress(accountAddress)
-	require.NoError(t, signerErr)
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, &signer, 5, "WaitForLocalExecution")
+
+	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
+	require.NoError(t, err)
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	publicKeyBytes := []byte(publicKey)
+
+	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, clientErr)
 
 	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
@@ -81,7 +86,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 				Name: "counter",
 				Functions: map[string]*ChainReaderFunction{
 					"get_count": {
-						Name: "get_count",
+						Name:          "get_count",
+						SignerAddress: accountAddress,
 						Params: []codec.SuiFunctionParam{
 							{
 								Type:         "address",
@@ -142,7 +148,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		err = chainReader.GetLatestValue(
 			context.Background(),
-			strings.Join([]string{packageId, counterBinding.Name, "get_count"}, "-"),
+			strings.Join([]string{packageId, "counter", "get_count"}, "-"),
 			primitives.Finalized,
 			map[string]any{
 				"counter_id": counterObjectId,
@@ -162,12 +168,12 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		// Use relayerClient to call increment instead of using CLI
 		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
 			PackageObjectId: packageId,
 			Module:          "counter",
 			Function:        "increment",
 			TypeArguments:   []any{},
 			Arguments:       []any{counterObjectId},
-			Signer:          accountAddress,
 			GasBudget:       "2000000",
 		}
 
@@ -176,7 +182,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
 		require.NoError(t, err)
 
-		txnResult, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, nil, "WaitForLocalExecution")
+		txnResult, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
 		require.NoError(t, err)
 
 		log.Debugw("Transaction result", "result", txnResult)

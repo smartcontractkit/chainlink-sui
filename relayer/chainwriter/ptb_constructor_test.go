@@ -4,6 +4,7 @@ package chainwriter_test
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -30,7 +31,8 @@ import (
 func setupTestEnvironment(t *testing.T) (
 	log logger.Logger,
 	accountAddress string,
-	ptbClient *client.PTBClient,
+	relayerClient *client.PTBClient,
+	keystoreInstance keystore.SuiKeystore,
 	packageId string,
 	counterObjectId string,
 ) {
@@ -60,13 +62,10 @@ func setupTestEnvironment(t *testing.T) (
 	require.NoError(t, err)
 
 	// Set up keystore and signer
-	keystoreInstance, err := keystore.NewSuiKeystore(log, "", keystore.PrivateKeySigner)
-	require.NoError(t, err)
-	signer, err := keystoreInstance.GetSignerFromAddress(accountAddress)
+	keystoreInstance, err = keystore.NewSuiKeystore(log, "")
 	require.NoError(t, err)
 
-	// Create client
-	ptbClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, &signer, 5, "WaitForLocalExecution")
+	relayerClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
 	// Build and publish contract
@@ -84,7 +83,7 @@ func setupTestEnvironment(t *testing.T) (
 
 	log.Debugw("Counter object created", "counterObjectId", counterObjectId)
 
-	return log, accountAddress, ptbClient, packageId, counterObjectId
+	return log, accountAddress, relayerClient, keystoreInstance, packageId, counterObjectId
 }
 
 func stringPointer(s string) *string {
@@ -127,6 +126,8 @@ func TestPTBConstructor_BuildPTBCommands(t *testing.T) {
 		},
 	}
 
+	publicKeyBytes := []byte("0x1234567890abcdef")
+
 	// Setup configuration
 	config := chainwriter.ChainWriterConfig{
 		Modules: map[string]*chainwriter.ChainWriterModule{
@@ -135,8 +136,8 @@ func TestPTBConstructor_BuildPTBCommands(t *testing.T) {
 				ModuleID: "0x1",
 				Functions: map[string]*chainwriter.ChainWriterFunction{
 					"simple_call": {
-						Name:        "simple_call",
-						FromAddress: "0xsender",
+						Name:      "simple_call",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -155,8 +156,8 @@ func TestPTBConstructor_BuildPTBCommands(t *testing.T) {
 						},
 					},
 					"ptb_dependency": {
-						Name:        "ptb_dependency",
-						FromAddress: "0xsender",
+						Name:      "ptb_dependency",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -393,7 +394,12 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 //nolint:paralleltest
 func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	// Set up the test environment
-	log, accountAddress, ptbClient, packageId, counterObjectId := setupTestEnvironment(t)
+	log, accountAddress, ptbClient, keystoreInstance, packageId, counterObjectId := setupTestEnvironment(t)
+
+	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
+	require.NoError(t, err)
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	publicKeyBytes := []byte(publicKey)
 
 	// Create PTB Constructor with config targeting the counter contract
 	config := chainwriter.ChainWriterConfig{
@@ -403,8 +409,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 				ModuleID: packageId,
 				Functions: map[string]*chainwriter.ChainWriterFunction{
 					"get_count": {
-						Name:        "get_count",
-						FromAddress: accountAddress,
+						Name:      "get_count",
+						PublicKey: publicKeyBytes,
 						Params: []codec.SuiFunctionParam{
 							{
 								Name:     "counter_id",
@@ -414,8 +420,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						},
 					},
 					"increment_counter": {
-						Name:        "increment",
-						FromAddress: accountAddress,
+						Name:      "increment",
+						PublicKey: publicKeyBytes,
 						Params: []codec.SuiFunctionParam{
 							{
 								Name:     "counter_id",
@@ -425,9 +431,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						},
 					},
 					"incorrect_ptb": {
-						Name:        "incorrect_ptb",
-						FromAddress: accountAddress,
-						Params:      []codec.SuiFunctionParam{},
+						Name:      "incorrect_ptb",
+						PublicKey: publicKeyBytes,
+						Params:    []codec.SuiFunctionParam{},
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -446,8 +452,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						},
 					},
 					"single_op_ptb": {
-						Name:        "single_op_ptb",
-						FromAddress: accountAddress,
+						Name:      "single_op_ptb",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -466,8 +472,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						},
 					},
 					"create_counter_manager": {
-						Name:        "create_counter_manager",
-						FromAddress: accountAddress,
+						Name:      "create_counter_manager",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -498,8 +504,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						},
 					},
 					"manager_borrow_op_ptb": {
-						Name:        "manager_borrow_op_ptb",
-						FromAddress: accountAddress,
+						Name:      "manager_borrow_op_ptb",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -587,8 +593,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						},
 					},
 					"complex_operation": {
-						Name:        "complex_operation",
-						FromAddress: accountAddress,
+						Name:      "complex_operation",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -696,10 +702,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, ptb)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Effects.Data.V1.Status.Status)
+		require.Equal(t, "success", ptbResult.Status.Status)
 		prettyPrintDebug(log, ptbResult)
 
 		// Borrow the Counter from the manager and pass it to increment then put it back
@@ -717,10 +723,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 		// Execute the PTB command
-		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, ptb)
+		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Effects.Data.V1.Status.Status)
+		require.Equal(t, "success", ptbResult.Status.Status)
 		// Expect 2 increment events
 		incrementEventsCounter := 0
 		for _, event := range ptbResult.Events {
@@ -742,10 +748,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, ptb)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		prettyPrintDebug(log, ptbResult)
-		require.Equal(t, "success", ptbResult.Effects.Data.V1.Status.Status)
+		require.Equal(t, "success", ptbResult.Status.Status)
 	})
 }

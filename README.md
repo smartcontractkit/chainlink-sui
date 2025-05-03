@@ -1,5 +1,17 @@
 # Chainlink Sui
 
+- [Chainlink Sui](#chainlink-sui)
+  - [Development and Contribution](#development-and-contribution)
+    - [Prerequisites](#prerequisites)
+    - [Developing in a stable dev environment](#developing-in-a-stable-dev-environment)
+    - [Running Tasks](#running-tasks)
+  - [Get something running](#get-something-running)
+    - [Prerequisites](#prerequisites-1)
+    - [Running Sui (Local) Dev Net](#running-sui-local-dev-net)
+    - [Deploying Sample Contracts](#deploying-sample-contracts)
+  - [Relayer](#relayer)
+
+
 ## Development and Contribution
 
 ### Prerequisites
@@ -83,3 +95,7 @@ Once you have the local Sui devnet running, you can deploy the sample contracts 
 ```
 
 This will build and deploy the contracts in `contracts/test` to your local Sui network.
+
+## Relayer
+
+For detailed documentation about using the Sui Relayer Plugin, including how to configure and use the ChainReader and ChainWriter components, see [RELAYER.md](./RELAYER.md).

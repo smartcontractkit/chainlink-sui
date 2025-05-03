@@ -7,7 +7,6 @@ import (
 	"github.com/pattonkan/sui-go/sui/suiptb"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/pattonkan/sui-go/suiclient"
 )
@@ -32,11 +31,11 @@ func (c *FakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (m
 	return map[string]any{}, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
+func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
 	return nil, errors.New("invalid value")
 }
 
-func (c *FakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerOverride *signer.SuiSigner, executionRequestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
+func (c *FakeSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
 	return client.SuiTransactionBlockResponse{}, nil
 }
 
@@ -69,6 +68,6 @@ func (c *FakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (
 	return &client.SuiTransactionBlockResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder) (*suiclient.SuiTransactionBlockResponse, error) {
-	return &suiclient.SuiTransactionBlockResponse{}, nil
+func (c *FakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (client.SuiTransactionBlockResponse, error) {
+	return client.SuiTransactionBlockResponse{}, nil
 }

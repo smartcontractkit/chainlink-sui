@@ -22,7 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 )
 
 // LoadAccountFromEnv loads a test account from environment variables
@@ -97,12 +97,9 @@ func DeriveAddressFromPublicKey(publicKey ed25519.PublicKey) string {
 	return "0x" + hex.EncodeToString(publicKey)
 }
 
-func DrainAccountCoins(ctx context.Context, lgr logger.Logger, signerInstance *signer.SuiSigner, cli *client.PTBClient, suiCoins []client.CoinData, receiver string) error {
-	addr, err := (*signerInstance).GetAddress()
-	if err != nil {
-		return fmt.Errorf("failed to get address: %w", err)
-	}
-	senderAddress, _ := suiAlt.AddressFromHex(addr)
+func DrainAccountCoins(ctx context.Context, lgr logger.Logger, accountAddress string, suiKeystore keystore.SuiKeystore, cli *client.PTBClient, suiCoins []client.CoinData, receiver string) error {
+	lgr.Infow("Draining account coins from account address", "accountAddress", accountAddress)
+	senderAddress, _ := suiAlt.AddressFromHex(accountAddress)
 	receiverAddresss, _ := suiAlt.AddressFromHex(receiver)
 
 	coins := make([]*suiAlt.ObjectRef, 0)
@@ -139,7 +136,14 @@ func DrainAccountCoins(ctx context.Context, lgr logger.Logger, signerInstance *s
 		return fmt.Errorf("failed to marshal transaction: %w", err)
 	}
 
-	_, err = cli.SignAndSendTransaction(ctx, base64.StdEncoding.EncodeToString(txBytesBCS), signerInstance, client.WaitForLocalExecution)
+	privateKey, err := suiKeystore.GetPrivateKeyByAddress(accountAddress)
+	if err != nil {
+		return fmt.Errorf("failed to get private key: %w", err)
+	}
+
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+
+	_, err = cli.SignAndSendTransaction(ctx, base64.StdEncoding.EncodeToString(txBytesBCS), []byte(publicKey), client.WaitForLocalExecution)
 	if err != nil {
 		return fmt.Errorf("failed to sign and send transaction: %w", err)
 	}

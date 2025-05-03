@@ -32,10 +32,9 @@ type ChainWriterFunction struct {
 	// The function name (optional). When not provided, the key in the map under which this function
 	// is stored is used.
 	Name string
-	// The account address (optional). When not provided, the address is calculated
-	// from the public key.
-	FromAddress string
-	Params      []codec.SuiFunctionParam
+	// The public key of the account that will sign and submit the transaction.
+	PublicKey []byte
+	Params    []codec.SuiFunctionParam
 	// The set of PTB commands to run as part of this function call.
 	// This field is used in replacement of `Params` above.
 	PTBCommands []ChainWriterPTBCommand

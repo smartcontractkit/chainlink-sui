@@ -61,11 +61,13 @@ type TxnMetaData struct {
 }
 
 type SuiTransactionBlockResponse struct {
-	TxDigest  string                                 `json:"txDigest"`
-	Status    SuiExecutionStatus                     `json:"status"`
-	Effects   suiclient.SuiTransactionBlockEffectsV1 `json:"effects"`
-	Timestamp uint64                                 `json:"timestamp"`
-	Height    uint64                                 `json:"height"`
+	TxDigest      string                                                `json:"txDigest"`
+	Status        SuiExecutionStatus                                    `json:"status"`
+	Effects       suiclient.SuiTransactionBlockEffectsV1                `json:"effects"`
+	Events        []*suiclient.Event                                    `json:"events,omitempty"`
+	Timestamp     uint64                                                `json:"timestamp"`
+	Height        uint64                                                `json:"height"`
+	ObjectChanges []suiclient.WrapperTaggedJson[suiclient.ObjectChange] `json:"objectChanges,omitempty"`
 }
 
 type EventFilterByMoveEventModule struct {

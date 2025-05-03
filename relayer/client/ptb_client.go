@@ -12,10 +12,11 @@ import (
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/suiclient"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 const maxCoinsPageSize = 50
@@ -24,14 +25,14 @@ type SuiPTBClient interface {
 	MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
-	ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error)
-	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerOverride *signer.SuiSigner, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
+	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error)
+	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]CoinData, error)
 	ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any) (suiptb.Argument, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
-	FinishPTBAndSend(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder) (*suiclient.SuiTransactionBlockResponse, error)
+	FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 }
 
@@ -41,7 +42,7 @@ type PTBClient struct {
 	client             *suiclient.ClientImpl
 	maxRetries         *int
 	transactionTimeout time.Duration
-	signer             *signer.SuiSigner
+	keystoreService    loop.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
 }
@@ -53,7 +54,7 @@ func NewPTBClient(
 	rpcUrl string,
 	maxRetries *int,
 	transactionTimeout time.Duration,
-	defaultSigner *signer.SuiSigner,
+	keystoreService loop.Keystore,
 	maxConcurrentRequests int64,
 	defaultRequestType TransactionRequestType,
 ) (*PTBClient, error) {
@@ -68,7 +69,7 @@ func NewPTBClient(
 		client:             client,
 		maxRetries:         maxRetries,
 		transactionTimeout: transactionTimeout,
-		signer:             defaultSigner,
+		keystoreService:    keystoreService,
 		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
 	}, nil
@@ -103,13 +104,7 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 			return fmt.Errorf("failed to build PTB: %w", err)
 		}
 
-		// Get signer address
-		signerAddr, err := (*c.signer).GetAddress()
-		if err != nil {
-			return fmt.Errorf("failed to get signer address: %w", err)
-		}
-
-		txBytes, err := bind.FinishTransactionFromBuilder(ctx, ptb, bind.TxOpts{}, signerAddr, *c.client)
+		txBytes, err := bind.FinishTransactionFromBuilder(ctx, ptb, bind.TxOpts{}, req.Signer, *c.client)
 		if err != nil {
 			return fmt.Errorf("failed to finish transaction: %w", err)
 		}
@@ -156,6 +151,8 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 			Options:     options,
 			RequestType: suiclient.ExecuteTransactionRequestType(requestType),
 		}
+
+		c.log.Debugw("Executing transaction", "request", blockReq)
 
 		response, err := c.client.ExecuteTransactionBlock(ctx, blockReq)
 		if err != nil {
@@ -214,7 +211,7 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 	return fee, nil
 }
 
-func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
+func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
 	var result *suiclient.ExecutionResultType
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
 		pkgId, err := sui.AddressFromHex(packageId)
@@ -227,18 +224,12 @@ func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module s
 			return fmt.Errorf("failed to build PTB: %w", err)
 		}
 
-		// Get signer address
-		signerAddr, err := (*c.signer).GetAddress()
-		if err != nil {
-			return fmt.Errorf("failed to get signer address: %w", err)
-		}
-
-		txBytes, err := bind.FinishDevInspectTransactionFromBuilder(ctx, ptb, bind.TxOpts{}, signerAddr, *c.client)
+		txBytes, err := bind.FinishDevInspectTransactionFromBuilder(ctx, ptb, bind.TxOpts{}, signerAddress, *c.client)
 		if err != nil {
 			return fmt.Errorf("failed to finish transaction: %w", err)
 		}
 
-		response, err := bind.DevInspectTx(ctx, *c.signer, *c.client, txBytes)
+		response, err := bind.DevInspectTx(ctx, signerAddress, *c.client, txBytes)
 		if err != nil {
 			return fmt.Errorf("failed to inspect transaction: %w", err)
 		}
@@ -255,25 +246,42 @@ func (c *PTBClient) ReadFunction(ctx context.Context, packageId string, module s
 	return result, err
 }
 
-func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerOverride *signer.SuiSigner, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
+func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
-
-	if signerOverride == nil {
-		signerOverride = c.signer
-	}
 
 	txBytes, err := base64.StdEncoding.DecodeString(txBytesRaw)
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %w", err)
 	}
 
-	response, err := bind.SignAndSendTx(ctx, *signerOverride, *c.client, txBytes)
+	signerAddress, err := GetAddressFromPublicKey(signerPublicKey)
 	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to sign and send transaction: %w", err)
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get signer address: %w", err)
 	}
 
-	return convertSuiResponse(response), nil
+	signatures, err := c.keystoreService.Sign(ctx, signerAddress, txBytes)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to sign tx: %w", err)
+	}
+
+	signaturesString := SerializeSuiSignature(signatures, signerPublicKey)
+
+	b64bytes := codec.EncodeBase64(txBytes)
+
+	return c.SendTransaction(ctx, TransactionBlockRequest{
+		TxBytes:     b64bytes,
+		Signatures:  []string{signaturesString},
+		RequestType: string(c.defaultRequestType),
+		Options: TransactionBlockOptions{
+			ShowInput:          true,
+			ShowRawInput:       true,
+			ShowEffects:        true,
+			ShowEvents:         true,
+			ShowObjectChanges:  true,
+			ShowBalanceChanges: true,
+		},
+	})
 }
 
 func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error) {
@@ -351,8 +359,11 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 			return fmt.Errorf("failed to get transaction: %w", err)
 		}
 
-		result.Status = response.Effects.Data.V1.Status.Status
-		result.Error = response.Effects.Data.V1.Status.Error
+		// Set status if available
+		if response.Effects != nil && response.Effects.Data.V1 != nil {
+			result.Status = response.Effects.Data.V1.Status.Status
+			result.Error = response.Effects.Data.V1.Status.Error
+		}
 
 		return nil
 	})
@@ -422,16 +433,40 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]Co
 
 // Helper functions to convert between suiclient and models types
 func convertSuiResponse(resp *suiclient.SuiTransactionBlockResponse) SuiTransactionBlockResponse {
-	// Implementation of conversion logic
-	// This is a simplified version
-	return SuiTransactionBlockResponse{
-		TxDigest: resp.Digest.String(),
-		Status: SuiExecutionStatus{
+	result := SuiTransactionBlockResponse{}
+
+	// If response is nil, return empty result
+	if resp == nil {
+		return result
+	}
+
+	// Set digest if available
+	if resp.Digest != nil {
+		result.TxDigest = resp.Digest.String()
+	}
+
+	if resp.Events != nil {
+		result.Events = resp.Events
+	}
+
+	// Check for nil at each level before accessing nested properties
+	if resp.Effects != nil &&
+		resp.Effects.Data.V1 != nil {
+		// Copy effects
+		result.Effects = *resp.Effects.Data.V1
+
+		// Set status
+		result.Status = SuiExecutionStatus{
 			Status: resp.Effects.Data.V1.Status.Status,
 			Error:  resp.Effects.Data.V1.Status.Error,
-		},
-		Effects: *resp.Effects.Data.V1,
+		}
 	}
+
+	if resp.ObjectChanges != nil {
+		result.ObjectChanges = resp.ObjectChanges
+	}
+
+	return result
 }
 
 // ToPTBArg converts an argument into a format compatible with PTB based on the specified type.
@@ -446,19 +481,22 @@ func (c *PTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTr
 }
 
 // FinishPTBAndSend receives a constructed PTB and proceeds to attach a gas token and finally signs and sends the request.
-func (c *PTBClient) FinishPTBAndSend(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder) (*suiclient.SuiTransactionBlockResponse, error) {
+func (c *PTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error) {
 	// TODO: edit `bind.FinishTransactionFromBuilder()` to receive a reference to the client instead of passing by value
-	signerAddr, err := (*c.signer).GetAddress()
+
+	signerAddress, err := GetAddressFromPublicKey(signerPublicKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get default signer address: %w", err)
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get signer address: %w", err)
 	}
 
-	txBytes, err := bind.FinishTransactionFromBuilder(ctx, builder, bind.TxOpts{}, signerAddr, *c.client)
+	txBytes, err := bind.FinishTransactionFromBuilder(ctx, builder, bind.TxOpts{}, signerAddress, *c.client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to finish transaction: %w", err)
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to finish transaction: %w", err)
 	}
 
-	return bind.SignAndSendTx(ctx, *c.signer, *c.client, txBytes)
+	b64bytes := codec.EncodeBase64(txBytes)
+
+	return c.SignAndSendTransaction(ctx, b64bytes, signerPublicKey, c.defaultRequestType)
 }
 
 func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error) {
