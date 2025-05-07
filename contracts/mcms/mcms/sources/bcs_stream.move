@@ -1,6 +1,6 @@
 module mcms::bcs_stream {
-    use sui::bcs;
     use std::string::{Self, String};
+    use sui::bcs;
 
     const E_MALFORMED_DATA: u64 = 1;
     const E_OUT_OF_BYTES: u64 = 2;
@@ -10,14 +10,11 @@ module mcms::bcs_stream {
         /// Byte buffer containing the serialized data.
         data: vector<u8>,
         /// Cursor indicating the current position in the byte buffer.
-        cur: u64
+        cur: u64,
     }
 
     public fun assert_is_consumed(stream: &BCSStream) {
-        assert!(
-            stream.cur == stream.data.length(),
-            E_NOT_CONSUMED
-        );
+        assert!(stream.cur == stream.data.length(), E_NOT_CONSUMED);
     }
 
     public fun deserialize_uleb128(stream: &mut BCSStream): u64 {
@@ -68,10 +65,7 @@ module mcms::bcs_stream {
         let data = &stream.data;
         let cur = stream.cur;
 
-        assert!(
-            cur + 32 <= data.length(),
-            E_OUT_OF_BYTES
-        );
+        assert!(cur + 32 <= data.length(), E_OUT_OF_BYTES);
 
         let mut bcs_instance = bcs::new(stream.data);
         stream.cur = stream.cur + 32;
@@ -94,10 +88,7 @@ module mcms::bcs_stream {
         let data = &stream.data;
         let cur = stream.cur;
 
-        assert!(
-            cur + 2 <= data.length(),
-            E_OUT_OF_BYTES
-        );
+        assert!(cur + 2 <= data.length(), E_OUT_OF_BYTES);
         let res = (data[cur] as u16) | ((data[cur + 1] as u16) << 8);
 
         stream.cur = stream.cur + 2;
@@ -108,10 +99,7 @@ module mcms::bcs_stream {
         let data = &stream.data;
         let cur = stream.cur;
 
-        assert!(
-            cur + 4 <= data.length(),
-            E_OUT_OF_BYTES
-        );
+        assert!(cur + 4 <= data.length(), E_OUT_OF_BYTES);
         let res =
             (data[cur] as u32)
                 | ((data[cur + 1]  as u32) << 8)
@@ -126,10 +114,7 @@ module mcms::bcs_stream {
         let data = &stream.data;
         let cur = stream.cur;
 
-        assert!(
-            cur + 8 <= data.length(),
-            E_OUT_OF_BYTES
-        );
+        assert!(cur + 8 <= data.length(), E_OUT_OF_BYTES);
         let res =
             (data[cur] as u64)
                 | ((data[cur + 1] as u64) << 8)
@@ -148,10 +133,7 @@ module mcms::bcs_stream {
         let data = &stream.data;
         let cur = stream.cur;
 
-        assert!(
-            cur + 16 <= data.length(),
-            E_OUT_OF_BYTES
-        );
+        assert!(cur + 16 <= data.length(), E_OUT_OF_BYTES);
         let res =
             (data[cur]  as u128)
                 | ((data[cur + 1] as u128) << 8)
@@ -178,10 +160,7 @@ module mcms::bcs_stream {
         let data = &stream.data;
         let cur = stream.cur;
 
-        assert!(
-            cur + 32 <= data.length(),
-            E_OUT_OF_BYTES
-        );
+        assert!(cur + 32 <= data.length(), E_OUT_OF_BYTES);
         let res =
             (data[cur] as u256)
                 | ((data[cur + 1] as u256) << 8)
@@ -230,9 +209,7 @@ module mcms::bcs_stream {
         BCSStream { data, cur: 0 }
     }
 
-    public fun deserialize_fixed_vector_u8(
-        stream: &mut BCSStream, len: u64
-    ): vector<u8> {
+    public fun deserialize_fixed_vector_u8(stream: &mut BCSStream, len: u64): vector<u8> {
         let data = &mut stream.data;
         let cur = stream.cur;
 
@@ -250,10 +227,7 @@ module mcms::bcs_stream {
         let data = &mut stream.data;
         let cur = stream.cur;
 
-        assert!(
-            cur + len <= data.length(),
-            E_OUT_OF_BYTES
-        );
+        assert!(cur + len <= data.length(), E_OUT_OF_BYTES);
 
         let mut res = trim(data, cur);
         stream.data = trim(&mut res, len);
@@ -266,7 +240,8 @@ module mcms::bcs_stream {
     /// After determining the length, it then reads the contents of the vector.
     /// The `elem_deserializer` lambda expression is used sequentially to deserialize each element of the vector.
     public macro fun deserialize_vector<$E>(
-        $stream: &mut BCSStream, $elem_deserializer: |&mut BCSStream| -> $E
+        $stream: &mut BCSStream,
+        $elem_deserializer: |&mut BCSStream| -> $E,
     ): vector<$E> {
         let len = deserialize_uleb128($stream);
         let mut v = vector::empty();
@@ -299,7 +274,8 @@ module mcms::bcs_stream {
     /// After determining the presence of data, it then reads the actual data if present.
     /// The `f` lambda expression is used to deserialize the element contained within the `Option`.
     public macro fun deserialize_option<$E>(
-        $stream: &mut BCSStream, $f: |&mut BCSStream| -> $E
+        $stream: &mut BCSStream,
+        $f: |&mut BCSStream| -> $E,
     ): Option<$E> {
         let is_data = deserialize_bool($stream);
         if (is_data) {
@@ -341,10 +317,11 @@ module mcms::bcs_stream {
 #[test_only]
 module mcms::bcs_stream_test {
     use mcms::bcs_stream as bs;
-    use sui::address;
     use std::string;
+    use sui::address;
 
-    const MOCK_ADDRESS_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
+    const MOCK_ADDRESS_1: address =
+        @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 
     #[test]
     public fun test_assert_is_consumed() {
@@ -441,10 +418,45 @@ module mcms::bcs_stream_test {
 
     #[test]
     public fun test_deserialize_u256() {
-        let mut s = bs::new(vector[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+        let mut s = bs::new(vector[
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+        ]);
         let u256_val = bs::deserialize_u256(&mut s);
 
-        assert!(u256_val == 452312848583266388373324160190187140051835877600158453279131187530910662659); // 3 + 1 << 248
+        assert!(
+            u256_val == 452312848583266388373324160190187140051835877600158453279131187530910662659,
+        ); // 3 + 1 << 248
         assert!(bs::get_cur(&s) == 32);
     }
 

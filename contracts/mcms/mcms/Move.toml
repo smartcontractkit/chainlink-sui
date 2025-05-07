@@ -3,7 +3,7 @@ name = "ChainlinkManyChainMultisig"
 edition = "2024.beta"
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet", override = true }
 
 [addresses]
 mcms = "0x4000"
+mcms_owner = "0x4010"
