@@ -5,5 +5,9 @@ edition = "2024.beta"
 [dependencies]
 
 [addresses]
+mcms = "_"
+mcms_owner = "_"
+
+[dev-addresses]
 mcms = "0x4000"
 mcms_owner = "0x4010"

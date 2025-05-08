@@ -6,15 +6,14 @@ module ccip::internal {
         receiver: vector<u8>,
         data: vector<u8>,
         token_amounts: vector<Sui2AnyTokenAmount>,
-        fee_token: address,
-        fee_token_store: address,
+        fee_token_metadata: address,
+        fee_token_balance: u64,
         extra_args: vector<u8>
     }
 
     public struct Sui2AnyTokenAmount has drop {
         token: address,
         amount: u64,
-        token_store: address
     }
 
     public fun new_sui2any_message(
@@ -22,31 +21,24 @@ module ccip::internal {
         data: vector<u8>,
         token_addresses: vector<address>,
         token_amounts: vector<u64>,
-        token_store_addresses: vector<address>,
-        fee_token: address,
-        fee_token_store: address,
+        fee_token_metadata: address,
+        fee_token_balance: u64,
         extra_args: vector<u8>
     ): Sui2AnyMessage {
-        let tokens_len = token_addresses.length();
         assert!(
-            tokens_len == token_amounts.length(),
-            E_TOKEN_ARGUMENTS_MISMATCH
-        );
-        assert!(
-            tokens_len == token_store_addresses.length(),
+            token_addresses.length() == token_amounts.length(),
             E_TOKEN_ARGUMENTS_MISMATCH
         );
         let mut converted_token_amounts = vector[];
+        let tokens_len = token_addresses.length();
         let mut i = 0;
         while (i < tokens_len) {
             let token = token_addresses[i];
             let amount = token_amounts[i];
-            let token_store = token_store_addresses[i];
             converted_token_amounts.push_back(
                 Sui2AnyTokenAmount {
                     token,
-                    amount,
-                    token_store
+                    amount
                 }
             );
             i = i + 1;
@@ -55,21 +47,20 @@ module ccip::internal {
             receiver,
             data,
             token_amounts: converted_token_amounts,
-            fee_token,
-            fee_token_store,
+            fee_token_metadata,
+            fee_token_balance,
             extra_args
         }
     }
 
-    /// Returns all fields except for FungibleAsset
     public fun get_sui2any_fields(
         message: &Sui2AnyMessage
-    ): (vector<u8>, vector<u8>, address, address, vector<u8>) {
+    ): (vector<u8>, vector<u8>, address, u64, vector<u8>) {
         (
             message.receiver,
             message.data,
-            message.fee_token,
-            message.fee_token_store,
+            message.fee_token_metadata,
+            message.fee_token_balance,
             message.extra_args
         )
     }

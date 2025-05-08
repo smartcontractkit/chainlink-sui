@@ -2,11 +2,13 @@
 
 [move]
 version = 3
-manifest_digest = "A9155CF04C96BDC7F1528816EC70A7721866730F791E3C693BD3114911B9BE10"
-deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
+manifest_digest = "79B3FE04A2982E7394015391ABE0A0F1C32D2DF8BA2A92947FDF77627EF1196F"
+deps_digest = "CAFAD8A7CF51067FB4358215BECB86BD100DD64E57C2AC8A7AE7D74B688F5965"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
   { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
+  { id = "ChainlinkCCIPOfframp", name = "ChainlinkCCIPOfframp" },
+  { id = "ChainlinkCCIPOnramp", name = "ChainlinkCCIPOnramp" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
@@ -23,12 +25,49 @@ dependencies = [
 ]
 
 [[move.package]]
+id = "CCIPTokenPool"
+source = { local = "../../ccip_token_pools/token_pool" }
+
+dependencies = [
+  { id = "Bridge", name = "Bridge" },
+  { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
+  { id = "MoveStdlib", name = "MoveStdlib" },
+  { id = "Sui", name = "Sui" },
+  { id = "SuiSystem", name = "SuiSystem" },
+]
+
+[[move.package]]
 id = "ChainlinkCCIP"
 source = { local = "../../ccip" }
 
 dependencies = [
   { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
   { id = "Sui", name = "Sui" },
+]
+
+[[move.package]]
+id = "ChainlinkCCIPOfframp"
+source = { local = "../../ccip_offramp" }
+
+dependencies = [
+  { id = "Bridge", name = "Bridge" },
+  { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
+  { id = "MoveStdlib", name = "MoveStdlib" },
+  { id = "Sui", name = "Sui" },
+  { id = "SuiSystem", name = "SuiSystem" },
+]
+
+[[move.package]]
+id = "ChainlinkCCIPOnramp"
+source = { local = "../../ccip_onramp" }
+
+dependencies = [
+  { id = "Bridge", name = "Bridge" },
+  { id = "CCIPTokenPool", name = "CCIPTokenPool" },
+  { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
+  { id = "MoveStdlib", name = "MoveStdlib" },
+  { id = "Sui", name = "Sui" },
+  { id = "SuiSystem", name = "SuiSystem" },
 ]
 
 [[move.package]]

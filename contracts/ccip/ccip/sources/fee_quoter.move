@@ -8,7 +8,7 @@ module ccip::fee_quoter {
 
     use ccip::eth_abi;
     use ccip::internal;
-    use ccip::state_object::{Self, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
     const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
     const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
@@ -37,8 +37,6 @@ module ccip::fee_quoter {
     public struct FeeQuoterState has key, store {
         id: UID,
         max_fee_juels_per_msg: u64,
-        // TODO: figure out if we should use CoinMetadata for link token or object ID for Treasury Cap object
-        // TODO: we will need a link token contract
         link_token: address,
         token_price_staleness_threshold: u64,
         fee_tokens: vector<address>,
@@ -50,6 +48,10 @@ module ccip::fee_quoter {
         token_transfer_fee_configs: table::Table<u64, table::Table<address, TokenTransferFeeConfig>>,
         // TODO: update calculations - should this be octa per apt?
         premium_multiplier_wei_per_eth: table::Table<address, u64>,
+    }
+
+    public struct FeeQuoterCap has key, store {
+        id: UID,
     }
 
     public struct StaticConfig has drop {
@@ -170,7 +172,6 @@ module ccip::fee_quoter {
     const E_INVALID_GAS_LIMIT: u64 = 27;
     const E_INVALID_CHAIN_FAMILY_SELECTOR: u64 = 28;
     const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
-    // const E_UNKNOWN_FUNCTION: u64 = 30;
     const E_OUT_OF_BOUND: u64 = 31;
     const E_ONLY_CALLABLE_BY_OWNER: u64 = 32;
 
@@ -178,38 +179,19 @@ module ccip::fee_quoter {
         string::utf8(b"FeeQuoter 1.6.0")
     }
 
-    // fun init_module(publisher: &signer) {
-    //     if (@mcms_register_entrypoints != @0x0) {
-    //         mcms_registry::register_entrypoint(
-    //             publisher, string::utf8(b"fee_quoter"), McmsCallback {}
-    //         );
-    //     };
-    // }
-
     public fun initialize(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         max_fee_juels_per_msg: u64,
-        link_token: address,
+        link_token: address, // can pass in the LINK metadata object to make sure this is a valid token address
         token_price_staleness_threshold: u64,
         fee_tokens: vector<address>,
         ctx: &mut TxContext
     ) {
         assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
-        assert!(
             !state_object::contains(ref, FEE_QUOTER_STATE_NAME),
             E_ALREADY_INITIALIZED
         );
-
-        // TODO: how to perform some checks for link token. this technically just needs
-        // to be a unique identifier of link token. we don't request any data from it.
-        // Could be the object ID of treasury cap or coin metadata
-        // assert!(
-        //     object::object_exists<CoinMetadata>(link_token),
-        //     E_INVALID_LINK_TOKEN
-        // );
 
         let state = FeeQuoterState {
             id: object::new(ctx),
@@ -223,11 +205,19 @@ module ccip::fee_quoter {
             token_transfer_fee_configs: table::new(ctx),
             premium_multiplier_wei_per_eth: table::new(ctx),
         };
+        let fee_quoter_cap = FeeQuoterCap {
+            id: object::new(ctx),
+        };
+        transfer::transfer(
+            fee_quoter_cap,
+            ctx.sender()
+        );
         state_object::add(ref, FEE_QUOTER_STATE_NAME, state, ctx);
     }
 
     public fun apply_fee_token_updates(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         fee_tokens_to_remove: vector<address>,
         fee_tokens_to_add: vector<address>,
         ctx: &mut TxContext
@@ -268,6 +258,7 @@ module ccip::fee_quoter {
     // Note that unlike EVM, this only allows changes for a single dest chain selector at a time.
     public fun apply_token_transfer_fee_config_updates(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         dest_chain_selector: u64,
         add_tokens: vector<address>,
         add_min_fee_usd_cents: vector<u32>,
@@ -376,6 +367,7 @@ module ccip::fee_quoter {
 
     public fun apply_dest_chain_config_updates(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         dest_chain_selector: u64,
         is_enabled: bool,
         max_number_of_tokens_per_msg: u16,
@@ -459,6 +451,7 @@ module ccip::fee_quoter {
 
     public fun apply_premium_multiplier_wei_per_eth_updates(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         tokens: vector<address>,
         premium_multiplier_wei_per_eth: vector<u64>,
         ctx: &mut TxContext
@@ -627,9 +620,9 @@ module ccip::fee_quoter {
         to_token_amount as u64
     }
 
-    // TODO: revisit the permission control
-    public(package) fun update_prices(
+    public fun update_prices(
         ref: &mut CCIPObjectRef,
+        _: &FeeQuoterCap,
         clock: &clock::Clock,
         source_tokens: vector<address>,
         source_usd_per_token: vector<u256>,
@@ -698,7 +691,7 @@ module ccip::fee_quoter {
         );
     }
 
-    public(package) fun get_validated_fee(
+    public fun get_validated_fee(
         ref: &CCIPObjectRef,
         clock: &clock::Clock,
         dest_chain_selector: u64,
@@ -748,9 +741,11 @@ module ccip::fee_quoter {
                 validate_32byte_address(receiver, must_be_non_zero);
                 svm_gas_limit
             } else {
+                // TODO: consider adding SUI chain family selector later
                 abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
             };
 
+        // TODO: make sure this does not revert if no price
         let fee_token_price = get_token_price_internal(state, fee_token);
         let packed_gas_price =
             get_validated_gas_price_internal(
@@ -792,7 +787,7 @@ module ccip::fee_quoter {
             } else { 0 };
 
         let call_data_length: u256 =
-            (data_len as u256) * (token_transfer_bytes_overhead as u256);
+            (data_len as u256) + (token_transfer_bytes_overhead as u256);
         let mut dest_call_data_cost =
             call_data_length
                 * (dest_chain_config.dest_gas_per_payload_byte_base as u256);
@@ -1192,7 +1187,7 @@ module ccip::fee_quoter {
             };
             (extra_args, allow_out_of_order_execution)
         } else {
-            // TODO: add support for Aptos?
+            // TODO: add support for Sui?
             abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
         }
     }
@@ -1244,7 +1239,7 @@ module ccip::fee_quoter {
         dest_exec_data_per_token
     }
 
-    public(package) fun process_message_args(
+    public fun process_message_args(
         ref: &CCIPObjectRef,
         dest_chain_selector: u64,
         fee_token: address,

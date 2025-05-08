@@ -6,16 +6,13 @@ module ccip_token_pool::token_pool {
 
     use ccip::eth_abi;
     use ccip::state_object;
-    use ccip::token_admin_registry;
     use ccip::rmn_remote;
     use ccip::allowlist;
 
     use ccip_token_pool::token_pool_rate_limiter;
 
-    // TODO: verify if this needs to be an object
     public struct TokenPoolState has store {
         allowlist_state: allowlist::AllowlistState,
-        // TODO: check if we need to store decimals here
         coin_metadata: address,
         remote_chain_configs: VecMap<u64, RemoteChainConfig>,
         rate_limiter_config: token_pool_rate_limiter::RateLimitState
@@ -61,28 +58,29 @@ module ccip_token_pool::token_pool {
     }
 
     const E_NOT_PUBLISHER: u64 = 1;
-    const E_UNKNOWN_FUNGIBLE_ASSET: u64 = 2;
-    const E_UNKNOWN_REMOTE_CHAIN_SELECTOR: u64 = 3;
-    const E_ZERO_ADDRESS_NOT_ALLOWED: u64 = 4;
-    const E_REMOTE_POOL_ALREADY_ADDED: u64 = 5;
-    const E_UNKNOWN_REMOTE_POOL: u64 = 6;
-    const E_REMOTE_CHAIN_TO_ADD_MISMATCH: u64 = 7;
-    const E_REMOTE_CHAIN_ALREADY_EXISTS: u64 = 8;
-    const E_INVALID_REMOTE_CHAIN_DECIMALS: u64 = 9;
-    const E_INVALID_ENCODED_AMOUNT: u64 = 10;
+    const E_UNKNOWN_REMOTE_CHAIN_SELECTOR: u64 = 2;
+    const E_ZERO_ADDRESS_NOT_ALLOWED: u64 = 3;
+    const E_REMOTE_POOL_ALREADY_ADDED: u64 = 4;
+    const E_UNKNOWN_REMOTE_POOL: u64 = 5;
+    const E_REMOTE_CHAIN_TO_ADD_MISMATCH: u64 = 6;
+    const E_REMOTE_CHAIN_ALREADY_EXISTS: u64 = 7;
+    const E_INVALID_REMOTE_CHAIN_DECIMALS: u64 = 8;
+    const E_INVALID_ENCODED_AMOUNT: u64 = 9;
+    const E_UNKNOWN_FUNGIBLE_ASSET: u64 = 10;
 
     // ================================================================
     // |                    Initialize and state                      |
     // ================================================================
 
-    public fun initialize<T>(
-        coin_metadata: &CoinMetadata<T>, allowlist: vector<address>, ctx: &mut TxContext
+    // this will be called by a specific token pool implementation
+    public fun initialize(
+        coin_metadata_address: address, allowlist: vector<address>, ctx: &mut TxContext
     ): TokenPoolState {
         assert_can_initialize(ctx.sender());
 
         TokenPoolState {
             allowlist_state: allowlist::new(allowlist, ctx),
-            coin_metadata: object::id_to_address(&object::id(coin_metadata)),
+            coin_metadata: coin_metadata_address,
             remote_chain_configs: vec_map::empty<u64, RemoteChainConfig>(),
             rate_limiter_config: token_pool_rate_limiter::new(ctx)
         }
@@ -283,33 +281,20 @@ module ccip_token_pool::token_pool {
     // ================================================================
 
     // Returns the remote token as bytes
-    public fun validate_lock_or_burn<T>(
+    public fun validate_lock_or_burn(
         ref: &state_object::CCIPObjectRef,
         clock: &Clock,
         state: &mut TokenPoolState,
-        coin_metadata: &CoinMetadata<T>, // we can pass only the ID but it still does not remove the type param
-        input: &token_admin_registry::LockOrBurnInputV1,
+        sender: address,
+        remote_chain_selector: u64,
         local_amount: u64
     ): vector<u8> {
-        // Validate the fungible asset
-        let configured_token = get_token(state);
-
-        // make sure the caller is requesting this pool's fungible asset.
-        assert!(
-            configured_token == object::id_to_address(object::borrow_id(coin_metadata)),
-            E_UNKNOWN_FUNGIBLE_ASSET
-        );
-
-        // Check RMN curse status
-        let remote_chain_selector =
-            token_admin_registry::get_lock_or_burn_remote_chain_selector(input);
         assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)));
 
         // Allowlist check
-        let _sender = token_admin_registry::get_lock_or_burn_sender(input);
         if (allowlist::get_allowlist_enabled(&state.allowlist_state)) {
             assert!(
-                allowlist::is_allowed(&state.allowlist_state, _sender),
+                allowlist::is_allowed(&state.allowlist_state, sender),
                 E_NOT_PUBLISHER
             );
         };
@@ -329,26 +314,20 @@ module ccip_token_pool::token_pool {
         ref: &state_object::CCIPObjectRef,
         clock: &Clock,
         state: &mut TokenPoolState,
-        input: &token_admin_registry::ReleaseOrMintInputV1,
+        remote_chain_selector: u64,
+        dest_token_address: address,
+        source_pool_address: vector<u8>,
         local_amount: u64
     ) {
-        // Validate the fungible asset
-        let local_token = token_admin_registry::get_release_or_mint_local_token(input);
         let configured_token = get_token(state);
 
-        // make sure the caller is requesting this pool's fungible asset.
         assert!(
-            configured_token == local_token,
+            configured_token == dest_token_address,
             E_UNKNOWN_FUNGIBLE_ASSET
         );
 
         // Check RMN curse status
-        let remote_chain_selector =
-            token_admin_registry::get_release_or_mint_remote_chain_selector(input);
         assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)));
-
-        let source_pool_address =
-            token_admin_registry::get_release_or_mint_source_pool_address(input);
 
         // This checks if the remote chain selector and the source pool are valid.
         assert!(
@@ -451,26 +430,6 @@ module ccip_token_pool::token_pool {
         }
     }
 
-    public fun calculate_release_or_mint_amount<T>(
-        coin_metadata: &CoinMetadata<T>, state: &TokenPoolState, input: &token_admin_registry::ReleaseOrMintInputV1
-    ): u64 {
-        // make sure the caller is requesting this pool's fungible asset.
-        assert!(
-            get_token(state) == object::id_to_address(object::borrow_id(coin_metadata)),
-            E_UNKNOWN_FUNGIBLE_ASSET
-        );
-
-        let local_decimals = get_token_decimals(coin_metadata);
-        let source_amount =
-            token_admin_registry::get_release_or_mint_source_amount(input);
-        let source_pool_data =
-            token_admin_registry::get_release_or_mint_source_pool_data(input);
-        let remote_decimals = parse_remote_decimals(source_pool_data, local_decimals);
-        let local_amount =
-            calculate_local_amount(source_amount, remote_decimals, local_decimals);
-        local_amount
-    }
-
     // ================================================================
     // |                    Rate limit config                         |
     // ================================================================
@@ -517,22 +476,23 @@ module ccip_token_pool::token_pool {
         allowlist::apply_allowlist_updates(&mut state.allowlist_state, removes, adds);
     }
 
+    // TODO: figure out if we need this
     // ================================================================
     // |                          Destroy                             |
     // ================================================================
 
-    public fun destroy_token_pool(state: TokenPoolState) {
-        let TokenPoolState {
-            allowlist_state,
-            coin_metadata: _coin_metadata,
-            remote_chain_configs: _remote_chain_configs,
-            rate_limiter_config
-        } = state;
-
-        allowlist::destroy_allowlist(allowlist_state);
-
-        token_pool_rate_limiter::destroy_rate_limiter(rate_limiter_config);
-    }
+    // public fun destroy_token_pool(state: TokenPoolState) {
+    //     let TokenPoolState {
+    //         allowlist_state,
+    //         coin_metadata: _coin_metadata,
+    //         remote_chain_configs: _remote_chain_configs,
+    //         rate_limiter_config
+    //     } = state;
+    //
+    //     allowlist::destroy_allowlist(allowlist_state);
+    //
+    //     token_pool_rate_limiter::destroy_rate_limiter(rate_limiter_config);
+    // }
 }
 
 #[test_only]

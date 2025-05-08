@@ -8,7 +8,7 @@ module ccip::rmn_remote {
 
     use ccip::eth_abi;
     use ccip::merkle_proof;
-    use ccip::state_object::{Self, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
     public struct RMNRemoteState has key, store {
         id: UID,
@@ -85,35 +85,22 @@ module ccip::rmn_remote {
     const E_SIGNERS_MISMATCH: u64 = 15;
     const E_INVALID_SUBJECT_LENGTH: u64 = 16;
     const E_INVALID_PUBLIC_KEY_LENGTH: u64 = 17;
-    // const E_UNKNOWN_FUNCTION: u64 = 18;
-    const E_ONLY_CALLABLE_BY_OWNER: u64 = 19;
+    const E_ONLY_CALLABLE_BY_OWNER: u64 = 18;
 
     public fun type_and_version(): String {
         string::utf8(b"RMNRemote 1.6.0")
     }
 
-    // fun init_module(publisher: &signer) {
-    //     if (@mcms_register_entrypoints != @0x0) {
-    //         mcms_registry::register_entrypoint(
-    //             publisher, string::utf8(b"rmn_remote"), McmsCallback {}
-    //         );
-    //     };
-    // }
-
     public fun initialize(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         local_chain_selector: u64,
         ctx: &mut TxContext
     ) {
         assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
-        assert!(
             !state_object::contains(ref, RMN_REMOTE_STATE_NAME),
             E_ALREADY_INITIALIZED
         );
-
         assert!(
             local_chain_selector != 0,
             E_ZERO_VALUE_NOT_ALLOWED
@@ -263,6 +250,7 @@ module ccip::rmn_remote {
 
     public fun set_config(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         rmn_home_contract_config_digest: vector<u8>,
         signer_onchain_public_keys: vector<vector<u8>>,
         node_indexes: vector<u64>,
@@ -369,12 +357,20 @@ module ccip::rmn_remote {
         hash::keccak256(&b"RMN_V1_6_ANY2SUI_REPORT")
     }
 
-    public fun curse(ref: &mut CCIPObjectRef, subject: vector<u8>, ctx: &mut TxContext) {
-        curse_multiple(ref, vector[subject], ctx);
+    public fun curse(
+        ref: &mut CCIPObjectRef,
+        owner_cap: &OwnerCap,
+        subject: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        curse_multiple(ref, owner_cap, vector[subject], ctx);
     }
 
     public fun curse_multiple(
-        ref: &mut CCIPObjectRef, subjects: vector<vector<u8>>, ctx: &mut TxContext
+        ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
+        subjects: vector<vector<u8>>,
+        ctx: &mut TxContext
     ) {
         assert!(
             ctx.sender() == state_object::get_current_owner(ref),
@@ -402,14 +398,16 @@ module ccip::rmn_remote {
 
     public fun uncurse(
         ref: &mut CCIPObjectRef,
+        owner_cap: &OwnerCap,
         subject: vector<u8>,
         ctx: &mut TxContext
     ) {
-        uncurse_multiple(ref, vector[subject], ctx);
+        uncurse_multiple(ref, owner_cap, vector[subject], ctx);
     }
 
     public fun uncurse_multiple(
         ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
         subjects: vector<vector<u8>>,
         ctx: &mut TxContext
     ) {
@@ -467,78 +465,6 @@ module ccip::rmn_remote {
     public fun get_version(vc: &VersionedConfig): (u32, Config) {
         (vc.version, vc.config)
     }
-
-    //
-    // MCMS entrypoint
-    //
-
-    // public struct McmsCallback has drop {}
-    //
-    // public fun mcms_entrypoint<T: key>(
-    //     _metadata: object::Object<T>
-    // ): option::Option<u128> acquires RMNRemoteState {
-    //     let (caller, function, data) =
-    //         mcms_registry::get_callback_params(@ccip, McmsCallback {});
-    //
-    //     let function_bytes = *string::bytes(&function);
-    //     let stream = bcs_stream::new(data);
-    //
-    //     if (function_bytes == b"initialize") {
-    //         let local_chain_selector = bcs_stream::deserialize_u64(&mut stream);
-    //         bcs_stream::assert_is_consumed(&stream);
-    //         initialize(&caller, local_chain_selector);
-    //     } else if (function_bytes == b"set_config") {
-    //         let rmn_home_contract_config_digest =
-    //             bcs_stream::deserialize_vector_u8(&mut stream);
-    //         let signer_onchain_public_keys =
-    //             bcs_stream::deserialize_vector(
-    //                 &mut stream,
-    //                 |stream| bcs_stream::deserialize_vector_u8(stream)
-    //             );
-    //         let node_indexes =
-    //             bcs_stream::deserialize_vector(
-    //                 &mut stream,
-    //                 |stream| bcs_stream::deserialize_u64(stream)
-    //             );
-    //         let f_sign = bcs_stream::deserialize_u64(&mut stream);
-    //         bcs_stream::assert_is_consumed(&stream);
-    //         set_config(
-    //             &caller,
-    //             rmn_home_contract_config_digest,
-    //             signer_onchain_public_keys,
-    //             node_indexes,
-    //             f_sign
-    //         )
-    //     } else if (function_bytes == b"curse") {
-    //         let subject = bcs_stream::deserialize_vector_u8(&mut stream);
-    //         bcs_stream::assert_is_consumed(&stream);
-    //         curse(&caller, subject)
-    //     } else if (function_bytes == b"curse_multiple") {
-    //         let subjects =
-    //             bcs_stream::deserialize_vector(
-    //                 &mut stream,
-    //                 |stream| bcs_stream::deserialize_vector_u8(stream)
-    //             );
-    //         bcs_stream::assert_is_consumed(&stream);
-    //         curse_multiple(&caller, subjects)
-    //     } else if (function_bytes == b"uncurse") {
-    //         let subject = bcs_stream::deserialize_vector_u8(&mut stream);
-    //         bcs_stream::assert_is_consumed(&stream);
-    //         uncurse(&caller, subject)
-    //     } else if (function_bytes == b"uncurse_multiple") {
-    //         let subjects =
-    //             bcs_stream::deserialize_vector(
-    //                 &mut stream,
-    //                 |stream| bcs_stream::deserialize_vector_u8(stream)
-    //             );
-    //         bcs_stream::assert_is_consumed(&stream);
-    //         uncurse_multiple(&caller, subjects)
-    //     } else {
-    //         abort E_UNKNOWN_FUNCTION)
-    //     };
-    //
-    //     option::none()
-    // }
 }
 
 #[test_only]

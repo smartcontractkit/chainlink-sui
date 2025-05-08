@@ -13,6 +13,10 @@ module ccip::state_object {
     const E_PROPOSED_OWNER_MISMATCH: u64 = 9;
     const E_UNAUTHORIZED: u64 = 10;
 
+    public struct OwnerCap has key, store {
+        id: UID,
+    }
+
     public struct OwnershipTransferRequested has copy, drop {
         from: address,
         to: address
@@ -49,8 +53,12 @@ module ccip::state_object {
             current_owner: ctx.sender(),
             pending_transfer: option::none()
         };
+        let owner_cap = OwnerCap {
+            id: object::new(ctx),
+        };
 
         transfer::share_object(ref);
+        transfer::transfer(owner_cap, ctx.sender());
     }
 
     // TODO: we may need to include link token here
@@ -75,11 +83,6 @@ module ccip::state_object {
         dof::borrow(&ref.id, name)
     }
 
-    // TODO: verify this is safe to not check the ctx sender bc this function is only used within the package
-    public(package) fun borrow_mut_from_user<T: key + store>(ref: &mut CCIPObjectRef, name: vector<u8>): &mut T {
-        dof::borrow_mut(&mut ref.id, name)
-    }
-
     public(package) fun borrow_mut_with_ctx<T: key + store>(ref: &mut CCIPObjectRef, name: vector<u8>, ctx: &TxContext): &mut T {
         assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
 
@@ -100,7 +103,6 @@ module ccip::state_object {
         event::emit(OwnershipTransferRequested { from: caller, to });
     }
 
-    // if CCIPObjectRef is not a shared object, the proposed new owner cannot accept this object onchain
     public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
         assert!(
             ref.pending_transfer.is_some(),

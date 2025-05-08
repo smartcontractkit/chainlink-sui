@@ -1,20 +1,28 @@
-module ccip::offramp {
+module ccip_offramp::offramp {
     use sui::clock;
     use sui::event;
     use sui::hash;
     use std::string::{Self, String};
+    use std::u256;
     use sui::table::{Self, Table};
     use sui::vec_map::{Self, VecMap};
 
     use ccip::client;
     use ccip::eth_abi;
-    use ccip::fee_quoter;
+    use ccip::fee_quoter::{Self, FeeQuoterCap};
     use ccip::merkle_proof;
-    use ccip::ocr3_base::{Self, OCR3BaseState};
+    use ccip::receiver_registry;
+    use ccip::token_admin_registry;
     use ccip::rmn_remote;
-    use ccip::state_object::{Self, CCIPObjectRef};
+    use ccip::state_object::CCIPObjectRef;
+
+    use ccip_offramp::ocr3_base::{Self, OCR3BaseState};
 
     use mcms::bcs_stream::{Self, BCSStream};
+
+    public struct OwnerCap has key, store {
+        id: UID
+    }
 
     public struct OffRampState has key, store {
         id: UID,
@@ -34,6 +42,7 @@ module ccip::offramp {
         // merkle root -> timestamp in secs
         roots: Table<vector<u8>, u64>,
         latest_price_sequence_number: u64,
+        fee_quoter_cap: Option<FeeQuoterCap>
     }
 
     public struct SourceChainConfig has store, drop, copy {
@@ -64,7 +73,7 @@ module ccip::offramp {
 
     public struct Any2SuiTokenTransfer has drop {
         source_pool_address: vector<u8>,
-        dest_token_address: address,
+        dest_token_address: address, // this is the coin metadata address
         dest_gas_amount: u32,
         extra_data: vector<u8>,
 
@@ -164,55 +173,72 @@ module ccip::offramp {
         source_chain_selector: u64
     }
 
-    const OFF_RAMP_STATE_NAME: vector<u8> = b"OffRampState";
     // These have to match the EVM states
+    // TODO: since the entire PTB either succeeds or fails, we should only have 0 or 2?
     const EXECUTION_STATE_UNTOUCHED: u8 = 0;
+    // const EXECUTION_STATE_IN_PROGRESS: u8 = 1;
     const EXECUTION_STATE_SUCCESS: u8 = 2;
+    // const EXECUTION_STATE_FAILURE: u8 = 3;
 
     const ZERO_MERKLE_ROOT: vector<u8> = vector[
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0
     ];
-    const E_ALREADY_INITIALIZED: u64 = 1;
-    const E_SOURCE_CHAIN_SELECTORS_MISMATCH: u64 = 2;
-    const E_ZERO_CHAIN_SELECTOR: u64 = 3;
-    const E_UNKNOWN_SOURCE_CHAIN_SELECTOR: u64 = 4;
-    const E_MUST_BE_OUT_OF_ORDER_EXEC: u64 = 5;
-    const E_SOURCE_CHAIN_SELECTOR_MISMATCH: u64 = 6;
-    const E_DEST_CHAIN_SELECTOR_MISMATCH: u64 = 7;
-    const E_TOKEN_DATA_MISMATCH: u64 = 8;
-    const E_ROOT_NOT_COMMITTED: u64 = 9;
-    const E_MANUAL_EXECUTION_NOT_YET_ENABLED: u64 = 10;
-    const E_SOURCE_CHAIN_NOT_ENABLED: u64 = 11;
-    const E_COMMIT_ON_RAMP_MISMATCH: u64 = 12;
-    const E_INVALID_INTERVAL: u64 = 13;
-    const E_INVALID_ROOT: u64 = 14;
-    const E_ROOT_ALREADY_COMMITTED: u64 = 15;
-    const E_STALE_COMMIT_REPORT: u64 = 16;
-    // const E_UNSUPPORTED_TOKEN: u64 = 17;
-    // const E_INVALID_REMOTE_CHAIN_DECIMALS: u64 = 18;
-    // const E_INVALID_ENCODED_AMOUNT: u64 = 19;
-    const E_CURSED_BY_RMN: u64 = 20;
-    // const E_FUNGIBLE_ASSET_AMOUNT_MISMATCH: u64 = 21;
-    const E_SIGNATURE_VERIFICATION_REQUIRED_IN_COMMIT_PLUGIN: u64 = 22;
-    const E_SIGNATURE_VERIFICATION_NOT_ALLOWED_IN_EXECUTION_PLUGIN: u64 = 23;
-    // const E_UNKNOWN_FUNCTION: u64 = 24;
-    const E_ONLY_CALLABLE_BY_OWNER: u64 = 25;
+    const E_SOURCE_CHAIN_SELECTORS_MISMATCH: u64 = 1;
+    const E_ZERO_CHAIN_SELECTOR: u64 = 2;
+    const E_UNKNOWN_SOURCE_CHAIN_SELECTOR: u64 = 3;
+    const E_MUST_BE_OUT_OF_ORDER_EXEC: u64 = 4;
+    const E_SOURCE_CHAIN_SELECTOR_MISMATCH: u64 = 5;
+    const E_DEST_CHAIN_SELECTOR_MISMATCH: u64 = 6;
+    const E_TOKEN_DATA_MISMATCH: u64 = 7;
+    const E_ROOT_NOT_COMMITTED: u64 = 8;
+    const E_MANUAL_EXECUTION_NOT_YET_ENABLED: u64 = 9;
+    const E_SOURCE_CHAIN_NOT_ENABLED: u64 = 10;
+    const E_COMMIT_ON_RAMP_MISMATCH: u64 = 11;
+    const E_INVALID_INTERVAL: u64 = 12;
+    const E_INVALID_ROOT: u64 = 13;
+    const E_ROOT_ALREADY_COMMITTED: u64 = 14;
+    const E_STALE_COMMIT_REPORT: u64 = 15;
+    const E_CURSED_BY_RMN: u64 = 16;
+    const E_SIGNATURE_VERIFICATION_REQUIRED_IN_COMMIT_PLUGIN: u64 = 17;
+    const E_SIGNATURE_VERIFICATION_NOT_ALLOWED_IN_EXECUTION_PLUGIN: u64 = 18;
+    const E_FEE_QUOTER_CAP_EXISTS: u64 = 19;
+    const E_TOKEN_AMOUNT_OVERFLOW: u64 = 20;
+    const E_TOKEN_TRANSFER_FAILED: u64 = 21;
+    const E_CCIP_RECEIVE_FAILED: u64 = 22;
+    const E_WRONG_INDEX_IN_RECEIVER_PARAMS: u64 = 23;
+    const E_TOKEN_TRANSFER_ALREADY_COMPLETED: u64 = 24;
+    const E_TOKEN_POOL_ADDRESS_MISMATCH: u64 = 25;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
     }
 
-    // fun init_module(publisher: &signer) {
-    //     if (@mcms_register_entrypoints != @0x0) {
-    //         mcms_registry::register_entrypoint(
-    //             publisher, string::utf8(b"offramp"), McmsCallback {}
-    //         );
-    //     };
-    // }
+    fun init(ctx: &mut TxContext) {
+        let owner_cap = OwnerCap {
+            id: object::new(ctx)
+        };
+
+        let state = OffRampState {
+            id: object::new(ctx),
+            ocr3_base_state: ocr3_base::new(ctx),
+            chain_selector: 0,
+            permissionless_execution_threshold_seconds: 0,
+            source_chain_configs: vec_map::empty<u64, SourceChainConfig>(),
+            execution_states: table::new(ctx),
+            roots: table::new(ctx),
+            latest_price_sequence_number: 0,
+            fee_quoter_cap: option::none()
+        };
+
+        transfer::share_object(state);
+        transfer::transfer(owner_cap, ctx.sender());
+    }
 
     public fun initialize(
-        ref: &mut CCIPObjectRef,
+        state: &mut OffRampState,
+        _: &OwnerCap,
+        fee_quoter_cap: FeeQuoterCap,
         chain_selector: u64,
         permissionless_execution_threshold_seconds: u32,
         source_chains_selectors: vector<u64>,
@@ -222,45 +248,36 @@ module ccip::offramp {
         ctx: &mut TxContext
     ) {
         assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
-        assert!(
-            !state_object::contains(ref, OFF_RAMP_STATE_NAME),
-            E_ALREADY_INITIALIZED
-        );
-        assert!(
             source_chains_selectors.length() == source_chains_is_enabled.length(),
             E_SOURCE_CHAIN_SELECTORS_MISMATCH
         );
 
-        let mut state = OffRampState {
-            id: object::new(ctx),
-            ocr3_base_state: ocr3_base::new(ctx),
-            chain_selector,
-            permissionless_execution_threshold_seconds,
-            source_chain_configs: vec_map::empty<u64, SourceChainConfig>(),
-            execution_states: table::new(ctx),
-            roots: table::new(ctx),
-            latest_price_sequence_number: 0
-        };
+        state.chain_selector = chain_selector;
+
+        assert!(
+            state.fee_quoter_cap.is_none(),
+            E_FEE_QUOTER_CAP_EXISTS
+        );
+        state.fee_quoter_cap.fill(fee_quoter_cap);
 
         event::emit(StaticConfigSet { chain_selector });
 
         set_dynamic_config_internal(
-            &mut state,
+            state,
             permissionless_execution_threshold_seconds
         );
         apply_source_chain_config_updates_internal(
-            &mut state,
+            state,
             source_chains_selectors,
             source_chains_is_enabled,
             source_chains_is_rmn_verification_disabled,
             source_chains_on_ramp,
             ctx
         );
+    }
 
-        state_object::add(ref, OFF_RAMP_STATE_NAME, state, ctx);
+    public fun get_ocr3_base(state: &OffRampState): &OCR3BaseState {
+        &state.ocr3_base_state
     }
 
     fun set_dynamic_config_internal(
@@ -355,18 +372,86 @@ module ccip::offramp {
     // |                          Execution                           |
     // ================================================================
 
-    // potentially not permission this function because ocr3_base::transmit will always verify the signatures
-    public fun execute(
-        ref: &mut CCIPObjectRef,
+    public struct ReceiverParams {
+        params: vector<TokenParam>,
+        message: Option<client::Any2SuiMessage>,
+    }
+
+    public struct TokenParam has copy, drop {
+        sender: vector<u8>,
+        receiver: address,
+        amount: u64,
+        source_chain_selector: u64,
+        dest_token_address: address,
+        token_pool_address: address,
+        source_pool_address: vector<u8>,
+        source_pool_data: vector<u8>,
+        offchain_token_data: vector<u8>,
+        completed: bool
+    }
+    
+    public fun get_token_param_data(
+        receiver_params: &ReceiverParams, index: u64
+    ): (vector<u8>, address, u64, address, vector<u8>) {
+        assert!(
+            index < receiver_params.params.length(),
+            E_WRONG_INDEX_IN_RECEIVER_PARAMS
+        );
+        let token_param = receiver_params.params[index];
+
+        (
+            token_param.sender,
+            token_param.receiver,
+            token_param.amount,
+            token_param.dest_token_address,
+            token_param.source_pool_address,
+        )
+    }
+
+    // called by token pool to mark token transfers as completed
+    public fun complete_token_transfer(
+        mut receiver_params: ReceiverParams,
+        index: u64,
+        token_pool_address: address
+    ): ReceiverParams {
+        assert!(
+            index < receiver_params.params.length(),
+            E_WRONG_INDEX_IN_RECEIVER_PARAMS
+        );
+        assert!(
+            !receiver_params.params[index].completed,
+            E_TOKEN_TRANSFER_ALREADY_COMPLETED
+        );
+        assert!(
+            receiver_params.params[index].token_pool_address == token_pool_address,
+            E_TOKEN_POOL_ADDRESS_MISMATCH
+        );
+        receiver_params.params[index].completed = true;
+
+        receiver_params
+    }
+
+    // called by ccip receiver directly, or by PTB to extract the message and send to the receiver
+    public fun extract_any2sui_message(
+        mut receiver_params: ReceiverParams
+    ): (Option<client::Any2SuiMessage>, ReceiverParams) {
+        let message = receiver_params.message;
+        receiver_params.message = option::none();
+
+        (message, receiver_params)
+    }
+
+    // TODO: this will be called by the execution DON so both object ref and offramp state need to be discoverable by RPCs
+    public fun init_execute(
+        ref: &CCIPObjectRef,
+        state: &mut OffRampState,
         clock: &clock::Clock,
         report_context: vector<vector<u8>>,
         report: vector<u8>,
         ctx: &mut TxContext
-    ) {
+    ): ReceiverParams {
         let reports = deserialize_execution_report(report);
-        execute_single_report(ref, clock, reports, false);
 
-        let state = state_object::borrow_mut_from_user<OffRampState>(ref, OFF_RAMP_STATE_NAME);
         ocr3_base::transmit(
             &state.ocr3_base_state,
             ctx.sender(),
@@ -375,23 +460,48 @@ module ccip::offramp {
             report,
             vector::empty(),
             ctx
-        )
+        );
+
+        pre_execute_single_report(ref, state, clock, reports, false)
     }
 
-    public fun manually_execute(
-        ref: &mut CCIPObjectRef,
+    public fun finish_execute(receiver_params: ReceiverParams) {
+        let ReceiverParams {
+            params,
+            message,
+        } = receiver_params;
+
+        // make sure all token transfers are completed
+        let mut i = 0;
+        let number_of_tokens_in_msg = params.length();
+        while (i < number_of_tokens_in_msg) {
+            let token_param = params[i];
+            assert!(token_param.completed, E_TOKEN_TRANSFER_FAILED);
+            i = i + 1;
+        };
+
+        // make sure the any2sui message is extracted
+        assert!(
+            !message.is_none(),
+            E_CCIP_RECEIVE_FAILED
+        );
+    }
+
+    // this function does not involve ocr3 transmit & it sets manual_execution to true
+    public fun manually_init_execute(
+        ref: &CCIPObjectRef,
+        state: &mut OffRampState,
         clock: &clock::Clock,
-        report_bytes: vector<u8>)
-    {
-        let report = deserialize_execution_report(report_bytes);
-        execute_single_report(ref, clock, report, true);
+        report_bytes: vector<u8>
+    ): ReceiverParams {
+        let reports = deserialize_execution_report(report_bytes);
+
+        pre_execute_single_report(ref, state, clock, reports, true)
     }
 
     public fun get_execution_state(
-        ref: &CCIPObjectRef, source_chain_selector: u64, sequence_number: u64
+        state: &OffRampState, source_chain_selector: u64, sequence_number: u64
     ): u8 {
-        let state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
-
         assert!(
             state.execution_states.contains(source_chain_selector),
             E_UNKNOWN_SOURCE_CHAIN_SELECTOR
@@ -474,22 +584,25 @@ module ccip::offramp {
     }
 
     #[allow(implicit_const_copy)]
-    fun execute_single_report(
-        ref: &mut CCIPObjectRef,
+    fun pre_execute_single_report(
+        ref: &CCIPObjectRef,
+        state: &mut OffRampState,
         clock: &clock::Clock,
         execution_report: ExecutionReport,
         manual_execution: bool
-    ) {
+    ): ReceiverParams {
         let source_chain_selector = execution_report.source_chain_selector;
 
         if (rmn_remote::is_cursed_u128(ref, source_chain_selector as u128)) {
             assert!(!manual_execution, E_CURSED_BY_RMN);
 
             event::emit(SkippedReportExecution { source_chain_selector });
-            return
-        };
 
-        let state = state_object::borrow_mut_from_user<OffRampState>(ref, OFF_RAMP_STATE_NAME);
+            return ReceiverParams {
+                params: vector[],
+                message: option::none()
+            }
+        };
 
         assert_source_chain_enabled(state, source_chain_selector);
 
@@ -538,7 +651,11 @@ module ccip::offramp {
 
         if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
             event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
-            return
+
+            return ReceiverParams {
+                params: vector[],
+                message: option::none()
+            }
         };
 
         // A zero nonce indicates out of order execution which is the only allowed case.
@@ -550,10 +667,62 @@ module ccip::offramp {
             E_TOKEN_DATA_MISMATCH
         );
 
-        // Execute the message
-        execute_single_message(message, &execution_report.offchain_token_data);
+        let mut i = 0;
+        let mut receiver_params = ReceiverParams {
+            params: vector[],
+            message: option::none()
+        };
 
-        // Since Sui only supports success of reverts, when it reaches this it has succeeded.
+        let mut token_addresses = vector[];
+        let mut token_amounts = vector[];
+
+        while (i < number_of_tokens_in_msg) {
+            let token_pool_address: address = token_admin_registry::get_pool(ref, message.token_amounts[i].dest_token_address);
+            let mut amount_op = u256::try_as_u64(message.token_amounts[i].amount);
+            assert!(
+                amount_op.is_some(),
+                E_TOKEN_AMOUNT_OVERFLOW
+            );
+            let amount = amount_op.extract();
+
+            receiver_params.params.push_back(
+                TokenParam {
+                    sender: message.sender,
+                    receiver: message.receiver,
+                    amount,
+                    source_chain_selector: message.header.source_chain_selector,
+                    dest_token_address: message.token_amounts[i].dest_token_address,
+                    token_pool_address,
+                    source_pool_address: message.token_amounts[i].source_pool_address,
+                    source_pool_data: message.token_amounts[i].extra_data,
+                    offchain_token_data: execution_report.offchain_token_data[i],
+                    completed: false
+                }
+            );
+            token_addresses.push_back(message.token_amounts[i].dest_token_address);
+            token_amounts.push_back(amount);
+            i = i + 1;
+        };
+
+        // if the message has data or gas limit, and the receiver is registered,
+        // fill the any2sui message for the receiver to execute
+        if ((!message.data.is_empty() || message.gas_limit != 0) &&
+            receiver_registry::is_registered_receiver(ref, message.receiver)) {
+            let dest_token_amounts =
+                client::new_dest_token_amounts(token_addresses, token_amounts);
+            let any2sui_message =
+                client::new_any2sui_message(
+                    message.header.message_id,
+                    message.header.source_chain_selector,
+                    message.sender,
+                    message.data,
+                    dest_token_amounts,
+                );
+
+            receiver_params.message.fill(any2sui_message);
+        };
+
+        // the entire PTB either succeeds or fails so we can set the state to success
         *execution_state_ref = EXECUTION_STATE_SUCCESS;
 
         event::emit(
@@ -565,6 +734,9 @@ module ccip::offramp {
                 state: EXECUTION_STATE_SUCCESS
             }
         );
+
+        // return the hot potato to user/execution DON
+        receiver_params
     }
 
     /// Throws an error if the root is not committed.
@@ -633,109 +805,6 @@ module ccip::offramp {
         hash::keccak256(&outer_hash)
     }
 
-    fun execute_single_message(
-        message: &Any2SuiRampMessage, message_offchain_token_data: &vector<vector<u8>>
-    ) {
-        let (local_token_addresses, local_token_amounts) =
-            release_or_mint_tokens(
-                &message.token_amounts,
-                message_offchain_token_data,
-                message.sender,
-                message.receiver,
-                message.header.source_chain_selector
-            );
-
-        let dest_token_amounts =
-            client::new_dest_token_amounts(local_token_addresses, local_token_amounts);
-
-        let _any2sui_message =
-            client::new_any2sui_message(
-                message.header.message_id,
-                message.header.source_chain_selector,
-                message.sender,
-                message.data,
-                dest_token_amounts
-            );
-
-        // TODO: implement this after figuring out dynamic dispatching
-        // receiver_dispatcher::dispatch_receive(message.receiver, any2sui_message)
-    }
-
-    // ================================================================
-    // |                       Token Handling                         |
-    // ================================================================
-
-    fun release_or_mint_tokens(
-        token_amounts: &vector<Any2SuiTokenTransfer>,
-        message_offchain_token_data: &vector<vector<u8>>,
-        sender: vector<u8>,
-        receiver: address,
-        source_chain_selector: u64
-    ): (vector<address>, vector<u64>) {
-        // execute_single_report already checks that the vector lengths match.
-        let mut local_token_addresses = vector[];
-        let mut local_token_amounts = vector[];
-
-        vector::zip_do_ref!(
-            token_amounts,
-            message_offchain_token_data,
-            |token_transfer, current_offchain_token_data| {
-                let (token_address, token_amount) =
-                    release_or_mint_single_token(
-                        token_transfer,
-                        current_offchain_token_data,
-                        sender,
-                        receiver,
-                        source_chain_selector
-                    );
-                local_token_addresses.push_back(token_address);
-                local_token_amounts.push_back(token_amount);
-            }
-        );
-
-        (local_token_addresses, local_token_amounts)
-    }
-
-    // TODO: implement this after figuring out dynamic dispatching
-    fun release_or_mint_single_token(
-        token_transfer: &Any2SuiTokenTransfer,
-        _current_offchain_token_data: &vector<u8>,
-        _sender: vector<u8>,
-        _receiver: address,
-        _source_chain_selector: u64
-    ): (address, u64) {
-        let local_token = token_transfer.dest_token_address;
-        // let token_pool_address = token_admin_registry::get_pool(local_token);
-        // assert!(token_pool_address != @0x0, E_UNSUPPORTED_TOKEN);
-
-        // let source_amount = token_transfer.amount;
-        // let source_pool_data = token_transfer.extra_data;
-
-        let local_amount: u64 = 0;
-        // let (fa, local_amount) =
-        //     token_admin_dispatcher::dispatch_release_or_mint(
-        //         token_pool_address,
-        //         sender,
-        //         receiver,
-        //         source_amount,
-        //         local_token,
-        //         source_chain_selector,
-        //         token_transfer.source_pool_address,
-        //         source_pool_data,
-        //         *current_offchain_token_data
-        //     );
-
-        // check that the returned amount in the fungible asset is exactly `local_amount`.
-        // assert!(
-        //     fungible_asset::amount(&fa) == local_amount,
-        //     E_FUNGIBLE_ASSET_AMOUNT_MISMATCH
-        // );
-
-        // primary_fungible_store::deposit(receiver, fa);
-
-        (local_token, local_amount)
-    }
-
     // ================================================================
     // |                       Deserialization                        |
     // ================================================================
@@ -801,40 +870,37 @@ module ccip::offramp {
     // ================================================================
 
     public fun set_ocr3_config(
-        ref: &mut CCIPObjectRef,
+        state: &mut OffRampState,
+        _: &OwnerCap,
         config_digest: vector<u8>,
         ocr_plugin_type: u8,
         big_f: u8,
         is_signature_verification_enabled: bool,
         signers: vector<vector<u8>>,
-        transmitters: vector<address>,
-        ctx: &mut TxContext
+        transmitters: vector<address>
     ) {
         ocr3_base::set_ocr3_config(
-            ref,
+            &mut state.ocr3_base_state,
             config_digest,
             ocr_plugin_type,
             big_f,
             is_signature_verification_enabled,
             signers,
-            transmitters,
-            ctx
+            transmitters
         );
-        after_ocr3_config_set(ref, ocr_plugin_type, is_signature_verification_enabled, ctx);
+        after_ocr3_config_set(state, ocr_plugin_type, is_signature_verification_enabled);
     }
 
     fun after_ocr3_config_set(
-        ref: &mut CCIPObjectRef,
+        state: &mut OffRampState,
         ocr_plugin_type: u8,
-        is_signature_verification_enabled: bool,
-        ctx: &TxContext
+        is_signature_verification_enabled: bool
     ) {
         if (ocr_plugin_type == ocr3_base::ocr_plugin_type_commit()) {
             assert!(
                 is_signature_verification_enabled,
                 E_SIGNATURE_VERIFICATION_REQUIRED_IN_COMMIT_PLUGIN
             );
-            let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
             state.latest_price_sequence_number = 0;
         } else if (ocr_plugin_type == ocr3_base::ocr_plugin_type_execution()) {
             assert!(
@@ -845,9 +911,9 @@ module ccip::offramp {
     }
 
     public fun latest_config_details(
-        ref: &CCIPObjectRef, ocr_plugin_type: u8
+        state: &OffRampState, ocr_plugin_type: u8
     ): ocr3_base::OCRConfig {
-        ocr3_base::latest_config_details(ref, ocr_plugin_type)
+        ocr3_base::latest_config_details(&state.ocr3_base_state, ocr_plugin_type)
     }
 
     // ================================================================
@@ -856,6 +922,7 @@ module ccip::offramp {
 
     public fun commit(
         ref: &mut CCIPObjectRef,
+        state: &mut OffRampState,
         clock: &clock::Clock,
         report_context: vector<vector<u8>>,
         report: vector<u8>,
@@ -874,7 +941,6 @@ module ccip::offramp {
             || commit_report.price_updates.gas_price_updates.length() > 0) {
             let ocr_sequence_number =
                 ocr3_base::deserialize_sequence_bytes(report_context[1]);
-            let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
             if (state.latest_price_sequence_number < ocr_sequence_number) {
                 state.latest_price_sequence_number = ocr_sequence_number;
 
@@ -907,6 +973,7 @@ module ccip::offramp {
 
                 fee_quoter::update_prices(
                     ref,
+                    state.fee_quoter_cap.borrow(),
                     clock,
                     source_tokens,
                     source_usd_per_token,
@@ -922,8 +989,8 @@ module ccip::offramp {
             };
         };
 
-        commit_merkle_roots(ref, clock, commit_report.blessed_merkle_roots, true, ctx);
-        commit_merkle_roots(ref, clock, commit_report.unblessed_merkle_roots, false, ctx);
+        commit_merkle_roots(ref, state, clock, commit_report.blessed_merkle_roots, true);
+        commit_merkle_roots(ref, state, clock, commit_report.unblessed_merkle_roots, false);
 
         event::emit(
             CommitReportAccepted {
@@ -933,7 +1000,6 @@ module ccip::offramp {
             }
         );
 
-        let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
         ocr3_base::transmit(
             &state.ocr3_base_state,
             ctx.sender(),
@@ -981,7 +1047,11 @@ module ccip::offramp {
     }
 
     fun commit_merkle_roots(
-        ref: &mut CCIPObjectRef, clock: &clock::Clock, merkle_roots: vector<MerkleRoot>, is_blessed: bool, ctx: &TxContext
+        ref: &CCIPObjectRef,
+        state: &mut OffRampState,
+        clock: &clock::Clock,
+        merkle_roots: vector<MerkleRoot>,
+        is_blessed: bool
     ) {
         merkle_roots.do_ref!(
             |root| {
@@ -993,10 +1063,7 @@ module ccip::offramp {
                     E_CURSED_BY_RMN
                 );
 
-                let immutable_offramp_state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
-                assert_source_chain_enabled(immutable_offramp_state, source_chain_selector);
-
-                let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
+                assert_source_chain_enabled(state, source_chain_selector);
 
                 let source_chain_config = state.source_chain_configs.get_mut(&source_chain_selector);
 
@@ -1031,13 +1098,11 @@ module ccip::offramp {
         )
     }
 
-    public fun get_latest_price_sequence_number(ref: &CCIPObjectRef): u64 {
-        let state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
+    public fun get_latest_price_sequence_number(state: &OffRampState): u64 {
         state.latest_price_sequence_number
     }
 
-    public fun get_merkle_root(ref: &CCIPObjectRef, root: vector<u8>): u64 {
-        let state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
+    public fun get_merkle_root(state: &OffRampState, root: vector<u8>): u64 {
         assert!(
             state.roots.contains(root),
             E_INVALID_ROOT
@@ -1047,10 +1112,9 @@ module ccip::offramp {
     }
 
     public fun get_source_chain_config(
-        ref: &CCIPObjectRef,
+        state: &OffRampState,
         source_chain_selector: u64
     ): SourceChainConfig {
-        let state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
         if (state.source_chain_configs.contains(&source_chain_selector)) {
             let source_chain_config = state.source_chain_configs.get(&source_chain_selector);
             *source_chain_config
@@ -1065,8 +1129,7 @@ module ccip::offramp {
         }
     }
 
-    public fun get_all_source_chain_configs(ref: &CCIPObjectRef): (vector<u64>, vector<SourceChainConfig>) {
-        let state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
+    public fun get_all_source_chain_configs(state: &OffRampState): (vector<u64>, vector<SourceChainConfig>) {
         let mut chain_selectors = vector[];
         let mut chain_configs = vector[];
         let keys = state.source_chain_configs.keys();
@@ -1083,25 +1146,19 @@ module ccip::offramp {
     // |                           Config                             |
     // ================================================================
 
-    public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
-        let state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
+    public fun get_static_config(state: &OffRampState): StaticConfig {
         create_static_config(state.chain_selector)
     }
 
-    public fun get_dynamic_config(ref: &CCIPObjectRef): DynamicConfig {
-        let state = state_object::borrow<OffRampState>(ref, OFF_RAMP_STATE_NAME);
+    public fun get_dynamic_config(state: &OffRampState): DynamicConfig {
         create_dynamic_config(state.permissionless_execution_threshold_seconds)
     }
 
     public fun set_dynamic_config(
-        ref: &mut CCIPObjectRef, permissionless_execution_threshold_seconds: u32, ctx: &mut TxContext
+        state: &mut OffRampState,
+        _: &OwnerCap,
+        permissionless_execution_threshold_seconds: u32
     ) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
-
-        let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
         set_dynamic_config_internal(
             state,
             permissionless_execution_threshold_seconds
@@ -1118,19 +1175,14 @@ module ccip::offramp {
     }
 
     public fun apply_source_chain_config_updates(
-        ref: &mut CCIPObjectRef,
+        state: &mut OffRampState,
+        _: &OwnerCap,
         source_chains_selector: vector<u64>,
         source_chains_is_enabled: vector<bool>,
         source_chains_is_rmn_verification_disabled: vector<bool>,
         source_chains_on_ramp: vector<vector<u8>>,
         ctx: &mut TxContext
     ) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
-
-        let state = state_object::borrow_mut_with_ctx<OffRampState>(ref, OFF_RAMP_STATE_NAME, ctx);
         apply_source_chain_config_updates_internal(
             state,
             source_chains_selector,

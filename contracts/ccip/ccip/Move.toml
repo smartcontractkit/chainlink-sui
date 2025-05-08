@@ -7,9 +7,16 @@ Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-fram
 ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
 
 [addresses]
+ccip = "_"
+mcms = "_"
+# If set to 0x0, will not register mcms entrypoints
+mcms_register_entrypoints = "_"
+
+[dev-addresses]
+## CCIP Core: 1xxx
 ccip = "0x1000"
-ccip_token_pool = "0x2000"
-burn_mint_token_pool = "0x2001"
+
+# MCMS: 4xxx
 mcms = "0x4000"
+mcms_owner = "0x4010"
 mcms_register_entrypoints = "0x4001"
-local_token = "0x9000"

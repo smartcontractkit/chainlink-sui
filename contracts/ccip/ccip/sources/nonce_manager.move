@@ -2,7 +2,12 @@ module ccip::nonce_manager {
     use std::string::{Self, String};
     use sui::table::{Self, Table};
 
-    use ccip::state_object::{Self, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
+
+    // store this cap to onramp
+    public struct NonceManagerCap has key, store {
+        id: UID,
+    }
 
     public struct NonceManagerState has key, store {
         id: UID,
@@ -12,17 +17,16 @@ module ccip::nonce_manager {
 
     const NONCE_MANAGER_STATE_NAME: vector<u8> = b"NonceManagerState";
     const E_ALREADY_INITIALIZED: u64 = 1;
-    const E_ONLY_CALLABLE_BY_OWNER: u64 = 2;
 
     public fun type_and_version(): String {
         string::utf8(b"NonceManager 1.6.0")
     }
 
-    public fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
+    public fun initialize(
+        ref: &mut CCIPObjectRef,
+        _: &OwnerCap,
+        ctx: &mut TxContext
+    ) {
         assert!(
             !state_object::contains(ref, NONCE_MANAGER_STATE_NAME),
             E_ALREADY_INITIALIZED
@@ -32,7 +36,11 @@ module ccip::nonce_manager {
             id: object::new(ctx),
             outbound_nonces: table::new(ctx)
         };
+        let cap = NonceManagerCap {
+            id: object::new(ctx)
+        };
         state_object::add(ref, NONCE_MANAGER_STATE_NAME, state, ctx);
+        transfer::transfer(cap, ctx.sender());
     }
 
     public fun get_outbound_nonce(
@@ -53,13 +61,14 @@ module ccip::nonce_manager {
         dest_chain_nonces[sender]
     }
 
-    public(package) fun get_incremented_outbound_nonce(
+    public fun get_incremented_outbound_nonce(
         ref: &mut CCIPObjectRef,
+        _: &NonceManagerCap,
         dest_chain_selector: u64,
         sender: address,
         ctx: &mut TxContext
     ): u64 {
-        let state = state_object::borrow_mut_from_user<NonceManagerState>(ref, NONCE_MANAGER_STATE_NAME);
+        let state = state_object::borrow_mut_with_ctx<NonceManagerState>(ref, NONCE_MANAGER_STATE_NAME, ctx);
 
         if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {
             table::add(

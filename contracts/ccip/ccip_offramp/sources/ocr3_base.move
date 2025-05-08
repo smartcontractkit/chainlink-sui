@@ -1,4 +1,4 @@
-module ccip::ocr3_base {
+module ccip_offramp::ocr3_base {
     use std::bit_vector;
 
     use sui::ed25519;
@@ -6,16 +6,11 @@ module ccip::ocr3_base {
     use sui::hash;
     use sui::table;
 
-    use ccip::state_object::{Self, CCIPObjectRef};
-
-    const OCR3_BASE_STATE_NAME: vector<u8> = b"OCR3BaseState";
-
     const MAX_NUM_ORACLES: u64 = 256;
     const OCR_PLUGIN_TYPE_COMMIT: u8 = 0;
     const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
     const PUBLIC_KEY_NUM_BYTES: u64 = 32;
 
-    // const E_ALREADY_INITIALIZED: u64 = 1;
     const E_BIG_F_MUST_BE_POSITIVE: u64 = 2;
     const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 3;
     const E_TOO_MANY_SIGNERS: u64 = 4;
@@ -36,7 +31,6 @@ module ccip::ocr3_base {
     const E_INVALID_SIGNATURE: u64 = 19;
     const E_OUT_OF_BYTES: u64 = 20;
     const E_WRONG_PUBKEY_SIZE: u64 = 21;
-    const E_ONLY_CALLABLE_BY_OWNER: u64 = 22;
 
     public struct UnvalidatedPublicKey has copy, drop, store {
         bytes: vector<u8>
@@ -106,10 +100,8 @@ module ccip::ocr3_base {
     }
 
     public fun latest_config_details(
-        ref: &CCIPObjectRef, ocr_plugin_type: u8
+        state: &OCR3BaseState, ocr_plugin_type: u8
     ): OCRConfig {
-        let state = state_object::borrow<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME);
-
         let ocr_config = &state.ocr3_configs[ocr_plugin_type];
         *ocr_config
     }
@@ -220,9 +212,9 @@ module ccip::ocr3_base {
                 let signature = slice(signature_bytes, 32, 64);
 
                 let verified =
-                ed25519::ed25519_verify(
-                    &signature, &public_key.bytes, &hashed_report
-                );
+                    ed25519::ed25519_verify(
+                        &signature, &public_key.bytes, &hashed_report
+                    );
                 assert!(verified, E_INVALID_SIGNATURE);
             }
         );
@@ -250,7 +242,6 @@ module ccip::ocr3_base {
     }
 
     // TODO: verify the permission control
-    // TODO: verify that this is only called by offramp
     // TODO: if is_signature_verification_enabled is false, we don't verify the signatures?
     public(package) fun transmit(
         ocr3_state: &OCR3BaseState,
@@ -312,22 +303,15 @@ module ccip::ocr3_base {
     }
 
     public fun set_ocr3_config(
-        ref: &mut CCIPObjectRef,
+        ocr3_state: &mut OCR3BaseState,
         config_digest: vector<u8>,
         ocr_plugin_type: u8,
         big_f: u8,
         is_signature_verification_enabled: bool,
         signers: vector<vector<u8>>,
-        transmitters: vector<address>,
-        ctx: &mut TxContext
+        transmitters: vector<address>
     ) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
         assert!(big_f != 0, E_BIG_F_MUST_BE_POSITIVE);
-
-        let ocr3_state = state_object::borrow_mut_with_ctx<OCR3BaseState>(ref, OCR3_BASE_STATE_NAME, ctx);
 
         let ocr_config = if (table::contains(&ocr3_state.ocr3_configs, ocr_plugin_type)) {
             table::borrow_mut(&mut ocr3_state.ocr3_configs, ocr_plugin_type)
