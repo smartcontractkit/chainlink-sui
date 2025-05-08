@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/fardream/go-bcs/bcs"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
@@ -78,31 +80,75 @@ func BuildPTBFromArgs(
 	return ptb, nil
 }
 
-// TODO: ptb.Pure() can panic because of pattonkan/sui-go@v0.1.0/utils/indexmap/indexmap.go:43. If there's a repeated element in a vector will panic
-func ToPTBArg(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder, client suiclient.ClientImpl, arg any) (suiptb.Argument, error) {
-	switch arg := arg.(type) {
-	case string:
-		if IsSuiAddress(arg) {
-			// Fetch object information. If it's an object, build argument based on it
-			object, e := ReadObject(ctx, arg, client)
-
-			// If we can't read the object, or if it's an error, or if the data is nil,
-			// we assume it's just an address
-			if e != nil || object.Error != nil || object.Data == nil {
-				address, err := ToSuiAddress(arg)
-				if err != nil {
-					return suiptb.Argument{}, fmt.Errorf("failed to convert address %s to Sui type: %w", arg, err)
-				}
-
-				return ptb.Pure(address)
+func ToPTBArg(
+	ctx context.Context,
+	ptb *suiptb.ProgrammableTransactionBuilder,
+	client suiclient.ClientImpl,
+	arg any,
+) (suiptb.Argument, error) {
+	// check if the argument has already been included in the PTB args list
+	// only if it's possible to BCS marshal the value (cases where the value is "pure" / not object)
+	marshalledBytes, err := bcs.Marshal(arg)
+	if err == nil {
+		for idx, key := range ptb.Inputs.InsertOrderList {
+			if key.Pure != nil && slices.Equal(*key.Pure, marshalledBytes) {
+				//nolint:gosec
+				foundIdx := uint16(idx)
+				return suiptb.Argument{
+					Input: &foundIdx,
+				}, nil
 			}
-			// It's an object
-			return ptb.Obj(ToObjectArg(object.Data))
+		}
+	}
+
+	switch v := arg.(type) {
+	// ────────────────────── STRING ──────────────────────
+	case string:
+		if IsSuiAddress(v) {
+			// attempt to treat it as an object first
+			obj, err := ReadObject(ctx, v, client)
+			if err == nil && obj.Error == nil && obj.Data != nil {
+				return ptb.Obj(ToObjectArg(obj.Data))
+			}
+			// otherwise treat as raw address
+			addr, err := ToSuiAddress(v)
+			if err != nil {
+				return suiptb.Argument{}, fmt.Errorf("bad address %s: %w", v, err)
+			}
+
+			return ptb.Pure(addr)
 		}
 
-		return ptb.Pure(arg)
+		return ptb.Pure(v)
+
+	// ────────────────────── []byte  ─────────────────────
 	case []byte:
-		return ptb.Pure(arg)
+		// empty vec<u8>  → 0-length prefix
+		if len(v) == 0 {
+			return ptb.Pure([]uint8{}) // sui-go encodes as single 0x00
+		}
+		// deep-copy into []uint8 (necessary because Pure keeps ref)
+		out := make([]uint8, len(v))
+		copy(out, v)
+
+		return ptb.Pure(out)
+
+	// ───────────────────── [][]byte  ────────────────────
+	case [][]byte:
+		if len(v) == 0 {
+			return ptb.Pure([][]uint8{}) // vec<vec<u8>>{}
+		}
+		// deep-copy each element so duplicate contents don’t share pointer
+		vv := make([][]uint8, len(v))
+		for i, src := range v {
+			dst := make([]uint8, len(src))
+			copy(dst, src)
+			vv[i] = dst
+		}
+
+		return ptb.Pure(vv)
+
+	// ───────────────────── generic slice ────────────────
 	default:
 		// This could be recursive, but only to support the very rare case of <vector<vector<address>>
 		rv := reflect.ValueOf(arg)
