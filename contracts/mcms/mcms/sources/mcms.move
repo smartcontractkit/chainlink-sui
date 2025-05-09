@@ -3,7 +3,8 @@ module mcms::mcms;
 use mcms::bcs_stream;
 use mcms::mcms_account::{Self, OwnerCap, AccountState};
 use mcms::mcms_deployer::{Self, DeployerState};
-use mcms::mcms_registry::{Self, ExecutingCallbackParams};
+use mcms::mcms_proof;
+use mcms::mcms_registry::{Self, ExecutingCallbackParams, Registry};
 use mcms::params;
 use std::string::String;
 use sui::bcs;
@@ -712,40 +713,48 @@ public fun dispatch_timelock_unblock_function(
 */
 
 public fun execute_dispatch_to_account(
-    timelock: &mut Timelock,
+    registry: &mut Registry,
     account_state: &mut AccountState,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_for_mcms(
+    assert!(mcms_registry::target(&executing_callback_params) == @mcms, EUnknownMCMSModule);
+    assert!(
+        *mcms_registry::module_name(&executing_callback_params).as_bytes() == b"mcms_account",
+        EUnknownMCMSAccountModuleFunction,
+    );
+
+    let (cap, function_name, data) = mcms_registry::get_callback_params(
+        registry,
+        mcms_proof::create_mcms_proof(),
         executing_callback_params,
     );
 
-    assert!(target == @mcms, EUnknownMCMSModule);
-    assert!(*module_name.as_bytes() == b"mcms_account", EUnknownMCMSAccountModuleFunction);
-
     let function_name_bytes = *function_name.as_bytes();
     let mut stream = bcs_stream::new(data);
+
     if (function_name_bytes == b"transfer_ownership") {
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        mcms_account::transfer_ownership(account_state, target, ctx);
-    } else if (function_name_bytes == b"transfer_ownership_from_object") {
+        mcms_account::transfer_ownership(cap, account_state, target, ctx);
+    } else if (function_name_bytes == b"accept_ownership_as_mcms_timelock") {
+        mcms_account::accept_ownership_as_mcms_timelock(
+            account_state,
+            mcms_proof::create_mcms_proof(),
+            ctx,
+        );
+    } else if (function_name_bytes == b"execute_ownership_transfer") {
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        mcms_account::transfer_ownership_from_object(account_state, &mut timelock.id, target);
-    } else if (function_name_bytes == b"accept_ownership") {
-        mcms_account::accept_ownership(account_state, ctx);
-    } else if (function_name_bytes == b"accept_ownership_from_object") {
-        mcms_account::accept_ownership_from_object(account_state, &mut timelock.id);
+        let owner_cap = mcms_registry::release_cap(registry, mcms_proof::create_mcms_proof());
+        mcms_account::execute_ownership_transfer(owner_cap, account_state, registry, target, ctx);
     } else {
         abort EUnknownMCMSAccountModuleFunction
     }
 }
 
 public fun execute_dispatch_to_deployer(
-    timelock: &mut Timelock,
-    account_state: &mut AccountState,
+    registry: &mut Registry,
     deployer_state: &mut DeployerState,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
@@ -768,7 +777,10 @@ public fun execute_dispatch_to_deployer(
         let code_address = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
 
-        let owner_cap = mcms_account::borrow_owner_cap_as_object_owner(account_state, &timelock.id);
+        let owner_cap = mcms_registry::borrow_owner_cap_as_mcms_timelock(
+            registry,
+            mcms_proof::create_mcms_proof(),
+        );
         mcms_deployer::authorize_upgrade(
             owner_cap,
             deployer_state,
@@ -934,9 +946,8 @@ public fun execute_timelock_unblock_function(
 }
 
 public fun execute_set_config(
-    timelock: &mut Timelock,
+    registry: &mut Registry,
     state: &mut MultisigState,
-    account_state: &mut AccountState,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -957,7 +968,10 @@ public fun execute_set_config(
     let clear_root = bcs_stream::deserialize_bool(stream);
     bcs_stream::assert_is_consumed(stream);
 
-    let owner_cap = mcms_account::borrow_owner_cap_as_object_owner(account_state, &timelock.id);
+    let owner_cap = mcms_registry::borrow_owner_cap_as_mcms_timelock(
+        registry,
+        mcms_proof::create_mcms_proof(),
+    );
     set_config(
         owner_cap,
         state,
@@ -984,23 +998,6 @@ fun get_callback_params_for_mcms(
     assert!(*function_name.as_bytes() == expected_function_name, EInvalidFunctionName);
 
     (target, module_name, function_name, data)
-}
-
-// ================================ Configuration Functions ================================ //
-
-// These functions:
-// 1. Transfers the ownership to the Timelock
-// 2. Sets the configuration of the multisig
-
-/// Transfers the ownership to the Timelock
-/// MCMS must call `accept_ownership_from_object` with `timelock.id` to complete the transfer
-/// This is done by calling `execute_dispatch_to_account` with `accept_ownership_from_object`
-public entry fun transfer_ownership_to_timelock(
-    account_state: &mut AccountState,
-    timelock: &mut Timelock,
-    ctx: &mut TxContext,
-) {
-    mcms_account::transfer_ownership(account_state, timelock.id.to_address(), ctx);
 }
 
 /// Updates the multisig configuration, including signer addresses and group settings.
@@ -1628,7 +1625,7 @@ fun timelock_bypasser_execute_batch(
 
 // Each package defines an `OwnerCap` object
 // Ownership of `OwnerCap` dictates the owner of the code object
-// Transferring ownership of `OwnerCap` must be done by calling `mcms_entrypoint` in `ownable.move`
+// Transferring ownership of `OwnerCap` must be done by calling `mcms_entrypoint` in CCIP `ownable.move`
 // This replaces `timelock_dispatch_to_registry`
 
 fun timelock_cancel(timelock: &mut Timelock, role: u8, id: vector<u8>, _ctx: &mut TxContext) {

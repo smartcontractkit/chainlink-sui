@@ -1,5 +1,7 @@
 module mcms::mcms_account;
 
+use mcms::mcms_proof;
+use mcms::mcms_registry::{Self, Registry};
 use sui::event;
 
 public struct OwnerCap has key, store {
@@ -9,8 +11,13 @@ public struct OwnerCap has key, store {
 public struct AccountState has key {
     id: UID,
     owner: address,
-    owner_cap: OwnerCap,
-    pending_owner: address,
+    pending_transfer: Option<PendingTransfer>,
+}
+
+public struct PendingTransfer has drop, store {
+    from: address,
+    to: address,
+    accepted: bool,
 }
 
 // =================== Events =================== //
@@ -20,14 +27,23 @@ public struct OwnershipTransferRequested has copy, drop {
     to: address,
 }
 
+public struct OwnershipTransferAccepted has copy, drop {
+    from: address,
+    to: address,
+}
+
 public struct OwnershipTransferred has copy, drop {
     from: address,
     to: address,
 }
 
-const EUnauthorized: u64 = 1;
-const ECannotTransferToSelf: u64 = 2;
-const EMustBeProposedOwner: u64 = 3;
+const ECannotTransferToSelf: u64 = 1;
+const EMustBeProposedOwner: u64 = 2;
+const ENoPendingTransfer: u64 = 3;
+const EOwnerChanged: u64 = 4;
+const EProposedOwnerMismatch: u64 = 5;
+const ETransferNotAccepted: u64 = 6;
+const ETransferAlreadyAccepted: u64 = 7;
 
 public struct MCMS_ACCOUNT has drop {}
 
@@ -35,81 +51,115 @@ fun init(_witness: MCMS_ACCOUNT, ctx: &mut TxContext) {
     transfer::share_object(AccountState {
         id: object::new(ctx),
         owner: ctx.sender(),
-        owner_cap: OwnerCap { id: object::new(ctx) },
-        pending_owner: ctx.sender(),
+        pending_transfer: option::none(),
     });
+
+    transfer::share_object(OwnerCap { id: object::new(ctx) });
 }
 
-public fun transfer_ownership(state: &mut AccountState, to: address, ctx: &mut TxContext) {
-    assert!(ctx.sender() == state.owner, EUnauthorized);
+public fun transfer_ownership(
+    _: &OwnerCap,
+    state: &mut AccountState,
+    to: address,
+    _ctx: &mut TxContext,
+) {
     assert!(state.owner != to, ECannotTransferToSelf);
 
-    state.pending_owner = to;
+    state.pending_transfer =
+        option::some(PendingTransfer {
+            from: state.owner,
+            to,
+            accepted: false,
+        });
 
     event::emit(OwnershipTransferRequested { from: state.owner, to });
 }
 
-public fun transfer_ownership_from_object(state: &mut AccountState, from: &mut UID, to: address) {
-    assert!(from.to_address() == state.owner, EUnauthorized);
-    assert!(state.owner != to, ECannotTransferToSelf);
-
-    state.pending_owner = to;
-
-    event::emit(OwnershipTransferRequested { from: state.owner, to });
+/// Transfers ownership back to @mcms/timelock.
+public entry fun transfer_ownership_to_self(
+    owner_cap: &OwnerCap,
+    state: &mut AccountState,
+    ctx: &mut TxContext,
+) {
+    transfer_ownership(owner_cap, state, @mcms, ctx);
 }
 
 public fun accept_ownership(state: &mut AccountState, ctx: &mut TxContext) {
-    let caller = ctx.sender();
-    assert!(caller == state.pending_owner, EUnauthorized);
+    accept_ownership_internal(state, ctx.sender());
+}
 
-    accept_ownership_internal(state, caller);
+public fun accept_ownership_as_mcms_timelock<T: drop>(
+    state: &mut AccountState,
+    witness: T,
+    _ctx: &mut TxContext,
+) {
+    mcms_proof::assert_is_mcms_timelock(witness);
+    accept_ownership_internal(state, @mcms);
 }
 
 /// UID is a privileged type that is only accessible by the object owner.
 public fun accept_ownership_from_object(state: &mut AccountState, from: &mut UID) {
-    let caller = from.to_address();
-    assert!(caller == state.pending_owner, EUnauthorized);
-
-    accept_ownership_internal(state, caller);
+    accept_ownership_internal(state, from.to_address());
 }
 
-fun accept_ownership_internal(state: &mut AccountState, to: address) {
-    assert!(state.pending_owner == to, EMustBeProposedOwner);
+fun accept_ownership_internal(state: &mut AccountState, caller: address) {
+    assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
 
-    let previous_owner = state.owner;
-    state.owner = to;
-    state.pending_owner = @0x0;
+    let pending_transfer = state.pending_transfer.borrow_mut();
+    let current_owner = state.owner;
 
-    event::emit(OwnershipTransferred {
-        from: previous_owner,
-        to,
-    });
+    // check that the owner has not changed from a direct call to 0x1::transfer::public_transfer,
+    // in which case the transfer flow should be restarted.
+    assert!(current_owner == pending_transfer.from, EOwnerChanged);
+    assert!(caller == pending_transfer.to, EMustBeProposedOwner);
+    assert!(!pending_transfer.accepted, ETransferAlreadyAccepted);
+
+    pending_transfer.accepted = true;
+
+    event::emit(OwnershipTransferAccepted { from: pending_transfer.from, to: caller });
 }
 
-public fun borrow_owner_cap_as_owner(state: &AccountState, ctx: &mut TxContext): &OwnerCap {
-    assert!(ctx.sender() == state.owner, EUnauthorized);
-    &state.owner_cap
-}
+#[allow(lint(custom_state_change))]
+public fun execute_ownership_transfer(
+    owner_cap: OwnerCap,
+    state: &mut AccountState,
+    registry: &mut Registry,
+    to: address,
+    ctx: &mut TxContext,
+) {
+    assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
 
-public fun borrow_owner_cap_as_object_owner(state: &AccountState, to: &UID): &OwnerCap {
-    assert!(to.to_address() == state.owner, EUnauthorized);
-    &state.owner_cap
+    let pending_transfer = state.pending_transfer.extract();
+    let current_owner = state.owner;
+    let new_owner = pending_transfer.to;
+
+    // check that the owner has not changed from a direct call to 0x1::transfer::public_transfer,
+    // in which case the transfer flow should be restarted.
+    assert!(pending_transfer.from == current_owner, EOwnerChanged);
+    assert!(new_owner == to, EProposedOwnerMismatch);
+    assert!(pending_transfer.accepted, ETransferNotAccepted);
+
+    // if the new owner is mcms, we need to add the `OwnerCap` to the registry.
+    if (new_owner == @mcms) {
+        mcms_registry::register_entrypoint(
+            registry,
+            mcms_proof::create_mcms_proof(),
+            option::some(owner_cap),
+            ctx,
+        );
+    } else {
+        transfer::transfer(owner_cap, new_owner);
+    };
+
+    state.owner = new_owner;
+    state.pending_transfer = option::none();
+
+    event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
 }
 
 // =================== Test Functions =================== //
 
 #[test_only]
-public fun create_for_testing(ctx: &mut TxContext): AccountState {
-    let owner_cap = OwnerCap {
-        id: object::new(ctx),
-    };
-
-    let account_state = AccountState {
-        id: object::new(ctx),
-        owner: ctx.sender(),
-        owner_cap,
-        pending_owner: @0x0,
-    };
-
-    account_state
+public fun test_init(ctx: &mut TxContext) {
+    init(MCMS_ACCOUNT {}, ctx);
 }

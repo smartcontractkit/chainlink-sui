@@ -75,7 +75,7 @@ fun test_register_upgrade_cap_without_existing_package_fails() {
     {
         ts::next_tx(&mut scenario, @0xB);
         let mut deployer_state = ts::take_shared<DeployerState>(&scenario);
-        let mut registry = ts::take_shared<Registry>(&scenario);
+        let registry = ts::take_shared<Registry>(&scenario);
         let ctx = ts::ctx(&mut scenario);
 
         let upgrade_cap = generate_upgrade_cap(ctx);

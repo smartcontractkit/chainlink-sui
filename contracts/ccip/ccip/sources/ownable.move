@@ -60,8 +60,6 @@ fun init(_witness: OWNABLE, ctx: &mut TxContext) {
     transfer::transfer(OwnerCap { id: object::new(ctx) }, owner);
 }
 
-public struct OwnableMcmsCallback has drop {}
-
 public fun initialize(
     owner_cap: OwnerCap,
     state: &mut OwnableState,
@@ -73,7 +71,7 @@ public fun initialize(
 
     mcms_registry::register_entrypoint(
         registry,
-        OwnableMcmsCallback {},
+        McmsCallback {},
         option::some(owner_cap),
         ctx,
     );
@@ -147,7 +145,7 @@ public fun execute_ownership_transfer(
     if (new_owner == @mcms) {
         mcms_registry::register_entrypoint(
             registry,
-            OwnableMcmsCallback {},
+            McmsCallback {},
             option::some(owner_cap),
             ctx,
         );
@@ -163,18 +161,17 @@ public fun execute_ownership_transfer(
 
 // ================================ MCMS Entrypoint ================================ //
 
+public struct McmsCallback has drop {}
+
 public fun mcms_entrypoint(
     registry: &mut Registry,
     state: &mut OwnableState,
     params: ExecutingCallbackParams, // hot potato
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<
-        OwnableMcmsCallback,
-        OwnerCap,
-    >(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
         registry,
-        OwnableMcmsCallback {},
+        McmsCallback {},
         params,
     );
 
@@ -194,7 +191,7 @@ public fun mcms_entrypoint(
     } else if (function_bytes == b"execute_ownership_transfer") {
         let to = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, OwnableMcmsCallback {});
+        let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
         // Transfer `OwnerCap` from MCMS to the new owner.
         execute_ownership_transfer(owner_cap, state, registry, to, ctx);
     } else {

@@ -1,11 +1,11 @@
 module mcms::mcms_registry;
 
-use std::string::{Self, String};
+use mcms::mcms_proof;
+use mcms::params;
+use std::string::String;
 use std::type_name::{Self, TypeName};
-use sui::address;
 use sui::bag::{Self, Bag};
 use sui::event;
-use sui::hex;
 use sui::table::{Self, Table};
 
 public struct Registry has key {
@@ -62,18 +62,20 @@ public fun register_entrypoint<T: drop, C: key + store>(
     _ctx: &TxContext,
 ) {
     let proof_type = type_name::get<T>();
-    let (proof_account_address, proof_module_name) = get_account_address_and_module_name(
+    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
 
     if (module_cap.is_some()) {
         assert!(!registry.module_caps.contains(proof_account_address), EModuleCapAlreadyRegistered);
+
+        // Register module cap for package address
+        registry.module_caps.add(proof_account_address, module_cap.destroy_some());
+    } else {
+        module_cap.destroy_none();
     };
 
     assert!(!registry.callback_modules.contains(proof_module_name), EModuleAlreadyRegistered);
-
-    // Register module cap for package address
-    registry.module_caps.add(proof_account_address, module_cap.destroy_some());
 
     // Register proof type for module
     registry.callback_modules.add(proof_module_name, RegisteredModule { proof_type });
@@ -93,7 +95,7 @@ public fun get_callback_params<T: drop, C: key + store>(
     let ExecutingCallbackParams { target, module_name, function_name, data } = params;
 
     let proof_type = type_name::get<T>();
-    let (proof_account_address, proof_module_name) = get_account_address_and_module_name(
+    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
 
@@ -112,12 +114,11 @@ public fun get_callback_params<T: drop, C: key + store>(
 
 public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _witness: T): C {
     let proof_type = type_name::get<T>();
-    let (proof_account_address, proof_module_name) = get_account_address_and_module_name(
+    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
 
     assert!(table::contains(&registry.callback_modules, proof_module_name), EModuleNotRegistered);
-
     assert!(registry.module_caps.contains(proof_account_address), EModuleCapNotRegistered);
 
     let RegisteredModule { proof_type: expected_proof_type } = registry
@@ -126,6 +127,16 @@ public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _witnes
     assert!(expected_proof_type == proof_type, EWrongProofType);
 
     registry.module_caps.remove(proof_account_address)
+}
+
+public(package) fun borrow_owner_cap_as_mcms_timelock<T: drop, C: key + store>(
+    registry: &Registry,
+    witness: T,
+): &C {
+    let (proof_account_address, _proof_module_name) = mcms_proof::assert_is_mcms_timelock(witness);
+    assert!(registry.module_caps.contains(proof_account_address), EModuleCapNotRegistered);
+
+    registry.module_caps.borrow(proof_account_address)
 }
 
 public(package) fun get_callback_params_for_mcms(
@@ -149,19 +160,28 @@ public(package) fun create_executing_callback_params(
     }
 }
 
-fun get_account_address_and_module_name(proof_type: TypeName): (address, String) {
-    let account_address_bytes = hex::decode(proof_type.get_address().into_bytes());
-    let account_address = address::from_bytes(account_address_bytes);
-    let module_name = string::from_ascii(proof_type.get_module());
-    (account_address, module_name)
-}
-
 public fun is_package_registered(registry: &Registry, package_address: address): bool {
     registry.module_caps.contains(package_address)
 }
 
 public fun is_module_registered(registry: &Registry, module_name: String): bool {
     table::contains(&registry.callback_modules, module_name)
+}
+
+public fun target(params: &ExecutingCallbackParams): address {
+    params.target
+}
+
+public fun module_name(params: &ExecutingCallbackParams): String {
+    params.module_name
+}
+
+public fun function_name(params: &ExecutingCallbackParams): String {
+    params.function_name
+}
+
+public fun data(params: &ExecutingCallbackParams): vector<u8> {
+    params.data
 }
 
 // ===================== TESTS =====================

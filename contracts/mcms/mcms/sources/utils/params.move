@@ -1,6 +1,10 @@
 module mcms::params;
 
+use std::string::{Self, String};
+use std::type_name::TypeName;
+use sui::address;
 use sui::bcs;
+use sui::hex;
 
 const E_CMP_VECTORS_DIFF_LEN: u64 = 0;
 
@@ -59,4 +63,11 @@ public fun vector_u8_gt(a: &vector<u8>, b: &vector<u8>): bool {
 
     // vectors are equal, a == b
     false
+}
+
+public fun get_account_address_and_module_name(proof_type: TypeName): (address, String) {
+    let account_address_bytes = hex::decode(proof_type.get_address().into_bytes());
+    let account_address = address::from_bytes(account_address_bytes);
+    let module_name = string::from_ascii(proof_type.get_module());
+    (account_address, module_name)
 }
