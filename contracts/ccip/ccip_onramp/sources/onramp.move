@@ -7,7 +7,6 @@ module ccip_onramp::onramp {
     use std::string::{Self, String};
     use sui::table::{Self, Table};
     use sui::bag::{Self, Bag};
-    // use std::type_name;
 
     use ccip::eth_abi;
     use ccip::fee_quoter;
@@ -15,10 +14,7 @@ module ccip_onramp::onramp {
     use ccip::merkle_proof;
     use ccip::nonce_manager::{Self, NonceManagerCap};
     use ccip::rmn_remote;
-    // use ccip::token_admin_registry;
     use ccip::state_object::CCIPObjectRef;
-
-    // use ccip_token_pool::token_pool;
 
     public struct OwnerCap has key, store {
         id: UID
@@ -584,6 +580,7 @@ module ccip_onramp::onramp {
         token_params
     }
 
+    #[allow(lint(self_transfer))]
     public fun ccip_send<T>(
         ref: &mut CCIPObjectRef,
         state: &mut OnRampState,
@@ -640,9 +637,6 @@ module ccip_onramp::onramp {
             i = i + 1;
         };
 
-        // TODO: verify this:
-        // in aptos, a vector of token addresses are provided and we use token_admin_registry to get their registered token pools
-        // in sui, token pool addresses are provided directly bc at this point, users should have already locked/burnt the tokens in the token pools
         let message =
             internal::new_sui2any_message(
                 receiver,
@@ -663,6 +657,7 @@ module ccip_onramp::onramp {
                 E_UNEXPECTED_WITHDRAW_AMOUNT
             );
 
+            // TODO: should we refund?
             let refund = coin::split(&mut fee_token, fee_token_balance - fee_token_amount, ctx);
             if (state.fee_tokens.contains(fee_token_metadata_addr)) {
                 let coins: &mut Coin<T> = bag::borrow_mut(&mut state.fee_tokens, fee_token_metadata_addr);

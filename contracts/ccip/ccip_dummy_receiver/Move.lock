@@ -2,11 +2,11 @@
 
 [move]
 version = 3
-manifest_digest = "387983F806991B8F7C941C45A32D4AAD098B0C7DA68E6163C5D2DA2F2B8AE5F3"
+manifest_digest = "AA03957AF25DB7C443C1ECED45F03E686713C60123F10D1FBF8692AF6B5959DE"
 deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
-  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
+  { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
@@ -17,6 +17,18 @@ id = "Bridge"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "fbb68879cbd1", subdir = "crates/sui-framework/packages/bridge" }
 
 dependencies = [
+  { id = "MoveStdlib", name = "MoveStdlib" },
+  { id = "Sui", name = "Sui" },
+  { id = "SuiSystem", name = "SuiSystem" },
+]
+
+[[move.package]]
+id = "ChainlinkCCIP"
+source = { local = "../ccip" }
+
+dependencies = [
+  { id = "Bridge", name = "Bridge" },
+  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },

@@ -234,7 +234,6 @@ module ccip::token_admin_registry {
         }
     }
 
-    // TODO: consider if this is necessary since it lives within ccip package now
     public fun transfer_admin_role(
         ref: &mut CCIPObjectRef,
         coin_metadata_address: address,
@@ -267,7 +266,6 @@ module ccip::token_admin_registry {
         );
     }
 
-    // TODO: consider if this is necessary since it lives within ccip package now
     public fun accept_admin_role(
         ref: &mut CCIPObjectRef,
         coin_metadata_address: address,

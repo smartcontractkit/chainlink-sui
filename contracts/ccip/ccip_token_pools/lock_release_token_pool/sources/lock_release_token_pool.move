@@ -22,7 +22,6 @@ public struct OwnerCap has key, store {
 // TODO: ownership model
 public struct LockReleaseTokenPoolState has key {
     id: UID,
-    decimals: u8,
     // ownable_state: ownable::OwnableState,
     token_pool_state: TokenPoolState,
     coin_store: Bag, // use Bag to avoid type param, but it's also trivial to use a single Coin<T>
@@ -42,6 +41,7 @@ public fun type_and_version(): String {
     string::utf8(b"LockReleaseTokenPool 1.6.0")
 }
 
+#[allow(lint(self_transfer))]
 public fun initialize<T: store>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
@@ -56,8 +56,7 @@ public fun initialize<T: store>(
 
     let mut lock_release_token_pool = LockReleaseTokenPoolState {
         id: object::new(ctx),
-        decimals: coin_metadata.get_decimals(),
-        token_pool_state: token_pool::initialize(coin_metadata_address, vector[], ctx),
+        token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
         coin_store: bag::new(ctx),
     };
     lock_release_token_pool.coin_store.add(COIN_STORE, coin::zero<T>(ctx));
@@ -94,7 +93,7 @@ public fun get_router(): address {
 }
 
 public fun get_token_decimals(state: &LockReleaseTokenPoolState): u8 {
-    state.decimals
+    state.token_pool_state.get_local_decimals()
 }
 
 public fun get_remote_pools(
@@ -225,7 +224,7 @@ public fun lock_or_burn<T>(
 
     let mut extra_data = vector[];
     // this can also use the token_pool::encode_local_decimals function if a coin metadata is provided
-    eth_abi::encode_u8(&mut extra_data, state.decimals);
+    eth_abi::encode_u8(&mut extra_data, state.token_pool_state.get_local_decimals());
 
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount);
 
@@ -240,7 +239,6 @@ public fun lock_or_burn<T>(
 }
 
 // TODO: if there are more validations to be done
-// TODO: consider decimals
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     clock: &Clock,
@@ -250,8 +248,11 @@ public fun release_or_mint<T>(
     index: u64,
     ctx: &mut TxContext
 ): ReceiverParams {
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = offramp::get_token_param_data(&receiver_params, index);
+    let local_decimals = pool.token_pool_state.get_local_decimals();
+    let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);
+    let local_amount = token_pool::calculate_local_amount(source_amount as u256, remote_decimals, local_decimals);
 
-    let (sender, receiver, amount, dest_token_address, source_pool_address) = offramp::get_token_param_data(&receiver_params, index);
     token_pool::validate_release_or_mint(
         ref,
         clock,
@@ -259,25 +260,25 @@ public fun release_or_mint<T>(
         remote_chain_selector,
         dest_token_address,
         source_pool_address,
-        amount
+        local_amount
     );
 
     // split the coin to be released
     let stored_coin: &mut Coin<T> = pool.coin_store.borrow_mut(COIN_STORE);
     assert!(
-        stored_coin.value() >= amount,
+        stored_coin.value() >= local_amount,
         E_TOKEN_POOL_BALANCE_TOO_LOW
     );
-    let c: Coin<T> = stored_coin.split(amount, ctx);
+    let c: Coin<T> = stored_coin.split(local_amount, ctx);
     transfer::public_transfer(c, receiver);
 
     token_pool::emit_released_or_minted(
         &mut pool.token_pool_state,
         receiver,
-        amount
+        local_amount,
     );
 
-    offramp::complete_token_transfer(receiver_params, index, object::uid_to_address(&pool.id))
+    offramp::complete_token_transfer(receiver_params, index, local_amount, object::uid_to_address(&pool.id))
 }
 
 // ================================================================
@@ -350,4 +351,27 @@ public fun set_chain_rate_limiter_config(
     );
 }
 
-// TODO: add the ability to check balance and provide & remove liquidity
+public fun get_balance<T>(state: &LockReleaseTokenPoolState): u64 {
+    let stored_coin: &Coin<T> = state.coin_store.borrow(COIN_STORE);
+    stored_coin.value()
+}
+
+public fun add_liquidity<T>(
+    state: &mut LockReleaseTokenPoolState,
+    c: Coin<T>
+) {
+    let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
+    stored_coin.join(c);
+}
+
+// return the coin or transfer to the owner?
+public fun remove_liquidity<T>(
+    state: &mut LockReleaseTokenPoolState,
+    _: &OwnerCap,
+    amount: u64,
+    ctx: &mut TxContext
+): Coin<T> {
+    let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
+    assert!(stored_coin.value() >= amount, E_TOKEN_POOL_BALANCE_TOO_LOW);
+    stored_coin.split(amount, ctx)
+}

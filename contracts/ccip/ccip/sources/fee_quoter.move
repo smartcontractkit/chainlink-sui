@@ -179,6 +179,7 @@ module ccip::fee_quoter {
         string::utf8(b"FeeQuoter 1.6.0")
     }
 
+    #[allow(lint(self_transfer))]
     public fun initialize(
         ref: &mut CCIPObjectRef,
         _: &OwnerCap,

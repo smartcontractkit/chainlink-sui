@@ -14,6 +14,7 @@ module ccip_token_pool::token_pool {
     public struct TokenPoolState has store {
         allowlist_state: allowlist::AllowlistState,
         coin_metadata: address,
+        local_decimals: u8,
         remote_chain_configs: VecMap<u64, RemoteChainConfig>,
         rate_limiter_config: token_pool_rate_limiter::RateLimitState
     }
@@ -74,31 +75,35 @@ module ccip_token_pool::token_pool {
 
     // this will be called by a specific token pool implementation
     public fun initialize(
-        coin_metadata_address: address, allowlist: vector<address>, ctx: &mut TxContext
+        coin_metadata_address: address,
+        local_decimals: u8,
+        allowlist: vector<address>,
+        ctx: &mut TxContext
     ): TokenPoolState {
-        assert_can_initialize(ctx.sender());
+        // assert_can_initialize(ctx.sender());
 
         TokenPoolState {
             allowlist_state: allowlist::new(allowlist, ctx),
             coin_metadata: coin_metadata_address,
+            local_decimals,
             remote_chain_configs: vec_map::empty<u64, RemoteChainConfig>(),
             rate_limiter_config: token_pool_rate_limiter::new(ctx)
         }
     }
 
-    // TODO: figure out the assertion rules
-    fun assert_can_initialize(caller_address: address) {
-        if (caller_address == @ccip_token_pool) { return };
-
-        // if (object::is_object(@ccip_token_pool)) {
-        //     let token_pool_object =
-        //         object::address_to_object<ObjectCore>(@ccip_token_pool);
-        //     if (caller_address == object::owner(token_pool_object)
-        //         || caller_address == object::root_owner(token_pool_object)) { return };
-        // };
-
-        abort E_NOT_PUBLISHER
-    }
+    // // TODO: don't need these anymore?
+    // fun assert_can_initialize(caller_address: address) {
+    //     if (caller_address == @ccip_token_pool) { return };
+    //
+    //     if (object::is_object(@ccip_token_pool)) {
+    //         let token_pool_object =
+    //             object::address_to_object<ObjectCore>(@ccip_token_pool);
+    //         if (caller_address == object::owner(token_pool_object)
+    //             || caller_address == object::root_owner(token_pool_object)) { return };
+    //     };
+    //
+    //     abort E_NOT_PUBLISHER
+    // }
 
     public fun get_router(): address {
         @ccip
@@ -359,6 +364,10 @@ module ccip_token_pool::token_pool {
     // ================================================================
     // |                          Decimals                            |
     // ================================================================
+
+    public fun get_local_decimals(pool: &TokenPoolState): u8 {
+        pool.local_decimals
+    }
 
     // for a token, CoinMetadata is supposed to be shared
     public fun encode_local_decimals<T>(coin_metadata: &CoinMetadata<T>): vector<u8> {

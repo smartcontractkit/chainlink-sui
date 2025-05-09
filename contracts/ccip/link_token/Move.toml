@@ -1,0 +1,9 @@
+[package]
+name = "LINKToken"
+edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
+
+[addresses]
+link_token = "_"
+
+[dev-addresses]
+link_token = "0x1111"

@@ -25,7 +25,7 @@ module ccip::client {
         input.sender
     }
 
-    public  fun get_data(input: &Any2SuiMessage): vector<u8> {
+    public fun get_data(input: &Any2SuiMessage): vector<u8> {
         input.data
     }
 

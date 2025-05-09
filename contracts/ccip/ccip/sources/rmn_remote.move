@@ -781,6 +781,4 @@ module ccip::rmn_remote_test {
 
         tear_down_test(scenario, ref);
     }
-
-    // TODO: add tests for verify
 }

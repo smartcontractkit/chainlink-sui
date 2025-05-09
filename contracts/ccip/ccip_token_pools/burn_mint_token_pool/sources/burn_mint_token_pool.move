@@ -21,7 +21,6 @@ public struct OwnerCap has key, store {
 // TODO: ownership model
 public struct BurnMintTokenPoolState<phantom T> has key {
     id: UID,
-    decimals: u8,
     // ownable_state: ownable::OwnableState,
     token_pool_state: TokenPoolState,
     treasury_cap: TreasuryCap<T>,
@@ -38,6 +37,7 @@ public fun type_and_version(): String {
     string::utf8(b"BurnMintTokenPool 1.6.0")
 }
 
+#[allow(lint(self_transfer))]
 public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
@@ -52,8 +52,7 @@ public fun initialize<T>(
 
     let burn_mint_token_pool = BurnMintTokenPoolState<T> {
         id: object::new(ctx),
-        decimals: coin_metadata.get_decimals(),
-        token_pool_state: token_pool::initialize(coin_metadata_address, vector[], ctx),
+        token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
         treasury_cap,
     };
 
@@ -89,7 +88,7 @@ public fun get_router(): address {
 }
 
 public fun get_token_decimals<T>(state: &BurnMintTokenPoolState<T>): u8 {
-    state.decimals
+    state.token_pool_state.get_local_decimals()
 }
 
 public fun get_remote_pools<T>(
@@ -219,7 +218,7 @@ public fun lock_or_burn<T>(
 
     let mut extra_data = vector[];
     // this can also use the token_pool::encode_local_decimals function if a coin metadata is provided
-    eth_abi::encode_u8(&mut extra_data, state.decimals);
+    eth_abi::encode_u8(&mut extra_data, state.token_pool_state.get_local_decimals());
 
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount);
 
@@ -234,7 +233,6 @@ public fun lock_or_burn<T>(
 }
 
 // TODO: if there are more validations to be done
-// TODO: consider decimals
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     clock: &Clock,
@@ -245,7 +243,11 @@ public fun release_or_mint<T>(
     ctx: &mut TxContext
 ): ReceiverParams {
 
-    let (sender, receiver, amount, dest_token_address, source_pool_address) = offramp::get_token_param_data(&receiver_params, index);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = offramp::get_token_param_data(&receiver_params, index);
+    let local_decimals = pool.token_pool_state.get_local_decimals();
+    let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);
+    let local_amount = token_pool::calculate_local_amount(source_amount as u256, remote_decimals, local_decimals);
+
     token_pool::validate_release_or_mint(
         ref,
         clock,
@@ -253,12 +255,12 @@ public fun release_or_mint<T>(
         remote_chain_selector,
         dest_token_address,
         source_pool_address,
-        amount
+        local_amount
     );
 
     coin::mint_and_transfer(
         &mut pool.treasury_cap,
-        amount,
+        local_amount,
         receiver,
         ctx,
     );
@@ -266,10 +268,10 @@ public fun release_or_mint<T>(
     token_pool::emit_released_or_minted(
         &mut pool.token_pool_state,
         receiver,
-        amount
+        local_amount
     );
 
-    offramp::complete_token_transfer(receiver_params, index, object::uid_to_address(&pool.id))
+    offramp::complete_token_transfer(receiver_params, index, local_amount, object::uid_to_address(&pool.id))
 }
 
 // ================================================================

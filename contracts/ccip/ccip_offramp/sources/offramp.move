@@ -174,7 +174,6 @@ module ccip_offramp::offramp {
     }
 
     // These have to match the EVM states
-    // TODO: since the entire PTB either succeeds or fails, we should only have 0 or 2?
     const EXECUTION_STATE_UNTOUCHED: u8 = 0;
     // const EXECUTION_STATE_IN_PROGRESS: u8 = 1;
     const EXECUTION_STATE_SUCCESS: u8 = 2;
@@ -378,10 +377,11 @@ module ccip_offramp::offramp {
     }
 
     public struct TokenParam has copy, drop {
-        sender: vector<u8>,
+        // sender: vector<u8>,
         receiver: address,
-        amount: u64,
-        source_chain_selector: u64,
+        source_amount: u64,
+        local_amount: u64,
+        // source_chain_selector: u64,
         dest_token_address: address,
         token_pool_address: address,
         source_pool_address: vector<u8>,
@@ -392,7 +392,7 @@ module ccip_offramp::offramp {
     
     public fun get_token_param_data(
         receiver_params: &ReceiverParams, index: u64
-    ): (vector<u8>, address, u64, address, vector<u8>) {
+    ): (address, u64, address, vector<u8>, vector<u8>) {
         assert!(
             index < receiver_params.params.length(),
             E_WRONG_INDEX_IN_RECEIVER_PARAMS
@@ -400,11 +400,12 @@ module ccip_offramp::offramp {
         let token_param = receiver_params.params[index];
 
         (
-            token_param.sender,
+            // token_param.sender,
             token_param.receiver,
-            token_param.amount,
+            token_param.source_amount,
             token_param.dest_token_address,
             token_param.source_pool_address,
+            token_param.source_pool_data, // this is the encoded decimals
         )
     }
 
@@ -412,6 +413,7 @@ module ccip_offramp::offramp {
     public fun complete_token_transfer(
         mut receiver_params: ReceiverParams,
         index: u64,
+        local_amount: u64,
         token_pool_address: address
     ): ReceiverParams {
         assert!(
@@ -427,6 +429,7 @@ module ccip_offramp::offramp {
             E_TOKEN_POOL_ADDRESS_MISMATCH
         );
         receiver_params.params[index].completed = true;
+        receiver_params.params[index].local_amount = local_amount;
 
         receiver_params
     }
@@ -687,10 +690,11 @@ module ccip_offramp::offramp {
 
             receiver_params.params.push_back(
                 TokenParam {
-                    sender: message.sender,
+                    // sender: message.sender,
                     receiver: message.receiver,
-                    amount,
-                    source_chain_selector: message.header.source_chain_selector,
+                    source_amount: amount,
+                    local_amount: 0, // to be calculated by the destination token pool
+                    // source_chain_selector: message.header.source_chain_selector,
                     dest_token_address: message.token_amounts[i].dest_token_address,
                     token_pool_address,
                     source_pool_address: message.token_amounts[i].source_pool_address,
