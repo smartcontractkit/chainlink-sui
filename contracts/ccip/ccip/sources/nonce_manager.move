@@ -1,8 +1,7 @@
 module ccip::nonce_manager {
+    use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
     use std::string::{Self, String};
     use sui::table::{Self, Table};
-
-    use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
     // store this cap to onramp
     public struct NonceManagerCap has key, store {
@@ -12,7 +11,7 @@ module ccip::nonce_manager {
     public struct NonceManagerState has key, store {
         id: UID,
         // dest chain selector -> sender -> nonce
-        outbound_nonces: Table<u64, Table<address, u64>>
+        outbound_nonces: Table<u64, Table<address, u64>>,
     }
 
     const NONCE_MANAGER_STATE_NAME: vector<u8> = b"NonceManagerState";
@@ -23,22 +22,15 @@ module ccip::nonce_manager {
     }
 
     #[allow(lint(self_transfer))]
-    public fun initialize(
-        ref: &mut CCIPObjectRef,
-        _: &OwnerCap,
-        ctx: &mut TxContext
-    ) {
-        assert!(
-            !state_object::contains(ref, NONCE_MANAGER_STATE_NAME),
-            E_ALREADY_INITIALIZED
-        );
+    public fun initialize(ref: &mut CCIPObjectRef, _: &OwnerCap, ctx: &mut TxContext) {
+        assert!(!state_object::contains(ref, NONCE_MANAGER_STATE_NAME), E_ALREADY_INITIALIZED);
 
         let state = NonceManagerState {
             id: object::new(ctx),
-            outbound_nonces: table::new(ctx)
+            outbound_nonces: table::new(ctx),
         };
         let cap = NonceManagerCap {
-            id: object::new(ctx)
+            id: object::new(ctx),
         };
         state_object::add(ref, NONCE_MANAGER_STATE_NAME, state, ctx);
         transfer::transfer(cap, ctx.sender());
@@ -47,7 +39,7 @@ module ccip::nonce_manager {
     public fun get_outbound_nonce(
         ref: &CCIPObjectRef,
         dest_chain_selector: u64,
-        sender: address
+        sender: address,
     ): u64 {
         let state = state_object::borrow<NonceManagerState>(ref, NONCE_MANAGER_STATE_NAME);
 
@@ -67,17 +59,22 @@ module ccip::nonce_manager {
         _: &NonceManagerCap,
         dest_chain_selector: u64,
         sender: address,
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ): u64 {
-        let state = state_object::borrow_mut_with_ctx<NonceManagerState>(ref, NONCE_MANAGER_STATE_NAME, ctx);
+        let state = state_object::borrow_mut_with_ctx<NonceManagerState>(
+            ref,
+            NONCE_MANAGER_STATE_NAME,
+            ctx,
+        );
 
         if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {
             table::add(
-                &mut state.outbound_nonces, dest_chain_selector, table::new(ctx)
+                &mut state.outbound_nonces,
+                dest_chain_selector,
+                table::new(ctx),
             );
         };
-        let dest_chain_nonces =
-            table::borrow_mut(&mut state.outbound_nonces, dest_chain_selector);
+        let dest_chain_nonces = table::borrow_mut(&mut state.outbound_nonces, dest_chain_selector);
         if (!table::contains(dest_chain_nonces, sender)) {
             table::add(dest_chain_nonces, sender, 0);
         };
@@ -91,79 +88,94 @@ module ccip::nonce_manager {
 
 #[test_only]
 module ccip::nonce_manager_test {
-    use ccip::nonce_manager;
-    use ccip::state_object::{Self, CCIPObjectRef};
+    use ccip::nonce_manager::{Self, NonceManagerCap};
+    use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
     use sui::test_scenario::{Self, Scenario};
 
+    const SENDER: address = @0x1;
     const NONCE_MANAGER_STATE_NAME: vector<u8> = b"NonceManagerState";
 
-    fun set_up_test(): (Scenario, CCIPObjectRef) {
-        let mut scenario = test_scenario::begin(@0x1);
+    fun set_up_test(): (Scenario, CCIPObjectRef, OwnerCap) {
+        let mut scenario = test_scenario::begin(SENDER);
         let ctx = scenario.ctx();
 
-        let ref = state_object::create(ctx);
+        state_object::test_init(ctx);
 
-        (scenario, ref)
+        scenario.next_tx(SENDER);
+
+        let ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_address(SENDER);
+
+        (scenario, ref, owner_cap)
     }
 
-    fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        nonce_manager::initialize(ref, ctx);
+    fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+        nonce_manager::initialize(ref, owner_cap, ctx);
     }
 
-    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
+    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef, owner_cap: OwnerCap) {
         state_object::destroy_state_object(ref);
+        test_scenario::return_to_address(SENDER, owner_cap);
         test_scenario::end(scenario);
     }
 
     #[test]
     public fun test_initialize() {
-        let (mut scenario, mut ref) = set_up_test();
+        let (mut scenario, mut ref, owner_cap) = set_up_test();
         let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
+        initialize(&mut ref, &owner_cap, ctx);
 
-        let _state = state_object::borrow<nonce_manager::NonceManagerState>(&ref, NONCE_MANAGER_STATE_NAME);
+        let _state = state_object::borrow<nonce_manager::NonceManagerState>(
+            &ref,
+            NONCE_MANAGER_STATE_NAME,
+        );
 
         assert!(
             state_object::contains(
                 &ref,
-                NONCE_MANAGER_STATE_NAME
-            )
+                NONCE_MANAGER_STATE_NAME,
+            ),
         );
 
-        tear_down_test(scenario, ref);
+        tear_down_test(scenario, ref, owner_cap);
     }
 
     #[test]
     public fun test_get_incremented_outbound_nonce() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
+        let (mut scenario, mut ref, owner_cap) = set_up_test();
+        initialize(&mut ref, &owner_cap, scenario.ctx());
 
         let mut nonce = nonce_manager::get_outbound_nonce(&ref, 1, @0x1);
         assert!(nonce == 0);
 
+        scenario.next_tx(SENDER);
+        let nonce_manager_cap = scenario.take_from_address(SENDER);
         let mut incremented_nonce = nonce_manager::get_incremented_outbound_nonce(
             &mut ref,
+            &nonce_manager_cap,
             1,
             @0x1,
-            ctx
+            scenario.ctx(),
         );
         assert!(incremented_nonce == 1);
 
         nonce = nonce_manager::get_outbound_nonce(&ref, 1, @0x1);
         assert!(nonce == 1);
 
-        incremented_nonce = nonce_manager::get_incremented_outbound_nonce(
-            &mut ref,
-            1,
-            @0x1,
-            ctx
-        );
+        incremented_nonce =
+            nonce_manager::get_incremented_outbound_nonce(
+                &mut ref,
+                &nonce_manager_cap,
+                1,
+                @0x1,
+                scenario.ctx(),
+            );
         assert!(incremented_nonce == 2);
 
         nonce = nonce_manager::get_outbound_nonce(&ref, 1, @0x1);
         assert!(nonce == 2);
 
-        tear_down_test(scenario, ref);
+        tear_down_test(scenario, ref, owner_cap);
+        test_scenario::return_to_address(SENDER, nonce_manager_cap);
     }
 }

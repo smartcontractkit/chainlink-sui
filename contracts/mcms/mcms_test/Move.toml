@@ -8,7 +8,8 @@ ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
 [addresses]
 mcms_test = "_"
 mcms = "_"
-
+mcms_owner = "_"
 [dev-addresses]
-# mcms = "0x40001"
+mcms = "0x40001"
 mcms_test = "0x4900"
+mcms_owner = "0x9000"

@@ -1,6 +1,6 @@
 module ccip::state_object {
-    use sui::event;
     use sui::dynamic_object_field as dof;
+    use sui::event;
 
     const E_MODULE_ALREADY_EXISTS: u64 = 1;
     const E_MODULE_DOES_NOT_EXISTS: u64 = 2;
@@ -19,17 +19,17 @@ module ccip::state_object {
 
     public struct OwnershipTransferRequested has copy, drop {
         from: address,
-        to: address
+        to: address,
     }
 
     public struct OwnershipTransferAccepted has copy, drop {
         from: address,
-        to: address
+        to: address,
     }
 
     public struct OwnershipTransferred has copy, drop {
         from: address,
-        to: address
+        to: address,
     }
 
     public struct CCIPObjectRef has key, store {
@@ -38,20 +38,22 @@ module ccip::state_object {
         // this object is a shared object and cannot be transferred and has no owner according to SUI
         // the owner here refers to the address which has the power to manage this ref
         current_owner: address,
-        pending_transfer: Option<PendingTransfer>
+        pending_transfer: Option<PendingTransfer>,
     }
 
-    public struct PendingTransfer has store, copy, drop {
+    public struct PendingTransfer has copy, drop, store {
         from: address,
         to: address,
-        accepted: bool
+        accepted: bool,
     }
 
-    fun init(ctx: &mut TxContext) {
+    public struct STATE_OBJECT has drop {}
+
+    fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
         let ref = CCIPObjectRef {
             id: object::new(ctx),
             current_owner: ctx.sender(),
-            pending_transfer: option::none()
+            pending_transfer: option::none(),
         };
         let owner_cap = OwnerCap {
             id: object::new(ctx),
@@ -62,7 +64,12 @@ module ccip::state_object {
     }
 
     // TODO: we may need to include link token here
-    public(package) fun add<T: key + store>(ref: &mut CCIPObjectRef, name: vector<u8>, obj: T, ctx: &TxContext) {
+    public(package) fun add<T: key + store>(
+        ref: &mut CCIPObjectRef,
+        name: vector<u8>,
+        obj: T,
+        ctx: &TxContext,
+    ) {
         // TODO: or remove an existing object with this name?
         assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
         assert!(!dof::exists_(&ref.id, name), E_MODULE_ALREADY_EXISTS);
@@ -73,7 +80,11 @@ module ccip::state_object {
         dof::exists_(&ref.id, name)
     }
 
-    public(package) fun remove<T: key + store>(ref: &mut CCIPObjectRef, name: vector<u8>, ctx: &TxContext): T {
+    public(package) fun remove<T: key + store>(
+        ref: &mut CCIPObjectRef,
+        name: vector<u8>,
+        ctx: &TxContext,
+    ): T {
         assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
         assert!(dof::exists_(&ref.id, name), E_MODULE_DOES_NOT_EXISTS);
         dof::remove(&mut ref.id, name)
@@ -83,47 +94,35 @@ module ccip::state_object {
         dof::borrow(&ref.id, name)
     }
 
-    public(package) fun borrow_mut_with_ctx<T: key + store>(ref: &mut CCIPObjectRef, name: vector<u8>, ctx: &TxContext): &mut T {
+    public(package) fun borrow_mut_with_ctx<T: key + store>(
+        ref: &mut CCIPObjectRef,
+        name: vector<u8>,
+        ctx: &TxContext,
+    ): &mut T {
         assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
 
         dof::borrow_mut(&mut ref.id, name)
     }
 
-    public fun transfer_ownership(
-        ref: &mut CCIPObjectRef, to: address, ctx: &mut TxContext
-    ) {
+    public fun transfer_ownership(ref: &mut CCIPObjectRef, to: address, ctx: &mut TxContext) {
         let caller = ctx.sender();
         assert!(caller != to, E_CANNOT_TRANSFER_TO_SELF);
         assert!(ref.current_owner == caller, E_UNAUTHORIZED);
 
-        ref.pending_transfer = option::some(
-            PendingTransfer { from: caller, to, accepted: false }
-        );
+        ref.pending_transfer = option::some(PendingTransfer { from: caller, to, accepted: false });
 
         event::emit(OwnershipTransferRequested { from: caller, to });
     }
 
     public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        assert!(
-            ref.pending_transfer.is_some(),
-            E_NO_PENDING_TRANSFER
-        );
+        assert!(ref.pending_transfer.is_some(), E_NO_PENDING_TRANSFER);
 
         let caller = ctx.sender();
         let pending_transfer = ref.pending_transfer.borrow_mut();
 
-        assert!(
-            pending_transfer.from == ref.current_owner,
-            E_OWNER_CHANGED
-        );
-        assert!(
-            pending_transfer.to == caller,
-            E_MUST_BE_PROPOSED_OWNER
-        );
-        assert!(
-            !pending_transfer.accepted,
-            E_TRANSFER_ALREADY_ACCEPTED
-        );
+        assert!(pending_transfer.from == ref.current_owner, E_OWNER_CHANGED);
+        assert!(pending_transfer.to == caller, E_MUST_BE_PROPOSED_OWNER);
+        assert!(!pending_transfer.accepted, E_TRANSFER_ALREADY_ACCEPTED);
 
         pending_transfer.accepted = true;
 
@@ -131,7 +130,9 @@ module ccip::state_object {
     }
 
     public fun execute_ownership_transfer(
-        ref: &mut CCIPObjectRef, to: address, ctx: &mut TxContext
+        ref: &mut CCIPObjectRef,
+        to: address,
+        ctx: &mut TxContext,
     ) {
         let caller = ctx.sender();
         assert!(caller == ref.current_owner, E_UNAUTHORIZED);
@@ -139,16 +140,9 @@ module ccip::state_object {
         let pending_transfer = ref.pending_transfer.extract();
 
         // since ref is a shared object now, it's impossible to transfer its ownership
-        assert!(
-            pending_transfer.from == ref.current_owner,
-            E_OWNER_CHANGED
-        );
-        assert!(
-            pending_transfer.to == to, E_PROPOSED_OWNER_MISMATCH
-        );
-        assert!(
-            pending_transfer.accepted, E_TRANSFER_NOT_ACCEPTED
-        );
+        assert!(pending_transfer.from == ref.current_owner, E_OWNER_CHANGED);
+        assert!(pending_transfer.to == to, E_PROPOSED_OWNER_MISMATCH);
+        assert!(pending_transfer.accepted, E_TRANSFER_NOT_ACCEPTED);
 
         // transfer the owner cap to the new owner
         // cannot transfer the shared object anymore
@@ -164,11 +158,16 @@ module ccip::state_object {
     }
 
     #[test_only]
+    public fun test_init(ctx: &mut TxContext) {
+        init(STATE_OBJECT {}, ctx);
+    }
+
+    #[test_only]
     public(package) fun create(ctx: &mut TxContext): CCIPObjectRef {
         CCIPObjectRef {
             id: object::new(ctx),
             current_owner: ctx.sender(),
-            pending_transfer: option::none()
+            pending_transfer: option::none(),
         }
     }
 
@@ -192,9 +191,8 @@ module ccip::state_object {
 
 #[test_only]
 module ccip::state_object_test {
-    use sui::test_scenario::{Self, Scenario};
-
     use ccip::state_object::{Self, CCIPObjectRef};
+    use sui::test_scenario::{Self, Scenario};
 
     const SENDER_1: address = @0x1;
     const SENDER_2: address = @0x2;
@@ -205,7 +203,7 @@ module ccip::state_object_test {
 
         let ref = state_object::create(ctx);
         let obj = TestObject {
-            id: object::new(ctx)
+            id: object::new(ctx),
         };
         (scenario, ref, obj)
     }
@@ -216,7 +214,7 @@ module ccip::state_object_test {
     }
 
     public struct TestObject has key, store {
-        id: UID
+        id: UID,
     }
 
     #[test]
