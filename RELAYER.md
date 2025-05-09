@@ -23,6 +23,19 @@ NumberRetries = 5            # Number of retries for failed requests
 GasLimit = 10000000          # Maximum gas limit for transactions
 RequestType = 'WaitForLocalExecution'  # Transaction execution mode (WaitForLocalExecution or WaitForEffectsCert)
 
+# Transaction Manager settings
+[TransactionManager]
+BroadcastChanSize = 100        # Size of the broadcast channel buffer
+ConfirmPollSecs = 2           # Time between transaction confirmation checks
+DefaultMaxGasAmount = 200000  # Default maximum gas amount for transactions
+MaxSimulateAttempts = 5       # Maximum number of simulation attempts
+MaxSubmitRetryAttempts = 10   # Maximum number of submission retry attempts
+MaxTxRetryAttempts = 5        # Maximum number of transaction retry attempts
+PruneIntervalSecs = 14400     # Interval for pruning old transactions (4 hours)
+PruneTxExpirationSecs = 7200  # Age threshold for pruning transactions (2 hours)
+SubmitDelayDuration = 3       # Delay between retries in seconds
+TxExpirationSecs = 10         # Transaction expiration time in seconds
+
 # Node configurations
 [[Chains.Nodes]]
 Name = 'sui-node-1'

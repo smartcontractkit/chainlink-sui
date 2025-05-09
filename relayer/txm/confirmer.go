@@ -15,11 +15,46 @@ const (
 	failure = "failure"
 )
 
-func (txm *SuiTxm) confirmerLoop(loopCtx context.Context) {
+// confirmerLoop is the main goroutine responsible for monitoring and confirming transactions
+// that have been submitted to the Sui blockchain.
+//
+// The function runs on a periodic ticker (with jitter) and:
+// 1. Retrieves all in-flight transactions from the repository
+// 2. For each transaction in the submitted state, checks its status on-chain
+// 3. Updates the transaction state based on the confirmation status
+// 4. Handles retries and failures according to configured policies
+//
+// The loop continues until either:
+// - The stop channel is closed
+// - The context is cancelled
+// - The service is shut down
+//
+// Parameters:
+// - Uses the txm.configuration.ConfirmerPoolPeriodSeconds for the base ticker period
+// - Uses txm.stopChannel for shutdown signaling
+// - Uses txm.done WaitGroup for cleanup
+//
+// The function never returns until a shutdown signal is received.
+
+// checkConfirmations processes a batch of in-flight transactions and updates their
+// confirmation status.
+//
+// For each transaction, it:
+// 1. Retrieves the current status from the Sui blockchain
+// 2. Updates the transaction state in the repository based on the response
+// 3. Handles any errors or retries needed
+//
+// Parameters:
+// - loopCtx: Context for cancellation and timeouts
+// - txm: The transaction manager instance containing configuration and dependencies
+//
+// The function logs errors but continues processing remaining transactions if one fails.
+
+func (txm *SuiTxm) confirmerLoop() {
 	defer txm.done.Done()
 	txm.lggr.Infow("Starting confimer loop")
 
-	_, cancel := services.StopRChan(txm.stopChannel).NewCtx()
+	loopCtx, cancel := services.StopRChan(txm.stopChannel).NewCtx()
 	defer cancel()
 
 	basePeriod := txm.configuration.ConfirmerPoolPeriodSeconds
@@ -39,7 +74,7 @@ func (txm *SuiTxm) confirmerLoop(loopCtx context.Context) {
 			txm.lggr.Infow("Confirmer loop stopped")
 			return
 		case <-loopCtx.Done():
-			txm.lggr.Infow("Loop context cancelled")
+			txm.lggr.Infow("Loop context cancelled. Confirmer loop stopped")
 			return
 		case <-ticker.C:
 			txm.lggr.Debugw("Ticker fired, checking transaction confirmations")

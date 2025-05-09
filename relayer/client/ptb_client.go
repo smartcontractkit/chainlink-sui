@@ -58,6 +58,8 @@ func NewPTBClient(
 	maxConcurrentRequests int64,
 	defaultRequestType TransactionRequestType,
 ) (*PTBClient, error) {
+	log.Infof("Creating new SUI client")
+
 	client := suiclient.NewClient(rpcUrl)
 
 	if maxConcurrentRequests <= 0 {

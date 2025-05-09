@@ -26,20 +26,21 @@ import (
 // The loop also handles graceful shutdown through the stopChannel and properly
 // cleans up resources using the done WaitGroup.
 //
-// Parameters:
-//   - loopCtx: Context for the broadcast operations, used for cancellation and timeouts
-//
 // The function never returns until the broadcast channel is closed or the stop signal is received.
-func (txm *SuiTxm) broadcastLoop(loopCtx context.Context) {
+func (txm *SuiTxm) broadcastLoop() {
 	defer txm.done.Done()
+	txm.lggr.Infow("Starting broadcast loop")
 
-	_, cancel := services.StopRChan(txm.stopChannel).NewCtx()
+	loopCtx, cancel := services.StopRChan(txm.stopChannel).NewCtx()
 	defer cancel()
 
 	for {
 		select {
 		case <-txm.stopChannel:
 			txm.lggr.Infow("Broadcast loop stopped")
+			return
+		case <-loopCtx.Done():
+			txm.lggr.Infow("Loop context cancelled. Broadcast loop stopped")
 			return
 		case initialId, ok := <-txm.broadcastChannel:
 			// Check if the channel is closed

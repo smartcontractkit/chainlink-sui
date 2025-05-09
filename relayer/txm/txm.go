@@ -47,6 +47,9 @@ func NewSuiTxm(
 	conf Config, transactionsRepository TxmStore,
 	retryManager RetryManager, gasManager GasManager,
 ) (*SuiTxm, error) {
+	lggr.Infof("Creating SuiTxm")
+	lggr.Infof("SuiTxm configuration: %+v", conf)
+
 	return &SuiTxm{
 		lggr:                  logger.Named(lggr, "SuiTxm"),
 		suiGateway:            gateway,
@@ -227,12 +230,13 @@ func (txm *SuiTxm) Ready() error {
 	return txm.Starter.Ready()
 }
 
-func (txm *SuiTxm) Start(ctx context.Context) error {
+func (txm *SuiTxm) Start(_ context.Context) error {
+	//nolint:contextcheck
 	return txm.Starter.StartOnce("SuiTxm", func() error {
 		txm.lggr.Infow("Starting SuiTxm")
 		txm.done.Add(numberGoroutines) // waitgroup: broadcaster, confirmer
-		go txm.broadcastLoop(ctx)
-		go txm.confirmerLoop(ctx)
+		go txm.broadcastLoop()
+		go txm.confirmerLoop()
 
 		return nil
 	})

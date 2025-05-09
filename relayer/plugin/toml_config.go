@@ -10,6 +10,8 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 type TOMLConfigs []*TOMLConfig
@@ -105,41 +107,74 @@ func setFromNode(n, f *NodeConfig) {
 	if f.URL != nil {
 		n.URL = f.URL
 	}
-	if f.SolidityURL != nil {
-		n.SolidityURL = f.SolidityURL
+}
+
+type TransactionManagerConfig struct {
+	BroadcastChanSize     *uint64
+	ConfirmPollSecs       *uint64
+	DefaultMaxGasAmount   *uint64
+	MaxTxRetryAttempts    *uint64
+	RequestType           *string
+	TransactionTimeout    *string
+	MaxConcurrentRequests *uint64
+}
+
+func (t *TransactionManagerConfig) setDefaults() {
+	if t.BroadcastChanSize == nil {
+		defaultVal := DefaultBroadcastChannelSize
+		t.BroadcastChanSize = &defaultVal
+	}
+	if t.MaxConcurrentRequests == nil {
+		defaultVal := uint64(DefaultMaxConcurrentRequests)
+		t.MaxConcurrentRequests = &defaultVal
+	}
+	if t.MaxTxRetryAttempts == nil {
+		defaultVal := uint64(DefaultRetryCount)
+		t.MaxTxRetryAttempts = &defaultVal
+	}
+	if t.DefaultMaxGasAmount == nil {
+		defaultVal := uint64(DefaultMaxGasLimit)
+		t.DefaultMaxGasAmount = &defaultVal
+	}
+	if t.TransactionTimeout == nil {
+		defaultVal := fmt.Sprintf("%ds", DefaultTxTimeoutSeconds)
+		t.TransactionTimeout = &defaultVal
+	}
+	if t.RequestType == nil {
+		defaultVal := string(client.WaitForEffectsCert)
+		t.RequestType = &defaultVal
+	}
+	if t.ConfirmPollSecs == nil {
+		defaultVal := uint64(DefaultConfirmerPoolPeriodSeconds)
+		t.ConfirmPollSecs = &defaultVal
 	}
 }
 
-// TOMLConfig represents the configuration for a Sui chain and its nodes.
-// It holds chain-specific settings and a collection of nodes for that chain.
-// The configuration is typically loaded from a TOML file and used to establish
-// connections to the Sui blockchain.
+// TOMLConfig represents the configuration for a Sui chain, typically loaded from a TOML file.
+// It contains all the necessary parameters to configure a Sui relayer including chain ID,
+// network details, transaction management settings, and node configurations.
 //
-// Example Configuration:
+// Example TOML configuration:
 //
-//	[[Chains]]
-//	ChainID = '0x1' # The Sui network ID
+//	[[Sui]]
 //	Enabled = true
+//	ChainID = "4"
+//	NetworkName = "localnet"
+//	NetworkNameFull = "sui-localnet"
 //
-//	# Transaction settings
-//	BroadcastChanSize = 4096     # Size of the broadcast channel buffer
-//	ConfirmPollPeriod = '500ms'  # Time between transaction confirmation checks
-//	MaxConcurrentRequests = 5    # Maximum number of concurrent RPC requests
-//	TransactionTimeout = '10s'   # Timeout for transaction requests
-//	NumberRetries = 5            # Number of retries for failed requests
-//	GasLimit = 10000000          # Maximum gas limit for transactions
-//	RequestType = 'WaitForLocalExecution' # Transaction execution mode (WaitForLocalExecution or WaitForEffectsCert)
+//	[[Sui.Nodes]]
+//	Name = 'primary'
+//	URL = "https://fullnode.devnet.sui.io:443"
 //
-//	# Node configurations
-//	[[Chains.Nodes]]
-//	Name = 'sui-node-1'
-//	URL = 'https://sui-rpc.example.com'
-//	SolidityURL = 'https://sui-rpc.example.com'
-//
-//	[[Chains.Nodes]]
-//	Name = 'sui-node-2'
-//	URL = 'https://sui-rpc-backup.example.com'
-//	SolidityURL = 'https://sui-rpc-backup.example.com'
+//	[Sui.TransactionManager]
+//	BroadcastChanSize = 100
+//	ConfirmPollSecs = 2
+//	DefaultMaxGasAmount = 200000
+//	MaxTxRetryAttempts = 5
+//	RequestType = 'WaitForEffectsCert'
+//	TransactionTimeout = '10s'
+//	MaxConcurrentRequests = 5
+
 type TOMLConfig struct {
 	// ChainID is a unique identifier for the Sui chain
 	ChainID *string
@@ -148,8 +183,14 @@ type TOMLConfig struct {
 	// If nil, defaults to true. Use IsEnabled() method to check.
 	Enabled *bool
 
+	// NetworkName is the name of the Sui network
+	NetworkName *string
+
+	// NetworkNameFull is the full name of the Sui network
+	NetworkNameFull *string
+
 	// ChainConfig holds chain-specific configuration parameters
-	ChainConfig
+	TransactionManager *TransactionManagerConfig
 
 	// Nodes is a collection of node configurations for this chain
 	Nodes NodeConfigs
@@ -166,31 +207,36 @@ func (c *TOMLConfig) SetFrom(f *TOMLConfig) {
 	if f.Enabled != nil {
 		c.Enabled = f.Enabled
 	}
-	setFromChain(&c.ChainConfig, &f.ChainConfig)
+	if f.TransactionManager != nil {
+		if c.TransactionManager == nil {
+			c.TransactionManager = &TransactionManagerConfig{}
+		}
+		setFromTransactionManager(c.TransactionManager, f.TransactionManager)
+	}
 	c.Nodes.SetFrom(&f.Nodes)
 }
 
-func setFromChain(c, f *ChainConfig) {
+func setFromTransactionManager(c, f *TransactionManagerConfig) {
 	if f.BroadcastChanSize != nil {
 		c.BroadcastChanSize = f.BroadcastChanSize
 	}
-	if f.ConfirmPollPeriod != nil {
-		c.ConfirmPollPeriod = f.ConfirmPollPeriod
+	if f.ConfirmPollSecs != nil {
+		c.ConfirmPollSecs = f.ConfirmPollSecs
 	}
-	if f.MaxConcurrentRequests != nil {
-		c.MaxConcurrentRequests = f.MaxConcurrentRequests
+	if f.DefaultMaxGasAmount != nil {
+		c.DefaultMaxGasAmount = f.DefaultMaxGasAmount
+	}
+	if f.MaxTxRetryAttempts != nil {
+		c.MaxTxRetryAttempts = f.MaxTxRetryAttempts
+	}
+	if f.RequestType != nil {
+		c.RequestType = f.RequestType
 	}
 	if f.TransactionTimeout != nil {
 		c.TransactionTimeout = f.TransactionTimeout
 	}
-	if f.NumberRetries != nil {
-		c.NumberRetries = f.NumberRetries
-	}
-	if f.GasLimit != nil {
-		c.GasLimit = f.GasLimit
-	}
-	if f.RequestType != nil {
-		c.RequestType = f.RequestType
+	if f.MaxConcurrentRequests != nil {
+		c.MaxConcurrentRequests = f.MaxConcurrentRequests
 	}
 }
 

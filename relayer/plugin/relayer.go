@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -38,6 +39,8 @@ var _ types.Relayer = &SuiRelayer{}
 func NewRelayer(cfg *TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*SuiRelayer, error) {
 	id := *cfg.ChainID
 
+	loggerInstance := logger.Named(logger.With(lggr, "chainID", id, "chain", "sui"), "SuiRelayer")
+
 	var idNum *big.Int
 	var ok bool
 	if strings.HasPrefix(id, "0x") {
@@ -50,35 +53,51 @@ func NewRelayer(cfg *TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*S
 		return nil, fmt.Errorf("couldn't parse chain id %s", id)
 	}
 
-	// Apply default values if not set
-	cfg.ChainConfig.Defaults()
+	cfg.TransactionManager.setDefaults()
 
 	nodeConfig, err := cfg.ListNodes().SelectRandom()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node config: %w", err)
 	}
 	store := txm.NewTxmStoreImpl()
-	conf := txm.DefaultConfigSet
+
+	timeout, err := time.ParseDuration(*cfg.TransactionManager.TransactionTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("invalid transaction timeout: %w", err)
+	}
+	//nolint:gosec
+	maxConcurrentRequests := int64(*cfg.TransactionManager.MaxConcurrentRequests)
+	requestType := *cfg.TransactionManager.RequestType
+
+	txmConfig := txm.Config{
+		BroadcastChanSize:          uint(*cfg.TransactionManager.BroadcastChanSize),
+		RequestType:                requestType,
+		ConfirmerPoolPeriodSeconds: uint(*cfg.TransactionManager.ConfirmPollSecs),
+	}
 
 	// Use config values instead of constants
 	suiClient, err := client.NewPTBClient(
-		lggr,
+		loggerInstance,
 		nodeConfig.URL.String(),
 		nil,
-		*cfg.TransactionTimeout,
+		timeout,
 		keystore,
-		*cfg.MaxConcurrentRequests,
-		*cfg.RequestType,
+		maxConcurrentRequests,
+		client.TransactionRequestType(requestType),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewConfigProvider chain.Reader: %w", err)
 	}
 
-	retryManager := txm.NewDefaultRetryManager(int(*cfg.NumberRetries))
-	gasLimit := big.NewInt(*cfg.GasLimit)
-	gasManager := txm.NewSuiGasManager(lggr, suiClient, *gasLimit, 0)
+	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)
+	//nolint:gosec
+	retryManager := txm.NewDefaultRetryManager(int(*cfg.TransactionManager.MaxTxRetryAttempts))
+	loggerInstance.Infof("Creating gas manager. GasLimit: %d", *cfg.TransactionManager.DefaultMaxGasAmount)
+	//nolint:gosec
+	gasLimit := big.NewInt(int64(*cfg.TransactionManager.DefaultMaxGasAmount))
+	gasManager := txm.NewSuiGasManager(loggerInstance, suiClient, *gasLimit, 0)
 
-	txManager, err := txm.NewSuiTxm(lggr, suiClient, keystore, conf, store, retryManager, gasManager)
+	txManager, err := txm.NewSuiTxm(loggerInstance, suiClient, keystore, txmConfig, store, retryManager, gasManager)
 
 	if err != nil {
 		return nil, fmt.Errorf("error in NewConfigProvider chain.Reader: %w", err)
@@ -88,7 +107,7 @@ func NewRelayer(cfg *TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*S
 		chainId:    id,
 		chainIdNum: idNum,
 		cfg:        cfg,
-		lggr:       logger.Named(logger.With(lggr, "chainID", id, "chain", "sui"), "SuiRelayer"),
+		lggr:       loggerInstance,
 		client:     suiClient,
 		txm:        txManager,
 	}, nil
@@ -100,8 +119,7 @@ func (r *SuiRelayer) Name() string {
 
 func (r *SuiRelayer) Start(ctx context.Context) error {
 	return r.StartOnce("SuiRelayer", func() error {
-		r.lggr.Debug("Starting")
-		r.lggr.Debug("Starting txm")
+		r.lggr.Debug("Starting Sui Relayer")
 		var ms services.MultiStart
 
 		return ms.Start(ctx, r.txm)
@@ -110,8 +128,7 @@ func (r *SuiRelayer) Start(ctx context.Context) error {
 
 func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
-		r.lggr.Debug("Stopping")
-		r.lggr.Debug("Stopping txm")
+		r.lggr.Debug("Stopping Sui Relayer")
 
 		return r.txm.Close()
 	})
