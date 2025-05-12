@@ -27,8 +27,11 @@ id = "ChainlinkCCIP"
 source = { local = "../../ccip" }
 
 dependencies = [
+  { id = "Bridge", name = "Bridge" },
   { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
+  { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
+  { id = "SuiSystem", name = "SuiSystem" },
 ]
 
 [[move.package]]
@@ -36,7 +39,10 @@ id = "ChainlinkManyChainMultisig"
 source = { local = "../../../mcms/mcms" }
 
 dependencies = [
+  { id = "Bridge", name = "Bridge" },
+  { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
+  { id = "SuiSystem", name = "SuiSystem" },
 ]
 
 [[move.package]]

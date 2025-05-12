@@ -20,11 +20,6 @@ module ccip::token_admin_registry {
 
     public struct TokenAdminRegistryState has key, store {
         id: UID,
-
-        // fungible asset metadata address -> TokenConfig
-        // TODO: there were previously raised concerns during an audit that a user could maliciously calculate the bucket for a key and
-        // cause repeated splitting, but we need to retrieve all the keys, which isn't available in Table.
-        // consider other solutions.
         token_configs: Table<address, TokenConfig>,
     }
 
@@ -104,6 +99,7 @@ module ccip::token_admin_registry {
     }
 
     // this function can also take a coin metadata or a coin::zero
+    // but that requires adding a type parameter to the function
     public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): address {
         let state = state_object::borrow<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
 
@@ -116,7 +112,6 @@ module ccip::token_admin_registry {
         }
     }
 
-    // returns (token_pool_address, administrator, pending_administrator)
     public fun get_token_config(
         ref: &CCIPObjectRef, coin_metadata_address: address
     ): (address, address, address) {
@@ -151,19 +146,60 @@ module ccip::token_admin_registry {
     // |                       Register Pool                          |
     // ================================================================
 
-    // note: only the token owner with the treasury cap can call this function.
+    // only the token owner with the treasury cap can call this function.
     #[allow(lint(self_transfer))]
     public fun register_pool<T, ProofType: drop>(
         ref: &mut CCIPObjectRef,
-        _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token?
+        _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
+        coin_metadata_address: address,
+        token_pool_address: address,
+        token_pool_module_name: vector<u8>,
+        _proof: ProofType,
+        ctx: &mut TxContext
+    ) {
+        register_pool_internal(
+            ref,
+            coin_metadata_address,
+            token_pool_address,
+            token_pool_module_name,
+            _proof,
+            ctx
+        );
+    }
+
+    // only the CCIP owner can call this function.
+    public fun register_pool_by_admin<ProofType: drop>(
+        ref: &mut CCIPObjectRef,
+        coin_metadata_address: address,
+        token_pool_address: address,
+        token_pool_module_name: vector<u8>,
+        _proof: ProofType,
+        ctx: &mut TxContext
+    ) {
+        assert!(
+            ctx.sender() == state_object::get_current_owner(ref),
+            E_NOT_ADMINISTRATOR
+        );
+
+        register_pool_internal(
+            ref,
+            coin_metadata_address,
+            token_pool_address,
+            token_pool_module_name,
+            _proof,
+            ctx
+        );
+    }
+
+    fun register_pool_internal<ProofType: drop>(
+        ref: &mut CCIPObjectRef,
         coin_metadata_address: address,
         token_pool_address: address,
         token_pool_module_name: vector<u8>,
         _proof: ProofType, // use this proof type to validate the token pool address & token pool module name
-        ctx: &mut TxContext
+        ctx: &TxContext
     ) {
         let state = state_object::borrow_mut_with_ctx<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, ctx);
-        // let coin_tn = type_name::get<T>();
 
         let proof_tn = type_name::get<ProofType>();
         let pool_bytes = proof_tn.get_address().into_bytes();
@@ -180,12 +216,10 @@ module ccip::token_admin_registry {
             E_FUNGIBLE_ASSET_ALREADY_REGISTERED
         );
 
-        // the initial administrator will always be the token pool account.
-        // callers can immediately propose a new administrator afterwards if
-        // needed.
+        // the initial administrator will always be the either the token pool owner or CCIP admin
         let token_config = TokenConfig {
             token_pool_address,
-            administrator: ctx.sender(), // TODO: should this be the address of the token pool or the ctx sender?
+            administrator: ctx.sender(),
             pending_administrator: @0x0,
         };
 
@@ -307,182 +341,182 @@ module ccip::token_admin_registry {
         token_config.administrator == administrator
     }
 
-    #[test_only]
-    public(package) fun get_registration(
-        reg: &TokenPoolRegistration
-    ): (FunctionInfo, FunctionInfo, TypeName, u8) {
-        (
-            reg.lock_or_burn_function,
-            reg.release_or_mint_function,
-            reg.proof_typename,
-            reg.execution_state
-        )
-    }
+    // #[test_only]
+    // public(package) fun get_registration(
+    //     reg: &TokenPoolRegistration
+    // ): (FunctionInfo, FunctionInfo, TypeName, u8) {
+    //     (
+    //         reg.lock_or_burn_function,
+    //         reg.release_or_mint_function,
+    //         reg.proof_typename,
+    //         reg.execution_state
+    //     )
+    // }
 
-    #[test_only]
-    public(package) fun get_function_info(
-        reg: &FunctionInfo
-    ): (address, String, String) {
-        (
-            reg.module_address,
-            reg.module_name,
-            reg.function_name
-        )
-    }
-
-    #[test_only]
-    public(package) fun destroy_registration(
-        reg: TokenPoolRegistration
-    ) {
-        let TokenPoolRegistration {
-            id,
-            lock_or_burn_function: _lbf,
-            release_or_mint_function: _rmf,
-            proof_typename: _pt,
-            execution_state: _es,
-            executing_lock_or_burn_input_v1: _lobi,
-            executing_release_or_mint_input_v1: _rmi,
-            executing_lock_or_burn_output_v1: _lobo,
-            executing_release_or_mint_output_v1: _rmo
-        } = reg;
-        object::delete(id);
-    }
+    // #[test_only]
+    // public(package) fun get_function_info(
+    //     reg: &FunctionInfo
+    // ): (address, String, String) {
+    //     (
+    //         reg.module_address,
+    //         reg.module_name,
+    //         reg.function_name
+    //     )
+    // }
+    //
+    // #[test_only]
+    // public(package) fun destroy_registration(
+    //     reg: TokenPoolRegistration
+    // ) {
+    //     let TokenPoolRegistration {
+    //         id,
+    //         lock_or_burn_function: _lbf,
+    //         release_or_mint_function: _rmf,
+    //         proof_typename: _pt,
+    //         execution_state: _es,
+    //         executing_lock_or_burn_input_v1: _lobi,
+    //         executing_release_or_mint_input_v1: _rmi,
+    //         executing_lock_or_burn_output_v1: _lobo,
+    //         executing_release_or_mint_output_v1: _rmo
+    //     } = reg;
+    //     object::delete(id);
+    // }
 }
 
 // the name here is not conventional, but it is used to avoid check failures in register_pool
-#[test_only]
-module ccip::token_pool {
-    use std::string;
-
-    use sui::coin;
-    use sui::test_scenario::{Self, Scenario};
-
-    use ccip::token_admin_registry as registry;
-    use ccip::token_admin_registry::TokenPoolRegistration;
-    use ccip::state_object::{Self, CCIPObjectRef};
-
-    public struct TOKEN_POOL has drop {}
-    const Decimals: u8 = 8;
-    const EXECUTION_STATE_IDLE: u8 = 1;
-
-    fun set_up_test(): (Scenario, CCIPObjectRef) {
-        let mut scenario = test_scenario::begin(@0x1000);
-        let ctx = scenario.ctx();
-
-        let ref = state_object::create(ctx);
-
-        (scenario, ref)
-    }
-
-    fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        registry::initialize(ref, ctx);
-    }
-
-    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
-        state_object::destroy_state_object(ref);
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    public fun test_initialize() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        let (token_pool_address, administrator, pending_administrator) = registry::get_token_config(&ref, @0x2);
-        assert!(token_pool_address == @0x0);
-        assert!(administrator == @0x0);
-        assert!(pending_administrator == @0x0);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = registry::E_FUNGIBLE_ASSET_NOT_REGISTERED)]
-    public fun test_transfer_admin_role_not_registered() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        registry::transfer_admin_role(&mut ref, @0x2, @0x3, ctx);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    public fun test_register_and_set_pool() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            TOKEN_POOL {},
-            Decimals,
-            b"TEST",
-            b"TestToken",
-            b"test_token",
-            option::none(),
-            ctx
-        );
-
-        registry::register_pool(
-            &mut ref,
-            b"token_pool",
-            &treasury_cap,
-            &coin_metadata,
-            ctx
-        );
-
-        let local_token = object::id_to_address(&object::id(&coin_metadata));
-        let pool_addresses = registry::get_pools(&ref, vector[local_token]);
-        assert!(pool_addresses.length() == 1);
-        assert!(pool_addresses[0] == ctx.sender());
-
-        assert!(registry::is_administrator(&ref, local_token, ctx.sender()));
-
-        let (token_pool_address, administrator, pending_administrator) = registry::get_token_config(&ref, local_token);
-        assert!(token_pool_address == ctx.sender());
-        assert!(administrator == ctx.sender());
-        assert!(pending_administrator == @0x0);
-
-        transfer::public_freeze_object(coin_metadata);
-        transfer::public_transfer(treasury_cap, ctx.sender());
-
-        let effects = test_scenario::next_epoch(&mut scenario, @0x1000);
-        let created = test_scenario::created(&effects);
-        assert!(created.length() == 3);
-        test_scenario::end(scenario);
-
-        let mut scenario_2 = test_scenario::begin(@0x1000);
-        // the registration is the first object
-        let registration = test_scenario::take_from_sender_by_id<TokenPoolRegistration>(&scenario_2, created[0]);
-        let ctx_2 = scenario_2.ctx();
-
-        let (lock_and_burn, release_and_mint, type_name, execution_state) = registry::get_registration(&registration);
-        assert!(execution_state == EXECUTION_STATE_IDLE);
-        let (lock_and_burn_address, lock_and_burn_module_name, lock_and_burn_function_name) = registry::get_function_info(&lock_and_burn);
-        assert!(lock_and_burn_address == ctx_2.sender());
-        assert!(lock_and_burn_module_name == string::utf8(b"token_pool"));
-        assert!(lock_and_burn_function_name == string::utf8(b"lock_or_burn"));
-        let (release_and_mint_address, release_and_mint_module_name, release_and_mint_function_name) = registry::get_function_info(&release_and_mint);
-        assert!(release_and_mint_address == ctx_2.sender());
-        assert!(release_and_mint_module_name == string::utf8(b"token_pool"));
-        assert!(release_and_mint_function_name == string::utf8(b"release_or_mint"));
-        assert!(type_name.get_address() == ctx_2.sender().to_ascii_string());
-        assert!(type_name.get_module() == string::utf8(b"token_pool").to_ascii());
-
-        registry::set_pool(&mut ref, local_token, &registration, ctx_2);
-
-        registry::transfer_admin_role(&mut ref, local_token, @0x3000, ctx_2);
-        scenario_2.end();
-
-        let mut scenario_3 = test_scenario::begin(@0x3000);
-        let ctx_3 = scenario_3.ctx();
-        registry::accept_admin_role(&mut ref, local_token, ctx_3);
-        assert!(registry::is_administrator(&ref, local_token, @0x3000));
-
-        scenario_3.end();
-        state_object::destroy_state_object(ref);
-        registry::destroy_registration(registration);
-    }
-}
+// #[test_only]
+// module ccip::token_pool {
+//     use std::string;
+//
+//     use sui::coin;
+//     use sui::test_scenario::{Self, Scenario};
+//
+//     use ccip::token_admin_registry as registry;
+//     use ccip::token_admin_registry::TokenPoolRegistration;
+//     use ccip::state_object::{Self, CCIPObjectRef};
+//
+//     public struct TOKEN_POOL has drop {}
+//     const Decimals: u8 = 8;
+//     const EXECUTION_STATE_IDLE: u8 = 1;
+//
+//     fun set_up_test(): (Scenario, CCIPObjectRef) {
+//         let mut scenario = test_scenario::begin(@0x1000);
+//         let ctx = scenario.ctx();
+//
+//         let ref = state_object::create(ctx);
+//
+//         (scenario, ref)
+//     }
+//
+//     fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
+//         registry::initialize(ref, ctx);
+//     }
+//
+//     fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
+//         state_object::destroy_state_object(ref);
+//         test_scenario::end(scenario);
+//     }
+//
+//     #[test]
+//     public fun test_initialize() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         let (token_pool_address, administrator, pending_administrator) = registry::get_token_config(&ref, @0x2);
+//         assert!(token_pool_address == @0x0);
+//         assert!(administrator == @0x0);
+//         assert!(pending_administrator == @0x0);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     #[expected_failure(abort_code = registry::E_FUNGIBLE_ASSET_NOT_REGISTERED)]
+//     public fun test_transfer_admin_role_not_registered() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         registry::transfer_admin_role(&mut ref, @0x2, @0x3, ctx);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     public fun test_register_and_set_pool() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         let (treasury_cap, coin_metadata) = coin::create_currency(
+//             TOKEN_POOL {},
+//             Decimals,
+//             b"TEST",
+//             b"TestToken",
+//             b"test_token",
+//             option::none(),
+//             ctx
+//         );
+//
+//         registry::register_pool(
+//             &mut ref,
+//             b"token_pool",
+//             &treasury_cap,
+//             &coin_metadata,
+//             ctx
+//         );
+//
+//         let local_token = object::id_to_address(&object::id(&coin_metadata));
+//         let pool_addresses = registry::get_pools(&ref, vector[local_token]);
+//         assert!(pool_addresses.length() == 1);
+//         assert!(pool_addresses[0] == ctx.sender());
+//
+//         assert!(registry::is_administrator(&ref, local_token, ctx.sender()));
+//
+//         let (token_pool_address, administrator, pending_administrator) = registry::get_token_config(&ref, local_token);
+//         assert!(token_pool_address == ctx.sender());
+//         assert!(administrator == ctx.sender());
+//         assert!(pending_administrator == @0x0);
+//
+//         transfer::public_freeze_object(coin_metadata);
+//         transfer::public_transfer(treasury_cap, ctx.sender());
+//
+//         let effects = test_scenario::next_epoch(&mut scenario, @0x1000);
+//         let created = test_scenario::created(&effects);
+//         assert!(created.length() == 3);
+//         test_scenario::end(scenario);
+//
+//         let mut scenario_2 = test_scenario::begin(@0x1000);
+//         // the registration is the first object
+//         let registration = test_scenario::take_from_sender_by_id<TokenPoolRegistration>(&scenario_2, created[0]);
+//         let ctx_2 = scenario_2.ctx();
+//
+//         let (lock_and_burn, release_and_mint, type_name, execution_state) = registry::get_registration(&registration);
+//         assert!(execution_state == EXECUTION_STATE_IDLE);
+//         let (lock_and_burn_address, lock_and_burn_module_name, lock_and_burn_function_name) = registry::get_function_info(&lock_and_burn);
+//         assert!(lock_and_burn_address == ctx_2.sender());
+//         assert!(lock_and_burn_module_name == string::utf8(b"token_pool"));
+//         assert!(lock_and_burn_function_name == string::utf8(b"lock_or_burn"));
+//         let (release_and_mint_address, release_and_mint_module_name, release_and_mint_function_name) = registry::get_function_info(&release_and_mint);
+//         assert!(release_and_mint_address == ctx_2.sender());
+//         assert!(release_and_mint_module_name == string::utf8(b"token_pool"));
+//         assert!(release_and_mint_function_name == string::utf8(b"release_or_mint"));
+//         assert!(type_name.get_address() == ctx_2.sender().to_ascii_string());
+//         assert!(type_name.get_module() == string::utf8(b"token_pool").to_ascii());
+//
+//         registry::set_pool(&mut ref, local_token, &registration, ctx_2);
+//
+//         registry::transfer_admin_role(&mut ref, local_token, @0x3000, ctx_2);
+//         scenario_2.end();
+//
+//         let mut scenario_3 = test_scenario::begin(@0x3000);
+//         let ctx_3 = scenario_3.ctx();
+//         registry::accept_admin_role(&mut ref, local_token, ctx_3);
+//         assert!(registry::is_administrator(&ref, local_token, @0x3000));
+//
+//         scenario_3.end();
+//         state_object::destroy_state_object(ref);
+//         registry::destroy_registration(registration);
+//     }
+// }

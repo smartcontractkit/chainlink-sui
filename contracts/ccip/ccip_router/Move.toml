@@ -1,26 +1,28 @@
 [package]
 name = "ChainlinkCCIPRouter"
 edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
-# license = ""           # e.g., "MIT", "GPL", "Apache 2.0"
-# authors = ["..."]      # e.g., ["Joe Smith (joesmith@noemail.com)", "John Snow (johnsnow@noemail.com)"]
 
 [dependencies]
 ChainlinkCCIP = { local = "../ccip" }
+ChainlinkCCIPOnramp = { local = "../ccip_onramp" }
+CCIPDynamicDispatcher = { local = "../dynamic_dispatcher" }
 
 [addresses]
-ccip_router = "0x0"
-
-# Named addresses will be accessible in Move as `@name`. They're also exported:
-# for example, `std = "0x1"` is exported by the Standard Library.
-# alice = "0xA11CE"
-
-[dev-dependencies]
-# The dev-dependencies section allows overriding dependencies for `--test` and
-# `--dev` modes. You can introduce test-only dependencies here.
-# Local = { local = "../path/to/dev-build" }
+ccip = "_"
+ccip_router = "_"
+ccip_onramp = "_"
+ccip_token_pool = "_"
+mcms = "_"
+mcms_owner = "_"
+mcms_register_entrypoints = "_"
+dynamic_dispatcher = "_"
 
 [dev-addresses]
-# The dev-addresses section allows overwriting named addresses for the `--test`
-# and `--dev` modes.
-# alice = "0xB0B"
-
+ccip = "0x1000"
+ccip_router = "0x1001"
+ccip_onramp = "0x1002"
+ccip_token_pool = "0x2000"
+mcms = "0x4000"
+mcms_owner = "0x4010"
+mcms_register_entrypoints = "0x4001"
+dynamic_dispatcher = "0x7000"

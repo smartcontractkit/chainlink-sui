@@ -3,6 +3,7 @@ module ccip_dummy_receiver::dummy_receiver {
     use sui::event;
 
     use ccip::client;
+    use ccip::dynamic_dispatcher as dd;
     use ccip::receiver_registry;
     use ccip::state_object::CCIPObjectRef;
 
@@ -66,6 +67,7 @@ module ccip_dummy_receiver::dummy_receiver {
         state.counter
     }
 
+    // this requires the caller (DON or user) to extract message from potato
     public fun ccip_receive(state: &mut CCIPReceiverState, message: client::Any2SuiMessage) {
         state.counter = state.counter + 1;
         state.message_id = client::get_message_id(&message);
@@ -83,5 +85,34 @@ module ccip_dummy_receiver::dummy_receiver {
                 dest_token_transfer_length: state.dest_token_transfer_length,
             }
         );
+    }
+
+    // TODO:
+    // this requires the receiver to extract the msg from the potato. is this any safer?
+    // however, this means the receiver will always get called no matter if the message is presented
+    // and this function must return the hot potato.
+    public fun ccip_receive_potato(state: &mut CCIPReceiverState, receiver_params: dd::ReceiverParams): dd::ReceiverParams {
+        let (message_op, receiver_params) = dd::extract_any2sui_message(receiver_params);
+        if (message_op.is_none()) {
+            return receiver_params
+        };
+        let message = message_op.borrow();
+        state.counter = state.counter + 1;
+        state.message_id = client::get_message_id(message);
+        state.source_chain_selector = client::get_source_chain_selector(message);
+        state.sender = client::get_sender(message);
+        state.data = client::get_data(message);
+        state.dest_token_transfer_length = client::get_dest_token_amounts(message).length();
+
+        event::emit(
+            ReceivedMessage {
+                message_id: state.message_id,
+                source_chain_selector: state.source_chain_selector,
+                sender: state.sender,
+                data: state.data,
+                dest_token_transfer_length: state.dest_token_transfer_length,
+            }
+        );
+        receiver_params
     }
 }

@@ -5,12 +5,10 @@ use std::string::{Self, String};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 
+use ccip::dynamic_dispatcher as dd;
 use ccip::eth_abi;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
-
-use ccip_onramp::onramp::{Self, TokenParams};
-use ccip_offramp::offramp::{Self, ReceiverParams};
 
 use ccip_token_pool::token_pool::{Self, TokenPoolState};
 
@@ -38,7 +36,7 @@ public fun type_and_version(): String {
 }
 
 #[allow(lint(self_transfer))]
-public fun initialize<T>(
+public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
@@ -196,9 +194,9 @@ public fun lock_or_burn<T>(
     state: &mut BurnMintTokenPoolState<T>,
     c: Coin<T>,
     remote_chain_selector: u64,
-    token_params: TokenParams,
+    token_params: dd::TokenParams,
     ctx: &mut TxContext
-): TokenParams {
+): dd::TokenParams {
     let amount = c.value();
     let sender = ctx.sender();
 
@@ -217,16 +215,15 @@ public fun lock_or_burn<T>(
     coin::burn(&mut state.treasury_cap, c);
 
     let mut extra_data = vector[];
-    // this can also use the token_pool::encode_local_decimals function if a coin metadata is provided
     eth_abi::encode_u8(&mut extra_data, state.token_pool_state.get_local_decimals());
 
-    token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount);
+    token_pool::emit_burned(&mut state.token_pool_state, amount);
 
-    // update hot potato token params
-    onramp::add_token_param(
+    dd::add_token_param(
         token_params,
-        object::uid_to_address(&state.id), // or use @burn_mint_token_pool ?
+        object::uid_to_address(&state.id),
         amount,
+        state.token_pool_state.get_token(),
         dest_token_address,
         extra_data,
     )
@@ -238,12 +235,12 @@ public fun release_or_mint<T>(
     clock: &Clock,
     pool: &mut BurnMintTokenPoolState<T>,
     remote_chain_selector: u64,
-    receiver_params: ReceiverParams,
+    receiver_params: dd::ReceiverParams,
     index: u64,
     ctx: &mut TxContext
-): ReceiverParams {
+): dd::ReceiverParams {
 
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = offramp::get_token_param_data(&receiver_params, index);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = dd::get_token_param_data(&receiver_params, index);
     let local_decimals = pool.token_pool_state.get_local_decimals();
     let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);
     let local_amount = token_pool::calculate_local_amount(source_amount as u256, remote_decimals, local_decimals);
@@ -265,13 +262,13 @@ public fun release_or_mint<T>(
         ctx,
     );
 
-    token_pool::emit_released_or_minted(
+    token_pool::emit_minted(
         &mut pool.token_pool_state,
         receiver,
         local_amount
     );
 
-    offramp::complete_token_transfer(receiver_params, index, local_amount, object::uid_to_address(&pool.id))
+    dd::complete_token_transfer(receiver_params, index, local_amount, object::uid_to_address(&pool.id))
 }
 
 // ================================================================

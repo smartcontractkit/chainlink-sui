@@ -3,15 +3,15 @@ name = "ChainlinkCCIPOnramp"
 edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [addresses]
-ccip_onramp = "_"
 ccip = "_"
+ccip_onramp = "_"
 mcms = "_"
 mcms_owner = "_"
 mcms_register_entrypoints = "_"
 
 [dev-addresses]
-ccip_onramp = "0x1001"
 ccip = "0x1000"
+ccip_onramp = "0x1001"
 ccip_token_pool = "0x2000"
 mcms = "0x4000"
 mcms_owner = "0x4010"

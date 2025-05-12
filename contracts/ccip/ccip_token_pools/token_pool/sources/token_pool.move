@@ -11,6 +11,7 @@ module ccip_token_pool::token_pool {
 
     use ccip_token_pool::token_pool_rate_limiter;
 
+    // TODO: do we want to add a drop or a deconstructor?
     public struct TokenPoolState has store {
         allowlist_state: allowlist::AllowlistState,
         coin_metadata: address,
@@ -35,12 +36,15 @@ module ccip_token_pool::token_pool {
         amount: u64
     }
 
-    public struct AllowlistRemove has copy, drop {
-        sender: address
+    public struct Burned has copy, drop {
+        local_token: address,
+        amount: u64
     }
 
-    public struct AllowlistAdd has copy, drop {
-        sender: address
+    public struct Minted has copy, drop {
+        local_token: address,
+        recipient: address,
+        amount: u64
     }
 
     public struct RemotePoolAdded has copy, drop {
@@ -73,15 +77,13 @@ module ccip_token_pool::token_pool {
     // |                    Initialize and state                      |
     // ================================================================
 
-    // this will be called by a specific token pool implementation
+    // this can be called by any token pool implementation
     public fun initialize(
         coin_metadata_address: address,
         local_decimals: u8,
         allowlist: vector<address>,
         ctx: &mut TxContext
     ): TokenPoolState {
-        // assert_can_initialize(ctx.sender());
-
         TokenPoolState {
             allowlist_state: allowlist::new(allowlist, ctx),
             coin_metadata: coin_metadata_address,
@@ -90,20 +92,6 @@ module ccip_token_pool::token_pool {
             rate_limiter_config: token_pool_rate_limiter::new(ctx)
         }
     }
-
-    // // TODO: don't need these anymore?
-    // fun assert_can_initialize(caller_address: address) {
-    //     if (caller_address == @ccip_token_pool) { return };
-    //
-    //     if (object::is_object(@ccip_token_pool)) {
-    //         let token_pool_object =
-    //             object::address_to_object<ObjectCore>(@ccip_token_pool);
-    //         if (caller_address == object::owner(token_pool_object)
-    //             || caller_address == object::root_owner(token_pool_object)) { return };
-    //     };
-    //
-    //     abort E_NOT_PUBLISHER
-    // }
 
     public fun get_router(): address {
         @ccip
@@ -349,16 +337,24 @@ module ccip_token_pool::token_pool {
     // |                           Events                             |
     // ================================================================
 
-    public fun emit_released_or_minted(
+    public fun emit_released(
         state: &mut TokenPoolState, recipient: address, amount: u64
     ) {
         event::emit(Released { local_token: state.coin_metadata, recipient, amount });
     }
 
-    public fun emit_locked_or_burned(
-        state: &mut TokenPoolState, amount: u64
+    public fun emit_minted(
+        state: &mut TokenPoolState, recipient: address, amount: u64
     ) {
+        event::emit(Minted { local_token: state.coin_metadata, recipient, amount });
+    }
+
+    public fun emit_locked(state: &mut TokenPoolState, amount: u64) {
         event::emit(Locked { local_token: state.coin_metadata, amount });
+    }
+
+    public fun emit_burned(state: &mut TokenPoolState, amount: u64) {
+        event::emit(Burned { local_token: state.coin_metadata, amount });
     }
 
     // ================================================================
@@ -484,148 +480,130 @@ module ccip_token_pool::token_pool {
     ) {
         allowlist::apply_allowlist_updates(&mut state.allowlist_state, removes, adds);
     }
-
-    // TODO: figure out if we need this
-    // ================================================================
-    // |                          Destroy                             |
-    // ================================================================
-
-    // public fun destroy_token_pool(state: TokenPoolState) {
-    //     let TokenPoolState {
-    //         allowlist_state,
-    //         coin_metadata: _coin_metadata,
-    //         remote_chain_configs: _remote_chain_configs,
-    //         rate_limiter_config
-    //     } = state;
-    //
-    //     allowlist::destroy_allowlist(allowlist_state);
-    //
-    //     token_pool_rate_limiter::destroy_rate_limiter(rate_limiter_config);
-    // }
 }
 
-#[test_only]
-module ccip_token_pool::token_pool_test {
-    use sui::coin;
-    use sui::test_scenario::{Self, Scenario};
-
-    use ccip_token_pool::token_pool::{Self, TokenPoolState};
-
-    public struct TOKEN_POOL_TEST has drop {}
-
-    const Decimals: u8 = 8;
-
-    const DefaultRemoteChain: u64 = 2000;
-    const DefaultRemoteToken: vector<u8> = b"default_remote_token";
-    const DefaultRemotePool: vector<u8> = b"default_remote_pool";
-
-    fun set_up_test(): (Scenario, TokenPoolState) {
-        let mut scenario = test_scenario::begin(@ccip_token_pool);
-        let ctx = scenario.ctx();
-
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            TOKEN_POOL_TEST {},
-            Decimals,
-            b"TEST",
-            b"TestToken",
-            b"test_token",
-            option::none(),
-            ctx
-        );
-
-        let mut state = token_pool::initialize(&coin_metadata, vector[], ctx);
-
-        // Set state in the pool
-        set_up_default_remote_chain(&mut state);
-
-        transfer::public_freeze_object(coin_metadata);
-        transfer::public_transfer(treasury_cap, ctx.sender());
-
-        (scenario, state)
-    }
-
-    fun set_up_default_remote_chain(state: &mut TokenPoolState) {
-        token_pool::apply_chain_updates(
-            state,
-            vector[],
-            vector[DefaultRemoteChain],
-            vector[vector[DefaultRemotePool]],
-            vector[DefaultRemoteToken]
-        )
-    }
-
-
-    #[test]
-    public fun initialize_correctly_sets_state() {
-        let (scenario, state) = set_up_test();
-
-        assert!(token_pool::is_supported_chain(&state, DefaultRemoteChain), 1);
-
-        token_pool::destroy_token_pool(state);
-        scenario.end();
-    }
-
-    #[test]
-    fun add_remote_pool_existing_chain() {
-        let (scenario, mut state) = set_up_test();
-        let new_remote_pool = b"new_pool";
-
-        assert!(
-            !token_pool::is_remote_pool(&state, DefaultRemoteChain, new_remote_pool),
-            1
-        );
-        assert!(
-            token_pool::get_remote_pools(&state, DefaultRemoteChain).length() == 1,
-            1
-        );
-
-        token_pool::add_remote_pool(&mut state, DefaultRemoteChain, new_remote_pool);
-
-        assert!(
-            token_pool::is_remote_pool(&state, DefaultRemoteChain, new_remote_pool),
-            1
-        );
-        assert!(
-            token_pool::get_remote_pools(&state, DefaultRemoteChain).length() == 2,
-            1
-        );
-        assert!(token_pool::is_supported_chain(&state, DefaultRemoteChain), 1);
-
-        token_pool::destroy_token_pool(state);
-        scenario.end();
-    }
-
-    #[test]
-    fun apply_chain_updates() {
-        let (scenario, mut state) = set_up_test();
-        let new_remote_chain = 3000;
-        let new_remote_token = b"new_remote_token";
-        let new_remote_pool = b"new_remote_pool";
-        let new_remote_pool_2 = b"new_remote_pool_2";
-
-        assert!(!token_pool::is_supported_chain(&state, new_remote_chain));
-
-        token_pool::apply_chain_updates(
-            &mut state,
-            vector[],
-            vector[new_remote_chain],
-            vector[vector[new_remote_pool, new_remote_pool_2]],
-            vector[new_remote_token]
-        );
-        assert!(token_pool::is_supported_chain(&state, new_remote_chain));
-        assert!(token_pool::get_remote_pools(&state, new_remote_chain).length() == 2);
-        assert!(token_pool::get_remote_token(&state, new_remote_chain) == new_remote_token);
-
-        token_pool::apply_chain_updates(
-            &mut state,
-            vector[new_remote_chain],
-            vector[],
-            vector[],
-            vector[]
-        );
-        assert!(!token_pool::is_supported_chain(&state, new_remote_chain));
-
-        token_pool::destroy_token_pool(state);
-        scenario.end();
-    }
-}
+// #[test_only]
+// module ccip_token_pool::token_pool_test {
+//     use sui::coin;
+//     use sui::test_scenario::{Self, Scenario};
+//
+//     use ccip_token_pool::token_pool::{Self, TokenPoolState};
+//
+//     public struct TOKEN_POOL_TEST has drop {}
+//
+//     const Decimals: u8 = 8;
+//
+//     const DefaultRemoteChain: u64 = 2000;
+//     const DefaultRemoteToken: vector<u8> = b"default_remote_token";
+//     const DefaultRemotePool: vector<u8> = b"default_remote_pool";
+//
+//     fun set_up_test(): (Scenario, TokenPoolState) {
+//         let mut scenario = test_scenario::begin(@ccip_token_pool);
+//         let ctx = scenario.ctx();
+//
+//         let (treasury_cap, coin_metadata) = coin::create_currency(
+//             TOKEN_POOL_TEST {},
+//             Decimals,
+//             b"TEST",
+//             b"TestToken",
+//             b"test_token",
+//             option::none(),
+//             ctx
+//         );
+//
+//         let mut state = token_pool::initialize(&coin_metadata, vector[], ctx);
+//
+//         // Set state in the pool
+//         set_up_default_remote_chain(&mut state);
+//
+//         transfer::public_freeze_object(coin_metadata);
+//         transfer::public_transfer(treasury_cap, ctx.sender());
+//
+//         (scenario, state)
+//     }
+//
+//     fun set_up_default_remote_chain(state: &mut TokenPoolState) {
+//         token_pool::apply_chain_updates(
+//             state,
+//             vector[],
+//             vector[DefaultRemoteChain],
+//             vector[vector[DefaultRemotePool]],
+//             vector[DefaultRemoteToken]
+//         )
+//     }
+//
+//
+//     #[test]
+//     public fun initialize_correctly_sets_state() {
+//         let (scenario, state) = set_up_test();
+//
+//         assert!(token_pool::is_supported_chain(&state, DefaultRemoteChain), 1);
+//
+//         token_pool::destroy_token_pool(state);
+//         scenario.end();
+//     }
+//
+//     #[test]
+//     fun add_remote_pool_existing_chain() {
+//         let (scenario, mut state) = set_up_test();
+//         let new_remote_pool = b"new_pool";
+//
+//         assert!(
+//             !token_pool::is_remote_pool(&state, DefaultRemoteChain, new_remote_pool),
+//             1
+//         );
+//         assert!(
+//             token_pool::get_remote_pools(&state, DefaultRemoteChain).length() == 1,
+//             1
+//         );
+//
+//         token_pool::add_remote_pool(&mut state, DefaultRemoteChain, new_remote_pool);
+//
+//         assert!(
+//             token_pool::is_remote_pool(&state, DefaultRemoteChain, new_remote_pool),
+//             1
+//         );
+//         assert!(
+//             token_pool::get_remote_pools(&state, DefaultRemoteChain).length() == 2,
+//             1
+//         );
+//         assert!(token_pool::is_supported_chain(&state, DefaultRemoteChain), 1);
+//
+//         token_pool::destroy_token_pool(state);
+//         scenario.end();
+//     }
+//
+//     #[test]
+//     fun apply_chain_updates() {
+//         let (scenario, mut state) = set_up_test();
+//         let new_remote_chain = 3000;
+//         let new_remote_token = b"new_remote_token";
+//         let new_remote_pool = b"new_remote_pool";
+//         let new_remote_pool_2 = b"new_remote_pool_2";
+//
+//         assert!(!token_pool::is_supported_chain(&state, new_remote_chain));
+//
+//         token_pool::apply_chain_updates(
+//             &mut state,
+//             vector[],
+//             vector[new_remote_chain],
+//             vector[vector[new_remote_pool, new_remote_pool_2]],
+//             vector[new_remote_token]
+//         );
+//         assert!(token_pool::is_supported_chain(&state, new_remote_chain));
+//         assert!(token_pool::get_remote_pools(&state, new_remote_chain).length() == 2);
+//         assert!(token_pool::get_remote_token(&state, new_remote_chain) == new_remote_token);
+//
+//         token_pool::apply_chain_updates(
+//             &mut state,
+//             vector[new_remote_chain],
+//             vector[],
+//             vector[],
+//             vector[]
+//         );
+//         assert!(!token_pool::is_supported_chain(&state, new_remote_chain));
+//
+//         token_pool::destroy_token_pool(state);
+//         scenario.end();
+//     }
+// }

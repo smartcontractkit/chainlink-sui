@@ -1,3 +1,6 @@
+/// The OffRamp package handles merkle root commitments and message execution.
+/// Future versions of this contract will be deployed as a separate package to avoid any unwanted side effects
+/// during upgrades.
 module ccip_offramp::offramp {
     use sui::clock;
     use sui::event;
@@ -8,6 +11,7 @@ module ccip_offramp::offramp {
     use sui::vec_map::{Self, VecMap};
 
     use ccip::client;
+    use ccip::dynamic_dispatcher as dd;
     use ccip::eth_abi;
     use ccip::fee_quoter::{Self, FeeQuoterCap};
     use ccip::merkle_proof;
@@ -41,6 +45,7 @@ module ccip_offramp::offramp {
 
         // merkle root -> timestamp in secs
         roots: Table<vector<u8>, u64>,
+        // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
         latest_price_sequence_number: u64,
         fee_quoter_cap: Option<FeeQuoterCap>
     }
@@ -77,23 +82,22 @@ module ccip_offramp::offramp {
         dest_gas_amount: u32,
         extra_data: vector<u8>,
 
-        // This is the amount to transfer, as set on the source chain.
-        amount: u256
+        amount: u256 // This is the amount to transfer, as set on the source chain.
     }
 
     public struct ExecutionReport has drop {
         source_chain_selector: u64,
         message: Any2SuiRampMessage,
         offchain_token_data: vector<vector<u8>>,
-        proofs: vector<vector<u8>>
+        proofs: vector<vector<u8>>, // Proofs used to construct the merkle root
     }
 
     // Matches the EVM public struct
     public struct CommitReport has store, drop, copy {
-        price_updates: PriceUpdates,
-        blessed_merkle_roots: vector<MerkleRoot>,
-        unblessed_merkle_roots: vector<MerkleRoot>,
-        rmn_signatures: vector<vector<u8>>
+        price_updates: PriceUpdates, // Price updates for the fee_quoter
+        blessed_merkle_roots: vector<MerkleRoot>, // Merkle roots that have been blessed by RMN
+        unblessed_merkle_roots: vector<MerkleRoot>, // Merkle roots that don't require RMN blessing
+        rmn_signatures: vector<vector<u8>> // The signatures for the blessed merkle roots
     }
 
     public struct PriceUpdates has store, drop, copy {
@@ -103,7 +107,6 @@ module ccip_offramp::offramp {
 
     public struct TokenPriceUpdate has store, drop, copy {
         source_token: address,
-        // This is the local token
         usd_per_token: u256
     }
 
@@ -127,9 +130,13 @@ module ccip_offramp::offramp {
         nonce_manager: address
     }
 
+    // On EVM, the feeQuoter is a dynamic address but due to the Sui implementation using a static
+    // upgradable FeeQuoter stored within the state ref, this value is actually static and cannot be
+    // accessed by its object id/address directly by users.
+    // For compatibility reasons, we keep it as a dynamic config.
     public struct DynamicConfig has store, drop, copy {
         fee_quoter: address,
-        permissionless_execution_threshold_seconds: u32
+        permissionless_execution_threshold_seconds: u32 // The delay before manual exec is enabled
     }
 
     public struct StaticConfigSet has copy, drop {
@@ -149,11 +156,6 @@ module ccip_offramp::offramp {
         source_chain_selector: u64,
         sequence_number: u64
     }
-
-    // public struct AlreadyAttempted has copy, drop {
-    //     source_chain_selector: u64,
-    //     sequence_number: u64
-    // }
 
     public struct ExecutionStateChanged has copy, drop {
         source_chain_selector: u64,
@@ -205,9 +207,6 @@ module ccip_offramp::offramp {
     const E_TOKEN_AMOUNT_OVERFLOW: u64 = 20;
     const E_TOKEN_TRANSFER_FAILED: u64 = 21;
     const E_CCIP_RECEIVE_FAILED: u64 = 22;
-    const E_WRONG_INDEX_IN_RECEIVER_PARAMS: u64 = 23;
-    const E_TOKEN_TRANSFER_ALREADY_COMPLETED: u64 = 24;
-    const E_TOKEN_POOL_ADDRESS_MISMATCH: u64 = 25;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -371,79 +370,6 @@ module ccip_offramp::offramp {
     // |                          Execution                           |
     // ================================================================
 
-    public struct ReceiverParams {
-        params: vector<TokenParam>,
-        message: Option<client::Any2SuiMessage>,
-    }
-
-    public struct TokenParam has copy, drop {
-        // sender: vector<u8>,
-        receiver: address,
-        source_amount: u64,
-        local_amount: u64,
-        // source_chain_selector: u64,
-        dest_token_address: address,
-        token_pool_address: address,
-        source_pool_address: vector<u8>,
-        source_pool_data: vector<u8>,
-        offchain_token_data: vector<u8>,
-        completed: bool
-    }
-    
-    public fun get_token_param_data(
-        receiver_params: &ReceiverParams, index: u64
-    ): (address, u64, address, vector<u8>, vector<u8>) {
-        assert!(
-            index < receiver_params.params.length(),
-            E_WRONG_INDEX_IN_RECEIVER_PARAMS
-        );
-        let token_param = receiver_params.params[index];
-
-        (
-            // token_param.sender,
-            token_param.receiver,
-            token_param.source_amount,
-            token_param.dest_token_address,
-            token_param.source_pool_address,
-            token_param.source_pool_data, // this is the encoded decimals
-        )
-    }
-
-    // called by token pool to mark token transfers as completed
-    public fun complete_token_transfer(
-        mut receiver_params: ReceiverParams,
-        index: u64,
-        local_amount: u64,
-        token_pool_address: address
-    ): ReceiverParams {
-        assert!(
-            index < receiver_params.params.length(),
-            E_WRONG_INDEX_IN_RECEIVER_PARAMS
-        );
-        assert!(
-            !receiver_params.params[index].completed,
-            E_TOKEN_TRANSFER_ALREADY_COMPLETED
-        );
-        assert!(
-            receiver_params.params[index].token_pool_address == token_pool_address,
-            E_TOKEN_POOL_ADDRESS_MISMATCH
-        );
-        receiver_params.params[index].completed = true;
-        receiver_params.params[index].local_amount = local_amount;
-
-        receiver_params
-    }
-
-    // called by ccip receiver directly, or by PTB to extract the message and send to the receiver
-    public fun extract_any2sui_message(
-        mut receiver_params: ReceiverParams
-    ): (Option<client::Any2SuiMessage>, ReceiverParams) {
-        let message = receiver_params.message;
-        receiver_params.message = option::none();
-
-        (message, receiver_params)
-    }
-
     // TODO: this will be called by the execution DON so both object ref and offramp state need to be discoverable by RPCs
     public fun init_execute(
         ref: &CCIPObjectRef,
@@ -452,7 +378,7 @@ module ccip_offramp::offramp {
         report_context: vector<vector<u8>>,
         report: vector<u8>,
         ctx: &mut TxContext
-    ): ReceiverParams {
+    ): dd::ReceiverParams {
         let reports = deserialize_execution_report(report);
 
         ocr3_base::transmit(
@@ -468,24 +394,20 @@ module ccip_offramp::offramp {
         pre_execute_single_report(ref, state, clock, reports, false)
     }
 
-    public fun finish_execute(receiver_params: ReceiverParams) {
-        let ReceiverParams {
-            params,
-            message,
-        } = receiver_params;
+    public fun finish_execute(receiver_params: dd::ReceiverParams) {
+        let (params, message) = dd::deconstruct_receiver_params(receiver_params);
 
         // make sure all token transfers are completed
         let mut i = 0;
         let number_of_tokens_in_msg = params.length();
         while (i < number_of_tokens_in_msg) {
-            let token_param = params[i];
-            assert!(token_param.completed, E_TOKEN_TRANSFER_FAILED);
+            assert!(dd::get_completed(params[i]), E_TOKEN_TRANSFER_FAILED);
             i = i + 1;
         };
 
         // make sure the any2sui message is extracted
         assert!(
-            !message.is_none(),
+            message.is_none(),
             E_CCIP_RECEIVE_FAILED
         );
     }
@@ -496,7 +418,7 @@ module ccip_offramp::offramp {
         state: &mut OffRampState,
         clock: &clock::Clock,
         report_bytes: vector<u8>
-    ): ReceiverParams {
+    ): dd::ReceiverParams {
         let reports = deserialize_execution_report(report_bytes);
 
         pre_execute_single_report(ref, state, clock, reports, true)
@@ -593,7 +515,7 @@ module ccip_offramp::offramp {
         clock: &clock::Clock,
         execution_report: ExecutionReport,
         manual_execution: bool
-    ): ReceiverParams {
+    ): dd::ReceiverParams {
         let source_chain_selector = execution_report.source_chain_selector;
 
         if (rmn_remote::is_cursed_u128(ref, source_chain_selector as u128)) {
@@ -601,10 +523,7 @@ module ccip_offramp::offramp {
 
             event::emit(SkippedReportExecution { source_chain_selector });
 
-            return ReceiverParams {
-                params: vector[],
-                message: option::none()
-            }
+            return dd::create_receiver_params()
         };
 
         assert_source_chain_enabled(state, source_chain_selector);
@@ -655,10 +574,7 @@ module ccip_offramp::offramp {
         if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
             event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
 
-            return ReceiverParams {
-                params: vector[],
-                message: option::none()
-            }
+            return dd::create_receiver_params()
         };
 
         // A zero nonce indicates out of order execution which is the only allowed case.
@@ -671,10 +587,7 @@ module ccip_offramp::offramp {
         );
 
         let mut i = 0;
-        let mut receiver_params = ReceiverParams {
-            params: vector[],
-            message: option::none()
-        };
+        let mut receiver_params = dd::create_receiver_params();
 
         let mut token_addresses = vector[];
         let mut token_amounts = vector[];
@@ -688,20 +601,15 @@ module ccip_offramp::offramp {
             );
             let amount = amount_op.extract();
 
-            receiver_params.params.push_back(
-                TokenParam {
-                    // sender: message.sender,
-                    receiver: message.receiver,
-                    source_amount: amount,
-                    local_amount: 0, // to be calculated by the destination token pool
-                    // source_chain_selector: message.header.source_chain_selector,
-                    dest_token_address: message.token_amounts[i].dest_token_address,
-                    token_pool_address,
-                    source_pool_address: message.token_amounts[i].source_pool_address,
-                    source_pool_data: message.token_amounts[i].extra_data,
-                    offchain_token_data: execution_report.offchain_token_data[i],
-                    completed: false
-                }
+            dd::add_dest_token_transfer(
+                &mut receiver_params,
+                message.receiver,
+                amount,
+                message.token_amounts[i].dest_token_address,
+                token_pool_address,
+                message.token_amounts[i].source_pool_address,
+                message.token_amounts[i].extra_data,
+                execution_report.offchain_token_data[i],
             );
             token_addresses.push_back(message.token_amounts[i].dest_token_address);
             token_amounts.push_back(amount);
@@ -723,7 +631,7 @@ module ccip_offramp::offramp {
                     dest_token_amounts,
                 );
 
-            receiver_params.message.fill(any2sui_message);
+            dd::populate_message(&mut receiver_params, any2sui_message);
         };
 
         // the entire PTB either succeeds or fails so we can set the state to success

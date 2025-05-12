@@ -4,27 +4,25 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [dependencies]
 ChainlinkCCIP = { local = "../../ccip" }
-ChainlinkCCIPOnramp = { local = "../../ccip_onramp" }
-ChainlinkCCIPOfframp = { local = "../../ccip_offramp" }
+CCIPTokenPool = { local = "../token_pool" }
+#CCIPDynamicDispatcher = { local = "../../dynamic_dispatcher" }
 
 [addresses]
 ccip = "_"
-ccip_onramp = "_"
-ccip_offramp = "_"
 ccip_token_pool = "_"
 lock_release_token_pool = "_"
 mcms = "_"
 mcms_owner = "_"
 mcms_register_entrypoints = "_"
 local_token = "_"
+#dynamic_dispatcher = "_"
 
 [dev-addresses]
 ccip = "0x1000"
-ccip_onramp = "0x1001"
-ccip_offramp = "0x1002"
 ccip_token_pool = "0x2000"
 lock_release_token_pool = "0x2001"
 mcms = "0x4000"
 mcms_owner = "0x4010"
 mcms_register_entrypoints = "0x4001"
 local_token = "0x9000"
+#dynamic_dispatcher = "0x7000"

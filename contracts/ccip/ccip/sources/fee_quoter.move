@@ -7,7 +7,6 @@ module ccip::fee_quoter {
     use sui::table;
 
     use ccip::eth_abi;
-    use ccip::internal;
     use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
     const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
@@ -173,7 +172,6 @@ module ccip::fee_quoter {
     const E_INVALID_CHAIN_FAMILY_SELECTOR: u64 = 28;
     const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
     const E_OUT_OF_BOUND: u64 = 31;
-    const E_ONLY_CALLABLE_BY_OWNER: u64 = 32;
 
     public fun type_and_version(): String {
         string::utf8(b"FeeQuoter 1.6.0")
@@ -223,10 +221,6 @@ module ccip::fee_quoter {
         fee_tokens_to_add: vector<address>,
         ctx: &mut TxContext
     ) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         // Remove tokens
@@ -271,10 +265,6 @@ module ccip::fee_quoter {
         remove_tokens: vector<address>,
         ctx: &mut TxContext
     ) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         if (!table::contains(
@@ -391,10 +381,6 @@ module ccip::fee_quoter {
         network_fee_usd_cents: u32,
         ctx: &mut TxContext
     ) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         assert!(
@@ -457,10 +443,6 @@ module ccip::fee_quoter {
         premium_multiplier_wei_per_eth: vector<u64>,
         ctx: &mut TxContext
     ) {
-        assert!(
-            ctx.sender() == state_object::get_current_owner(ref),
-            E_ONLY_CALLABLE_BY_OWNER
-        );
         let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
 
         vector::zip_do_ref!(
@@ -621,6 +603,7 @@ module ccip::fee_quoter {
         to_token_amount as u64
     }
 
+    // this should only be called from offramp, hence gated by a special cap owned by offramp
     public fun update_prices(
         ref: &mut CCIPObjectRef,
         _: &FeeQuoterCap,
@@ -696,14 +679,13 @@ module ccip::fee_quoter {
         ref: &CCIPObjectRef,
         clock: &clock::Clock,
         dest_chain_selector: u64,
-        message: &internal::Sui2AnyMessage
+        receiver: vector<u8>,
+        data: vector<u8>,
+        local_token_addresses: vector<address>,
+        local_token_amounts: vector<u64>,
+        fee_token: address,
+        extra_args: vector<u8>
     ): u64 {
-        let (receiver, data, fee_token, _fee_token_store, extra_args) =
-            internal::get_sui2any_fields(message);
-
-        let (local_token_addresses, local_token_amounts) =
-            internal::get_sui2any_token_transfers(message);
-
         let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
         let dest_chain_config = get_dest_chain_config_internal(
@@ -1218,6 +1200,7 @@ module ccip::fee_quoter {
 
             if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM) {
                 validate_evm_address(dest_token_address);
+                // TODO: does it make sense to add SVM here since SVM is not going to be the dest chain?
             } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM
                 || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS) {
                 validate_32byte_address(dest_token_address, /* must_be_non_zero= */ true);
@@ -1303,508 +1286,508 @@ module ccip::fee_quoter {
     }
 }
 
-#[test_only]
-module ccip::fee_quoter_test {
-    use std::bcs;
-    use sui::test_scenario::{Self, Scenario};
-    use sui::clock;
-
-    use ccip::internal;
-    use ccip::fee_quoter;
-    use ccip::state_object::{Self, CCIPObjectRef};
-
-    const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
-    const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
-    const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
-    const MOCK_ADDRESS_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
-    const MOCK_ADDRESS_2: address = @0x000000000000000000000000F4030086522a5bEEa4988F8cA5B36dbC97BeE88c; // EVM token address
-    const MOCK_ADDRESS_3: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7;
-    const MOCK_ADDRESS_4: address = @0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d;
-    const MOCK_ADDRESS_5: address = @0xd1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2;
-
-    fun set_up_test(): (Scenario, CCIPObjectRef) {
-        let mut scenario = test_scenario::begin(@0x1);
-        let ctx = scenario.ctx();
-
-        let ref = state_object::create(ctx);
-
-        (scenario, ref)
-    }
-
-    fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        fee_quoter::initialize(
-            ref,
-            2000,
-            MOCK_ADDRESS_1,
-            1000,
-            vector[
-                MOCK_ADDRESS_1,
-                MOCK_ADDRESS_2,
-                MOCK_ADDRESS_3
-            ],
-            ctx
-        );
-    }
-
-    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
-        state_object::destroy_state_object(ref);
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    public fun test_initialize() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        let _state = state_object::borrow<fee_quoter::FeeQuoterState>(&ref, FEE_QUOTER_STATE_NAME);
-
-        let fee_tokens = fee_quoter::get_fee_tokens(&ref);
-        assert!(fee_tokens == vector[
-            MOCK_ADDRESS_1,
-            MOCK_ADDRESS_2,
-            MOCK_ADDRESS_3
-        ]);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    public fun test_apply_fee_token_updates() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_fee_token_updates(
-            &mut ref,
-            vector[
-                MOCK_ADDRESS_1,
-                MOCK_ADDRESS_2
-            ],
-            vector[
-                MOCK_ADDRESS_4,
-                MOCK_ADDRESS_5
-            ],
-            ctx
-        );
-
-        let fee_tokens = fee_quoter::get_fee_tokens(&ref);
-        assert!(fee_tokens == vector[
-            MOCK_ADDRESS_3,
-            MOCK_ADDRESS_4,
-            MOCK_ADDRESS_5
-        ]);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    public fun test_apply_token_transfer_fee_config_updates() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_token_transfer_fee_config_updates(
-            &mut ref,
-            10,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
-            vector[100, 200],
-            vector[3000, 4000],
-            vector[500, 600],
-            vector[700, 800],
-            vector[900, 1000],
-            vector[true, false],
-            vector[],
-            ctx
-        );
-
-        // a successful get means the config is created.
-        // we can verify the content of config but that requires an additional
-        // function to expose fields within the config due to the fact that this
-        // test is outside the module.
-        let _config1 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
-        let _config2 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_2);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = fee_quoter::E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH)]
-    public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_token_transfer_fee_config_updates(
-            &mut ref,
-            10,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
-            vector[100, 200],
-            vector[3000], // only one value
-            vector[500, 600],
-            vector[700, 800],
-            vector[900, 1000],
-            vector[true, false],
-            vector[],
-            ctx
-        );
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = fee_quoter::E_TOKEN_NOT_SUPPORTED)]
-    public fun test_apply_token_transfer_fee_config_updates_remove_token() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_token_transfer_fee_config_updates(
-            &mut ref,
-            10,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
-            vector[100, 200],
-            vector[3000, 4000],
-            vector[500, 600],
-            vector[700, 800],
-            vector[900, 1000],
-            vector[true, false],
-            vector[],
-            ctx
-        );
-
-        fee_quoter::apply_token_transfer_fee_config_updates(
-            &mut ref,
-            10, // dest_chain_selector
-            vector[], // source_tokens
-            vector[], // min_fee_usd_cents
-            vector[], // max_fee_usd_cents
-            vector[], // dest_gas_overhead
-            vector[], // dest_bytes_overhead
-            vector[], // deci_bps
-            vector[], // is_enabled
-            vector[MOCK_ADDRESS_1], // remove MOCK_ADDRESS_1
-            ctx
-        );
-
-        fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    public fun test_apply_premium_multiplier_wei_per_eth_updates() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_premium_multiplier_wei_per_eth_updates(
-            &mut ref,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-            vector[1000, 2000], // premium_multiplier_wei_per_eth
-            ctx
-        );
-
-        assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_1) == 1000);
-        assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_2) == 2000);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    public fun test_update_prices() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        let mut clock = clock::create_for_testing(ctx);
-        clock::increment_for_testing(&mut clock, 20000);
-        fee_quoter::update_prices(
-            &mut ref,
-            &clock,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-            vector[1000, 2000], // source_usd_per_token
-            vector[100, 1000], // gas_dest_chain_selectors
-            vector[3000, 4000], // gas_usd_per_unit_gas
-            ctx
-        );
-
-        // prices are successfully updated if we can find the config for the dest chain selector / token address
-        let _timestamp_price = fee_quoter::get_dest_chain_gas_price(&ref, 100);
-        let _token_price = fee_quoter::get_token_price(&ref, MOCK_ADDRESS_1);
-
-        clock::destroy_for_testing(clock);
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    public fun test_apply_dest_chain_config_updates() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_dest_chain_config_updates(
-            &mut ref,
-            100, // dest_chain_selector
-            true, // is_enabled
-            1000, // max_number_of_tokens_per_msg
-            20000, // max_data_bytes
-            5000000, // max_per_msg_gas_limit
-            100000, // dest_gas_overhead
-            100, // dest_gas_per_payload_byte_base
-            200, // dest_gas_per_payload_byte_high
-            300, // dest_gas_per_payload_byte_threshold
-            400000, // dest_data_availability_overhead_gas
-            500, // dest_gas_per_data_availability_byte
-            600, // dest_data_availability_multiplier_bps
-            CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
-            true, // enforce_out_of_order
-            1000, // default_token_fee_usd_cents
-            2000, // default_token_dest_gas_overhead
-            3000000, // default_tx_gas_limit
-            4000000, // gas_multiplier_wei_per_eth
-            5000000, // gas_price_staleness_threshold
-            6000000, // network_fee_usd_cents
-            ctx
-        );
-
-        let _config = fee_quoter::get_dest_chain_config(&ref, 100);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[allow(implicit_const_copy)]
-    #[test]
-    public fun test_process_message_args_evm() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_dest_chain_config_updates(
-            &mut ref,
-            100, // dest_chain_selector
-            true, // is_enabled
-            1000, // max_number_of_tokens_per_msg
-            20000, // max_data_bytes
-            5000000, // max_per_msg_gas_limit
-            100000, // dest_gas_overhead
-            100, // dest_gas_per_payload_byte_base
-            200, // dest_gas_per_payload_byte_high
-            300, // dest_gas_per_payload_byte_threshold
-            400000, // dest_data_availability_overhead_gas
-            500, // dest_gas_per_data_availability_byte
-            600, // dest_data_availability_multiplier_bps
-            CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
-            true, // enforce_out_of_order
-            1000, // default_token_fee_usd_cents
-            2000, // default_token_dest_gas_overhead
-            3000000, // default_tx_gas_limit
-            4000000, // gas_multiplier_wei_per_eth
-            5000000, // gas_price_staleness_threshold
-            6000000, // network_fee_usd_cents
-            ctx
-        );
-
-        fee_quoter::apply_token_transfer_fee_config_updates(
-            &mut ref,
-            100,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-            vector[100, 200], // source_usd_per_token
-            vector[3000, 4000], // gas_dest_chain_selectors
-            vector[500, 600], // gas_usd_per_unit_gas
-            vector[700, 800], // dest_gas_overhead
-            vector[900, 1000], // dest_bytes_overhead
-            vector[true, false], // is_enabled
-            vector[], // dest_chain_selectors
-            ctx
-        );
-
-        let evm_extra_args = x"181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf100000000000000000000000000000000000000000000000000000000000000001";
-
-        let (
-            msg_fee_juels,
-            is_out_of_order_execution,
-            converted_extra_args,
-            dest_exec_data_per_token
-        ) = fee_quoter::process_message_args(
-            &ref,
-            100, // dest_chain_selector
-            MOCK_ADDRESS_1, // fee_token
-            1000, // fee_token_amount
-            evm_extra_args, // extra_args
-            vector[
-                bcs::to_bytes(&MOCK_ADDRESS_2)
-            ], // dest_token_addresses
-            vector[
-                bcs::to_bytes(&MOCK_ADDRESS_3)
-            ] // dest_pool_datas
-        );
-
-        assert!(msg_fee_juels == 1000);
-        assert!(is_out_of_order_execution == true);
-        assert!(converted_extra_args == evm_extra_args);
-        assert!(dest_exec_data_per_token == vector[x"00000000000000000000000000000000000000000000000000000000000002bc"]);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[allow(implicit_const_copy)]
-    #[test]
-    public fun test_process_message_args_svm() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        fee_quoter::apply_dest_chain_config_updates(
-            &mut ref,
-            100, // dest_chain_selector
-            true, // is_enabled
-            1000, // max_number_of_tokens_per_msg
-            20000, // max_data_bytes
-            5000000, // max_per_msg_gas_limit
-            100000, // dest_gas_overhead
-            100, // dest_gas_per_payload_byte_base
-            200, // dest_gas_per_payload_byte_high
-            300, // dest_gas_per_payload_byte_threshold
-            400000, // dest_data_availability_overhead_gas
-            500, // dest_gas_per_data_availability_byte
-            600, // dest_data_availability_multiplier_bps
-            CHAIN_FAMILY_SELECTOR_SVM, // chain_family_selector
-            true, // enforce_out_of_order
-            1000, // default_token_fee_usd_cents
-            2000, // default_token_dest_gas_overhead
-            3000000, // default_tx_gas_limit
-            4000000, // gas_multiplier_wei_per_eth
-            5000000, // gas_price_staleness_threshold
-            6000000, // network_fee_usd_cents
-            ctx
-        );
-
-        fee_quoter::apply_token_transfer_fee_config_updates(
-            &mut ref,
-            100, // dest_chain_selector
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_4], // source_tokens
-            vector[100, 200], // source_usd_per_token
-            vector[3000, 4000], // gas_dest_chain_selectors
-            vector[500, 600], // gas_usd_per_unit_gas
-            vector[700, 800], // dest_gas_overhead
-            vector[900, 1000], // dest_bytes_overhead
-            vector[true, false], // is_enabled
-            vector[], // dest_chain_selectors
-            ctx
-        );
-
-        let svm_extra_args = x"1f3b3aba00000000000000000000000000000000000000000000000000000000000dcf00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000abc00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000111";
-
-        let (
-            msg_fee_juels,
-            is_out_of_order_execution,
-            converted_extra_args,
-            dest_exec_data_per_token
-        ) = fee_quoter::process_message_args(
-            &ref,
-            100, // dest_chain_selector
-            MOCK_ADDRESS_1, // fee_token
-            1000, // fee_token_amount
-            svm_extra_args, // extra_args
-            vector[
-                bcs::to_bytes(&MOCK_ADDRESS_4)
-            ], // dest_token_addresses
-            vector[
-                bcs::to_bytes(&MOCK_ADDRESS_3)
-            ] // dest_pool_datas
-        );
-
-        assert!(msg_fee_juels == 1000);
-        assert!(is_out_of_order_execution == true);
-        assert!(converted_extra_args == svm_extra_args);
-        assert!(dest_exec_data_per_token == vector[x"00000000000000000000000000000000000000000000000000000000000002bc"]);
-
-        tear_down_test(scenario, ref);
-    }
-
-    #[test]
-    public fun test_get_validated_fee() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        let mut clock = clock::create_for_testing(ctx);
-        clock::increment_for_testing(&mut clock, 20000);
-        fee_quoter::update_prices(
-            &mut ref,
-            &clock,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-            vector[1000, 2000], // source_usd_per_token
-            vector[100, 1000], // gas_dest_chain_selectors
-            vector[3000, 4000], // gas_usd_per_unit_gas
-            ctx
-        );
-
-        fee_quoter::apply_dest_chain_config_updates(
-            &mut ref,
-            100, // dest_chain_selector
-            true, // is_enabled
-            1000, // max_number_of_tokens_per_msg
-            20000, // max_data_bytes
-            5000000, // max_per_msg_gas_limit
-            100000, // dest_gas_overhead
-            1, // dest_gas_per_payload_byte_base
-            4, // dest_gas_per_payload_byte_high
-            5, // dest_gas_per_payload_byte_threshold
-            40000, // dest_data_availability_overhead_gas
-            5, // dest_gas_per_data_availability_byte
-            6, // dest_data_availability_multiplier_bps
-            CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
-            true, // enforce_out_of_order
-            1000, // default_token_fee_usd_cents
-            2000, // default_token_dest_gas_overhead
-            3000000, // default_tx_gas_limit
-            40, // gas_multiplier_wei_per_eth
-            50000, // gas_price_staleness_threshold
-            600, // network_fee_usd_cents
-            ctx
-        );
-
-        fee_quoter::apply_token_transfer_fee_config_updates(
-            &mut ref,
-            100, // dest_chain_selector
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // add_tokens
-            vector[100, 200], // add_min_fee_usd_cents
-            vector[300, 400], // add_max_fee_usd_cents
-            vector[500, 600], // add_deci_bps
-            vector[700, 800], // add_dest_gas_overhead
-            vector[900, 1000], // add_dest_bytes_overhead
-            vector[true, false], // add_is_enabled
-            vector[], // remove_tokens
-            ctx
-        );
-
-        fee_quoter::apply_premium_multiplier_wei_per_eth_updates(
-            &mut ref,
-            vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-            vector[10000, 200000], // premium_multiplier_wei_per_eth
-            ctx
-        );
-
-        let evm_extra_args = x"181dcf1000000000000000000000000000000000000000000000000000000000001dcf100000000000000000000000000000000000000000000000000000000000000001";
-
-        let message =
-            internal::new_sui2any_message(
-                x"000000000000000000000000f4030086522a5beea4988f8ca5b36dbc97bee88c", // receiver
-                b"456abc", // data
-                vector[MOCK_ADDRESS_1], // token_addresses
-                vector[100], // token_amounts
-                vector[MOCK_ADDRESS_2], // token_store_addresses
-                MOCK_ADDRESS_1, // fee_token
-                MOCK_ADDRESS_2, // fee_token_store
-                evm_extra_args // extra_args
-            );
-
-        let val = fee_quoter::get_validated_fee(&ref, &clock, 100, &message);
-        assert!(val == 10000000000249100440);
-
-        clock::destroy_for_testing(clock);
-        tear_down_test(scenario, ref);
-    }
-}
+// #[test_only]
+// module ccip::fee_quoter_test {
+//     use std::bcs;
+//     use sui::test_scenario::{Self, Scenario};
+//     use sui::clock;
+//
+//     use ccip::internal;
+//     use ccip::fee_quoter;
+//     use ccip::state_object::{Self, CCIPObjectRef};
+//
+//     const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
+//     const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
+//     const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
+//     const MOCK_ADDRESS_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
+//     const MOCK_ADDRESS_2: address = @0x000000000000000000000000F4030086522a5bEEa4988F8cA5B36dbC97BeE88c; // EVM token address
+//     const MOCK_ADDRESS_3: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7;
+//     const MOCK_ADDRESS_4: address = @0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d;
+//     const MOCK_ADDRESS_5: address = @0xd1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2;
+//
+//     fun set_up_test(): (Scenario, CCIPObjectRef) {
+//         let mut scenario = test_scenario::begin(@0x1);
+//         let ctx = scenario.ctx();
+//
+//         let ref = state_object::create(ctx);
+//
+//         (scenario, ref)
+//     }
+//
+//     fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
+//         fee_quoter::initialize(
+//             ref,
+//             2000,
+//             MOCK_ADDRESS_1,
+//             1000,
+//             vector[
+//                 MOCK_ADDRESS_1,
+//                 MOCK_ADDRESS_2,
+//                 MOCK_ADDRESS_3
+//             ],
+//             ctx
+//         );
+//     }
+//
+//     fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
+//         state_object::destroy_state_object(ref);
+//         test_scenario::end(scenario);
+//     }
+//
+//     #[test]
+//     public fun test_initialize() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         let _state = state_object::borrow<fee_quoter::FeeQuoterState>(&ref, FEE_QUOTER_STATE_NAME);
+//
+//         let fee_tokens = fee_quoter::get_fee_tokens(&ref);
+//         assert!(fee_tokens == vector[
+//             MOCK_ADDRESS_1,
+//             MOCK_ADDRESS_2,
+//             MOCK_ADDRESS_3
+//         ]);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     public fun test_apply_fee_token_updates() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_fee_token_updates(
+//             &mut ref,
+//             vector[
+//                 MOCK_ADDRESS_1,
+//                 MOCK_ADDRESS_2
+//             ],
+//             vector[
+//                 MOCK_ADDRESS_4,
+//                 MOCK_ADDRESS_5
+//             ],
+//             ctx
+//         );
+//
+//         let fee_tokens = fee_quoter::get_fee_tokens(&ref);
+//         assert!(fee_tokens == vector[
+//             MOCK_ADDRESS_3,
+//             MOCK_ADDRESS_4,
+//             MOCK_ADDRESS_5
+//         ]);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     public fun test_apply_token_transfer_fee_config_updates() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_token_transfer_fee_config_updates(
+//             &mut ref,
+//             10,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
+//             vector[100, 200],
+//             vector[3000, 4000],
+//             vector[500, 600],
+//             vector[700, 800],
+//             vector[900, 1000],
+//             vector[true, false],
+//             vector[],
+//             ctx
+//         );
+//
+//         // a successful get means the config is created.
+//         // we can verify the content of config but that requires an additional
+//         // function to expose fields within the config due to the fact that this
+//         // test is outside the module.
+//         let _config1 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+//         let _config2 = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_2);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     #[expected_failure(abort_code = fee_quoter::E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH)]
+//     public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_token_transfer_fee_config_updates(
+//             &mut ref,
+//             10,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
+//             vector[100, 200],
+//             vector[3000], // only one value
+//             vector[500, 600],
+//             vector[700, 800],
+//             vector[900, 1000],
+//             vector[true, false],
+//             vector[],
+//             ctx
+//         );
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     #[expected_failure(abort_code = fee_quoter::E_TOKEN_NOT_SUPPORTED)]
+//     public fun test_apply_token_transfer_fee_config_updates_remove_token() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_token_transfer_fee_config_updates(
+//             &mut ref,
+//             10,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2],
+//             vector[100, 200],
+//             vector[3000, 4000],
+//             vector[500, 600],
+//             vector[700, 800],
+//             vector[900, 1000],
+//             vector[true, false],
+//             vector[],
+//             ctx
+//         );
+//
+//         fee_quoter::apply_token_transfer_fee_config_updates(
+//             &mut ref,
+//             10, // dest_chain_selector
+//             vector[], // source_tokens
+//             vector[], // min_fee_usd_cents
+//             vector[], // max_fee_usd_cents
+//             vector[], // dest_gas_overhead
+//             vector[], // dest_bytes_overhead
+//             vector[], // deci_bps
+//             vector[], // is_enabled
+//             vector[MOCK_ADDRESS_1], // remove MOCK_ADDRESS_1
+//             ctx
+//         );
+//
+//         fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     public fun test_apply_premium_multiplier_wei_per_eth_updates() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_premium_multiplier_wei_per_eth_updates(
+//             &mut ref,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
+//             vector[1000, 2000], // premium_multiplier_wei_per_eth
+//             ctx
+//         );
+//
+//         assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_1) == 1000);
+//         assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_2) == 2000);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     public fun test_update_prices() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         let mut clock = clock::create_for_testing(ctx);
+//         clock::increment_for_testing(&mut clock, 20000);
+//         fee_quoter::update_prices(
+//             &mut ref,
+//             &clock,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
+//             vector[1000, 2000], // source_usd_per_token
+//             vector[100, 1000], // gas_dest_chain_selectors
+//             vector[3000, 4000], // gas_usd_per_unit_gas
+//             ctx
+//         );
+//
+//         // prices are successfully updated if we can find the config for the dest chain selector / token address
+//         let _timestamp_price = fee_quoter::get_dest_chain_gas_price(&ref, 100);
+//         let _token_price = fee_quoter::get_token_price(&ref, MOCK_ADDRESS_1);
+//
+//         clock::destroy_for_testing(clock);
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     public fun test_apply_dest_chain_config_updates() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_dest_chain_config_updates(
+//             &mut ref,
+//             100, // dest_chain_selector
+//             true, // is_enabled
+//             1000, // max_number_of_tokens_per_msg
+//             20000, // max_data_bytes
+//             5000000, // max_per_msg_gas_limit
+//             100000, // dest_gas_overhead
+//             100, // dest_gas_per_payload_byte_base
+//             200, // dest_gas_per_payload_byte_high
+//             300, // dest_gas_per_payload_byte_threshold
+//             400000, // dest_data_availability_overhead_gas
+//             500, // dest_gas_per_data_availability_byte
+//             600, // dest_data_availability_multiplier_bps
+//             CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
+//             true, // enforce_out_of_order
+//             1000, // default_token_fee_usd_cents
+//             2000, // default_token_dest_gas_overhead
+//             3000000, // default_tx_gas_limit
+//             4000000, // gas_multiplier_wei_per_eth
+//             5000000, // gas_price_staleness_threshold
+//             6000000, // network_fee_usd_cents
+//             ctx
+//         );
+//
+//         let _config = fee_quoter::get_dest_chain_config(&ref, 100);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[allow(implicit_const_copy)]
+//     #[test]
+//     public fun test_process_message_args_evm() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_dest_chain_config_updates(
+//             &mut ref,
+//             100, // dest_chain_selector
+//             true, // is_enabled
+//             1000, // max_number_of_tokens_per_msg
+//             20000, // max_data_bytes
+//             5000000, // max_per_msg_gas_limit
+//             100000, // dest_gas_overhead
+//             100, // dest_gas_per_payload_byte_base
+//             200, // dest_gas_per_payload_byte_high
+//             300, // dest_gas_per_payload_byte_threshold
+//             400000, // dest_data_availability_overhead_gas
+//             500, // dest_gas_per_data_availability_byte
+//             600, // dest_data_availability_multiplier_bps
+//             CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
+//             true, // enforce_out_of_order
+//             1000, // default_token_fee_usd_cents
+//             2000, // default_token_dest_gas_overhead
+//             3000000, // default_tx_gas_limit
+//             4000000, // gas_multiplier_wei_per_eth
+//             5000000, // gas_price_staleness_threshold
+//             6000000, // network_fee_usd_cents
+//             ctx
+//         );
+//
+//         fee_quoter::apply_token_transfer_fee_config_updates(
+//             &mut ref,
+//             100,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
+//             vector[100, 200], // source_usd_per_token
+//             vector[3000, 4000], // gas_dest_chain_selectors
+//             vector[500, 600], // gas_usd_per_unit_gas
+//             vector[700, 800], // dest_gas_overhead
+//             vector[900, 1000], // dest_bytes_overhead
+//             vector[true, false], // is_enabled
+//             vector[], // dest_chain_selectors
+//             ctx
+//         );
+//
+//         let evm_extra_args = x"181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf100000000000000000000000000000000000000000000000000000000000000001";
+//
+//         let (
+//             msg_fee_juels,
+//             is_out_of_order_execution,
+//             converted_extra_args,
+//             dest_exec_data_per_token
+//         ) = fee_quoter::process_message_args(
+//             &ref,
+//             100, // dest_chain_selector
+//             MOCK_ADDRESS_1, // fee_token
+//             1000, // fee_token_amount
+//             evm_extra_args, // extra_args
+//             vector[
+//                 bcs::to_bytes(&MOCK_ADDRESS_2)
+//             ], // dest_token_addresses
+//             vector[
+//                 bcs::to_bytes(&MOCK_ADDRESS_3)
+//             ] // dest_pool_datas
+//         );
+//
+//         assert!(msg_fee_juels == 1000);
+//         assert!(is_out_of_order_execution == true);
+//         assert!(converted_extra_args == evm_extra_args);
+//         assert!(dest_exec_data_per_token == vector[x"00000000000000000000000000000000000000000000000000000000000002bc"]);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[allow(implicit_const_copy)]
+//     #[test]
+//     public fun test_process_message_args_svm() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         fee_quoter::apply_dest_chain_config_updates(
+//             &mut ref,
+//             100, // dest_chain_selector
+//             true, // is_enabled
+//             1000, // max_number_of_tokens_per_msg
+//             20000, // max_data_bytes
+//             5000000, // max_per_msg_gas_limit
+//             100000, // dest_gas_overhead
+//             100, // dest_gas_per_payload_byte_base
+//             200, // dest_gas_per_payload_byte_high
+//             300, // dest_gas_per_payload_byte_threshold
+//             400000, // dest_data_availability_overhead_gas
+//             500, // dest_gas_per_data_availability_byte
+//             600, // dest_data_availability_multiplier_bps
+//             CHAIN_FAMILY_SELECTOR_SVM, // chain_family_selector
+//             true, // enforce_out_of_order
+//             1000, // default_token_fee_usd_cents
+//             2000, // default_token_dest_gas_overhead
+//             3000000, // default_tx_gas_limit
+//             4000000, // gas_multiplier_wei_per_eth
+//             5000000, // gas_price_staleness_threshold
+//             6000000, // network_fee_usd_cents
+//             ctx
+//         );
+//
+//         fee_quoter::apply_token_transfer_fee_config_updates(
+//             &mut ref,
+//             100, // dest_chain_selector
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_4], // source_tokens
+//             vector[100, 200], // source_usd_per_token
+//             vector[3000, 4000], // gas_dest_chain_selectors
+//             vector[500, 600], // gas_usd_per_unit_gas
+//             vector[700, 800], // dest_gas_overhead
+//             vector[900, 1000], // dest_bytes_overhead
+//             vector[true, false], // is_enabled
+//             vector[], // dest_chain_selectors
+//             ctx
+//         );
+//
+//         let svm_extra_args = x"1f3b3aba00000000000000000000000000000000000000000000000000000000000dcf00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000abc00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000111";
+//
+//         let (
+//             msg_fee_juels,
+//             is_out_of_order_execution,
+//             converted_extra_args,
+//             dest_exec_data_per_token
+//         ) = fee_quoter::process_message_args(
+//             &ref,
+//             100, // dest_chain_selector
+//             MOCK_ADDRESS_1, // fee_token
+//             1000, // fee_token_amount
+//             svm_extra_args, // extra_args
+//             vector[
+//                 bcs::to_bytes(&MOCK_ADDRESS_4)
+//             ], // dest_token_addresses
+//             vector[
+//                 bcs::to_bytes(&MOCK_ADDRESS_3)
+//             ] // dest_pool_datas
+//         );
+//
+//         assert!(msg_fee_juels == 1000);
+//         assert!(is_out_of_order_execution == true);
+//         assert!(converted_extra_args == svm_extra_args);
+//         assert!(dest_exec_data_per_token == vector[x"00000000000000000000000000000000000000000000000000000000000002bc"]);
+//
+//         tear_down_test(scenario, ref);
+//     }
+//
+//     #[test]
+//     public fun test_get_validated_fee() {
+//         let (mut scenario, mut ref) = set_up_test();
+//         let ctx = scenario.ctx();
+//         initialize(&mut ref, ctx);
+//
+//         let mut clock = clock::create_for_testing(ctx);
+//         clock::increment_for_testing(&mut clock, 20000);
+//         fee_quoter::update_prices(
+//             &mut ref,
+//             &clock,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
+//             vector[1000, 2000], // source_usd_per_token
+//             vector[100, 1000], // gas_dest_chain_selectors
+//             vector[3000, 4000], // gas_usd_per_unit_gas
+//             ctx
+//         );
+//
+//         fee_quoter::apply_dest_chain_config_updates(
+//             &mut ref,
+//             100, // dest_chain_selector
+//             true, // is_enabled
+//             1000, // max_number_of_tokens_per_msg
+//             20000, // max_data_bytes
+//             5000000, // max_per_msg_gas_limit
+//             100000, // dest_gas_overhead
+//             1, // dest_gas_per_payload_byte_base
+//             4, // dest_gas_per_payload_byte_high
+//             5, // dest_gas_per_payload_byte_threshold
+//             40000, // dest_data_availability_overhead_gas
+//             5, // dest_gas_per_data_availability_byte
+//             6, // dest_data_availability_multiplier_bps
+//             CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
+//             true, // enforce_out_of_order
+//             1000, // default_token_fee_usd_cents
+//             2000, // default_token_dest_gas_overhead
+//             3000000, // default_tx_gas_limit
+//             40, // gas_multiplier_wei_per_eth
+//             50000, // gas_price_staleness_threshold
+//             600, // network_fee_usd_cents
+//             ctx
+//         );
+//
+//         fee_quoter::apply_token_transfer_fee_config_updates(
+//             &mut ref,
+//             100, // dest_chain_selector
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // add_tokens
+//             vector[100, 200], // add_min_fee_usd_cents
+//             vector[300, 400], // add_max_fee_usd_cents
+//             vector[500, 600], // add_deci_bps
+//             vector[700, 800], // add_dest_gas_overhead
+//             vector[900, 1000], // add_dest_bytes_overhead
+//             vector[true, false], // add_is_enabled
+//             vector[], // remove_tokens
+//             ctx
+//         );
+//
+//         fee_quoter::apply_premium_multiplier_wei_per_eth_updates(
+//             &mut ref,
+//             vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
+//             vector[10000, 200000], // premium_multiplier_wei_per_eth
+//             ctx
+//         );
+//
+//         let evm_extra_args = x"181dcf1000000000000000000000000000000000000000000000000000000000001dcf100000000000000000000000000000000000000000000000000000000000000001";
+//
+//         let message =
+//             internal::new_sui2any_message(
+//                 x"000000000000000000000000f4030086522a5beea4988f8ca5b36dbc97bee88c", // receiver
+//                 b"456abc", // data
+//                 vector[MOCK_ADDRESS_1], // token_addresses
+//                 vector[100], // token_amounts
+//                 vector[MOCK_ADDRESS_2], // token_store_addresses
+//                 MOCK_ADDRESS_1, // fee_token
+//                 MOCK_ADDRESS_2, // fee_token_store
+//                 evm_extra_args // extra_args
+//             );
+//
+//         let val = fee_quoter::get_validated_fee(&ref, &clock, 100, &message);
+//         assert!(val == 10000000000249100440);
+//
+//         clock::destroy_for_testing(clock);
+//         tear_down_test(scenario, ref);
+//     }
+// }

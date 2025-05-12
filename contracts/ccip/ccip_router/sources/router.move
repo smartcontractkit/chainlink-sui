@@ -1,106 +1,102 @@
-module ccip_router::router {
-    use std::string::{Self, String};
+module ccip_router::router;
 
-    use sui::clock::Clock;
+use std::string::{Self, String};
 
-    use ccip::onramp;
-    use ccip::state_object::CCIPObjectRef;
+use sui::clock::Clock;
+use sui::coin::{Coin, CoinMetadata};
 
-    public fun type_and_version(): String {
-        string::utf8(b"Router 1.6.0")
-    }
+use ccip::state_object::CCIPObjectRef;
 
-    public fun is_chain_supported(ref: &CCIPObjectRef, dest_chain_selector: u64): bool {
-        onramp::is_chain_supported(ref, dest_chain_selector)
-    }
+use ccip_onramp::onramp::{Self, OnRampState};
 
-    public fun get_fee(
-        ref: &CCIPObjectRef,
-        clock: &Clock,
-        dest_chain_selector: u64,
-        receiver: vector<u8>,
-        data: vector<u8>,
-        token_addresses: vector<address>,
-        token_amounts: vector<u64>,
-        token_store_addresses: vector<address>,
-        fee_token: address,
-        fee_token_store: address,
-        extra_args: vector<u8>
-    ): u64 {
-        onramp::get_fee(
-            ref,
-            clock,
-            dest_chain_selector,
-            receiver,
-            data,
-            token_addresses,
-            token_amounts,
-            token_store_addresses,
-            fee_token,
-            fee_token_store,
-            extra_args
-        )
-    }
+use dynamic_dispatcher::dynamic_dispatcher as dd;
 
-    // ccip_send does not have a return value. EOA calls cannot receive a return value.
-    public fun ccip_send(
-        ref: &mut CCIPObjectRef,
-        clock: &Clock,
-        dest_chain_selector: u64,
-        receiver: vector<u8>,
-        data: vector<u8>,
-        token_addresses: vector<address>,
-        token_amounts: vector<u64>,
-        token_store_addresses: vector<address>,
-        fee_token: address,
-        fee_token_store: address,
-        extra_args: vector<u8>,
-        ctx: &mut TxContext
-    ) {
-        onramp::ccip_send(
-            ref,
-            clock,
-            dest_chain_selector,
-            receiver,
-            data,
-            token_addresses,
-            token_amounts,
-            token_store_addresses,
-            fee_token,
-            fee_token_store,
-            extra_args,
-            ctx
-        );
-    }
+public fun type_and_version(): String {
+    string::utf8(b"Router 1.6.0")
+}
 
-    // ccip_send_with_message_id has a return value. Contract calls can receive a return value.
-    public fun ccip_send_with_message_id(
-        ref: &mut CCIPObjectRef,
-        clock: &Clock,
-        dest_chain_selector: u64,
-        receiver: vector<u8>,
-        data: vector<u8>,
-        token_addresses: vector<address>,
-        token_amounts: vector<u64>,
-        token_store_addresses: vector<address>,
-        fee_token: address,
-        fee_token_store: address,
-        extra_args: vector<u8>,
-        ctx: &mut TxContext
-    ): vector<u8> {
-        onramp::ccip_send(
-            ref,
-            clock,
-            dest_chain_selector,
-            receiver,
-            data,
-            token_addresses,
-            token_amounts,
-            token_store_addresses,
-            fee_token,
-            fee_token_store,
-            extra_args,
-            ctx
-        )
-    }
+public fun is_chain_supported(state: &OnRampState, dest_chain_selector: u64): bool {
+    onramp::is_chain_supported(state, dest_chain_selector)
+}
+
+public fun get_fee<T>(
+    ref: &CCIPObjectRef,
+    clock: &Clock,
+    dest_chain_selector: u64,
+    receiver: vector<u8>,
+    data: vector<u8>,
+    token_addresses: vector<address>,
+    token_amounts: vector<u64>,
+    fee_token: &CoinMetadata<T>,
+    extra_args: vector<u8>
+): u64 {
+    onramp::get_fee(
+        ref,
+        clock,
+        dest_chain_selector,
+        receiver,
+        data,
+        token_addresses,
+        token_amounts,
+        fee_token,
+        extra_args
+    )
+}
+
+// ccip_send does not have a return value. EOA calls cannot receive a return value.
+public fun ccip_send<T>(
+    ref: &mut CCIPObjectRef,
+    state: &mut OnRampState,
+    clock: &Clock,
+    dest_chain_selector: u64,
+    receiver: vector<u8>,
+    data: vector<u8>,
+    token_params: dd::TokenParams,
+    fee_token_metadata: &CoinMetadata<T>,
+    fee_token: Coin<T>,
+    extra_args: vector<u8>,
+    ctx: &mut TxContext
+) {
+    onramp::ccip_send(
+        ref,
+        state,
+        clock,
+        dest_chain_selector,
+        receiver,
+        data,
+        token_params,
+        fee_token_metadata,
+        fee_token,
+        extra_args,
+        ctx,
+    );
+}
+
+// ccip_send_with_message_id has a return value. Contract calls can receive a return value.
+public fun ccip_send_with_message_id<T>(
+    ref: &mut CCIPObjectRef,
+    state: &mut OnRampState,
+    clock: &Clock,
+    dest_chain_selector: u64,
+    receiver: vector<u8>,
+    data: vector<u8>,
+    token_params: dd::TokenParams,
+    fee_token_metadata: &CoinMetadata<T>,
+    fee_token: Coin<T>,
+    extra_args: vector<u8>,
+    ctx: &mut TxContext
+): vector<u8> {
+    onramp::ccip_send(
+        ref,
+        state,
+        clock,
+        dest_chain_selector,
+        receiver,
+        data,
+        token_params,
+        fee_token_metadata,
+        fee_token,
+        extra_args,
+        ctx,
+    )
 }

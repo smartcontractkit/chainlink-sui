@@ -8,9 +8,9 @@ module ccip_onramp::onramp {
     use sui::table::{Self, Table};
     use sui::bag::{Self, Bag};
 
+    use ccip::dynamic_dispatcher as dd;
     use ccip::eth_abi;
     use ccip::fee_quoter;
-    use ccip::internal;
     use ccip::merkle_proof;
     use ccip::nonce_manager::{Self, NonceManagerCap};
     use ccip::rmn_remote;
@@ -119,7 +119,7 @@ module ccip_onramp::onramp {
     const E_UNKNOWN_DEST_CHAIN_SELECTOR: u64 = 3;
     const E_DEST_CHAIN_NOT_ENABLED: u64 = 4;
     const E_SENDER_NOT_ALLOWED: u64 = 5;
-    const E_ONLY_CALLABLE_BY_OWNER_OR_ALLOWLIST_ADMIN: u64 = 6;
+    const E_ONLY_CALLABLE_BY_ALLOWLIST_ADMIN: u64 = 6;
     const E_INVALID_ALLOWLIST_REQUEST: u64 = 7;
     const E_INVALID_ALLOWLIST_ADDRESS: u64 = 8;
     const E_CURSED_BY_RMN: u64 = 9;
@@ -298,30 +298,45 @@ module ccip_onramp::onramp {
         fee_token: &CoinMetadata<T>,
         extra_args: vector<u8>
     ): u64 {
-        let message =
-            internal::new_sui2any_message(
-                receiver,
-                data,
-                token_addresses,
-                token_amounts,
-                object::id_to_address(object::borrow_id(fee_token)),
-                0,
-                extra_args
-            );
-        get_fee_internal(ref, clock, dest_chain_selector, &message)
+        get_fee_internal(
+            ref,
+            clock,
+            dest_chain_selector,
+            receiver,
+            data,
+            token_addresses,
+            token_amounts,
+            object::id_to_address(object::borrow_id(fee_token)),
+            extra_args,
+        )
     }
 
     fun get_fee_internal(
         ref: &CCIPObjectRef,
         clock: &Clock,
         dest_chain_selector: u64,
-        message: &internal::Sui2AnyMessage
+        receiver: vector<u8>,
+        data: vector<u8>,
+        token_addresses: vector<address>,
+        token_amounts: vector<u64>,
+        fee_token: address,
+        extra_args: vector<u8>
     ): u64 {
         assert!(
             !rmn_remote::is_cursed_u128(ref, dest_chain_selector as u128),
             E_CURSED_BY_RMN
         );
-        fee_quoter::get_validated_fee(ref, clock, dest_chain_selector, message)
+        fee_quoter::get_validated_fee(
+            ref,
+            clock,
+            dest_chain_selector,
+            receiver,
+            data,
+            token_addresses,
+            token_amounts,
+            fee_token,
+            extra_args,
+        )
     }
 
     public fun set_dynamic_config(
@@ -374,9 +389,6 @@ module ccip_onramp::onramp {
         (dest_chain_config.allowlist_enabled, dest_chain_config.allowed_senders)
     }
 
-    // TODO: verify this:
-    // in aptos, this function can be called by either the owner or the allowlist admin
-    // but in current implementation, only the owner can call this function
     public fun apply_allowlist_updates(
         state: &mut OnRampState,
         _: &OwnerCap,
@@ -385,11 +397,44 @@ module ccip_onramp::onramp {
         dest_chain_add_allowed_senders: vector<vector<address>>,
         dest_chain_remove_allowed_senders: vector<vector<address>>
     ) {
-        // assert!(
-        //     state_object::get_current_owner(ref) == caller || immutable_state.allowlist_admin == caller,
-        //     E_ONLY_CALLABLE_BY_OWNER_OR_ALLOWLIST_ADMIN
-        // );
+        apply_allowlist_updates_internal(
+            state,
+            dest_chain_selectors,
+            dest_chain_allowlist_enabled,
+            dest_chain_add_allowed_senders,
+            dest_chain_remove_allowed_senders
+        );
+    }
+    
+    public fun apply_allowlist_updates_by_admin(
+        state: &mut OnRampState,
+        dest_chain_selectors: vector<u64>,
+        dest_chain_allowlist_enabled: vector<bool>,
+        dest_chain_add_allowed_senders: vector<vector<address>>,
+        dest_chain_remove_allowed_senders: vector<vector<address>>,
+        ctx: &mut TxContext,
+    ) {
+        assert!(
+            state.allowlist_admin == ctx.sender(),
+            E_ONLY_CALLABLE_BY_ALLOWLIST_ADMIN
+        );
 
+        apply_allowlist_updates_internal(
+            state,
+            dest_chain_selectors,
+            dest_chain_allowlist_enabled,
+            dest_chain_add_allowed_senders,
+            dest_chain_remove_allowed_senders
+        );
+    }
+    
+    fun apply_allowlist_updates_internal(
+        state: &mut OnRampState,
+        dest_chain_selectors: vector<u64>,
+        dest_chain_allowlist_enabled: vector<bool>,
+        dest_chain_add_allowed_senders: vector<vector<address>>,
+        dest_chain_remove_allowed_senders: vector<vector<address>>,
+    ) {
         let dest_chains_len = dest_chain_selectors.length();
         assert!(
             dest_chains_len == dest_chain_allowlist_enabled.length(),
@@ -545,41 +590,6 @@ module ccip_onramp::onramp {
         hash::keccak256(&outer_hash)
     }
 
-    public struct TokenParams {
-        params: vector<TokenParam>
-    }
-
-    public struct TokenParam has copy, drop {
-        source_pool: address,
-        amount: u64,
-        dest_token_address: vector<u8>,
-        extra_data: vector<u8>,
-    }
-
-    public fun create_token_params(): TokenParams {
-        TokenParams {
-            params: vector[]
-        }
-    }
-
-    public fun add_token_param(
-        mut token_params: TokenParams,
-        source_pool: address,
-        amount: u64,
-        dest_token_address: vector<u8>,
-        extra_data: vector<u8>,
-    ): TokenParams {
-        token_params.params.push_back(
-            TokenParam {
-                source_pool,
-                amount,
-                dest_token_address,
-                extra_data, // encoded decimals
-            }
-        );
-        token_params
-    }
-
     #[allow(lint(self_transfer))]
     public fun ccip_send<T>(
         ref: &mut CCIPObjectRef,
@@ -588,7 +598,7 @@ module ccip_onramp::onramp {
         dest_chain_selector: u64,
         receiver: vector<u8>,
         data: vector<u8>,
-        token_params: TokenParams,
+        token_params: dd::TokenParams,
         fee_token_metadata: &CoinMetadata<T>,
         mut fee_token: Coin<T>,
         extra_args: vector<u8>,
@@ -601,12 +611,10 @@ module ccip_onramp::onramp {
         let fee_token_balance = balance::value(coin::balance(&fee_token));
 
         // the hot potato is returned and consumed
-        let TokenParams {
-            params
-        } = token_params;
+        let params = dd::deconstruct_token_params(token_params);
 
-        let mut source_pools = vector[];
-        let mut amounts = vector[];
+        let mut token_amounts = vector[];
+        let mut source_tokens = vector[];
         let mut dest_tokens = vector[];
         let mut dest_pool_datas = vector[];
         let mut token_transfers = vector[];
@@ -614,50 +622,43 @@ module ccip_onramp::onramp {
         let tokens_len = params.length();
 
         while (i < tokens_len) {
-            let TokenParam {
-                source_pool,
-                amount,
-                dest_token_address,
-                extra_data, // this is encoded decimals in aptos
-            } = params[i];
+            let (source_pool, amount, source_token_address, dest_token_address, extra_data) = dd::get_source_token_transfer_data(params[i]);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
                     source_pool_address: source_pool,
                     amount,
                     dest_token_address,
-                    extra_data: extra_data, // this is encoded decimals
+                    extra_data: extra_data, // encoded decimals
                     dest_exec_data: vector[] // destination execution gas amount, populated later by fee quoter
                 }
             );
-            source_pools.push_back(source_pool);
-            amounts.push_back(amount);
+            token_amounts.push_back(amount);
+            source_tokens.push_back(source_token_address);
             dest_tokens.push_back(dest_token_address);
             dest_pool_datas.push_back(extra_data);
 
             i = i + 1;
         };
 
-        let message =
-            internal::new_sui2any_message(
+        let fee_token_amount =
+            get_fee_internal(
+                ref,
+                clock,
+                dest_chain_selector,
                 receiver,
                 data,
-                source_pools,
-                amounts,
+                source_tokens,
+                token_amounts,
                 fee_token_metadata_addr,
-                fee_token_balance,
-                extra_args
+                extra_args,
             );
 
-        let fee_token_amount = get_fee_internal(ref, clock, dest_chain_selector, &message);
-
         if (fee_token_amount != 0) {
-            // the user must pay the exact amount? or refund the residual amount?
             assert!(
                 fee_token_amount <= fee_token_balance,
                 E_UNEXPECTED_WITHDRAW_AMOUNT
             );
 
-            // TODO: should we refund?
             let refund = coin::split(&mut fee_token, fee_token_balance - fee_token_amount, ctx);
             if (state.fee_tokens.contains(fee_token_metadata_addr)) {
                 let coins: &mut Coin<T> = bag::borrow_mut(&mut state.fee_tokens, fee_token_metadata_addr);
@@ -667,7 +668,6 @@ module ccip_onramp::onramp {
             };
             transfer::public_transfer(refund, ctx.sender());
         } else {
-            // refund all the fee token balance
             transfer::public_transfer(fee_token, ctx.sender());
         };
 

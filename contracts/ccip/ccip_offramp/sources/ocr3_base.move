@@ -36,12 +36,6 @@ module ccip_offramp::ocr3_base {
         bytes: vector<u8>
     }
 
-    // TODO: not used?
-    // public struct Oracle has store, drop {
-    //     index: u8,
-    //     role: u8
-    // }
-
     public struct ConfigInfo has store, drop, copy {
         config_digest: vector<u8>,
         big_f: u8,
@@ -241,7 +235,6 @@ module ccip_offramp::ocr3_base {
         new_vec
     }
 
-    // TODO: verify the permission control
     // TODO: if is_signature_verification_enabled is false, we don't verify the signatures?
     public(package) fun transmit(
         ocr3_state: &OCR3BaseState,

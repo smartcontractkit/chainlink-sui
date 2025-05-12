@@ -8,17 +8,13 @@ ChainlinkCCIP = { local = "../../ccip" }
 [addresses]
 ccip = "_"
 ccip_token_pool = "_"
-#burn_mint_token_pool = "_"
 mcms = "_"
 mcms_owner = "_"
 mcms_register_entrypoints = "_"
-#local_token = "_"
 
 [dev-addresses]
 ccip = "0x1000"
 ccip_token_pool = "0x2000"
-#burn_mint_token_pool = "0x2001"
 mcms = "0x4000"
 mcms_owner = "0x4010"
 mcms_register_entrypoints = "0x4001"
-#local_token = "0x9000"

@@ -28,6 +28,7 @@ public fun mint_and_transfer(
     transfer::public_transfer(coin, recipient);
 }
 
+#[allow(lint(self_transfer))]
 public fun mint(
     treasury_cap: &mut TreasuryCap<LINK_TOKEN>,
     amount: u64,

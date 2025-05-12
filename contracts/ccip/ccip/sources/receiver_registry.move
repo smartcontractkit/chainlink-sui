@@ -36,7 +36,7 @@ module ccip::receiver_registry {
         string::utf8(b"ReceiverRegistry 1.6.0")
     }
 
-    public fun intialize(
+    public fun initialize(
         ref: &mut CCIPObjectRef,
         _: &OwnerCap,
         ctx: &mut TxContext

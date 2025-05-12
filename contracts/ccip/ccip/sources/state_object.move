@@ -63,7 +63,6 @@ module ccip::state_object {
         transfer::transfer(owner_cap, ctx.sender());
     }
 
-    // TODO: we may need to include link token here
     public(package) fun add<T: key + store>(
         ref: &mut CCIPObjectRef,
         name: vector<u8>,

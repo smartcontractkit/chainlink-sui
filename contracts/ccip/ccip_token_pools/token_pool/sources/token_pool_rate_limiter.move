@@ -1,5 +1,4 @@
 module ccip_token_pool::token_pool_rate_limiter {
-
     use sui::clock::Clock;
     use sui::event;
     use sui::table::{Self, Table};
@@ -69,7 +68,6 @@ module ccip_token_pool::token_pool_rate_limiter {
         );
 
         let bucket = rate_limiter.borrow_mut(dest_chain_selector);
-        // let bucket = smart_table::borrow_mut(rate_limiter, dest_chain_selector);
         rate_limiter::consume(clock, bucket, requested_tokens);
 
         event::emit(
