@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	config2 "github.com/smartcontractkit/chainlink-sui/relayer/config"
+
 	"github.com/hashicorp/go-plugin"
 	"github.com/pelletier/go-toml/v2"
 
@@ -56,7 +58,7 @@ func (c *pluginRelayer) NewRelayer(ctx context.Context, config string, keystore 
 	d := toml.NewDecoder(strings.NewReader(config))
 	d.DisallowUnknownFields()
 
-	var cfg suiplugin.TOMLConfig
+	var cfg config2.TOMLConfig
 
 	if err := d.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to decode config toml: %w:\n\t%s", err, config)

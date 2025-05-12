@@ -1,4 +1,4 @@
-package plugin
+package config
 
 import (
 	"errors"
@@ -14,7 +14,15 @@ const (
 	DefaultMaxGasLimit                = int64(10000000)
 	DefaultTxTimeoutSeconds           = 10
 	DefaultConfirmerPoolPeriodSeconds = int64(1)
+	DefaultBalancePollIntervalSeconds = int64(10)
 )
+
+type ChainInfo struct {
+	ChainFamilyName string
+	ChainID         string
+	NetworkName     string
+	NetworkNameFull string
+}
 
 type NodeConfig struct {
 	Name *string

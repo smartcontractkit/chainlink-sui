@@ -9,6 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
+
+	commonConfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -26,17 +30,17 @@ type SuiRelayer struct {
 	chainId    string
 	chainIdNum *big.Int
 
-	cfg  *TOMLConfig
+	cfg  *config.TOMLConfig
 	lggr logger.Logger
 
-	client *client.PTBClient
-	txm    *txm.SuiTxm
-	// TODO: balanceMonitor services.Service
+	client         *client.PTBClient
+	txm            *txm.SuiTxm
+	balanceMonitor services.Service
 }
 
 var _ types.Relayer = &SuiRelayer{}
 
-func NewRelayer(cfg *TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*SuiRelayer, error) {
+func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*SuiRelayer, error) {
 	id := *cfg.ChainID
 
 	loggerInstance := logger.Named(logger.With(lggr, "chainID", id, "chain", "sui"), "SuiRelayer")
@@ -52,8 +56,6 @@ func NewRelayer(cfg *TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*S
 	if !ok {
 		return nil, fmt.Errorf("couldn't parse chain id %s", id)
 	}
-
-	cfg.TransactionManager.setDefaults()
 
 	nodeConfig, err := cfg.ListNodes().SelectRandom()
 	if err != nil {
@@ -86,7 +88,7 @@ func NewRelayer(cfg *TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*S
 		client.TransactionRequestType(requestType),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error in NewConfigProvider chain.Reader: %w", err)
+		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
 	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)
@@ -98,18 +100,42 @@ func NewRelayer(cfg *TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*S
 	gasManager := txm.NewSuiGasManager(loggerInstance, suiClient, *gasLimit, 0)
 
 	txManager, err := txm.NewSuiTxm(loggerInstance, suiClient, keystore, txmConfig, store, retryManager, gasManager)
-
 	if err != nil {
-		return nil, fmt.Errorf("error in NewConfigProvider chain.Reader: %w", err)
+		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
+	}
+
+	balancePollPeriod, err := commonConfig.ParseDuration(*cfg.BalanceMonitor.BalancePollPeriod)
+	if err != nil {
+		return nil, fmt.Errorf("error in NewRelayer (monitor) - invalid balance poll period: %w", err)
+	}
+	balanceMonitorService, err := monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
+		ChainInfo: config.ChainInfo{
+			ChainFamilyName: "sui",
+			ChainID:         *cfg.ChainID,
+			NetworkName:     *cfg.NetworkName,
+			NetworkNameFull: *cfg.NetworkNameFull,
+		},
+		Config: monitor.GenericBalanceConfig{
+			BalancePollPeriod: balancePollPeriod,
+		},
+		Logger:   loggerInstance,
+		Keystore: keystore,
+		NewClient: func() (client.SuiPTBClient, error) {
+			return suiClient, nil
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error in NewRelayer (monitor) - failed to create new balance monitor: %w", err)
 	}
 
 	return &SuiRelayer{
-		chainId:    id,
-		chainIdNum: idNum,
-		cfg:        cfg,
-		lggr:       loggerInstance,
-		client:     suiClient,
-		txm:        txManager,
+		chainId:        id,
+		chainIdNum:     idNum,
+		cfg:            cfg,
+		lggr:           loggerInstance,
+		client:         suiClient,
+		txm:            txManager,
+		balanceMonitor: balanceMonitorService,
 	}, nil
 }
 

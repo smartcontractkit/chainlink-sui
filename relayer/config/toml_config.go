@@ -1,4 +1,4 @@
-package plugin
+package config
 
 import (
 	"errors"
@@ -119,6 +119,7 @@ type TransactionManagerConfig struct {
 	MaxConcurrentRequests *uint64
 }
 
+//nolint:unused
 func (t *TransactionManagerConfig) setDefaults() {
 	if t.BroadcastChanSize == nil {
 		defaultVal := DefaultBroadcastChannelSize
@@ -150,6 +151,17 @@ func (t *TransactionManagerConfig) setDefaults() {
 	}
 }
 
+type BalanceMonitorConfig struct {
+	BalancePollPeriod *string
+}
+
+func (b *BalanceMonitorConfig) setDefaults() {
+	if b.BalancePollPeriod == nil {
+		defaultVal := fmt.Sprintf("%ds", DefaultBalancePollIntervalSeconds)
+		b.BalancePollPeriod = &defaultVal
+	}
+}
+
 // TOMLConfig represents the configuration for a Sui chain, typically loaded from a TOML file.
 // It contains all the necessary parameters to configure a Sui relayer including chain ID,
 // network details, transaction management settings, and node configurations.
@@ -174,6 +186,9 @@ func (t *TransactionManagerConfig) setDefaults() {
 //	RequestType = 'WaitForEffectsCert'
 //	TransactionTimeout = '10s'
 //	MaxConcurrentRequests = 5
+//
+// [Sui.BalanceMonitor]
+// BalancePollPeriod = '10s'
 
 type TOMLConfig struct {
 	// ChainID is a unique identifier for the Sui chain
@@ -191,6 +206,9 @@ type TOMLConfig struct {
 
 	// ChainConfig holds chain-specific configuration parameters
 	TransactionManager *TransactionManagerConfig
+
+	// Balance monitor config
+	BalanceMonitor *BalanceMonitorConfig
 
 	// Nodes is a collection of node configurations for this chain
 	Nodes NodeConfigs
@@ -212,6 +230,13 @@ func (c *TOMLConfig) SetFrom(f *TOMLConfig) {
 			c.TransactionManager = &TransactionManagerConfig{}
 		}
 		setFromTransactionManager(c.TransactionManager, f.TransactionManager)
+	}
+	if f.BalanceMonitor != nil {
+		if c.BalanceMonitor == nil {
+			c.BalanceMonitor = &BalanceMonitorConfig{}
+			c.BalanceMonitor.setDefaults()
+		}
+		setFromBalanceMonitor(c.BalanceMonitor, f.BalanceMonitor)
 	}
 	c.Nodes.SetFrom(&f.Nodes)
 }
@@ -237,6 +262,12 @@ func setFromTransactionManager(c, f *TransactionManagerConfig) {
 	}
 	if f.MaxConcurrentRequests != nil {
 		c.MaxConcurrentRequests = f.MaxConcurrentRequests
+	}
+}
+
+func setFromBalanceMonitor(c, f *BalanceMonitorConfig) {
+	if f.BalancePollPeriod != nil {
+		c.BalancePollPeriod = f.BalancePollPeriod
 	}
 }
 

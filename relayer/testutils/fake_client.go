@@ -3,6 +3,7 @@ package testutils
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	"github.com/pattonkan/sui-go/sui/suiptb"
 
@@ -70,4 +71,8 @@ func (c *FakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest string) (
 
 func (c *FakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (client.SuiTransactionBlockResponse, error) {
 	return client.SuiTransactionBlockResponse{}, nil
+}
+
+func (c *FakeSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
+	return big.NewInt(0), nil
 }

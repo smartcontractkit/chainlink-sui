@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/pattonkan/sui-go/sui/suiptb"
@@ -34,6 +35,7 @@ type SuiPTBClient interface {
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
 	FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
+	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
 }
 
 // PTBClient implements SuiClient interface using the bindings/bind package
@@ -524,4 +526,21 @@ func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTra
 		Height:    response.Checkpoint.Uint64(),
 		Timestamp: response.TimestampMs.Uint64(),
 	}, nil
+}
+
+func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
+	accountAddress, err := sui.AddressFromHex(address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address: %w", err)
+	}
+
+	balanceResponse, err := c.client.GetBalance(ctx, &suiclient.GetBalanceRequest{
+		CoinType: "",
+		Owner:    accountAddress,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get balance: %w", err)
+	}
+
+	return balanceResponse.TotalBalance.Int, nil
 }
