@@ -1,5 +1,5 @@
 #[test_only]
-module ccip::eth_abi_test;
+module ccip::eth_abi_tests;
 
 use ccip::eth_abi;
 
