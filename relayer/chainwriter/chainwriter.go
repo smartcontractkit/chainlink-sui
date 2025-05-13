@@ -176,13 +176,22 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return commonTypes.ErrNotFound
 	}
 
-	argMap := make(map[string]any)
-	err := mapstructure.Decode(args, &argMap)
+	// Convert args to PTBArgMapping using the PTBConstructor
+	ptbArgs, err := s.ptbFactory.ParseArgsToPTBArgMapping(args)
 	if err != nil {
-		s.lggr.Errorw("Error decoding args", "error", err)
+		s.lggr.Errorw("Error parsing arguments", "error", err)
 		return err
 	}
-	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, argMap)
+
+	s.lggr.Debugw("PTB args", "args", ptbArgs)
+
+	err = validatePTBCommandArguments(ptbArgs, method, moduleConfig)
+	if err != nil {
+		s.lggr.Errorw("Error validating PTB command arguments", "error", err)
+		return err
+	}
+
+	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, ptbArgs)
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err
@@ -195,6 +204,56 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return err
 	}
 	s.lggr.Infow("Transaction enqueued", "transactionID", tx.TransactionID, "functionName", method)
+
+	return nil
+}
+
+func validatePTBCommandArguments(argMapping PTBArgMapping, method string, moduleConfig *ChainWriterModule) error {
+	for _, command := range moduleConfig.Functions[method].PTBCommands {
+		for _, param := range command.Params {
+			if param.PTBDependency != nil {
+				continue // Skip PTB dependencies as they are handled internally
+			}
+
+			// Check if the parameter is provided in the argument mapping
+			found := false
+			for _, obj := range argMapping.Args {
+				if obj.Type == ObjectArgType {
+					for _, loc := range obj.Content.MapTo {
+						// Compute zero-based index for the command
+						zeroBasedIndex := command.Order - 1
+						if loc.CommandIndex == zeroBasedIndex && loc.Param == param.Name {
+							found = true
+							break
+						}
+					}
+					if found {
+						break
+					}
+				}
+
+				if !found {
+					for _, scalar := range argMapping.Args {
+						if scalar.Type == ScalarArgType {
+							for _, loc := range scalar.Content.MapTo {
+								if loc.CommandIndex == command.Order-1 && loc.Param == param.Name {
+									found = true
+									break
+								}
+							}
+						}
+					}
+					if found {
+						break
+					}
+				}
+			}
+
+			if !found && param.Required {
+				return fmt.Errorf("missing required argument: %s for command %s", param.Name, *command.Function)
+			}
+		}
+	}
 
 	return nil
 }

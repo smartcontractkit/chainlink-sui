@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/pattonkan/sui-go/sui"
@@ -13,14 +14,71 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
-// PTBConstructor handles building programmable transactions based on configuration
-type PTBConstructor struct {
-	config ChainWriterConfig
-	client client.SuiPTBClient
-	log    logger.Logger
+// PTBArgType represents the type of argument in a Programmable Transaction Block
+type PTBArgType string
+
+const (
+	// ObjectArgType represents a reference to a Sui object
+	ObjectArgType PTBArgType = "object"
+	// ScalarArgType represents a basic value type (number, string, etc.)
+	ScalarArgType PTBArgType = "scalar"
+	// VectorArgType represents a vector of arguments
+	VectorArgType PTBArgType = "vector"
+)
+
+// PTBArg represents a single argument in a Programmable Transaction Block
+type PTBArg struct {
+	// Type indicates the kind of argument (object, scalar, or vector)
+	Type PTBArgType `json:"type"`
+	// Content contains the actual argument data
+	Content PTBArgContent `json:"content"`
 }
 
-// NewPTBConstructor creates a new PTB constructor with the given configuration
+// PTBArgContent contains the actual data for a PTB argument
+type PTBArgContent struct {
+	// ID is the object ID for object-type arguments
+	ID string `json:"id,omitempty"`
+	// Value contains the actual value for scalar-type arguments
+	Value any `json:"value,omitempty"`
+	// MapTo specifies how this argument maps to parameters in the PTB
+	MapTo []PTBArgLocation `json:"map_to,omitempty"`
+}
+
+// PTBArgLocation specifies how an argument maps to a parameter in a PTB command
+type PTBArgLocation struct {
+	// CommandIndex is the index of the command in the PTB
+	CommandIndex int `json:"command_index"`
+	// Param is the name of the parameter in the command
+	Param string `json:"param"`
+	// CommandName is the full name of the command (e.g., "0x2::coin::transfer")
+	CommandName string `json:"command_name,omitempty"`
+}
+
+// PTBArgMapping represents a collection of arguments for a Programmable Transaction Block
+type PTBArgMapping struct {
+	// Args is the list of arguments in the PTB
+	Args []PTBArg `json:"args"`
+}
+
+// PTBConstructor handles building programmable transactions based on configuration.
+// It provides methods to construct PTBs by mapping arguments to their respective commands
+// and handling dependencies between commands.
+type PTBConstructor struct {
+	config ChainWriterConfig   // Configuration for building PTBs
+	client client.SuiPTBClient // Client for interacting with Sui PTB functionality
+	log    logger.Logger       // Logger for debugging and error reporting
+}
+
+// NewPTBConstructor creates a new PTB constructor with the given configuration.
+// It initializes a PTBConstructor with the provided config, client, and logger.
+//
+// Parameters:
+//   - config: The ChainWriterConfig containing module and function definitions
+//   - ptbClient: The SuiPTBClient for interacting with Sui PTB functionality
+//   - log: Logger for debugging and error reporting
+//
+// Returns:
+//   - *PTBConstructor: A new instance of PTBConstructor
 func NewPTBConstructor(config ChainWriterConfig, ptbClient client.SuiPTBClient, log logger.Logger) *PTBConstructor {
 	return &PTBConstructor{
 		config: config,
@@ -31,8 +89,15 @@ func NewPTBConstructor(config ChainWriterConfig, ptbClient client.SuiPTBClient, 
 
 /*
 BuildPTBCommands builds a set of PTB commands based on a signal specified in the ChainWriter configuration.
-The goal is to enable ChainWriter to receive a single signal and have the full expressiveness be described
-in the config.
+The function first builds all PTB arguments (both object and scalar) before constructing the commands.
+This ensures that each argument is only built once, even if it's used in multiple commands.
+
+The process follows these steps:
+1. Builds all object arguments first, storing them in a map keyed by their IDs
+2. Builds all scalar arguments, storing them in a map with generated keys
+3. Processes each command in order, mapping the pre-built arguments to their respective parameters
+4. Handles PTB dependencies between commands
+5. Constructs the final PTB with all commands and their arguments
 
 An example of a ChainWriter config is shown below to illustrate how expressive configuration can define a set
 of PTB commands that will be execution from a single signal. In the example below, the ChainWriter will receive
@@ -113,10 +178,10 @@ Parameters:
   - ctx: context
   - moduleName: the name of the module key in the config
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
-  - args: a map of named arguments that can be used to fill in the param values of various arguments within PTB calls
+  - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, args map[string]any) (*suiptb.ProgrammableTransactionBuilder, error) {
-	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function, "args", args)
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, argMapping PTBArgMapping) (*suiptb.ProgrammableTransactionBuilder, error) {
+	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function, "args", argMapping)
 
 	// Look up the module
 	module, ok := p.config.Modules[moduleName]
@@ -133,22 +198,78 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	// Create a new PTB builder
 	builder := suiptb.NewTransactionDataTransactionBuilder()
 
-	processedArgs := make(map[string]suiptb.Argument)
-	// Iterate through the args map values and process each as a PTBArgument
-	for key, value := range args {
-		processedArg, err := p.client.ToPTBArg(ctx, builder, value)
-		if err != nil {
-			return nil, err
+	// Build all PTB arguments first
+	ptbArgs := make(map[string]suiptb.Argument)
+
+	// Process object arguments
+	for _, obj := range argMapping.Args {
+		if obj.Type == ObjectArgType {
+			p.log.Debugw("Processing object argument", "ID", obj.Content.ID)
+			ptbArg, err := p.client.ToPTBArg(ctx, builder, obj.Content.ID)
+			if err != nil {
+				p.log.Errorw("Error processing object argument", "ID", obj.Content.ID, "Error", err)
+				return nil, err
+			}
+			ptbArgs[obj.Content.ID] = ptbArg
 		}
-		processedArgs[key] = processedArg
+	}
+
+	// Process scalar arguments
+	for _, scalar := range argMapping.Args {
+		if scalar.Type == ScalarArgType {
+			scalarKey := fmt.Sprintf("scalar_%d", len(ptbArgs))
+			ptbArg, err := p.client.ToPTBArg(ctx, builder, scalar.Content.Value)
+			if err != nil {
+				p.log.Errorw("Error processing scalar argument", "Value", scalar.Content.Value, "Error", err)
+				return nil, err
+			}
+			ptbArgs[scalarKey] = ptbArg
+		}
 	}
 
 	// Process each command in order
-	for _, cmd := range txnConfig.PTBCommands {
+	for cmdIdx, cmd := range txnConfig.PTBCommands {
+		args := make(map[string]suiptb.Argument)
+
+		// Map object arguments to command parameters
+		for _, obj := range argMapping.Args {
+			if obj.Type == ObjectArgType {
+				for _, loc := range obj.Content.MapTo {
+					if loc.CommandIndex == cmdIdx {
+						args[loc.Param] = ptbArgs[obj.Content.ID]
+					}
+				}
+			}
+		}
+
+		// Map scalar arguments to command parameters
+		for _, scalar := range argMapping.Args {
+			if scalar.Type == ScalarArgType {
+				for _, loc := range scalar.Content.MapTo {
+					if loc.CommandIndex == cmdIdx {
+						args[loc.Param] = ptbArgs[fmt.Sprintf("scalar_%d", len(ptbArgs)-1)]
+					}
+				}
+			}
+		}
+
+		// Process PTB dependencies
+		for _, param := range cmd.Params {
+			if param.PTBDependency != nil {
+				args[param.Name] = suiptb.Argument{
+					NestedResult: &suiptb.NestedResult{
+						Cmd:    param.PTBDependency.CommandIndex,
+						Result: param.PTBDependency.ResultIndex,
+					},
+				}
+			}
+		}
+
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
-			_, err := p.ProcessMoveCall(ctx, builder, cmd, processedArgs)
+			_, err := p.ProcessMoveCall(ctx, builder, cmd, args)
 			if err != nil {
+				p.log.Errorw("Error processing move call", "Error", err)
 				return nil, err
 			}
 		case codec.SuiPTBCommandPublish:
@@ -196,6 +317,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 		return nil, err
 	}
 
+	p.log.Debugw("Processed args", "Args", processedArgs)
 	// Add the move call to the builder
 	ptbArgument := builder.ProgrammableMoveCall(packageId, *cmd.ModuleId, *cmd.Function, processedArgTypes, processedArgs)
 
@@ -253,4 +375,20 @@ func (p *PTBConstructor) ProcessParams(
 	}
 
 	return processedArgs, nil
+}
+
+// ParseArgsToPTBArgMapping converts the input arguments to a PTBArgMapping structure.
+// It handles both map[string]any and PTBArgMapping input types.
+func (p *PTBConstructor) ParseArgsToPTBArgMapping(args any) (PTBArgMapping, error) {
+	p.log.Debugw("Parsing args to PTBArgMapping", "args", args)
+
+	var mapping PTBArgMapping
+
+	err := mapstructure.Decode(args, &mapping)
+	if err != nil {
+		p.log.Errorw("Error decoding args", "error", err)
+		return PTBArgMapping{}, err
+	}
+
+	return mapping, nil
 }

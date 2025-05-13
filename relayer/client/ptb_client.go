@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"reflect"
 	"time"
 
 	"github.com/pattonkan/sui-go/sui/suiptb"
@@ -481,6 +482,7 @@ func (c *PTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTr
 	// 2. There's no need to pass the builder (by value) around which incurs a lot of (extra) work on the underlying Go process
 	//
 	// NOTE: This is currently placed here simply to avoid leaking the SDK client outside
+	c.log.Debugw("Converting argument to PTB", "arg", argValue, "type", reflect.TypeOf(argValue))
 	return bind.ToPTBArg(ctx, builder, *c.client, argValue)
 }
 

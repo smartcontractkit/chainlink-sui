@@ -1,5 +1,17 @@
 # Chainlink Sui Relayer
 
+- [Chainlink Sui Relayer](#chainlink-sui-relayer)
+  - [Relayer Configuration](#relayer-configuration)
+  - [Initializing the Relayer](#initializing-the-relayer)
+  - [Creating a ChainReader](#creating-a-chainreader)
+  - [Creating a ChainWriter](#creating-a-chainwriter)
+  - [Programmable Transaction Blocks (PTBs)](#programmable-transaction-blocks-ptbs)
+      - [Configuring a ChainWriter to use PTBs](#configuring-a-chainwriter-to-use-ptbs)
+      - [Using PTB Dependencies](#using-ptb-dependencies)
+    - [Calling a PTB in a ChainWriter instance](#calling-a-ptb-in-a-chainwriter-instance)
+  - [Closing Resources](#closing-resources)
+
+
 The Chainlink Sui integration provides a relayer plugin that enables communication with the Sui blockchain. The relayer offers two main components:
 
 1. **ChainReader**: Reads data from the Sui blockchain (querying objects, calling view functions, and listening for events)
@@ -269,18 +281,30 @@ func incrementCounter(writer types.ContractWriter, counterObjectId string) error
 
 ## Programmable Transaction Blocks (PTBs)
 
-For more complex transactions, you can use Programmable Transaction Blocks (PTBs) which allow multiple operations in a single transaction:
+PTBs allow you to pipeline multiple Sui instructions (move calls, coin transfers, etc.) atomically. In this section we'll look at how to configure and use them.
+
+#### Configuring a ChainWriter to use PTBs
+
+To configure a ChainWriter to use PTBs, you need to specify the `PTBChainWriterModuleName` as the module name. ChainWriter will treat all the functions in this module as PTBs. The example below shows how to configure a ChainWriter instance that has a `simple_operation` function that receives an argument called `counter`.
 
 ```go
-func createPTBChainWriter(relayer *plugin.SuiRelayer) (types.ContractWriter, error) {
+import (
+    "encoding/json"
+    "github.com/smartcontractkit/chainlink-common/pkg/types"
+    "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+    "github.com/smartcontractkit/chainlink-sui/relayer/codec"
+)
+
+func createChainWriterWithPTB(relayer *plugin.SuiRelayer) (types.ContractWriter, error) {
+    // Define the ChainWriter configuration with PTB support
     config := chainwriter.ChainWriterConfig{
         Modules: map[string]*chainwriter.ChainWriterModule{
             chainwriter.PTBChainWriterModuleName: {
                 Name:     chainwriter.PTBChainWriterModuleName,
-                ModuleID: "0x123...", // Package ID
+                ModuleID: "0x123", // Package ID, not used for PTBs
                 Functions: map[string]*chainwriter.ChainWriterFunction{
-                    "multi_operation": {
-                        Name:      "multi_operation",
+                    "simple_operation": {
+                        Name:      "simple_operation",
                         PublicKey: []byte{/* Public key bytes */},
                         Params:    []codec.SuiFunctionParam{},
                         PTBCommands: []chainwriter.ChainWriterPTBCommand{
@@ -298,7 +322,6 @@ func createPTBChainWriter(relayer *plugin.SuiRelayer) (types.ContractWriter, err
                                 },
                                 Order: 1,
                             },
-                            // Additional commands can be added here
                         },
                     },
                 },
@@ -306,8 +329,200 @@ func createPTBChainWriter(relayer *plugin.SuiRelayer) (types.ContractWriter, err
         },
     }
     
-    // Rest of implementation similar to createChainWriter
+    // Serialize the configuration
+    configBytes, err := json.Marshal(config)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Create the ChainWriter
+    writer, err := relayer.NewContractWriter(context.Background(), configBytes)
+    if err != nil {
+        return nil, err
+    }
+    
+    return writer, nil
 }
+```
+
+#### Using PTB Dependencies
+
+PTBs allow you to chain multiple commands together and to use the outputs of one command as arguments for another. The example below shows how to configure a ChainWriter instance that has a `complex_operation` function that receives an argument called `counter` and a `previous_result` argument that is the result of the previous command. the previous result is specified using the `PTBDependency` field and needs to have two fields: `CommandIndex` (the index of the command in the PTB) and `ResultIndex` (the index of the result in the command).
+
+```go
+config := chainwriter.ChainWriterConfig{
+    Modules: map[string]*chainwriter.ChainWriterModule{
+        "counter": {
+            Name:     "counter",
+            ModuleID: "0x123...",
+            Functions: map[string]*chainwriter.ChainWriterFunction{
+                "complex_operation": {
+                    Name:      "complex_operation",
+                    PublicKey: []byte{/* Public key bytes */},
+                    PTBCommands: []chainwriter.ChainWriterPTBCommand{
+                        {
+                            Type:      codec.SuiPTBCommandMoveCall,
+                            PackageId: "0x123...",
+                            ModuleId:  "0xABC",
+                            Function:  "function_1",
+                            Params: []codec.SuiFunctionParam{
+                                {
+                                    Name:     "counter",
+                                    Type:     "object_id",
+                                    Required: true,
+                                },
+                            },
+                            Order: 1,
+                        },
+                        {
+                            Type:      codec.SuiPTBCommandMoveCall,
+                            PackageId: "0x456...",
+                            ModuleId:  "0xDEF",
+                            Function:  "function_2",
+                            Params: []codec.SuiFunctionParam{
+                                {
+                                    Name:     "counter",
+                                    Type:     "object_id",
+                                    Required: true,
+                                },
+                                {
+                                    Name:     "previous_result",
+                                    Type:     "ptb_dependency",
+                                    Required: true,
+                                    PTBDependency: &codec.PTBCommandDependency{
+                                        CommandIndex: 0,
+                                        ResultIndex:  0,
+                                    },
+                                },
+                            },
+                            Order: 2,
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
+```
+
+### Calling a PTB in a ChainWriter instance
+
+When working with PTBs, you can pass different types of arguments to your commands. The Sui relayer supports the following argument types:
+
+1. **Object Arguments** (`ObjectArgType`) - Used for Sui object references:
+   ```go
+   {
+       Type: chainwriter.ObjectArgType,
+       Content: chainwriter.PTBArgContent{
+           ID: "0x123...", // Object ID
+           MapTo: []chainwriter.PTBArgLocation{
+               {
+                   CommandIndex: 0, // Index of the command in the PTB
+                   Param: "counter", // Parameter name in the command
+                   CommandName: "0x123.counter.increment", // Full command name (optional)
+               },
+           },
+       },
+   }
+   ```
+
+2. **Scalar Arguments** (`ScalarArgType`) - Used for basic value types like integers, strings, booleans, etc.:
+   ```go
+   {
+       Type: chainwriter.ScalarArgType,
+       Content: chainwriter.PTBArgContent{
+           Value: uint64(10), // Any value type
+           MapTo: []chainwriter.PTBArgLocation{
+               {
+                   CommandIndex: 1,
+                   Param: "increment_by",
+                   CommandName: "0x123.counter.increment_by",
+               },
+           },
+       },
+   }
+   ```
+
+3. **Vector Arguments** (`VectorArgType`) - Used for arrays/vectors of values:
+   ```go
+   {
+       Type: chainwriter.VectorArgType,
+       Content: chainwriter.PTBArgContent{
+           Value: []string{"value1", "value2"}, // Array of values
+           MapTo: []chainwriter.PTBArgLocation{
+               {
+                   CommandIndex: 0,
+                   Param: "string_list",
+                   CommandName: "0x123.list.process",
+               },
+           },
+       },
+   }
+   ```
+
+You can combine these different argument types in a single PTB. Each argument can be mapped to multiple commands within the same PTB using the `MapTo` field. Commands that depend on the result of previous commands are handled internally through the PTB dependency mechanism.
+
+Here's a complete example that combines multiple argument types:
+
+```go
+ptbArgs := chainwriter.PTBArgMapping{
+    Args: []chainwriter.PTBArg{
+        {
+            Type: chainwriter.ObjectArgType,
+            Content: chainwriter.PTBArgContent{
+                ID: "0x123...",
+                MapTo: []chainwriter.PTBArgLocation{
+                    {
+                        CommandIndex: 0,
+                        Param:        "counter",
+                        CommandName:  "0x123.counter.increment",
+                    },
+                },
+            },
+        },
+        {
+            Type: chainwriter.ScalarArgType,
+            Content: chainwriter.PTBArgContent{
+                Value: uint64(10),
+                MapTo: []chainwriter.PTBArgLocation{
+                    {
+                        CommandIndex: 1,
+                        Param:        "increment_by",
+                        CommandName:  "0x123.counter.increment_by",
+                    },
+                },
+            },
+        },
+        {
+            Type: chainwriter.ScalarArgType,
+            Content: chainwriter.PTBArgContent{
+                Value: "metadata",
+                MapTo: []chainwriter.PTBArgLocation{
+                    {
+                        CommandIndex: 1,
+                        Param:        "description",
+                        CommandName:  "0x123.counter.increment_by",
+                    },
+                },
+            },
+        },
+    },
+}
+```
+
+When submitting a PTB transaction, use the `SubmitTransaction` method with your arguments:
+
+```go
+err := writer.SubmitTransaction(
+    context.Background(),
+    "counter",           // Module name
+    "complex_operation", // Function name
+    ptbArgs,            // PTB arguments
+    txID,               // Transaction ID
+    "",                 // To address (not used in Sui)
+    &commonTypes.TxMeta{GasLimit: 10000000}, // Transaction metadata
+    nil,                // Value (not used in Sui)
+)
 ```
 
 ## Closing Resources

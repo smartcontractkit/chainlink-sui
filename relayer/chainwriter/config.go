@@ -1,6 +1,10 @@
 package chainwriter
 
-import "github.com/smartcontractkit/chainlink-sui/relayer/codec"
+import (
+	"fmt"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+)
 
 var PTBChainWriterModuleName = "cll://component=cw/type=ptb_builder"
 
@@ -26,6 +30,16 @@ type ChainWriterPTBCommand struct {
 	Params    []codec.SuiFunctionParam `json:"params,omitempty"`
 	// TODO: is this needed? is order of array items maintained?
 	Order int `json:"order"`
+}
+
+// GetParamKey returns the key for a parameter in the PTB command in a map of arguments.
+// The key is a string that uniquely identifies the parameter within the map of arguments.
+// The key is formatted as follows:
+// "packageId::moduleId::functionName::parameterName"
+// This format allows associating specific argument values with their target
+// Move function call and parameter name within a potentially complex PTB.
+func (c ChainWriterPTBCommand) GetParamKey(paramName string) string {
+	return fmt.Sprintf("%s.%s.%s.%s", *c.PackageId, *c.ModuleId, *c.Function, paramName)
 }
 
 type ChainWriterFunction struct {

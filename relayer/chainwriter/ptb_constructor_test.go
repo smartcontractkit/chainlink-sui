@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -212,39 +213,108 @@ func TestPTBConstructor_BuildPTBCommands(t *testing.T) {
 		name          string
 		moduleName    string
 		functionName  string
-		args          map[string]any
+		argMapping    chainwriter.PTBArgMapping
 		expectedError bool
 		expectedCmd   int // Expected number of commands in the PTB
 	}{
 		{
-			name:          "Test simple move call",
-			moduleName:    "test",
-			functionName:  "simple_call",
-			args:          map[string]any{"counter": counterObjectID},
+			name:         "Test simple move call",
+			moduleName:   "test",
+			functionName: "simple_call",
+			argMapping: chainwriter.PTBArgMapping{
+				Args: []chainwriter.PTBArg{
+					{
+						Type: chainwriter.ObjectArgType,
+						Content: chainwriter.PTBArgContent{
+							ID: counterObjectID,
+							MapTo: []chainwriter.PTBArgLocation{
+								{
+									CommandIndex: 0,
+									Param:        "counter",
+									CommandName:  fmt.Sprintf("%s.%s.%s", packageID, moduleID, functionName),
+								},
+							},
+						},
+					},
+				},
+			},
 			expectedError: false,
 			expectedCmd:   1,
 		},
 		{
-			name:          "Test PTB with dependencies",
-			moduleName:    "test",
-			functionName:  "ptb_dependency",
-			args:          map[string]any{"counter": counterObjectID},
+			name:         "Test PTB with dependencies",
+			moduleName:   "test",
+			functionName: "ptb_dependency",
+			argMapping: chainwriter.PTBArgMapping{
+				Args: []chainwriter.PTBArg{
+					{
+						Type: chainwriter.ObjectArgType,
+						Content: chainwriter.PTBArgContent{
+							ID: counterObjectID,
+							MapTo: []chainwriter.PTBArgLocation{
+								{
+									CommandIndex: 0,
+									Param:        "counter",
+									CommandName:  fmt.Sprintf("%s.%s.%s", packageID, moduleID, functionName),
+								},
+								{
+									CommandIndex: 1,
+									Param:        "counter",
+									CommandName:  fmt.Sprintf("%s.%s.use_result", packageID, moduleID),
+								},
+							},
+						},
+					},
+				},
+			},
 			expectedError: false,
 			expectedCmd:   2,
 		},
 		{
-			name:          "Test missing module",
-			moduleName:    "nonexistent",
-			functionName:  "simple_call",
-			args:          map[string]any{"counter": counterObjectID},
+			name:         "Test missing module",
+			moduleName:   "nonexistent",
+			functionName: "simple_call",
+			argMapping: chainwriter.PTBArgMapping{
+				Args: []chainwriter.PTBArg{
+					{
+						Type: chainwriter.ObjectArgType,
+						Content: chainwriter.PTBArgContent{
+							ID: counterObjectID,
+							MapTo: []chainwriter.PTBArgLocation{
+								{
+									CommandIndex: 0,
+									Param:        "counter",
+									CommandName:  fmt.Sprintf("%s.%s.%s", packageID, moduleID, functionName),
+								},
+							},
+						},
+					},
+				},
+			},
 			expectedError: true,
 			expectedCmd:   0,
 		},
 		{
-			name:          "Test missing function",
-			moduleName:    "test",
-			functionName:  "nonexistent",
-			args:          map[string]any{"counter": counterObjectID},
+			name:         "Test missing function",
+			moduleName:   "test",
+			functionName: "nonexistent",
+			argMapping: chainwriter.PTBArgMapping{
+				Args: []chainwriter.PTBArg{
+					{
+						Type: chainwriter.ObjectArgType,
+						Content: chainwriter.PTBArgContent{
+							ID: counterObjectID,
+							MapTo: []chainwriter.PTBArgLocation{
+								{
+									CommandIndex: 0,
+									Param:        "counter",
+									CommandName:  fmt.Sprintf("%s.%s.%s", packageID, moduleID, functionName),
+								},
+							},
+						},
+					},
+				},
+			},
 			expectedError: true,
 			expectedCmd:   0,
 		},
@@ -252,16 +322,40 @@ func TestPTBConstructor_BuildPTBCommands(t *testing.T) {
 			name:          "Test missing required argument",
 			moduleName:    "test",
 			functionName:  "simple_call",
-			args:          map[string]any{},
+			argMapping:    chainwriter.PTBArgMapping{},
 			expectedError: true,
 			expectedCmd:   0,
+		},
+		{
+			name:         "Test scalar argument",
+			moduleName:   "test",
+			functionName: "simple_call",
+			argMapping: chainwriter.PTBArgMapping{
+				Args: []chainwriter.PTBArg{
+					{
+						Type: chainwriter.ScalarArgType,
+						Content: chainwriter.PTBArgContent{
+							Value: uint64(42),
+							MapTo: []chainwriter.PTBArgLocation{
+								{
+									CommandIndex: 0,
+									Param:        "value",
+									CommandName:  fmt.Sprintf("%s.%s.%s", packageID, moduleID, functionName),
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: false,
+			expectedCmd:   1,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ptb, err := constructor.BuildPTBCommands(ctx, tc.moduleName, tc.functionName, tc.args)
+			ptb, err := constructor.BuildPTBCommands(ctx, tc.moduleName, tc.functionName, tc.argMapping)
 
 			if tc.expectedError {
 				require.Error(t, err)
@@ -269,11 +363,6 @@ func TestPTBConstructor_BuildPTBCommands(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, ptb)
-
-				// We can't directly inspect the commands inside the PTB
-				// so we're relying on the fact that building was successful
-				// Additional verification could be done by mocking the builder
-				// and intercepting the commands
 			}
 		})
 	}
@@ -539,7 +628,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 								},
 								Order: 2,
 							},
-							// we attempt incrementing again
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -658,13 +746,28 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("Single Operation PTB", func(t *testing.T) {
 		// Build the complex PTB operation with multiple commands
-		args := map[string]any{"counter_id": counterObjectId}
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args)
+		argMapping := chainwriter.PTBArgMapping{
+			Args: []chainwriter.PTBArg{
+				{
+					Type: chainwriter.ObjectArgType,
+					Content: chainwriter.PTBArgContent{
+						ID: counterObjectId,
+						MapTo: []chainwriter.PTBArgLocation{
+							{
+								CommandIndex: 0,
+								Param:        "counter_id",
+								CommandName:  fmt.Sprintf("%s.counter.get_count", packageId),
+							},
+						},
+					},
+				},
+			},
+		}
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", argMapping)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		// TODO: replace with real PTB execution
 		txHash, err := fakeExecutePTB(ctx, ptb)
 		require.NoError(t, err)
 		require.NotEmpty(t, txHash)
@@ -672,24 +775,56 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Missing Module Error", func(t *testing.T) {
-		args := map[string]any{"counter_id": counterObjectId}
-		ptb, err := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args)
+		argMapping := chainwriter.PTBArgMapping{
+			Args: []chainwriter.PTBArg{
+				{
+					Type: chainwriter.ObjectArgType,
+					Content: chainwriter.PTBArgContent{
+						ID: counterObjectId,
+						MapTo: []chainwriter.PTBArgLocation{
+							{
+								CommandIndex: 0,
+								Param:        "counter_id",
+								CommandName:  fmt.Sprintf("%s.counter.get_count", packageId),
+							},
+						},
+					},
+				},
+			},
+		}
+		ptb, err := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", argMapping)
 		require.Error(t, err)
 		require.Nil(t, ptb)
 	})
 
 	//nolint:paralleltest
 	t.Run("Missing Function Error", func(t *testing.T) {
-		args := map[string]any{"counter_id": counterObjectId}
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args)
+		argMapping := chainwriter.PTBArgMapping{
+			Args: []chainwriter.PTBArg{
+				{
+					Type: chainwriter.ObjectArgType,
+					Content: chainwriter.PTBArgContent{
+						ID: counterObjectId,
+						MapTo: []chainwriter.PTBArgLocation{
+							{
+								CommandIndex: 0,
+								Param:        "counter_id",
+								CommandName:  fmt.Sprintf("%s.counter.get_count", packageId),
+							},
+						},
+					},
+				},
+			},
+		}
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", argMapping)
 		require.Error(t, err)
 		require.Nil(t, ptb)
 	})
 
 	//nolint:paralleltest
 	t.Run("Missing Required Argument", func(t *testing.T) {
-		args := map[string]any{} // Missing counter_id
-		ptb, err := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args)
+		argMapping := chainwriter.PTBArgMapping{}
+		ptb, err := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", argMapping)
 		require.Error(t, err)
 		require.Nil(t, ptb)
 	})
@@ -697,8 +832,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("CounterManager Borrow Pattern", func(t *testing.T) {
 		// Start by creating a Counter and its counter manager
-		args := map[string]any{}
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args)
+		argMapping := chainwriter.PTBArgMapping{}
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", argMapping)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 		// Execute the PTB command
@@ -716,10 +851,30 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 				managerObjectId = change.Data.Created.ObjectId.String()
 			}
 		}
-		args = map[string]any{
-			"manager_object": managerObjectId,
+
+		argMapping = chainwriter.PTBArgMapping{
+			Args: []chainwriter.PTBArg{
+				{
+					Type: chainwriter.ObjectArgType,
+					Content: chainwriter.PTBArgContent{
+						ID: managerObjectId,
+						MapTo: []chainwriter.PTBArgLocation{
+							{
+								CommandIndex: 0,
+								Param:        "manager_object",
+								CommandName:  fmt.Sprintf("%s.counter_manager.borrow_counter", packageId),
+							},
+							{
+								CommandIndex: 3,
+								Param:        "manager_object",
+								CommandName:  fmt.Sprintf("%s.counter_manager.return_counter", packageId),
+							},
+						},
+					},
+				},
+			},
 		}
-		ptb, err = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args)
+		ptb, err = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", argMapping)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 		// Execute the PTB command
@@ -742,8 +897,34 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("Complex Operation with Multiple Commands", func(t *testing.T) {
 		// Build the complex PTB operation with multiple commands
-		args := map[string]any{"counter_id": counterObjectId}
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args)
+		argMapping := chainwriter.PTBArgMapping{
+			Args: []chainwriter.PTBArg{
+				{
+					Type: chainwriter.ObjectArgType,
+					Content: chainwriter.PTBArgContent{
+						ID: counterObjectId,
+						MapTo: []chainwriter.PTBArgLocation{
+							{
+								CommandIndex: 0,
+								Param:        "counter_id",
+								CommandName:  fmt.Sprintf("%s.counter.increment", packageId),
+							},
+							{
+								CommandIndex: 1,
+								Param:        "counter_id",
+								CommandName:  fmt.Sprintf("%s.counter.increment_by", packageId),
+							},
+							{
+								CommandIndex: 2,
+								Param:        "counter_id",
+								CommandName:  fmt.Sprintf("%s.counter.get_count", packageId),
+							},
+						},
+					},
+				},
+			},
+		}
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", argMapping)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -120,6 +121,36 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	defer chainWriter.Close()
 	require.NoError(t, err)
 
+	ptbArgs := chainwriter.PTBArgMapping{
+		Args: []chainwriter.PTBArg{
+			{
+				Type: chainwriter.ObjectArgType,
+				Content: chainwriter.PTBArgContent{
+					ID: objectID,
+					MapTo: []chainwriter.PTBArgLocation{
+						{
+							CommandIndex: 0,
+							Param:        "counter",
+							CommandName:  fmt.Sprintf("%s.counter.increment", packageId),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	missingPTBArg := chainwriter.PTBArgMapping{
+		Args: []chainwriter.PTBArg{
+			{
+				Type: chainwriter.ObjectArgType,
+				Content: chainwriter.PTBArgContent{
+					ID:    objectID,
+					MapTo: []chainwriter.PTBArgLocation{},
+				},
+			},
+		},
+	}
+
 	// Test scenarios
 	testScenarios := []struct {
 		name           string
@@ -128,7 +159,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		sender         string
 		contractName   string
 		functionName   string
-		args           map[string]any
+		args           any
 		expectError    error
 		expectedResult string
 		status         commonTypes.TransactionStatus
@@ -154,10 +185,23 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   chainwriter.PTBChainWriterModuleName,
 			functionName:   "ptb_call",
-			args:           map[string]any{"counter": objectID},
+			args:           ptbArgs,
 			expectError:    nil,
 			expectedResult: "2",
 			status:         commonTypes.Finalized,
+			numberAttemps:  1,
+		},
+		{
+			name:           "Test ChainWriter with missing argument for PTB",
+			txID:           "test-ptb-txID-missing-arg",
+			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:         testState.AccountAddress,
+			contractName:   chainwriter.PTBChainWriterModuleName,
+			functionName:   "ptb_call",
+			args:           missingPTBArg,
+			expectError:    errors.New("missing required argument: counter for command increment"),
+			expectedResult: "",
+			status:         commonTypes.Failed,
 			numberAttemps:  1,
 		},
 		{
@@ -187,7 +231,6 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			numberAttemps:  1,
 		},
 		{
-
 			name:         "Test ChainWriter with invalid arguments",
 			txID:         "wrong-args-txID",
 			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
@@ -206,8 +249,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			numberAttemps:  1,
 		},
 		{
-
-			name:         "Test ChainWriter with the same trasaction ID",
+			name:         "Test ChainWriter with the same transaction ID",
 			txID:         "test-txID",
 			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:       testState.AccountAddress,

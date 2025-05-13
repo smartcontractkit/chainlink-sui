@@ -5,6 +5,7 @@ package txm_test
 import (
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -285,40 +286,90 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 
 	ptbConstructor := chainwriter.NewPTBConstructor(chainWriterConfig, testState.SuiGateway, _logger)
 
+	ptbArgs := chainwriter.PTBArgMapping{
+		Args: []chainwriter.PTBArg{
+			{
+				Type: chainwriter.ObjectArgType,
+				Content: chainwriter.PTBArgContent{
+					ID: objectId,
+					MapTo: []chainwriter.PTBArgLocation{
+						{
+							CommandIndex: 0,
+							Param:        "counter",
+							CommandName:  fmt.Sprintf("%s.counter.increment", packageId),
+						},
+					},
+				},
+			},
+		},
+	}
+
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
 		name            string
 		txID            string
-		signerPublicKey []byte
 		txMeta          *commontypes.TxMeta
 		sender          string
-		function        string
-		typeArgs        []string
-		args            map[string]any
-		expectErr       bool
-		expectedValue   string
-		finalState      commontypes.TransactionStatus
-		storeFinalState txm.TransactionState
+		signerPublicKey []byte
+		contractName    string
+		functionName    string
+		args            any
+		expectError     error
+		expectedResult  string
+		status          commontypes.TransactionStatus
 		numberAttemps   int
-		drainAccount    bool
 	}{
 		{
-			name:            "Valid PTB enqueue test",
-			txID:            "integration-test-txID-1",
-			signerPublicKey: publicKey,
+			name:            "Test ChainWriter with valid parameters",
+			txID:            "test-txID",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:          testState.AccountAddress,
-			function:        "ptb_call",
-			typeArgs:        []string{},
-			args: map[string]any{
-				"counter": objectId,
-			},
-			expectErr:       false,
-			expectedValue:   "1",
-			finalState:      commontypes.Finalized,
-			storeFinalState: txm.StateFinalized,
+			signerPublicKey: pubKeyBytes,
+			contractName:    chainwriter.PTBChainWriterModuleName,
+			functionName:    "ptb_call",
+			args:            ptbArgs,
+			expectError:     nil,
+			expectedResult:  "1",
+			status:          commontypes.Finalized,
 			numberAttemps:   1,
-			drainAccount:    false,
+		},
+		{
+			name:            "Test ChainWriter with PTB",
+			txID:            "test-ptb-txID",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:          testState.AccountAddress,
+			signerPublicKey: pubKeyBytes,
+			contractName:    chainwriter.PTBChainWriterModuleName,
+			functionName:    "ptb_call",
+			args:            ptbArgs,
+			expectError:     nil,
+			expectedResult:  "2",
+			status:          commontypes.Finalized,
+			numberAttemps:   1,
+		},
+		{
+			name:            "Test ChainWriter with missing argument for PTB",
+			txID:            "test-ptb-txID-missing-arg",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:          testState.AccountAddress,
+			signerPublicKey: pubKeyBytes,
+			contractName:    chainwriter.PTBChainWriterModuleName,
+			functionName:    "ptb_call",
+			args: chainwriter.PTBArgMapping{
+				Args: []chainwriter.PTBArg{
+					{
+						Type: chainwriter.ObjectArgType,
+						Content: chainwriter.PTBArgContent{
+							ID:    objectId,
+							MapTo: []chainwriter.PTBArgLocation{},
+						},
+					},
+				},
+			},
+			expectError:    errors.New("required parameter counter has no value"),
+			expectedResult: "",
+			status:         commontypes.Failed,
+			numberAttemps:  1,
 		},
 	}
 
@@ -330,20 +381,33 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 	//nolint:paralleltest
 	for _, tc := range testScenarios {
 		t.Run(tc.name, func(t *testing.T) {
-			builder, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.function, tc.args)
-			require.NoError(t, err, "Failed to build PTB commands")
-			ptb := builder.Finish()
-			tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.signerPublicKey, &ptb, false)
-			require.NoError(t, err, "Failed to enqueue PTB")
+			// If tc.args is already a PTBArgMapping, use it directly; otherwise parse it
+			var ptbArgs chainwriter.PTBArgMapping
+			var ok bool
+			if ptbArgs, ok = tc.args.(chainwriter.PTBArgMapping); !ok {
+				var err error
+				ptbArgs, err = ptbConstructor.ParseArgsToPTBArgMapping(tc.args)
+				require.NoError(t, err, "Failed to parse PTB arguments")
+			}
 
-			require.Eventually(t, func() bool {
-				status, statusErr := txManager.GetTransactionStatus(ctx, (*tx).TransactionID)
-				if statusErr != nil {
-					return false
-				}
+			builder, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, ptbArgs)
+			if tc.expectError != nil {
+				require.Error(t, err, "Expected an error but BuildPTBCommands succeeded")
+			} else {
+				require.NoError(t, err, "Failed to build PTB commands")
+				ptb := builder.Finish()
+				tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.signerPublicKey, &ptb, false)
+				require.NoError(t, err, "Failed to enqueue PTB")
 
-				return status == tc.finalState
-			}, 10*time.Second, 1*time.Second, "Transaction final state not reached")
+				require.Eventually(t, func() bool {
+					status, statusErr := txManager.GetTransactionStatus(ctx, (*tx).TransactionID)
+					if statusErr != nil {
+						return false
+					}
+
+					return status == tc.status
+				}, 10*time.Second, 1*time.Second, "Transaction final state not reached")
+			}
 		})
 	}
 	txManager.Close()
