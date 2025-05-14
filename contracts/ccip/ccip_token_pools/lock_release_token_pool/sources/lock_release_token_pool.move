@@ -65,7 +65,6 @@ public fun initialize<T: drop>(
         treasury_cap,
         coin_metadata_address,
         object::uid_to_address(&lock_release_token_pool.id),
-        b"lock_release_token_pool",
         TypeProof {},
         ctx,
     );
@@ -191,7 +190,6 @@ public fun apply_allowlist_updates(
 // |                         Burn/Mint                            |
 // ================================================================
 
-// the callback proof type used as authentication to retrieve and set input and output arguments.
 public struct TypeProof has drop {}
 
 public fun lock_or_burn<T>(

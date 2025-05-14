@@ -113,7 +113,7 @@ public fun test_apply_token_transfer_fee_config_updates() {
         vector[900, 1000],
         vector[true, false],
         vector[],
-        ctx
+        ctx,
     );
 
     // a successful get means the config is created.
@@ -145,7 +145,7 @@ public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
         vector[900, 1000],
         vector[true, false],
         vector[],
-        ctx
+        ctx,
     );
 
     tear_down_test(scenario, owner_cap, ref);
@@ -170,7 +170,7 @@ public fun test_apply_token_transfer_fee_config_updates_remove_token() {
         vector[900, 1000],
         vector[true, false],
         vector[],
-        ctx
+        ctx,
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -185,7 +185,7 @@ public fun test_apply_token_transfer_fee_config_updates_remove_token() {
         vector[], // deci_bps
         vector[], // is_enabled
         vector[MOCK_ADDRESS_1], // remove MOCK_ADDRESS_1
-        ctx
+        ctx,
     );
 
     fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
@@ -320,7 +320,7 @@ public fun test_process_message_args_evm() {
         vector[900, 1000], // dest_bytes_overhead
         vector[true, false], // is_enabled
         vector[], // dest_chain_selectors
-        ctx
+        ctx,
     );
 
     let evm_extra_args = x"181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf10181dcf100000000000000000000000000000000000000000000000000000000000000001";
@@ -398,7 +398,7 @@ public fun test_process_message_args_svm() {
         vector[900, 1000], // dest_bytes_overhead
         vector[true, false], // is_enabled
         vector[], // dest_chain_selectors
-        ctx
+        ctx,
     );
 
     let svm_extra_args = x"1f3b3aba00000000000000000000000000000000000000000000000000000000000dcf00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000abc00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000111";
@@ -489,7 +489,7 @@ public fun test_get_validated_fee() {
         vector[900, 1000], // add_dest_bytes_overhead
         vector[true, false], // add_is_enabled
         vector[], // remove_tokens
-        ctx
+        ctx,
     );
 
     fee_quoter::apply_premium_multiplier_wei_per_eth_updates(
