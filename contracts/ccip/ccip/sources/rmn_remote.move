@@ -256,9 +256,8 @@ public fun set_config(
     signer_onchain_public_keys: vector<vector<u8>>,
     node_indexes: vector<u64>,
     f_sign: u64,
-    ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut_with_ctx<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
     assert!(
         rmn_home_contract_config_digest.length() == 32,
@@ -358,18 +357,16 @@ public fun curse(
     ref: &mut CCIPObjectRef,
     owner_cap: &OwnerCap,
     subject: vector<u8>,
-    ctx: &mut TxContext
 ) {
-    curse_multiple(ref, owner_cap, vector[subject], ctx);
+    curse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun curse_multiple(
     ref: &mut CCIPObjectRef,
     _: &OwnerCap,
     subjects: vector<vector<u8>>,
-    ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut_with_ctx<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
     vector::do_ref!(
         &subjects,
@@ -393,18 +390,16 @@ public fun uncurse(
     ref: &mut CCIPObjectRef,
     owner_cap: &OwnerCap,
     subject: vector<u8>,
-    ctx: &mut TxContext
 ) {
-    uncurse_multiple(ref, owner_cap, vector[subject], ctx);
+    uncurse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun uncurse_multiple(
     ref: &mut CCIPObjectRef,
     _: &OwnerCap,
     subjects: vector<vector<u8>>,
-    ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut_with_ctx<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
     vector::do_ref!(
         &subjects, |subject| {

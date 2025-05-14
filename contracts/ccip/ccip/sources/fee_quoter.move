@@ -220,9 +220,8 @@ public fun apply_fee_token_updates(
     _: &OwnerCap,
     fee_tokens_to_remove: vector<address>,
     fee_tokens_to_add: vector<address>,
-    ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
     // Remove tokens
     vector::do_ref!(
@@ -231,7 +230,6 @@ public fun apply_fee_token_updates(
             let fee_token = *fee_token;
             let (found, index) = vector::index_of(&state.fee_tokens, &fee_token);
             if (found) {
-                // vector::remove(&mut state.fee_tokens, index);
                 state.fee_tokens.remove(index);
                 event::emit(FeeTokenRemoved { fee_token });
             };
@@ -267,7 +265,7 @@ public fun apply_token_transfer_fee_config_updates(
     remove_tokens: vector<address>,
     ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
     if (!table::contains(
         &state.token_transfer_fee_configs, dest_chain_selector
@@ -347,9 +345,7 @@ public fun apply_token_transfer_fee_config_updates(
         &remove_tokens,
         |token| {
             let token = *token;
-            // if (table::contains(token_transfer_fee_configs, token)) {
             if (token_transfer_fee_configs.contains(token)) {
-                // table::remove(token_transfer_fee_configs, token);
                 token_transfer_fee_configs.remove(token);
 
                 event::emit(
@@ -383,9 +379,8 @@ public fun apply_dest_chain_config_updates(
     gas_multiplier_wei_per_eth: u64,
     gas_price_staleness_threshold: u32,
     network_fee_usd_cents: u32,
-    ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
     assert!(
         dest_chain_selector != 0,
@@ -446,9 +441,8 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
     _: &OwnerCap,
     tokens: vector<address>,
     premium_multiplier_wei_per_eth: vector<u64>,
-    ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
     vector::zip_do_ref!(
         &tokens,
@@ -457,12 +451,9 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
             let token: address = *token;
             let premium_multiplier_wei_per_eth: u64 = *premium_multiplier_wei_per_eth;
 
-            // if (table::contains(&state.premium_multiplier_wei_per_eth, token)) {
             if (state.premium_multiplier_wei_per_eth.contains(token)) {
-                // let _old_value = table::remove(&mut state.premium_multiplier_wei_per_eth, token);
                 state.premium_multiplier_wei_per_eth.remove(token);
             };
-            // table::add(&mut state.premium_multiplier_wei_per_eth, token, premium_multiplier_wei_per_eth);
             state.premium_multiplier_wei_per_eth.add(token, premium_multiplier_wei_per_eth);
 
             event::emit(
@@ -622,7 +613,6 @@ public fun update_prices(
     source_usd_per_token: vector<u256>,
     gas_dest_chain_selectors: vector<u64>,
     gas_usd_per_unit_gas: vector<u256>,
-    ctx: &TxContext
 ) {
     assert!(
         source_tokens.length() == source_usd_per_token.length(),
@@ -633,7 +623,7 @@ public fun update_prices(
         E_GAS_UPDATE_MISMATCH
     );
 
-    let state = state_object::borrow_mut_with_ctx<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME, ctx);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
     let timestamp = clock.timestamp_ms() / 1000;
 
     vector::zip_do_ref!(
@@ -649,10 +639,6 @@ public fun update_prices(
                 let _old_value = state.usd_per_token.remove(*token);
             };
             state.usd_per_token.add(*token, timestamped_price);
-            // if (table::contains(&state.usd_per_token, *token)) {
-            //     let _old_value = table::remove(&mut state.usd_per_token, *token);
-            // };
-            // table::add(&mut state.usd_per_token, *token, timestamped_price);
 
             event::emit(
                 UsdPerTokenUpdated {
@@ -677,10 +663,6 @@ public fun update_prices(
                 let _old_value = state.usd_per_unit_gas_by_dest_chain.remove(*dest_chain_selector);
             };
             state.usd_per_unit_gas_by_dest_chain.add(*dest_chain_selector, timestamped_price);
-            // if (table::contains(&state.usd_per_unit_gas_by_dest_chain, *dest_chain_selector)) {
-            //     let _old_value = table::remove(&mut state.usd_per_unit_gas_by_dest_chain, *dest_chain_selector);
-            // };
-            // table::add(&mut state.usd_per_unit_gas_by_dest_chain, *dest_chain_selector, timestamped_price);
 
             event::emit(
                 UsdPerUnitGasUpdated {

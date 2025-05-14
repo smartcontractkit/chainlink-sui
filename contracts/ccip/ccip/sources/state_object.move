@@ -70,7 +70,6 @@ public(package) fun add<T: key + store>(
     obj: T,
     ctx: &TxContext,
 ) {
-    // TODO: or remove an existing object with this name?
     assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
     assert!(!dof::exists_(&ref.id, name), E_MODULE_ALREADY_EXISTS);
     dof::add(&mut ref.id, name, obj);
@@ -94,13 +93,10 @@ public(package) fun borrow<T: key + store>(ref: &CCIPObjectRef, name: vector<u8>
     dof::borrow(&ref.id, name)
 }
 
-public(package) fun borrow_mut_with_ctx<T: key + store>(
+public(package) fun borrow_mut<T: key + store>(
     ref: &mut CCIPObjectRef,
     name: vector<u8>,
-    ctx: &TxContext,
 ): &mut T {
-    assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
-
     dof::borrow_mut(&mut ref.id, name)
 }
 

@@ -62,10 +62,9 @@ public fun get_incremented_outbound_nonce(
     sender: address,
     ctx: &mut TxContext,
 ): u64 {
-    let state = state_object::borrow_mut_with_ctx<NonceManagerState>(
+    let state = state_object::borrow_mut<NonceManagerState>(
         ref,
         NONCE_MANAGER_STATE_NAME,
-        ctx,
     );
 
     if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {

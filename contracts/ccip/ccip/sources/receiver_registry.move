@@ -61,7 +61,7 @@ public fun register_receiver<ProofType: drop>(
     ctx: &mut TxContext
 ) {
     let receiver_address = ctx.sender();
-    let registry = state_object::borrow_mut_with_ctx<ReceiverRegistry>(ref, RECEIVER_REGISTRY, ctx);
+    let registry = state_object::borrow_mut<ReceiverRegistry>(ref, RECEIVER_REGISTRY);
     assert!(!registry.receiver_configs.contains(&receiver_address), E_ALREADY_REGISTERED);
 
     let ccip_receive_function =

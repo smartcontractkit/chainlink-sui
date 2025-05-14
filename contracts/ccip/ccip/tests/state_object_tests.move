@@ -78,7 +78,7 @@ public fun test_borrow_mut() {
     state_object::add(&mut ref, b"test", obj, ctx);
     assert!(state_object::contains(&ref, b"test"));
 
-    let _obj2: &mut TestObject = state_object::borrow_mut_with_ctx(&mut ref, b"test", ctx);
+    let _obj2: &mut TestObject = state_object::borrow_mut(&mut ref, b"test");
     assert!(state_object::contains(&ref, b"test"));
 
     tear_down_test(scenario, owner_cap, ref);

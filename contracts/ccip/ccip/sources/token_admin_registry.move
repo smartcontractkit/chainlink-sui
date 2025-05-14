@@ -199,7 +199,7 @@ module ccip::token_admin_registry {
         _proof: ProofType, // use this proof type to validate the token pool address & token pool module name
         ctx: &TxContext
     ) {
-        let state = state_object::borrow_mut_with_ctx<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, ctx);
+        let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
 
         let proof_tn = type_name::get<ProofType>();
         let pool_bytes = proof_tn.get_address().into_bytes();
@@ -232,7 +232,7 @@ module ccip::token_admin_registry {
         _proof: ProofType,
         ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut_with_ctx<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, ctx);
+        let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
 
         // let token_pool_address = object::id_to_address(&object::id(reg));
         // let coin_tn = type_name::get<T>();
@@ -274,7 +274,7 @@ module ccip::token_admin_registry {
         new_admin: address,
         ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut_with_ctx<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, ctx);
+        let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
 
         assert!(
             state.token_configs.contains(coin_metadata_address),
@@ -305,7 +305,7 @@ module ccip::token_admin_registry {
         coin_metadata_address: address,
         ctx: &mut TxContext
     ) {
-        let state = state_object::borrow_mut_with_ctx<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, ctx);
+        let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
 
         assert!(
             state.token_configs.contains(coin_metadata_address),

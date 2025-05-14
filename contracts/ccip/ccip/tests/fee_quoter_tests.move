@@ -50,12 +50,7 @@ fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, ref: CCIPObjectRef) 
 
 #[test]
 public fun test_initialize() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -73,12 +68,7 @@ public fun test_initialize() {
 
 #[test]
 public fun test_apply_fee_token_updates() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -93,7 +83,6 @@ public fun test_apply_fee_token_updates() {
             MOCK_ADDRESS_4,
             MOCK_ADDRESS_5
         ],
-        ctx
     );
 
     let fee_tokens = fee_quoter::get_fee_tokens(&ref);
@@ -108,12 +97,7 @@ public fun test_apply_fee_token_updates() {
 
 #[test]
 public fun test_apply_token_transfer_fee_config_updates() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -145,12 +129,7 @@ public fun test_apply_token_transfer_fee_config_updates() {
 #[test]
 #[expected_failure(abort_code = fee_quoter::E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH)]
 public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -175,12 +154,7 @@ public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
 #[test]
 #[expected_failure(abort_code = fee_quoter::E_TOKEN_NOT_SUPPORTED)]
 public fun test_apply_token_transfer_fee_config_updates_remove_token() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -221,12 +195,7 @@ public fun test_apply_token_transfer_fee_config_updates_remove_token() {
 
 #[test]
 public fun test_apply_premium_multiplier_wei_per_eth_updates() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -235,7 +204,6 @@ public fun test_apply_premium_multiplier_wei_per_eth_updates() {
         &owner_cap,
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
         vector[1000, 2000], // premium_multiplier_wei_per_eth
-        ctx
     );
 
     assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_1) == 1000);
@@ -246,12 +214,7 @@ public fun test_apply_premium_multiplier_wei_per_eth_updates() {
 
 #[test]
 public fun test_update_prices() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
     let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
@@ -266,7 +229,6 @@ public fun test_update_prices() {
         vector[1000, 2000], // source_usd_per_token
         vector[100, 1000], // gas_dest_chain_selectors
         vector[3000, 4000], // gas_usd_per_unit_gas
-        ctx
     );
 
     // prices are successfully updated if we can find the config for the dest chain selector / token address
@@ -280,12 +242,7 @@ public fun test_update_prices() {
 
 #[test]
 public fun test_apply_dest_chain_config_updates() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -312,7 +269,6 @@ public fun test_apply_dest_chain_config_updates() {
         4000000, // gas_multiplier_wei_per_eth
         5000000, // gas_price_staleness_threshold
         6000000, // network_fee_usd_cents
-        ctx
     );
 
     let _config = fee_quoter::get_dest_chain_config(&ref, 100);
@@ -323,12 +279,7 @@ public fun test_apply_dest_chain_config_updates() {
 #[allow(implicit_const_copy)]
 #[test]
 public fun test_process_message_args_evm() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -355,7 +306,6 @@ public fun test_process_message_args_evm() {
         4000000, // gas_multiplier_wei_per_eth
         5000000, // gas_price_staleness_threshold
         6000000, // network_fee_usd_cents
-        ctx
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -407,12 +357,7 @@ public fun test_process_message_args_evm() {
 #[allow(implicit_const_copy)]
 #[test]
 public fun test_process_message_args_svm() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -439,7 +384,6 @@ public fun test_process_message_args_svm() {
         4000000, // gas_multiplier_wei_per_eth
         5000000, // gas_price_staleness_threshold
         6000000, // network_fee_usd_cents
-        ctx
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -490,12 +434,7 @@ public fun test_process_message_args_svm() {
 
 #[test]
 public fun test_get_validated_fee() {
-    let
-    ( mut
-    scenario,
-    owner_cap, mut
-    ref) =
-    set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
@@ -511,7 +450,6 @@ public fun test_get_validated_fee() {
         vector[1000, 2000], // source_usd_per_token
         vector[100, 1000], // gas_dest_chain_selectors
         vector[3000, 4000], // gas_usd_per_unit_gas
-        ctx
     );
 
     fee_quoter::apply_dest_chain_config_updates(
@@ -537,7 +475,6 @@ public fun test_get_validated_fee() {
         40, // gas_multiplier_wei_per_eth
         50000, // gas_price_staleness_threshold
         600, // network_fee_usd_cents
-        ctx
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -560,7 +497,6 @@ public fun test_get_validated_fee() {
         &owner_cap,
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
         vector[10000, 200000], // premium_multiplier_wei_per_eth
-        ctx
     );
 
     let evm_extra_args = x"181dcf1000000000000000000000000000000000000000000000000000000000001dcf100000000000000000000000000000000000000000000000000000000000000001";
