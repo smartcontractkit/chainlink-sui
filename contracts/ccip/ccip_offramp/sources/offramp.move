@@ -11,7 +11,7 @@ module ccip_offramp::offramp {
     use sui::vec_map::{Self, VecMap};
 
     use ccip::client;
-    use ccip::dynamic_dispatcher as dd;
+    use ccip::offramp_state_helper as osh;
     use ccip::eth_abi;
     use ccip::fee_quoter::{Self, FeeQuoterCap};
     use ccip::merkle_proof;
@@ -378,7 +378,7 @@ module ccip_offramp::offramp {
         report_context: vector<vector<u8>>,
         report: vector<u8>,
         ctx: &mut TxContext
-    ): dd::ReceiverParams {
+    ): osh::ReceiverParams {
         let reports = deserialize_execution_report(report);
 
         ocr3_base::transmit(
@@ -394,14 +394,14 @@ module ccip_offramp::offramp {
         pre_execute_single_report(ref, state, clock, reports, false)
     }
 
-    public fun finish_execute(receiver_params: dd::ReceiverParams) {
-        let (params, message) = dd::deconstruct_receiver_params(receiver_params);
+    public fun finish_execute(receiver_params: osh::ReceiverParams) {
+        let (params, message) = osh::deconstruct_receiver_params(receiver_params);
 
         // make sure all token transfers are completed
         let mut i = 0;
         let number_of_tokens_in_msg = params.length();
         while (i < number_of_tokens_in_msg) {
-            assert!(dd::get_completed(params[i]), E_TOKEN_TRANSFER_FAILED);
+            assert!(osh::get_completed(params[i]), E_TOKEN_TRANSFER_FAILED);
             i = i + 1;
         };
 
@@ -418,7 +418,7 @@ module ccip_offramp::offramp {
         state: &mut OffRampState,
         clock: &clock::Clock,
         report_bytes: vector<u8>
-    ): dd::ReceiverParams {
+    ): osh::ReceiverParams {
         let reports = deserialize_execution_report(report_bytes);
 
         pre_execute_single_report(ref, state, clock, reports, true)
@@ -515,7 +515,7 @@ module ccip_offramp::offramp {
         clock: &clock::Clock,
         execution_report: ExecutionReport,
         manual_execution: bool
-    ): dd::ReceiverParams {
+    ): osh::ReceiverParams {
         let source_chain_selector = execution_report.source_chain_selector;
 
         if (rmn_remote::is_cursed_u128(ref, source_chain_selector as u128)) {
@@ -523,7 +523,7 @@ module ccip_offramp::offramp {
 
             event::emit(SkippedReportExecution { source_chain_selector });
 
-            return dd::create_receiver_params()
+            return osh::create_receiver_params()
         };
 
         assert_source_chain_enabled(state, source_chain_selector);
@@ -574,7 +574,7 @@ module ccip_offramp::offramp {
         if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
             event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
 
-            return dd::create_receiver_params()
+            return osh::create_receiver_params()
         };
 
         // A zero nonce indicates out of order execution which is the only allowed case.
@@ -587,7 +587,7 @@ module ccip_offramp::offramp {
         );
 
         let mut i = 0;
-        let mut receiver_params = dd::create_receiver_params();
+        let mut receiver_params = osh::create_receiver_params();
 
         let mut token_addresses = vector[];
         let mut token_amounts = vector[];
@@ -601,7 +601,7 @@ module ccip_offramp::offramp {
             );
             let amount = amount_op.extract();
 
-            dd::add_dest_token_transfer(
+            osh::add_dest_token_transfer(
                 &mut receiver_params,
                 message.receiver,
                 amount,
@@ -631,7 +631,7 @@ module ccip_offramp::offramp {
                     dest_token_amounts,
                 );
 
-            dd::populate_message(&mut receiver_params, any2sui_message);
+            osh::populate_message(&mut receiver_params, any2sui_message);
         };
 
         // the entire PTB either succeeds or fails so we can set the state to success
