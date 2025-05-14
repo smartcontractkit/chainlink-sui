@@ -6,21 +6,15 @@ module ccip::token_admin_registry {
     use sui::address;
     use sui::coin::TreasuryCap;
     use sui::event;
-    use sui::table::{Self, Table};
+    use sui::linked_table::{Self, LinkedTable};
 
     use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
     const TOKEN_ADMIN_REGISTRY_STATE_NAME: vector<u8> = b"TokenAdminRegistry";
 
-    public struct FunctionInfo has store, copy, drop {
-        module_address: address,
-        module_name: String,
-        function_name: String
-    }
-
     public struct TokenAdminRegistryState has key, store {
         id: UID,
-        token_configs: Table<address, TokenConfig>,
+        token_configs: LinkedTable<address, TokenConfig>,
     }
 
     public struct TokenConfig has store, drop, copy {
@@ -69,7 +63,7 @@ module ccip::token_admin_registry {
         );
         let state = TokenAdminRegistryState {
             id: object::new(ctx),
-            token_configs: table::new(ctx)
+            token_configs: linked_table::new(ctx),
         };
 
         state_object::add(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, state, ctx);
@@ -223,7 +217,7 @@ module ccip::token_admin_registry {
             pending_administrator: @0x0,
         };
 
-        state.token_configs.add(coin_metadata_address, token_config);
+        state.token_configs.push_back(coin_metadata_address, token_config);
     }
 
     public fun set_pool<ProofType: drop>(

@@ -891,7 +891,6 @@ module ccip_offramp::offramp {
                     source_usd_per_token,
                     gas_dest_chain_selectors,
                     gas_usd_per_unit_gas,
-                    ctx
                 );
             } else {
                 // If no non-stale valid price updates are present and the report contains no merkle roots,

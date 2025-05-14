@@ -8,6 +8,7 @@ use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 
 use ccip::dynamic_dispatcher as dd;
 use ccip::eth_abi;
+use ccip::offramp_state_helper as osh;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
 
@@ -65,7 +66,7 @@ public fun initialize<T: drop>(
         coin_metadata_address,
         object::uid_to_address(&lock_release_token_pool.id),
         b"lock_release_token_pool",
-        CallbackProof {},
+        TypeProof {},
         ctx,
     );
 
@@ -191,7 +192,7 @@ public fun apply_allowlist_updates(
 // ================================================================
 
 // the callback proof type used as authentication to retrieve and set input and output arguments.
-public struct CallbackProof has drop {}
+public struct TypeProof has drop {}
 
 public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
@@ -242,11 +243,11 @@ public fun release_or_mint<T>(
     clock: &Clock,
     pool: &mut LockReleaseTokenPoolState,
     remote_chain_selector: u64,
-    receiver_params: dd::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
     ctx: &mut TxContext
-): dd::ReceiverParams {
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = dd::get_token_param_data(&receiver_params, index);
+): osh::ReceiverParams {
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = osh::get_token_param_data(&receiver_params, index);
     let local_decimals = pool.token_pool_state.get_local_decimals();
     let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);
     let local_amount = token_pool::calculate_local_amount(source_amount as u256, remote_decimals, local_decimals);
@@ -276,7 +277,7 @@ public fun release_or_mint<T>(
         local_amount,
     );
 
-    dd::complete_token_transfer(receiver_params, index, local_amount, object::uid_to_address(&pool.id))
+    osh::complete_token_transfer(receiver_params, index, local_amount, object::uid_to_address(&pool.id))
 }
 
 // ================================================================

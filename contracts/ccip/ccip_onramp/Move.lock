@@ -2,11 +2,10 @@
 
 [move]
 version = 3
-manifest_digest = "A9E133566BF9CA813687B829F2545F49DBB98C250F0C3369F69012DE1B9005FD"
-deps_digest = "52B406A7A21811BEF51751CF88DA0E76DAEFFEAC888D4F4060B1A72BBE7D8D35"
+manifest_digest = "24E8DEBBCB91A4AC01535ECFE3E924472250C89F2BA0AF4EDDD5F19E0D9C9E24"
+deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
-  { id = "CCIPTokenPool", name = "CCIPTokenPool" },
   { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
@@ -18,18 +17,6 @@ id = "Bridge"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "fbb68879cbd1", subdir = "crates/sui-framework/packages/bridge" }
 
 dependencies = [
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-]
-
-[[move.package]]
-id = "CCIPTokenPool"
-source = { local = "../ccip_token_pools/token_pool" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
