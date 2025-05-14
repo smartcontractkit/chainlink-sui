@@ -14,6 +14,7 @@ const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
 const CHAIN_FAMILY_SELECTOR_APTOS: vector<u8> = x"ac77ffec";
+const CHAIN_FAMILY_SELECTOR_SUI: vector<u8> = x"c4e05953";
 const EVM_PRECOMPILE_SPACE: u256 = 1024;
 const SVM_EXTRA_ARGS_V1_TAG: vector<u8> = x"1f3b3aba";
 const GENERIC_EXTRA_ARGS_V2_TAG: vector<u8> = x"181dcf10";
@@ -398,7 +399,8 @@ public fun apply_dest_chain_config_updates(
     assert!(
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM
-            || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS,
+            || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
+            || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI,
         E_INVALID_CHAIN_FAMILY_SELECTOR
     );
 
@@ -581,6 +583,8 @@ fun get_validated_gas_price_internal(
     gas_price.value
 }
 
+// Token prices can be stale. On EVM we have additional fallbacks to a price feed, if configured.
+// Since these fallbacks don't exist on Sui, we simply return the price as is.
 fun get_token_price_internal(
     state: &FeeQuoterState, token: address
 ): TimestampedPrice {
@@ -725,7 +729,8 @@ public fun get_validated_fee(
         if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM) {
             validate_evm_address(receiver);
             resolve_generic_gas_limit(dest_chain_config, extra_args)
-        } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS) {
+        } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
+            || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
             validate_32byte_address(receiver, true);
             resolve_generic_gas_limit(dest_chain_config, extra_args)
         } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
@@ -738,7 +743,6 @@ public fun get_validated_fee(
             validate_32byte_address(receiver, must_be_non_zero);
             svm_gas_limit
         } else {
-            // TODO: consider adding SUI chain family selector later
             abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
         };
 
@@ -1157,7 +1161,8 @@ fun process_chain_family_selector(
 ): (vector<u8>, bool) {
     let chain_family_selector = dest_chain_config.chain_family_selector;
     if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
-        || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS) {
+        || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
+        || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
         let (gas_limit, allow_out_of_order_execution) =
             decode_generic_extra_args(extra_args);
         let extra_args_v2 =
@@ -1216,7 +1221,8 @@ fun process_pool_return_data(
             validate_evm_address(dest_token_address);
             // TODO: does it make sense to add SVM here since SVM is not going to be the dest chain?
         } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM
-            || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS) {
+            || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
+            || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
             validate_32byte_address(dest_token_address, /* must_be_non_zero= */ true);
         };
 
