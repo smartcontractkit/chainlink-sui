@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/block-vision/sui-go-sdk/utils"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -234,6 +236,31 @@ func TestPTBClient(t *testing.T) {
 		objectData, err := relayerClient.ReadObjectId(context.Background(), counterObjectId)
 		require.NoError(t, err)
 		require.NotNil(t, objectData)
+	})
+
+	//nolint:paralleltest
+	t.Run("ReadOwnedObjects", func(t *testing.T) {
+		// Read owned objects for account
+		objects, err := relayerClient.ReadOwnedObjects(
+			context.Background(),
+			accountAddress,
+			nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, objects)
+		utils.PrettyPrint(objects)
+	})
+
+	t.Run("ReadFilterOwnedObjectIds", func(t *testing.T) {
+		objects, err := relayerClient.ReadFilterOwnedObjectIds(
+			context.Background(),
+			accountAddress,
+			"0x2::clock::Clock",
+			nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, objects)
+		utils.PrettyPrint(objects)
 	})
 
 	//nolint:paralleltest

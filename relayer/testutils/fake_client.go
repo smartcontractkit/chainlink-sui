@@ -5,6 +5,8 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/pattonkan/sui-go/sui"
+
 	"github.com/pattonkan/sui-go/sui/suiptb"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -30,6 +32,14 @@ func (c *FakeSuiPTBClient) SendTransaction(ctx context.Context, payload client.T
 
 func (c *FakeSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (map[string]any, error) {
 	return map[string]any{}, nil
+}
+
+func (c *FakeSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]*sui.ObjectId, error) {
+	return []*sui.ObjectId{}, nil
+}
+
+func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, account string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error) {
+	return []suiclient.SuiObjectResponse{}, nil
 }
 
 func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {

@@ -21,11 +21,16 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
-const maxCoinsPageSize = 50
+const maxCoinsPageSize uint = 50
+
+// var since it's passed via pointer
+var maxOwnedObjectsSize uint = 50
 
 type SuiPTBClient interface {
 	MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error)
+	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error)
+	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]*sui.ObjectId, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
 	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
@@ -200,6 +205,108 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (map[stri
 	})
 
 	return result, err
+}
+
+func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]*sui.ObjectId, error) {
+	address, err := sui.AddressFromHex(ownerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid owner address: %w", err)
+	}
+
+	structTag, err := sui.StructTagFromString(structType)
+	if err != nil {
+		return nil, fmt.Errorf("invalid struct type: %w", err)
+	}
+
+	resultsLimit := maxOwnedObjectsSize
+	if limit != nil {
+		resultsLimit = min(resultsLimit, *limit)
+	}
+
+	var result *suiclient.ObjectsPage
+	err = c.WithRateLimit(ctx, func(ctx context.Context) error {
+		result, err = c.client.GetOwnedObjects(ctx, &suiclient.GetOwnedObjectsRequest{
+			Address: address,
+			Limit:   &resultsLimit,
+			Query: &suiclient.SuiObjectResponseQuery{
+				Filter: &suiclient.SuiObjectDataFilter{
+					StructType: structTag,
+				},
+			},
+		})
+
+		return err
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to build owned objects request: %w", err)
+	}
+
+	objectIds := []*sui.ObjectId{}
+	for _, objectResponse := range result.Data {
+		if objectResponse.Error != nil {
+			return nil, fmt.Errorf("received error in object response, tag: %s, content: %s",
+				objectResponse.Error.Data.Tag(), objectResponse.Error.Data.Content())
+		}
+		if objectResponse.Data == nil || objectResponse.Data.ObjectId == nil {
+			continue
+		}
+		objectIds = append(objectIds, objectResponse.Data.ObjectId)
+	}
+
+	return objectIds, nil
+}
+
+// TODO: add cursor, SDK call currently fails when using the cursor
+func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error) {
+	address, err := sui.AddressFromHex(ownerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid owner address: %w", err)
+	}
+
+	var results []suiclient.SuiObjectResponse
+
+	err = c.WithRateLimit(ctx, func(ctx context.Context) error {
+		for {
+			request := suiclient.GetOwnedObjectsRequest{
+				Address: address,
+				Limit:   &maxOwnedObjectsSize,
+				Query: &suiclient.SuiObjectResponseQuery{
+					Options: &suiclient.SuiObjectDataOptions{
+						ShowType:    true,
+						ShowContent: true,
+					},
+				},
+			}
+			// add the pagination cursor if provided
+			if cursor != nil {
+				request.Cursor = &suiclient.CheckpointedObjectId{
+					ObjectId: *cursor,
+				}
+			}
+			// fetch the batch and append it to results
+			batchResults, batchErr := c.client.GetOwnedObjects(ctx, &request)
+			if batchErr != nil {
+				return fmt.Errorf("failed to get owned objects: %w", err)
+			}
+			c.log.Debugw("Get owned objects batch", "response", batchResults)
+			results = append(results, batchResults.Data...)
+			// check if there are more to fetch
+			if !batchResults.HasNextPage {
+				break
+			}
+
+			cursor = batchResults.NextCursor
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
@@ -378,7 +485,6 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 
 func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]CoinData, error) {
 	var result []CoinData
-	pageLimit := uint(maxCoinsPageSize)
 
 	// NOTE: the context with the timeout (from the WithRateLimit callback) is being ignored
 	// because it is taking a significant amount of time in local testing (>30s) which is unusual.
@@ -393,7 +499,7 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]Co
 		for {
 			req := &suiclient.GetCoinsRequest{
 				Owner:  suiAddress,
-				Limit:  pageLimit,
+				Limit:  maxCoinsPageSize,
 				Cursor: cursor,
 			}
 

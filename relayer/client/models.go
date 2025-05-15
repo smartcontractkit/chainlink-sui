@@ -120,3 +120,8 @@ type SuiExecutionStatus struct {
 type QuerySortOptions struct {
 	Descending bool `json:"descending"`
 }
+
+type TransactionResult struct {
+	Status string `json:"status"`
+	Error  string `json:"error"`
+}
