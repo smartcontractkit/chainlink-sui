@@ -2,27 +2,8 @@
 name = "ChainlinkCCIPRouter"
 edition = "2024.beta"
 
-[dependencies]
-ChainlinkCCIP = { local = "../ccip" }
-ChainlinkCCIPOnramp = { local = "../ccip_onramp" }
-CCIPDynamicDispatcher = { local = "../dynamic_dispatcher" }
-
 [addresses]
-ccip = "_"
 ccip_router = "_"
-ccip_onramp = "_"
-ccip_token_pool = "_"
-mcms = "_"
-mcms_owner = "_"
-mcms_register_entrypoints = "_"
-dynamic_dispatcher = "_"
 
 [dev-addresses]
-ccip = "0x1000"
 ccip_router = "0x1001"
-ccip_onramp = "0x1002"
-ccip_token_pool = "0x2000"
-mcms = "0x4000"
-mcms_owner = "0x4010"
-mcms_register_entrypoints = "0x4001"
-dynamic_dispatcher = "0x7000"
