@@ -81,6 +81,14 @@ public fun get_on_ramp_infos(
     )
 }
 
+public fun get_on_ramp_version(info: OnRampInfo): vector<u8> {
+    info.onramp_version
+}
+
+public fun get_on_ramp_address(info: OnRampInfo): address {
+    info.onramp_address
+}
+
 /// Sets the onRamp info for the given destination chains.
 /// This function will overwrite the existing infos.
 /// This function can only be called by the owner of the contract.
@@ -121,7 +129,7 @@ public fun set_on_ramp_infos(
                     dest_chain_selector,
                     on_ramp_info: OnRampInfo{
                         onramp_address: @0x0,
-                        onramp_version: version,
+                        onramp_version: vector[],
                     }
                 }
             );
@@ -141,4 +149,11 @@ public fun set_on_ramp_infos(
         };
         i = i + 1;
     };
+}
+
+// ===================== TESTS =====================
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(ROUTER {}, ctx);
 }
