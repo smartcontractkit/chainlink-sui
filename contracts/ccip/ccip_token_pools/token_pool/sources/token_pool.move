@@ -65,17 +65,17 @@ public struct ChainAdded has copy, drop {
     remote_token_address: vector<u8>
 }
 
-const E_NOT_PUBLISHER: u64 = 1;
-const E_UNKNOWN_REMOTE_CHAIN_SELECTOR: u64 = 2;
-const E_ZERO_ADDRESS_NOT_ALLOWED: u64 = 3;
-const E_REMOTE_POOL_ALREADY_ADDED: u64 = 4;
-const E_UNKNOWN_REMOTE_POOL: u64 = 5;
-const E_REMOTE_CHAIN_TO_ADD_MISMATCH: u64 = 6;
-const E_REMOTE_CHAIN_ALREADY_EXISTS: u64 = 7;
-const E_INVALID_REMOTE_CHAIN_DECIMALS: u64 = 8;
-const E_INVALID_ENCODED_AMOUNT: u64 = 9;
-const E_UNKNOWN_FUNGIBLE_ASSET: u64 = 10;
-const E_DECIMAL_OVERFLOW: u64 = 11;
+const ENotPublisher: u64 = 1;
+const EUnknownRemoteChainSelector: u64 = 2;
+const EZeroAddressNotAllowed: u64 = 3;
+const ERemotePoolAlreadyAdded: u64 = 4;
+const EUnknownRemotePool: u64 = 5;
+const ERemoateChainToAddMismatch: u64 = 6;
+const ERemoteChainAlreadyExists: u64 = 7;
+const EInvalidRemoteChainDecimals: u64 = 8;
+const EInvalidEncodedAmount: u64 = 9;
+const EUnknownToken: u64 = 10;
+const EDecimalOverflow: u64 = 11;
 
 // ================================================================
 // |                    Initialize and state                      |
@@ -97,8 +97,9 @@ public fun initialize(
     }
 }
 
+// TODO: is this ccip_router?
 public fun get_router(): address {
-    @ccip
+    @ccip_router
 }
 
 public fun get_token(state: &TokenPoolState): address {
@@ -134,7 +135,7 @@ public fun apply_chain_updates(
         |remote_chain_selector| {
             assert!(
                 state.remote_chain_configs.contains(remote_chain_selector),
-                E_UNKNOWN_REMOTE_CHAIN_SELECTOR
+                EUnknownRemoteChainSelector
             );
             state.remote_chain_configs.remove(remote_chain_selector);
         }
@@ -143,11 +144,11 @@ public fun apply_chain_updates(
     let add_len = remote_chain_selectors_to_add.length();
     assert!(
         add_len == remote_pool_addresses_to_add.length(),
-        E_REMOTE_CHAIN_TO_ADD_MISMATCH
+        ERemoateChainToAddMismatch
     );
     assert!(
         add_len == remote_token_addresses_to_add.length(),
-        E_REMOTE_CHAIN_TO_ADD_MISMATCH
+        ERemoateChainToAddMismatch
     );
 
     let mut i = 0;
@@ -155,13 +156,13 @@ public fun apply_chain_updates(
         let remote_chain_selector = remote_chain_selectors_to_add[i];
         assert!(
             !state.remote_chain_configs.contains(&remote_chain_selector),
-            E_REMOTE_CHAIN_ALREADY_EXISTS
+            ERemoteChainAlreadyExists
         );
         let remote_pool_addresses = remote_pool_addresses_to_add[i];
         let remote_token_address = remote_token_addresses_to_add[i];
         assert!(
             !remote_token_address.is_empty(),
-            E_ZERO_ADDRESS_NOT_ALLOWED
+            EZeroAddressNotAllowed
         );
 
         let mut remote_chain_config = RemoteChainConfig {
@@ -174,7 +175,7 @@ public fun apply_chain_updates(
                 let remote_pool_address: vector<u8> = *remote_pool_address;
                 let (found, _) =
                     remote_chain_config.remote_pools.index_of(&remote_pool_address);
-                assert!(!found, E_REMOTE_POOL_ALREADY_ADDED);
+                assert!(!found, ERemotePoolAlreadyAdded);
 
                 remote_chain_config.remote_pools.push_back(remote_pool_address);
 
@@ -200,7 +201,7 @@ public fun get_remote_pools(
 ): vector<vector<u8>> {
     assert!(
         state.remote_chain_configs.contains(&remote_chain_selector),
-        E_UNKNOWN_REMOTE_CHAIN_SELECTOR
+        EUnknownRemoteChainSelector
     );
     let remote_chain_config =
         state.remote_chain_configs.get(&remote_chain_selector);
@@ -220,7 +221,7 @@ public fun get_remote_token(
 ): vector<u8> {
     assert!(
         state.remote_chain_configs.contains(&remote_chain_selector),
-        E_UNKNOWN_REMOTE_CHAIN_SELECTOR
+        EUnknownRemoteChainSelector
     );
     let remote_chain_config =
         state.remote_chain_configs.get(&remote_chain_selector);
@@ -234,18 +235,18 @@ public fun add_remote_pool(
 ) {
     assert!(
         !remote_pool_address.is_empty(),
-        E_ZERO_ADDRESS_NOT_ALLOWED
+        EZeroAddressNotAllowed
     );
 
     assert!(
         state.remote_chain_configs.contains(&remote_chain_selector),
-        E_UNKNOWN_REMOTE_CHAIN_SELECTOR
+        EUnknownRemoteChainSelector
     );
     let remote_chain_config =
         state.remote_chain_configs.get_mut(&remote_chain_selector);
 
     let (found, _) = remote_chain_config.remote_pools.index_of(&remote_pool_address);
-    assert!(!found, E_REMOTE_POOL_ALREADY_ADDED);
+    assert!(!found, ERemotePoolAlreadyAdded);
 
     remote_chain_config.remote_pools.push_back(remote_pool_address);
 
@@ -259,13 +260,13 @@ public fun remove_remote_pool(
 ) {
     assert!(
         state.remote_chain_configs.contains(&remote_chain_selector),
-        E_UNKNOWN_REMOTE_CHAIN_SELECTOR
+        EUnknownRemoteChainSelector
     );
     let remote_chain_config =
         state.remote_chain_configs.get_mut(&remote_chain_selector);
 
     let (found, i) = remote_chain_config.remote_pools.index_of(&remote_pool_address);
-    assert!(found, E_UNKNOWN_REMOTE_POOL);
+    assert!(found, EUnknownRemotePool);
 
     // remove instead of swap_remove for readability, so the newest added pool is always at the end.
     remote_chain_config.remote_pools.remove(i);
@@ -292,12 +293,12 @@ public fun validate_lock_or_burn(
     if (allowlist::get_allowlist_enabled(&state.allowlist_state)) {
         assert!(
             allowlist::is_allowed(&state.allowlist_state, sender),
-            E_NOT_PUBLISHER
+            ENotPublisher
         );
     };
 
     if (!is_supported_chain(state, remote_chain_selector)) {
-        abort E_UNKNOWN_REMOTE_CHAIN_SELECTOR
+        abort EUnknownRemoteChainSelector
     };
 
     token_pool_rate_limiter::consume_outbound(
@@ -320,7 +321,7 @@ public fun validate_release_or_mint(
 
     assert!(
         configured_token == dest_token_address,
-        E_UNKNOWN_FUNGIBLE_ASSET
+        EUnknownToken
     );
 
     // Check RMN curse status
@@ -329,7 +330,7 @@ public fun validate_release_or_mint(
     // This checks if the remote chain selector and the source pool are valid.
     assert!(
         is_remote_pool(state, remote_chain_selector, source_pool_address),
-        E_UNKNOWN_REMOTE_POOL
+        EUnknownRemotePool
     );
 
     token_pool_rate_limiter::consume_inbound(
@@ -386,12 +387,12 @@ public fun parse_remote_decimals(
         return local_decimals
     };
 
-    assert!(data_len == 32, E_INVALID_REMOTE_CHAIN_DECIMALS);
+    assert!(data_len == 32, EInvalidRemoteChainDecimals);
 
     let remote_decimals = eth_abi::decode_u256_value(source_pool_data);
     assert!(
         remote_decimals <= 255,
-        E_INVALID_REMOTE_CHAIN_DECIMALS
+        EInvalidRemoteChainDecimals
     );
 
     remote_decimals as u8
@@ -407,7 +408,7 @@ public fun calculate_local_amount(
     // check that the calculated amount fits in a u64
     assert!(
         local_amount <= 18446744073709551615,
-        E_INVALID_ENCODED_AMOUNT
+        EInvalidEncodedAmount
     );
     local_amount as u64
 }
@@ -431,7 +432,7 @@ fun calculate_local_amount_internal(
         // This is a safety check to prevent overflow in the next calculation.
         // More than 77 would never fit in a uint256 and would cause an overflow. We also check if the resulting amount
         // would overflow.
-        assert!(decimals_diff <= 77, E_DECIMAL_OVERFLOW);
+        assert!(decimals_diff <= 77, EDecimalOverflow);
 
         let mut multiplier: u256 = 1;
         let base: u256 = 10;
@@ -440,7 +441,7 @@ fun calculate_local_amount_internal(
             multiplier = multiplier * base;
             i = i + 1;
         };
-        assert!(remote_amount <= (MAX_U256 / multiplier), E_DECIMAL_OVERFLOW);
+        assert!(remote_amount <= (MAX_U256 / multiplier), EDecimalOverflow);
 
         return remote_amount * multiplier
     }
@@ -480,6 +481,12 @@ public fun set_chain_rate_limiter_config(
 
 public fun get_allowlist_enabled(state: &TokenPoolState): bool {
     allowlist::get_allowlist_enabled(&state.allowlist_state)
+}
+
+public fun set_allowlist_enabled(
+    state: &mut TokenPoolState, enabled: bool
+) {
+    allowlist::set_allowlist_enabled(&mut state.allowlist_state, enabled);
 }
 
 public fun get_allowlist(state: &TokenPoolState): vector<address> {
