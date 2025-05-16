@@ -35,13 +35,13 @@ public fun vector_u8_gt(a: &vector<u8>, b: &vector<u8>): bool {
 }
 
 public fun merkle_root_simple(leaf: vector<u8>, proofs: vector<vector<u8>>): vector<u8> {
-    vector::fold!(proofs, leaf, |acc, proof| hash_pair(acc, proof))
+    proofs.fold!(leaf, |acc, proof| hash_pair(acc, proof))
 }
 
 fun hash_internal_node(left: vector<u8>, right: vector<u8>): vector<u8> {
     let mut data = INTERNAL_DOMAIN_SEPARATOR;
-    vector::append(&mut data, left);
-    vector::append(&mut data, right);
+    data.append(left);
+    data.append(right);
     hash::keccak256(&data)
 }
 
