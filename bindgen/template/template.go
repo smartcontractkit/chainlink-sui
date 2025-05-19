@@ -97,7 +97,7 @@ type tmplFunc struct {
 	Returns  []tmplType
 }
 
-func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, externalStructs []parse.ExternalStruct, artifact bind.PackageArtifact) (tmplData, error) {
+func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, externalStructs []parse.ExternalStruct) (tmplData, error) {
 	data := tmplData{
 		Package: pkg,
 		Module:  mod,
@@ -231,7 +231,6 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 	for _, v := range importMap {
 		data.Imports = append(data.Imports, v)
 	}
-	data.Artifact = artifact
 
 	return data, nil
 }

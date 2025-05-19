@@ -13,34 +13,7 @@ import (
 	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
-
-// Built with `sui move build --dump-bytecode-as-base64 --with-unpublished-dependencies`
-const {{toUpperCamel .Module}}JSON = `
-{{ toJSON .Artifact }}
-`
-
-func Publish{{toUpperCamel .Module}}(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl) (*{{toUpperCamel .Module}}Contract, *suiclient.SuiTransactionBlockResponse, error) {
-	artifact, err := bind.ToArtifact({{toUpperCamel .Module}}JSON)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
-		CompiledModules: artifact.Modules,
-		Dependencies:    artifact.Dependencies,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	contract, err := New{{toUpperCamel .Module}}(packageId, client)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return contract, tx, nil
-}
 
 type I{{toUpperCamel .Module}} interface {
 {{ range .Funcs}}

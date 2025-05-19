@@ -1,6 +1,6 @@
 //go:build integration
 
-package modulecomplex
+package test
 
 import (
 	"context"
@@ -9,46 +9,11 @@ import (
 
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/suiclient"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
-	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 
 	"github.com/stretchr/testify/require"
 )
-
-func setupSuiTest(t *testing.T) (rel.SuiSigner, *suiclient.ClientImpl) {
-	t.Helper()
-	log := logger.Test(t)
-
-	// Start the node and schedule cleanup.
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			if err = cmd.Process.Kill(); err != nil {
-				t.Logf("Failed to kill process: %v", err)
-			}
-		}
-	})
-
-	// Generate key pair and create signer.
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t, log)
-	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-
-	// Create client.
-	client := suiclient.NewClient("http://localhost:9000")
-
-	// Fund account.
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err)
-	err = testutils.FundWithFaucet(log, "localnet", signerAddress)
-	require.NoError(t, err)
-
-	return signer, client
-}
 
 // helper to convert hex string to address string for readability.
 func getAddress(t *testing.T, hexStr string) string {
@@ -66,11 +31,12 @@ func TestComplex(t *testing.T) {
 	signer, client := setupSuiTest(t)
 
 	// Publish the complex contract.
-	contract, tx, err := PublishComplex(ctx, bind.TxOpts{}, signer, *client)
+	testPackage, tx, err := PublishTest(ctx, bind.TxOpts{}, signer, *client)
 	require.NoError(t, err)
-	require.NotNil(t, contract)
+	require.NotNil(t, testPackage)
 	require.NotNil(t, tx)
 
+	contract := testPackage.Complex()
 	// Prepare addresses.
 	addresses := []string{
 		getAddress(t, "0x11234"),

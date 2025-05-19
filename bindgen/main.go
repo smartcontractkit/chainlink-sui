@@ -8,13 +8,11 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-sui/bindgen/parse"
 	"github.com/smartcontractkit/chainlink-sui/bindgen/template"
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
 func main() {
@@ -33,19 +31,6 @@ func main() {
 	cleanPath := filepath.Clean(*moveConfigPath)
 	if _, err := os.Stat(cleanPath); os.IsNotExist(err) {
 		log.Fatalf("Move config file does not exist at path: %s", cleanPath)
-	}
-
-	// Execute the build command and store its output
-	cmd := exec.Command("sui", "move", "build", "--path", cleanPath, "--dump-bytecode-as-base64", "--with-unpublished-dependencies")
-	cmdOutput, err := cmd.Output()
-	if err != nil {
-		log.Fatalf("failed to run sui move build: %v", err)
-	}
-	buildOutput := string(cmdOutput)
-
-	contractArtifact, err := bind.ToArtifact(buildOutput)
-	if err != nil {
-		log.Fatalf("failed to parse contract artifact: %v", err)
 	}
 
 	log.Printf("Generating bindings for %s", *inputFile)
@@ -118,7 +103,7 @@ func main() {
 	}
 
 	log.Println("----")
-	data, err := template.Convert(pkg, mod, structs, funcs, extStructs, contractArtifact)
+	data, err := template.Convert(pkg, mod, structs, funcs, extStructs)
 	if err != nil {
 		log.Fatal(err)
 	}
