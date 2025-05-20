@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/pattonkan/sui-go/sui"
@@ -13,52 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
-
-// PTBArgType represents the type of argument in a Programmable Transaction Block
-type PTBArgType string
-
-const (
-	// ObjectArgType represents a reference to a Sui object
-	ObjectArgType PTBArgType = "object"
-	// ScalarArgType represents a basic value type (number, string, etc.)
-	ScalarArgType PTBArgType = "scalar"
-	// VectorArgType represents a vector of arguments
-	VectorArgType PTBArgType = "vector"
-)
-
-// PTBArg represents a single argument in a Programmable Transaction Block
-type PTBArg struct {
-	// Type indicates the kind of argument (object, scalar, or vector)
-	Type PTBArgType `json:"type"`
-	// Content contains the actual argument data
-	Content PTBArgContent `json:"content"`
-}
-
-// PTBArgContent contains the actual data for a PTB argument
-type PTBArgContent struct {
-	// ID is the object ID for object-type arguments
-	ID string `json:"id,omitempty"`
-	// Value contains the actual value for scalar-type arguments
-	Value any `json:"value,omitempty"`
-	// MapTo specifies how this argument maps to parameters in the PTB
-	MapTo []PTBArgLocation `json:"map_to,omitempty"`
-}
-
-// PTBArgLocation specifies how an argument maps to a parameter in a PTB command
-type PTBArgLocation struct {
-	// CommandIndex is the index of the command in the PTB
-	CommandIndex int `json:"command_index"`
-	// Param is the name of the parameter in the command
-	Param string `json:"param"`
-	// CommandName is the full name of the command (e.g., "0x2::coin::transfer")
-	CommandName string `json:"command_name,omitempty"`
-}
-
-// PTBArgMapping represents a collection of arguments for a Programmable Transaction Block
-type PTBArgMapping struct {
-	// Args is the list of arguments in the PTB
-	Args []PTBArg `json:"args"`
-}
 
 // PTBConstructor handles building programmable transactions based on configuration.
 // It provides methods to construct PTBs by mapping arguments to their respective commands
@@ -180,8 +133,8 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, argMapping PTBArgMapping) (*suiptb.ProgrammableTransactionBuilder, error) {
-	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function, "args", argMapping)
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, args map[string]any) (*suiptb.ProgrammableTransactionBuilder, error) {
+	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
 
 	// Look up the module
 	module, ok := p.config.Modules[moduleName]
@@ -198,76 +151,15 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	// Create a new PTB builder
 	builder := suiptb.NewTransactionDataTransactionBuilder()
 
-	// Build all PTB arguments first
-	ptbArgs := make(map[string]suiptb.Argument)
-
-	// Process object arguments
-	for _, obj := range argMapping.Args {
-		if obj.Type == ObjectArgType {
-			p.log.Debugw("Processing object argument", "ID", obj.Content.ID)
-			ptbArg, err := p.client.ToPTBArg(ctx, builder, obj.Content.ID)
-			if err != nil {
-				p.log.Errorw("Error processing object argument", "ID", obj.Content.ID, "Error", err)
-				return nil, err
-			}
-			ptbArgs[obj.Content.ID] = ptbArg
-		}
-	}
-
-	// Process scalar arguments
-	for _, scalar := range argMapping.Args {
-		if scalar.Type == ScalarArgType {
-			scalarKey := fmt.Sprintf("scalar_%d", len(ptbArgs))
-			ptbArg, err := p.client.ToPTBArg(ctx, builder, scalar.Content.Value)
-			if err != nil {
-				p.log.Errorw("Error processing scalar argument", "Value", scalar.Content.Value, "Error", err)
-				return nil, err
-			}
-			ptbArgs[scalarKey] = ptbArg
-		}
-	}
+	// Create a map for caching objects
+	cachedArgs := make(map[string]suiptb.Argument)
 
 	// Process each command in order
-	for cmdIdx, cmd := range txnConfig.PTBCommands {
-		args := make(map[string]suiptb.Argument)
-
-		// Map object arguments to command parameters
-		for _, obj := range argMapping.Args {
-			if obj.Type == ObjectArgType {
-				for _, loc := range obj.Content.MapTo {
-					if loc.CommandIndex == cmdIdx {
-						args[loc.Param] = ptbArgs[obj.Content.ID]
-					}
-				}
-			}
-		}
-
-		// Map scalar arguments to command parameters
-		for _, scalar := range argMapping.Args {
-			if scalar.Type == ScalarArgType {
-				for _, loc := range scalar.Content.MapTo {
-					if loc.CommandIndex == cmdIdx {
-						args[loc.Param] = ptbArgs[fmt.Sprintf("scalar_%d", len(ptbArgs)-1)]
-					}
-				}
-			}
-		}
-
-		// Process PTB dependencies
-		for _, param := range cmd.Params {
-			if param.PTBDependency != nil {
-				args[param.Name] = suiptb.Argument{
-					NestedResult: &suiptb.NestedResult{
-						Cmd:    param.PTBDependency.CommandIndex,
-						Result: param.PTBDependency.ResultIndex,
-					},
-				}
-			}
-		}
-
+	for _, cmd := range txnConfig.PTBCommands {
+		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
-			_, err := p.ProcessMoveCall(ctx, builder, cmd, args)
+			_, err := p.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
 			if err != nil {
 				p.log.Errorw("Error processing move call", "Error", err)
 				return nil, err
@@ -289,7 +181,8 @@ func (p *PTBConstructor) ProcessMoveCall(
 	ctx context.Context,
 	builder *suiptb.ProgrammableTransactionBuilder,
 	cmd ChainWriterPTBCommand,
-	args map[string]suiptb.Argument,
+	args *map[string]any,
+	cachedArgs *map[string]suiptb.Argument,
 ) (*suiptb.Argument, error) {
 	p.log.Debugw("Processing move call", "Command", cmd, "Args", args)
 
@@ -312,7 +205,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 
 	// Process arguments
 	processedArgTypes := []sui.TypeTag{}
-	processedArgs, err := p.ProcessParams(ctx, builder, cmd.Params, args)
+	processedArgs, err := p.ProcessArgsForCommand(ctx, builder, cmd.Params, args, cachedArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -324,12 +217,13 @@ func (p *PTBConstructor) ProcessMoveCall(
 	return &ptbArgument, nil
 }
 
-// ProcessParams converts parameter specifications into concrete arguments
-func (p *PTBConstructor) ProcessParams(
+// ProcessArgsForCommand converts parameter specifications into concrete arguments
+func (p *PTBConstructor) ProcessArgsForCommand(
 	ctx context.Context,
 	builder *suiptb.ProgrammableTransactionBuilder,
 	params []codec.SuiFunctionParam,
-	args map[string]suiptb.Argument,
+	args *map[string]any,
+	cachedArgs *map[string]suiptb.Argument,
 ) ([]suiptb.Argument, error) {
 	processedArgs := make([]suiptb.Argument, 0, len(params))
 
@@ -347,13 +241,26 @@ func (p *PTBConstructor) ProcessParams(
 		}
 
 		// otherwise, check if the parameter is in the provided args
-		if providedArg, exists := args[param.Name]; exists {
+		if argRawValue, exists := (*args)[param.Name]; exists {
+			// check if the param has already been converted and cached
+			if cachedArg, exists := (*cachedArgs)[param.Name]; exists {
+				processedArgs = append(processedArgs, cachedArg)
+				continue
+			}
+
 			// append to the array of args
-			processedArgs = append(processedArgs, providedArg)
+			processedArgValue, err := p.client.ToPTBArg(ctx, builder, argRawValue)
+			if err != nil {
+				return nil, err
+			}
+			processedArgs = append(processedArgs, processedArgValue)
+			// add the processed arg to the cache
+			(*cachedArgs)[param.Name] = processedArgValue
+
 			continue
 		}
 
-		// fallback to the default value
+		// fallback to the default value if any
 		if param.DefaultValue != nil {
 			ptbArg, err := p.client.ToPTBArg(ctx, builder, param.DefaultValue)
 			if err != nil {
@@ -375,20 +282,4 @@ func (p *PTBConstructor) ProcessParams(
 	}
 
 	return processedArgs, nil
-}
-
-// ParseArgsToPTBArgMapping converts the input arguments to a PTBArgMapping structure.
-// It handles both map[string]any and PTBArgMapping input types.
-func (p *PTBConstructor) ParseArgsToPTBArgMapping(args any) (PTBArgMapping, error) {
-	p.log.Debugw("Parsing args to PTBArgMapping", "args", args)
-
-	var mapping PTBArgMapping
-
-	err := mapstructure.Decode(args, &mapping)
-	if err != nil {
-		p.log.Errorw("Error decoding args", "error", err)
-		return PTBArgMapping{}, err
-	}
-
-	return mapping, nil
 }

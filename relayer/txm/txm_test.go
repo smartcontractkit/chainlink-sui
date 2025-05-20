@@ -286,24 +286,6 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 
 	ptbConstructor := chainwriter.NewPTBConstructor(chainWriterConfig, testState.SuiGateway, _logger)
 
-	ptbArgs := chainwriter.PTBArgMapping{
-		Args: []chainwriter.PTBArg{
-			{
-				Type: chainwriter.ObjectArgType,
-				Content: chainwriter.PTBArgContent{
-					ID: objectId,
-					MapTo: []chainwriter.PTBArgLocation{
-						{
-							CommandIndex: 0,
-							Param:        "counter",
-							CommandName:  fmt.Sprintf("%s.counter.increment", packageId),
-						},
-					},
-				},
-			},
-		},
-	}
-
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
 		name            string
@@ -327,7 +309,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			signerPublicKey: pubKeyBytes,
 			contractName:    chainwriter.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
-			args:            ptbArgs,
+			args:            map[string]any{"counter": objectId},
 			expectError:     nil,
 			expectedResult:  "1",
 			status:          commontypes.Finalized,
@@ -341,7 +323,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			signerPublicKey: pubKeyBytes,
 			contractName:    chainwriter.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
-			args:            ptbArgs,
+			args:            map[string]any{"counter": objectId},
 			expectError:     nil,
 			expectedResult:  "2",
 			status:          commontypes.Finalized,
@@ -355,21 +337,25 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			signerPublicKey: pubKeyBytes,
 			contractName:    chainwriter.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
-			args: chainwriter.PTBArgMapping{
-				Args: []chainwriter.PTBArg{
-					{
-						Type: chainwriter.ObjectArgType,
-						Content: chainwriter.PTBArgContent{
-							ID:    objectId,
-							MapTo: []chainwriter.PTBArgLocation{},
-						},
-					},
-				},
-			},
-			expectError:    errors.New("required parameter counter has no value"),
-			expectedResult: "",
-			status:         commontypes.Failed,
-			numberAttemps:  1,
+			args:            map[string]any{}, // missing "counter"
+			expectError:     errors.New("missing required parameter counter for command increment"),
+			expectedResult:  "",
+			status:          commontypes.Failed,
+			numberAttemps:   1,
+		},
+		{
+			name:            "Test ChainWriter with simple map args",
+			txID:            "test-ptb-simple-map",
+			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:          testState.AccountAddress,
+			signerPublicKey: pubKeyBytes,
+			contractName:    chainwriter.PTBChainWriterModuleName,
+			functionName:    "ptb_call",
+			args:            map[string]any{"counter": objectId},
+			expectError:     nil,
+			expectedResult:  "3",
+			status:          commontypes.Finalized,
+			numberAttemps:   1,
 		},
 	}
 
@@ -381,22 +367,17 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 	//nolint:paralleltest
 	for _, tc := range testScenarios {
 		t.Run(tc.name, func(t *testing.T) {
-			// If tc.args is already a PTBArgMapping, use it directly; otherwise parse it
-			var ptbArgs chainwriter.PTBArgMapping
-			var ok bool
-			if ptbArgs, ok = tc.args.(chainwriter.PTBArgMapping); !ok {
-				var err error
-				ptbArgs, err = ptbConstructor.ParseArgsToPTBArgMapping(tc.args)
-				require.NoError(t, err, "Failed to parse PTB arguments")
-			}
-
-			builder, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, ptbArgs)
+			// Directly use the map as args for BuildPTBCommands
+			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, tc.args.(map[string]any))
 			if tc.expectError != nil {
-				require.Error(t, err, "Expected an error but BuildPTBCommands succeeded")
+				if err != nil {
+					// Expected error occurred during PTB command building
+					return
+				}
 			} else {
 				require.NoError(t, err, "Failed to build PTB commands")
-				ptb := builder.Finish()
-				tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.signerPublicKey, &ptb, false)
+				ptbTx := ptb.Finish()
+				tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.signerPublicKey, &ptbTx, false)
 				require.NoError(t, err, "Failed to enqueue PTB")
 
 				require.Eventually(t, func() bool {

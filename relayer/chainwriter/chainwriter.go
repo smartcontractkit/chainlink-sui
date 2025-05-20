@@ -74,7 +74,8 @@ func convertFunctionParams(argMap map[string]any, params []codec.SuiFunctionPara
 //     indicating a PTB submission defined in the configuration.
 //   - method: The specific function name within the module (for standard calls) or the virtual function
 //     name defined in the PTB configuration.
-//   - args: The arguments required by the function or PTB commands, typically passed as a map or struct.
+//   - args: The arguments required by the function or PTB commands. For PTB submissions, these are automatically
+//     mapped to commands based on the configuration using the builder pattern internally.
 //   - transactionID: A unique identifier for this transaction attempt.
 //   - toAddress: The target address for the transaction (Note: Often implicitly handled by the module/function config in Sui).
 //   - meta: Transaction metadata, primarily used for specifying gas limits (*commontypes.TxMeta).
@@ -147,21 +148,27 @@ func enqueueSmartContractCall(ctx context.Context, s *SuiChainWriter, contractNa
 }
 
 // enqueuePTB handles the process of enqueuing a Programmable Transaction Block (PTB).
-// It retrieves the PTB configuration, builds the PTB commands using the PTBConstructor,
-// finalizes the PTB, and then calls the TxManager's EnqueuePTB method to generate, sign, store,
+// It retrieves the PTB configuration, automatically builds a PTBArgBuilder from the raw input arguments,
+// constructs the PTB commands, and then calls the TxManager's EnqueuePTB method to generate, sign, store,
 // and queue the PTB transaction.
+//
+// The function leverages the BuildFromConfig method to automatically map the input arguments to the
+// appropriate command parameters based on the configuration, using the builder pattern internally.
+// This approach simplifies the client API while maintaining the flexibility and type safety of the
+// PTBArgBuilder.
 //
 // Parameters:
 //   - ctx: Context for the operation.
 //   - s: The SuiChainWriter instance containing configuration, PTBConstructor, and TxManager.
 //   - ptbName: The name of the PTB configuration as defined in the Modules map.
 //   - method: The virtual function name within the PTB configuration that defines the command sequence.
-//   - args: The arguments needed to build the PTB commands, provided as a map or struct.
+//   - args: The arguments needed to build the PTB commands, provided as a simple map or struct. These are
+//     automatically mapped to the appropriate command parameters based on the PTB configuration.
 //   - transactionID: The unique identifier for the transaction.
 //   - meta: Transaction metadata (e.g., gas limits).
 //
 // Returns:
-//   - error: An error if configuration is not found, argument decoding fails, PTB command building fails,
+//   - error: An error if configuration is not found, argument mapping fails, PTB command building fails,
 //     or the TxManager EnqueuePTB call fails.
 func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method string, args any, transactionID string, meta *commonTypes.TxMeta) error {
 	moduleConfig, exists := s.config.Modules[ptbName]
@@ -176,22 +183,13 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return commonTypes.ErrNotFound
 	}
 
-	// Convert args to PTBArgMapping using the PTBConstructor
-	ptbArgs, err := s.ptbFactory.ParseArgsToPTBArgMapping(args)
-	if err != nil {
-		s.lggr.Errorw("Error parsing arguments", "error", err)
-		return err
+	argMap := make(map[string]any)
+	if err := mapstructure.Decode(args, &argMap); err != nil {
+		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
-	s.lggr.Debugw("PTB args", "args", ptbArgs)
-
-	err = validatePTBCommandArguments(ptbArgs, method, moduleConfig)
-	if err != nil {
-		s.lggr.Errorw("Error validating PTB command arguments", "error", err)
-		return err
-	}
-
-	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, ptbArgs)
+	// Use the builder with the updated PTBConstructor
+	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, argMap)
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err
@@ -204,56 +202,6 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return err
 	}
 	s.lggr.Infow("Transaction enqueued", "transactionID", tx.TransactionID, "functionName", method)
-
-	return nil
-}
-
-func validatePTBCommandArguments(argMapping PTBArgMapping, method string, moduleConfig *ChainWriterModule) error {
-	for _, command := range moduleConfig.Functions[method].PTBCommands {
-		for _, param := range command.Params {
-			if param.PTBDependency != nil {
-				continue // Skip PTB dependencies as they are handled internally
-			}
-
-			// Check if the parameter is provided in the argument mapping
-			found := false
-			for _, obj := range argMapping.Args {
-				if obj.Type == ObjectArgType {
-					for _, loc := range obj.Content.MapTo {
-						// Compute zero-based index for the command
-						zeroBasedIndex := command.Order - 1
-						if loc.CommandIndex == zeroBasedIndex && loc.Param == param.Name {
-							found = true
-							break
-						}
-					}
-					if found {
-						break
-					}
-				}
-
-				if !found {
-					for _, scalar := range argMapping.Args {
-						if scalar.Type == ScalarArgType {
-							for _, loc := range scalar.Content.MapTo {
-								if loc.CommandIndex == command.Order-1 && loc.Param == param.Name {
-									found = true
-									break
-								}
-							}
-						}
-					}
-					if found {
-						break
-					}
-				}
-			}
-
-			if !found && param.Required {
-				return fmt.Errorf("missing required argument: %s for command %s", param.Name, *command.Function)
-			}
-		}
-	}
 
 	return nil
 }

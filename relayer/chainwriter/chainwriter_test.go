@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -121,34 +120,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	defer chainWriter.Close()
 	require.NoError(t, err)
 
-	ptbArgs := chainwriter.PTBArgMapping{
-		Args: []chainwriter.PTBArg{
-			{
-				Type: chainwriter.ObjectArgType,
-				Content: chainwriter.PTBArgContent{
-					ID: objectID,
-					MapTo: []chainwriter.PTBArgLocation{
-						{
-							CommandIndex: 0,
-							Param:        "counter",
-							CommandName:  fmt.Sprintf("%s.counter.increment", packageId),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	missingPTBArg := chainwriter.PTBArgMapping{
-		Args: []chainwriter.PTBArg{
-			{
-				Type: chainwriter.ObjectArgType,
-				Content: chainwriter.PTBArgContent{
-					ID:    objectID,
-					MapTo: []chainwriter.PTBArgLocation{},
-				},
-			},
-		},
+	// Simple map style for builder pattern
+	simpleArgs := map[string]any{
+		"counter": objectID,
 	}
 
 	// Test scenarios
@@ -179,34 +153,47 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			numberAttemps:  1,
 		},
 		{
-			name:           "Test ChainWriter with PTB",
+			name:           "Test ChainWriter with PTB using builder",
 			txID:           "test-ptb-txID",
 			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:         testState.AccountAddress,
 			contractName:   chainwriter.PTBChainWriterModuleName,
 			functionName:   "ptb_call",
-			args:           ptbArgs,
+			args:           simpleArgs,
 			expectError:    nil,
 			expectedResult: "2",
 			status:         commonTypes.Finalized,
 			numberAttemps:  1,
 		},
 		{
-			name:           "Test ChainWriter with missing argument for PTB",
+			name:           "Test ChainWriter with missing argument for PTB using builder",
 			txID:           "test-ptb-txID-missing-arg",
 			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:         testState.AccountAddress,
 			contractName:   chainwriter.PTBChainWriterModuleName,
 			functionName:   "ptb_call",
-			args:           missingPTBArg,
-			expectError:    errors.New("missing required argument: counter for command increment"),
+			args:           map[string]any{},
+			expectError:    errors.New("required parameter counter has no value"),
 			expectedResult: "",
 			status:         commonTypes.Failed,
 			numberAttemps:  1,
 		},
 		{
+			name:           "Test ChainWriter with PTB using simple map",
+			txID:           "test-ptb-simple-map",
+			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:         testState.AccountAddress,
+			contractName:   chainwriter.PTBChainWriterModuleName,
+			functionName:   "ptb_call",
+			args:           simpleArgs, // Using simple map that should be auto-converted
+			expectError:    nil,
+			expectedResult: "3",
+			status:         commonTypes.Finalized,
+			numberAttemps:  1,
+		},
+		{
 			name:           "Test ChainWriter with invalid function call",
-			txID:           "test-txID",
+			txID:           "test-txID-invalid-func",
 			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:         testState.AccountAddress,
 			contractName:   "counter",
@@ -219,7 +206,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		},
 		{
 			name:           "Test ChainWriter with invalid contract",
-			txID:           "test-txID",
+			txID:           "test-txID-invalid-contract",
 			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:         testState.AccountAddress,
 			contractName:   "nonexistent_contract",
