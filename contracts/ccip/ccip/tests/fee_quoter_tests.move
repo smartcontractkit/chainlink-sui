@@ -151,7 +151,6 @@ public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
 }
 
 #[test]
-#[expected_failure(abort_code = fee_quoter::E_TOKEN_NOT_SUPPORTED)]
 public fun test_apply_token_transfer_fee_config_updates_remove_token() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -187,7 +186,15 @@ public fun test_apply_token_transfer_fee_config_updates_remove_token() {
         ctx,
     );
 
-    fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+    let cfg = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+    let (min_fee_usd_cents, max_fee_usd_cents, deci_bps, dest_gas_overhead, dest_bytes_overhead, is_enabled)
+        = fee_quoter::get_token_transfer_fee_config_fields(cfg);
+    assert!(min_fee_usd_cents == 0);
+    assert!(max_fee_usd_cents == 0);
+    assert!(deci_bps == 0);
+    assert!(dest_gas_overhead == 0);
+    assert!(dest_bytes_overhead == 0);
+    assert!(!is_enabled);
 
     tear_down_test(scenario, owner_cap, ref);
 }
@@ -335,6 +342,7 @@ public fun test_process_message_args_evm() {
         MOCK_ADDRESS_1, // fee_token
         1000, // fee_token_amount
         evm_extra_args, // extra_args
+        vector[MOCK_ADDRESS_1], // source_token_addresses
         vector[
             bcs::to_bytes(&MOCK_ADDRESS_2)
         ], // dest_token_addresses
@@ -413,6 +421,7 @@ public fun test_process_message_args_svm() {
         MOCK_ADDRESS_1, // fee_token
         1000, // fee_token_amount
         svm_extra_args, // extra_args
+        vector[MOCK_ADDRESS_1], // source_token_addresses
         vector[
             bcs::to_bytes(&MOCK_ADDRESS_4)
         ], // dest_token_addresses

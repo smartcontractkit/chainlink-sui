@@ -167,7 +167,7 @@ const E_TOKEN_UPDATE_MISMATCH: u64 = 6;
 const E_GAS_UPDATE_MISMATCH: u64 = 7;
 const E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH: u64 = 8;
 const E_FEE_TOKEN_NOT_SUPPORTED: u64 = 9;
-const E_TOKEN_NOT_SUPPORTED: u64 = 10;
+const E_ZERO_TOKEN_PRICE: u64 = 10;
 const E_UNKNOWN_CHAIN_FAMILY_SELECTOR: u64 = 11;
 const E_STALE_GAS_PRICE: u64 = 12;
 const E_MESSAGE_TOO_LARGE: u64 = 13;
@@ -187,7 +187,6 @@ const E_INVALID_DEST_CHAIN_SELECTOR: u64 = 26;
 const E_INVALID_GAS_LIMIT: u64 = 27;
 const E_INVALID_CHAIN_FAMILY_SELECTOR: u64 = 28;
 const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
-const E_ZERO_TOKEN_PRICE: u64 = 30;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -484,7 +483,7 @@ public fun get_token_transfer_fee_config(
     token: address
 ): TokenTransferFeeConfig {
     let state = state_object::borrow<FeeQuoterState>(ref);
-    *get_token_transfer_fee_config_internal(
+    get_token_transfer_fee_config_internal(
         state, dest_chain_selector, token
     )
 }
@@ -1017,18 +1016,25 @@ fun calc_usd_value_from_token_amount(
 
 fun get_token_transfer_fee_config_internal(
     state: &FeeQuoterState, dest_chain_selector: u64, token: address
-): &TokenTransferFeeConfig {
+): TokenTransferFeeConfig {
     assert!(
         state.token_transfer_fee_configs.contains(dest_chain_selector),
         E_UNKNOWN_DEST_CHAIN_SELECTOR
     );
     let dest_chain_fee_configs =
         state.token_transfer_fee_configs.borrow(dest_chain_selector);
-    assert!(
-        dest_chain_fee_configs.contains(token),
-        E_TOKEN_NOT_SUPPORTED
-    );
-    dest_chain_fee_configs.borrow(token)
+    if (dest_chain_fee_configs.contains(token)) {
+        *dest_chain_fee_configs.borrow(token)
+    } else {
+        TokenTransferFeeConfig {
+            min_fee_usd_cents: 0,
+            max_fee_usd_cents: 0,
+            deci_bps: 0,
+            dest_gas_overhead: 0,
+            dest_bytes_overhead: 0,
+            is_enabled: false
+        }
+    }
 }
 
 public fun get_premium_multiplier_wei_per_eth(
@@ -1205,8 +1211,10 @@ fun process_chain_family_selector(
 }
 
 fun process_pool_return_data(
+    state: &FeeQuoterState,
     dest_chain_config: &DestChainConfig,
-    token_transfer_fee_config: &TokenTransferFeeConfig,
+    dest_chain_selector: u64,
+    local_token_addresses: vector<address>,
     dest_token_addresses: vector<vector<u8>>,
     dest_pool_datas: vector<vector<u8>>
 ): vector<vector<u8>> {
@@ -1217,8 +1225,15 @@ fun process_pool_return_data(
     let mut dest_exec_data_per_token = vector[];
     let mut i = 0;
     while (i < tokens_len) {
+        let local_token_address = local_token_addresses[i];
         let dest_token_address = dest_token_addresses[i];
         let dest_pool_data_len = dest_pool_datas[i].length();
+
+        let token_transfer_fee_config =
+            get_token_transfer_fee_config_internal(
+                state, dest_chain_selector, local_token_address
+            );
+
         if (dest_pool_data_len > (CCIP_LOCK_OR_BURN_V1_RET_BYTES as u64)) {
             assert!(
                 dest_pool_data_len <= (token_transfer_fee_config.dest_bytes_overhead as u64),
@@ -1253,6 +1268,7 @@ public fun process_message_args(
     fee_token: address,
     fee_token_amount: u64,
     extra_args: vector<u8>,
+    local_token_addresses: vector<address>,
     dest_token_addresses: vector<vector<u8>>,
     dest_pool_datas: vector<vector<u8>>
 ): (u64, bool, vector<u8>, vector<vector<u8>>) {
@@ -1277,8 +1293,6 @@ public fun process_message_args(
     let dest_chain_config = get_dest_chain_config_internal(
         state, dest_chain_selector
     );
-    let token_transfer_fee_config =
-        get_token_transfer_fee_config_internal(state, dest_chain_selector, fee_token);
 
     let (converted_extra_args, is_out_of_order_execution) =
         process_chain_family_selector(
@@ -1289,10 +1303,12 @@ public fun process_message_args(
 
     let dest_exec_data_per_token =
         process_pool_return_data(
+            state,
             dest_chain_config,
-            token_transfer_fee_config,
+            dest_chain_selector,
+            local_token_addresses,
             dest_token_addresses,
-            dest_pool_datas
+            dest_pool_datas,
         );
 
     (
