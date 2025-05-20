@@ -31,6 +31,7 @@ module ccip_onramp::onramp {
         // coin metadata address -> Coin
         fee_tokens: Bag,
         nonce_manager_cap: Option<NonceManagerCap>,
+        source_transfer_cap: Option<dd::SourceTransferCap>,
     }
 
     public struct OnRampStatePointer has key, store {
@@ -133,6 +134,7 @@ module ccip_onramp::onramp {
     const E_UNEXPECTED_WITHDRAW_AMOUNT: u64 = 11;
     const E_FEE_AGGREGATOR_NOT_SET: u64 = 12;
     const E_NONCE_MANAGER_CAP_EXISTS: u64 = 13;
+    const E_SOURCE_TRANSFER_CAP_EXISTS: u64 = 14;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -151,6 +153,7 @@ module ccip_onramp::onramp {
             dest_chain_configs: table::new(ctx),
             fee_tokens: bag::new(ctx),
             nonce_manager_cap: option::none(),
+            source_transfer_cap: option::none()
         };
 
         let pointer = OnRampStatePointer {
@@ -167,7 +170,8 @@ module ccip_onramp::onramp {
     public fun initialize(
         state: &mut OnRampState,
         _: &OwnerCap,
-        cap: NonceManagerCap,
+        nonce_manager_cap: NonceManagerCap,
+        source_transfer_cap: dd::SourceTransferCap,
         chain_selector: u64,
         fee_aggregator: address,
         allowlist_admin: address,
@@ -180,7 +184,12 @@ module ccip_onramp::onramp {
             state.nonce_manager_cap.is_none(),
             E_NONCE_MANAGER_CAP_EXISTS
         );
-        state.nonce_manager_cap.fill(cap);
+        state.nonce_manager_cap.fill(nonce_manager_cap);
+        assert!(
+            state.source_transfer_cap.is_none(),
+            E_SOURCE_TRANSFER_CAP_EXISTS
+        );
+        state.source_transfer_cap.fill(source_transfer_cap);
 
         set_dynamic_config_internal(state, fee_aggregator, allowlist_admin);
 
@@ -626,13 +635,12 @@ module ccip_onramp::onramp {
         ctx: &mut TxContext
     ): vector<u8> {
         assert!(!rmn_remote::is_cursed_global(ref), E_BAD_RMN_SIGNAL);
-        assert!(!rmn_remote::is_cursed_u128(ref, (dest_chain_selector as u128)), E_BAD_RMN_SIGNAL);
 
         let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
         let fee_token_balance = balance::value(coin::balance(&fee_token));
 
         // the hot potato is returned and consumed
-        let params = dd::deconstruct_token_params(token_params);
+        let params = dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
 
         let mut token_amounts = vector[];
         let mut source_tokens = vector[];

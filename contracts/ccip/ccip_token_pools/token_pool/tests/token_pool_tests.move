@@ -1,6 +1,7 @@
 #[test_only]
 module ccip_token_pool::token_pool_test;
 
+use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
 
@@ -248,4 +249,27 @@ fun test_parse_remote_decimals_overflow() {
     let source_pool_data = vector[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
 
     let _decimal = token_pool::parse_remote_decimals(source_pool_data, 1);
+}
+
+#[test]
+fun test_set_chain_rate_limiter_config() {
+    let mut ctx = tx_context::dummy();
+    let clock = clock::create_for_testing(&mut ctx);
+    let (scenario, mut state) = set_up_test();
+
+    token_pool::set_chain_rate_limiter_config(
+        &clock,
+        &mut state,
+        DefaultRemoteChain,
+        true,
+        2000,
+        3000,
+        true,
+        4000,
+        5000,
+    );
+
+    token_pool::destroy_token_pool(state);
+    clock.destroy_for_testing();
+    scenario.end();
 }

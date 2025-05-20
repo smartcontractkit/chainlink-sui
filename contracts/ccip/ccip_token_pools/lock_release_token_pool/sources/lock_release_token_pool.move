@@ -225,13 +225,15 @@ public fun lock_or_burn<T>(
     token_pool::emit_locked(&mut state.token_pool_state, amount);
 
     // update hot potato token params
-    dd::add_token_param(
+    dd::add_source_token_transfer(
+        ref,
         token_params,
         object::uid_to_address(&state.id),
         amount,
         state.token_pool_state.get_token(),
         dest_token_address,
         extra_data,
+        TypeProof {},
     )
 }
 
