@@ -14,10 +14,6 @@ const E_MUST_BE_PROPOSED_OWNER: u64 = 8;
 const E_PROPOSED_OWNER_MISMATCH: u64 = 9;
 const E_UNAUTHORIZED: u64 = 10;
 
-public struct OwnerCap has key, store {
-    id: UID,
-}
-
 public struct OwnershipTransferRequested has copy, drop {
     from: address,
     to: address,
@@ -33,6 +29,10 @@ public struct OwnershipTransferred has copy, drop {
     to: address,
 }
 
+public struct OwnerCap has key, store {
+    id: UID,
+}
+
 public struct CCIPObjectRef has key, store {
     id: UID,
     // this is not the owner of the CCIP object ref in SUI's concept
@@ -40,6 +40,12 @@ public struct CCIPObjectRef has key, store {
     // the owner here refers to the address which has the power to manage this ref
     current_owner: address,
     pending_transfer: Option<PendingTransfer>,
+}
+
+public struct CCIPObjectRefPointer has key, store {
+    id: UID,
+    object_ref_id: address,
+    owner_cap_id: address,
 }
 
 public struct PendingTransfer has copy, drop, store {
@@ -60,8 +66,15 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
         id: object::new(ctx),
     };
 
+    let pointer = CCIPObjectRefPointer {
+        id: object::new(ctx),
+        object_ref_id: object::id_to_address(object::borrow_id(&ref)),
+        owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
+    };
+
     transfer::share_object(ref);
     transfer::transfer(owner_cap, ctx.sender());
+    transfer::transfer(pointer, ctx.sender());
 }
 
 public(package) fun add<T: key + store>(
@@ -151,6 +164,10 @@ public fun execute_ownership_transfer(
 
 public(package) fun get_current_owner(ref: &CCIPObjectRef): address {
     ref.current_owner
+}
+
+public fun get_ccip_pointer(pointer: &CCIPObjectRefPointer): (address, address) {
+    (pointer.object_ref_id, pointer.owner_cap_id)
 }
 
 #[test_only]

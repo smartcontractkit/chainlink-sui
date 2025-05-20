@@ -33,6 +33,12 @@ module ccip_onramp::onramp {
         nonce_manager_cap: Option<NonceManagerCap>,
     }
 
+    public struct OnRampStatePointer has key, store {
+        id: UID,
+        on_ramp_state_id: address,
+        owner_cap_id: address,
+    }
+
     public struct DestChainConfig has store, drop {
         // on EVM, transfers can be stopped by zeroing the router address,
         // since we don't have a router address here, we add an is_enabled flag.
@@ -147,8 +153,15 @@ module ccip_onramp::onramp {
             nonce_manager_cap: option::none(),
         };
 
+        let pointer = OnRampStatePointer {
+            id: object::new(ctx),
+            on_ramp_state_id: object::id_to_address(object::borrow_id(&state)),
+            owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
+        };
+
         transfer::share_object(state);
         transfer::transfer(owner_cap, ctx.sender());
+        transfer::transfer(pointer, ctx.sender());
     }
 
     public fun initialize(
@@ -803,6 +816,10 @@ module ccip_onramp::onramp {
         message.header.message_id = message_id;
 
         message
+    }
+
+    public fun get_onramp_pointer(pointer: &OnRampStatePointer): (address, address) {
+        (pointer.on_ramp_state_id, pointer.owner_cap_id)
     }
 }
 

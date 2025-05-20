@@ -50,6 +50,12 @@ module ccip_offramp::offramp {
         fee_quoter_cap: Option<FeeQuoterCap>
     }
 
+    public struct OffRampStatePointer has key, store {
+        id: UID,
+        off_ramp_state_id: address,
+        owner_cap_id: address,
+    }
+
     public struct SourceChainConfig has store, drop, copy {
         router: address,
         is_enabled: bool,
@@ -229,8 +235,15 @@ module ccip_offramp::offramp {
             fee_quoter_cap: option::none()
         };
 
+        let pointer = OffRampStatePointer {
+            id: object::new(ctx),
+            off_ramp_state_id: object::id_to_address(object::borrow_id(&state)),
+            owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
+        };
+
         transfer::share_object(state);
         transfer::transfer(owner_cap, ctx.sender());
+        transfer::transfer(pointer, ctx.sender());
     }
 
     public fun initialize(
@@ -1108,6 +1121,10 @@ module ccip_offramp::offramp {
             source_chains_on_ramp,
             ctx
         )
+    }
+
+    public fun get_offramp_pointer(pointer: &OffRampStatePointer): (address, address) {
+        (pointer.off_ramp_state_id, pointer.owner_cap_id)
     }
 
     #[test_only]
