@@ -32,6 +32,7 @@ public struct Signer has copy, drop, store {
     node_index: u64
 }
 
+// TODO: figure out what to do with chain_id. Cannot get it from Sui library.
 public struct Report has drop {
     dest_chain_selector: u64,
     rmn_remote_contract_address: address,
@@ -209,22 +210,7 @@ public fun verify(
 
         assert!(signature_bytes.length() == SIGNATURE_NUM_BYTES, E_INVALID_SIGNATURE);
 
-        // rmn only generates signatures with v = 27, subtract the ethereum recover id offset of 27 to get zero.
-        // according to Sui Move document: https://docs.sui.io/references/framework/sui/ecdsa_k1#sui_ecdsa_k1_secp256k1_ecrecover
-        // the digest is not hashed. hence the digest in calculate_report is not keccack256 hashed
-        let public_key_bytes = ecdsa_k1::secp256k1_ecrecover(&signature_bytes, &digest, 0);
-
-        // trim the first 12 bytes of the hash to recover the ethereum address.
-        // there is no vector::trim function available
-        let mut eth_address = vector::empty();
-        let key_hash = &hash::keccak256(&public_key_bytes);
-        let len = 32;
-        let mut j: u64 = 12;
-        while (j < len) {
-            // Copy each element starting at index 12 into the new vector.
-            eth_address.push_back(key_hash[j]);
-            j = j + 1;
-        };
+        let eth_address = ecrecover_to_eth_address(signature_bytes, digest);
 
         assert!(
             state.signers.contains(&eth_address),
@@ -242,6 +228,40 @@ public fun verify(
     };
 
     true
+}
+
+/// Recover the Ethereum address using the signature and message, assuming the signature was
+/// produced over the Keccak256 hash of the message.
+/// this implementation is based on the SUI example: https://github.com/MystenLabs/sui/blob/main/examples/move/crypto/ecdsa_k1/sources/example.move#L62
+fun ecrecover_to_eth_address(
+    mut signature: vector<u8>,
+    msg: vector<u8>,
+): vector<u8> {
+    // no normalization is done bc the signature only includes 64 bytes.
+    // add a 0 byte to the end of the signature to make it 65 bytes.
+    signature.push_back(0);
+    // Ethereum signature is produced with Keccak256 hash of the message, so the last param is
+    // 0.
+    let pubkey = ecdsa_k1::secp256k1_ecrecover(&signature, &msg, 0);
+    let uncompressed = ecdsa_k1::decompress_pubkey(&pubkey);
+
+    // Take the last 64 bytes of the uncompressed pubkey.
+    let mut uncompressed_64 = vector[];
+    let mut i = 1;
+    while (i < 65) {
+        uncompressed_64.push_back(uncompressed[i]);
+        i = i + 1;
+    };
+
+    // Take the last 20 bytes of the hash of the 64-bytes uncompressed pubkey.
+    let hashed = sui::hash::keccak256(&uncompressed_64);
+    let mut addr = vector[];
+    let mut i = 12;
+    while (i < 32) {
+        addr.push_back(hashed[i]);
+        i = i + 1;
+    };
+    addr
 }
 
 // TODO: figure out what this does bc this won't work here. caller needs to know ccip package id already
@@ -291,18 +311,16 @@ public fun set_config(
         E_NOT_ENOUGH_SIGNERS
     );
 
-    // smart_table::clear(&mut state.signers);
-    let keys = vec_map::keys(&state.signers);
+    let keys = state.signers.keys();
     let mut i = 0;
     let keys_len = keys.length();
     while (i < keys_len) {
         let key = keys[i];
-        vec_map::remove(&mut state.signers, &key);
+        state.signers.remove(&key);
         i = i + 1;
     };
 
-    let signers = vector::zip_map_ref!(
-        &signer_onchain_public_keys,
+    let signers = signer_onchain_public_keys.zip_map_ref!(
         &node_indexes,
         |signer_public_key_bytes, node_indexes| {
             let signer_public_key_bytes: vector<u8> = *signer_public_key_bytes;
@@ -316,7 +334,7 @@ public fun set_config(
                 !state.signers.contains(&signer_public_key_bytes),
                 E_DUPLICATE_SIGNER
             );
-            vec_map::insert(&mut state.signers, signer_public_key_bytes, true);
+            state.signers.insert(signer_public_key_bytes, true);
             Signer {
                 onchain_public_key: signer_public_key_bytes,
                 node_index
@@ -368,8 +386,7 @@ public fun curse_multiple(
 ) {
     let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
-    vector::do_ref!(
-        &subjects,
+    subjects.do_ref!(
         |subject| {
             let subject: vector<u8> = *subject;
             assert!(
@@ -380,7 +397,7 @@ public fun curse_multiple(
                 !state.cursed_subjects.contains(&subject),
                 E_ALREADY_CURSED
             );
-            vec_map::insert(&mut state.cursed_subjects, subject, true);
+            state.cursed_subjects.insert(subject, true);
         }
     );
     event::emit(Cursed { subjects });
@@ -401,14 +418,14 @@ public fun uncurse_multiple(
 ) {
     let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
 
-    vector::do_ref!(
-        &subjects, |subject| {
+    subjects.do_ref!(
+        |subject| {
             let subject: vector<u8> = *subject;
             assert!(
                 state.cursed_subjects.contains(&subject),
                 E_NOT_CURSED
             );
-            vec_map::remove(&mut state.cursed_subjects, &subject);
+            state.cursed_subjects.remove(&subject);
         }
     );
     event::emit(Uncursed { subjects });
@@ -435,7 +452,7 @@ public fun is_cursed(ref: &CCIPObjectRef, subject: vector<u8>): bool {
 
 public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {
     let mut subject = bcs::to_bytes(&subject_value);
-    vector::reverse(&mut subject);
+    subject.reverse();
     is_cursed(ref, subject)
 }
 

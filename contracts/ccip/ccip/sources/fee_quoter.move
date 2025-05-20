@@ -15,7 +15,23 @@ const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
 const CHAIN_FAMILY_SELECTOR_APTOS: vector<u8> = x"ac77ffec";
 const CHAIN_FAMILY_SELECTOR_SUI: vector<u8> = x"c4e05953";
+
+/// @dev We disallow the first 1024 addresses to avoid calling into a range known for hosting precompiles. Calling
+/// into precompiles probably won't cause any issues, but to be safe we can disallow this range. It is extremely
+/// unlikely that anyone would ever be able to generate an address in this range. There is no official range of
+/// precompiles, but EIP-7587 proposes to reserve the range 0x100 to 0x1ff. Our range is more conservative, even
+/// though it might not be exhaustive for all chains, which is OK. We also disallow the zero address, which is a
+/// common practice.
 const EVM_PRECOMPILE_SPACE: u256 = 1024;
+
+/// @dev According to the Aptos docs, the first 0xa addresses are reserved for precompiles.
+/// https://github.com/aptos-labs/aptos-core/blob/main/aptos-move/framework/aptos-framework/doc/account.md#function-create_framework_reserved_account-1
+/// We use the same range for SUI, even though there is one documented reserved address outside of this range.
+/// Since sending a message to this address would not cause any negative side effects, as it would never register
+/// a callback with CCIP, there is no negative impact.
+/// https://move-book.com/appendix/reserved-addresses.html
+const MOVE_PRECOMPILE_SPACE: u256 = 0x0b;
+
 const SVM_EXTRA_ARGS_V1_TAG: vector<u8> = x"1f3b3aba";
 const GENERIC_EXTRA_ARGS_V2_TAG: vector<u8> = x"181dcf10";
 
@@ -42,7 +58,6 @@ public struct FeeQuoterState has key, store {
     token_price_staleness_threshold: u64,
     fee_tokens: vector<address>,
     usd_per_unit_gas_by_dest_chain: table::Table<u64, TimestampedPrice>,
-    // TODO: we need to know the token address for common tokens like USDC, SUI, etc
     usd_per_token: table::Table<address, TimestampedPrice>,
     dest_chain_configs: table::Table<u64, DestChainConfig>,
     // dest chain selector -> local token -> TokenTransferFeeConfig
@@ -159,7 +174,7 @@ const E_STALE_GAS_PRICE: u64 = 12;
 const E_MESSAGE_TOO_LARGE: u64 = 13;
 const E_UNSUPPORTED_NUMBER_OF_TOKENS: u64 = 14;
 const E_INVALID_EVM_ADDRESS: u64 = 15;
-const E_INVALID_SVM_ADDRESS: u64 = 16;
+const E_INVALID_32BYTES_ADDRESS: u64 = 16;
 const E_FEE_TOKEN_COST_TOO_HIGH: u64 = 17;
 const E_MESSAGE_GAS_LIMIT_TOO_HIGH: u64 = 18;
 const E_EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE: u64 = 19;
@@ -173,6 +188,7 @@ const E_INVALID_DEST_CHAIN_SELECTOR: u64 = 26;
 const E_INVALID_GAS_LIMIT: u64 = 27;
 const E_INVALID_CHAIN_FAMILY_SELECTOR: u64 = 28;
 const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
+const E_ZERO_TOKEN_PRICE: u64 = 30;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -224,11 +240,10 @@ public fun apply_fee_token_updates(
     let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
     // Remove tokens
-    vector::do_ref!(
-        &fee_tokens_to_remove,
+    fee_tokens_to_remove.do_ref!(
         |fee_token| {
             let fee_token = *fee_token;
-            let (found, index) = vector::index_of(&state.fee_tokens, &fee_token);
+            let (found, index) = state.fee_tokens.index_of(&fee_token);
             if (found) {
                 state.fee_tokens.remove(index);
                 event::emit(FeeTokenRemoved { fee_token });
@@ -237,11 +252,10 @@ public fun apply_fee_token_updates(
     );
 
     // Add new tokens
-    vector::do_ref!(
-        &fee_tokens_to_add,
+    fee_tokens_to_add.do_ref!(
         |fee_token| {
             let fee_token = *fee_token;
-            let (found, _) = vector::index_of(&state.fee_tokens, &fee_token);
+            let (found, _) = state.fee_tokens.index_of(&fee_token);
             if (!found) {
                 state.fee_tokens.push_back(fee_token);
                 event::emit(FeeTokenAdded { fee_token });
@@ -267,19 +281,14 @@ public fun apply_token_transfer_fee_config_updates(
 ) {
     let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
-    if (!table::contains(
-        &state.token_transfer_fee_configs, dest_chain_selector
-    )) {
-        table::add(
-            &mut state.token_transfer_fee_configs,
+    if (!state.token_transfer_fee_configs.contains(dest_chain_selector)) {
+        state.token_transfer_fee_configs.add(
             dest_chain_selector,
             table::new(ctx)
         );
     };
     let token_transfer_fee_configs =
-        table::borrow_mut(
-            &mut state.token_transfer_fee_configs, dest_chain_selector
-        );
+        state.token_transfer_fee_configs.borrow_mut(dest_chain_selector);
 
     let add_tokens_len = add_tokens.length();
     assert!(
@@ -326,9 +335,7 @@ public fun apply_token_transfer_fee_config_updates(
             is_enabled
         };
 
-        table::add(
-            token_transfer_fee_configs, token, token_transfer_fee_config
-        );
+        token_transfer_fee_configs.add(token, token_transfer_fee_config);
 
         event::emit(
             TokenTransferFeeConfigAdded {
@@ -341,8 +348,7 @@ public fun apply_token_transfer_fee_config_updates(
         i = i + 1;
     };
 
-    vector::do_ref!(
-        &remove_tokens,
+    remove_tokens.do_ref!(
         |token| {
             let token = *token;
             if (token_transfer_fee_configs.contains(token)) {
@@ -421,17 +427,12 @@ public fun apply_dest_chain_config_updates(
         network_fee_usd_cents
     };
 
-    if (table::contains(&state.dest_chain_configs, dest_chain_selector)) {
-        let dest_chain_config_ref =
-            table::borrow_mut(
-                &mut state.dest_chain_configs, dest_chain_selector
-            );
+    if (state.dest_chain_configs.contains(dest_chain_selector)) {
+        let dest_chain_config_ref = state.dest_chain_configs.borrow_mut(dest_chain_selector);
         *dest_chain_config_ref = dest_chain_config;
         event::emit(DestChainConfigUpdated { dest_chain_selector, dest_chain_config });
     } else {
-        table::add(
-            &mut state.dest_chain_configs, dest_chain_selector, dest_chain_config
-        );
+        state.dest_chain_configs.add(dest_chain_selector, dest_chain_config);
         event::emit(DestChainAdded { dest_chain_selector, dest_chain_config });
     }
 }
@@ -444,8 +445,7 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
 ) {
     let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
 
-    vector::zip_do_ref!(
-        &tokens,
+    tokens.zip_do_ref!(
         &premium_multiplier_wei_per_eth,
         |token, premium_multiplier_wei_per_eth| {
             let token: address = *token;
@@ -537,24 +537,20 @@ fun get_dest_chain_config_internal(
     state: &FeeQuoterState, dest_chain_selector: u64
 ): &DestChainConfig {
     assert!(
-        table::contains(&state.dest_chain_configs, dest_chain_selector),
+        state.dest_chain_configs.contains(dest_chain_selector),
         E_UNKNOWN_DEST_CHAIN_SELECTOR
     );
-    table::borrow(&state.dest_chain_configs, dest_chain_selector)
+    state.dest_chain_configs.borrow(dest_chain_selector)
 }
 
 fun get_dest_chain_gas_price_internal(
     state: &FeeQuoterState, dest_chain_selector: u64
 ): TimestampedPrice {
     assert!(
-        table::contains(
-            &state.usd_per_unit_gas_by_dest_chain, dest_chain_selector
-        ),
+        state.usd_per_unit_gas_by_dest_chain.contains(dest_chain_selector),
         E_UNKNOWN_DEST_CHAIN_SELECTOR
     );
-    *table::borrow(
-        &state.usd_per_unit_gas_by_dest_chain, dest_chain_selector
-    )
+    *state.usd_per_unit_gas_by_dest_chain.borrow(dest_chain_selector)
 }
 
 fun get_validated_gas_price_internal(
@@ -580,10 +576,10 @@ fun get_token_price_internal(
     state: &FeeQuoterState, token: address
 ): TimestampedPrice {
     assert!(
-        table::contains(&state.usd_per_token, token),
+        state.usd_per_token.contains(token),
         E_UNKNOWN_TOKEN
     );
-    *table::borrow(&state.usd_per_token, token)
+    *state.usd_per_token.borrow(token)
 }
 
 fun convert_token_amount_internal(
@@ -596,7 +592,7 @@ fun convert_token_amount_internal(
     let to_token_price = get_token_price_internal(state, to_token);
 
     let to_token_amount =
-        ((from_token_amount as u256) * from_token_price.value) / to_token_price.value;
+        (from_token_amount as u256) * from_token_price.value / to_token_price.value;
     assert!(
         to_token_amount <= MAX_U64,
         E_TO_TOKEN_AMOUNT_TOO_LARGE
@@ -626,8 +622,7 @@ public fun update_prices(
     let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
     let timestamp = clock.timestamp_ms() / 1000;
 
-    vector::zip_do_ref!(
-        &source_tokens,
+    source_tokens.zip_do_ref!(
         &source_usd_per_token,
         |token, usd_per_token| {
             let timestamped_price = TimestampedPrice {
@@ -650,8 +645,7 @@ public fun update_prices(
         }
     );
 
-    vector::zip_do_ref!(
-        &gas_dest_chain_selectors,
+    gas_dest_chain_selectors.zip_do_ref!(
         &gas_usd_per_unit_gas,
         |dest_chain_selector, usd_per_unit_gas| {
             let timestamped_price = TimestampedPrice {
@@ -697,7 +691,7 @@ public fun get_validated_fee(
     );
 
     assert!(
-        vector::contains(&state.fee_tokens, &fee_token),
+        state.fee_tokens.contains(&fee_token),
         E_FEE_TOKEN_NOT_SUPPORTED
     );
 
@@ -708,50 +702,42 @@ public fun get_validated_fee(
     validate_message(dest_chain_config, data_len, tokens_len);
 
     let gas_limit =
-        if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM) {
-            validate_evm_address(receiver);
-            resolve_generic_gas_limit(dest_chain_config, extra_args)
-        } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
+        if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
+            || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
-            validate_32byte_address(receiver, true);
             resolve_generic_gas_limit(dest_chain_config, extra_args)
         } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
             let require_valid_token_receiver = tokens_len > 0;
-            let svm_gas_limit =
-                resolve_svm_gas_limit(
-                    dest_chain_config, extra_args, require_valid_token_receiver
-                );
-            let must_be_non_zero = svm_gas_limit > 0;
-            validate_32byte_address(receiver, must_be_non_zero);
-            svm_gas_limit
+            resolve_svm_gas_limit(
+                dest_chain_config, extra_args, require_valid_token_receiver
+            )
         } else {
             abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
         };
 
-    // TODO: make sure this does not revert if no price
+    validate_dest_family_address(chain_family_selector, receiver, gas_limit);
+
     let fee_token_price = get_token_price_internal(state, fee_token);
+    assert!(fee_token_price.value > 0, E_ZERO_TOKEN_PRICE);
     let packed_gas_price =
-        get_validated_gas_price_internal(
-            state, clock, dest_chain_config, dest_chain_selector
-        );
+        get_validated_gas_price_internal(state, clock, dest_chain_config, dest_chain_selector);
 
     // TODO: this should probably be premium_fee_usd_octa for sui?
     let (mut premium_fee_usd_wei, token_transfer_gas, token_transfer_bytes_overhead) =
-    if (tokens_len > 0) {
-        get_token_transfer_cost(
-            state,
-            dest_chain_config,
-            dest_chain_selector,
-            fee_token,
-            fee_token_price,
-            local_token_addresses,
-            local_token_amounts
-        )
-    } else {
-        ((dest_chain_config.network_fee_usd_cents as u256) * VAL_1E16, 0, 0)
-    };
-    let premium_multiplier =
-        get_premium_multiplier_wei_per_eth_internal(state, fee_token);
+        if (tokens_len > 0) {
+            get_token_transfer_cost(
+                state,
+                dest_chain_config,
+                dest_chain_selector,
+                fee_token,
+                fee_token_price,
+                local_token_addresses,
+                local_token_amounts
+            )
+        } else {
+            ((dest_chain_config.network_fee_usd_cents as u256) * VAL_1E16, 0, 0)
+        };
+    let premium_multiplier = get_premium_multiplier_wei_per_eth_internal(state, fee_token);
     premium_fee_usd_wei = premium_fee_usd_wei * (premium_multiplier as u256); // Apply premium multiplier in wei/eth units
 
     let data_availability_cost_usd_36_decimals =
@@ -769,20 +755,15 @@ public fun get_validated_fee(
             )
         } else { 0 };
 
-    let call_data_length: u256 =
-        (data_len as u256) + (token_transfer_bytes_overhead as u256);
+    let call_data_length: u256 = (data_len as u256) + (token_transfer_bytes_overhead as u256);
     let mut dest_call_data_cost =
-        call_data_length
-            * (dest_chain_config.dest_gas_per_payload_byte_base as u256);
-    if (call_data_length
-        > (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)) {
-        dest_call_data_cost = (
-            dest_chain_config.dest_gas_per_payload_byte_base as u256
-        ) * (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)
-            + (
-            call_data_length
-                - (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)
-        ) * (dest_chain_config.dest_gas_per_payload_byte_high as u256);
+        call_data_length * (dest_chain_config.dest_gas_per_payload_byte_base as u256);
+    if (call_data_length > (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)) {
+        dest_call_data_cost =
+            (dest_chain_config.dest_gas_per_payload_byte_base as u256) *
+                (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)
+           + (call_data_length - (dest_chain_config.dest_gas_per_payload_byte_threshold as u256)) *
+                (dest_chain_config.dest_gas_per_payload_byte_high as u256);
     };
 
     let total_dest_chain_gas =
@@ -792,10 +773,9 @@ public fun get_validated_fee(
     let gas_cost = packed_gas_price & (MAX_U256 >> (255 - GAS_PRICE_BITS + 1));
 
     let total_cost_usd =
-        (
-            total_dest_chain_gas * gas_cost
-                * (dest_chain_config.gas_multiplier_wei_per_eth as u256)
-        ) + premium_fee_usd_wei + data_availability_cost_usd_36_decimals;
+        (total_dest_chain_gas * gas_cost *
+            (dest_chain_config.gas_multiplier_wei_per_eth as u256)) +
+        premium_fee_usd_wei + data_availability_cost_usd_36_decimals;
 
     let fee_token_cost = total_cost_usd / fee_token_price.value;
 
@@ -819,12 +799,28 @@ fun validate_message(
     );
 }
 
+fun validate_dest_family_address(
+    chain_family_selector: vector<u8>, encoded_address: vector<u8>, gas_limit: u256
+) {
+    if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM) {
+        validate_evm_address(encoded_address);
+    } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
+        // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
+        // is non-zero, the address must not be 0x0.
+        let mut min_address = 0;
+        if (gas_limit > 0) {
+            min_address = 1;
+        };
+        validate_32byte_address(encoded_address, min_address);
+    } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
+        || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
+        validate_32byte_address(encoded_address, MOVE_PRECOMPILE_SPACE);
+    };
+}
+
 fun validate_evm_address(encoded_address: vector<u8>) {
     let encoded_address_len = encoded_address.length();
-    // TODO: why this is checking against 32 bytes?
-    assert!(
-        encoded_address_len == 32, E_INVALID_EVM_ADDRESS
-    );
+    assert!(encoded_address_len == 32, E_INVALID_EVM_ADDRESS);
 
     let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
 
@@ -839,45 +835,31 @@ fun validate_evm_address(encoded_address: vector<u8>) {
 }
 
 fun validate_32byte_address(
-    encoded_address: vector<u8>, must_be_non_zero: bool
+    encoded_address: vector<u8>, min_value: u256
 ) {
-    let encoded_address_len = encoded_address.length();
-    assert!(
-        encoded_address_len == 32, E_INVALID_SVM_ADDRESS
-    );
+    assert!(encoded_address.length() == 32, E_INVALID_32BYTES_ADDRESS);
 
-    if (must_be_non_zero) {
-        assert!(
-            encoded_address.length()== 32,
-            E_INVALID_SVM_ADDRESS
-        );
-        let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
-        assert!(
-            encoded_address_uint > 0,
-            E_INVALID_SVM_ADDRESS
-        );
-    };
+    let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
+    assert!(
+        encoded_address_uint >= min_value,
+        E_INVALID_32BYTES_ADDRESS
+    );
 }
 
 fun resolve_generic_gas_limit(
     dest_chain_config: &DestChainConfig, extra_args: vector<u8>
 ): u256 {
-    let extra_args_len = extra_args.length();
-    if (extra_args_len == 0) {
-        dest_chain_config.default_tx_gas_limit as u256
-    } else {
-        let (gas_limit, allow_out_of_order_execution) =
-            decode_generic_extra_args(extra_args);
-        assert!(
-            gas_limit <= (dest_chain_config.max_per_msg_gas_limit as u256),
-            E_MESSAGE_GAS_LIMIT_TOO_HIGH
-        );
-        assert!(
-            !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
-            E_EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE
-        );
-        gas_limit
-    }
+    let (gas_limit, allow_out_of_order_execution) =
+        decode_generic_extra_args(dest_chain_config, extra_args);
+    assert!(
+        gas_limit <= (dest_chain_config.max_per_msg_gas_limit as u256),
+        E_MESSAGE_GAS_LIMIT_TOO_HIGH
+    );
+    assert!(
+        !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
+        E_EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE
+    );
+    gas_limit
 }
 
 fun resolve_svm_gas_limit(
@@ -929,8 +911,7 @@ fun get_token_transfer_cost(
     let mut token_transfer_gas: u32 = 0;
     let mut token_transfer_bytes_overhead: u32 = 0;
 
-    vector::zip_do_ref!(
-        &local_token_addresses,
+    local_token_addresses.zip_do_ref!(
         &local_token_amounts,
         |local_token_address, local_token_amount| {
             let local_token_address: address = *local_token_address;
@@ -942,29 +923,21 @@ fun get_token_transfer_cost(
                 );
 
             if (!transfer_fee_config.is_enabled) {
-                token_transfer_fee_wei = token_transfer_fee_wei
-                + ((dest_chain_config.default_token_fee_usd_cents as u256)
-                * VAL_1E16);
-                token_transfer_gas = token_transfer_gas
-                + dest_chain_config.default_token_dest_gas_overhead;
-                token_transfer_bytes_overhead = token_transfer_bytes_overhead
-                + CCIP_LOCK_OR_BURN_V1_RET_BYTES;
+                token_transfer_fee_wei = token_transfer_fee_wei + (dest_chain_config.default_token_fee_usd_cents as u256) * VAL_1E16;
+                token_transfer_gas = token_transfer_gas + dest_chain_config.default_token_dest_gas_overhead;
+                token_transfer_bytes_overhead = token_transfer_bytes_overhead + CCIP_LOCK_OR_BURN_V1_RET_BYTES;
             } else {
                 let mut bps_fee_usd_wei = 0;
                 if (transfer_fee_config.deci_bps > 0) {
                     let token_price =
-                    if (local_token_address == fee_token) {
-                        fee_token_price
-                    } else {
-                        get_token_price_internal(state, local_token_address)
-                    };
+                        if (local_token_address == fee_token) {
+                            fee_token_price
+                        } else {
+                            get_token_price_internal(state, local_token_address)
+                        };
                     let token_usd_value =
-                        calc_usd_value_from_token_amount(
-                            local_token_amount, token_price.value
-                        );
-                    bps_fee_usd_wei = (
-                        token_usd_value * (transfer_fee_config.deci_bps as u256)
-                    ) / VAL_1E5;
+                        calc_usd_value_from_token_amount(local_token_amount, token_price.value);
+                    bps_fee_usd_wei = token_usd_value * (transfer_fee_config.deci_bps as u256) / VAL_1E5;
                 };
 
                 token_transfer_gas = token_transfer_gas + transfer_fee_config.dest_gas_overhead;
@@ -993,30 +966,28 @@ fun get_token_transfer_cost(
 fun calc_usd_value_from_token_amount(
     token_amount: u64, token_price: u256
 ): u256 {
-    (token_amount as u256) * (token_price as u256) / VAL_1E18
+    (token_amount as u256) * token_price / VAL_1E18
 }
 
 fun get_token_transfer_fee_config_internal(
     state: &FeeQuoterState, dest_chain_selector: u64, token: address
 ): &TokenTransferFeeConfig {
     assert!(
-        table::contains(
-            &state.token_transfer_fee_configs, dest_chain_selector
-        ),
+        state.token_transfer_fee_configs.contains(dest_chain_selector),
         E_UNKNOWN_DEST_CHAIN_SELECTOR
     );
     let dest_chain_fee_configs =
-        table::borrow(&state.token_transfer_fee_configs, dest_chain_selector);
+        state.token_transfer_fee_configs.borrow(dest_chain_selector);
     assert!(
-        table::contains(dest_chain_fee_configs, token),
+        dest_chain_fee_configs.contains(token),
         E_TOKEN_NOT_SUPPORTED
     );
-    table::borrow(dest_chain_fee_configs, token)
+    dest_chain_fee_configs.borrow(token)
 }
 
 public fun get_premium_multiplier_wei_per_eth(
     ref: &CCIPObjectRef,
-    token: address
+    token: address,
 ): u64 {
     let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
     get_premium_multiplier_wei_per_eth_internal(state, token)
@@ -1026,21 +997,33 @@ fun get_premium_multiplier_wei_per_eth_internal(
     state: &FeeQuoterState, token: address
 ): u64 {
     assert!(
-        table::contains(&state.premium_multiplier_wei_per_eth, token),
+        state.premium_multiplier_wei_per_eth.contains(token),
         E_UNKNOWN_TOKEN
     );
-    *table::borrow(&state.premium_multiplier_wei_per_eth, token)
+    *state.premium_multiplier_wei_per_eth.borrow(token)
 }
 
-fun decode_generic_extra_args(extra_args: vector<u8>): (u256, bool) {
+fun decode_generic_extra_args(
+    dest_chain_config: &DestChainConfig, extra_args: vector<u8>
+): (u256, bool) {
     let extra_args_len = extra_args.length();
-    let args_tag = slice(&extra_args, 0, 4);
-    let args_data = slice(&extra_args, 4, extra_args_len - 4);
-
-    if (args_tag == GENERIC_EXTRA_ARGS_V2_TAG) {
-        decode_generic_extra_args_v2(args_data)
+    if (extra_args_len == 0) {
+        // If extra args are empty, generate default values.
+        (dest_chain_config.default_tx_gas_limit as u256, false)
     } else {
-        abort E_INVALID_EXTRA_ARGS_TAG
+        assert!(
+            extra_args_len >= 4,
+            E_INVALID_EXTRA_ARGS_DATA
+        );
+
+        let args_tag = slice(&extra_args, 0, 4);
+        let args_data = slice(&extra_args, 4, extra_args_len - 4);
+
+        if (args_tag == GENERIC_EXTRA_ARGS_V2_TAG) {
+            decode_generic_extra_args_v2(args_data)
+        } else {
+            abort E_INVALID_EXTRA_ARGS_TAG
+        }
     }
 }
 
@@ -1146,7 +1129,7 @@ fun process_chain_family_selector(
         || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
         || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
         let (gas_limit, allow_out_of_order_execution) =
-            decode_generic_extra_args(extra_args);
+            decode_generic_extra_args(dest_chain_config, extra_args);
         let extra_args_v2 =
             encode_generic_extra_args_v2(gas_limit, allow_out_of_order_execution);
         (extra_args_v2, allow_out_of_order_execution)
@@ -1171,7 +1154,6 @@ fun process_chain_family_selector(
         };
         (extra_args, allow_out_of_order_execution)
     } else {
-        // TODO: add support for Sui?
         abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
     }
 }
@@ -1190,8 +1172,7 @@ fun process_pool_return_data(
     let mut i = 0;
     while (i < tokens_len) {
         let dest_token_address = dest_token_addresses[i];
-        let dest_pool_data = &dest_pool_datas[i];
-        let dest_pool_data_len = dest_pool_data.length();
+        let dest_pool_data_len = dest_pool_datas[i].length();
         if (dest_pool_data_len > (CCIP_LOCK_OR_BURN_V1_RET_BYTES as u64)) {
             assert!(
                 dest_pool_data_len <= (token_transfer_fee_config.dest_bytes_overhead as u64),
@@ -1199,14 +1180,9 @@ fun process_pool_return_data(
             );
         };
 
-        if (chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM) {
-            validate_evm_address(dest_token_address);
-            // TODO: does it make sense to add SVM here since SVM is not going to be the dest chain?
-        } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM
-            || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
-            || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
-            validate_32byte_address(dest_token_address, /* must_be_non_zero= */ true);
-        };
+        // We pass in 1 as gas_limit as this only matters for SVM address validation. This ensures the address
+        // may not be 0x0.
+        validate_dest_family_address(chain_family_selector, dest_token_address, 1);
 
         let dest_gas_amount =
             if (token_transfer_fee_config.is_enabled) {
@@ -1261,7 +1237,7 @@ public fun process_message_args(
     let (converted_extra_args, is_out_of_order_execution) =
         process_chain_family_selector(
             dest_chain_config,
-            !vector::is_empty(&dest_token_addresses),
+            !dest_token_addresses.is_empty(),
             extra_args
         );
 
