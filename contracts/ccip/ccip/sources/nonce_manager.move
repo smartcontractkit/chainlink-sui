@@ -43,12 +43,12 @@ public fun get_outbound_nonce(
 ): u64 {
     let state = state_object::borrow<NonceManagerState>(ref);
 
-    if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {
+    if (!state.outbound_nonces.contains(dest_chain_selector)) {
         return 0
     };
 
     let dest_chain_nonces = &state.outbound_nonces[dest_chain_selector];
-    if (!table::contains(dest_chain_nonces, sender)) {
+    if (!dest_chain_nonces.contains(sender)) {
         return 0
     };
     dest_chain_nonces[sender]
@@ -63,16 +63,15 @@ public fun get_incremented_outbound_nonce(
 ): u64 {
     let state = state_object::borrow_mut<NonceManagerState>(ref);
 
-    if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {
-        table::add(
-            &mut state.outbound_nonces,
+    if (!state.outbound_nonces.contains(dest_chain_selector)) {
+        state.outbound_nonces.add(
             dest_chain_selector,
             table::new(ctx),
         );
     };
     let dest_chain_nonces = table::borrow_mut(&mut state.outbound_nonces, dest_chain_selector);
-    if (!table::contains(dest_chain_nonces, sender)) {
-        table::add(dest_chain_nonces, sender, 0);
+    if (!dest_chain_nonces.contains(sender)) {
+        dest_chain_nonces.add(sender, 0);
     };
 
     let nonce_ref = table::borrow_mut(dest_chain_nonces, sender);

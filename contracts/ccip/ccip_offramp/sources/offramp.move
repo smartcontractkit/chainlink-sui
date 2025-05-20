@@ -951,6 +951,7 @@ module ccip_offramp::offramp {
         ref: &CCIPObjectRef, blessed_merkle_roots: &vector<MerkleRoot>, rmn_signatures: vector<vector<u8>>
     ) {
         let mut merkle_root_source_chains_selector = vector[];
+        let mut merkle_root_on_ramp_addresses = vector[];
         let mut merkle_root_min_seq_nrs = vector[];
         let mut merkle_root_max_seq_nrs = vector[];
         let mut merkle_root_values = vector[];
@@ -961,6 +962,7 @@ module ccip_offramp::offramp {
                 merkle_root_source_chains_selector.push_back(
                     merkle_root.source_chain_selector
                 );
+                merkle_root_on_ramp_addresses.push_back(merkle_root.on_ramp_address);
                 merkle_root_max_seq_nrs.push_back(
                     merkle_root.max_seq_nr
                 );
@@ -975,6 +977,7 @@ module ccip_offramp::offramp {
         rmn_remote::verify(
             ref,
             merkle_root_source_chains_selector,
+            merkle_root_on_ramp_addresses,
             merkle_root_min_seq_nrs,
             merkle_root_max_seq_nrs,
             merkle_root_values,

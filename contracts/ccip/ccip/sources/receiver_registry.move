@@ -82,5 +82,5 @@ public fun register_receiver<ProofType: drop>(
 
 public fun is_registered_receiver(ref: &CCIPObjectRef, receiver_address: address): bool {
     let registry = state_object::borrow<ReceiverRegistry>(ref);
-    return registry.receiver_configs.contains(&receiver_address)
+    registry.receiver_configs.contains(&receiver_address)
 }

@@ -266,9 +266,8 @@ module ccip_onramp::onramp {
             let is_enabled = dest_chain_enabled[i];
             let allowlist_enabled = dest_chain_allowlist_enabled[i];
 
-            if (!table::contains(&state.dest_chain_configs, dest_chain_selector)) {
-                table::add(
-                    &mut state.dest_chain_configs,
+            if (!state.dest_chain_configs.contains(dest_chain_selector)) {
+                state.dest_chain_configs.add(
                     dest_chain_selector,
                     DestChainConfig {
                         is_enabled: false,
