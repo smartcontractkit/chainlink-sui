@@ -10,7 +10,6 @@ use sui::table;
 use ccip::eth_abi;
 use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
-const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
 const CHAIN_FAMILY_SELECTOR_APTOS: vector<u8> = x"ac77ffec";
@@ -105,7 +104,7 @@ public struct TokenTransferFeeConfig has store, drop, copy {
     deci_bps: u16,
     dest_gas_overhead: u32,
     dest_bytes_overhead: u32,
-    is_enabled: bool
+    is_enabled: bool,
 }
 
 public struct TimestampedPrice has store, drop, copy {
@@ -205,7 +204,7 @@ public fun initialize(
     ctx: &mut TxContext
 ) {
     assert!(
-        !state_object::contains(ref, FEE_QUOTER_STATE_NAME),
+        !state_object::contains<FeeQuoterState>(ref),
         E_ALREADY_INITIALIZED
     );
 
@@ -228,7 +227,7 @@ public fun initialize(
         fee_quoter_cap,
         ctx.sender()
     );
-    state_object::add(ref, FEE_QUOTER_STATE_NAME, state, ctx);
+    state_object::add(ref, state, ctx);
 }
 
 public fun apply_fee_token_updates(
@@ -237,7 +236,7 @@ public fun apply_fee_token_updates(
     fee_tokens_to_remove: vector<address>,
     fee_tokens_to_add: vector<address>,
 ) {
-    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
     // Remove tokens
     fee_tokens_to_remove.do_ref!(
@@ -279,7 +278,7 @@ public fun apply_token_transfer_fee_config_updates(
     remove_tokens: vector<address>,
     ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
     if (!state.token_transfer_fee_configs.contains(dest_chain_selector)) {
         state.token_transfer_fee_configs.add(
@@ -386,7 +385,7 @@ public fun apply_dest_chain_config_updates(
     gas_price_staleness_threshold: u32,
     network_fee_usd_cents: u32,
 ) {
-    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
     assert!(
         dest_chain_selector != 0,
@@ -443,7 +442,7 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
     tokens: vector<address>,
     premium_multiplier_wei_per_eth: vector<u64>,
 ) {
-    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
     tokens.zip_do_ref!(
         &premium_multiplier_wei_per_eth,
@@ -467,7 +466,7 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
 }
 
 public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     StaticConfig {
         max_fee_juels_per_msg: state.max_fee_juels_per_msg,
         link_token: state.link_token,
@@ -475,27 +474,48 @@ public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
     }
 }
 
+public fun get_static_config_fields(cfg: StaticConfig): (u64, address, u64) {
+    (cfg.max_fee_juels_per_msg, cfg.link_token, cfg.token_price_staleness_threshold)
+}
+
 public fun get_token_transfer_fee_config(
     ref: &CCIPObjectRef,
     dest_chain_selector: u64,
     token: address
 ): TokenTransferFeeConfig {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     *get_token_transfer_fee_config_internal(
         state, dest_chain_selector, token
     )
 }
 
+public fun get_token_transfer_fee_config_fields(
+    cfg: TokenTransferFeeConfig,
+): (u32, u32, u16, u32, u32, bool) {
+    (
+        cfg.min_fee_usd_cents,
+        cfg.max_fee_usd_cents,
+        cfg.deci_bps,
+        cfg.dest_gas_overhead,
+        cfg.dest_bytes_overhead,
+        cfg.is_enabled,
+    )
+}
+
 public fun get_token_price(ref: &CCIPObjectRef, token: address): TimestampedPrice {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     get_token_price_internal(state, token)
+}
+
+public fun get_timestamped_price_fields(tp: TimestampedPrice): (u256, u64) {
+    (tp.value, tp.timestamp)
 }
 
 public fun get_token_prices(
     ref: &CCIPObjectRef,
     tokens: vector<address>
 ): (vector<TimestampedPrice>) {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     tokens.map_ref!(|token| get_token_price_internal(state, *token))
 }
 
@@ -503,14 +523,14 @@ public fun get_dest_chain_gas_price(
     ref: &CCIPObjectRef,
     dest_chain_selector: u64
 ): TimestampedPrice {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     get_dest_chain_gas_price_internal(state, dest_chain_selector)
 }
 
 public fun get_token_and_gas_prices(
     ref: &CCIPObjectRef, clock: &clock::Clock, token: address, dest_chain_selector: u64
 ): (u256, u256) {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     let dest_chain_config = get_dest_chain_config_internal(
         state, dest_chain_selector
     );
@@ -529,8 +549,34 @@ public fun get_token_and_gas_prices(
 public fun get_dest_chain_config(
     ref: &CCIPObjectRef, dest_chain_selector: u64
 ): DestChainConfig {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     *get_dest_chain_config_internal(state, dest_chain_selector)
+}
+
+public fun get_dest_chain_config_fields(
+    dest_chain_config: DestChainConfig,
+): (bool, u16, u32, u32, u32, u8, u8, u16, u32, u16, u16, vector<u8>, bool, u16, u32, u32, u64, u32, u32) {
+    (
+        dest_chain_config.is_enabled,
+        dest_chain_config.max_number_of_tokens_per_msg,
+        dest_chain_config.max_data_bytes,
+        dest_chain_config.max_per_msg_gas_limit,
+        dest_chain_config.dest_gas_overhead,
+        dest_chain_config.dest_gas_per_payload_byte_base,
+        dest_chain_config.dest_gas_per_payload_byte_high,
+        dest_chain_config.dest_gas_per_payload_byte_threshold,
+        dest_chain_config.dest_data_availability_overhead_gas,
+        dest_chain_config.dest_gas_per_data_availability_byte,
+        dest_chain_config.dest_data_availability_multiplier_bps,
+        dest_chain_config.chain_family_selector,
+        dest_chain_config.enforce_out_of_order,
+        dest_chain_config.default_token_fee_usd_cents,
+        dest_chain_config.default_token_dest_gas_overhead,
+        dest_chain_config.default_tx_gas_limit,
+        dest_chain_config.gas_multiplier_wei_per_eth,
+        dest_chain_config.gas_price_staleness_threshold,
+        dest_chain_config.network_fee_usd_cents,
+    )
 }
 
 fun get_dest_chain_config_internal(
@@ -619,7 +665,7 @@ public fun update_prices(
         E_GAS_UPDATE_MISMATCH
     );
 
-    let state = state_object::borrow_mut<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow_mut<FeeQuoterState>(ref);
     let timestamp = clock.timestamp_ms() / 1000;
 
     source_tokens.zip_do_ref!(
@@ -680,7 +726,7 @@ public fun get_validated_fee(
     fee_token: address,
     extra_args: vector<u8>
 ): u64 {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
 
     let dest_chain_config = get_dest_chain_config_internal(
         state, dest_chain_selector
@@ -989,7 +1035,7 @@ public fun get_premium_multiplier_wei_per_eth(
     ref: &CCIPObjectRef,
     token: address,
 ): u64 {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     get_premium_multiplier_wei_per_eth_internal(state, token)
 }
 
@@ -1210,7 +1256,7 @@ public fun process_message_args(
     dest_token_addresses: vector<vector<u8>>,
     dest_pool_datas: vector<vector<u8>>
 ): (u64, bool, vector<u8>, vector<vector<u8>>) {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     let msg_fee_juels =
         if (fee_token == state.link_token) {
             fee_token_amount
@@ -1257,9 +1303,8 @@ public fun process_message_args(
     )
 }
 
-#[test_only]
 public fun get_fee_tokens(ref: &CCIPObjectRef): vector<address> {
-    let state = state_object::borrow<FeeQuoterState>(ref, FEE_QUOTER_STATE_NAME);
+    let state = state_object::borrow<FeeQuoterState>(ref);
     state.fee_tokens
 }
 

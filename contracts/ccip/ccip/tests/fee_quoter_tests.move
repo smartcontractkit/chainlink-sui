@@ -5,12 +5,11 @@ use std::bcs;
 use sui::test_scenario::{Self, Scenario};
 use sui::clock;
 
-use ccip::fee_quoter;
+use ccip::fee_quoter::{Self, FeeQuoterState};
 use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
 
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
-const FEE_QUOTER_STATE_NAME: vector<u8> = b"FeeQuoterState";
 const MOCK_ADDRESS_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 const MOCK_ADDRESS_2: address = @0x000000000000000000000000F4030086522a5bEEa4988F8cA5B36dbC97BeE88c;
 // EVM token address
@@ -54,7 +53,7 @@ public fun test_initialize() {
     let ctx = scenario.ctx();
     initialize(&mut ref, &owner_cap, ctx);
 
-    let _state = state_object::borrow<fee_quoter::FeeQuoterState>(&ref, FEE_QUOTER_STATE_NAME);
+    let _state = state_object::borrow<FeeQuoterState>(&ref);
 
     let fee_tokens = fee_quoter::get_fee_tokens(&ref);
     assert!(fee_tokens == vector[

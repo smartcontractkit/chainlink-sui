@@ -376,7 +376,7 @@ module ccip_onramp::onramp {
         )
     }
 
-    public fun get_dest_chain_config(state: &OnRampState, dest_chain_selector: u64): (bool, u64, bool) {
+    public fun get_dest_chain_config(state: &OnRampState, dest_chain_selector: u64): (bool, u64, bool, vector<address>) {
         assert!(
             state.dest_chain_configs.contains(dest_chain_selector),
             E_UNKNOWN_DEST_CHAIN_SELECTOR
@@ -387,7 +387,8 @@ module ccip_onramp::onramp {
         (
             dest_chain_config.is_enabled,
             dest_chain_config.sequence_number,
-            dest_chain_config.allowlist_enabled
+            dest_chain_config.allowlist_enabled,
+            dest_chain_config.allowed_senders,
         )
     }
 
@@ -540,11 +541,19 @@ module ccip_onramp::onramp {
         StaticConfig { chain_selector: state.chain_selector }
     }
 
+    public fun get_static_config_fields(cfg: StaticConfig): u64 {
+        cfg.chain_selector
+    }
+
     public fun get_dynamic_config(state: &OnRampState): DynamicConfig {
         DynamicConfig {
             fee_aggregator: state.fee_aggregator,
             allowlist_admin: state.allowlist_admin
         }
+    }
+
+    public fun get_dynamic_config_fields(cfg: DynamicConfig): (address, address) {
+        (cfg.fee_aggregator, cfg.allowlist_admin)
     }
 
     fun calculate_metadata_hash(

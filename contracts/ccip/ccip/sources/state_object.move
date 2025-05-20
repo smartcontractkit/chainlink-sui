@@ -1,5 +1,7 @@
 module ccip::state_object;
 
+use std::type_name;
+
 use sui::dynamic_object_field as dof;
 use sui::event;
 
@@ -79,38 +81,38 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
 
 public(package) fun add<T: key + store>(
     ref: &mut CCIPObjectRef,
-    name: vector<u8>,
     obj: T,
     ctx: &TxContext,
 ) {
     assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
-    assert!(!dof::exists_(&ref.id, name), E_MODULE_ALREADY_EXISTS);
-    dof::add(&mut ref.id, name, obj);
+    let tn = type_name::get<T>();
+    assert!(!dof::exists_(&ref.id, tn), E_MODULE_ALREADY_EXISTS);
+    dof::add(&mut ref.id, tn, obj);
 }
 
-public(package) fun contains(ref: &CCIPObjectRef, name: vector<u8>): bool {
-    dof::exists_(&ref.id, name)
+public(package) fun contains<T>(ref: &CCIPObjectRef): bool {
+    let tn = type_name::get<T>();
+    dof::exists_(&ref.id, tn)
 }
 
 public(package) fun remove<T: key + store>(
     ref: &mut CCIPObjectRef,
-    name: vector<u8>,
     ctx: &TxContext,
 ): T {
     assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
-    assert!(dof::exists_(&ref.id, name), E_MODULE_DOES_NOT_EXISTS);
-    dof::remove(&mut ref.id, name)
+    let tn = type_name::get<T>();
+    assert!(dof::exists_(&ref.id, tn), E_MODULE_DOES_NOT_EXISTS);
+    dof::remove(&mut ref.id, tn)
 }
 
-public(package) fun borrow<T: key + store>(ref: &CCIPObjectRef, name: vector<u8>): &T {
-    dof::borrow(&ref.id, name)
+public(package) fun borrow<T: key + store>(ref: &CCIPObjectRef): &T {
+    let tn = type_name::get<T>();
+    dof::borrow(&ref.id, tn)
 }
 
-public(package) fun borrow_mut<T: key + store>(
-    ref: &mut CCIPObjectRef,
-    name: vector<u8>,
-): &mut T {
-    dof::borrow_mut(&mut ref.id, name)
+public(package) fun borrow_mut<T: key + store>(ref: &mut CCIPObjectRef): &mut T {
+    let tn = type_name::get<T>();
+    dof::borrow_mut(&mut ref.id, tn)
 }
 
 public fun transfer_ownership(ref: &mut CCIPObjectRef, to: address, ctx: &mut TxContext) {

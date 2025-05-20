@@ -33,8 +33,8 @@ public fun test_add() {
     let (mut scenario, owner_cap,  mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, b"test", obj, ctx);
-    assert!(state_object::contains(&ref, b"test"));
+    state_object::add(&mut ref, obj, ctx);
+    assert!(state_object::contains<TestObject>(&ref));
 
     tear_down_test(scenario, owner_cap, ref);
 }
@@ -44,11 +44,11 @@ public fun test_remove() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, b"test", obj, ctx);
-    assert!(state_object::contains(&ref, b"test"));
+    state_object::add(&mut ref, obj, ctx);
+    assert!(state_object::contains<TestObject>(&ref));
 
-    let obj2: TestObject = state_object::remove(&mut ref, b"test", ctx);
-    assert!(!state_object::contains(&ref, b"test"));
+    let obj2: TestObject = state_object::remove<TestObject>(&mut ref, ctx);
+    assert!(!state_object::contains<TestObject>(&ref));
 
     let TestObject { id } = obj2;
     object::delete(id);
@@ -61,11 +61,11 @@ public fun test_borrow() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, b"test", obj, ctx);
-    assert!(state_object::contains(&ref, b"test"));
+    state_object::add(&mut ref, obj, ctx);
+    assert!(state_object::contains<TestObject>(&ref));
 
-    let _obj2: &TestObject = state_object::borrow(&ref, b"test");
-    assert!(state_object::contains(&ref, b"test"));
+    let _obj2: &TestObject = state_object::borrow<TestObject>(&ref);
+    assert!(state_object::contains<TestObject>(&ref));
 
     tear_down_test(scenario, owner_cap, ref);
 }
@@ -75,11 +75,11 @@ public fun test_borrow_mut() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, b"test", obj, ctx);
-    assert!(state_object::contains(&ref, b"test"));
+    state_object::add(&mut ref, obj, ctx);
+    assert!(state_object::contains<TestObject>(&ref));
 
-    let _obj2: &mut TestObject = state_object::borrow_mut(&mut ref, b"test");
-    assert!(state_object::contains(&ref, b"test"));
+    let _obj2: &mut TestObject = state_object::borrow_mut<TestObject>(&mut ref);
+    assert!(state_object::contains<TestObject>(&ref));
 
     tear_down_test(scenario, owner_cap, ref);
 }
@@ -89,7 +89,7 @@ public fun test_transfer_ownership() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, b"test", obj, ctx);
+    state_object::add(&mut ref, obj, ctx);
 
     let ctx = scenario.ctx();
     let new_owner = SENDER_2;
@@ -111,7 +111,7 @@ public fun test_transfer_ownership() {
 public fun test_accept_and_execute_ownership() {
     let (mut scenario_1, owner_cap, mut ref, obj) = set_up_test();
     let ctx_1 = scenario_1.ctx();
-    state_object::add(&mut ref, b"test", obj, ctx_1);
+    state_object::add(&mut ref, obj, ctx_1);
 
     // tx 1: SENDER_1 transfer ownership to SENDER_2
     // let ctx_1 = scenario_1.ctx();
@@ -157,8 +157,8 @@ public fun test_accept_and_execute_ownership() {
     // tx 4: SENDER_2 can now update the state object
     let mut scenario_4 = test_scenario::begin(SENDER_2);
 
-    let obj2: TestObject = state_object::remove(&mut ref, b"test", scenario_4.ctx());
-    assert!(!state_object::contains(&ref, b"test"));
+    let obj2: TestObject = state_object::remove<TestObject>(&mut ref, scenario_4.ctx());
+    assert!(!state_object::contains<TestObject>(&ref));
     let TestObject { id } = obj2;
     object::delete(id);
 

@@ -10,8 +10,6 @@ use sui::linked_table::{Self, LinkedTable};
 
 use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
-const TOKEN_ADMIN_REGISTRY_STATE_NAME: vector<u8> = b"TokenAdminRegistry";
-
 public struct TokenAdminRegistryState has key, store {
     id: UID,
     token_configs: LinkedTable<address, TokenConfig>,
@@ -58,7 +56,7 @@ public fun initialize(
     ctx: &mut TxContext
 ) {
     assert!(
-        !state_object::contains(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME),
+        !state_object::contains<TokenAdminRegistryState>(ref),
         E_ALREADY_INITIALIZED
     );
     let state = TokenAdminRegistryState {
@@ -66,14 +64,14 @@ public fun initialize(
         token_configs: linked_table::new(ctx),
     };
 
-    state_object::add(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME, state, ctx);
+    state_object::add(ref, state, ctx);
 }
 
 public fun get_pools(
     ref: &CCIPObjectRef,
     coin_metadata_addresses: vector<address>
 ): vector<address>{
-    let state = state_object::borrow<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     let mut token_pool_addresses: vector<address> = vector::empty();
     coin_metadata_addresses.do_ref!(
@@ -95,7 +93,7 @@ public fun get_pools(
 // this function can also take a coin metadata or a coin::zero
 // but that requires adding a type parameter to the function
 public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): address {
-    let state = state_object::borrow<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     if (state.token_configs.contains(coin_metadata_address)) {
         let token_config = state.token_configs.borrow(coin_metadata_address);
@@ -109,7 +107,7 @@ public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): addres
 public fun get_token_config(
     ref: &CCIPObjectRef, coin_metadata_address: address
 ): (address, address, address, ascii::String) {
-    let state = state_object::borrow<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     if (state.token_configs.contains(coin_metadata_address)) {
         let token_config = state.token_configs.borrow(coin_metadata_address);
@@ -142,7 +140,7 @@ public fun get_token_config(
 public fun get_all_configured_tokens(
     ref: &CCIPObjectRef, start_key: address, max_count: u64
 ): (vector<address>, address, bool) {
-    let state = state_object::borrow<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     let mut i = 0;
     let mut result = vector[];
@@ -229,7 +227,7 @@ fun register_pool_internal<ProofType: drop>(
     _proof: ProofType, // use this proof type to validate the token pool address & token pool module name
     ctx: &TxContext
 ) {
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
     assert!(
         !state.token_configs.contains(coin_metadata_address),
         E_FUNGIBLE_ASSET_ALREADY_REGISTERED
@@ -252,7 +250,7 @@ public fun set_pool(
     token_pool_address: address,
     ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
@@ -287,7 +285,7 @@ public fun transfer_admin_role(
     new_admin: address,
     ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
@@ -318,7 +316,7 @@ public fun accept_admin_role(
     coin_metadata_address: address,
     ctx: &mut TxContext
 ) {
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
@@ -343,7 +341,7 @@ public fun accept_admin_role(
 public fun is_administrator(
     ref: &CCIPObjectRef, coin_metadata_address: address, administrator: address
 ): bool {
-    let state = state_object::borrow<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
@@ -358,7 +356,7 @@ public fun is_administrator(
 public fun insert_token_addresses_for_test(
     ref: &mut CCIPObjectRef, token_addresses: vector<address>
 ) {
-    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref, TOKEN_ADMIN_REGISTRY_STATE_NAME);
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     token_addresses.do_ref!(
         |token_address| {

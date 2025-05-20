@@ -15,7 +15,6 @@ public struct NonceManagerState has key, store {
     outbound_nonces: Table<u64, Table<address, u64>>,
 }
 
-const NONCE_MANAGER_STATE_NAME: vector<u8> = b"NonceManagerState";
 const E_ALREADY_INITIALIZED: u64 = 1;
 
 public fun type_and_version(): String {
@@ -24,7 +23,7 @@ public fun type_and_version(): String {
 
 #[allow(lint(self_transfer))]
 public fun initialize(ref: &mut CCIPObjectRef, _: &OwnerCap, ctx: &mut TxContext) {
-    assert!(!state_object::contains(ref, NONCE_MANAGER_STATE_NAME), E_ALREADY_INITIALIZED);
+    assert!(!state_object::contains<NonceManagerState>(ref), E_ALREADY_INITIALIZED);
 
     let state = NonceManagerState {
         id: object::new(ctx),
@@ -33,7 +32,7 @@ public fun initialize(ref: &mut CCIPObjectRef, _: &OwnerCap, ctx: &mut TxContext
     let cap = NonceManagerCap {
         id: object::new(ctx),
     };
-    state_object::add(ref, NONCE_MANAGER_STATE_NAME, state, ctx);
+    state_object::add(ref, state, ctx);
     transfer::transfer(cap, ctx.sender());
 }
 
@@ -42,7 +41,7 @@ public fun get_outbound_nonce(
     dest_chain_selector: u64,
     sender: address,
 ): u64 {
-    let state = state_object::borrow<NonceManagerState>(ref, NONCE_MANAGER_STATE_NAME);
+    let state = state_object::borrow<NonceManagerState>(ref);
 
     if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {
         return 0
@@ -62,10 +61,7 @@ public fun get_incremented_outbound_nonce(
     sender: address,
     ctx: &mut TxContext,
 ): u64 {
-    let state = state_object::borrow_mut<NonceManagerState>(
-        ref,
-        NONCE_MANAGER_STATE_NAME,
-    );
+    let state = state_object::borrow_mut<NonceManagerState>(ref);
 
     if (!table::contains(&state.outbound_nonces, dest_chain_selector)) {
         table::add(

@@ -4,13 +4,14 @@ module ccip_offramp::ocr3_base {
     use sui::ed25519;
     use sui::event;
     use sui::hash;
-    use sui::table;
+    use sui::table::{Self, Table};
 
     const MAX_NUM_ORACLES: u64 = 256;
     const OCR_PLUGIN_TYPE_COMMIT: u8 = 0;
     const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
     const PUBLIC_KEY_NUM_BYTES: u64 = 32;
 
+    const E_CONFIG_NOT_SET: u64 = 1;
     const E_BIG_F_MUST_BE_POSITIVE: u64 = 2;
     const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 3;
     const E_TOO_MANY_SIGNERS: u64 = 4;
@@ -67,11 +68,11 @@ module ccip_offramp::ocr3_base {
     public struct OCR3BaseState has key, store {
         id: UID,
         // ocr plugin type -> ocr config
-        ocr3_configs: table::Table<u8, OCRConfig>,
+        ocr3_configs: Table<u8, OCRConfig>,
         // ocr plugin type -> signers
-        signer_oracles: table::Table<u8, vector<UnvalidatedPublicKey>>,
+        signer_oracles: Table<u8, vector<UnvalidatedPublicKey>>,
         // ocr plugin type -> transmitters
-        transmitter_oracles: table::Table<u8, vector<address>>
+        transmitter_oracles: Table<u8, vector<address>>
     }
 
     public fun ocr_plugin_type_commit(): u8 {
@@ -96,8 +97,25 @@ module ccip_offramp::ocr3_base {
     public fun latest_config_details(
         state: &OCR3BaseState, ocr_plugin_type: u8
     ): OCRConfig {
+        assert!(
+            state.ocr3_configs.contains(ocr_plugin_type),
+            E_CONFIG_NOT_SET
+        );
         let ocr_config = &state.ocr3_configs[ocr_plugin_type];
         *ocr_config
+    }
+
+    public fun latest_config_details_fields(
+        ocr_config: OCRConfig
+    ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
+        (
+            ocr_config.config_info.config_digest,
+            ocr_config.config_info.big_f,
+            ocr_config.config_info.n,
+            ocr_config.config_info.is_signature_verification_enabled,
+            ocr_config.signers,
+            ocr_config.transmitters
+        )
     }
 
     // equivalent of uint64(uint256(reportContext[1]))
@@ -140,7 +158,7 @@ module ccip_offramp::ocr3_base {
     }
 
     fun assign_transmitter_oracles(
-        transmitter_oracles: &mut table::Table<u8, vector<address>>,
+        transmitter_oracles: &mut Table<u8, vector<address>>,
         ocr_plugin_type: u8,
         transmitters: &vector<address>
     ) {
@@ -149,22 +167,21 @@ module ccip_offramp::ocr3_base {
             E_REPEATED_TRANSMITTERS
         );
 
-        if (table::contains(transmitter_oracles, ocr_plugin_type)) {
-            let _old_value = table::remove(transmitter_oracles, ocr_plugin_type);
+        if (transmitter_oracles.contains(ocr_plugin_type)) {
+            let _old_value = transmitter_oracles.remove(ocr_plugin_type);
         };
-        table::add(transmitter_oracles, ocr_plugin_type, *transmitters);
+        transmitter_oracles.add(ocr_plugin_type, *transmitters);
     }
 
     // TODO: explore more valid public key checks
     fun assign_signer_oracles(
-        signer_oracles: &mut table::Table<u8, vector<UnvalidatedPublicKey>>,
+        signer_oracles: &mut Table<u8, vector<UnvalidatedPublicKey>>,
         ocr_plugin_type: u8,
         signers: &vector<vector<u8>>
     ) {
         assert!(!has_duplicates(signers), E_REPEATED_SIGNERS);
 
-        let validated_signers = vector::map_ref!(
-            signers,
+        let validated_signers = signers.map_ref!(
             |signer| {
                 assert!(
                     validate_public_key(signer),
@@ -174,10 +191,10 @@ module ccip_offramp::ocr3_base {
             }
         );
 
-        if (table::contains(signer_oracles, ocr_plugin_type)) {
-            let _old_value = table::remove(signer_oracles, ocr_plugin_type);
+        if (signer_oracles.contains(ocr_plugin_type)) {
+            let _old_value = signer_oracles.remove(ocr_plugin_type);
         };
-        table::add(signer_oracles, ocr_plugin_type, validated_signers);
+        signer_oracles.add(ocr_plugin_type, validated_signers);
     }
 
     // TODO: verify if we can provide more validation for public key
@@ -245,7 +262,7 @@ module ccip_offramp::ocr3_base {
         signatures: vector<vector<u8>>,
         _ctx: &TxContext
     ) {
-        let ocr_config = table::borrow(&ocr3_state.ocr3_configs, ocr_plugin_type);
+        let ocr_config = ocr3_state.ocr3_configs.borrow(ocr_plugin_type);
         let config_info = &ocr_config.config_info;
 
         assert!(
@@ -306,11 +323,10 @@ module ccip_offramp::ocr3_base {
     ) {
         assert!(big_f != 0, E_BIG_F_MUST_BE_POSITIVE);
 
-        let ocr_config = if (table::contains(&ocr3_state.ocr3_configs, ocr_plugin_type)) {
-            table::borrow_mut(&mut ocr3_state.ocr3_configs, ocr_plugin_type)
+        let ocr_config = if (ocr3_state.ocr3_configs.contains(ocr_plugin_type)) {
+            ocr3_state.ocr3_configs.borrow_mut(ocr_plugin_type)
         } else {
-            table::add(
-                &mut ocr3_state.ocr3_configs,
+            ocr3_state.ocr3_configs.add(
                 ocr_plugin_type,
                 OCRConfig {
                     config_info: ConfigInfo {
@@ -323,7 +339,7 @@ module ccip_offramp::ocr3_base {
                     transmitters: vector[]
                 }
             );
-            table::borrow_mut(&mut ocr3_state.ocr3_configs, ocr_plugin_type)
+             ocr3_state.ocr3_configs.borrow_mut(ocr_plugin_type)
         };
 
         let config_info = &mut ocr_config.config_info;

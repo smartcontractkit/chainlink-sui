@@ -68,7 +68,6 @@ public struct Uncursed has copy, drop {
 
 const SIGNATURE_NUM_BYTES: u64 = 64;
 const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
-const RMN_REMOTE_STATE_NAME: vector<u8> = b"RMNRemoteState";
 
 const E_ALREADY_INITIALIZED: u64 = 1;
 const E_ALREADY_CURSED: u64 = 2;
@@ -99,7 +98,7 @@ public fun initialize(
     ctx: &mut TxContext
 ) {
     assert!(
-        !state_object::contains(ref, RMN_REMOTE_STATE_NAME),
+        !state_object::contains<RMNRemoteState>(ref),
         E_ALREADY_INITIALIZED
     );
     assert!(
@@ -120,7 +119,7 @@ public fun initialize(
         cursed_subjects: vec_map::empty<vector<u8>, bool>()
     };
 
-    state_object::add(ref, RMN_REMOTE_STATE_NAME, state, ctx);
+    state_object::add(ref, state, ctx);
 }
 
 fun calculate_report(report: &Report): vector<u8> {
@@ -150,7 +149,7 @@ public fun verify(
     merkle_root_values: vector<vector<u8>>,
     signatures: vector<vector<u8>>
 ): bool {
-    let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow<RMNRemoteState>(ref);
 
     assert!(state.config_count > 0, E_CONFIG_NOT_SET);
 
@@ -277,7 +276,7 @@ public fun set_config(
     node_indexes: vector<u64>,
     f_sign: u64,
 ) {
-    let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     assert!(
         rmn_home_contract_config_digest.length() == 32,
@@ -356,13 +355,30 @@ public fun set_config(
 }
 
 public fun get_versioned_config(ref: &CCIPObjectRef): VersionedConfig {
-    let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow<RMNRemoteState>(ref);
 
     VersionedConfig { version: state.config_count, config: state.config }
 }
 
+public fun get_versioned_config_fields(vc: VersionedConfig): (u32, vector<u8>, vector<vector<u8>>, vector<u64>, u64) {
+    let digest = vc.config.rmn_home_contract_config_digest;
+    let signers = vc.config.signers;
+    let f_sign = vc.config.f_sign;
+    let mut pub_keys = vector[];
+    let mut node_indexes = vector[];
+    signers.do_ref!(
+        |signer| {
+            let signer: &Signer = signer;
+            pub_keys.push_back(signer.onchain_public_key);
+            node_indexes.push_back(signer.node_index);
+        }
+    );
+
+    (vc.version, digest, pub_keys, node_indexes, f_sign)
+}
+
 public fun get_local_chain_selector(ref: &CCIPObjectRef): u64 {
-    let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.local_chain_selector
 }
@@ -384,7 +400,7 @@ public fun curse_multiple(
     _: &OwnerCap,
     subjects: vector<vector<u8>>,
 ) {
-    let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(
         |subject| {
@@ -416,7 +432,7 @@ public fun uncurse_multiple(
     _: &OwnerCap,
     subjects: vector<vector<u8>>,
 ) {
-    let state = state_object::borrow_mut<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(
         |subject| {
@@ -432,20 +448,20 @@ public fun uncurse_multiple(
 }
 
 public fun get_cursed_subjects(ref: &CCIPObjectRef): vector<vector<u8>> {
-    let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.cursed_subjects.keys()
 }
 
 #[allow(implicit_const_copy)]
 public fun is_cursed_global(ref: &CCIPObjectRef): bool {
-    let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.cursed_subjects.contains(&GLOBAL_CURSE_SUBJECT)
 }
 
 public fun is_cursed(ref: &CCIPObjectRef, subject: vector<u8>): bool {
-    let state = state_object::borrow<RMNRemoteState>(ref, RMN_REMOTE_STATE_NAME);
+    let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.cursed_subjects.contains(&subject) || is_cursed_global(ref)
 }
@@ -454,6 +470,21 @@ public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {
     let mut subject = bcs::to_bytes(&subject_value);
     subject.reverse();
     is_cursed(ref, subject)
+}
+
+public fun get_active_signers(ref: &CCIPObjectRef): vector<vector<u8>> {
+    let state = state_object::borrow<RMNRemoteState>(ref);
+
+    let mut active_signers = vector[];
+    state.signers.keys().do_ref!(
+        |signer| {
+            let signer: vector<u8> = *signer;
+            if (*state.signers.get(&signer)) {
+                active_signers.push_back(signer);
+            }
+        }
+    );
+    active_signers
 }
 
 #[test_only]

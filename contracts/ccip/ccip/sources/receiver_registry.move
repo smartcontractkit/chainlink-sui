@@ -29,7 +29,6 @@ public struct ReceiverRegistered has copy, drop {
     receiver_module_name: vector<u8>
 }
 
-const RECEIVER_REGISTRY: vector<u8> = b"ReceiverRegistry";
 const E_ALREADY_REGISTERED: u64 = 1;
 const E_ALREADY_INITIALIZED: u64 = 2;
 
@@ -43,7 +42,7 @@ public fun initialize(
     ctx: &mut TxContext
 ) {
     assert!(
-        !state_object::contains(ref, RECEIVER_REGISTRY),
+        !state_object::contains<ReceiverRegistry>(ref),
         E_ALREADY_INITIALIZED
     );
     let state = ReceiverRegistry {
@@ -51,7 +50,7 @@ public fun initialize(
         receiver_configs: vec_map::empty()
     };
 
-    state_object::add(ref, RECEIVER_REGISTRY, state, ctx);
+    state_object::add(ref, state, ctx);
 }
 
 public fun register_receiver<ProofType: drop>(
@@ -61,7 +60,7 @@ public fun register_receiver<ProofType: drop>(
     ctx: &mut TxContext
 ) {
     let receiver_address = ctx.sender();
-    let registry = state_object::borrow_mut<ReceiverRegistry>(ref, RECEIVER_REGISTRY);
+    let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
     assert!(!registry.receiver_configs.contains(&receiver_address), E_ALREADY_REGISTERED);
 
     let ccip_receive_function =
@@ -82,6 +81,6 @@ public fun register_receiver<ProofType: drop>(
 }
 
 public fun is_registered_receiver(ref: &CCIPObjectRef, receiver_address: address): bool {
-    let registry = state_object::borrow<ReceiverRegistry>(ref, RECEIVER_REGISTRY);
+    let registry = state_object::borrow<ReceiverRegistry>(ref);
     return registry.receiver_configs.contains(&receiver_address)
 }

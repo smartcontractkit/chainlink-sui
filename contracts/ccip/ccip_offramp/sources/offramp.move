@@ -20,7 +20,7 @@ module ccip_offramp::offramp {
     use ccip::rmn_remote;
     use ccip::state_object::CCIPObjectRef;
 
-    use ccip_offramp::ocr3_base::{Self, OCR3BaseState};
+    use ccip_offramp::ocr3_base::{Self, OCR3BaseState, OCRConfig};
 
     use mcms::bcs_stream::{Self, BCSStream};
 
@@ -837,8 +837,14 @@ module ccip_offramp::offramp {
 
     public fun latest_config_details(
         state: &OffRampState, ocr_plugin_type: u8
-    ): ocr3_base::OCRConfig {
+    ): OCRConfig {
         ocr3_base::latest_config_details(&state.ocr3_base_state, ocr_plugin_type)
+    }
+
+    public fun latest_config_digest_fields(
+        cfg: OCRConfig,
+    ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
+        ocr3_base::latest_config_details_fields(cfg)
     }
 
     // ================================================================
@@ -1059,6 +1065,18 @@ module ccip_offramp::offramp {
         }
     }
 
+    public fun get_source_chain_config_fields(
+        source_chain_config: SourceChainConfig,
+    ): (address, bool, u64, bool, vector<u8>) {
+        (
+            source_chain_config.router,
+            source_chain_config.is_enabled,
+            source_chain_config.min_seq_nr,
+            source_chain_config.is_rmn_verification_disabled,
+            source_chain_config.on_ramp,
+        )
+    }
+
     public fun get_all_source_chain_configs(state: &OffRampState): (vector<u64>, vector<SourceChainConfig>) {
         let mut chain_selectors = vector[];
         let mut chain_configs = vector[];
@@ -1080,8 +1098,28 @@ module ccip_offramp::offramp {
         create_static_config(state.chain_selector)
     }
 
+    // why do we need these addresses? for offchain?
+    // rmn_remote: @ccip,
+    // token_admin_registry: @ccip,
+    // nonce_manager: @ccip
+    public fun get_static_config_fields(cfg: StaticConfig): (u64, address, address, address) {
+        (
+            cfg.chain_selector,
+            cfg.rmn_remote,
+            cfg.token_admin_registry,
+            cfg.nonce_manager
+        )
+    }
+
     public fun get_dynamic_config(state: &OffRampState): DynamicConfig {
         create_dynamic_config(state.permissionless_execution_threshold_seconds)
+    }
+
+    public fun get_dynamic_config_fields(cfg: DynamicConfig): (address, u32) {
+        (
+            cfg.fee_quoter,
+            cfg.permissionless_execution_threshold_seconds
+        )
     }
 
     public fun set_dynamic_config(

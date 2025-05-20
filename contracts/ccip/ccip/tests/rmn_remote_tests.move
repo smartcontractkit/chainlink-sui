@@ -2,10 +2,8 @@
 module ccip::rmn_remote_test;
 
 use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
-use ccip::rmn_remote;
+use ccip::rmn_remote::{Self, RMNRemoteState};
 use sui::test_scenario::{Self, Scenario};
-
-const RMN_REMOTE_STATE_NAME: vector<u8> = b"RMNRemoteState";
 
 fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
     let mut scenario = test_scenario::begin(@0x1);
@@ -27,7 +25,7 @@ public fun test_initialize() {
     let ctx = scenario.ctx();
 
     rmn_remote::initialize(&mut ref, &owner_cap, 1, ctx);
-    let _state = state_object::borrow<rmn_remote::RMNRemoteState>(&ref, RMN_REMOTE_STATE_NAME);
+    let _state = state_object::borrow<RMNRemoteState>(&ref);
     assert!(rmn_remote::get_local_chain_selector(&ref) == 1);
 
     tear_down_test(scenario, owner_cap, ref);
