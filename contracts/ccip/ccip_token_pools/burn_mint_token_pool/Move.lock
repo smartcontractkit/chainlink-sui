@@ -1,11 +1,10 @@
 [move]
 version = 3
-manifest_digest = "47CDB0B2BFCBDDDC127290523B8534C7BE1B2A0D57730889E9E7DED9F43265DB"
-deps_digest = "52B406A7A21811BEF51751CF88DA0E76DAEFFEAC888D4F4060B1A72BBE7D8D35"
+manifest_digest = "195392162743C4A8C1ADE870615DCB6E4691D0F0E50091CFC271434724F91708"
+deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
   { id = "CCIPTokenPool", name = "CCIPTokenPool" },
-  { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
@@ -36,18 +35,6 @@ dependencies = [
 [[move.package]]
 id = "ChainlinkCCIP"
 source = { local = "../../ccip" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-]
-
-[[move.package]]
-id = "ChainlinkManyChainMultisig"
-source = { local = "../../../mcms/mcms" }
 
 dependencies = [
   { id = "Bridge", name = "Bridge" },

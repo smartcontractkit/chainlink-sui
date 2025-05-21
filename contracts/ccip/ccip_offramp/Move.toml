@@ -18,3 +18,4 @@ mcms_register_entrypoints = "0x4001"
 
 [dependencies]
 ChainlinkCCIP = { local = "../ccip" }
+ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }

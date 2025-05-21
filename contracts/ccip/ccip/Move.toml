@@ -2,16 +2,8 @@
 name = "ChainlinkCCIP"
 edition = "2024.beta"
 
-[dependencies]
-ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
-
 [addresses]
 ccip = "_"
-mcms = "_"
-mcms_register_entrypoints = "_"
 
 [dev-addresses]
 ccip = "0x1000"
-mcms = "0x4000"
-mcms_owner = "0x4010"
-mcms_register_entrypoints = "0x4001"

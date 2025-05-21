@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "F9D6AC330D4D9D68CF4617288737F0FC3DF079FE5EC5533CD8C93A68721FF1ED"
+manifest_digest = "51B6CAA5274C632396A5745613AE9AFFEC1CD7CF7FB33BBEAE44F88A6B4F7E68"
 deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -25,18 +25,6 @@ dependencies = [
 [[move.package]]
 id = "ChainlinkCCIP"
 source = { local = "../../ccip" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-]
-
-[[move.package]]
-id = "ChainlinkManyChainMultisig"
-source = { local = "../../../mcms/mcms" }
 
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -70,3 +58,11 @@ dependencies = [
 compiler-version = "1.47.1"
 edition = "2024.beta"
 flavor = "sui"
+
+[env]
+
+[env.testnet]
+chain-id = "4c78adac"
+original-published-id = "0xaf1dd2597a4137de43dd574e8ba8a9aa86eee8f0583bed58c94fd13d7e9cb4e0"
+latest-published-id = "0xaf1dd2597a4137de43dd574e8ba8a9aa86eee8f0583bed58c94fd13d7e9cb4e0"
+published-version = "1"
