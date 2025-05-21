@@ -2,6 +2,10 @@
 /// Future versions of this contract will be deployed as a separate package to avoid any unwanted side effects
 /// during upgrades.
 module ccip_offramp::offramp {
+    use std::ascii;
+    use std::type_name;
+
+    use sui::address;
     use sui::clock;
     use sui::event;
     use sui::hash;
@@ -220,7 +224,9 @@ module ccip_offramp::offramp {
         string::utf8(b"OffRamp 1.6.0")
     }
 
-    fun init(ctx: &mut TxContext) {
+    public struct OFFRAMP has drop {}
+
+    fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
         let owner_cap = OwnerCap {
             id: object::new(ctx)
         };
@@ -244,9 +250,13 @@ module ccip_offramp::offramp {
             owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
         };
 
+        let tn = type_name::get_with_original_ids<OFFRAMP>();
+        let package_bytes = ascii::into_bytes(tn.get_address());
+        let package_id = address::from_ascii_bytes(&package_bytes);
+
         transfer::share_object(state);
         transfer::transfer(owner_cap, ctx.sender());
-        transfer::transfer(pointer, ctx.sender());
+        transfer::transfer(pointer, package_id);
     }
 
     public fun initialize(
@@ -1172,10 +1182,6 @@ module ccip_offramp::offramp {
             source_chains_on_ramp,
             ctx
         )
-    }
-
-    public fun get_offramp_pointer(pointer: &OffRampStatePointer): (address, address) {
-        (pointer.off_ramp_state_id, pointer.owner_cap_id)
     }
 
     #[test_only]

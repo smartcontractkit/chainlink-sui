@@ -1,7 +1,9 @@
 module ccip::state_object;
 
+use std::ascii;
 use std::type_name;
 
+use sui::address;
 use sui::dynamic_object_field as dof;
 use sui::event;
 
@@ -74,9 +76,13 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
         owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
     };
 
+    let tn = type_name::get_with_original_ids<STATE_OBJECT>();
+    let package_bytes = ascii::into_bytes(tn.get_address());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+
     transfer::share_object(ref);
     transfer::transfer(owner_cap, ctx.sender());
-    transfer::transfer(pointer, ctx.sender());
+    transfer::transfer(pointer, package_id);
 }
 
 public(package) fun add<T: key + store>(
@@ -166,10 +172,6 @@ public fun execute_ownership_transfer(
 
 public(package) fun get_current_owner(ref: &CCIPObjectRef): address {
     ref.current_owner
-}
-
-public fun get_ccip_pointer(pointer: &CCIPObjectRefPointer): (address, address) {
-    (pointer.object_ref_id, pointer.owner_cap_id)
 }
 
 #[test_only]

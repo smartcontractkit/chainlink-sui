@@ -1,4 +1,8 @@
 module ccip_onramp::onramp {
+    use std::ascii;
+    use std::type_name;
+
+    use sui::address;
     use sui::clock::Clock;
     use sui::balance;
     use sui::coin::{Self, Coin, CoinMetadata};
@@ -140,7 +144,9 @@ module ccip_onramp::onramp {
         string::utf8(b"OnRamp 1.6.0")
     }
 
-    fun init(ctx: &mut TxContext) {
+    public struct ONRAMP has drop {}
+
+    fun init(_witness: ONRAMP, ctx: &mut TxContext) {
         let owner_cap = OwnerCap {
             id: object::new(ctx)
         };
@@ -162,9 +168,13 @@ module ccip_onramp::onramp {
             owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
         };
 
+        let tn = type_name::get_with_original_ids<ONRAMP>();
+        let package_bytes = ascii::into_bytes(tn.get_address());
+        let package_id = address::from_ascii_bytes(&package_bytes);
+
         transfer::share_object(state);
         transfer::transfer(owner_cap, ctx.sender());
-        transfer::transfer(pointer, ctx.sender());
+        transfer::transfer(pointer, package_id);
     }
 
     public fun initialize(
@@ -833,10 +843,6 @@ module ccip_onramp::onramp {
         message.header.message_id = message_id;
 
         message
-    }
-
-    public fun get_onramp_pointer(pointer: &OnRampStatePointer): (address, address) {
-        (pointer.on_ramp_state_id, pointer.owner_cap_id)
     }
 }
 
