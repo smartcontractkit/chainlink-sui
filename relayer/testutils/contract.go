@@ -1,6 +1,8 @@
+//nolint:all
 package testutils
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -10,8 +12,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
+	"runtime"
+	"strconv"
 	"testing"
+
+	"github.com/pelletier/go-toml/v2"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/require"
@@ -47,12 +52,15 @@ type TxnMetaWithObjectChanges struct {
 func BuildSetup(t *testing.T, packagePath string) string {
 	t.Helper()
 	lgr := logger.Test(t)
-	// Get the current working directory
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
+
+	// Get the file path of the current source file
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "Failed to get current file path")
+	// Get the directory containing the current file (which should be the testutils package)
+	currentDir := filepath.Dir(currentFile)
 
 	// Navigate to the project root (assuming we're in relayer/testutils)
-	projectRoot := filepath.Dir(filepath.Dir(cwd))
+	projectRoot := filepath.Dir(filepath.Dir(currentDir))
 	contractPath := filepath.Join(projectRoot, packagePath)
 
 	lgr.Debugw("Building contract setup", "path", contractPath)
@@ -145,19 +153,20 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	t.Helper()
 	lgr := logger.Test(t)
 
-	lgr.Infow("Publishing contract", "path", contractPath)
+	lgr.Infow("Publishing contract", "name", packageName, "path", contractPath)
 
 	gasBudgetArg := "200000000"
 	if gasBudget != nil {
-		gasBudgetArg = string(rune(*gasBudget))
+		gasBudgetArg = strconv.Itoa(*gasBudget)
 	}
 
 	publishCmd := exec.Command("sui", "client", "publish",
 		"--gas-budget", gasBudgetArg,
 		"--json",
 		"--silence-warnings",
-		contractPath,
 		"--dev",
+		"--with-unpublished-dependencies",
+		contractPath,
 	)
 
 	publishOutput, err := publishCmd.CombinedOutput()
@@ -202,79 +211,39 @@ func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, struc
 	return "", fmt.Errorf("object of type %s not found", expectedType)
 }
 
-// ExtractObjectId parses the JSON output from a Sui publish command and extracts an object identifier
-// associated with a specific Move struct name. It expects the JSON to contain an "objectChanges" array,
-// which may include various types of changes such as "published" and "created". When a "published"
-// entry is present, the function extracts the "packageId", whereas for other types it might extract
-// the "objectId" if that's what's required.
-//
-// Parameters:
-//
-//	t              - A testing.T instance for error reporting.
-//	publishOutput  - A string containing the raw JSON output from the Sui publish command.
-//	moveStructName - The name of the Move struct to search for (e.g. "TodoList").
-//
-// Returns:
-//
-//	A string representing the extracted object identifier (for instance, the packageId for a published object)
-//	and an error if the JSON cannot be parsed or no matching object is found.
-//
-// Example JSON configuration elements that this function processes:
-//
-//	{
-//	     "type": "published",
-//	     "packageId": "0x36a176c9b2d99b89e90804870af1584ff244da9723308491b9222f831141c2a6",
-//	     "version": "1",
-//	     "digest": "DWh8Sy2dbojnGbArjYPgQGdy829Yo3u7G4bvH9UrtJGm",
-//	     "modules": [
-//	        "cw_tests"
-//	     ]
-//	},
-//
-//	{
-//	     "type": "created",
-//	     "sender": "0x57a33a2fbf908667686407c7dad19590de369054d3d9ce9545af9d80392406a6",
-//	     "owner": {
-//	          "Shared": {
-//	               "initial_shared_version": 3
-//	          }
-//	     },
-//	     "objectType": "0x36a176c9b2d99b89e90804870af1584ff244da9723308491b9222f831141c2a6::cw_tests::TodoList",
-//	     "objectId": "0xd525c34d6bc0d4306f16fb5b929be894a333df597019415bc2143e94bc0bc09f",
-//	     "version": "3",
-//	     "digest": "H8n9xbztGVrBjvBzqq8fnHvADvLRvK8cLeMxDb5SYo8V"
-//	}
-func ExtractObjectId(t *testing.T, publishOutput string, moveStructName string) (string, error) {
+// PatchContractDevAddressTOML edits one entry under [dev-addresses].
+// contractPath : folder that contains Move.toml
+// name         : key to patch (e.g. "mcms")
+// address      : new hex value (e.g. "0x0000")
+func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address string) {
 	t.Helper()
 
-	var result map[string]any
-	if err := json.Unmarshal([]byte(publishOutput), &result); err != nil {
-		log.Fatalf("failed to unmarshal JSON: %v", err)
-	}
+	moveToml := filepath.Join(contractPath, "Move.toml")
+	raw, err := os.ReadFile(moveToml)
+	require.NoError(t, err, "read Move.toml")
 
-	changesAny, ok := result["objectChanges"].([]any)
+	// Decode into a generic map[string]any
+	var doc map[string]any
+	err = toml.Unmarshal(raw, &doc)
+	require.NoError(t, err, "parse TOML")
+
+	// Ensure [dev-addresses] table exists
+	devAddrs, ok := doc["dev-addresses"].(map[string]any)
 	if !ok {
-		return "", errors.New("objectChanges key not found or not a slice")
+		devAddrs = make(map[string]any)
+		doc["dev-addresses"] = devAddrs
 	}
 
-	for _, change := range changesAny {
-		m, ok := change.(map[string]any)
-		if !ok {
-			continue
-		}
+	// Set / overwrite the single entry
+	devAddrs[name] = address
 
-		// Check for a "created" change that contains the target moveStructName.
-		if typ, _ok := m["type"].(string); !_ok || typ != "created" {
-			continue
-		}
-		objectType, ok := m["objectType"].(string)
-		if !ok || !strings.Contains(objectType, moveStructName) {
-			continue
-		}
-		if objectId, ok := m["objectId"].(string); ok {
-			return objectId, nil
-		}
-	}
+	// Re-encode with default indentation
+	var buf bytes.Buffer
+	enc := toml.NewEncoder(&buf)
+	enc.SetIndentTables(true)
+	err = enc.Encode(doc)
+	require.NoError(t, err, "encode TOML")
 
-	return "", errors.New("object ID not found")
+	err = os.WriteFile(moveToml, buf.Bytes(), 0o644)
+	require.NoError(t, err, "write Move.toml")
 }

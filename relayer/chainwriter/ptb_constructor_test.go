@@ -110,7 +110,6 @@ func prettyPrintDebug(log logger.Logger, data any) {
 // ------------------------------------------
 func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	t.Parallel()
-	t.Skip("Skipping test until PTB mock for execution is implemented")
 
 	ctx := context.Background()
 
@@ -286,7 +285,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 									},
 								},
-								Order: 1,
 							},
 						},
 					},
@@ -306,7 +304,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 									},
 								},
-								Order: 1,
 							},
 						},
 					},
@@ -320,7 +317,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 								ModuleId:  stringPointer("counter"),
 								Function:  stringPointer("create"),
 								Params:    []codec.SuiFunctionParam{},
-								Order:     1,
 							},
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -334,11 +330,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 										PTBDependency: &codec.PTBCommandDependency{
 											CommandIndex: 0,
-											ResultIndex:  0,
+											ResultIndex:  testutils.Uint16Pointer(0),
 										},
 									},
 								},
-								Order: 2,
 							},
 						},
 					},
@@ -358,7 +353,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 									},
 								},
-								Order: 1,
 							},
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -372,11 +366,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 										PTBDependency: &codec.PTBCommandDependency{
 											CommandIndex: 0,
-											ResultIndex:  0,
+											ResultIndex:  testutils.Uint16Pointer(0),
 										},
 									},
 								},
-								Order: 2,
 							},
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -390,11 +383,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 										PTBDependency: &codec.PTBCommandDependency{
 											CommandIndex: 0,
-											ResultIndex:  0,
+											ResultIndex:  testutils.Uint16Pointer(0),
 										},
 									},
 								},
-								Order: 3,
 							},
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -413,7 +405,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 										PTBDependency: &codec.PTBCommandDependency{
 											CommandIndex: 0,
-											ResultIndex:  0,
+											ResultIndex:  testutils.Uint16Pointer(0),
 										},
 									},
 									{
@@ -422,11 +414,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 										PTBDependency: &codec.PTBCommandDependency{
 											CommandIndex: 0,
-											ResultIndex:  1,
+											ResultIndex:  testutils.Uint16Pointer(1),
 										},
 									},
 								},
-								Order: 4,
 							},
 						},
 					},
@@ -446,7 +437,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 									},
 								},
-								Order: 1,
 							},
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -466,7 +456,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										DefaultValue: uint64(10),
 									},
 								},
-								Order: 2,
 							},
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
@@ -480,7 +469,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 										Required: true,
 									},
 								},
-								Order: 3,
 							},
 						},
 					},

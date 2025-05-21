@@ -1,6 +1,5 @@
 module mcms::mcms_registry;
 
-use mcms::mcms_proof;
 use mcms::params;
 use std::string::String;
 use std::type_name::{Self, TypeName};
@@ -129,14 +128,8 @@ public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _witnes
     registry.module_caps.remove(proof_account_address)
 }
 
-public(package) fun borrow_owner_cap_as_mcms_timelock<T: drop, C: key + store>(
-    registry: &Registry,
-    witness: T,
-): &C {
-    let (proof_account_address, _proof_module_name) = mcms_proof::assert_is_mcms_timelock(witness);
-    assert!(registry.module_caps.contains(proof_account_address), EModuleCapNotRegistered);
-
-    registry.module_caps.borrow(proof_account_address)
+public(package) fun borrow_owner_cap<C: key + store>(registry: &Registry): &C {
+    registry.module_caps.borrow(@mcms)
 }
 
 public(package) fun get_callback_params_for_mcms(
@@ -182,6 +175,12 @@ public fun function_name(params: &ExecutingCallbackParams): String {
 
 public fun data(params: &ExecutingCallbackParams): vector<u8> {
     params.data
+}
+
+public struct McmsProof has drop {}
+
+public(package) fun create_mcms_proof(): McmsProof {
+    McmsProof {}
 }
 
 // ===================== TESTS =====================

@@ -28,8 +28,6 @@ type ChainWriterPTBCommand struct {
 	ModuleId  *string                  `json:"module_id,omitempty"`
 	Function  *string                  `json:"function,omitempty"`
 	Params    []codec.SuiFunctionParam `json:"params,omitempty"`
-	// TODO: is this needed? is order of array items maintained?
-	Order int `json:"order"`
 }
 
 // GetParamKey returns the key for a parameter in the PTB command in a map of arguments.

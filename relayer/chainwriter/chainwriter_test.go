@@ -98,7 +98,6 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 										Required: true,
 									},
 								},
-								Order: 1,
 							},
 						},
 					},

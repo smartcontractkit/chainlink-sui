@@ -2,7 +2,7 @@ package codec
 
 type PTBCommandDependency struct {
 	CommandIndex uint16
-	ResultIndex  uint16
+	ResultIndex  *uint16
 }
 
 // SuiFunctionParam defines a parameter for a Sui function call
@@ -11,6 +11,8 @@ type SuiFunctionParam struct {
 	Name string
 	// Type of the parameter (e.g., "u64", "String", "vector<u8>", "ptb_dependency")
 	Type string
+	// IsMutable specifies if the object is mutable or not (optional - defaults to true)
+	IsMutable *bool
 	// Whether the parameter is required
 	Required bool
 	// Default value to use if not provided

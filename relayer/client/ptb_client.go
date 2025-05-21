@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"reflect"
 	"time"
 
 	"github.com/pattonkan/sui-go/sui/suiptb"
@@ -37,7 +36,7 @@ type SuiPTBClient interface {
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]CoinData, error)
-	ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any) (suiptb.Argument, error)
+	ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any, isMutable bool) (suiptb.Argument, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
 	FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
@@ -581,15 +580,14 @@ func convertSuiResponse(resp *suiclient.SuiTransactionBlockResponse) SuiTransact
 }
 
 // ToPTBArg converts an argument into a format compatible with PTB based on the specified type.
-func (c *PTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any) (suiptb.Argument, error) {
+func (c *PTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any, isMutable bool) (suiptb.Argument, error) {
 	// TODO: this method should be improved in the following ways
 	// 1. Given that we already know the expect type from the config, the actual conversion to a PTB arg type should be more strict and well defined
 	// 		than what's currently available in the bindings
 	// 2. There's no need to pass the builder (by value) around which incurs a lot of (extra) work on the underlying Go process
 	//
 	// NOTE: This is currently placed here simply to avoid leaking the SDK client outside
-	c.log.Debugw("Converting argument to PTB", "arg", argValue, "type", reflect.TypeOf(argValue))
-	return bind.ToPTBArg(ctx, builder, *c.client, argValue)
+	return bind.ToPTBArg(ctx, builder, *c.client, argValue, isMutable)
 }
 
 // FinishPTBAndSend receives a constructed PTB and proceeds to attach a gas token and finally signs and sends the request.
@@ -602,6 +600,25 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey []byte
 	}
 
 	txBytes, err := bind.FinishTransactionFromBuilder(ctx, builder, bind.TxOpts{}, signerAddress, *c.client)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to finish transaction: %w", err)
+	}
+
+	b64bytes := codec.EncodeBase64(txBytes)
+
+	return c.SignAndSendTransaction(ctx, b64bytes, signerPublicKey, c.defaultRequestType)
+}
+
+// FinishPTBAndSendDevInspect is the same as the regular FinishPTBAndSend but does not update state and is useful for development
+func (c *PTBClient) FinishPTBAndSendDevInspect(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error) {
+	// TODO: edit `bind.FinishTransactionFromBuilder()` to receive a reference to the client instead of passing by value
+
+	signerAddress, err := GetAddressFromPublicKey(signerPublicKey)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get signer address: %w", err)
+	}
+
+	txBytes, err := bind.FinishDevInspectTransactionFromBuilder(ctx, builder, bind.TxOpts{}, signerAddress, *c.client)
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to finish transaction: %w", err)
 	}

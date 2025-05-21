@@ -43,7 +43,7 @@ func BuildPTBFromArgs(
 
 	ptbArgs := make([]suiptb.Argument, 0, len(args))
 	for _, arg := range args {
-		ptbArg, err := ToPTBArg(ctx, ptb, client, arg)
+		ptbArg, err := ToPTBArg(ctx, ptb, client, arg, true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert argument %v to Sui type: %w", arg, err)
 		}
@@ -85,6 +85,7 @@ func ToPTBArg(
 	ptb *suiptb.ProgrammableTransactionBuilder,
 	client suiclient.ClientImpl,
 	arg any,
+	isMutable bool,
 ) (suiptb.Argument, error) {
 	// check if the argument has already been included in the PTB args list
 	// only if it's possible to BCS marshal the value (cases where the value is "pure" / not object)
@@ -108,7 +109,7 @@ func ToPTBArg(
 			// attempt to treat it as an object first
 			obj, err := ReadObject(ctx, v, client)
 			if err == nil && obj.Error == nil && obj.Data != nil {
-				return ptb.Obj(ToObjectArg(obj.Data))
+				return ptb.Obj(ToObjectArg(obj.Data, isMutable))
 			}
 			// otherwise treat as raw address
 			addr, err := ToSuiAddress(v)
@@ -240,12 +241,13 @@ func finishTransactionFromBuilder(ctx context.Context, ptb *suiptb.ProgrammableT
 	return &txData, nil
 }
 
-func ToObjectArg(object *suiclient.SuiObjectData) suiptb.ObjectArg {
-	if object != nil && object.Owner != nil && object.Owner.ObjectOwnerInternal != nil && object.Owner.ObjectOwnerInternal.Shared != nil && object.Owner.ObjectOwnerInternal.Shared.InitialSharedVersion != nil {
+func ToObjectArg(object *suiclient.SuiObjectData, isMutable bool) suiptb.ObjectArg {
+	if object != nil && object.Owner != nil && object.Owner.ObjectOwnerInternal != nil &&
+		object.Owner.ObjectOwnerInternal.Shared != nil && object.Owner.ObjectOwnerInternal.Shared.InitialSharedVersion != nil {
 		return suiptb.ObjectArg{
 			SharedObject: &suiptb.SharedObjectArg{
 				Id:                   object.ObjectId,
-				Mutable:              true,
+				Mutable:              isMutable,
 				InitialSharedVersion: *object.Owner.Shared.InitialSharedVersion,
 			},
 		}

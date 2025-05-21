@@ -275,7 +275,6 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 										Required: true,
 									},
 								},
-								Order: 1,
 							},
 						},
 					},

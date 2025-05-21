@@ -91,7 +91,6 @@ of previous commands within the same PTB.
 										DefaultValue: nil,
 									},
 								},
-								Order: 1,
 							},
 							{
 								Type:       codec.SuiPTBCommandMoveCall,
@@ -116,7 +115,6 @@ of previous commands within the same PTB.
 										DefaultValue: nil,
 									},
 								},
-								Order: 2,
 							},
 						},
 					},
@@ -187,7 +185,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 	p.log.Debugw("Processing move call", "Command", cmd, "Args", args)
 
 	// All three fields below are required for a successful move call
-	if cmd.Params == nil {
+	if cmd.PackageId == nil {
 		return nil, fmt.Errorf("missing required parameter 'PackageId' for move call PTB command")
 	}
 	if cmd.ModuleId == nil {
@@ -228,12 +226,29 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	processedArgs := make([]suiptb.Argument, 0, len(params))
 
 	for _, param := range params {
+		// specify if the value is Mutable, this is used specifically for object PTB args
+		IsMutable := true
+		if param.IsMutable != nil {
+			IsMutable = *param.IsMutable
+		}
+
 		// check if this is a PTB result dependency
 		if param.PTBDependency != nil {
+			// if the config does not specify a ResultIndex, then the dependency is
+			// on the entire result of the dependee command
+			if param.PTBDependency.ResultIndex == nil {
+				processedArgs = append(processedArgs, suiptb.Argument{
+					Result: &param.PTBDependency.CommandIndex,
+				})
+
+				continue
+			}
+
+			// otherwise, we need a specific result from the dependee command
 			processedArgs = append(processedArgs, suiptb.Argument{
 				NestedResult: &suiptb.NestedResult{
 					Cmd:    param.PTBDependency.CommandIndex,
-					Result: param.PTBDependency.ResultIndex,
+					Result: *param.PTBDependency.ResultIndex,
 				},
 			})
 
@@ -249,7 +264,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 			}
 
 			// append to the array of args
-			processedArgValue, err := p.client.ToPTBArg(ctx, builder, argRawValue)
+			processedArgValue, err := p.client.ToPTBArg(ctx, builder, argRawValue, IsMutable)
 			if err != nil {
 				return nil, err
 			}
@@ -262,7 +277,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 
 		// fallback to the default value if any
 		if param.DefaultValue != nil {
-			ptbArg, err := p.client.ToPTBArg(ctx, builder, param.DefaultValue)
+			ptbArg, err := p.client.ToPTBArg(ctx, builder, param.DefaultValue, IsMutable)
 			if err != nil {
 				return nil, err
 			}

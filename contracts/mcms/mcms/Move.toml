@@ -9,5 +9,5 @@ mcms = "_"
 mcms_owner = "_"
 
 [dev-addresses]
-mcms = "0x4000"
+mcms = "0x00"
 mcms_owner = "0x4010"

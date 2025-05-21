@@ -67,7 +67,7 @@ func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context
 	return f(ctx)
 }
 
-func (c *FakeSuiPTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any) (suiptb.Argument, error) {
+func (c *FakeSuiPTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any, isMutable bool) (suiptb.Argument, error) {
 	return suiptb.Argument{}, nil
 }
 

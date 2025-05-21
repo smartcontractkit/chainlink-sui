@@ -3,13 +3,12 @@ module mcms::mcms;
 use mcms::bcs_stream;
 use mcms::mcms_account::{Self, OwnerCap, AccountState};
 use mcms::mcms_deployer::{Self, DeployerState};
-use mcms::mcms_proof;
 use mcms::mcms_registry::{Self, ExecutingCallbackParams, Registry};
 use mcms::params;
 use std::string::String;
 use sui::bcs;
 use sui::clock::Clock;
-use sui::ecdsa_k1 as ecdsa;
+use sui::ecdsa_k1;
 use sui::event;
 use sui::hash::keccak256;
 use sui::package::UpgradeTicket;
@@ -96,9 +95,9 @@ public struct ExpiringRootAndOpCount has copy, drop, store {
 public struct Op has copy, drop {
     role: u8,
     chain_id: u256,
-    multisig: address,
+    multisig: vector<u8>,
     nonce: u64,
-    to: address,
+    to: vector<u8>,
     module_name: String,
     function_name: String,
     data: vector<u8>,
@@ -107,7 +106,7 @@ public struct Op has copy, drop {
 public struct RootMetadata has copy, drop, store {
     role: u8,
     chain_id: u256,
-    multisig: address,
+    multisig: vector<u8>,
     pre_op_count: u64,
     post_op_count: u64,
     override_previous_root: bool,
@@ -144,9 +143,9 @@ public struct NewRoot has copy, drop {
 public struct OpExecuted has copy, drop {
     role: u8,
     chain_id: u256,
-    multisig: address,
+    multisig: vector<u8>,
     nonce: u64,
-    to: address,
+    to: vector<u8>,
     module_name: String,
     function_name: String,
     data: vector<u8>,
@@ -247,7 +246,7 @@ fun create_multisig(role: u8): Multisig {
         root_metadata: RootMetadata {
             role,
             chain_id: 0,
-            multisig: @mcms,
+            multisig: @mcms.to_bytes(),
             pre_op_count: 0,
             post_op_count: 0,
             override_previous_root: false,
@@ -279,12 +278,13 @@ public entry fun set_root(
     root: vector<u8>,
     valid_until: u64,
     chain_id: u256,
-    multisig_addr: address,
+    multisig_addr: vector<u8>,
     pre_op_count: u64,
     post_op_count: u64,
     override_previous_root: bool,
     metadata_proof: vector<vector<u8>>,
     signatures: vector<vector<u8>>,
+    _ctx: &mut TxContext,
 ) {
     assert!(is_valid_role(role), EInvalidRole);
 
@@ -308,7 +308,7 @@ public entry fun set_root(
     // TODO: No support for chain_ids yet
     // assert!(metadata.chain_id == (chain_ids::get() as u256), EWrongChainId);
 
-    assert!(metadata.multisig == @mcms, EWrongMultisig);
+    assert!(metadata.multisig == @mcms.to_bytes(), EWrongMultisig);
 
     let op_count = multisig.expiring_root_and_op_count.op_count;
     assert!(
@@ -330,15 +330,15 @@ public entry fun set_root(
     let mut i = 0;
     while (i < signatures_len) {
         let mut signature = signatures[i];
-        let signer_addr = ecdsa_recover_evm_addr(signed_hash, &mut signature);
+        let signer_addr = ecdsa_recover_evm_addr(signed_hash, signature);
         // the off-chain system is required to sort the signatures by the
         // signer address in an increasing order
         if (i > 0) {
             assert!(params::vector_u8_gt(&signer_addr, &prev_address), ESignerAddrMustBeIncreasing);
         };
-        prev_address = signer_addr;
-
         assert!(multisig.signers.contains(&signer_addr), EInvalidSigner);
+        prev_address = signer_addr;
+        
         let signer = *multisig.signers.get(&signer_addr);
 
         // check group quorums
@@ -398,54 +398,39 @@ public entry fun set_root(
     });
 }
 
-fun ecdsa_recover_evm_addr(
-    eth_signed_message_hash: vector<u8>,
-    signature: &mut vector<u8>,
-): vector<u8> {
-    // ensure signature has correct length - (r,s,v) concatenated = 65 bytes
-    assert!(signature.length() == 65, EInvalidSignatureLen);
-    // extract v from signature
-    let v = signature.pop_back();
-    // convert 64 byte signature into ECDSASignature struct
-    // let sig = ecdsa::ecdsa_signature_from_bytes(signature);
-    // Aptos uses the rust libsecp256k1 parse() under the hood which has a different numbering scheme
-    // see: https://docs.rs/libsecp256k1/latest/libsecp256k1/struct.RecoveryId.html#method.parse_rpc
-    assert!(v >= 27 && v < 27 + 4, EInvalidVSignature);
+// https://github.com/MystenLabs/sui/blob/main/examples/move/crypto/ecdsa_k1/sources/example.move#L62
+fun ecdsa_recover_evm_addr(msg: vector<u8>, mut sig: vector<u8>): vector<u8> {
+    // Normalize the last byte of the signature to be 0 or 1.
+    let v = &mut sig[64];
+    if (*v == 27) {
+        *v = 0;
+    } else if (*v == 28) {
+        *v = 1;
+    } else if (*v > 35) {
+        *v = (*v - 1) % 2;
+    };
 
-    let v = v - 27;
+    // Ethereum signature is produced with Keccak256 hash of the message, so the last param is 0.
+    let pubkey = ecdsa_k1::secp256k1_ecrecover(&sig, &msg, 0);
+    let uncompressed = ecdsa_k1::decompress_pubkey(&pubkey);
 
-    /*
-        TODO: Verify this is correct. 
-        Sui takes 65 byte signatures whilst on Aptos we use 64 byte signatures.
-    */
-
-    // In Sui, we need to reconstruct the signature with the recovery ID
-    // First, create a copy of the 64-byte signature
-    let mut sig_with_recovery = *signature;
-    sig_with_recovery.push_back(v);
-
-    // Retrieve signer public key
-    // The hash parameter is 0 for KECCAK256
-    let public_key_bytes = ecdsa::secp256k1_ecrecover(
-        &sig_with_recovery,
-        &eth_signed_message_hash,
-        0,
-    );
-
-    // hash the public key with keccak256
-    let hash = keccak256(&public_key_bytes);
-    // Extract the last 20 bytes of the hash (Ethereum address)
-    let mut addr = vector::empty<u8>();
-    let hash_len = vector::length(&hash);
-    let start_idx = hash_len - 20; // Start from hash length - 20
-
-    let mut i = start_idx;
-    while (i < hash_len) {
-        vector::push_back(&mut addr, *vector::borrow(&hash, i));
+    // Take the last 64 bytes of the uncompressed pubkey.
+    let mut uncompressed_64 = vector[];
+    let mut i = 1;
+    while (i < 65) {
+        uncompressed_64.push_back(uncompressed[i]);
         i = i + 1;
     };
-    // return last 20 bytes of hashed public key as the recovered ethereum address
-    // trims publicKeyBytes to 12 bytes, returns trimmed last 20 bytes
+
+    // Take the last 20 bytes of the hash of the 64-bytes uncompressed pubkey.
+    let hashed = keccak256(&uncompressed_64);
+    let mut addr = vector[];
+    let mut i = 12;
+    while (i < 32) {
+        addr.push_back(hashed[i]);
+        i = i + 1;
+    };
+
     addr
 }
 
@@ -454,9 +439,9 @@ public fun execute(
     clock: &Clock,
     role: u8,
     chain_id: u256,
-    multisig_addr: address,
+    multisig_addr: vector<u8>,
     nonce: u64,
-    to: address,
+    to: vector<u8>,
     module_name: String,
     function_name: String,
     data: vector<u8>,
@@ -488,8 +473,8 @@ public fun execute(
         clock.timestamp_ms() <= multisig.expiring_root_and_op_count.valid_until,
         EValidUntilExpired,
     );
-    assert!(multisig.root_metadata.multisig == @mcms, EWrongMultisig);
-    assert!(op.multisig == @mcms, EWrongMultisig);
+    assert!(multisig.root_metadata.multisig == @mcms.to_bytes(), EWrongMultisig);
+    assert!(op.multisig == @mcms.to_bytes(), EWrongMultisig);
     assert!(nonce == multisig.expiring_root_and_op_count.op_count, EWrongNonce);
 
     // computes keccak256(abi.encode(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, op))
@@ -502,7 +487,7 @@ public fun execute(
     multisig.expiring_root_and_op_count.op_count = multisig.expiring_root_and_op_count.op_count + 1;
 
     // Only allow dispatching to timelock functions
-    assert!(op.to == @mcms && *op.module_name.as_bytes() == b"mcms", EInvalidModuleName);
+    assert!(op.to == @mcms.to_bytes() && *op.module_name.as_bytes() == b"mcms", EInvalidModuleName);
 
     event::emit(OpExecuted {
         role,
@@ -726,7 +711,7 @@ public fun execute_dispatch_to_account(
 
     let (cap, function_name, data) = mcms_registry::get_callback_params(
         registry,
-        mcms_proof::create_mcms_proof(),
+        mcms_registry::create_mcms_proof(),
         executing_callback_params,
     );
 
@@ -737,16 +722,15 @@ public fun execute_dispatch_to_account(
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
         mcms_account::transfer_ownership(cap, account_state, target, ctx);
-    } else if (function_name_bytes == b"accept_ownership_as_mcms_timelock") {
-        mcms_account::accept_ownership_as_mcms_timelock(
+    } else if (function_name_bytes == b"accept_ownership_as_timelock") {
+        mcms_account::accept_ownership_as_timelock(
             account_state,
-            mcms_proof::create_mcms_proof(),
             ctx,
         );
     } else if (function_name_bytes == b"execute_ownership_transfer") {
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, mcms_proof::create_mcms_proof());
+        let owner_cap = mcms_registry::release_cap(registry, mcms_registry::create_mcms_proof());
         mcms_account::execute_ownership_transfer(owner_cap, account_state, registry, target, ctx);
     } else {
         abort EUnknownMCMSAccountModuleFunction
@@ -777,10 +761,7 @@ public fun execute_dispatch_to_deployer(
         let code_address = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
 
-        let owner_cap = mcms_registry::borrow_owner_cap_as_mcms_timelock(
-            registry,
-            mcms_proof::create_mcms_proof(),
-        );
+        let owner_cap = mcms_registry::borrow_owner_cap(registry);
         mcms_deployer::authorize_upgrade(
             owner_cap,
             deployer_state,
@@ -968,10 +949,7 @@ public fun execute_set_config(
     let clear_root = bcs_stream::deserialize_bool(stream);
     bcs_stream::assert_is_consumed(stream);
 
-    let owner_cap = mcms_registry::borrow_owner_cap_as_mcms_timelock(
-        registry,
-        mcms_proof::create_mcms_proof(),
-    );
+    let owner_cap = mcms_registry::borrow_owner_cap(registry);
     set_config(
         owner_cap,
         state,
@@ -1113,7 +1091,7 @@ public entry fun set_config(
             RootMetadata {
                 role,
                 chain_id,
-                multisig: @mcms,
+                multisig: @mcms.to_bytes(),
                 pre_op_count: op_count,
                 post_op_count: op_count,
                 override_previous_root: true,
@@ -1153,10 +1131,9 @@ public fun compute_eth_message_hash(root: vector<u8>, valid_until: u64): vector<
     let hashed_encoded_params = keccak256(&abi_encoded_params);
 
     // ECDSA.toEthSignedMessageHash()
-    let eth_msg_prefix = b"\x19Ethereum Signed Message:\n32";
-    let mut hash = eth_msg_prefix;
-    hash.append(hashed_encoded_params);
-    keccak256(&hash)
+    let mut eth_msg_prefix = b"\x19Ethereum Signed Message:\n32";
+    eth_msg_prefix.append(hashed_encoded_params);
+    eth_msg_prefix
 }
 
 public fun hash_op_leaf(domain_separator: vector<u8>, op: Op): vector<u8> {
@@ -1310,8 +1287,7 @@ public fun expiring_root_and_op_count(state: &MultisigState, role: u8): (vector<
     )
 }
 
-public fun root_metadata(state: &MultisigState, role: u8): RootMetadata {
-    let multisig = borrow_multisig(state, role);
+public fun root_metadata(multisig: &Multisig): RootMetadata {
     multisig.root_metadata
 }
 
@@ -1384,6 +1360,42 @@ fun borrow_multisig_mut(state: &mut MultisigState, role: u8): &mut Multisig {
     } else {
         abort EInvalidRole
     }
+}
+
+public fun role(root_metadata: &RootMetadata): u8 {
+    root_metadata.role
+}
+
+public fun chain_id(root_metadata: &RootMetadata): u256 {
+    root_metadata.chain_id
+}
+
+public fun root_metadata_multisig(root_metadata: &RootMetadata): vector<u8> {
+    root_metadata.multisig
+}
+
+public fun pre_op_count(root_metadata: &RootMetadata): u64 {
+    root_metadata.pre_op_count
+}
+
+public fun post_op_count(root_metadata: &RootMetadata): u64 {
+    root_metadata.post_op_count
+}
+
+public fun override_previous_root(root_metadata: &RootMetadata): bool {
+    root_metadata.override_previous_root
+}
+
+public fun config_signers(config: &Config): vector<Signer> {
+    config.signers
+}
+
+public fun config_group_quorums(config: &Config): vector<u8> {
+    config.group_quorums
+}
+
+public fun config_group_parents(config: &Config): vector<u8> {
+    config.group_parents
 }
 
 // =======================================================================================
@@ -1873,4 +1885,53 @@ public fun test_timelock_schedule_batch(
         delay,
         ctx,
     )
+}
+
+#[test_only]
+public fun test_ecdsa_recover_evm_addr(msg: vector<u8>, signature: vector<u8>): vector<u8> {
+    ecdsa_recover_evm_addr(msg, signature)
+}
+
+#[test_only]
+public fun test_compute_eth_message_hash(root: vector<u8>, valid_until: u64): vector<u8> {
+    compute_eth_message_hash(root, valid_until)
+}
+
+#[test_only]
+public fun test_set_hash_seen(state: &mut MultisigState, role: u8, hash: vector<u8>, seen: bool) {
+    let multisig = borrow_multisig_mut(state, role);
+    multisig.seen_signed_hashes.insert(hash, seen);
+}
+
+#[test_only]
+public fun test_set_expiring_root_and_op_count(
+    state: &mut MultisigState,
+    role: u8,
+    root: vector<u8>,
+    valid_until: u64,
+    op_count: u64,
+) {
+    let multisig = borrow_multisig_mut(state, role);
+    multisig.expiring_root_and_op_count.root = root;
+    multisig.expiring_root_and_op_count.valid_until = valid_until;
+    multisig.expiring_root_and_op_count.op_count = op_count;
+}
+
+#[test_only]
+public fun test_set_root_metadata(
+    state: &mut MultisigState,
+    role: u8,
+    chain_id: u256,
+    multisig_addr: vector<u8>,
+    pre_op_count: u64,
+    post_op_count: u64,
+    override_previous_root: bool
+) {
+    let multisig = borrow_multisig_mut(state, role);
+    multisig.root_metadata.role = role;
+    multisig.root_metadata.chain_id = chain_id;
+    multisig.root_metadata.multisig = multisig_addr;
+    multisig.root_metadata.pre_op_count = pre_op_count;
+    multisig.root_metadata.post_op_count = post_op_count;
+    multisig.root_metadata.override_previous_root = override_previous_root;
 }

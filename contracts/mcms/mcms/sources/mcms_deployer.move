@@ -53,6 +53,7 @@ public fun register_upgrade_cap(
     ctx: &mut TxContext,
 ) {
     let package_address = upgrade_cap.package().to_address();
+    // Package must be registered with MCMS
     assert!(
         mcms_registry::is_package_registered(registry, package_address),
         EPackageAddressNotRegistered,

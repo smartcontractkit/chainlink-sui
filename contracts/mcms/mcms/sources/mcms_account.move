@@ -1,6 +1,5 @@
 module mcms::mcms_account;
 
-use mcms::mcms_proof;
 use mcms::mcms_registry::{Self, Registry};
 use sui::event;
 
@@ -54,7 +53,7 @@ fun init(_witness: MCMS_ACCOUNT, ctx: &mut TxContext) {
         pending_transfer: option::none(),
     });
 
-    transfer::share_object(OwnerCap { id: object::new(ctx) });
+    transfer::transfer(OwnerCap { id: object::new(ctx) }, ctx.sender());
 }
 
 public fun transfer_ownership(
@@ -88,12 +87,7 @@ public fun accept_ownership(state: &mut AccountState, ctx: &mut TxContext) {
     accept_ownership_internal(state, ctx.sender());
 }
 
-public fun accept_ownership_as_mcms_timelock<T: drop>(
-    state: &mut AccountState,
-    witness: T,
-    _ctx: &mut TxContext,
-) {
-    mcms_proof::assert_is_mcms_timelock(witness);
+public(package) fun accept_ownership_as_timelock(state: &mut AccountState, _ctx: &mut TxContext) {
     accept_ownership_internal(state, @mcms);
 }
 
@@ -143,7 +137,7 @@ public fun execute_ownership_transfer(
     if (new_owner == @mcms) {
         mcms_registry::register_entrypoint(
             registry,
-            mcms_proof::create_mcms_proof(),
+            mcms_registry::create_mcms_proof(),
             option::some(owner_cap),
             ctx,
         );
@@ -157,9 +151,29 @@ public fun execute_ownership_transfer(
     event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
 }
 
+public fun pending_transfer_from(state: &AccountState): Option<address> {
+    state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.from)
+}
+
+public fun pending_transfer_to(state: &AccountState): Option<address> {
+    state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.to)
+}
+
+public fun pending_transfer_accepted(state: &AccountState): Option<bool> {
+    state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
+}
+
 // =================== Test Functions =================== //
 
 #[test_only]
 public fun test_init(ctx: &mut TxContext) {
     init(MCMS_ACCOUNT {}, ctx);
+}
+
+#[test_only]
+public fun test_accept_ownership_as_timelock(
+    state: &mut AccountState,
+    ctx: &mut TxContext,
+) {
+    accept_ownership_as_timelock(state, ctx);
 }

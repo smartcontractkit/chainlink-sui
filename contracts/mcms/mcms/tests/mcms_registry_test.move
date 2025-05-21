@@ -69,6 +69,7 @@ fun test_register_entrypoint() {
         );
 
         let module_name = string::utf8(MODULE_NAME);
+        assert!(mcms_registry::is_package_registered(&registry, @mcms));
         assert!(mcms_registry::is_module_registered(&registry, module_name));
 
         ts::return_shared(registry);
