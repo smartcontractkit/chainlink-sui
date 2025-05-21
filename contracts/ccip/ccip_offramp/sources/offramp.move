@@ -47,7 +47,8 @@ module ccip_offramp::offramp {
         roots: Table<vector<u8>, u64>,
         // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
         latest_price_sequence_number: u64,
-        fee_quoter_cap: Option<FeeQuoterCap>
+        fee_quoter_cap: Option<FeeQuoterCap>,
+        dest_transfer_cap: Option<osh::DestTransferCap>,
     }
 
     public struct OffRampStatePointer has key, store {
@@ -213,6 +214,7 @@ module ccip_offramp::offramp {
     const E_TOKEN_AMOUNT_OVERFLOW: u64 = 20;
     const E_TOKEN_TRANSFER_FAILED: u64 = 21;
     const E_CCIP_RECEIVE_FAILED: u64 = 22;
+    const E_DEST_TRANSFER_CAP_EXISTS: u64 = 23;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -232,7 +234,8 @@ module ccip_offramp::offramp {
             execution_states: table::new(ctx),
             roots: table::new(ctx),
             latest_price_sequence_number: 0,
-            fee_quoter_cap: option::none()
+            fee_quoter_cap: option::none(),
+            dest_transfer_cap: option::none(),
         };
 
         let pointer = OffRampStatePointer {
@@ -250,6 +253,7 @@ module ccip_offramp::offramp {
         state: &mut OffRampState,
         _: &OwnerCap,
         fee_quoter_cap: FeeQuoterCap,
+        dest_transfer_cap: osh::DestTransferCap,
         chain_selector: u64,
         permissionless_execution_threshold_seconds: u32,
         source_chains_selectors: vector<u64>,
@@ -270,6 +274,11 @@ module ccip_offramp::offramp {
             E_FEE_QUOTER_CAP_EXISTS
         );
         state.fee_quoter_cap.fill(fee_quoter_cap);
+        assert!(
+            state.dest_transfer_cap.is_none(),
+            E_DEST_TRANSFER_CAP_EXISTS
+        );
+        state.dest_transfer_cap.fill(dest_transfer_cap);
 
         event::emit(StaticConfigSet { chain_selector });
 
@@ -536,7 +545,7 @@ module ccip_offramp::offramp {
 
             event::emit(SkippedReportExecution { source_chain_selector });
 
-            return osh::create_receiver_params()
+            return osh::create_receiver_params(state.dest_transfer_cap.borrow())
         };
 
         assert_source_chain_enabled(state, source_chain_selector);
@@ -587,7 +596,7 @@ module ccip_offramp::offramp {
         if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
             event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
 
-            return osh::create_receiver_params()
+            return osh::create_receiver_params(state.dest_transfer_cap.borrow())
         };
 
         // A zero nonce indicates out of order execution which is the only allowed case.
@@ -600,7 +609,7 @@ module ccip_offramp::offramp {
         );
 
         let mut i = 0;
-        let mut receiver_params = osh::create_receiver_params();
+        let mut receiver_params = osh::create_receiver_params(state.dest_transfer_cap.borrow());
 
         let mut token_addresses = vector[];
         let mut token_amounts = vector[];
@@ -615,6 +624,7 @@ module ccip_offramp::offramp {
             let amount = amount_op.extract();
 
             osh::add_dest_token_transfer(
+                state.dest_transfer_cap.borrow(),
                 &mut receiver_params,
                 message.receiver,
                 amount,
@@ -644,7 +654,7 @@ module ccip_offramp::offramp {
                     dest_token_amounts,
                 );
 
-            osh::populate_message(&mut receiver_params, any2sui_message);
+            osh::populate_message(state.dest_transfer_cap.borrow(), &mut receiver_params, any2sui_message);
         };
 
         // the entire PTB either succeeds or fails so we can set the state to success

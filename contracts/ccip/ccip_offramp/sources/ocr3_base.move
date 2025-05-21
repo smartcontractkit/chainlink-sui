@@ -11,7 +11,7 @@ module ccip_offramp::ocr3_base {
     const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
     const PUBLIC_KEY_NUM_BYTES: u64 = 32;
 
-    const E_CONFIG_NOT_SET: u64 = 1;
+    const E_WRONG_PUBKEY_SIZE: u64 = 1;
     const E_BIG_F_MUST_BE_POSITIVE: u64 = 2;
     const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 3;
     const E_TOO_MANY_SIGNERS: u64 = 4;
@@ -31,7 +31,7 @@ module ccip_offramp::ocr3_base {
     const E_NON_UNIQUE_SIGNATURES: u64 = 18;
     const E_INVALID_SIGNATURE: u64 = 19;
     const E_OUT_OF_BYTES: u64 = 20;
-    const E_WRONG_PUBKEY_SIZE: u64 = 21;
+    const E_CONFIG_NOT_SET: u64 = 21;
 
     public struct UnvalidatedPublicKey has copy, drop, store {
         bytes: vector<u8>
@@ -173,7 +173,6 @@ module ccip_offramp::ocr3_base {
         transmitter_oracles.add(ocr_plugin_type, *transmitters);
     }
 
-    // TODO: explore more valid public key checks
     fun assign_signer_oracles(
         signer_oracles: &mut Table<u8, vector<UnvalidatedPublicKey>>,
         ocr_plugin_type: u8,
@@ -197,7 +196,6 @@ module ccip_offramp::ocr3_base {
         signer_oracles.add(ocr_plugin_type, validated_signers);
     }
 
-    // TODO: verify if we can provide more validation for public key
     fun validate_public_key(pubkey: &vector<u8>): bool {
         pubkey.length() == 32
     }
@@ -252,7 +250,6 @@ module ccip_offramp::ocr3_base {
         new_vec
     }
 
-    // TODO: if is_signature_verification_enabled is false, we don't verify the signatures?
     public(package) fun transmit(
         ocr3_state: &OCR3BaseState,
         transmitter: address,
@@ -282,14 +279,10 @@ module ccip_offramp::ocr3_base {
             E_INVALID_SEQUENCE_LENGTH
         );
 
-        // TODO: EVM checks transaction data length here
-
         assert!(
             config_digest == config_info.config_digest,
             E_CONFIG_DIGEST_MISMATCH
         );
-
-        // it's impossible to check chain id in Sui Move
 
         let plugin_transmitters = ocr3_state.transmitter_oracles[ocr_plugin_type];
         assert!(

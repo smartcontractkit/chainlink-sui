@@ -269,7 +269,14 @@ public fun release_or_mint<T>(
         local_amount
     );
 
-    osh::complete_token_transfer(receiver_params, index, local_amount, object::uid_to_address(&pool.id))
+    osh::complete_token_transfer(
+        ref,
+        receiver_params,
+        index,
+        local_amount,
+        object::uid_to_address(&pool.id),
+        TypeProof {},
+    )
 }
 
 // ================================================================

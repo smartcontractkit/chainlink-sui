@@ -1,14 +1,26 @@
 module ccip::offramp_state_helper;
 
-use ccip::client;
+use std::type_name;
 
-const E_WRONG_INDEX_IN_RECEIVER_PARAMS: u64 = 1;
-const E_TOKEN_TRANSFER_ALREADY_COMPLETED: u64 = 2;
-const E_TOKEN_POOL_ADDRESS_MISMATCH: u64 = 3;
+use ccip::client;
+use ccip::state_object::CCIPObjectRef;
+use ccip::token_admin_registry as registry;
+
+const EWrongIndexInReceiverParams: u64 = 1;
+const ETokenTransferAlreadyCompleted: u64 = 2;
+const ETokenPoolAddressMismatch: u64 = 3;
+const EDestTokenPoolNotFound: u64 = 4;
+const ETypeProofMismatch: u64 = 5;
+
+public struct OFFRAMP_STATE_HELPER has drop {}
 
 public struct ReceiverParams {
     params: vector<DestTokenTransfer>,
     message: Option<client::Any2SuiMessage>,
+}
+
+public struct DestTransferCap has key, store {
+    id: UID,
 }
 
 public struct DestTokenTransfer has copy, drop {
@@ -25,11 +37,19 @@ public struct DestTokenTransfer has copy, drop {
     completed: bool
 }
 
+fun init(_witness: OFFRAMP_STATE_HELPER, ctx: &mut TxContext) {
+    let dest_cap = DestTransferCap {
+        id: object::new(ctx),
+    };
+
+    transfer::transfer(dest_cap, ctx.sender());
+}
+
 public fun get_completed(transfer: DestTokenTransfer): bool {
     transfer.completed
 }
 
-public fun create_receiver_params(): ReceiverParams {
+public fun create_receiver_params(_: &DestTransferCap): ReceiverParams {
     ReceiverParams {
         params: vector[],
         message: option::none(),
@@ -37,6 +57,7 @@ public fun create_receiver_params(): ReceiverParams {
 }
 
 public fun add_dest_token_transfer(
+    _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
     receiver: address,
     source_amount: u64,
@@ -64,6 +85,7 @@ public fun add_dest_token_transfer(
 }
 
 public fun populate_message(
+    _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
     any2sui_message: client::Any2SuiMessage,
 ) {
@@ -75,7 +97,7 @@ public fun get_token_param_data(
 ): (address, u64, address, vector<u8>, vector<u8>) {
     assert!(
         index < receiver_params.params.length(),
-        E_WRONG_INDEX_IN_RECEIVER_PARAMS
+        EWrongIndexInReceiverParams
     );
     let token_param = receiver_params.params[index];
 
@@ -89,25 +111,31 @@ public fun get_token_param_data(
     )
 }
 
-// called by token pool to mark token transfers as completed
-public fun complete_token_transfer(
+// only the token pool with a proper type proof can mark the corresponding token transfer as completed
+public fun complete_token_transfer<TypeProof: drop>(
+    ref: &CCIPObjectRef,
     mut receiver_params: ReceiverParams,
     index: u64,
     local_amount: u64,
-    token_pool_address: address
+    token_pool_address: address,
+    _: TypeProof,
 ): ReceiverParams {
     assert!(
         index < receiver_params.params.length(),
-        E_WRONG_INDEX_IN_RECEIVER_PARAMS
+        EWrongIndexInReceiverParams,
     );
+
+    let param = receiver_params.params[index];
+    assert!(!param.completed, ETokenTransferAlreadyCompleted);
     assert!(
-        !receiver_params.params[index].completed,
-        E_TOKEN_TRANSFER_ALREADY_COMPLETED
+        param.token_pool_address == token_pool_address,
+        ETokenPoolAddressMismatch,
     );
-    assert!(
-        receiver_params.params[index].token_pool_address == token_pool_address,
-        E_TOKEN_POOL_ADDRESS_MISMATCH
-    );
+    let (_, _, _, type_proof_op) = registry::get_token_config(ref, param.dest_token_address);
+    assert!(type_proof_op.is_some(), EDestTokenPoolNotFound);
+    let type_proof = type_proof_op.borrow();
+    assert!(type_proof == type_name::get<TypeProof>(), ETypeProofMismatch);
+
     receiver_params.params[index].completed = true;
     receiver_params.params[index].local_amount = local_amount;
 
