@@ -133,7 +133,7 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, args map[string]any) (*suiptb.ProgrammableTransactionBuilder, error) {
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, args map[string]any, configOverrides *ConfigOverrides) (*suiptb.ProgrammableTransactionBuilder, error) {
 	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
 
 	// Look up the module
@@ -151,8 +151,15 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	// Create a new PTB builder
 	builder := suiptb.NewTransactionDataTransactionBuilder()
 
+	var overrideToAddress *string
+	if configOverrides == nil {
+		overrideToAddress = nil
+	} else {
+		overrideToAddress = &configOverrides.ToAddress
+	}
+
 	// Attempt to fill args with pre-requisite object data
-	err := p.FetchPrereqObjects(ctx, txnConfig.PrerequisiteObjects, &args)
+	err := p.FetchPrereqObjects(ctx, txnConfig.PrerequisiteObjects, &args, overrideToAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -308,9 +315,18 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 }
 
 // FetchPrereqObjects fetches each pre-requisite object and its details, then populates the args map with its values
-func (p *PTBConstructor) FetchPrereqObjects(ctx context.Context, prereqObjects []PrerequisiteObject, args *map[string]any) error {
+func (p *PTBConstructor) FetchPrereqObjects(ctx context.Context, prereqObjects []PrerequisiteObject, args *map[string]any, ownerFallback *string) error {
 	for _, prereq := range prereqObjects {
-		ownedObjects, err := p.client.ReadOwnedObjects(ctx, prereq.OwnerId, nil)
+		// set the owner fallback if the ownerId is not provided
+		if prereq.OwnerId == nil {
+			if ownerFallback == nil {
+				return fmt.Errorf("ownerId or ownerFallback required for pre-requisite object %s", prereq.Name)
+			}
+
+			prereq.OwnerId = ownerFallback
+		}
+		// fetch owned objects
+		ownedObjects, err := p.client.ReadOwnedObjects(ctx, *prereq.OwnerId, nil)
 		if err != nil {
 			return err
 		}

@@ -101,6 +101,34 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 							},
 						},
 					},
+					"increment_by_two_no_context": {
+						Name:      "increment_by_two_no_context",
+						PublicKey: publicKeyBytes,
+						// should be pre-fetched before PTB construction
+						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
+							{
+								// we set OwnerId to nil because we want to override it with sender (toAddress) in SendTransaction
+								OwnerId: nil,
+								// name doesn't matter here as we are setting the keys
+								Name: "...",
+								Tag:  "counter::CounterPointer",
+								// the keys of the returned object are set in the PTB args
+								SetKeys: true,
+							},
+						},
+						Params: []codec.SuiFunctionParam{
+							{
+								Name:     "admin_cap_id",
+								Type:     "object_id",
+								Required: true,
+							},
+							{
+								Name:     "counter_id",
+								Type:     "object_id",
+								Required: true,
+							},
+						},
+					},
 				},
 			},
 		},
@@ -249,6 +277,19 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			status:         commonTypes.Failed,
 			numberAttemps:  1,
 		},
+		{
+			name:           "Test Prefetch with owner override",
+			txID:           "prefetch_with_owner_override_txID",
+			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:         testState.AccountAddress,
+			contractName:   chainwriter.PTBChainWriterModuleName,
+			functionName:   "increment_by_two_no_context",
+			args:           map[string]any{},
+			expectError:    nil,
+			expectedResult: "3",
+			status:         commonTypes.Finalized,
+			numberAttemps:  1,
+		},
 	}
 
 	//nolint:paralleltest
@@ -278,8 +319,10 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 
 				objectDetails, err := testState.SuiGateway.ReadObjectId(ctx, objectID)
 				require.NoError(t, err)
+
 				counter := testutils.ExtractStruct[Counter](t, objectDetails)
 				assert.Contains(t, counter.Value, scenario.expectedResult, "Counter value does not match")
+
 				tx, err := testState.TxStore.GetTransaction(scenario.txID)
 				require.NoError(t, err, "Failed to get transaction from repository")
 				assert.Equal(t, scenario.numberAttemps, tx.Attempt, "Transaction attempts do not match")

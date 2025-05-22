@@ -452,7 +452,7 @@ func TestMCMS(t *testing.T) {
 			"clear_root":        false,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -497,7 +497,7 @@ func TestMCMS(t *testing.T) {
 			"clear_root":        false,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -562,7 +562,7 @@ func TestMCMS(t *testing.T) {
 			"clock":                  "0x06",
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -742,7 +742,7 @@ func TestMCMS(t *testing.T) {
 			"timelock": timelockObjId,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 

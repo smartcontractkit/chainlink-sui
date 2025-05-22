@@ -250,7 +250,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
 							{
 								// we set the owner as the recently deployed counter contract
-								OwnerId: accountAddress,
+								OwnerId: &accountAddress,
 								Name:    "admin_cap_id",
 								Tag:     "counter::AdminCap",
 								// we don't set the keys as we want to set the ID of the object in the PTB args
@@ -283,7 +283,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 						PublicKey: publicKeyBytes,
 						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
 							{
-								OwnerId: accountAddress,
+								OwnerId: &accountAddress,
 								// name doesn't matter here as we are setting the keys
 								Name: "counter_id",
 								Tag:  "counter::CounterPointer",
@@ -327,7 +327,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 			"counter_id": counterObjectId,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_id_prereq", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_id_prereq", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -344,7 +344,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 		// pass no args as it should be populated by the pre-requisites
 		args := map[string]any{}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -621,7 +621,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -637,7 +637,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, nil)
 		require.Error(t, err)
 		require.Nil(t, ptb)
 	})
@@ -648,7 +648,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, nil)
 		require.Error(t, err)
 		require.Nil(t, ptb)
 	})
@@ -657,7 +657,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	t.Run("Missing Required Argument", func(t *testing.T) {
 		args := map[string]any{}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, nil)
 		require.Error(t, err)
 		require.Nil(t, ptb)
 	})
@@ -667,7 +667,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		// Start by creating a Counter and its counter manager
 		args := map[string]any{}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -691,7 +691,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"manager_object": managerObjectId,
 		}
 
-		ptb, err = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args)
+		ptb, err = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -719,7 +719,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, nil)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 

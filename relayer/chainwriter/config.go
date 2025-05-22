@@ -47,7 +47,7 @@ func (c ChainWriterPTBCommand) GetParamKey(paramName string) string {
 // The usage flow is that a request is made to get all the owned objects by "OwnerId" and then picking the one
 // that matches the Tag
 type PrerequisiteObject struct {
-	OwnerId string
+	OwnerId *string
 	Name    string // the key under which the value is inserted in the args, must match one of the arg names used in the PTB commands
 	Tag     string
 	SetKeys bool // optionally set the keys of the object in the arg map instead of name
@@ -65,6 +65,13 @@ type ChainWriterFunction struct {
 	// The set of PTB commands to run as part of this function call.
 	// This field is used in replacement of `Params` above.
 	PTBCommands []ChainWriterPTBCommand
+}
+
+// ConfigOverrides contains fields with dynamic values to override the default configs
+type ConfigOverrides struct {
+	// ToAddress specifies an override for the owner address in PrerequisiteObject such that if it is
+	// empty in the config, the value can be passed in from the chainwriter.SendTransaction method
+	ToAddress string
 }
 
 type ChainWriterSignal struct {

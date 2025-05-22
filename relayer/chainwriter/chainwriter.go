@@ -86,7 +86,7 @@ func convertFunctionParams(argMap map[string]any, params []codec.SuiFunctionPara
 //     transaction enqueue operation in the TxManager fails.
 func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName string, method string, args any, transactionID string, toAddress string, meta *commonTypes.TxMeta, _ *big.Int) error {
 	if contractName == PTBChainWriterModuleName {
-		return enqueuePTB(ctx, s, contractName, method, args, transactionID, meta)
+		return enqueuePTB(ctx, s, contractName, method, args, transactionID, toAddress, meta)
 	}
 
 	return enqueueSmartContractCall(ctx, s, contractName, method, args, transactionID, meta)
@@ -170,7 +170,7 @@ func enqueueSmartContractCall(ctx context.Context, s *SuiChainWriter, contractNa
 // Returns:
 //   - error: An error if configuration is not found, argument mapping fails, PTB command building fails,
 //     or the TxManager EnqueuePTB call fails.
-func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method string, args any, transactionID string, meta *commonTypes.TxMeta) error {
+func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method string, args any, transactionID string, toAddress string, meta *commonTypes.TxMeta) error {
 	moduleConfig, exists := s.config.Modules[ptbName]
 	if !exists {
 		s.lggr.Errorw("PBT not found", "PTB name", ptbName)
@@ -189,7 +189,9 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 	}
 
 	// Use the builder with the updated PTBConstructor
-	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, argMap)
+	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, argMap, &ConfigOverrides{
+		ToAddress: toAddress,
+	})
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err
