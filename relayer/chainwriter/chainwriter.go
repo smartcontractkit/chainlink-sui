@@ -121,15 +121,15 @@ func enqueueSmartContractCall(ctx context.Context, s *SuiChainWriter, contractNa
 	}
 
 	// For now do not assume any generic type args
+	// TODO: Add support for generic type args
 	typeArgs := []string{}
 
-	argMap := make(map[string]any)
-	err := mapstructure.Decode(args, &argMap)
-	if err != nil {
-		s.lggr.Errorw("Error decoding args", "error", err)
-		return err
+	var arguments Arguments
+	if err := mapstructure.Decode(args, &arguments); err != nil {
+		return fmt.Errorf("failed to decode args: %w", err)
 	}
-	paramTypes, paramValues, err := convertFunctionParams(argMap, functionConfig.Params)
+
+	paramTypes, paramValues, err := convertFunctionParams(arguments.Args, functionConfig.Params)
 	if err != nil {
 		s.lggr.Errorw("Error converting function params", "error", err)
 		return err
@@ -183,15 +183,16 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return commonTypes.ErrNotFound
 	}
 
-	argMap := make(map[string]any)
-	if err := mapstructure.Decode(args, &argMap); err != nil {
+	var arguments Arguments
+	if err := mapstructure.Decode(args, &arguments); err != nil {
 		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
 	// Use the builder with the updated PTBConstructor
-	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, argMap, &ConfigOverrides{
+	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, &ConfigOverrides{
 		ToAddress: toAddress,
 	})
+
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err

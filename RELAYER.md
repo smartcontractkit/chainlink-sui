@@ -9,6 +9,7 @@
       - [Configuring a ChainWriter to use PTBs](#configuring-a-chainwriter-to-use-ptbs)
       - [Using PTB Dependencies](#using-ptb-dependencies)
     - [Calling a PTB in a ChainWriter instance](#calling-a-ptb-in-a-chainwriter-instance)
+      - [Handling Generic Types in PTBs](#handling-generic-types-in-ptbs)
   - [Closing Resources](#closing-resources)
 
 
@@ -257,15 +258,19 @@ func createChainWriter(relayer *plugin.SuiRelayer) (types.ContractWriter, error)
 func incrementCounter(writer types.ContractWriter, counterObjectId string) error {
     // Generate a unique transaction ID
     txID := uuid.New().String()
+
+    args := chainwriter.Arguments{
+        Args: map[string]any{
+            "counter": counterObjectId,
+        },
+    }
     
     // Submit the transaction
     err := writer.SubmitTransaction(
         context.Background(),
         "counter", // Module name
         "increment", // Function name
-        map[string]any{
-            "counter": counterObjectId,
-        },
+        args, // Arguments
         txID, // Transaction ID
         "", // To address (not used in Sui)
         &commonTypes.TxMeta{GasLimit: 10000000}, // Transaction metadata
@@ -320,7 +325,7 @@ func createChainWriterWithPTB(relayer *plugin.SuiRelayer) (types.ContractWriter,
                                         Required: true,
                                     },
                                 },
-                                Order: 1,
+
                             },
                         },
                     },
@@ -372,7 +377,6 @@ config := chainwriter.ChainWriterConfig{
                                     Required: true,
                                 },
                             },
-                            Order: 1,
                         },
                         {
                             Type:      codec.SuiPTBCommandMoveCall,
@@ -395,7 +399,7 @@ config := chainwriter.ChainWriterConfig{
                                     },
                                 },
                             },
-                            Order: 2,
+
                         },
                     },
                 },
@@ -407,123 +411,234 @@ config := chainwriter.ChainWriterConfig{
 
 ### Calling a PTB in a ChainWriter instance
 
-When working with PTBs, you can pass different types of arguments to your commands. The Sui relayer supports the following argument types:
 
-1. **Object Arguments** (`ObjectArgType`) - Used for Sui object references:
-   ```go
-   {
-       Type: chainwriter.ObjectArgType,
-       Content: chainwriter.PTBArgContent{
-           ID: "0x123...", // Object ID
-           MapTo: []chainwriter.PTBArgLocation{
-               {
-                   CommandIndex: 0, // Index of the command in the PTB
-                   Param: "counter", // Parameter name in the command
-                   CommandName: "0x123.counter.increment", // Full command name (optional)
-               },
-           },
-       },
-   }
-   ```
+You can combine these different argument types in a single PTB. The recommended way to pass arguments to PTB commands is using the `chainwriter.Arguments` struct. This approach simplifies argument handling by automatically mapping the arguments to the appropriate parameters in your PTB commands based on their names.
 
-2. **Scalar Arguments** (`ScalarArgType`) - Used for basic value types like integers, strings, booleans, etc.:
-   ```go
-   {
-       Type: chainwriter.ScalarArgType,
-       Content: chainwriter.PTBArgContent{
-           Value: uint64(10), // Any value type
-           MapTo: []chainwriter.PTBArgLocation{
-               {
-                   CommandIndex: 1,
-                   Param: "increment_by",
-                   CommandName: "0x123.counter.increment_by",
-               },
-           },
-       },
-   }
-   ```
+The `Arguments` struct has two fields:
+- `Args`: A map of argument names to their values
+- `ArgTypes`: A map of argument names to their generic types (for handling generic type parameters). By default this is empty.
 
-3. **Vector Arguments** (`VectorArgType`) - Used for arrays/vectors of values:
-   ```go
-   {
-       Type: chainwriter.VectorArgType,
-       Content: chainwriter.PTBArgContent{
-           Value: []string{"value1", "value2"}, // Array of values
-           MapTo: []chainwriter.PTBArgLocation{
-               {
-                   CommandIndex: 0,
-                   Param: "string_list",
-                   CommandName: "0x123.list.process",
-               },
-           },
-       },
-   }
-   ```
-
-You can combine these different argument types in a single PTB. Each argument can be mapped to multiple commands within the same PTB using the `MapTo` field. Commands that depend on the result of previous commands are handled internally through the PTB dependency mechanism.
-
-Here's a complete example that combines multiple argument types:
+Here's how to use the `chainwriter.Arguments` approach:
 
 ```go
-ptbArgs := chainwriter.PTBArgMapping{
-    Args: []chainwriter.PTBArg{
-        {
-            Type: chainwriter.ObjectArgType,
-            Content: chainwriter.PTBArgContent{
-                ID: "0x123...",
-                MapTo: []chainwriter.PTBArgLocation{
-                    {
-                        CommandIndex: 0,
-                        Param:        "counter",
-                        CommandName:  "0x123.counter.increment",
-                    },
-                },
-            },
-        },
-        {
-            Type: chainwriter.ScalarArgType,
-            Content: chainwriter.PTBArgContent{
-                Value: uint64(10),
-                MapTo: []chainwriter.PTBArgLocation{
-                    {
-                        CommandIndex: 1,
-                        Param:        "increment_by",
-                        CommandName:  "0x123.counter.increment_by",
-                    },
-                },
-            },
-        },
-        {
-            Type: chainwriter.ScalarArgType,
-            Content: chainwriter.PTBArgContent{
-                Value: "metadata",
-                MapTo: []chainwriter.PTBArgLocation{
-                    {
-                        CommandIndex: 1,
-                        Param:        "description",
-                        CommandName:  "0x123.counter.increment_by",
-                    },
-                },
-            },
-        },
+// Create an Arguments struct with your argument values
+args := chainwriter.Arguments{
+    Args: map[string]any{
+        "counter":      "0x123...", // Object ID for a counter object
+        "increment_by": uint64(10), // Value to increment by
+        "description":  "metadata", // String metadata
+        "signers":      [][]byte{signerA, signerB, signerC}, // Vector/array argument
     },
+}
+
+// Submit the transaction with the Arguments struct
+err := writer.SubmitTransaction(
+    context.Background(),
+    chainwriter.PTBChainWriterModuleName, // Module name - for PTBs always use this constant
+    "complex_operation",                  // Function name
+    args,                                 // Arguments struct
+    txID,                                 // Transaction ID
+    "",                                   // To address (not used in Sui)
+    &commonTypes.TxMeta{GasLimit: 10000000}, // Transaction metadata
+    nil,                                  // Value (not used in Sui)
+)
+```
+
+This approach has several advantages:
+1. **Simplicity**: No need to manually map arguments to command indices
+2. **Automatic mapping**: Arguments are automatically mapped to parameters based on name
+3. **Type safety**: The arguments are validated against the expected parameter types
+4. **Dependency handling**: Dependencies between commands are handled internally
+
+#### Handling Generic Types in PTBs
+
+When working with generic types in Sui Move functions, you need to specify both the value arguments and the type arguments. The `chainwriter.Arguments` struct supports this through the `ArgTypes` field.
+
+Here's a real-world example from a CCIP (Cross-Chain Interoperability Protocol) implementation that uses generics to handle different token types:
+
+```go
+// ChainWriter configuration with multiple commands and generic types
+func configureChainWriterForCCIP(addresses ContractAddresses, publicKeyBytes []byte) chainwriter.ChainWriterConfig {
+    // Define generic type variables
+    coinTypeTag := "0x2::coin::Coin"
+    coinParamName := "c"
+    feeTokenParamName := "fee_token"
+    
+    return chainwriter.ChainWriterConfig{
+        Modules: map[string]*chainwriter.ChainWriterModule{
+            chainwriter.PTBChainWriterModuleName: {
+                Name:     chainwriter.PTBChainWriterModuleName,
+                ModuleID: "0x123",
+                Functions: map[string]*chainwriter.ChainWriterFunction{
+                    "ccip_send": {
+                        Name:      "ccip_send",
+                        PublicKey: publicKeyBytes,
+						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+							// First command: create token params
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: strPtr(addresses.CCIPPackageID),
+								ModuleId:  strPtr("dynamic_dispatcher"),
+								Function:  strPtr("create_token_params"),
+								Params:    []codec.SuiFunctionParam{},
+							},
+							// Second command: lock tokens in the token pool
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: strPtr(addresses.LinkLockReleaseTokenPool),
+								ModuleId:  strPtr("lock_release_token_pool"),
+								Function:  strPtr("lock_or_burn"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "ref",
+										Type:     "object_id",
+										Required: true,
+									},
+									{
+										Name:      "clock",
+										Type:      "object_id",
+										Required:  true,
+										IsMutable: testutils.BoolPointer(false),
+									},
+									{
+										Name:     "state",
+										Type:     "object_id",
+										Required: true,
+									},
+									{
+										Name:     "c",
+										Type:     "object_id",
+										Required: true,
+										IsGeneric: true,
+									},
+									{
+										Name:     "remote_chain_selector",
+										Type:     "u64",
+										Required: true,
+									},
+									{
+										Name:     "token_params",
+										Type:     "ptb_dependency",
+										Required: true,
+										PTBDependency: &codec.PTBCommandDependency{
+											CommandIndex: 0,
+										},
+									},
+								},
+							},
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: strPtr(addresses.CCIPOnrampPackageID),
+								ModuleId:  strPtr("onramp"),
+								Function:  strPtr("ccip_send"),
+								GenericTypeArgs: []codec.GenericArg{
+									{
+										TypeTag:   &coinTypeTag,
+										ParamName: &feeTokenParamName,
+									},
+								},
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "ref",
+										Type:     "object_id",
+										Required: true,
+									},
+									{
+										Name:     "onramp_state",
+										Type:     "object_id",
+										Required: true,
+									},
+									{
+										Name:      "clock",
+										Type:      "object_id",
+										Required:  true,
+										IsMutable: testutils.BoolPointer(false),
+									},
+									{
+										Name:     "dest_chain_selector",
+										Type:     "u64",
+										Required: true,
+									},
+									{
+										Name:     "receiver",
+										Type:     "vector<u8>",
+										Required: true,
+									},
+									{
+										Name:     "data",
+										Type:     "vector<u8>",
+										Required: true,
+									},
+									{
+										Name:     "token_params",
+										Type:     "ptb_dependency",
+										Required: true,
+										PTBDependency: &codec.PTBCommandDependency{
+											CommandIndex: 1,
+										},
+									},
+									{
+										Name:      "fee_token_metadata",
+										Type:      "object_id",
+										Required:  true,
+										IsMutable: testutils.BoolPointer(false),
+									},
+									{
+										Name:     "fee_token",
+										Type:     "object_id",
+										Required: true,
+										IsGeneric: true,
+									},
+									{
+										Name:     "extra_args",
+										Type:     "vector<u8>",
+										Required: true,
+									},
+								},
+							},
+						},
+                },
+            },
+        },
+    }
+}
+
+// Create Arguments with generic type information for the CCIP send operation
+func createCCIPSendArguments(addresses ContractAddresses) chainwriter.Arguments {
+	// Define a destination chain selector (e.g., Ethereum Sepolia)
+	destChainSelector := uint64(2)
+	linkTokenTypeTag := "0xe3c005c4195ec60a3468ce01238df650e4fedbd36e517bf75b9d2ee90cce8a8b::link_token::LINK_TOKEN"
+
+	return chainwriter.Arguments{
+		Args: map[string]any{
+			"ref":                   addresses.CCIPStateRef,
+			"clock":                 addresses.ClockObject,
+			"remote_chain_selector": destChainSelector,
+			"dest_chain_selector":   destChainSelector,
+			"state":                 addresses.LinkLockReleaseTokenPoolState,
+			"c":                     addresses.LinkCoinObjects[0],
+			"onramp_state":          addresses.CCIPOnrampState,
+			"receiver":              []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			"data":                  []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			"fee_token_metadata":    addresses.LinkTokenCoinMetadata,
+			"fee_token":             addresses.LinkCoinObjects[1],
+			"extra_args":            []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		},
+		ArgTypes: map[string]string{
+			"c":         linkTokenTypeTag,
+			"fee_token": linkTokenTypeTag,
+		},
+	}
 }
 ```
 
-When submitting a PTB transaction, use the `SubmitTransaction` method with your arguments:
+When the PTB is executed:
 
-```go
-err := writer.SubmitTransaction(
-    context.Background(),
-    "counter",           // Module name
-    "complex_operation", // Function name
-    ptbArgs,            // PTB arguments
-    txID,               // Transaction ID
-    "",                 // To address (not used in Sui)
-    &commonTypes.TxMeta{GasLimit: 10000000}, // Transaction metadata
-    nil,                // Value (not used in Sui)
-)
-```
+1. The first command creates token parameters with no generic types
+2. The `c` argument is passed as a generic type to the second command. That command will receive the `c` argument as a `Coin<T>` object.
+3. In the third command, the `fee_token` argument is passed as a generic type. That command will receive the `fee_token` argument as a `Coin<T>` object.
+
+This allows the same PTB configuration to work with different token types by simply changing the values in the `ArgTypes` map, making your code more flexible and reusable. Because the generic types are the same, only one argtype will be passed to the PTB execution engine.
 
 ## Closing Resources
 

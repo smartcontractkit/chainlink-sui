@@ -144,7 +144,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 			Params:    []codec.SuiFunctionParam{},
 		}
 
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]suiptb.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -161,7 +161,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 			Params:   []codec.SuiFunctionParam{},
 		}
 
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]suiptb.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -179,7 +179,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 			Params:    []codec.SuiFunctionParam{},
 		}
 
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]suiptb.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -196,7 +196,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 			Params:    []codec.SuiFunctionParam{},
 		}
 
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]suiptb.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -215,7 +215,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 			Params:    []codec.SuiFunctionParam{},
 		}
 
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]suiptb.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -323,9 +323,9 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("Should fill a valid prerequisite object ID in CW config", func(t *testing.T) {
 		// we only pass the counter ID as the other object ID (admin cap) is populated by the pre-requisites
-		args := map[string]any{
+		args := chainwriter.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
-		}
+		}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_id_prereq", args, nil)
 		require.NoError(t, err)
@@ -342,7 +342,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("Should fill a valid prerequisite object keys in CW config", func(t *testing.T) {
 		// pass no args as it should be populated by the pre-requisites
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args, nil)
 		require.NoError(t, err)
@@ -617,9 +617,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	// Test building and executing PTB commands
 	//nolint:paralleltest
 	t.Run("Single Operation PTB", func(t *testing.T) {
-		args := map[string]any{
+		args := chainwriter.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
-		}
+		}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, nil)
 		require.NoError(t, err)
@@ -633,9 +633,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Missing Module Error", func(t *testing.T) {
-		args := map[string]any{
+		args := chainwriter.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
-		}
+		}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, nil)
 		require.Error(t, err)
@@ -644,9 +644,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Missing Function Error", func(t *testing.T) {
-		args := map[string]any{
+		args := chainwriter.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
-		}
+		}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, nil)
 		require.Error(t, err)
@@ -655,7 +655,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Missing Required Argument", func(t *testing.T) {
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, nil)
 		require.Error(t, err)
@@ -665,7 +665,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("CounterManager Borrow Pattern", func(t *testing.T) {
 		// Start by creating a Counter and its counter manager
-		args := map[string]any{}
+		args := chainwriter.Arguments{Args: map[string]any{}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, nil)
 		require.NoError(t, err)
@@ -687,9 +687,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			}
 		}
 
-		args = map[string]any{
+		args = chainwriter.Arguments{Args: map[string]any{
 			"manager_object": managerObjectId,
-		}
+		}}
 
 		ptb, err = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, nil)
 		require.NoError(t, err)
@@ -715,9 +715,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Complex Operation with Multiple Commands", func(t *testing.T) {
-		args := map[string]any{
+		args := chainwriter.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
-		}
+		}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, nil)
 		require.NoError(t, err)

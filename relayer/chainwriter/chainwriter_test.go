@@ -129,6 +129,27 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 							},
 						},
 					},
+					"array_size_ptb": {
+						Name:      "array_size_ptb",
+						PublicKey: publicKeyBytes,
+						Params:    []codec.SuiFunctionParam{},
+						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  strPtr("counter"),
+								Function:  strPtr("array_size"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:      "arr",
+										Type:      "vector<u64>",
+										Required:  true,
+										IsGeneric: true,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -160,7 +181,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		sender         string
 		contractName   string
 		functionName   string
-		args           any
+		args           chainwriter.Arguments
 		expectError    error
 		expectedResult string
 		status         commonTypes.TransactionStatus
@@ -173,7 +194,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   "counter",
 			functionName:   "increment",
-			args:           map[string]any{"counter": objectID},
+			args:           chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
 			expectError:    nil,
 			expectedResult: "1",
 			status:         commonTypes.Finalized,
@@ -186,7 +207,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   chainwriter.PTBChainWriterModuleName,
 			functionName:   "ptb_call",
-			args:           simpleArgs,
+			args:           chainwriter.Arguments{Args: simpleArgs},
 			expectError:    nil,
 			expectedResult: "2",
 			status:         commonTypes.Finalized,
@@ -199,7 +220,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   chainwriter.PTBChainWriterModuleName,
 			functionName:   "ptb_call",
-			args:           map[string]any{},
+			args:           chainwriter.Arguments{Args: map[string]any{}},
 			expectError:    errors.New("required parameter counter has no value"),
 			expectedResult: "",
 			status:         commonTypes.Failed,
@@ -212,7 +233,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   chainwriter.PTBChainWriterModuleName,
 			functionName:   "ptb_call",
-			args:           simpleArgs, // Using simple map that should be auto-converted
+			args:           chainwriter.Arguments{Args: simpleArgs},
 			expectError:    nil,
 			expectedResult: "3",
 			status:         commonTypes.Finalized,
@@ -225,7 +246,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   "counter",
 			functionName:   "nonexistent_function",
-			args:           map[string]any{"counter": objectID},
+			args:           chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
 			expectError:    commonTypes.ErrNotFound,
 			expectedResult: "",
 			status:         commonTypes.Failed,
@@ -238,7 +259,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   "nonexistent_contract",
 			functionName:   "increment",
-			args:           map[string]any{"counter": objectID},
+			args:           chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
 			expectError:    commonTypes.ErrNotFound,
 			expectedResult: "",
 			status:         commonTypes.Failed,
@@ -251,12 +272,12 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:       testState.AccountAddress,
 			contractName: "counter",
 			functionName: "increment",
-			args: map[string]any{
+			args: chainwriter.Arguments{Args: map[string]any{
 				"counter":     objectID,
 				"invalid_arg": "invalid_value",
 				"extra_arg":   "extra_value",
 				"extra_arg2":  123,
-			},
+			}},
 			expectError:    errors.New("argument count mismatch"),
 			expectedResult: "",
 			status:         commonTypes.Failed,
@@ -269,9 +290,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:       testState.AccountAddress,
 			contractName: "counter",
 			functionName: "increment",
-			args: map[string]any{
+			args: chainwriter.Arguments{Args: map[string]any{
 				"counter": objectID,
-			},
+			}},
 			expectError:    errors.New("transaction already exists"),
 			expectedResult: "",
 			status:         commonTypes.Failed,
@@ -284,9 +305,29 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   chainwriter.PTBChainWriterModuleName,
 			functionName:   "increment_by_two_no_context",
-			args:           map[string]any{},
+			args:           chainwriter.Arguments{Args: map[string]any{}},
 			expectError:    nil,
 			expectedResult: "3",
+			status:         commonTypes.Finalized,
+			numberAttemps:  1,
+		},
+		{
+			name:         "Test ChainWriter with generic function",
+			txID:         "test-array-size-txID",
+			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:       testState.AccountAddress,
+			contractName: chainwriter.PTBChainWriterModuleName,
+			functionName: "array_size_ptb",
+			args: chainwriter.Arguments{
+				Args: map[string]any{
+					"arr": []uint64{1, 2, 3, 4, 5},
+				},
+				ArgTypes: map[string]string{
+					"arr": "u64",
+				},
+			},
+			expectError:    nil,
+			expectedResult: "",
 			status:         commonTypes.Finalized,
 			numberAttemps:  1,
 		},
@@ -296,8 +337,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	for _, scenario := range testScenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Submit the transaction
-			err = chainWriter.SubmitTransaction(
-				ctx, scenario.contractName, scenario.functionName,
+			err = chainWriter.SubmitTransaction(ctx, scenario.contractName, scenario.functionName,
 				scenario.args,
 				scenario.txID, scenario.sender,
 				scenario.txMeta, nil,
@@ -315,7 +355,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 					}
 
 					return status == scenario.status
-				}, 60*time.Second, 1*time.Second, "Transaction final state not reached")
+				}, 3*time.Second, 1*time.Second, "Transaction final state not reached")
 
 				objectDetails, err := testState.SuiGateway.ReadObjectId(ctx, objectID)
 				require.NoError(t, err)

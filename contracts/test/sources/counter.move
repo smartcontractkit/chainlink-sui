@@ -4,6 +4,7 @@ module test::counter {
     use sui::tx_context::{Self, TxContext};
     use sui::event;
     use sui::address;
+    use std::vector;
 
     // Event emitted when counter is incremented
     public struct CounterIncremented has copy, drop {
@@ -155,4 +156,10 @@ module test::counter {
     public fun get_count_no_entry(counter: &Counter): u64 {
         counter.value
     }
+
+
+    public fun array_size<T: drop>(arr: vector<T>): u64 {
+        vector::length(&arr)
+    }
+
 }

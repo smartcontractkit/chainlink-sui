@@ -14,6 +14,10 @@ type SuiFunctionParam struct {
 	// IsMutable specifies if the object is mutable or not (optional - defaults to true)
 	IsMutable *bool
 	// Whether the parameter is required
+
+	// IsGeneric specifies if the parameter is a generic argument
+	IsGeneric bool
+
 	Required bool
 	// Default value to use if not provided
 	DefaultValue any
@@ -28,3 +32,18 @@ const (
 	SuiPTBCommandPublish  SuiPTBCommandType = "publish"
 	SuiPTBCommandTransfer SuiPTBCommandType = "transfer"
 )
+
+// A generic argument can come from 3 places:
+//  1. A constant TypeTag string   (e.g. "0x2::sui::SUI")
+//  2. A user-supplied parameter   (so you can decide the type at run time)
+//  3. A previous PTB command      (mostly when the generic is an object type)
+type GenericArg struct {
+	// Constant value – the most common case
+	TypeTag *string `json:"type_tag,omitempty"`
+
+	// Map to the *name* of a Param in the same Function/Command
+	ParamName *string `json:"param_name,omitempty"`
+
+	// Pull the TypeTag from the Nth result of a previous command
+	PTBDependency *PTBCommandDependency `json:"ptb_dependency,omitempty"`
+}

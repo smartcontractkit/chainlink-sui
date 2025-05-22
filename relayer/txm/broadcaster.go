@@ -73,6 +73,8 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 			RequestType: tx.RequestType,
 		}
 
+		txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID, "payload", tx)
+
 		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
 		// We increment the attempts here regardless of the error
 		// This is because we want to keep track of how many times we tried to broadcast the transaction

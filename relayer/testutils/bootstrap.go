@@ -55,10 +55,12 @@ func SetupClients(t *testing.T, rpcURL string, _keystore loop.Keystore) (*client
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, _keystore, maxConcurrentRequests, "WaitForLocalExecution")
+	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, _keystore, maxConcurrentRequests, "WaitForEffectsCert")
 	if err != nil {
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
+
+	t.Log("relayerClient", relayerClient)
 
 	store := txm.NewTxmStoreImpl()
 	conf := txm.DefaultConfigSet

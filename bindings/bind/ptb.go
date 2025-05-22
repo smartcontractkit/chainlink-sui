@@ -252,6 +252,7 @@ func ToObjectArg(object *suiclient.SuiObjectData, isMutable bool) suiptb.ObjectA
 			},
 		}
 	}
+
 	// TODO: Could there be a receiving object option?
 	return suiptb.ObjectArg{
 		ImmOrOwnedObject: &sui.ObjectRef{

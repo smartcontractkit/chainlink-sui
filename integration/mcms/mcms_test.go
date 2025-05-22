@@ -440,16 +440,18 @@ func TestMCMS(t *testing.T) {
 			{0x00, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03},
 		}
 
-		args := map[string]any{
-			"owner_cap_id":      ownerCapObjId,
-			"multisig_state_id": multisigStateObjId,
-			"role":              uint8(100),
-			"chain_id":          uint256.Int{77},
-			"signer_addresses":  signerAddresses,
-			"signer_groups":     []uint8{0, 0, 0},
-			"group_quorums":     quorums,
-			"group_parents":     parents,
-			"clear_root":        false,
+		args := chainwriter.Arguments{
+			Args: map[string]any{
+				"owner_cap_id":      ownerCapObjId,
+				"multisig_state_id": multisigStateObjId,
+				"role":              uint8(100),
+				"chain_id":          uint256.Int{77},
+				"signer_addresses":  signerAddresses,
+				"signer_groups":     []uint8{0, 0, 0},
+				"group_quorums":     quorums,
+				"group_parents":     parents,
+				"clear_root":        false,
+			},
 		}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, nil)
@@ -485,16 +487,18 @@ func TestMCMS(t *testing.T) {
 			{0x00, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03},
 		}
 
-		args := map[string]any{
-			"owner_cap_id":      ownerCapObjId,
-			"multisig_state_id": multisigStateObjId,
-			"role":              uint8(1),
-			"chain_id":          uint256.Int{77},
-			"signer_addresses":  signerAddresses,
-			"signer_groups":     []uint8{0, 0, 0},
-			"group_quorums":     quorums,
-			"group_parents":     parents,
-			"clear_root":        false,
+		args := chainwriter.Arguments{
+			Args: map[string]any{
+				"owner_cap_id":      ownerCapObjId,
+				"multisig_state_id": multisigStateObjId,
+				"role":              uint8(1),
+				"chain_id":          uint256.Int{77},
+				"signer_addresses":  signerAddresses,
+				"signer_groups":     []uint8{0, 0, 0},
+				"group_quorums":     quorums,
+				"group_parents":     parents,
+				"clear_root":        false,
+			},
 		}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, nil)
@@ -541,25 +545,27 @@ func TestMCMS(t *testing.T) {
 			parents[i] = 0
 		}
 
-		args := map[string]any{
-			"owner_cap_id":           ownerCapObjId,
-			"multisig_state_id":      multisigStateObjId,
-			"role":                   uint8(0),
-			"chain_id":               uint256.Int{77},
-			"signer_addresses":       addresses,
-			"signer_groups":          []uint8{0, 0, 0},
-			"group_quorums":          quorums,
-			"group_parents":          parents,
-			"clear_root":             false,
-			"root":                   [][]byte{},
-			"multisig_addr":          []byte(outputs.mcmsPackageId),
-			"pre_op_count":           uint64(0),
-			"post_op_count":          uint64(1),
-			"override_previous_root": false,
-			"metadata_proof":         [][]byte{{0x01}},
-			"signatures":             [][]byte{{0x05}, {0x06}, {0x07}},
-			"valid_until":            uint64(999),
-			"clock":                  "0x06",
+		args := chainwriter.Arguments{
+			Args: map[string]any{
+				"owner_cap_id":           ownerCapObjId,
+				"multisig_state_id":      multisigStateObjId,
+				"role":                   uint8(0),
+				"chain_id":               uint256.Int{77},
+				"signer_addresses":       addresses,
+				"signer_groups":          []uint8{0, 0, 0},
+				"group_quorums":          quorums,
+				"group_parents":          parents,
+				"clear_root":             false,
+				"root":                   [][]byte{},
+				"multisig_addr":          []byte(outputs.mcmsPackageId),
+				"pre_op_count":           uint64(0),
+				"post_op_count":          uint64(1),
+				"override_previous_root": false,
+				"metadata_proof":         [][]byte{{0x01}},
+				"signatures":             [][]byte{{0x05}, {0x06}, {0x07}},
+				"valid_until":            uint64(999),
+				"clock":                  "0x06",
+			},
 		}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args, nil)
@@ -707,39 +713,41 @@ func TestMCMS(t *testing.T) {
 
 		log.Debugw("rootBytes", "value", rootBytes, "length", len(rootBytes))
 
-		args := map[string]any{
-			// Args for set_config
-			"owner_cap_id":      ownerCapObjId,
-			"multisig_state_id": multisigStateObjId,
-			"role":              proposerRole,
-			"chain_id":          uint256.Int{77},
-			"signer_addresses":  signerAddresses,
-			"signer_groups":     []uint8{0, 0, 0},
-			"group_quorums":     quorums,
-			"group_parents":     parents,
-			"clear_root":        false,
+		args := chainwriter.Arguments{
+			Args: map[string]any{
+				// Args for set_config
+				"owner_cap_id":      ownerCapObjId,
+				"multisig_state_id": multisigStateObjId,
+				"role":              proposerRole,
+				"chain_id":          uint256.Int{77},
+				"signer_addresses":  signerAddresses,
+				"signer_groups":     []uint8{0, 0, 0},
+				"group_quorums":     quorums,
+				"group_parents":     parents,
+				"clear_root":        false,
 
-			// Additional args for set_root operation
-			"root":                   rootBytes,
-			"multisig_addr":          packageBytes,
-			"pre_op_count":           uint64(0),
-			"post_op_count":          uint64(1),
-			"override_previous_root": false,
-			"metadata_proof":         metadataProofBytes,
-			"signatures":             signatures,
-			"valid_until":            validUntil,
-			"clock":                  "0x06",
+				// Additional args for set_root operation
+				"root":                   rootBytes,
+				"multisig_addr":          packageBytes,
+				"pre_op_count":           uint64(0),
+				"post_op_count":          uint64(1),
+				"override_previous_root": false,
+				"metadata_proof":         metadataProofBytes,
+				"signatures":             signatures,
+				"valid_until":            validUntil,
+				"clock":                  "0x06",
 
-			// Additional args for execute operation
-			"nonce":         uint64(0),
-			"to":            packageBytes,
-			"module_name":   "mcms",
-			"function_name": "timelock_schedule_batch",
-			"data":          serializedBatchData,
-			"proof":         executeProofBytes,
+				// Additional args for execute operation
+				"nonce":         uint64(0),
+				"to":            packageBytes,
+				"module_name":   "mcms",
+				"function_name": "timelock_schedule_batch",
+				"data":          serializedBatchData,
+				"proof":         executeProofBytes,
 
-			// Additional args for timelock_execute_batch
-			"timelock": timelockObjId,
+				// Additional args for timelock_execute_batch
+				"timelock": timelockObjId,
+			},
 		}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args, nil)

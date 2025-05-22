@@ -15,6 +15,11 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
+type Arguments struct {
+	Args     map[string]any
+	ArgTypes map[string]string // Maps argument name to its generic type
+}
+
 // PTBConstructor handles building programmable transactions based on configuration.
 // It provides methods to construct PTBs by mapping arguments to their respective commands
 // and handling dependencies between commands.
@@ -133,7 +138,7 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, args map[string]any, configOverrides *ConfigOverrides) (*suiptb.ProgrammableTransactionBuilder, error) {
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments Arguments, configOverrides *ConfigOverrides) (*suiptb.ProgrammableTransactionBuilder, error) {
 	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
 
 	// Look up the module
@@ -159,7 +164,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	}
 
 	// Attempt to fill args with pre-requisite object data
-	err := p.FetchPrereqObjects(ctx, txnConfig.PrerequisiteObjects, &args, overrideToAddress)
+	err := p.FetchPrereqObjects(ctx, txnConfig.PrerequisiteObjects, &arguments.Args, overrideToAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +177,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
-			_, err := p.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
+			_, err := p.ProcessMoveCall(ctx, builder, cmd, &arguments, &cachedArgs)
 			if err != nil {
 				p.log.Errorw("Error processing move call", "Error", err)
 				return nil, err
@@ -194,10 +199,10 @@ func (p *PTBConstructor) ProcessMoveCall(
 	ctx context.Context,
 	builder *suiptb.ProgrammableTransactionBuilder,
 	cmd ChainWriterPTBCommand,
-	args *map[string]any,
+	arguments *Arguments,
 	cachedArgs *map[string]suiptb.Argument,
 ) (*suiptb.Argument, error) {
-	p.log.Debugw("Processing move call", "Command", cmd, "Args", args)
+	p.log.Debugw("Processing move call", "Command", cmd, "Args", arguments)
 
 	// All three fields below are required for a successful move call
 	if cmd.PackageId == nil {
@@ -217,12 +222,17 @@ func (p *PTBConstructor) ProcessMoveCall(
 	}
 
 	// Process arguments
-	processedArgTypes := []sui.TypeTag{}
-	processedArgs, err := p.ProcessArgsForCommand(ctx, builder, cmd.Params, args, cachedArgs)
+	processedArgs, err := p.ProcessArgsForCommand(ctx, builder, cmd.Params, arguments, cachedArgs)
 	if err != nil {
 		return nil, err
 	}
 
+	processedArgTypes, err := p.ResolveGenericTypeTags(cmd.Params, *arguments)
+	if err != nil {
+		return nil, err
+	}
+
+	p.log.Debugw("Processed Type Tags", "Type Tags", processedArgTypes)
 	p.log.Debugw("Processed args", "Args", processedArgs)
 	// Add the move call to the builder
 	ptbArgument := builder.ProgrammableMoveCall(packageId, *cmd.ModuleId, *cmd.Function, processedArgTypes, processedArgs)
@@ -230,16 +240,15 @@ func (p *PTBConstructor) ProcessMoveCall(
 	return &ptbArgument, nil
 }
 
-// ProcessArgsForCommand converts parameter specifications into concrete arguments
+// ProcessArgsForCommand converts parametedsr specifications into concrete arguments
 func (p *PTBConstructor) ProcessArgsForCommand(
 	ctx context.Context,
 	builder *suiptb.ProgrammableTransactionBuilder,
 	params []codec.SuiFunctionParam,
-	args *map[string]any,
+	arguments *Arguments,
 	cachedArgs *map[string]suiptb.Argument,
 ) ([]suiptb.Argument, error) {
 	processedArgs := make([]suiptb.Argument, 0, len(params))
-
 	for _, param := range params {
 		// specify if the value is Mutable, this is used specifically for object PTB args
 		IsMutable := true
@@ -271,7 +280,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 		}
 
 		// otherwise, check if the parameter is in the provided args
-		if argRawValue, exists := (*args)[param.Name]; exists {
+		if argRawValue, exists := arguments.Args[param.Name]; exists {
 			// check if the param has already been converted and cached
 			if cachedArg, exists := (*cachedArgs)[param.Name]; exists {
 				processedArgs = append(processedArgs, cachedArg)
@@ -281,7 +290,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 			// append to the array of args
 			processedArgValue, err := p.client.ToPTBArg(ctx, builder, argRawValue, IsMutable)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to build argument for %s: %w", param.Name, err)
 			}
 			processedArgs = append(processedArgs, processedArgValue)
 			// add the processed arg to the cache
@@ -290,11 +299,13 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 			continue
 		}
 
-		// fallback to the default value if any
+		// fallback to the default value. Some assumptions:
+		// - arguments with default values do NOT have type arguments
+		// - objects do not have default values
 		if param.DefaultValue != nil {
 			ptbArg, err := p.client.ToPTBArg(ctx, builder, param.DefaultValue, IsMutable)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to build default value for %s: %w", param.Name, err)
 			}
 			// append to the array of args
 			processedArgs = append(processedArgs, ptbArg)

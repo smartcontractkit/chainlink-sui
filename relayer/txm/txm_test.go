@@ -366,8 +366,8 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 	//nolint:paralleltest
 	for _, tc := range testScenarios {
 		t.Run(tc.name, func(t *testing.T) {
-			// Directly use the map as args for BuildPTBCommands
-			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, tc.args.(map[string]any), nil)
+			arg := chainwriter.Arguments{Args: tc.args.(map[string]any)}
+			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, arg, nil)
 			if tc.expectError != nil {
 				if err != nil {
 					// Expected error occurred during PTB command building
