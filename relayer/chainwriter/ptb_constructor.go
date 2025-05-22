@@ -2,7 +2,9 @@ package chainwriter
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -148,6 +150,12 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 
 	// Create a new PTB builder
 	builder := suiptb.NewTransactionDataTransactionBuilder()
+
+	// Attempt to fill args with pre-requisite object data
+	err := p.FetchPrereqObjects(ctx, txnConfig.PrerequisiteObjects, &args)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create a map for caching objects
 	cachedArgs := make(map[string]suiptb.Argument)
@@ -297,4 +305,41 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	}
 
 	return processedArgs, nil
+}
+
+// FetchPrereqObjects fetches each pre-requisite object and its details, then populates the args map with its values
+func (p *PTBConstructor) FetchPrereqObjects(ctx context.Context, prereqObjects []PrerequisiteObject, args *map[string]any) error {
+	for _, prereq := range prereqObjects {
+		ownedObjects, err := p.client.ReadOwnedObjects(ctx, prereq.OwnerId, nil)
+		if err != nil {
+			return err
+		}
+
+		// check each returned object
+		for _, ownedObject := range ownedObjects {
+			// object tag matches
+			if ownedObject.Data.Type != nil && strings.Contains(*ownedObject.Data.Type, prereq.Tag) {
+				p.log.Debugw("Found pre-requisite object", "Object", ownedObject.Data, "Prereq", prereq)
+				// object must be parsed and its keys added to the args map
+				if prereq.SetKeys {
+					// parse the object into a map
+					parsedObject := map[string]any{}
+					err := json.Unmarshal(ownedObject.Data.Content.Data.MoveObject.Fields, &parsedObject)
+					if err != nil {
+						return err
+					}
+
+					// add each key and value to the args map
+					for key, value := range parsedObject {
+						(*args)[key] = value
+					}
+				} else {
+					// add the object id to the args map
+					(*args)[prereq.Name] = ownedObject.Data.ObjectId.String()
+				}
+			}
+		}
+	}
+
+	return nil
 }

@@ -3,6 +3,7 @@ module test::counter {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::event;
+    use sui::address;
 
     // Event emitted when counter is incremented
     public struct CounterIncremented has copy, drop {
@@ -18,6 +19,13 @@ module test::counter {
         id: UID,
         value: u64
     }
+    
+    // Pointer to reference both Counter and AdminCap objects
+    public struct CounterPointer has key, store {
+        id: UID,
+        counter_id: address,
+        admin_cap_id: address,
+    }
 
     fun init(ctx: &mut TxContext) {
         let counter = Counter { 
@@ -28,9 +36,17 @@ module test::counter {
         let admin_cap = AdminCap {
             id: object::new(ctx)
         };
+        
+        // Create the pointer that references both objects
+        let pointer = CounterPointer {
+            id: object::new(ctx),
+            counter_id: object::id_to_address(object::borrow_id(&counter)),
+            admin_cap_id: object::id_to_address(object::borrow_id(&admin_cap)),
+        };
 
         transfer::share_object(counter);
-        transfer::transfer(admin_cap, ctx.sender());
+        transfer::transfer(admin_cap, tx_context::sender(ctx));
+        transfer::transfer(pointer, ctx.sender());
     }
 
     /// Create and share a Counter object

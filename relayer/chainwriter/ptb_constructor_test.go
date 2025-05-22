@@ -225,6 +225,140 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 
 // ------------------------------------------------
 //
+//	Tests prerequisite object filling
+//
+// ------------------------------------------------
+//
+//nolint:paralleltest
+func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
+	ctx := context.Background()
+	log, accountAddress, ptbClient, keystoreInstance, packageId, counterObjectId := setupTestEnvironment(t)
+	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
+	require.NoError(t, err)
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	publicKeyBytes := []byte(publicKey)
+
+	config := chainwriter.ChainWriterConfig{
+		Modules: map[string]*chainwriter.ChainWriterModule{
+			"counter": {
+				Name:     "counter",
+				ModuleID: packageId,
+				Functions: map[string]*chainwriter.ChainWriterFunction{
+					"get_count_with_object_id_prereq": {
+						Name:      "get_count_with_object_id_prereq",
+						PublicKey: publicKeyBytes,
+						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
+							{
+								// we set the owner as the recently deployed counter contract
+								OwnerId: accountAddress,
+								Name:    "admin_cap_id",
+								Tag:     "counter::AdminCap",
+								// we don't set the keys as we want to set the ID of the object in the PTB args
+								SetKeys: false,
+							},
+						},
+						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  stringPointer("counter"),
+								Function:  stringPointer("increment_by_two_no_context"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "admin_cap_id",
+										Type:     "object_id",
+										Required: true,
+									},
+									{
+										Name:     "counter_id",
+										Type:     "object_id",
+										Required: true,
+									},
+								},
+							},
+						},
+					},
+					"get_count_with_object_keys_prereq": {
+						Name:      "get_count_with_object_id_prereq",
+						PublicKey: publicKeyBytes,
+						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
+							{
+								OwnerId: accountAddress,
+								// name doesn't matter here as we are setting the keys
+								Name: "counter_id",
+								Tag:  "counter::CounterPointer",
+								// the keys of the returned object are set in the PTB args
+								SetKeys: true,
+							},
+						},
+						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  stringPointer("counter"),
+								Function:  stringPointer("increment_by_two_no_context"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:     "admin_cap_id",
+										Type:     "object_id",
+										Required: true,
+									},
+									{
+										Name:     "counter_id",
+										Type:     "object_id",
+										Required: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	constructor := chainwriter.NewPTBConstructor(config, ptbClient, log)
+
+	_ = suiptb.NewTransactionDataTransactionBuilder()
+
+	//nolint:paralleltest
+	t.Run("Should fill a valid prerequisite object ID in CW config", func(t *testing.T) {
+		// we only pass the counter ID as the other object ID (admin cap) is populated by the pre-requisites
+		args := map[string]any{
+			"counter_id": counterObjectId,
+		}
+
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_id_prereq", args)
+		require.NoError(t, err)
+		require.NotNil(t, ptb)
+
+		// Execute the PTB command
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
+		prettyPrintDebug(log, ptbResult)
+		require.NoError(t, err)
+		require.NotEmpty(t, ptbResult)
+		require.Equal(t, "success", ptbResult.Status.Status)
+	})
+
+	//nolint:paralleltest
+	t.Run("Should fill a valid prerequisite object keys in CW config", func(t *testing.T) {
+		// pass no args as it should be populated by the pre-requisites
+		args := map[string]any{}
+
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args)
+		require.NoError(t, err)
+		require.NotNil(t, ptb)
+
+		// Execute the PTB command
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
+		prettyPrintDebug(log, ptbResult)
+		require.NoError(t, err)
+		require.NotEmpty(t, ptbResult)
+		require.Equal(t, "success", ptbResult.Status.Status)
+	})
+}
+
+// ------------------------------------------------
+//
 //	Tests with contract interaction
 //
 // ------------------------------------------------

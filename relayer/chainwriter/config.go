@@ -40,13 +40,28 @@ func (c ChainWriterPTBCommand) GetParamKey(paramName string) string {
 	return fmt.Sprintf("%s.%s.%s.%s", *c.PackageId, *c.ModuleId, *c.Function, paramName)
 }
 
+// PrerequisiteObject represents a structure defining requirements or dependencies needed before constructing the PTB.
+// These requirements refer to object details that need to be fetched with `SuiX_GetOwnedObjects` and then populated
+// into the arguments map provided for PTB construction.
+//
+// The usage flow is that a request is made to get all the owned objects by "OwnerId" and then picking the one
+// that matches the Tag
+type PrerequisiteObject struct {
+	OwnerId string
+	Name    string // the key under which the value is inserted in the args, must match one of the arg names used in the PTB commands
+	Tag     string
+	SetKeys bool // optionally set the keys of the object in the arg map instead of name
+}
+
 type ChainWriterFunction struct {
 	// The function name (optional). When not provided, the key in the map under which this function
 	// is stored is used.
 	Name string
 	// The public key of the account that will sign and submit the transaction.
 	PublicKey []byte
-	Params    []codec.SuiFunctionParam
+	// The values that need to be loaded into the args by making SuiX_GetOwnedObjects calls
+	PrerequisiteObjects []PrerequisiteObject
+	Params              []codec.SuiFunctionParam
 	// The set of PTB commands to run as part of this function call.
 	// This field is used in replacement of `Params` above.
 	PTBCommands []ChainWriterPTBCommand
