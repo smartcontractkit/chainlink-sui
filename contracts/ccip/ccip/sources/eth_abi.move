@@ -9,7 +9,7 @@ const E_INVALID_ADDRESS: u64 = 2;
 const E_INVALID_BOOL: u64 = 3;
 const E_INVALID_SELECTOR: u64 = 4;
 const E_INVALID_U256_LENGTH: u64 = 5;
-const E_INVALID_LENGTH: u64 = 6;
+const E_INVALID_BYTES32_LENGTH: u64 = 6;
 const E_INTEGER_OVERFLOW: u64 = 7;
 
 const ENCODED_BOOL_FALSE: vector<u8> = vector[
@@ -54,7 +54,7 @@ public fun encode_bool(out: &mut vector<u8>, value: bool) {
 public fun encode_bytes32(
     out: &mut vector<u8>, value: vector<u8>
 ) {
-    assert!(value.length() <= 32, E_INVALID_LENGTH);
+    assert!(value.length() <= 32, E_INVALID_BYTES32_LENGTH);
     let padding_len = 32 - value.length();
     let mut i = 0;
     while (i < padding_len) {
@@ -99,7 +99,7 @@ public fun encode_packed_bytes(
 public fun encode_packed_bytes32(
     out: &mut vector<u8>, value: vector<u8>
 ) {
-    assert!(value.length() <= 32, E_INVALID_LENGTH);
+    assert!(value.length() <= 32, E_INVALID_BYTES32_LENGTH);
     out.append(value);
 }
 

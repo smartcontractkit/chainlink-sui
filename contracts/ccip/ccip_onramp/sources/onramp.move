@@ -70,7 +70,7 @@ module ccip_onramp::onramp {
         extra_args: vector<u8>,
         fee_token: address,
         fee_token_amount: u64,
-        fee_value_juels: u64,
+        fee_value_juels: u256,
         token_amounts: vector<Sui2AnyTokenTransfer>
     }
 
@@ -134,11 +134,10 @@ module ccip_onramp::onramp {
     const E_INVALID_ALLOWLIST_REQUEST: u64 = 7;
     const E_INVALID_ALLOWLIST_ADDRESS: u64 = 8;
     const E_CURSED_BY_RMN: u64 = 9;
-    const E_BAD_RMN_SIGNAL: u64 = 10;
-    const E_UNEXPECTED_WITHDRAW_AMOUNT: u64 = 11;
-    const E_FEE_AGGREGATOR_NOT_SET: u64 = 12;
-    const E_NONCE_MANAGER_CAP_EXISTS: u64 = 13;
-    const E_SOURCE_TRANSFER_CAP_EXISTS: u64 = 14;
+    const E_UNEXPECTED_WITHDRAW_AMOUNT: u64 = 10;
+    const E_FEE_AGGREGATOR_NOT_SET: u64 = 11;
+    const E_NONCE_MANAGER_CAP_EXISTS: u64 = 12;
+    const E_SOURCE_TRANSFER_CAP_EXISTS: u64 = 13;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -644,8 +643,7 @@ module ccip_onramp::onramp {
         extra_args: vector<u8>,
         ctx: &mut TxContext
     ): vector<u8> {
-        assert!(!rmn_remote::is_cursed_global(ref), E_BAD_RMN_SIGNAL);
-
+        // get_fee_internal will check curse status
         let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
         let fee_token_balance = balance::value(coin::balance(&fee_token));
 
@@ -801,7 +799,7 @@ module ccip_onramp::onramp {
         converted_extra_args: vector<u8>,
         fee_token_metadata: address,
         fee_token_amount: u64,
-        fee_value_juels: u64,
+        fee_value_juels: u256,
         token_transfers: vector<Sui2AnyTokenTransfer>,
         ctx: &mut TxContext
     ): Sui2AnyRampMessage {

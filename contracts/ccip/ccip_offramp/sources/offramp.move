@@ -219,6 +219,7 @@ module ccip_offramp::offramp {
     const E_TOKEN_TRANSFER_FAILED: u64 = 21;
     const E_CCIP_RECEIVE_FAILED: u64 = 22;
     const E_DEST_TRANSFER_CAP_EXISTS: u64 = 23;
+    const E_RMN_BLESSING_MISMATCH: u64 = 24;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -272,11 +273,6 @@ module ccip_offramp::offramp {
         source_chains_on_ramp: vector<vector<u8>>,
         ctx: &mut TxContext
     ) {
-        assert!(
-            source_chains_selectors.length() == source_chains_is_enabled.length(),
-            E_SOURCE_CHAIN_SELECTORS_MISMATCH
-        );
-
         state.chain_selector = chain_selector;
 
         assert!(
@@ -402,7 +398,6 @@ module ccip_offramp::offramp {
     // |                          Execution                           |
     // ================================================================
 
-    // TODO: this will be called by the execution DON so both object ref and offramp state need to be discoverable by RPCs
     public fun init_execute(
         ref: &CCIPObjectRef,
         state: &mut OffRampState,
@@ -560,10 +555,6 @@ module ccip_offramp::offramp {
 
         assert_source_chain_enabled(state, source_chain_selector);
 
-        assert!(
-            execution_report.message.header.source_chain_selector == source_chain_selector,
-            E_SOURCE_CHAIN_SELECTOR_MISMATCH
-        );
         assert!(
             execution_report.message.header.dest_chain_selector == state.chain_selector,
             E_DEST_CHAIN_SELECTOR_MISMATCH
@@ -1028,7 +1019,10 @@ module ccip_offramp::offramp {
 
                 // If the root is blessed but RMN blessing is disabled for the source chain, or if the root is not
                 // blessed but RMN blessing is enabled, we revert.
-                assert!(is_blessed != source_chain_config.is_rmn_verification_disabled, 0);
+                assert!(
+                    is_blessed != source_chain_config.is_rmn_verification_disabled,
+                    E_RMN_BLESSING_MISMATCH
+                );
 
                 assert!(
                     source_chain_config.on_ramp == root.on_ramp_address,

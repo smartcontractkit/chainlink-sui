@@ -41,6 +41,30 @@ const MESSAGE_FIXED_BYTES_PER_TOKEN: u64 = 32 * (4 + (3 + 2));
 
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES: u32 = 32;
 
+/// The maximum number of accounts that can be passed in SVMExtraArgs.
+const SVM_EXTRA_ARGS_MAX_ACCOUNTS: u64 = 64;
+
+/// Number of overhead accounts needed for message execution on SVM.
+/// These are message.receiver, and the OffRamp Signer PDA specific to the receiver.
+const SVM_MESSAGING_ACCOUNTS_OVERHEAD: u64 = 2;
+
+/// The size of each SVM account (in bytes).
+const SVM_ACCOUNT_BYTE_SIZE: u64 = 32;
+
+/// The expected static payload size of a token transfer when Borsh encoded and submitted to SVM.
+/// TokenPool extra data and offchain data sizes are dynamic, and should be accounted for separately.
+const SVM_TOKEN_TRANSFER_DATA_OVERHEAD: u64 = (4 + 32) // source_pool
+    + 32 // token_address
+    + 4 // gas_amount
+    + 4 // extra_data overhead
+    + 32 // amount
+    + 32 // size of the token lookup table account
+    + 32 // token-related accounts in the lookup table, over-estimated to 32, typically between 11 - 13
+    + 32 // token account belonging to the token receiver, e.g ATA, not included in the token lookup table
+    + 32 // per-chain token pool config, not included in the token lookup table
+    + 32 // per-chain token billing config, not always included in the token lookup table
+    + 32; // OffRamp pool signer PDA, not included in the token lookup table;
+
 const MAX_U64: u256 = 18446744073709551615;
 const MAX_U160: u256 = 1461501637330902918203684832716283019655932542975;
 const MAX_U256: u256 =
@@ -50,9 +74,14 @@ const VAL_1E14: u256 = 100_000_000_000_000;
 const VAL_1E16: u256 = 10_000_000_000_000_000;
 const VAL_1E18: u256 = 1_000_000_000_000_000_000;
 
+// Link has 8 decimals on Sui and 18 decimals on it's native chain, Ethereum. We want to emit
+// the fee in juels (1e18) denomination for consistency across chains. This means we multiply
+// the fee by 1e8 on Sui before we emit it in the event.
+const LOCAL_8_TO_18_DECIMALS_LINK_MULTIPLIER: u256 = 10_000_000_000;
+
 public struct FeeQuoterState has key, store {
     id: UID,
-    max_fee_juels_per_msg: u64,
+    max_fee_juels_per_msg: u256,
     link_token: address,
     token_price_staleness_threshold: u64,
     fee_tokens: vector<address>,
@@ -70,7 +99,7 @@ public struct FeeQuoterCap has key, store {
 }
 
 public struct StaticConfig has drop {
-    max_fee_juels_per_msg: u64,
+    max_fee_juels_per_msg: u256,
     link_token: address,
     token_price_staleness_threshold: u64
 }
@@ -92,7 +121,7 @@ public struct DestChainConfig has store, drop, copy {
     default_token_fee_usd_cents: u16,
     default_token_dest_gas_overhead: u32,
     default_tx_gas_limit: u32,
-    // TODO: should this be octa per apt?
+    // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
     gas_multiplier_wei_per_eth: u64,
     gas_price_staleness_threshold: u32,
     network_fee_usd_cents: u32
@@ -187,6 +216,8 @@ const E_INVALID_DEST_CHAIN_SELECTOR: u64 = 26;
 const E_INVALID_GAS_LIMIT: u64 = 27;
 const E_INVALID_CHAIN_FAMILY_SELECTOR: u64 = 28;
 const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
+const E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS: u64 = 30;
+const E_INVALID_SVM_EXTRA_ARGS_WRITABLE_BITMAP: u64 = 31;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -196,7 +227,7 @@ public fun type_and_version(): String {
 public fun initialize(
     ref: &mut CCIPObjectRef,
     _: &OwnerCap,
-    max_fee_juels_per_msg: u64,
+    max_fee_juels_per_msg: u256,
     link_token: address, // can pass in the LINK metadata object to make sure this is a valid token address
     token_price_staleness_threshold: u64,
     fee_tokens: vector<address>,
@@ -473,7 +504,7 @@ public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
     }
 }
 
-public fun get_static_config_fields(cfg: StaticConfig): (u64, address, u64) {
+public fun get_static_config_fields(cfg: StaticConfig): (u256, address, u64) {
     (cfg.max_fee_juels_per_msg, cfg.link_token, cfg.token_price_staleness_threshold)
 }
 
@@ -752,9 +783,15 @@ public fun get_validated_fee(
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
             resolve_generic_gas_limit(dest_chain_config, extra_args)
         } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
-            let require_valid_token_receiver = tokens_len > 0;
             resolve_svm_gas_limit(
-                dest_chain_config, extra_args, require_valid_token_receiver
+                dest_chain_config,
+                state,
+                dest_chain_selector,
+                extra_args,
+                receiver,
+                data_len,
+                tokens_len,
+                local_token_addresses,
             )
         } else {
             abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
@@ -909,37 +946,101 @@ fun resolve_generic_gas_limit(
 
 fun resolve_svm_gas_limit(
     dest_chain_config: &DestChainConfig,
+    state: &FeeQuoterState,
+    dest_chain_selector: u64,
     extra_args: vector<u8>,
-    require_valid_token_receiver: bool
+    receiver: vector<u8>,
+    data_len: u64,
+    tokens_len: u64,
+    local_token_addresses: vector<address>,
 ): u256 {
     let extra_args_len = extra_args.length();
     assert!(extra_args_len > 0, E_INVALID_EXTRA_ARGS_DATA);
+
     let (
         compute_units,
-        _account_is_writable_bitmap,
+        account_is_writable_bitmap,
         allow_out_of_order_execution,
         token_receiver,
-        _accounts
+        accounts
     ) = decode_svm_extra_args(extra_args);
+
+    let gas_limit = compute_units;
+
     assert!(
         !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
         E_EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE
     );
     assert!(
-        compute_units <= dest_chain_config.max_per_msg_gas_limit,
+        gas_limit <= dest_chain_config.max_per_msg_gas_limit,
         E_MESSAGE_COMPUTE_UNIT_LIMIT_TOO_HIGH
     );
-    if (require_valid_token_receiver) {
+
+    let accounts_length = accounts.length();
+    // The max payload size for SVM is heavily dependent on the accounts passed into extra args and the number of
+    // tokens. Below, token and account overhead will count towards maxDataBytes.
+    let mut svm_expanded_data_length = data_len;
+
+    let receiver_uint = eth_abi::decode_u256_value(receiver);
+    if (receiver_uint == 0) {
+        // When message receiver is zero, CCIP receiver is not invoked on SVM.
+        // There should not be additional accounts specified for the receiver.
         assert!(
-            token_receiver.length() == 32,
-            E_INVALID_TOKEN_RECEIVER
+            accounts_length == 0,
+            E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS
         );
-        let token_receiver_uint = eth_abi::decode_u256_value(token_receiver);
+    } else {
+        // The messaging accounts needed for CCIP receiver on SVM are:
+        // message receiver, offramp PDA signer,
+        // plus remaining accounts specified in SVM extraArgs. Each account is 32 bytes.
+        svm_expanded_data_length = svm_expanded_data_length + (
+            accounts_length + SVM_MESSAGING_ACCOUNTS_OVERHEAD
+        ) * SVM_ACCOUNT_BYTE_SIZE;
+    };
+
+    if (tokens_len > 0) {
         assert!(
-            token_receiver_uint > 0,
+            token_receiver.length() == 32
+                    && eth_abi::decode_u256_value(token_receiver) != 0,
             E_INVALID_TOKEN_RECEIVER
         );
     };
+
+    assert!(
+        accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS,
+        E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS
+    );
+    assert!(
+        (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
+        E_INVALID_SVM_EXTRA_ARGS_WRITABLE_BITMAP
+    );
+
+    svm_expanded_data_length = svm_expanded_data_length + tokens_len * SVM_TOKEN_TRANSFER_DATA_OVERHEAD;
+
+    // The token destBytesOverhead can be very different per token so we have to take it into account as well.
+    let mut i = 0;
+    while (i < tokens_len) {
+        let local_token_address = local_token_addresses[i];
+        let destBytesOverhead =
+            get_token_transfer_fee_config_internal(
+                state, dest_chain_selector, local_token_address
+            ).dest_bytes_overhead;
+
+        // Pools get CCIP_LOCK_OR_BURN_V1_RET_BYTES by default, but if an override is set we use that instead.
+        if (destBytesOverhead > 0) {
+            svm_expanded_data_length = svm_expanded_data_length + (destBytesOverhead as u64);
+        } else {
+            svm_expanded_data_length = svm_expanded_data_length + (CCIP_LOCK_OR_BURN_V1_RET_BYTES as u64);
+        };
+
+        i = i + 1;
+    };
+
+    assert!(
+        svm_expanded_data_length <= (dest_chain_config.max_data_bytes as u64),
+        E_MESSAGE_TOO_LARGE
+    );
+
     compute_units as u256
 }
 
@@ -1017,15 +1118,7 @@ fun calc_usd_value_from_token_amount(
 fun get_token_transfer_fee_config_internal(
     state: &FeeQuoterState, dest_chain_selector: u64, token: address
 ): TokenTransferFeeConfig {
-    assert!(
-        state.token_transfer_fee_configs.contains(dest_chain_selector),
-        E_UNKNOWN_DEST_CHAIN_SELECTOR
-    );
-    let dest_chain_fee_configs =
-        state.token_transfer_fee_configs.borrow(dest_chain_selector);
-    if (dest_chain_fee_configs.contains(token)) {
-        *dest_chain_fee_configs.borrow(token)
-    } else {
+    let empty_fee_config =
         TokenTransferFeeConfig {
             min_fee_usd_cents: 0,
             max_fee_usd_cents: 0,
@@ -1033,6 +1126,16 @@ fun get_token_transfer_fee_config_internal(
             dest_gas_overhead: 0,
             dest_bytes_overhead: 0,
             is_enabled: false
+        };
+    if (!state.token_transfer_fee_configs.contains(dest_chain_selector)) {
+        empty_fee_config
+    } else {
+        let dest_chain_fee_configs =
+            state.token_transfer_fee_configs.borrow(dest_chain_selector);
+        if (!dest_chain_fee_configs.contains(token)) {
+            empty_fee_config
+        } else {
+            *dest_chain_fee_configs.borrow(token)
         }
     }
 }
@@ -1099,13 +1202,13 @@ fun encode_generic_extra_args_v2(
 fun decode_svm_extra_args(
     extra_args: vector<u8>
 ): (u32, u64, bool, vector<u8>, vector<vector<u8>>) {
-    // TODO: we need extra validation here. if extra_args length is less than tag length + data length,
     let extra_args_len = extra_args.length();
     let args_tag = slice(&extra_args, 0, 4);
     assert!(
         args_tag == SVM_EXTRA_ARGS_V1_TAG,
         E_INVALID_EXTRA_ARGS_TAG
     );
+    assert!(extra_args_len >= 4, E_INVALID_EXTRA_ARGS_DATA);
     let args_data = slice(&extra_args, 4, extra_args_len - 4);
     decode_svm_extra_args_v1(args_data)
 }
@@ -1262,6 +1365,7 @@ fun process_pool_return_data(
     dest_exec_data_per_token
 }
 
+/// @returns (msg_fee_juels, is_out_of_order_execution, converted_extra_args, dest_exec_data_per_token)
 public fun process_message_args(
     ref: &CCIPObjectRef,
     dest_chain_selector: u64,
@@ -1271,9 +1375,10 @@ public fun process_message_args(
     local_token_addresses: vector<address>,
     dest_token_addresses: vector<vector<u8>>,
     dest_pool_datas: vector<vector<u8>>
-): (u64, bool, vector<u8>, vector<vector<u8>>) {
+): (u256, bool, vector<u8>, vector<vector<u8>>) {
     let state = state_object::borrow<FeeQuoterState>(ref);
-    let msg_fee_juels =
+    // This is the fee in Sui denomination. We convert it to juels (1e18 based) below.
+    let msg_fee_link_local_denomination =
         if (fee_token == state.link_token) {
             fee_token_amount
         } else {
@@ -1285,6 +1390,13 @@ public fun process_message_args(
             )
         };
 
+    // We convert the local denomination to juels here. This means that the offchain monitoring will always
+    // get a consistent juels amount regardless of the token denomination on the chain.
+    let msg_fee_juels =
+        (msg_fee_link_local_denomination as u256)
+            * LOCAL_8_TO_18_DECIMALS_LINK_MULTIPLIER;
+
+    // max_fee_juels_per_msg is in juels denomination for consistency across chains.
     assert!(
         msg_fee_juels <= state.max_fee_juels_per_msg,
         E_MESSAGE_FEE_TOO_HIGH

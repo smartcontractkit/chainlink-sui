@@ -26,10 +26,11 @@ fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
 }
 
 fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    let one_e_18 = 1_000_000_000_000_000_000;
     fee_quoter::initialize(
         ref,
         owner_cap,
-        2000,
+        200 * one_e_18, // 200 link,
         MOCK_ADDRESS_1,
         1000,
         vector[
@@ -351,7 +352,7 @@ public fun test_process_message_args_evm() {
         ] // dest_pool_datas
     );
 
-    assert!(msg_fee_juels == 1000);
+    assert!(msg_fee_juels == 10000000000000);
     assert!(is_out_of_order_execution == true);
     assert!(converted_extra_args == evm_extra_args);
     assert!(
@@ -430,7 +431,7 @@ public fun test_process_message_args_svm() {
         ] // dest_pool_datas
     );
 
-    assert!(msg_fee_juels == 1000);
+    assert!(msg_fee_juels == 10000000000000);
     assert!(is_out_of_order_execution == true);
     assert!(converted_extra_args == svm_extra_args);
     assert!(

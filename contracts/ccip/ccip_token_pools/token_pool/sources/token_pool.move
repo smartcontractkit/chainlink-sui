@@ -14,6 +14,7 @@ use ccip_token_pool::token_pool_rate_limiter;
 
 const MAX_U256: u256 =
     115792089237316195423570985008687907853269984665640564039457584007913129639935;
+const MAX_U64: u256 = 18446744073709551615;
 
 public struct TokenPoolState has store {
     allowlist_state: allowlist::AllowlistState,
@@ -76,6 +77,7 @@ const EInvalidRemoteChainDecimals: u64 = 8;
 const EInvalidEncodedAmount: u64 = 9;
 const EUnknownToken: u64 = 10;
 const EDecimalOverflow: u64 = 11;
+const ECursedChain: u64 = 12;
 
 // ================================================================
 // |                    Initialize and state                      |
@@ -287,7 +289,7 @@ public fun validate_lock_or_burn(
     remote_chain_selector: u64,
     local_amount: u64
 ): vector<u8> {
-    assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)));
+    assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)), ECursedChain);
 
     // Allowlist check
     if (allowlist::get_allowlist_enabled(&state.allowlist_state)) {
@@ -325,7 +327,7 @@ public fun validate_release_or_mint(
     );
 
     // Check RMN curse status
-    assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)));
+    assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)), ECursedChain);
 
     // This checks if the remote chain selector and the source pool are valid.
     assert!(
@@ -405,11 +407,7 @@ public fun calculate_local_amount(
         calculate_local_amount_internal(
             remote_amount, remote_decimals, local_decimals
         );
-    // check that the calculated amount fits in a u64
-    assert!(
-        local_amount <= 18446744073709551615,
-        EInvalidEncodedAmount
-    );
+    assert!(local_amount <= MAX_U64, EInvalidEncodedAmount);
     local_amount as u64
 }
 

@@ -28,6 +28,11 @@ public struct PoolSet has copy, drop {
     type_proof: TypeName,
 }
 
+public struct TokenUnregistered has copy, drop {
+    local_token: address,
+    previous_pool_address: address,
+}
+
 public struct AdministratorTransferRequested has copy, drop {
     coin_metadata_address: address,
     current_admin: address,
@@ -41,8 +46,8 @@ public struct AdministratorTransferred has copy, drop {
 
 const E_NOT_PENDING_ADMINISTRATOR: u64 = 1;
 const E_ALREADY_INITIALIZED: u64 = 2;
-const E_FUNGIBLE_ASSET_ALREADY_REGISTERED: u64 = 3;
-const E_FUNGIBLE_ASSET_NOT_REGISTERED: u64 = 4;
+const E_TOKEN_ALREADY_REGISTERED: u64 = 3;
+const E_TOKEN_NOT_REGISTERED: u64 = 4;
 const E_NOT_ADMINISTRATOR: u64 = 5;
 const E_TOKEN_ADDRESS_NOT_REGISTERED: u64 = 6;
 
@@ -186,15 +191,15 @@ public fun register_pool<T, TypeProof: drop>(
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
     coin_metadata_address: address,
     token_pool_address: address,
+    initial_administrator: address,
     _proof: TypeProof,
-    ctx: &mut TxContext
 ) {
     register_pool_internal(
         ref,
         coin_metadata_address,
         token_pool_address,
+        initial_administrator,
         _proof,
-        ctx,
     );
 }
 
@@ -204,6 +209,7 @@ public fun register_pool_by_admin<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
     token_pool_address: address,
+    initial_administrator: address,
     _proof: TypeProof, // this needs to be a proof type from the token pool module, not from CCIP admin
     ctx: &mut TxContext,
 ) {
@@ -216,8 +222,8 @@ public fun register_pool_by_admin<TypeProof: drop>(
         ref,
         coin_metadata_address,
         token_pool_address,
+        initial_administrator,
         _proof,
-        ctx
     );
 }
 
@@ -225,24 +231,53 @@ fun register_pool_internal<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address, // LINK coin metadata
     token_pool_address: address, // a legit LINK source pool
+    initial_administrator: address, // the initial administrator of the token pool
     _proof: TypeProof, // use this proof type to validate the token pool address & token pool module name
-    ctx: &TxContext,
 ) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
     assert!(
         !state.token_configs.contains(coin_metadata_address),
-        E_FUNGIBLE_ASSET_ALREADY_REGISTERED
+        E_TOKEN_ALREADY_REGISTERED
     );
 
     let proof_tn = type_name::get<TypeProof>();
     let token_config = TokenConfig {
         token_pool_address,
-        administrator: ctx.sender(),
+        administrator: initial_administrator,
         pending_administrator: @0x0,
         type_proof: option::some(proof_tn),
     };
 
     state.token_configs.push_back(coin_metadata_address, token_config);
+}
+
+public fun unregister_pool(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    ctx: &mut TxContext,
+) {
+    let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
+
+    assert!(
+        state.token_configs.contains(coin_metadata_address),
+        E_TOKEN_NOT_REGISTERED
+    );
+
+    let token_config = state.token_configs.remove(coin_metadata_address);
+    
+    assert!(
+        token_config.administrator == ctx.sender(),
+        E_NOT_ADMINISTRATOR
+    );
+
+    let previous_pool_address = token_config.token_pool_address;
+
+    event::emit(
+        TokenUnregistered {
+            local_token: coin_metadata_address,
+            previous_pool_address,
+        }
+    );
 }
 
 public fun set_pool<TypeProof: drop>(
@@ -256,7 +291,7 @@ public fun set_pool<TypeProof: drop>(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_FUNGIBLE_ASSET_NOT_REGISTERED
+        E_TOKEN_NOT_REGISTERED
     );
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
@@ -293,7 +328,7 @@ public fun transfer_admin_role(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_FUNGIBLE_ASSET_NOT_REGISTERED
+        E_TOKEN_NOT_REGISTERED
     );
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
@@ -324,7 +359,7 @@ public fun accept_admin_role(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_FUNGIBLE_ASSET_NOT_REGISTERED
+        E_TOKEN_NOT_REGISTERED
     );
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
@@ -349,7 +384,7 @@ public fun is_administrator(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_FUNGIBLE_ASSET_NOT_REGISTERED
+        E_TOKEN_NOT_REGISTERED
     );
 
     let token_config = state.token_configs.borrow(coin_metadata_address);

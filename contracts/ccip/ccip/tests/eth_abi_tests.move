@@ -162,7 +162,7 @@ public fun encode_bytes32() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_INVALID_LENGTH)]
+#[expected_failure(abort_code = eth_abi::E_INVALID_BYTES32_LENGTH)]
 public fun encode_bytes32_failed() {
     let mut v = vector[];
     let value: vector<u8> = vector[
@@ -230,7 +230,7 @@ public fun encode_packed_bytes32() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_INVALID_LENGTH)]
+#[expected_failure(abort_code = eth_abi::E_INVALID_BYTES32_LENGTH)]
 public fun encode_packed_bytes32_failed() {
     let mut v = vector[];
     let value: vector<u8> = vector[

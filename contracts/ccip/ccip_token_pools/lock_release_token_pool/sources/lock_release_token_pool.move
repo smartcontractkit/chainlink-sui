@@ -65,8 +65,8 @@ public fun initialize<T: drop>(
         treasury_cap,
         coin_metadata_address,
         object::uid_to_address(&lock_release_token_pool.id),
+        ctx.sender(),
         TypeProof {},
-        ctx,
     );
 
     let owner_cap = OwnerCap {

@@ -60,8 +60,8 @@ public fun initialize<T: drop>(
         &burn_mint_token_pool.treasury_cap,
         coin_metadata_address,
         object::uid_to_address(&burn_mint_token_pool.id),
+        ctx.sender(),
         TypeProof {},
-        ctx,
     );
 
     let owner_cap = OwnerCap {
