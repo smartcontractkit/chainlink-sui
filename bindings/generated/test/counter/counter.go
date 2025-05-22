@@ -1,17 +1,23 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package modulecounter
+package module_counter
 
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+)
+
+// Unused vars used for unused imports
+var (
+	_ = big.NewInt
 )
 
 type ICounter interface {

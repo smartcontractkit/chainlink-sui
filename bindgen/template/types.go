@@ -54,7 +54,20 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 			GoType:   "string",
 			MoveType: "sui::object::UID",
 		}, nil
+	// Sui has an object for accessing timestamps
+	case "clock::Clock", "Clock":
+		return tmplType{
+			GoType:   "string",
+			MoveType: s,
+		}, nil
 	default:
+		// Its a coin object
+		if strings.HasPrefix(s, "TreasuryCap") {
+			return tmplType{
+				GoType:   "string",
+				MoveType: s,
+			}, nil
+		}
 		if strings.HasPrefix(s, "vector<") && strings.HasSuffix(s, ">") {
 			innerTypeName := strings.TrimSuffix(strings.TrimPrefix(s, "vector<"), ">")
 			innerType, err := createGoTypeFromMove(innerTypeName, localStructs, externalStructs)

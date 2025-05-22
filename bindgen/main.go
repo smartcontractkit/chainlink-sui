@@ -24,6 +24,12 @@ func main() {
 
 	flag.Parse()
 
+	fmt.Println(fmt.Sprintf(`
+	##############################################################
+	Generating Go bindings for: %s
+	##############################################################
+	`, *inputFile))
+
 	// Validate the move config path exists before using it
 	if *moveConfigPath == "" {
 		log.Fatalf("Move config path is required")
@@ -32,8 +38,6 @@ func main() {
 	if _, err := os.Stat(cleanPath); os.IsNotExist(err) {
 		log.Fatalf("Move config file does not exist at path: %s", cleanPath)
 	}
-
-	log.Printf("Generating bindings for %s", *inputFile)
 
 	if *uppercase != "" {
 		for _, w := range strings.Split(*uppercase, ",") {
@@ -88,21 +92,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	log.Println("Parsed functions:")
-	for i, viewFunc := range funcs {
-		log.Println(i, viewFunc)
-	}
-	log.Println("----")
+
 	structs, err := parse.ParseStructs(fileBytes)
 	if err != nil {
 		panic(err)
 	}
-	log.Println("Parsed structs:")
-	for i, structt := range structs {
-		log.Println(i, structt)
-	}
 
-	log.Println("----")
 	data, err := template.Convert(pkg, mod, structs, funcs, extStructs)
 	if err != nil {
 		log.Fatal(err)

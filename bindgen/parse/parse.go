@@ -4,6 +4,7 @@ package parse
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	tree_sitter_move_on_aptos "github.com/aptos-labs/tree-sitter-move-on-aptos/bindings/go"
 	tree_sitter "github.com/smacker/go-tree-sitter"
@@ -61,6 +62,10 @@ func ParseModule(module []byte) (pkg string, mod string, err error) {
 			break
 		}
 		for _, capture := range m.Captures {
+			// Ignore test modules
+			if strings.Contains(capture.Node.Content(module), "test") {
+				continue
+			}
 			switch capture.Index {
 			case 0:
 				// @package
@@ -150,6 +155,9 @@ func ParseFunctions(module []byte) ([]Func, error) {
 				}
 			case 3:
 				// @function_name
+				if strings.Contains(capture.Node.Content(module), "test") {
+					testFunc = true
+				}
 				f.Name = capture.Node.Content(module)
 			case 4:
 				// @returnType

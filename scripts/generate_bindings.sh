@@ -7,3 +7,23 @@ echo "Generating bindings for Move Sui contracts..."
 go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/counter.move --output ./bindings/generated/test/counter
 go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/sources/complex.move --output ./bindings/generated/test/complex
 
+# CCIP 
+# go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/state_object.move --output ./bindings/generated/ccip/ccip/state_object
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/fee_quoter.move --output ./bindings/generated/ccip/ccip/fee_quoter --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/nonce_manager.move --output ./bindings/generated/ccip/ccip/nonce_manager --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/receiver_registry.move --output ./bindings/generated/ccip/ccip/receiver_registry --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/rmn_remote.move --output ./bindings/generated/ccip/ccip/rmn_remote --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/token_admin_registry.move --output ./bindings/generated/ccip/ccip/token_admin_registry --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+
+# # CCIP - Onramp
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/onramp.move --output ./bindings/generated/ccip/ccip_onramp/onramp --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+
+# # CCIP - Offramp
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./contracts/ccip/ccip_offramp/sources/offramp.move --output ./bindings/generated/ccip/ccip_offramp/offramp --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+
+# # CCIP - LINK
+go run bindgen/main.go --moveConfig ./contracts/ccip/link_token --input ./contracts/ccip/link_token/sources/link_token.move --output ./bindings/generated/ccip/link_token/link_token
+
+
+# MCMS
+go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mcms/mcms/sources/mcms.move --output ./bindings/generated/mcms/mcms --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""

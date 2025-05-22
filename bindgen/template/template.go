@@ -162,7 +162,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 				continue
 			}
 			// external types aren't supported as parameters, therefore passing no externalStructs
-			typ, err := createGoTypeFromMove(param.Type, structMap, nil)
+			typ, err := createGoTypeFromMove(param.Type, structMap, externalStructs)
 			if err != nil {
 				if f.IsEntry {
 					panic(fmt.Sprintf("Function %v has unsupported parameter %v, type %v", f.Name, param.Name, param.Type))
@@ -183,9 +183,12 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 					break
 				}
 			}
+			if typ.Import != nil {
+				importMap[typ.Import.Path] = typ.Import
+			}
 			name := ToLowerCamelCase(param.Name)
 			if name == "" {
-				panic(fmt.Sprintf("Function %v has unsupported parameter %v, type %v", f.Name, param.Name, param.Type))
+				panic(fmt.Sprintf("Function %v has unsupported parameter name %v, type %v", f.Name, param.Name, param.Type))
 			}
 			out.Params = append(out.Params, &tmplField{
 				Type: typ,
@@ -203,8 +206,8 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 					// If the function is a view function and has an unknown return type, panic
 					panic(fmt.Sprintf("Function %v has an unknown return type: %v: %v", f.Name, returnType, err))
 				} else {
-					log.Printf("WARNING: Ignoring function %v due to unknown return type: %v", f.Name, returnType)
-					skip = true
+					log.Printf("WARNING: Function %v has an unknown return type: %v", f.Name, returnType)
+					// skip = true
 
 					break
 				}
@@ -298,7 +301,11 @@ func ToLowerCamelCase(input string) string {
 		}
 	}
 
-	return strings.Join(parts, "")
+	param := strings.Join(parts, "")
+	if len(param) == 0 { // Give a default name if empty, mostly for `_` named params
+		param = "param"
+	}
+	return param
 }
 
 // FormatStructToJSON converts any struct into a pretty-printed JSON string.
