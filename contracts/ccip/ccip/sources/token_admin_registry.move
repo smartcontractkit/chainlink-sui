@@ -3,7 +3,7 @@ module ccip::token_admin_registry;
 use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
 
-use sui::coin::TreasuryCap;
+use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
 
@@ -185,15 +185,15 @@ public fun get_all_configured_tokens(
 // ================================================================
 
 // only the token owner with the treasury cap can call this function.
-#[allow(lint(self_transfer))]
 public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
-    coin_metadata_address: address,
+    coin_metadata: &CoinMetadata<T>,
     token_pool_address: address,
     initial_administrator: address,
     _proof: TypeProof,
 ) {
+    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -251,6 +251,7 @@ fun register_pool_internal<TypeProof: drop>(
     state.token_configs.push_back(coin_metadata_address, token_config);
 }
 
+// TODO: should we allow CCIP admin to unregister pool?
 public fun unregister_pool(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,

@@ -44,20 +44,19 @@ public fun create_token_params(): TokenParams {
 public fun add_source_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut token_params: TokenParams,
-    source_pool: address,
     amount: u64,
     source_token_address: address,
     dest_token_address: vector<u8>,
     extra_data: vector<u8>,
     _: TypeProof,
 ): TokenParams {
-    let (_, _, _, type_proof_op) = registry::get_token_config(ref, source_token_address);
+    let (source_pool_address, _, _, type_proof_op) = registry::get_token_config(ref, source_token_address);
     assert!(type_proof_op.is_some(), ESourceTokenPoolNotFound);
     let type_proof = type_proof_op.borrow();
     assert!(type_proof == type_name::get<TypeProof>(), ETypeProofMismatch);
     token_params.params.push_back(
         SourceTokenTransfer {
-            source_pool,
+            source_pool: source_pool_address,
             amount,
             source_token_address,
             dest_token_address,

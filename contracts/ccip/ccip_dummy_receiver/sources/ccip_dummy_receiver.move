@@ -3,7 +3,7 @@ module ccip_dummy_receiver::dummy_receiver {
     use sui::event;
 
     use ccip::client;
-    use ccip::dynamic_dispatcher as dd;
+    use ccip::offramp_state_helper as osh;
     use ccip::receiver_registry;
     use ccip::state_object::CCIPObjectRef;
 
@@ -91,8 +91,8 @@ module ccip_dummy_receiver::dummy_receiver {
     // this requires the receiver to extract the msg from the potato. is this any safer?
     // however, this means the receiver will always get called no matter if the message is presented
     // and this function must return the hot potato.
-    public fun ccip_receive_potato(state: &mut CCIPReceiverState, receiver_params: dd::ReceiverParams): dd::ReceiverParams {
-        let (message_op, receiver_params) = dd::extract_any2sui_message(receiver_params);
+    public fun ccip_receive_potato(state: &mut CCIPReceiverState, receiver_params: osh::ReceiverParams): osh::ReceiverParams {
+        let (message_op, receiver_params) = osh::extract_any2sui_message(receiver_params);
         if (message_op.is_none()) {
             return receiver_params
         };

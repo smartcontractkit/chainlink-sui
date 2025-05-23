@@ -58,7 +58,7 @@ public fun initialize<T: drop>(
     token_admin_registry::register_pool(
         ref,
         &burn_mint_token_pool.treasury_cap,
-        coin_metadata_address,
+        coin_metadata,
         object::uid_to_address(&burn_mint_token_pool.id),
         ctx.sender(),
         TypeProof {},
@@ -221,7 +221,6 @@ public fun lock_or_burn<T>(
     dd::add_source_token_transfer(
         ref,
         token_params,
-        object::uid_to_address(&state.id),
         amount,
         state.token_pool_state.get_token(),
         dest_token_address,
@@ -274,7 +273,6 @@ public fun release_or_mint<T>(
         receiver_params,
         index,
         local_amount,
-        object::uid_to_address(&pool.id),
         TypeProof {},
     )
 }

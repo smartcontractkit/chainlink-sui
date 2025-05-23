@@ -17,6 +17,8 @@ const MOCK_ADDRESS_3: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6
 const MOCK_ADDRESS_4: address = @0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d;
 const MOCK_ADDRESS_5: address = @0xd1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2;
 
+const ONE_E_18: u256 = 1_000_000_000_000_000_000;
+
 fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
     let mut scenario = test_scenario::begin(@0x1);
     let ctx = scenario.ctx();
@@ -26,11 +28,10 @@ fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
 }
 
 fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
-    let one_e_18 = 1_000_000_000_000_000_000;
     fee_quoter::initialize(
         ref,
         owner_cap,
-        200 * one_e_18, // 200 link,
+        200 * ONE_E_18, // 200 link,
         MOCK_ADDRESS_1,
         1000,
         vector[
@@ -210,11 +211,12 @@ public fun test_apply_premium_multiplier_wei_per_eth_updates() {
         &mut ref,
         &owner_cap,
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-        vector[1000, 2000], // premium_multiplier_wei_per_eth
+        // 900_000_000_000_000_000 = 90%
+        vector[900_000_000_000_000_000, 200_000_000_000_000_000], // premium_multiplier_wei_per_eth
     );
 
-    assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_1) == 1000);
-    assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_2) == 2000);
+    assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_1) == 900000000000000000);
+    assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_2) == 200000000000000000);
 
     tear_down_test(scenario, owner_cap, ref);
 }
@@ -233,9 +235,10 @@ public fun test_update_prices() {
         &fee_quoter_cap,
         &clock,
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-        vector[1000, 2000], // source_usd_per_token
+        // 1e18 per 1e18 tokens. A token with 8 decimals that's worth $15 would be $15e10 * 1e18 = $15e28
+        vector[150_000_000_000 * ONE_E_18, 150_000_000_000 * ONE_E_18], // source_usd_per_token
         vector[100, 1000], // gas_dest_chain_selectors
-        vector[3000, 4000], // gas_usd_per_unit_gas
+        vector[1_000_000_000_000, 1_000_000_000_000] // gas_usd_per_unit_gas
     );
 
     // prices are successfully updated if we can find the config for the dest chain selector / token address
@@ -259,10 +262,10 @@ public fun test_apply_dest_chain_config_updates() {
         100, // dest_chain_selector
         true, // is_enabled
         1000, // max_number_of_tokens_per_msg
-        20000, // max_data_bytes
-        5000000, // max_per_msg_gas_limit
-        100000, // dest_gas_overhead
-        100, // dest_gas_per_payload_byte_base
+        30_000, // max_data_bytes
+        30_000_000, // max_per_msg_gas_limit
+        250_000, // dest_gas_overhead
+        16, // dest_gas_per_payload_byte_base
         200, // dest_gas_per_payload_byte_high
         300, // dest_gas_per_payload_byte_threshold
         400000, // dest_data_availability_overhead_gas
@@ -270,12 +273,12 @@ public fun test_apply_dest_chain_config_updates() {
         600, // dest_data_availability_multiplier_bps
         CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
         true, // enforce_out_of_order
-        1000, // default_token_fee_usd_cents
-        2000, // default_token_dest_gas_overhead
-        3000000, // default_tx_gas_limit
-        4000000, // gas_multiplier_wei_per_eth
-        5000000, // gas_price_staleness_threshold
-        6000000, // network_fee_usd_cents
+        50, // default_token_fee_usd_cents
+        90_000, // default_token_dest_gas_overhead
+        200_000, // default_tx_gas_limit
+        ONE_E_18 as u64, // gas_multiplier_wei_per_eth
+        1_000_000, // gas_price_staleness_threshold
+        50 // network_fee_usd_cents
     );
 
     let _config = fee_quoter::get_dest_chain_config(&ref, 100);
@@ -296,10 +299,10 @@ public fun test_process_message_args_evm() {
         100, // dest_chain_selector
         true, // is_enabled
         1000, // max_number_of_tokens_per_msg
-        20000, // max_data_bytes
-        5000000, // max_per_msg_gas_limit
-        100000, // dest_gas_overhead
-        100, // dest_gas_per_payload_byte_base
+        30_000, // max_data_bytes
+        30_000_000, // max_per_msg_gas_limit
+        250_000, // dest_gas_overhead
+        16, // dest_gas_per_payload_byte_base
         200, // dest_gas_per_payload_byte_high
         300, // dest_gas_per_payload_byte_threshold
         400000, // dest_data_availability_overhead_gas
@@ -307,12 +310,12 @@ public fun test_process_message_args_evm() {
         600, // dest_data_availability_multiplier_bps
         CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
         true, // enforce_out_of_order
-        1000, // default_token_fee_usd_cents
-        2000, // default_token_dest_gas_overhead
-        3000000, // default_tx_gas_limit
-        4000000, // gas_multiplier_wei_per_eth
-        5000000, // gas_price_staleness_threshold
-        6000000, // network_fee_usd_cents
+        50, // default_token_fee_usd_cents
+        90_000, // default_token_dest_gas_overhead
+        200_000, // default_tx_gas_limit
+        ONE_E_18 as u64, // gas_multiplier_wei_per_eth
+        1_000_000, // gas_price_staleness_threshold
+        50 // network_fee_usd_cents
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -375,10 +378,10 @@ public fun test_process_message_args_svm() {
         100, // dest_chain_selector
         true, // is_enabled
         1000, // max_number_of_tokens_per_msg
-        20000, // max_data_bytes
-        5000000, // max_per_msg_gas_limit
-        100000, // dest_gas_overhead
-        100, // dest_gas_per_payload_byte_base
+        30_000, // max_data_bytes
+        30_000_000, // max_per_msg_gas_limit
+        250_000, // dest_gas_overhead
+        16, // dest_gas_per_payload_byte_base
         200, // dest_gas_per_payload_byte_high
         300, // dest_gas_per_payload_byte_threshold
         400000, // dest_data_availability_overhead_gas
@@ -386,12 +389,12 @@ public fun test_process_message_args_svm() {
         600, // dest_data_availability_multiplier_bps
         CHAIN_FAMILY_SELECTOR_SVM, // chain_family_selector
         true, // enforce_out_of_order
-        1000, // default_token_fee_usd_cents
-        2000, // default_token_dest_gas_overhead
-        3000000, // default_tx_gas_limit
-        4000000, // gas_multiplier_wei_per_eth
-        5000000, // gas_price_staleness_threshold
-        6000000, // network_fee_usd_cents
+        50, // default_token_fee_usd_cents
+        90_000, // default_token_dest_gas_overhead
+        200_000, // default_tx_gas_limit
+        ONE_E_18 as u64, // gas_multiplier_wei_per_eth
+        1_000_000, // gas_price_staleness_threshold
+        50 // network_fee_usd_cents
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -456,9 +459,9 @@ public fun test_get_validated_fee() {
         &fee_quoter_cap,
         &clock,
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-        vector[1000, 2000], // source_usd_per_token
+        vector[150_000_000_000 * ONE_E_18, 150_000_000_000 * ONE_E_18], // source_usd_per_token
         vector[100, 1000], // gas_dest_chain_selectors
-        vector[3000, 4000], // gas_usd_per_unit_gas
+        vector[1_000_000_000_000, 1_000_000_000_000] // gas_usd_per_unit_gas
     );
 
     fee_quoter::apply_dest_chain_config_updates(
@@ -466,24 +469,24 @@ public fun test_get_validated_fee() {
         &owner_cap,
         100, // dest_chain_selector
         true, // is_enabled
-        1000, // max_number_of_tokens_per_msg
-        20000, // max_data_bytes
-        5000000, // max_per_msg_gas_limit
-        100000, // dest_gas_overhead
-        1, // dest_gas_per_payload_byte_base
-        4, // dest_gas_per_payload_byte_high
-        5, // dest_gas_per_payload_byte_threshold
-        40000, // dest_data_availability_overhead_gas
-        5, // dest_gas_per_data_availability_byte
-        6, // dest_data_availability_multiplier_bps
+        1, // max_number_of_tokens_per_msg
+        30_000, // max_data_bytes
+        30_000_000, // max_per_msg_gas_limit
+        250_000, // dest_gas_overhead
+        16, // dest_gas_per_payload_byte_base
+        0, // dest_gas_per_payload_byte_high
+        0, // dest_gas_per_payload_byte_threshold
+        0, // dest_data_availability_overhead_gas
+        0, // dest_gas_per_data_availability_byte
+        0, // dest_data_availability_multiplier_bps
         CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
-        true, // enforce_out_of_order
-        1000, // default_token_fee_usd_cents
-        2000, // default_token_dest_gas_overhead
-        3000000, // default_tx_gas_limit
-        40, // gas_multiplier_wei_per_eth
-        50000, // gas_price_staleness_threshold
-        600, // network_fee_usd_cents
+        false, // enforce_out_of_order
+        50, // default_token_fee_usd_cents
+        90_000, // default_token_dest_gas_overhead
+        200_000, // default_tx_gas_limit
+        ONE_E_18 as u64, // gas_multiplier_wei_per_eth
+        1_000_000, // gas_price_staleness_threshold
+        50 // network_fee_usd_cents
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -491,11 +494,11 @@ public fun test_get_validated_fee() {
         &owner_cap,
         100, // dest_chain_selector
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // add_tokens
-        vector[100, 200], // add_min_fee_usd_cents
-        vector[300, 400], // add_max_fee_usd_cents
-        vector[500, 600], // add_deci_bps
+        vector[1, 2], // add_min_fee_usd_cents
+        vector[30, 40], // add_max_fee_usd_cents
+        vector[50, 60], // add_deci_bps
         vector[700, 800], // add_dest_gas_overhead
-        vector[900, 1000], // add_dest_bytes_overhead
+        vector[9, 10], // add_dest_bytes_overhead
         vector[true, false], // add_is_enabled
         vector[], // remove_tokens
         ctx,
@@ -505,7 +508,8 @@ public fun test_get_validated_fee() {
         &mut ref,
         &owner_cap,
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
-        vector[10000, 200000], // premium_multiplier_wei_per_eth
+        // 900_000_000_000_000_000 = 90%
+        vector[900_000_000_000_000_000, 900_000_000_000_000_000] // premium_multiplier_wei_per_eth
     );
 
     let evm_extra_args = x"181dcf1000000000000000000000000000000000000000000000000000000000001dcf100000000000000000000000000000000000000000000000000000000000000001";
@@ -522,7 +526,7 @@ public fun test_get_validated_fee() {
         evm_extra_args, // extra_args
     );
 
-    assert!(val == 10000000000246943320);
+    assert!(val == 14755013);
 
     fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);

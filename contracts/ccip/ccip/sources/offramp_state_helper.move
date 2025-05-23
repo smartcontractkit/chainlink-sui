@@ -33,7 +33,7 @@ public struct DestTokenTransfer has copy, drop {
     token_pool_address: address,
     source_pool_address: vector<u8>,
     source_pool_data: vector<u8>,
-    offchain_token_data: vector<u8>, // not used?
+    offchain_token_data: vector<u8>,
     completed: bool
 }
 
@@ -117,7 +117,6 @@ public fun complete_token_transfer<TypeProof: drop>(
     mut receiver_params: ReceiverParams,
     index: u64,
     local_amount: u64,
-    token_pool_address: address,
     _: TypeProof,
 ): ReceiverParams {
     assert!(
@@ -127,11 +126,11 @@ public fun complete_token_transfer<TypeProof: drop>(
 
     let param = receiver_params.params[index];
     assert!(!param.completed, ETokenTransferAlreadyCompleted);
+    let (dest_pool_address, _, _, type_proof_op) = registry::get_token_config(ref, param.dest_token_address);
     assert!(
-        param.token_pool_address == token_pool_address,
+        param.token_pool_address == dest_pool_address,
         ETokenPoolAddressMismatch,
     );
-    let (_, _, _, type_proof_op) = registry::get_token_config(ref, param.dest_token_address);
     assert!(type_proof_op.is_some(), EDestTokenPoolNotFound);
     let type_proof = type_proof_op.borrow();
     assert!(type_proof == type_name::get<TypeProof>(), ETypeProofMismatch);

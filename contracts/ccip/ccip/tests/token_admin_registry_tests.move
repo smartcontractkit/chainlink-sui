@@ -94,7 +94,6 @@ public fun test_register_and_unregister_as_non_admin() {
         scenario.ctx(),
     );
     let local_token = object::id_to_address(&object::id(&coin_metadata));
-    transfer::public_freeze_object(coin_metadata);
 
     scenario.next_tx(CCIP_ADMIN);
     {
@@ -119,7 +118,7 @@ public fun test_register_and_unregister_as_non_admin() {
         registry::register_pool(
             &mut ref,
             &treasury_cap,
-            local_token,
+            &coin_metadata,
             MOCK_TOKEN_POOL_ADDRESS_1,
             TOKEN_ADMIN_ADDRESS_2,
             TypeProof {},
@@ -138,6 +137,7 @@ public fun test_register_and_unregister_as_non_admin() {
         ts::return_shared(ref);
     };
 
+    transfer::public_freeze_object(coin_metadata);
     ts::end(scenario);
 }
 
@@ -154,7 +154,6 @@ public fun test_register_and_unregister() {
         scenario.ctx(),
     );
     let local_token = object::id_to_address(&object::id(&coin_metadata));
-    transfer::public_freeze_object(coin_metadata);
 
     scenario.next_tx(CCIP_ADMIN);
     {
@@ -179,7 +178,7 @@ public fun test_register_and_unregister() {
         registry::register_pool(
             &mut ref,
             &treasury_cap,
-            local_token,
+            &coin_metadata,
             MOCK_TOKEN_POOL_ADDRESS_1,
             TOKEN_ADMIN_ADDRESS_2, // initial admin
             TypeProof {},
@@ -210,6 +209,7 @@ public fun test_register_and_unregister() {
         ts::return_shared(ref);
     };
 
+    transfer::public_freeze_object(coin_metadata);
     ts::end(scenario);
 }
 
@@ -226,7 +226,6 @@ public fun test_register_and_set_pool() {
         scenario.ctx(),
     );
     let local_token = object::id_to_address(&object::id(&coin_metadata));
-    transfer::public_freeze_object(coin_metadata);
 
     scenario.next_tx(CCIP_ADMIN);
     {
@@ -251,7 +250,7 @@ public fun test_register_and_set_pool() {
         registry::register_pool(
             &mut ref,
             &treasury_cap,
-            local_token,
+            &coin_metadata,
             MOCK_TOKEN_POOL_ADDRESS_1,
             TOKEN_ADMIN_ADDRESS,
             TypeProof {},
@@ -297,6 +296,7 @@ public fun test_register_and_set_pool() {
         ts::return_shared(ref);
     };
 
+    transfer::public_freeze_object(coin_metadata);
     ts::end(scenario);
 }
 

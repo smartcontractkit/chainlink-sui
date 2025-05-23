@@ -1041,7 +1041,7 @@ fun resolve_svm_gas_limit(
         E_MESSAGE_TOO_LARGE
     );
 
-    compute_units as u256
+    gas_limit as u256
 }
 
 fun get_token_transfer_cost(
@@ -1101,7 +1101,7 @@ fun get_token_transfer_cost(
                     } else {
                         bps_fee_usd_wei
                     };
-                token_transfer_fee_wei = token_transfer_fee_wei+ selected_fee_usd_wei;
+                token_transfer_fee_wei = token_transfer_fee_wei + selected_fee_usd_wei;
             }
         }
     );

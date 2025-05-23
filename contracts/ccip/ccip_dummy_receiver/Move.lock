@@ -2,11 +2,10 @@
 
 [move]
 version = 3
-manifest_digest = "32946AE5B0BAE10EC26CD7EB1CE138654B3E945F4BB65FEEF0FCC06FF02EB3C4"
-deps_digest = "52B406A7A21811BEF51751CF88DA0E76DAEFFEAC888D4F4060B1A72BBE7D8D35"
+manifest_digest = "7346039E862FDCD12FD9CF1EFBFB51D27A66E9C394E4FD755437BD89F3EBFB1F"
+deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
-  { id = "CCIPDynamicDispatcher", name = "CCIPDynamicDispatcher" },
   { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
@@ -24,32 +23,8 @@ dependencies = [
 ]
 
 [[move.package]]
-id = "CCIPDynamicDispatcher"
-source = { local = "../dynamic_dispatcher" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "ChainlinkCCIP", name = "ChainlinkCCIP" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-]
-
-[[move.package]]
 id = "ChainlinkCCIP"
 source = { local = "../ccip" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-]
-
-[[move.package]]
-id = "ChainlinkManyChainMultisig"
-source = { local = "../../mcms/mcms" }
 
 dependencies = [
   { id = "Bridge", name = "Bridge" },
