@@ -1,10 +1,5 @@
 package common
 
-// Common types used across CCIP packages
-type CCIPObjectRef struct {
-	Id string `move:"sui::object::UID"`
-}
-
-type OwnerCap struct {
-	Id string `move:"sui::object::UID"`
-}
+// Common types used across CCIP packages. These are objects in Move, in Bindings only references
+type CCIPObjectRef = string
+type OwnerCap = string

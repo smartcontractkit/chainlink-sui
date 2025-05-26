@@ -23,22 +23,27 @@ var (
 
 type IFeeQuoter interface {
 	TypeAndVersion() bind.IMethod
-	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg uint64, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod
+	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod
 	ApplyFeeTokenUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, feeTokensToRemove []string, feeTokensToAdd []string) bind.IMethod
 	ApplyTokenTransferFeeConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) bind.IMethod
 	ApplyDestChainConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) bind.IMethod
 	ApplyPremiumMultiplierWeiPerEthUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, tokens []string, premiumMultiplierWeiPerEth []uint64) bind.IMethod
 	GetStaticConfig(ref module_common.CCIPObjectRef) bind.IMethod
+	GetStaticConfigFields(cfg StaticConfig) bind.IMethod
 	GetTokenTransferFeeConfig(ref module_common.CCIPObjectRef, destChainSelector uint64, token string) bind.IMethod
+	GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) bind.IMethod
 	GetTokenPrice(ref module_common.CCIPObjectRef, token string) bind.IMethod
+	GetTimestampedPriceFields(tp TimestampedPrice) bind.IMethod
 	GetTokenPrices(ref module_common.CCIPObjectRef, tokens []string) bind.IMethod
 	GetDestChainGasPrice(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod
 	GetTokenAndGasPrices(ref module_common.CCIPObjectRef, clock string, token string, destChainSelector uint64) bind.IMethod
 	GetDestChainConfig(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod
+	GetDestChainConfigFields(destChainConfig DestChainConfig) bind.IMethod
 	UpdatePrices(ref module_common.CCIPObjectRef, param string, clock string, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) bind.IMethod
 	GetValidatedFee(ref module_common.CCIPObjectRef, clock string, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) bind.IMethod
 	GetPremiumMultiplierWeiPerEth(ref module_common.CCIPObjectRef, token string) bind.IMethod
-	ProcessMessageArgs(ref module_common.CCIPObjectRef, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, destTokenAddresses [][]byte, destPoolDatas [][]byte) bind.IMethod
+	ProcessMessageArgs(ref module_common.CCIPObjectRef, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) bind.IMethod
+	GetFeeTokens(ref module_common.CCIPObjectRef) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -70,7 +75,7 @@ func (c *FeeQuoterContract) Connect(client suiclient.ClientImpl) {
 
 type FeeQuoterState struct {
 	Id                           string   `move:"sui::object::UID"`
-	MaxFeeJuelsPerMsg            uint64   `move:"u64"`
+	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
 	LinkToken                    string   `move:"address"`
 	TokenPriceStalenessThreshold uint64   `move:"u64"`
 	FeeTokens                    []string `move:"vector<address>"`
@@ -81,9 +86,9 @@ type FeeQuoterCap struct {
 }
 
 type StaticConfig struct {
-	MaxFeeJuelsPerMsg            uint64 `move:"u64"`
-	LinkToken                    string `move:"address"`
-	TokenPriceStalenessThreshold uint64 `move:"u64"`
+	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
+	LinkToken                    string   `move:"address"`
+	TokenPriceStalenessThreshold uint64   `move:"u64"`
 }
 
 type DestChainConfig struct {
@@ -184,7 +189,7 @@ func (c *FeeQuoterContract) TypeAndVersion() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg uint64, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod {
+func (c *FeeQuoterContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "initialize", false, "", ref, param, maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold, feeTokens)
@@ -268,6 +273,20 @@ func (c *FeeQuoterContract) GetStaticConfig(ref module_common.CCIPObjectRef) bin
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
+func (c *FeeQuoterContract) GetStaticConfigFields(cfg StaticConfig) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_static_config_fields", false, "", cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_static_config_fields", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
 func (c *FeeQuoterContract) GetTokenTransferFeeConfig(ref module_common.CCIPObjectRef, destChainSelector uint64, token string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
@@ -282,12 +301,40 @@ func (c *FeeQuoterContract) GetTokenTransferFeeConfig(ref module_common.CCIPObje
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
+func (c *FeeQuoterContract) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_transfer_fee_config_fields", false, "", cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_transfer_fee_config_fields", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
 func (c *FeeQuoterContract) GetTokenPrice(ref module_common.CCIPObjectRef, token string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_price", false, "", ref, token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_price", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *FeeQuoterContract) GetTimestampedPriceFields(tp TimestampedPrice) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_timestamped_price_fields", false, "", tp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_timestamped_price_fields", err)
 		}
 
 		return ptb, nil
@@ -352,6 +399,20 @@ func (c *FeeQuoterContract) GetDestChainConfig(ref module_common.CCIPObjectRef, 
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
+func (c *FeeQuoterContract) GetDestChainConfigFields(destChainConfig DestChainConfig) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_dest_chain_config_fields", false, "", destChainConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_dest_chain_config_fields", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
 func (c *FeeQuoterContract) UpdatePrices(ref module_common.CCIPObjectRef, param string, clock string, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
@@ -394,12 +455,26 @@ func (c *FeeQuoterContract) GetPremiumMultiplierWeiPerEth(ref module_common.CCIP
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) ProcessMessageArgs(ref module_common.CCIPObjectRef, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, destTokenAddresses [][]byte, destPoolDatas [][]byte) bind.IMethod {
+func (c *FeeQuoterContract) ProcessMessageArgs(ref module_common.CCIPObjectRef, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "process_message_args", false, "", ref, destChainSelector, feeToken, feeTokenAmount, extraArgs, destTokenAddresses, destPoolDatas)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "process_message_args", false, "", ref, destChainSelector, feeToken, feeTokenAmount, extraArgs, localTokenAddresses, destTokenAddresses, destPoolDatas)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "process_message_args", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *FeeQuoterContract) GetFeeTokens(ref module_common.CCIPObjectRef) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_fee_tokens", false, "", ref)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_fee_tokens", err)
 		}
 
 		return ptb, nil

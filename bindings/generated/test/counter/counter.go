@@ -74,6 +74,12 @@ type Counter struct {
 	Value uint64 `move:"u64"`
 }
 
+type CounterPointer struct {
+	Id         string `move:"sui::object::UID"`
+	CounterId  string `move:"address"`
+	AdminCapId string `move:"address"`
+}
+
 // Functions
 
 func (c *CounterContract) Initialize() bind.IMethod {

@@ -28,7 +28,7 @@ type ITokenAdminRegistry interface {
 	GetPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
 	GetTokenConfig(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
 	GetAllConfiguredTokens(ref module_common.CCIPObjectRef, startKey string, maxCount uint64) bind.IMethod
-	SetPool(ref module_common.CCIPObjectRef, coinMetadataAddress string, tokenPoolAddress string) bind.IMethod
+	UnregisterPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
 	TransferAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string, newAdmin string) bind.IMethod
 	AcceptAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
 	IsAdministrator(ref module_common.CCIPObjectRef, coinMetadataAddress string, administrator string) bind.IMethod
@@ -75,6 +75,11 @@ type PoolSet struct {
 	CoinMetadataAddress string `move:"address"`
 	PreviousPoolAddress string `move:"address"`
 	NewPoolAddress      string `move:"address"`
+}
+
+type TokenUnregistered struct {
+	LocalToken          string `move:"address"`
+	PreviousPoolAddress string `move:"address"`
 }
 
 type AdministratorTransferRequested struct {
@@ -174,12 +179,12 @@ func (c *TokenAdminRegistryContract) GetAllConfiguredTokens(ref module_common.CC
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenAdminRegistryContract) SetPool(ref module_common.CCIPObjectRef, coinMetadataAddress string, tokenPoolAddress string) bind.IMethod {
+func (c *TokenAdminRegistryContract) UnregisterPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "set_pool", false, "", ref, coinMetadataAddress, tokenPoolAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "unregister_pool", false, "", ref, coinMetadataAddress)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "set_pool", err)
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "unregister_pool", err)
 		}
 
 		return ptb, nil

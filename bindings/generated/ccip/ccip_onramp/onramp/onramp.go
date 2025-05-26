@@ -33,7 +33,9 @@ type IOnramp interface {
 	ApplyAllowlistUpdatesByAdmin(state string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod
 	GetOutboundNonce(ref module_common.CCIPObjectRef, destChainSelector uint64, sender string) bind.IMethod
 	GetStaticConfig(state string) bind.IMethod
+	GetStaticConfigFields(cfg StaticConfig) bind.IMethod
 	GetDynamicConfig(state string) bind.IMethod
+	GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -74,6 +76,12 @@ type OnRampState struct {
 	AllowlistAdmin string `move:"address"`
 }
 
+type OnRampStatePointer struct {
+	Id            string `move:"sui::object::UID"`
+	OnRampStateId string `move:"address"`
+	OwnerCapId    string `move:"address"`
+}
+
 type DestChainConfig struct {
 	IsEnabled        bool     `move:"bool"`
 	SequenceNumber   uint64   `move:"u64"`
@@ -97,7 +105,7 @@ type Sui2AnyRampMessage struct {
 	ExtraArgs      []byte                 `move:"vector<u8>"`
 	FeeToken       string                 `move:"address"`
 	FeeTokenAmount uint64                 `move:"u64"`
-	FeeValueJuels  uint64                 `move:"u64"`
+	FeeValueJuels  *big.Int               `move:"u256"`
 	TokenAmounts   []Sui2AnyTokenTransfer `move:"vector<Sui2AnyTokenTransfer>"`
 }
 
@@ -150,6 +158,9 @@ type FeeTokenWithdrawn struct {
 	FeeAggregator string `move:"address"`
 	FeeToken      string `move:"address"`
 	Amount        uint64 `move:"u64"`
+}
+
+type ONRAMP struct {
 }
 
 // Functions
@@ -308,12 +319,40 @@ func (c *OnrampContract) GetStaticConfig(state string) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
+func (c *OnrampContract) GetStaticConfigFields(cfg StaticConfig) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_static_config_fields", false, "", cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "get_static_config_fields", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
 func (c *OnrampContract) GetDynamicConfig(state string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_dynamic_config", false, "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "get_dynamic_config", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_dynamic_config_fields", false, "", cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "get_dynamic_config_fields", err)
 		}
 
 		return ptb, nil
