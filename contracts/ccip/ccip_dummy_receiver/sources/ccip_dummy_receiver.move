@@ -56,61 +56,65 @@ module ccip_dummy_receiver::dummy_receiver {
         transfer::transfer(owner_cap, ctx.sender());
     }
 
-    // this can be gated by owner cap
-    public fun register_receiver(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        receiver_registry::register_receiver(
-            ref, b"dummy_receiver", DummyReceiverProof {}, ctx
-        );
+    public fun register_receiver(ref: &mut CCIPObjectRef, receiver_state_id: address) {
+        receiver_registry::register_receiver(ref, receiver_state_id, DummyReceiverProof {});
     }
 
     public fun get_counter(state: &CCIPReceiverState): u64 {
         state.counter
     }
 
-    // this requires the caller (DON or user) to extract message from potato
-    public fun ccip_receive(state: &mut CCIPReceiverState, message: client::Any2SuiMessage) {
-        state.counter = state.counter + 1;
-        state.message_id = client::get_message_id(&message);
-        state.source_chain_selector = client::get_source_chain_selector(&message);
-        state.sender = client::get_sender(&message);
-        state.data = client::get_data(&message);
-        state.dest_token_transfer_length = client::get_dest_token_amounts(&message).length();
-
-        event::emit(
-            ReceivedMessage {
-                message_id: state.message_id,
-                source_chain_selector: state.source_chain_selector,
-                sender: state.sender,
-                data: state.data,
-                dest_token_transfer_length: state.dest_token_transfer_length,
-            }
-        );
-    }
-
-    // TODO:
-    // this requires the receiver to extract the msg from the potato. is this any safer?
-    // however, this means the receiver will always get called no matter if the message is presented
-    // and this function must return the hot potato.
-    public fun ccip_receive_potato(state: &mut CCIPReceiverState, receiver_params: osh::ReceiverParams): osh::ReceiverParams {
-        let (message_op, receiver_params) = osh::extract_any2sui_message(receiver_params);
+    // PTB needs the package id from execution report (msg.receiver) & the module name to call the receiver
+    // any ccip receiver must implement this function with the same signature
+    public fun ccip_receive(ref: &CCIPObjectRef, package_id: address, receiver_params: osh::ReceiverParams): osh::ReceiverParams {
+        let (message_op, receiver_params) = osh::extract_any2sui_message(ref, receiver_params, package_id, DummyReceiverProof {});
         if (message_op.is_none()) {
             return receiver_params
         };
         let message = message_op.borrow();
-        state.counter = state.counter + 1;
-        state.message_id = client::get_message_id(message);
-        state.source_chain_selector = client::get_source_chain_selector(message);
-        state.sender = client::get_sender(message);
-        state.data = client::get_data(message);
-        state.dest_token_transfer_length = client::get_dest_token_amounts(message).length();
+        let message_id = client::get_message_id(message);
+        let source_chain_selector = client::get_source_chain_selector(message);
+        let sender = client::get_sender(message);
+        let data = client::get_data(message);
+        let dest_token_transfer_length = client::get_dest_token_amounts(message).length();
 
         event::emit(
             ReceivedMessage {
-                message_id: state.message_id,
-                source_chain_selector: state.source_chain_selector,
-                sender: state.sender,
-                data: state.data,
-                dest_token_transfer_length: state.dest_token_transfer_length,
+                message_id,
+                source_chain_selector,
+                sender,
+                data,
+                dest_token_transfer_length,
+            }
+        );
+        receiver_params
+    }
+
+    public fun ccip_receive_1(ref: &CCIPObjectRef, state: &mut CCIPReceiverState, package_id: address, receiver_params: osh::ReceiverParams): osh::ReceiverParams {
+        let (message_op, receiver_params) = osh::extract_any2sui_message(ref, receiver_params, package_id, DummyReceiverProof {});
+        if (message_op.is_none()) {
+            return receiver_params
+        };
+        let message = message_op.borrow();
+        let message_id = client::get_message_id(message);
+        let source_chain_selector = client::get_source_chain_selector(message);
+        let sender = client::get_sender(message);
+        let data = client::get_data(message);
+        let dest_token_transfer_length = client::get_dest_token_amounts(message).length();
+        state.counter = state.counter + 1;
+        state.message_id = message_id;
+        state.source_chain_selector = source_chain_selector;
+        state.sender = sender;
+        state.data = data;
+        state.dest_token_transfer_length = dest_token_transfer_length;
+
+        event::emit(
+            ReceivedMessage {
+                message_id,
+                source_chain_selector,
+                sender,
+                data,
+                dest_token_transfer_length,
             }
         );
         receiver_params

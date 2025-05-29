@@ -10,6 +10,8 @@ use sui::linked_table::{Self, LinkedTable};
 
 use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
+// TODO: consider add/using a different structure if someone registers too many tokens
+// figure out & ask about the vector & map size limit for different structures
 public struct TokenAdminRegistryState has key, store {
     id: UID,
     token_configs: LinkedTable<address, TokenConfig>,

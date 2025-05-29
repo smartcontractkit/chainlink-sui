@@ -1,6 +1,7 @@
 module ccip::offramp_state_helper;
 
 use std::type_name;
+use ccip::receiver_registry;
 
 use ccip::client;
 use ccip::state_object::CCIPObjectRef;
@@ -141,9 +142,20 @@ public fun complete_token_transfer<TypeProof: drop>(
 }
 
 // called by ccip receiver directly, or by PTB to extract the message and send to the receiver
-public fun extract_any2sui_message(
-    mut receiver_params: ReceiverParams
+public fun extract_any2sui_message<TypeProof: drop>(
+    ref: &CCIPObjectRef,
+    mut receiver_params: ReceiverParams,
+    package_id: address,
+    _: TypeProof,
 ): (Option<client::Any2SuiMessage>, ReceiverParams) {
+    let receiver_config = receiver_registry::get_receiver_config(ref, package_id);
+    let proof_tn = type_name::get<TypeProof>();
+    let (_, _, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
+    assert!(
+        proof_typename == proof_tn,
+        ETypeProofMismatch
+    );
+
     let message = receiver_params.message;
     receiver_params.message = option::none();
 
