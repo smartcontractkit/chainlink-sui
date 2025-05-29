@@ -66,6 +66,24 @@ public struct ChainAdded has copy, drop {
     remote_token_address: vector<u8>
 }
 
+public struct LiquidityAdded has copy, drop {
+    local_token: address,
+    provider: address,
+    amount: u64,
+}
+
+public struct LiquidityRemoved has copy, drop {
+    local_token: address,
+    provider: address,
+    amount: u64,
+}
+
+public struct RebalancerSet has copy, drop {
+    local_token: address,
+    previous_rebalancer: address,
+    rebalancer: address,
+}
+
 const ENotPublisher: u64 = 1;
 const EUnknownRemoteChainSelector: u64 = 2;
 const EZeroAddressNotAllowed: u64 = 3;
@@ -362,6 +380,28 @@ public fun emit_locked(state: &mut TokenPoolState, amount: u64) {
 
 public fun emit_burned(state: &mut TokenPoolState, amount: u64) {
     event::emit(Burned { local_token: state.coin_metadata, amount });
+}
+
+public fun emit_rebalancer_set(
+    state: &mut TokenPoolState, previous_rebalancer: address, rebalancer: address
+) {
+    event::emit(RebalancerSet {
+        local_token: state.coin_metadata,
+        previous_rebalancer,
+        rebalancer,
+    });
+}
+
+public fun emit_liquidity_added(
+    state: &mut TokenPoolState, provider: address, amount: u64
+) {
+    event::emit(LiquidityAdded { local_token: state.coin_metadata, provider, amount });
+}
+
+public fun emit_liquidity_removed(
+    state: &mut TokenPoolState, provider: address, amount: u64
+) {
+    event::emit(LiquidityRemoved { local_token: state.coin_metadata, provider, amount });
 }
 
 // ================================================================

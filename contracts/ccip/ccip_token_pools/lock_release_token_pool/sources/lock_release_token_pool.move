@@ -24,6 +24,7 @@ public struct LockReleaseTokenPoolState has key {
     // ownable_state: ownable::OwnableState,
     token_pool_state: TokenPoolState,
     coin_store: Bag, // use Bag to avoid type param, but it's also trivial to use a single Coin<T>
+    rebalancer: address,
 }
 
 const COIN_STORE: vector<u8> = b"CoinStore";
@@ -31,6 +32,7 @@ const COIN_STORE: vector<u8> = b"CoinStore";
 const E_INVALID_COIN_METADATA: u64 = 1;
 const E_INVALID_ARGUMENTS: u64 = 2;
 const E_TOKEN_POOL_BALANCE_TOO_LOW: u64 = 3;
+const E_UNAUTHORIZED: u64 = 4;
 
 // ================================================================
 // |                             Init                             |
@@ -45,6 +47,7 @@ public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: &TreasuryCap<T>,
+    rebalancer: address,
     ctx: &mut TxContext,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
@@ -57,7 +60,9 @@ public fun initialize<T: drop>(
         id: object::new(ctx),
         token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
         coin_store: bag::new(ctx),
+        rebalancer: @0x0,
     };
+    set_rebalancer_internal(&mut lock_release_token_pool, rebalancer);
     lock_release_token_pool.coin_store.add(COIN_STORE, coin::zero<T>(ctx));
 
     token_admin_registry::register_pool(
@@ -355,38 +360,65 @@ public fun set_chain_rate_limiter_config(
     );
 }
 
-public fun get_balance<T>(state: &LockReleaseTokenPoolState): u64 {
-    let stored_coin: &Coin<T> = state.coin_store.borrow(COIN_STORE);
-    stored_coin.value()
-}
+// ================================================================
+// |                    Liquidity Management                      |
+// ================================================================
 
-public fun add_liquidity<T>(
+public fun provide_liquidity<T>(
     state: &mut LockReleaseTokenPoolState,
-    c: Coin<T>
+    c: Coin<T>,
+    ctx: &mut TxContext,
 ) {
+    assert!(ctx.sender() == state.rebalancer, E_UNAUTHORIZED);
+    let amount = c.value();
+
     let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
     stored_coin.join(c);
+
+    token_pool::emit_liquidity_added(
+        &mut state.token_pool_state, state.rebalancer, amount
+    );
 }
 
-public fun remove_liquidity<T>(
+public fun withdraw_liquidity<T>(
     state: &mut LockReleaseTokenPoolState,
-    _: &OwnerCap,
     amount: u64,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ): Coin<T> {
+    assert!(ctx.sender() == state.rebalancer, E_UNAUTHORIZED);
+
     let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
     assert!(stored_coin.value() >= amount, E_TOKEN_POOL_BALANCE_TOO_LOW);
+
+    token_pool::emit_liquidity_removed(&mut state.token_pool_state, state.rebalancer, amount);
     stored_coin.split(amount, ctx)
 }
 
-#[allow(lint(self_transfer))]
-public fun remove_liquidity_and_transfer<T>(
-    state: &mut LockReleaseTokenPoolState,
+public fun set_rebalancer(
     _: &OwnerCap,
-    amount: u64,
-    ctx: &mut TxContext
+    state: &mut LockReleaseTokenPoolState,
+    rebalancer: address,
 ) {
-    let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
-    assert!(stored_coin.value() >= amount, E_TOKEN_POOL_BALANCE_TOO_LOW);
-    transfer::public_transfer(stored_coin.split(amount, ctx), ctx.sender());
+    set_rebalancer_internal(state, rebalancer);
+}
+
+fun set_rebalancer_internal(
+    state: &mut LockReleaseTokenPoolState,
+    rebalancer: address,
+) {
+    token_pool::emit_rebalancer_set(
+        &mut state.token_pool_state,
+        state.rebalancer,
+        rebalancer,
+    );
+    state.rebalancer = rebalancer;
+}
+
+public fun get_rebalancer(state: &LockReleaseTokenPoolState): address {
+    state.rebalancer
+}
+
+public fun get_balance<T>(state: &LockReleaseTokenPoolState): u64 {
+    let stored_coin: &Coin<T> = state.coin_store.borrow(COIN_STORE);
+    stored_coin.value()
 }
