@@ -2,8 +2,8 @@ module lock_release_token_pool::lock_release_token_pool;
 
 use std::string::{Self, String};
 
-use sui::clock::Clock;
 use sui::bag::{Self, Bag};
+use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 
 use ccip::dynamic_dispatcher as dd;

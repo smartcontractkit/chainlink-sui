@@ -9,8 +9,7 @@ use ccip::token_admin_registry as registry;
 const EWrongIndexInReceiverParams: u64 = 1;
 const ETokenTransferAlreadyCompleted: u64 = 2;
 const ETokenPoolAddressMismatch: u64 = 3;
-const EDestTokenPoolNotFound: u64 = 4;
-const ETypeProofMismatch: u64 = 5;
+const ETypeProofMismatch: u64 = 4;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -126,14 +125,14 @@ public fun complete_token_transfer<TypeProof: drop>(
 
     let param = receiver_params.params[index];
     assert!(!param.completed, ETokenTransferAlreadyCompleted);
-    let (dest_pool_address, _, _, type_proof_op) = registry::get_token_config(ref, param.dest_token_address);
+    let (dest_pool_address, _, _, type_proof) = registry::get_token_config(ref, param.dest_token_address);
     assert!(
         param.token_pool_address == dest_pool_address,
         ETokenPoolAddressMismatch,
     );
-    assert!(type_proof_op.is_some(), EDestTokenPoolNotFound);
-    let type_proof = type_proof_op.borrow();
-    assert!(type_proof == type_name::get<TypeProof>(), ETypeProofMismatch);
+    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn_str = type_name::into_string(proof_tn);
+    assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
     receiver_params.params[index].completed = true;
     receiver_params.params[index].local_amount = local_amount;

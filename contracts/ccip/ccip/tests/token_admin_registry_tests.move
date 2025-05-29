@@ -1,6 +1,7 @@
 #[test_only]
 module ccip::token_admin_registry_tests;
 
+use std::ascii;
 use std::type_name;
 
 use sui::coin;
@@ -42,7 +43,7 @@ public fun test_initialize() {
         let ctx = scenario.ctx();
         registry::initialize(&mut ref, &owner_cap, ctx);
         let (token_pool_address, administrator, pending_administrator, proof) = registry::get_token_config(&ref, @0x2);
-        assert!(proof.is_none());
+        assert!(proof == ascii::string(b""));
         assert!(token_pool_address == @0x0);
         assert!(administrator == @0x0);
         assert!(pending_administrator == @0x0);
@@ -199,12 +200,12 @@ public fun test_register_and_unregister() {
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         registry::unregister_pool(&mut ref, local_token, scenario.ctx());
-        let (token_pool_address, administrator, pending_administrator, type_proof_op) = registry::get_token_config(&ref, local_token);
+        let (token_pool_address, administrator, pending_administrator, type_proof) = registry::get_token_config(&ref, local_token);
 
         assert!(token_pool_address == @0x0);
         assert!(administrator == @0x0);
         assert!(pending_administrator == @0x0);
-        assert!(type_proof_op.is_none());
+        assert!(type_proof == ascii::string(b""));
 
         ts::return_shared(ref);
     };
@@ -261,14 +262,12 @@ public fun test_register_and_set_pool() {
         assert!(pool_addresses[0] == MOCK_TOKEN_POOL_ADDRESS_1);
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS));
 
-        let (token_pool_address, administrator, pending_administrator, proof_op) = registry::get_token_config(&ref, local_token);
-        assert!(proof_op.is_some());
+        let (token_pool_address, administrator, pending_administrator, proof) = registry::get_token_config(&ref, local_token);
         assert!(token_pool_address == MOCK_TOKEN_POOL_ADDRESS_1);
         assert!(administrator == TOKEN_ADMIN_ADDRESS);
         assert!(pending_administrator == @0x0);
 
-        let proof = proof_op.borrow();
-        assert!(proof == type_name::get<TypeProof>());
+        assert!(proof == type_name::into_string(type_name::get<TypeProof>()));
 
         let ctx = scenario.ctx();
 
@@ -282,14 +281,12 @@ public fun test_register_and_set_pool() {
     scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let (token_pool_address, administrator, pending_administrator, proof_op) = registry::get_token_config(&ref, local_token);
+        let (token_pool_address, administrator, pending_administrator, proof) = registry::get_token_config(&ref, local_token);
         assert!(token_pool_address == MOCK_TOKEN_POOL_ADDRESS_2);
         assert!(administrator == TOKEN_ADMIN_ADDRESS);
         assert!(pending_administrator == TOKEN_ADMIN_ADDRESS_2);
-        assert!(proof_op.is_some());
-        let proof = proof_op.borrow();
         // after set_pool, the proof should be TypeProof2 bc it will come from a different pool
-        assert!(proof == type_name::get<TypeProof2>());
+        assert!(proof == type_name::into_string(type_name::get<TypeProof2>()));
 
         registry::accept_admin_role(&mut ref, local_token, scenario.ctx());
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));

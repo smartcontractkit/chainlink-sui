@@ -414,7 +414,7 @@ module ccip_offramp::offramp {
             ocr3_base::ocr_plugin_type_execution(),
             report_context,
             report,
-            vector::empty(),
+            vector[],
             ctx
         );
 
@@ -588,7 +588,7 @@ module ccip_offramp::offramp {
         let message = &execution_report.message;
         let sequence_number = message.header.sequence_number;
         let execution_state_ref =
-            if (table::contains(source_chain_execution_states, sequence_number)) {
+            if (source_chain_execution_states.contains(sequence_number)) {
                 table::borrow_mut(source_chain_execution_states, sequence_number)
             } else {
                 &mut EXECUTION_STATE_UNTOUCHED

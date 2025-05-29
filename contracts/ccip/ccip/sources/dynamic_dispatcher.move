@@ -5,8 +5,7 @@ use std::type_name;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
 
-const ESourceTokenPoolNotFound: u64 = 1;
-const ETypeProofMismatch: u64 = 2;
+const ETypeProofMismatch: u64 = 1;
 
 public struct DYNAMIC_DISPATCHER has drop {}
 
@@ -50,10 +49,10 @@ public fun add_source_token_transfer<TypeProof: drop>(
     extra_data: vector<u8>,
     _: TypeProof,
 ): TokenParams {
-    let (source_pool_address, _, _, type_proof_op) = registry::get_token_config(ref, source_token_address);
-    assert!(type_proof_op.is_some(), ESourceTokenPoolNotFound);
-    let type_proof = type_proof_op.borrow();
-    assert!(type_proof == type_name::get<TypeProof>(), ETypeProofMismatch);
+    let (source_pool_address, _, _, type_proof) = registry::get_token_config(ref, source_token_address);
+    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn_str = type_name::into_string(proof_tn);
+    assert!(type_proof == proof_tn_str, ETypeProofMismatch);
     token_params.params.push_back(
         SourceTokenTransfer {
             source_pool: source_pool_address,

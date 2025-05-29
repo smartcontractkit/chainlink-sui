@@ -1,7 +1,8 @@
 module ccip::token_admin_registry;
 
+use std::ascii;
 use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
+use std::type_name;
 
 use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
@@ -18,14 +19,14 @@ public struct TokenConfig has store, drop, copy {
     token_pool_address: address,
     administrator: address,
     pending_administrator: address,
-    type_proof: Option<TypeName>,
+    type_proof: ascii::String,
 }
 
 public struct PoolSet has copy, drop {
     coin_metadata_address: address,
     previous_pool_address: address,
     new_pool_address: address,
-    type_proof: TypeName,
+    type_proof: ascii::String,
 }
 
 public struct TokenUnregistered has copy, drop {
@@ -111,7 +112,7 @@ public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): addres
 
 public fun get_token_config(
     ref: &CCIPObjectRef, coin_metadata_address: address
-): (address, address, address, Option<TypeName>) {
+): (address, address, address, ascii::String) {
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     if (state.token_configs.contains(coin_metadata_address)) {
@@ -123,7 +124,7 @@ public fun get_token_config(
             token_config.type_proof,
         )
     } else {
-        (@0x0, @0x0, @0x0, option::none())
+        (@0x0, @0x0, @0x0, ascii::string(b""))
     }
 }
 
@@ -194,23 +195,22 @@ public fun register_pool<T, TypeProof: drop>(
     _proof: TypeProof,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    let proof_tn = type_name::get<TypeProof>();
     register_pool_internal(
         ref,
         coin_metadata_address,
         token_pool_address,
         initial_administrator,
-        _proof,
+        type_name::into_string(proof_tn),
     );
 }
 
-// TODO: validate this can work or we have to re-think the type proof for this function
-// only the CCIP owner can call this function.
-public fun register_pool_by_admin<TypeProof: drop>(
+public fun register_pool_by_admin(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
     token_pool_address: address,
     initial_administrator: address,
-    _proof: TypeProof, // this needs to be a proof type from the token pool module, not from CCIP admin
+    proof: ascii::String,
     ctx: &mut TxContext,
 ) {
     assert!(
@@ -223,16 +223,16 @@ public fun register_pool_by_admin<TypeProof: drop>(
         coin_metadata_address,
         token_pool_address,
         initial_administrator,
-        _proof,
+        proof,
     );
 }
 
-fun register_pool_internal<TypeProof: drop>(
+fun register_pool_internal(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address, // LINK coin metadata
     token_pool_address: address, // a legit LINK source pool
     initial_administrator: address, // the initial administrator of the token pool
-    _proof: TypeProof, // use this proof type to validate the token pool address & token pool module name
+    proof: ascii::String, // use this proof type to validate the token pool address & token pool module name
 ) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
     assert!(
@@ -240,12 +240,11 @@ fun register_pool_internal<TypeProof: drop>(
         E_TOKEN_ALREADY_REGISTERED
     );
 
-    let proof_tn = type_name::get<TypeProof>();
     let token_config = TokenConfig {
         token_pool_address,
         administrator: initial_administrator,
         pending_administrator: @0x0,
-        type_proof: option::some(proof_tn),
+        type_proof: proof,
     };
 
     state.token_configs.push_back(coin_metadata_address, token_config);
@@ -306,14 +305,16 @@ public fun set_pool<TypeProof: drop>(
     let previous_pool_address = token_config.token_pool_address;
     if (previous_pool_address != token_pool_address) {
         token_config.token_pool_address = token_pool_address;
-        token_config.type_proof = option::some(type_name::get<TypeProof>());
+        let proof_tn = type_name::get<TypeProof>();
+        let proof_str = type_name::into_string(proof_tn);
+        token_config.type_proof = proof_str;
 
         event::emit(
             PoolSet {
                 coin_metadata_address,
                 previous_pool_address,
                 new_pool_address: token_pool_address,
-                type_proof: type_name::get<TypeProof>(),
+                type_proof: proof_str,
             }
         );
     }
@@ -406,7 +407,7 @@ public fun insert_token_addresses_for_test<TypeProof: drop>(
                     token_pool_address: @0x0,
                     administrator: @0x0,
                     pending_administrator: @0x0,
-                    type_proof: option::some(type_name::get<TypeProof>()),
+                    type_proof: ascii::string(b"TestProof"),
                 }
             );
         }
