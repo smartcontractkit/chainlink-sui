@@ -77,8 +77,14 @@ type PoolSet struct {
 	NewPoolAddress      string `move:"address"`
 }
 
-type TokenUnregistered struct {
-	LocalToken          string `move:"address"`
+type PoolRegistered struct {
+	CoinMetadataAddress string `move:"address"`
+	TokenPoolAddress    string `move:"address"`
+	Administrator       string `move:"address"`
+}
+
+type PoolUnregistered struct {
+	CoinMetadataAddress string `move:"address"`
 	PreviousPoolAddress string `move:"address"`
 }
 

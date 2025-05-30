@@ -216,7 +216,7 @@ public fun lock_or_burn<T>(
     let mut extra_data = vector[];
     eth_abi::encode_u8(&mut extra_data, state.token_pool_state.get_local_decimals());
 
-    token_pool::emit_burned(&mut state.token_pool_state, amount);
+    token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
 
     dd::add_source_token_transfer(
         ref,
@@ -261,10 +261,11 @@ public fun release_or_mint<T>(
         ctx,
     );
 
-    token_pool::emit_minted(
+    token_pool::emit_released_or_minted(
         &mut pool.token_pool_state,
         receiver,
-        local_amount
+        local_amount,
+        remote_chain_selector,
     );
 
     osh::complete_token_transfer(

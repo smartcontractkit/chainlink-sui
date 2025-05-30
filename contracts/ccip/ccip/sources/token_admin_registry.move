@@ -31,8 +31,15 @@ public struct PoolSet has copy, drop {
     type_proof: ascii::String,
 }
 
-public struct TokenUnregistered has copy, drop {
-    local_token: address,
+public struct PoolRegistered has copy, drop {
+    coin_metadata_address: address,
+    token_pool_address: address,
+    administrator: address,
+    type_proof: ascii::String,
+}
+
+public struct PoolUnregistered has copy, drop {
+    coin_metadata_address: address,
     previous_pool_address: address,
 }
 
@@ -231,10 +238,10 @@ public fun register_pool_by_admin(
 
 fun register_pool_internal(
     ref: &mut CCIPObjectRef,
-    coin_metadata_address: address, // LINK coin metadata
-    token_pool_address: address, // a legit LINK source pool
-    initial_administrator: address, // the initial administrator of the token pool
-    proof: ascii::String, // use this proof type to validate the token pool address & token pool module name
+    coin_metadata_address: address,
+    token_pool_address: address,
+    initial_administrator: address,
+    proof: ascii::String,
 ) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
     assert!(
@@ -250,6 +257,15 @@ fun register_pool_internal(
     };
 
     state.token_configs.push_back(coin_metadata_address, token_config);
+
+    event::emit(
+        PoolRegistered {
+            coin_metadata_address,
+            token_pool_address,
+            administrator: initial_administrator,
+            type_proof: proof,
+        }
+    );
 }
 
 // TODO: should we allow CCIP admin to unregister pool?
@@ -275,8 +291,8 @@ public fun unregister_pool(
     let previous_pool_address = token_config.token_pool_address;
 
     event::emit(
-        TokenUnregistered {
-            local_token: coin_metadata_address,
+        PoolUnregistered {
+            coin_metadata_address,
             previous_pool_address,
         }
     );

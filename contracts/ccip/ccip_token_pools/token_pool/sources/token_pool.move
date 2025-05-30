@@ -29,23 +29,14 @@ public struct RemoteChainConfig has store, drop, copy {
     remote_pools: vector<vector<u8>>
 }
 
-public struct Locked has copy, drop {
+public struct LockedOrBurned has copy, drop {
+    remote_chain_selector: u64,
     local_token: address,
     amount: u64
 }
 
-public struct Released has copy, drop {
-    local_token: address,
-    recipient: address,
-    amount: u64
-}
-
-public struct Burned has copy, drop {
-    local_token: address,
-    amount: u64
-}
-
-public struct Minted has copy, drop {
+public struct ReleasedOrMinted has copy, drop {
+    remote_chain_selector: u64,
     local_token: address,
     recipient: address,
     amount: u64
@@ -362,24 +353,21 @@ public fun validate_release_or_mint(
 // |                           Events                             |
 // ================================================================
 
-public fun emit_released(
-    state: &mut TokenPoolState, recipient: address, amount: u64
+public fun emit_released_or_minted(
+    state: &mut TokenPoolState,
+    recipient: address,
+    amount: u64,
+    remote_chain_selector: u64,
 ) {
-    event::emit(Released { local_token: state.coin_metadata, recipient, amount });
+    event::emit(
+        ReleasedOrMinted { remote_chain_selector, local_token: state.coin_metadata, recipient, amount }
+    );
 }
 
-public fun emit_minted(
-    state: &mut TokenPoolState, recipient: address, amount: u64
+public fun emit_locked_or_burned(
+    state: &mut TokenPoolState, amount: u64, remote_chain_selector: u64
 ) {
-    event::emit(Minted { local_token: state.coin_metadata, recipient, amount });
-}
-
-public fun emit_locked(state: &mut TokenPoolState, amount: u64) {
-    event::emit(Locked { local_token: state.coin_metadata, amount });
-}
-
-public fun emit_burned(state: &mut TokenPoolState, amount: u64) {
-    event::emit(Burned { local_token: state.coin_metadata, amount });
+    event::emit(LockedOrBurned { remote_chain_selector, local_token: state.coin_metadata, amount });
 }
 
 public fun emit_rebalancer_set(
