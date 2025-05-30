@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/holiman/uint256 v1.3.2
 	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4
-	github.com/pattonkan/sui-go v0.1.0
+	github.com/pattonkan/sui-go v0.1.1
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/pkg/errors v0.9.1

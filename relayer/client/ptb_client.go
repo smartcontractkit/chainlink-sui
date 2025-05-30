@@ -134,7 +134,7 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 			return fmt.Errorf("failed to convert signatures: %w", err)
 		}
 
-		b64Tx, err := sui.NewBase64Data(payload.TxBytes)
+		b64Tx, err := sui.NewBase64(payload.TxBytes)
 		if err != nil {
 			return fmt.Errorf("invalid transaction bytes: %w", err)
 		}
@@ -309,7 +309,7 @@ func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, c
 }
 
 func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
-	response, err := c.client.DryRunTransaction(ctx, sui.Base64Data(txBytes))
+	response, err := c.client.DryRunTransaction(ctx, sui.Base64(txBytes))
 	if err != nil {
 		return 0, fmt.Errorf("failed to dry run transaction: %w", err)
 	}

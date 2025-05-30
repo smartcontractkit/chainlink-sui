@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"golang.org/x/exp/slices"
-
 	"github.com/fardream/go-bcs/bcs"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
@@ -87,21 +85,6 @@ func ToPTBArg(
 	arg any,
 	isMutable bool,
 ) (suiptb.Argument, error) {
-	// check if the argument has already been included in the PTB args list
-	// only if it's possible to BCS marshal the value (cases where the value is "pure" / not object)
-	marshalledBytes, err := bcs.Marshal(arg)
-	if err == nil {
-		for idx, key := range ptb.Inputs.InsertOrderList {
-			if key.Pure != nil && slices.Equal(*key.Pure, marshalledBytes) {
-				//nolint:gosec
-				foundIdx := uint16(idx)
-				return suiptb.Argument{
-					Input: &foundIdx,
-				}, nil
-			}
-		}
-	}
-
 	switch v := arg.(type) {
 	// ────────────────────── STRING ──────────────────────
 	case string:

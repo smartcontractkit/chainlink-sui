@@ -27,7 +27,7 @@ func SignAndSendTx(ctx context.Context, signer rel.SuiSigner, client suiclient.C
 	}
 
 	b64bytes := codec.EncodeBase64(txBytes)
-	b64Tx, err := sui.NewBase64Data(b64bytes)
+	b64Tx, err := sui.NewBase64(b64bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert tx to base64: %w", err)
 	}
@@ -66,7 +66,7 @@ func DevInspectTx(ctx context.Context, signerAddress string, client suiclient.Cl
 	}
 
 	b64bytes := codec.EncodeBase64(txBytes)
-	b64Tx, err := sui.NewBase64Data(b64bytes)
+	b64Tx, err := sui.NewBase64(b64bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert tx to base64: %w", err)
 	}
