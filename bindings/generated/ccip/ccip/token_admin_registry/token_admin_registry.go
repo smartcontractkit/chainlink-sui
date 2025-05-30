@@ -25,6 +25,7 @@ type ITokenAdminRegistry interface {
 	TypeAndVersion() bind.IMethod
 	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod
 	GetPools(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod
+	GetPoolInfos(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod
 	GetPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
 	GetTokenConfig(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
 	GetAllConfiguredTokens(ref module_common.CCIPObjectRef, startKey string, maxCount uint64) bind.IMethod
@@ -66,20 +67,22 @@ type TokenAdminRegistryState struct {
 }
 
 type TokenConfig struct {
-	TokenPoolAddress     string `move:"address"`
-	Administrator        string `move:"address"`
-	PendingAdministrator string `move:"address"`
+	TokenPoolPackageId    string `move:"address"`
+	TokenPoolStateAddress string `move:"address"`
+	TokenPoolModule       string `move:"0x1::string::String"`
+	Administrator         string `move:"address"`
+	PendingAdministrator  string `move:"address"`
 }
 
 type PoolSet struct {
-	CoinMetadataAddress string `move:"address"`
-	PreviousPoolAddress string `move:"address"`
-	NewPoolAddress      string `move:"address"`
+	CoinMetadataAddress   string `move:"address"`
+	PreviousPoolPackageId string `move:"address"`
+	NewPoolPackageId      string `move:"address"`
 }
 
 type PoolRegistered struct {
 	CoinMetadataAddress string `move:"address"`
-	TokenPoolAddress    string `move:"address"`
+	TokenPoolPackageId  string `move:"address"`
 	Administrator       string `move:"address"`
 }
 
@@ -135,6 +138,20 @@ func (c *TokenAdminRegistryContract) GetPools(ref module_common.CCIPObjectRef, c
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pools", false, "", ref, coinMetadataAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pools", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *TokenAdminRegistryContract) GetPoolInfos(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pool_infos", false, "", ref, coinMetadataAddresses)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pool_infos", err)
 		}
 
 		return ptb, nil

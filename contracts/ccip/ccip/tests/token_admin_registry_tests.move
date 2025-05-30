@@ -2,6 +2,7 @@
 module ccip::token_admin_registry_tests;
 
 use std::ascii;
+use std::string;
 use std::type_name;
 
 use sui::coin;
@@ -20,8 +21,10 @@ const CCIP_ADMIN: address = @0x1000;
 const TOKEN_ADMIN_ADDRESS: address = @0x1;
 const TOKEN_ADMIN_ADDRESS_2: address = @0x2;
 const RANDOM_USER: address = @0x3;
-const MOCK_TOKEN_POOL_ADDRESS_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
-const MOCK_TOKEN_POOL_ADDRESS_2: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7;
+const MOCK_TOKEN_POOL_PACKAGE_ID_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
+const MOCK_TOKEN_POOL_PACKAGE_ID_2: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7;
+const MOCK_TOKEN_POOL_STATE_ADDRESS_1: address = @0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270;
+const MOCK_TOKEN_POOL_STATE_ADDRESS_2: address = @0xd8908c165dee785924e7421a0fd0418a19d5daeec395fd505a92a0fd3117e428;
 
 fun create_test_scenario(addr: address): Scenario {
     ts::begin(addr)
@@ -42,11 +45,23 @@ public fun test_initialize() {
 
         let ctx = scenario.ctx();
         registry::initialize(&mut ref, &owner_cap, ctx);
-        let (token_pool_address, administrator, pending_administrator, proof) = registry::get_token_config(&ref, @0x2);
-        assert!(proof == ascii::string(b""));
-        assert!(token_pool_address == @0x0);
+        let (
+            token_pool_package_id,
+            token_pool_state_address,
+            token_pool_module,
+            token_type,
+            administrator,
+            pending_administrator,
+            proof,
+        ) = registry::get_token_config(&ref, @0x2);
+
+        assert!(token_pool_package_id == @0x0);
+        assert!(token_pool_state_address == @0x0);
+        assert!(token_pool_module == string::utf8(b""));
+        assert!(token_type == ascii::string(b""));
         assert!(administrator == @0x0);
         assert!(pending_administrator == @0x0);
+        assert!(proof == ascii::string(b""));
 
         scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
@@ -120,7 +135,10 @@ public fun test_register_and_unregister_as_non_admin() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            MOCK_TOKEN_POOL_ADDRESS_1,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            string::utf8(b"mock_token_pool"),
+            ascii::string(b"0x2::test_token::TEST_TOKEN"),
             TOKEN_ADMIN_ADDRESS_2,
             TypeProof {},
         );
@@ -180,14 +198,17 @@ public fun test_register_and_unregister() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            MOCK_TOKEN_POOL_ADDRESS_1,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            string::utf8(b"mock_token_pool"),
+            ascii::string(b"0x2::test_token::TEST_TOKEN"),
             TOKEN_ADMIN_ADDRESS_2, // initial admin
             TypeProof {},
         );
 
         let pool_addresses = registry::get_pools(&ref, vector[local_token]);
         assert!(pool_addresses.length() == 1);
-        assert!(pool_addresses[0] == MOCK_TOKEN_POOL_ADDRESS_1);
+        assert!(pool_addresses[0] == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));
 
         let ctx = scenario.ctx();
@@ -200,9 +221,20 @@ public fun test_register_and_unregister() {
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         registry::unregister_pool(&mut ref, local_token, scenario.ctx());
-        let (token_pool_address, administrator, pending_administrator, type_proof) = registry::get_token_config(&ref, local_token);
+        let (
+            token_pool_package_id,
+            token_pool_state_address,
+            token_pool_module,
+            token_type,
+            administrator,
+            pending_administrator,
+            type_proof,
+        ) = registry::get_token_config(&ref, local_token);
 
-        assert!(token_pool_address == @0x0);
+        assert!(token_pool_package_id == @0x0);
+        assert!(token_pool_state_address == @0x0);
+        assert!(token_pool_module == string::utf8(b""));
+        assert!(token_type == ascii::string(b""));
         assert!(administrator == @0x0);
         assert!(pending_administrator == @0x0);
         assert!(type_proof == ascii::string(b""));
@@ -252,26 +284,48 @@ public fun test_register_and_set_pool() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            MOCK_TOKEN_POOL_ADDRESS_1,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            string::utf8(b"mock_token_pool"),
+            ascii::string(b"0x2::test_token::TEST_TOKEN"),
             TOKEN_ADMIN_ADDRESS,
             TypeProof {},
         );
 
         let pool_addresses = registry::get_pools(&ref, vector[local_token]);
         assert!(pool_addresses.length() == 1);
-        assert!(pool_addresses[0] == MOCK_TOKEN_POOL_ADDRESS_1);
+        assert!(pool_addresses[0] == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS));
 
-        let (token_pool_address, administrator, pending_administrator, proof) = registry::get_token_config(&ref, local_token);
-        assert!(token_pool_address == MOCK_TOKEN_POOL_ADDRESS_1);
+        let (
+            token_pool_package_id,
+            token_pool_state_address,
+            token_pool_module,
+            token_type,
+            administrator,
+            pending_administrator,
+            type_proof,
+        ) = registry::get_token_config(&ref, local_token);
+        assert!(token_pool_package_id == MOCK_TOKEN_POOL_PACKAGE_ID_1);
+        assert!(token_pool_state_address == MOCK_TOKEN_POOL_STATE_ADDRESS_1);
+        assert!(token_pool_module == string::utf8(b"mock_token_pool"));
+        assert!(token_type == ascii::string(b"0x2::test_token::TEST_TOKEN"));
         assert!(administrator == TOKEN_ADMIN_ADDRESS);
         assert!(pending_administrator == @0x0);
 
-        assert!(proof == type_name::into_string(type_name::get<TypeProof>()));
+        assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
 
         let ctx = scenario.ctx();
 
-        registry::set_pool(&mut ref, local_token, MOCK_TOKEN_POOL_ADDRESS_2, TypeProof2 {}, ctx);
+        registry::set_pool(
+            &mut ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            string::utf8(b"mock_token_pool_2"),
+            TypeProof2 {},
+            ctx,
+        );
         registry::transfer_admin_role(&mut ref, local_token, TOKEN_ADMIN_ADDRESS_2, ctx);
 
         transfer::public_transfer(treasury_cap, ctx.sender());
@@ -281,12 +335,23 @@ public fun test_register_and_set_pool() {
     scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let (token_pool_address, administrator, pending_administrator, proof) = registry::get_token_config(&ref, local_token);
-        assert!(token_pool_address == MOCK_TOKEN_POOL_ADDRESS_2);
+        let (
+            token_pool_package_id,
+            token_pool_state_address,
+            token_pool_module,
+            token_type,
+            administrator,
+            pending_administrator,
+            type_proof,
+        ) = registry::get_token_config(&ref, local_token);
+        assert!(token_pool_package_id == MOCK_TOKEN_POOL_PACKAGE_ID_2);
+        assert!(token_pool_state_address == MOCK_TOKEN_POOL_STATE_ADDRESS_2);
+        assert!(token_pool_module == string::utf8(b"mock_token_pool_2"));
+        assert!(token_type == ascii::string(b"0x2::test_token::TEST_TOKEN"));
         assert!(administrator == TOKEN_ADMIN_ADDRESS);
         assert!(pending_administrator == TOKEN_ADMIN_ADDRESS_2);
         // after set_pool, the proof should be TypeProof2 bc it will come from a different pool
-        assert!(proof == type_name::into_string(type_name::get<TypeProof2>()));
+        assert!(type_proof == type_name::into_string(type_name::get<TypeProof2>()));
 
         registry::accept_admin_role(&mut ref, local_token, scenario.ctx());
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));
@@ -313,7 +378,7 @@ public fun test_get_all_configured_tokens() {
         let ctx = scenario.ctx();
         registry::initialize(&mut ref, &owner_cap, ctx);
 
-        registry::insert_token_addresses_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
 
         let (res, next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 0);
         assert!(res.length() == 0);
@@ -356,14 +421,14 @@ public fun test_get_all_configured_tokens_edge_cases() {
         assert!(!has_more);
 
         // Test case 2: Single token
-        registry::insert_token_addresses_for_test(&mut ref, vector[@0x1], TypeProof {});
+        registry::insert_token_configs_for_test(&mut ref, vector[@0x1], TypeProof {});
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 1);
         assert!(res.length() == 1);
         assert!(res[0] == @0x1);
         assert!(!has_more);
 
         // Test case 3: Start from middle
-        registry::insert_token_addresses_for_test(&mut ref, vector[@0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(&mut ref, vector[@0x2, @0x3], TypeProof {});
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x1, 2);
         assert!(res.length() == 2);
         assert!(res[0] == @0x2);
@@ -401,7 +466,7 @@ public fun test_get_all_configured_tokens_pagination() {
         let ctx = scenario.ctx();
         registry::initialize(&mut ref, &owner_cap, ctx);
 
-        registry::insert_token_addresses_for_test(&mut ref, vector[@0x1, @0x2, @0x3, @0x4, @0x5], TypeProof {});
+        registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3, @0x4, @0x5], TypeProof {});
 
         // Test pagination with different chunk sizes
         let mut current_key = @0x0;
@@ -464,7 +529,7 @@ public fun test_get_all_configured_tokens_non_existent() {
         let ctx = scenario.ctx();
         registry::initialize(&mut ref, &owner_cap, ctx);
 
-        registry::insert_token_addresses_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
+        registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
 
         // Test starting from key between existing tokens
         let (res, _next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x1, 1);

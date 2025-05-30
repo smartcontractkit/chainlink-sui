@@ -49,13 +49,13 @@ public fun add_source_token_transfer<TypeProof: drop>(
     extra_data: vector<u8>,
     _: TypeProof,
 ): TokenParams {
-    let (source_pool_address, _, _, type_proof) = registry::get_token_config(ref, source_token_address);
+    let (token_pool_package_id, _, _, _, _, _, type_proof) = registry::get_token_config(ref, source_token_address);
     let proof_tn = type_name::get<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
     token_params.params.push_back(
         SourceTokenTransfer {
-            source_pool: source_pool_address,
+            source_pool: token_pool_package_id,
             amount,
             source_token_address,
             dest_token_address,

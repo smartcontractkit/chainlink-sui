@@ -220,6 +220,7 @@ module ccip_offramp::offramp {
     const E_CCIP_RECEIVE_FAILED: u64 = 22;
     const E_DEST_TRANSFER_CAP_EXISTS: u64 = 23;
     const E_RMN_BLESSING_MISMATCH: u64 = 24;
+    const E_UNSUPPORTED_TOKEN: u64 = 25;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -617,6 +618,7 @@ module ccip_offramp::offramp {
 
         while (i < number_of_tokens_in_msg) {
             let token_pool_address: address = token_admin_registry::get_pool(ref, message.token_amounts[i].dest_token_address);
+            assert!(token_pool_address != @0x0, E_UNSUPPORTED_TOKEN);
             let mut amount_op = u256::try_as_u64(message.token_amounts[i].amount);
             assert!(
                 amount_op.is_some(),

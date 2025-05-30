@@ -18,7 +18,10 @@ public struct TokenAdminRegistryState has key, store {
 }
 
 public struct TokenConfig has store, drop, copy {
-    token_pool_address: address,
+    token_pool_package_id: address,
+    token_pool_state_address: address,
+    token_pool_module: String,
+    token_type: ascii::String,
     administrator: address,
     pending_administrator: address,
     type_proof: ascii::String,
@@ -26,14 +29,14 @@ public struct TokenConfig has store, drop, copy {
 
 public struct PoolSet has copy, drop {
     coin_metadata_address: address,
-    previous_pool_address: address,
-    new_pool_address: address,
+    previous_pool_package_id: address,
+    new_pool_package_id: address,
     type_proof: ascii::String,
 }
 
 public struct PoolRegistered has copy, drop {
     coin_metadata_address: address,
-    token_pool_address: address,
+    token_pool_package_id: address,
     administrator: address,
     type_proof: ascii::String,
 }
@@ -88,13 +91,13 @@ public fun get_pools(
 ): vector<address>{
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
-    let mut token_pool_addresses: vector<address> = vector::empty();
+    let mut token_pool_addresses: vector<address> = vector[];
     coin_metadata_addresses.do_ref!(
         |metadata_address| {
             let metadata_address: address = *metadata_address;
             if (state.token_configs.contains(metadata_address)) {
                 let token_config = state.token_configs.borrow(metadata_address);
-                token_pool_addresses.push_back(token_config.token_pool_address);
+                token_pool_addresses.push_back(token_config.token_pool_package_id);
             } else {
                 // returns @0x0 for assets without token pools.
                 token_pool_addresses.push_back(@0x0);
@@ -105,6 +108,38 @@ public fun get_pools(
     token_pool_addresses
 }
 
+public fun get_pool_infos(
+    ref: &CCIPObjectRef,
+    coin_metadata_addresses: vector<address>
+): (vector<address>, vector<address>, vector<String>, vector<ascii::String>) {
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+
+    let mut token_pool_package_ids: vector<address> = vector[];
+    let mut token_pool_state_addresses: vector<address> = vector[];
+    let mut token_pool_modules: vector<String> = vector[];
+    let mut token_types: vector<ascii::String> = vector[];
+    coin_metadata_addresses.do_ref!(
+        |metadata_address| {
+            let metadata_address: address = *metadata_address;
+            if (state.token_configs.contains(metadata_address)) {
+                let token_config = state.token_configs.borrow(metadata_address);
+                token_pool_package_ids.push_back(token_config.token_pool_package_id);
+                token_pool_state_addresses.push_back(token_config.token_pool_state_address);
+                token_pool_modules.push_back(token_config.token_pool_module);
+                token_types.push_back(token_config.token_type);
+            } else {
+                // returns @0x0 for assets without token pools.
+                token_pool_package_ids.push_back(@0x0);
+                token_pool_state_addresses.push_back(@0x0);
+                token_pool_modules.push_back(string::utf8(b""));
+                token_types.push_back(ascii::string(b""));
+            }
+        }
+    );
+
+    (token_pool_package_ids, token_pool_state_addresses, token_pool_modules, token_types)
+}
+
 // this function can also take a coin metadata or a coin::zero
 // but that requires adding a type parameter to the function
 public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): address {
@@ -112,7 +147,7 @@ public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): addres
 
     if (state.token_configs.contains(coin_metadata_address)) {
         let token_config = state.token_configs.borrow(coin_metadata_address);
-        token_config.token_pool_address
+        token_config.token_pool_package_id
     } else {
         // returns @0x0 for assets without token pools.
         @0x0
@@ -121,19 +156,22 @@ public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): addres
 
 public fun get_token_config(
     ref: &CCIPObjectRef, coin_metadata_address: address
-): (address, address, address, ascii::String) {
+): (address, address, String, ascii::String, address, address, ascii::String) {
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     if (state.token_configs.contains(coin_metadata_address)) {
         let token_config = state.token_configs.borrow(coin_metadata_address);
         (
-            token_config.token_pool_address,
+            token_config.token_pool_package_id,
+            token_config.token_pool_state_address,
+            token_config.token_pool_module,
+            token_config.token_type,
             token_config.administrator,
             token_config.pending_administrator,
             token_config.type_proof,
         )
     } else {
-        (@0x0, @0x0, @0x0, ascii::string(b""))
+        (@0x0, @0x0, string::utf8(b""), ascii::string(b""), @0x0, @0x0, ascii::string(b""))
     }
 }
 
@@ -199,7 +237,10 @@ public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
     coin_metadata: &CoinMetadata<T>,
-    token_pool_address: address,
+    token_pool_package_id: address,
+    token_pool_state_address: address,
+    token_pool_module: String,
+    token_type: ascii::String,
     initial_administrator: address,
     _proof: TypeProof,
 ) {
@@ -208,7 +249,10 @@ public fun register_pool<T, TypeProof: drop>(
     register_pool_internal(
         ref,
         coin_metadata_address,
-        token_pool_address,
+        token_pool_package_id,
+        token_pool_state_address,
+        token_pool_module,
+        token_type,
         initial_administrator,
         type_name::into_string(proof_tn),
     );
@@ -217,7 +261,10 @@ public fun register_pool<T, TypeProof: drop>(
 public fun register_pool_by_admin(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
-    token_pool_address: address,
+    token_pool_package_id: address,
+    token_pool_state_address: address,
+    token_pool_module: String,
+    token_type: ascii::String,
     initial_administrator: address,
     proof: ascii::String,
     ctx: &mut TxContext,
@@ -230,7 +277,10 @@ public fun register_pool_by_admin(
     register_pool_internal(
         ref,
         coin_metadata_address,
-        token_pool_address,
+        token_pool_package_id,
+        token_pool_state_address,
+        token_pool_module,
+        token_type,
         initial_administrator,
         proof,
     );
@@ -239,7 +289,10 @@ public fun register_pool_by_admin(
 fun register_pool_internal(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
-    token_pool_address: address,
+    token_pool_package_id: address,
+    token_pool_state_address: address,
+    token_pool_module: String,
+    token_type: ascii::String,
     initial_administrator: address,
     proof: ascii::String,
 ) {
@@ -250,7 +303,10 @@ fun register_pool_internal(
     );
 
     let token_config = TokenConfig {
-        token_pool_address,
+        token_pool_package_id,
+        token_pool_state_address,
+        token_pool_module,
+        token_type,
         administrator: initial_administrator,
         pending_administrator: @0x0,
         type_proof: proof,
@@ -261,7 +317,7 @@ fun register_pool_internal(
     event::emit(
         PoolRegistered {
             coin_metadata_address,
-            token_pool_address,
+            token_pool_package_id,
             administrator: initial_administrator,
             type_proof: proof,
         }
@@ -288,7 +344,7 @@ public fun unregister_pool(
         E_NOT_ADMINISTRATOR
     );
 
-    let previous_pool_address = token_config.token_pool_address;
+    let previous_pool_address = token_config.token_pool_package_id;
 
     event::emit(
         PoolUnregistered {
@@ -301,9 +357,11 @@ public fun unregister_pool(
 public fun set_pool<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
-    token_pool_address: address,
+    token_pool_package_id: address,
+    token_pool_state_address: address,
+    token_pool_module: String,
     _: TypeProof,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
@@ -320,9 +378,14 @@ public fun set_pool<TypeProof: drop>(
         E_NOT_ADMINISTRATOR
     );
 
-    let previous_pool_address = token_config.token_pool_address;
-    if (previous_pool_address != token_pool_address) {
-        token_config.token_pool_address = token_pool_address;
+    // TODO: sort out the UX here.
+    // no need to update the token_type becuase it's the same for the same token
+    // but as the token pool changes, the package id, state address, module, and type proof will change.
+    let previous_pool_package_id = token_config.token_pool_package_id;
+    if (previous_pool_package_id != token_pool_package_id) {
+        token_config.token_pool_package_id = token_pool_package_id;
+        token_config.token_pool_state_address = token_pool_state_address;
+        token_config.token_pool_module = token_pool_module;
         let proof_tn = type_name::get<TypeProof>();
         let proof_str = type_name::into_string(proof_tn);
         token_config.type_proof = proof_str;
@@ -330,8 +393,8 @@ public fun set_pool<TypeProof: drop>(
         event::emit(
             PoolSet {
                 coin_metadata_address,
-                previous_pool_address,
-                new_pool_address: token_pool_address,
+                previous_pool_package_id,
+                new_pool_package_id: token_pool_package_id,
                 type_proof: proof_str,
             }
         );
@@ -412,22 +475,27 @@ public fun is_administrator(
 }
 
 #[test_only]
-public fun insert_token_addresses_for_test<TypeProof: drop>(
-    ref: &mut CCIPObjectRef, token_addresses: vector<address>, _proof: TypeProof
+public fun insert_token_configs_for_test<TypeProof: drop>(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_addresses: vector<address>,
+    _proof: TypeProof
 ) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
-
-    token_addresses.do_ref!(
-        |token_address| {
-            state.token_configs.push_back(
-                *token_address,
-                TokenConfig {
-                    token_pool_address: @0x0,
-                    administrator: @0x0,
-                    pending_administrator: @0x0,
-                    type_proof: ascii::string(b"TestProof"),
-                }
-            );
-        }
-    );
+    let mut i = 0;
+    while (i < coin_metadata_addresses.length()) {
+        let token_config = TokenConfig {
+            token_pool_package_id: @0x0,
+            token_pool_state_address: @0x0,
+            token_pool_module: string::utf8(b"TestModule"),
+            token_type: ascii::string(b"TestType"),
+            administrator: @0x0,
+            pending_administrator: @0x0,
+            type_proof: ascii::string(b"TestProof"),
+        };
+        state.token_configs.push_back(
+            coin_metadata_addresses[i],
+            token_config,
+        );
+        i = i + 1;
+    }
 }

@@ -1,6 +1,7 @@
 module lock_release_token_pool::lock_release_token_pool;
 
 use std::string::{Self, String};
+use std::type_name;
 
 use sui::bag::{Self, Bag};
 use sui::clock::Clock;
@@ -47,6 +48,7 @@ public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: &TreasuryCap<T>,
+    token_pool_package_id: address,
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
@@ -64,12 +66,16 @@ public fun initialize<T: drop>(
     };
     set_rebalancer_internal(&mut lock_release_token_pool, rebalancer);
     lock_release_token_pool.coin_store.add(COIN_STORE, coin::zero<T>(ctx));
+    let type_name = type_name::get<T>();
 
     token_admin_registry::register_pool(
         ref,
         treasury_cap,
         coin_metadata,
+        token_pool_package_id,
         object::uid_to_address(&lock_release_token_pool.id),
+        string::utf8(b"lock_release_token_pool"),
+        type_name.into_string(),
         ctx.sender(),
         TypeProof {},
     );
