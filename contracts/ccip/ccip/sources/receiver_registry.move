@@ -29,7 +29,8 @@ public struct ReceiverRegistry has key, store {
 }
 
 public struct ReceiverRegistered has copy, drop {
-    receiver_address: address,
+    receiver_package_id: address,
+    receiver_state_id: address,
     receiver_module_name: String,
     proof_typename: TypeName,
 }
@@ -80,7 +81,12 @@ public fun register_receiver<ProofType: drop>(
     };
     registry.receiver_configs.insert(receiver_package_id, receiver_config);
 
-    event::emit(ReceiverRegistered { receiver_address: receiver_package_id, receiver_module_name, proof_typename });
+    event::emit(ReceiverRegistered {
+        receiver_package_id,
+        receiver_state_id,
+        receiver_module_name,
+        proof_typename,
+    });
 }
 
 public fun get_receiver_config(

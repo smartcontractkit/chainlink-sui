@@ -529,7 +529,6 @@ public fun apply_allowlist_updates(
 // |                          Deconstruction                           |
 // ================================================================
 
-#[test_only]
 public fun destroy_token_pool(state: TokenPoolState) {
     let TokenPoolState {
         allowlist_state,

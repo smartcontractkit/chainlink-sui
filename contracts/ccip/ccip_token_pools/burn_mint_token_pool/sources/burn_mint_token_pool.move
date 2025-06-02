@@ -16,6 +16,7 @@ use ccip_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct OwnerCap has key, store {
     id: UID,
+    state_id: ID,
 }
 
 // TODO: ownership model
@@ -26,8 +27,9 @@ public struct BurnMintTokenPoolState<phantom T> has key {
     treasury_cap: TreasuryCap<T>,
 }
 
-const E_INVALID_COIN_METADATA: u64 = 1;
-const E_INVALID_ARGUMENTS: u64 = 2;
+const EInvalidCoinMetadata: u64 = 1;
+const EInvalidArguments: u64 = 2;
+const EInvalidOwnerCap: u64 = 3;
 
 // ================================================================
 // |                             Init                             |
@@ -48,7 +50,7 @@ public fun initialize<T: drop>(
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(
         coin_metadata_address == @burn_mint_local_token,
-        E_INVALID_COIN_METADATA
+        EInvalidCoinMetadata
     );
 
     let burn_mint_token_pool = BurnMintTokenPoolState<T> {
@@ -72,6 +74,7 @@ public fun initialize<T: drop>(
 
     let owner_cap = OwnerCap {
         id: object::new(ctx),
+        state_id: object::id(&burn_mint_token_pool),
     };
 
     transfer::share_object(burn_mint_token_pool);
@@ -122,10 +125,11 @@ public fun get_remote_token<T>(
 
 public fun add_remote_pool<T>(
     state: &mut BurnMintTokenPoolState<T>,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
     token_pool::add_remote_pool(
         &mut state.token_pool_state, remote_chain_selector, remote_pool_address
     );
@@ -133,10 +137,11 @@ public fun add_remote_pool<T>(
 
 public fun remove_remote_pool<T>(
     state: &mut BurnMintTokenPoolState<T>,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
 ) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
     token_pool::remove_remote_pool(
         &mut state.token_pool_state, remote_chain_selector, remote_pool_address
     );
@@ -155,12 +160,13 @@ public fun get_supported_chains<T>(state: &BurnMintTokenPoolState<T>): vector<u6
 
 public fun apply_chain_updates<T>(
     state: &mut BurnMintTokenPoolState<T>,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     remote_chain_selectors_to_remove: vector<u64>,
     remote_chain_selectors_to_add: vector<u64>,
     remote_pool_addresses_to_add: vector<vector<vector<u8>>>,
     remote_token_addresses_to_add: vector<vector<u8>>
 ) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
     token_pool::apply_chain_updates(
         &mut state.token_pool_state,
         remote_chain_selectors_to_remove,
@@ -180,10 +186,11 @@ public fun get_allowlist<T>(state: &BurnMintTokenPoolState<T>): vector<address> 
 
 public fun apply_allowlist_updates<T>(
     state: &mut BurnMintTokenPoolState<T>,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     removes: vector<address>,
     adds: vector<address>
 ) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
     token_pool::apply_allowlist_updates(&mut state.token_pool_state, removes, adds);
 }
 
@@ -235,7 +242,6 @@ public fun lock_or_burn<T>(
     )
 }
 
-// TODO: if there are more validations to be done
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     clock: &Clock,
@@ -289,7 +295,7 @@ public fun release_or_mint<T>(
 
 public fun set_chain_rate_limiter_configs<T>(
     state: &mut BurnMintTokenPoolState<T>,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     clock: &Clock,
     remote_chain_selectors: vector<u64>,
     outbound_is_enableds: vector<bool>,
@@ -299,6 +305,7 @@ public fun set_chain_rate_limiter_configs<T>(
     inbound_capacities: vector<u64>,
     inbound_rates: vector<u64>
 ) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
     let number_of_chains = remote_chain_selectors.length();
 
     assert!(
@@ -308,7 +315,7 @@ public fun set_chain_rate_limiter_configs<T>(
             && number_of_chains == inbound_is_enableds.length()
             && number_of_chains == inbound_capacities.length()
             && number_of_chains == inbound_rates.length(),
-        E_INVALID_ARGUMENTS
+        EInvalidArguments
     );
 
     let mut i = 0;
@@ -330,7 +337,7 @@ public fun set_chain_rate_limiter_configs<T>(
 
 public fun set_chain_rate_limiter_config<T>(
     state: &mut BurnMintTokenPoolState<T>,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     clock: &Clock,
     remote_chain_selector: u64,
     outbound_is_enabled: bool,
@@ -340,6 +347,7 @@ public fun set_chain_rate_limiter_config<T>(
     inbound_capacity: u64,
     inbound_rate: u64
 ) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
     token_pool::set_chain_rate_limiter_config(
         clock,
         &mut state.token_pool_state,
@@ -351,4 +359,30 @@ public fun set_chain_rate_limiter_config<T>(
         inbound_capacity,
         inbound_rate
     );
+}
+
+// destroy the burn mint token pool state and the owner cap, return the treasury cap to the owner
+// this should only be called after unregistering the pool from the token admin registry
+public fun destroy_token_pool<T>(
+    state: BurnMintTokenPoolState<T>,
+    owner_cap: OwnerCap,
+    _ctx: &mut TxContext,
+): TreasuryCap<T> {
+    assert!(owner_cap.state_id == object::id(&state), EInvalidOwnerCap);
+
+    let BurnMintTokenPoolState<T> {
+        id: state_id,
+        token_pool_state,
+        treasury_cap,
+    } = state;
+    token_pool::destroy_token_pool(token_pool_state);
+    object::delete(state_id);
+
+    let OwnerCap {
+        id: owner_cap_id,
+        state_id: _,
+    } = owner_cap;
+    object::delete(owner_cap_id);
+
+    treasury_cap
 }

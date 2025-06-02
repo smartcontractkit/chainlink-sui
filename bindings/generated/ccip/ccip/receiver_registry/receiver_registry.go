@@ -68,7 +68,8 @@ type ReceiverRegistry struct {
 }
 
 type ReceiverRegistered struct {
-	ReceiverAddress    string `move:"address"`
+	ReceiverPackageId  string `move:"address"`
+	ReceiverStateId    string `move:"address"`
 	ReceiverModuleName string `move:"0x1::string::String"`
 }
 
