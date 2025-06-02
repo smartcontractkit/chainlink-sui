@@ -81,6 +81,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 	// Set up the ChainReader
 	chainReaderConfig := ChainReaderConfig{
+		IsLoopPlugin: false,
 		Modules: map[string]*ChainReaderModule{
 			"counter": {
 				Name: "counter",

@@ -345,6 +345,8 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			return fmt.Errorf("failed to inspect transaction: %w", err)
 		}
 
+		c.log.Debugw("Function Read Response: ", "results", response)
+
 		if len(response.Results) == 0 {
 			return fmt.Errorf("no results from function call")
 		}

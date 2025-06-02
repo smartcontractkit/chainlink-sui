@@ -5,7 +5,8 @@
 # misc
 /.vscode
 *.log
-.idea/**
+.idea/
+.vscode/
 **/build/**
 .DS_Store
 *.cursor

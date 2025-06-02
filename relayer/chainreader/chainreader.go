@@ -1,6 +1,7 @@
 package chainreader
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,7 +17,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
@@ -67,7 +67,7 @@ func (s *suiChainReader) Close() error {
 	})
 }
 
-func (s *suiChainReader) Bind(ctx context.Context, bindings []types.BoundContract) error {
+func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
 	newBindings := map[string]string{}
 	for _, binding := range bindings {
 		// In Sui, we don't need to parse addresses, they're already in the correct format
@@ -85,7 +85,7 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []types.BoundContrac
 	return nil
 }
 
-func (s *suiChainReader) Unbind(ctx context.Context, bindings []types.BoundContract) error {
+func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
 	for _, binding := range bindings {
 		key := binding.Name
 
@@ -156,8 +156,41 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 		// Extract parameters from the params object
 		argMap := make(map[string]any)
-		if err := mapstructure.Decode(params, &argMap); err != nil {
-			return fmt.Errorf("failed to parse arguments: %w", err)
+
+		// If we're running as a LOOP plugin, we need to unmarshal the params as JSON
+		if s.config.IsLoopPlugin {
+			paramBytes := params.(*[]byte)
+
+			// TODO: do we need this? use json.Number to preserve numeric precision
+			decoder := json.NewDecoder(bytes.NewReader(*paramBytes))
+			decoder.UseNumber()
+
+			err := decoder.Decode(&argMap)
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal JSON params: %+w", err)
+			}
+
+			// Convert JSON-unmarshaled values back to proper Go types using existing encoder
+			convertedArgMap := make(map[string]any)
+			if functionConfig.Params != nil {
+				for _, paramConfig := range functionConfig.Params {
+					if jsonValue, exists := argMap[paramConfig.Name]; exists {
+						// we encode because when we unmarshal the params as JSON, we get a json.Number
+						// which is a string representation of a number. We need to convert it to the proper
+						// Go type.
+						convertedValue, err := codec.EncodeToSuiValue(paramConfig.Type, jsonValue)
+						if err != nil {
+							return fmt.Errorf("failed to convert parameter %s of type %s: %w", paramConfig.Name, paramConfig.Type, err)
+						}
+						convertedArgMap[paramConfig.Name] = convertedValue
+					}
+				}
+			}
+			argMap = convertedArgMap
+		} else {
+			if err := mapstructure.Decode(params, &argMap); err != nil {
+				return fmt.Errorf("failed to parse arguments: %w", err)
+			}
 		}
 
 		// Prepare arguments for the function call
@@ -203,40 +236,48 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 		s.logger.Debugw("Sui ReadFunction", "response", response.ReturnValues[0])
 
-		// Extract the array from the response
-		rawArray := response.ReturnValues[0].([]any)
-		s.logger.Debugw("Raw array value", "array", rawArray)
-
-		// TODO: move this into a helper when merging code with bindings
-		// Convert the array of interface{} to []byte
-		byteArray := make([]byte, len(rawArray))
-		for i, v := range rawArray {
-			// Convert each element to byte
-			if num, ok := v.(float64); ok {
-				byteArray[i] = byte(num)
-			}
+		// Parse the Sui response to extract the actual value
+		valueField, err = codec.ParseSuiResponseValue(response.ReturnValues[0])
+		if err != nil {
+			return fmt.Errorf("failed to parse Sui response: %w", err)
 		}
 
-		valueField = byteArray
+		s.logger.Debugw("Parsed value field", "valueField", valueField, "type", fmt.Sprintf("%T", valueField))
+	}
+
+	if s.config.IsLoopPlugin {
+		// Marshall the data as JSON for LOOP compatibility
+		resultBytes, err := json.Marshal(valueField)
+		if err != nil {
+			return fmt.Errorf("failed to marshal data for LOOP: %+w", err)
+		}
+		returnValPtr, ok := returnVal.(*[]byte)
+		if !ok {
+			return fmt.Errorf("return value is not a pointer to []byte as expected when running as a LOOP plugin")
+		}
+		*returnValPtr = make([]byte, len(resultBytes))
+		copy(*returnValPtr, resultBytes)
+
+		return nil
 	}
 
 	// Decode the return value into the provided structure
 	return codec.DecodeSuiJsonValue(valueField, returnVal)
 }
 
-func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types.BatchGetLatestValuesRequest) (types.BatchGetLatestValuesResult, error) {
-	result := make(types.BatchGetLatestValuesResult)
+func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgtypes.BatchGetLatestValuesRequest) (pkgtypes.BatchGetLatestValuesResult, error) {
+	result := make(pkgtypes.BatchGetLatestValuesResult)
 
 	for contract, batch := range request {
-		batchResults := make(types.ContractBatchResults, len(batch))
+		batchResults := make(pkgtypes.ContractBatchResults, len(batch))
 		resultChan := make(chan struct {
 			index  int
-			result types.BatchReadResult
+			result pkgtypes.BatchReadResult
 		}, len(batch))
 
 		for i, read := range batch {
-			go func(index int, read types.BatchRead) {
-				readResult := types.BatchReadResult{ReadName: read.ReadName}
+			go func(index int, read pkgtypes.BatchRead) {
+				readResult := pkgtypes.BatchReadResult{ReadName: read.ReadName}
 
 				err := s.GetLatestValue(ctx, contract.ReadIdentifier(read.ReadName), primitives.Finalized, read.Params, read.ReturnVal)
 				readResult.SetResult(read.ReturnVal, err)
@@ -244,7 +285,7 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types
 				select {
 				case resultChan <- struct {
 					index  int
-					result types.BatchReadResult
+					result pkgtypes.BatchReadResult
 				}{index, readResult}:
 				case <-ctx.Done():
 					return
@@ -267,7 +308,7 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request types
 	return result, nil
 }
 
-func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]types.Sequence, error) {
+func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]pkgtypes.Sequence, error) {
 	// Validate contract has a bound address
 	address, ok := s.packageAddresses[contract.Name]
 	if !ok {
@@ -349,7 +390,7 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 	}
 
 	// Transform events into the expected Sequence format
-	sequences := make([]types.Sequence, 0, len(eventsResponse.Data))
+	sequences := make([]pkgtypes.Sequence, 0, len(eventsResponse.Data))
 	for _, event := range eventsResponse.Data {
 		// Create new instance of eventData for each event
 		eventData := reflect.New(reflect.TypeOf(sequenceDataType).Elem()).Interface()
@@ -375,7 +416,7 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract types.BoundContr
 			return nil, fmt.Errorf("failed to get block by digest: %+w", err)
 		}
 
-		sequence := types.Sequence{
+		sequence := pkgtypes.Sequence{
 			Cursor: string(marshalledCursor),
 			Data:   eventData,
 			Head: pkgtypes.Head{
