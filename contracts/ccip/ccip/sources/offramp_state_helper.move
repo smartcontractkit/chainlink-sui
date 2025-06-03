@@ -1,9 +1,11 @@
 module ccip::offramp_state_helper;
 
 use std::type_name;
-use ccip::receiver_registry;
+
+use sui::coin::{Self, Coin};
 
 use ccip::client;
+use ccip::receiver_registry;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
 
@@ -11,6 +13,7 @@ const EWrongIndexInReceiverParams: u64 = 1;
 const ETokenTransferAlreadyCompleted: u64 = 2;
 const ETokenPoolAddressMismatch: u64 = 3;
 const ETypeProofMismatch: u64 = 4;
+const ETokenTypeMismatch: u64 = 5;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -135,6 +138,42 @@ public fun complete_token_transfer<TypeProof: drop>(
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
+    receiver_params.params[index].completed = true;
+    receiver_params.params[index].local_amount = local_amount;
+
+    receiver_params
+}
+
+public fun complete_token_transfer_new<T, TypeProof: drop>(
+    ref: &CCIPObjectRef,
+    mut receiver_params: ReceiverParams,
+    index: u64,
+    c: Coin<T>,
+    _: TypeProof,
+): ReceiverParams {
+    assert!(
+        index < receiver_params.params.length(),
+        EWrongIndexInReceiverParams,
+    );
+
+    let token_transfer = receiver_params.params[index];
+    assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
+    let (token_pool_package_id, _, _, coin_type, _,  _, type_proof) = registry::get_token_config(ref, token_transfer.dest_token_address);
+    assert!(
+        token_transfer.token_pool_address == token_pool_package_id,
+        ETokenPoolAddressMismatch,
+    );
+    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn_str = type_name::into_string(proof_tn);
+    assert!(type_proof == proof_tn_str, ETypeProofMismatch);
+
+    assert!(
+        coin_type == type_name::into_string(type_name::get<T>()),
+        ETokenTypeMismatch
+    );
+
+    let local_amount = coin::value(&c);
+    transfer::public_transfer(c, token_transfer.receiver);
     receiver_params.params[index].completed = true;
     receiver_params.params[index].local_amount = local_amount;
 

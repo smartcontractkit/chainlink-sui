@@ -285,7 +285,6 @@ public fun release_or_mint<T>(
         ETokenPoolBalanceTooLow
     );
     let c: Coin<T> = stored_coin.split(local_amount, ctx);
-    transfer::public_transfer(c, receiver);
 
     token_pool::emit_released_or_minted(
         &mut pool.token_pool_state,
@@ -294,11 +293,11 @@ public fun release_or_mint<T>(
         remote_chain_selector,
     );
 
-    osh::complete_token_transfer(
+    osh::complete_token_transfer_new(
         ref,
         receiver_params,
         index,
-        local_amount,
+        c,
         TypeProof {},
     )
 }

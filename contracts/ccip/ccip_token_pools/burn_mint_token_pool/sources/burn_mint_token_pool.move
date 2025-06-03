@@ -266,10 +266,9 @@ public fun release_or_mint<T>(
         local_amount
     );
 
-    coin::mint_and_transfer(
+    let c = coin::mint(
         &mut pool.treasury_cap,
         local_amount,
-        receiver,
         ctx,
     );
 
@@ -280,11 +279,11 @@ public fun release_or_mint<T>(
         remote_chain_selector,
     );
 
-    osh::complete_token_transfer(
+    osh::complete_token_transfer_new(
         ref,
         receiver_params,
         index,
-        local_amount,
+        c,
         TypeProof {},
     )
 }

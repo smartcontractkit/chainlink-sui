@@ -138,6 +138,7 @@ module ccip_onramp::onramp {
     const E_FEE_AGGREGATOR_NOT_SET: u64 = 11;
     const E_NONCE_MANAGER_CAP_EXISTS: u64 = 12;
     const E_SOURCE_TRANSFER_CAP_EXISTS: u64 = 13;
+    const E_CANNOT_SEND_ZERO_TOKENS: u64 = 14;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -660,6 +661,7 @@ module ccip_onramp::onramp {
 
         while (i < tokens_len) {
             let (source_pool, amount, source_token_address, dest_token_address, extra_data) = dd::get_source_token_transfer_data(params[i]);
+            assert!(amount > 0, E_CANNOT_SEND_ZERO_TOKENS);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
                     source_pool_address: source_pool,
