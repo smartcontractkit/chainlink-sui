@@ -28,6 +28,17 @@ module test::counter {
         admin_cap_id: address,
     }
 
+    // Struct that contains a list of addresses
+    public struct AddressList has copy, drop {
+        addresses: vector<address>,
+        count: u64,
+    }
+
+    // Simple struct for testing BCS decoding
+    public struct SimpleResult has copy, drop {
+        value: u64,
+    }
+
     fun init(ctx: &mut TxContext) {
         let counter = Counter { 
             id: object::new(ctx), 
@@ -162,4 +173,26 @@ module test::counter {
         vector::length(&arr)
     }
 
+    /// Returns a struct containing a list of addresses
+    public fun get_address_list(): AddressList {
+        let mut addresses = vector::empty<address>();
+        
+        // Add some sample addresses
+        vector::push_back(&mut addresses, @0x1);
+        vector::push_back(&mut addresses, @0x2);
+        vector::push_back(&mut addresses, @0x3);
+        vector::push_back(&mut addresses, @0x4);
+        
+        AddressList {
+            addresses,
+            count: vector::length(&addresses),
+        }
+    }
+
+    /// Returns a simple struct with a single value for BCS testing
+    public fun get_simple_result(): SimpleResult {
+        SimpleResult {
+            value: 42,
+        }
+    }
 }

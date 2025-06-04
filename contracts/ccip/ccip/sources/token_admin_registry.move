@@ -57,6 +57,14 @@ public struct AdministratorTransferred has copy, drop {
     new_admin: address
 }
 
+// Struct to hold pool information instead of returning a tuple of vectors
+public struct PoolInfos has copy, drop {
+    token_pool_package_ids: vector<address>,
+    token_pool_state_addresses: vector<address>,
+    token_pool_modules: vector<String>,
+    token_types: vector<ascii::String>,
+}
+
 const E_NOT_PENDING_ADMINISTRATOR: u64 = 1;
 const E_ALREADY_INITIALIZED: u64 = 2;
 const E_TOKEN_ALREADY_REGISTERED: u64 = 3;
@@ -111,7 +119,7 @@ public fun get_pools(
 public fun get_pool_infos(
     ref: &CCIPObjectRef,
     coin_metadata_addresses: vector<address>
-): (vector<address>, vector<address>, vector<String>, vector<ascii::String>) {
+): PoolInfos {
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     let mut token_pool_package_ids: vector<address> = vector[];
@@ -137,7 +145,12 @@ public fun get_pool_infos(
         }
     );
 
-    (token_pool_package_ids, token_pool_state_addresses, token_pool_modules, token_types)
+    PoolInfos {
+        token_pool_package_ids,
+        token_pool_state_addresses,
+        token_pool_modules,
+        token_types,
+    }
 }
 
 // this function can also take a coin metadata or a coin::zero

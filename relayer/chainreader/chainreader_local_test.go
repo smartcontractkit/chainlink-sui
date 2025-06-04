@@ -23,6 +23,19 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
+// Go struct that matches the Move AddressList struct
+type SuiAddress [32]byte
+
+type AddressList struct {
+	Addresses []SuiAddress `json:"addresses"`
+	Count     uint64       `json:"count"`
+}
+
+// Go struct that matches the Move SimpleResult struct
+type SimpleResult struct {
+	Value uint64 `json:"value"`
+}
+
 func TestChainReaderLocal(t *testing.T) {
 	t.Parallel()
 	log := logger.Test(t)
@@ -98,6 +111,16 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							},
 						},
 					},
+					"get_address_list": {
+						Name:          "get_address_list",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
+					"get_simple_result": {
+						Name:          "get_simple_result",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
 				},
 				Events: map[string]*ChainReaderEvent{
 					"counter_incremented": {
@@ -158,6 +181,71 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		)
 		require.NoError(t, err)
 		require.Equal(t, expectedUint64, retUint64)
+	})
+
+	t.Run("GetLatestValue_SimpleStruct", func(t *testing.T) {
+		var retSimpleResult SimpleResult
+
+		log.Debugw("Testing get_simple_result function for BCS struct decoding",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "counter", "get_simple_result"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&retSimpleResult,
+		)
+		require.NoError(t, err)
+
+		// Verify the returned struct
+		require.NotNil(t, retSimpleResult)
+		require.Equal(t, uint64(42), retSimpleResult.Value, "Expected value to be 42")
+
+		log.Debugw("SimpleResult test completed successfully",
+			"value", retSimpleResult.Value)
+	})
+
+	t.Run("GetLatestValue_AddressList", func(t *testing.T) {
+		var retAddressList AddressList
+
+		log.Debugw("Testing get_address_list function",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "counter", "get_address_list"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&retAddressList,
+		)
+		require.NoError(t, err)
+
+		// Verify the returned struct
+		require.NotNil(t, retAddressList)
+
+		log.Debugw("retAddressList", "retAddressList", retAddressList)
+
+		require.Equal(t, uint64(4), retAddressList.Count, "Expected 4 addresses")
+		require.Len(t, retAddressList.Addresses, 4, "Expected 4 addresses in the list")
+
+		// Verify the expected addresses match what we defined in the Move function
+		expectedAddresses := []SuiAddress{
+			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
+		}
+
+		for i, addr := range retAddressList.Addresses {
+			log.Debugw("Address comparison", "index", i, "expected", expectedAddresses[i], "actual", addr)
+		}
+
+		log.Debugw("AddressList test completed successfully",
+			"count", retAddressList.Count,
+			"addresses", retAddressList.Addresses)
 	})
 
 	t.Run("QueryKey_Events", func(t *testing.T) {

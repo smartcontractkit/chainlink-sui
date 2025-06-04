@@ -102,6 +102,12 @@ type AdministratorTransferred struct {
 	NewAdmin            string `move:"address"`
 }
 
+type PoolInfos struct {
+	TokenPoolPackageIds     []string `move:"vector<address>"`
+	TokenPoolStateAddresses []string `move:"vector<address>"`
+	TokenPoolModules        []string `move:"vector<String>"`
+}
+
 // Functions
 
 func (c *TokenAdminRegistryContract) TypeAndVersion() bind.IMethod {

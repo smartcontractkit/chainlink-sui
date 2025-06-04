@@ -11,117 +11,125 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fardream/go-bcs/bcs"
 	"github.com/mitchellh/mapstructure"
 )
 
-const BYTE_SIZE = 8
-const UINT8_BITS = 8
-const UINT16_BITS = 16
-const UINT32_BITS = 32
-const UINT64_BITS = 64
-const BASE_10 = 10
-const BASE_16 = 16
-
-// Additional constants for decoder
 const (
+	// Bit and byte constants
+	byteSize     = 8
+	uint8Bits    = 8
+	uint8Bytes   = 1
+	uint16Bits   = 16
+	uint16Bytes  = 2
+	uint32Bits   = 32
+	uint32Bytes  = 4
+	uint64Bits   = 64
+	uint64Bytes  = 8
+	bits128      = 128
+	bits128Bytes = 16
+	bits256      = 256
+	bits256Bytes = 32
+
+	// Number bases
+	base10 = 10
+	base16 = 16
+	base2  = 2
+
+	// Response parsing constants
 	maxByteValue        = 255
 	minResponseArrayLen = 2
 	bitShift            = 8
 )
 
-// DecodeSuiJsonValue takes Sui JSON-RPC response data and decodes it into the provided target
+// DecodeSuiJsonValue decodes Sui JSON-RPC response data into the provided target
 func DecodeSuiJsonValue(data any, target any) error {
 	if target == nil {
 		return fmt.Errorf("target cannot be nil")
 	}
 
-	// If data is already in the right format, just assign it
+	// Direct type match optimization
 	if reflect.TypeOf(data) == reflect.TypeOf(target).Elem() {
 		reflect.ValueOf(target).Elem().Set(reflect.ValueOf(data))
 		return nil
 	}
 
-	// Handle different types of data
 	targetValue := reflect.ValueOf(target).Elem()
 	targetType := targetValue.Type()
 
-	//nolint:exhaustive // default case handles remaining kinds
+	//nolint:exhaustive
 	switch targetType.Kind() {
 	case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8:
-		// Handle numeric types
 		return decodeNumeric(data, targetValue)
 	case reflect.String:
-		// Handle string type
-		if str, ok := data.(string); ok {
-			targetValue.SetString(str)
-			return nil
-		}
-
-		return fmt.Errorf("expected string, got %T", data)
+		return decodeString(data, targetValue)
 	case reflect.Slice:
-		// Handle slices
 		return decodeSlice(data, targetValue)
 	case reflect.Struct:
-		// Use mapstructure for struct types with hooks
-		config := &mapstructure.DecoderConfig{
-			DecodeHook: mapstructure.ComposeDecodeHookFunc(
-				hexStringHook,
-				base64StringHook,
-				numericStringHook,
-				booleanHook,
-				arrayHook,
-				mapstructure.StringToTimeDurationHookFunc(),
-			),
-			Result:           target,
-			WeaklyTypedInput: true,
-			TagName:          "json",
-		}
-
-		decoder, err := mapstructure.NewDecoder(config)
-		if err != nil {
-			return fmt.Errorf("failed to create decoder: %w", err)
-		}
-
-		return decoder.Decode(data)
+		return decodeStruct(data, target)
 	default:
-		// Attempt direct JSON unmarshaling for other types
-		jsonBytes, err := json.Marshal(data)
-		if err != nil {
-			return fmt.Errorf("failed to marshal data: %w", err)
-		}
-
-		return json.Unmarshal(jsonBytes, target)
+		return decodeGeneric(data, target)
 	}
+}
+
+// decodeString handles string type decoding
+func decodeString(data any, targetValue reflect.Value) error {
+	str, ok := data.(string)
+	if !ok {
+		return fmt.Errorf("expected string, got %T", data)
+	}
+	targetValue.SetString(str)
+
+	return nil
+}
+
+// decodeStruct handles struct decoding with mapstructure hooks
+func decodeStruct(data any, target any) error {
+	config := &mapstructure.DecoderConfig{
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			hexStringHook,
+			base64StringHook,
+			numericStringHook,
+			booleanHook,
+			arrayHook,
+			mapstructure.StringToTimeDurationHookFunc(),
+		),
+		Result:           target,
+		WeaklyTypedInput: true,
+		TagName:          "json",
+	}
+
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return fmt.Errorf("failed to create decoder: %w", err)
+	}
+
+	return decoder.Decode(data)
+}
+
+// decodeGeneric handles other types via JSON marshaling/unmarshaling
+func decodeGeneric(data any, target any) error {
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal data: %w", err)
+	}
+
+	return json.Unmarshal(jsonBytes, target)
 }
 
 // decodeNumeric handles numeric types (u64, u32, etc.)
 func decodeNumeric(data any, targetValue reflect.Value) error {
+	//nolint:exhaustive
 	switch v := data.(type) {
 	case float64:
-		//nolint:exhaustive // default case handles remaining kinds
-		switch targetValue.Kind() {
-		case reflect.Uint64:
-			targetValue.SetUint(uint64(v))
-		case reflect.Uint32:
-			targetValue.SetUint(uint64(v))
-		case reflect.Uint16:
-			targetValue.SetUint(uint64(v))
-		case reflect.Uint8:
-			targetValue.SetUint(uint64(v))
-		default:
-			return fmt.Errorf("unsupported target type for numeric value: %s", targetValue.Type())
-		}
-
-		return nil
+		return setNumericValue(targetValue, uint64(v))
 	case string:
-		// Numeric values can be returned as strings in JSON
-		n, err := strconv.ParseUint(v, 10, 64)
+		n, err := strconv.ParseUint(v, base10, uint64Bits)
 		if err != nil {
 			return fmt.Errorf("failed to parse string as number: %w", err)
 		}
-		targetValue.SetUint(n)
 
-		return nil
+		return setNumericValue(targetValue, n)
 	case json.Number:
 		n, err := v.Int64()
 		if err != nil {
@@ -130,72 +138,47 @@ func decodeNumeric(data any, targetValue reflect.Value) error {
 		if n < 0 {
 			return fmt.Errorf("cannot convert negative value %d to uint", n)
 		}
-		targetValue.SetUint(uint64(n))
 
-		return nil
+		return setNumericValue(targetValue, uint64(n))
 	case []byte:
-		if len(v) > 0 {
-			var result uint64
-			// Process bytes in little-endian order (least significant byte first)
-			for i := 0; i < len(v) && i < BYTE_SIZE; i++ {
-				result |= uint64(v[i]) << (BYTE_SIZE * i)
-			}
-			targetValue.SetUint(result)
-
-			return nil
-		}
-
-		return fmt.Errorf("empty byte array cannot be converted to numeric value")
+		return decodeNumericFromBytes(v, targetValue)
 	default:
 		return fmt.Errorf("unsupported data type for numeric target: %T", data)
 	}
+}
+
+// setNumericValue sets a numeric value on the target based on its kind
+func setNumericValue(targetValue reflect.Value, value uint64) error {
+	//nolint:exhaustive
+	switch targetValue.Kind() {
+	case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8:
+		targetValue.SetUint(value)
+		return nil
+	default:
+		return fmt.Errorf("unsupported target type for numeric value: %s", targetValue.Type())
+	}
+}
+
+// decodeNumericFromBytes converts a byte array to a numeric value (little-endian)
+func decodeNumericFromBytes(bytes []byte, targetValue reflect.Value) error {
+	if len(bytes) == 0 {
+		return fmt.Errorf("empty byte array cannot be converted to numeric value")
+	}
+
+	var result uint64
+	// Process bytes in little-endian order
+	for i := 0; i < len(bytes) && i < byteSize; i++ {
+		result |= uint64(bytes[i]) << (byteSize * i)
+	}
+
+	return setNumericValue(targetValue, result)
 }
 
 // decodeSlice handles slice types
 func decodeSlice(data any, targetValue reflect.Value) error {
 	// Handle string to []byte conversion
 	if str, ok := data.(string); ok && targetValue.Type().Elem().Kind() == reflect.Uint8 {
-		// Try to parse as numeric string first and convert to bytes
-		if num, err := strconv.ParseUint(str, 10, UINT64_BITS); err == nil {
-			// Convert number to byte slice (little-endian)
-			bytes := make([]byte, UINT64_BITS/UINT8_BITS) // Use 8 bytes for uint64
-			for i := range UINT8_BITS {
-				bytes[i] = byte(num >> (i * UINT8_BITS))
-			}
-			// Remove trailing zeros
-			for len(bytes) > 1 && bytes[len(bytes)-1] == 0 {
-				bytes = bytes[:len(bytes)-1]
-			}
-			targetValue.Set(reflect.ValueOf(bytes))
-
-			return nil
-		}
-
-		// Try hex decoding if numeric parsing failed
-		if strings.HasPrefix(str, "0x") {
-			hexStr := strings.TrimPrefix(str, "0x")
-			if len(hexStr)%2 == 1 {
-				hexStr = "0" + hexStr
-			}
-			bytes, err := hex.DecodeString(hexStr)
-			if err != nil {
-				return fmt.Errorf("failed to decode hex string: %w", err)
-			}
-			targetValue.Set(reflect.ValueOf(bytes))
-
-			return nil
-		}
-
-		// Try base64 decoding
-		if bytes, err := base64.StdEncoding.DecodeString(str); err == nil {
-			targetValue.Set(reflect.ValueOf(bytes))
-			return nil
-		}
-
-		// Otherwise convert string directly to bytes
-		targetValue.Set(reflect.ValueOf([]byte(str)))
-
-		return nil
+		return decodeStringToBytes(str, targetValue)
 	}
 
 	sourceSlice, ok := data.([]any)
@@ -203,6 +186,67 @@ func decodeSlice(data any, targetValue reflect.Value) error {
 		return fmt.Errorf("expected slice, got %T", data)
 	}
 
+	return decodeSliceElements(sourceSlice, targetValue)
+}
+
+// decodeStringToBytes converts various string formats to byte slices
+func decodeStringToBytes(str string, targetValue reflect.Value) error {
+	// Try numeric string first
+	if num, err := strconv.ParseUint(str, base10, uint64Bits); err == nil {
+		bytes := numericToBytes(num)
+		targetValue.Set(reflect.ValueOf(bytes))
+
+		return nil
+	}
+
+	// Try hex decoding
+	if strings.HasPrefix(str, "0x") {
+		return decodeHexToBytes(str, targetValue)
+	}
+
+	// Try base64 decoding
+	if bytes, err := base64.StdEncoding.DecodeString(str); err == nil {
+		targetValue.Set(reflect.ValueOf(bytes))
+		return nil
+	}
+
+	// Default: convert string directly to bytes
+	targetValue.Set(reflect.ValueOf([]byte(str)))
+
+	return nil
+}
+
+// numericToBytes converts a number to byte slice (little-endian)
+func numericToBytes(num uint64) []byte {
+	bytes := make([]byte, uint64Bits/uint8Bits)
+	for i := range uint8Bits {
+		bytes[i] = byte(num >> (i * uint8Bits))
+	}
+	// Remove trailing zeros
+	for len(bytes) > 1 && bytes[len(bytes)-1] == 0 {
+		bytes = bytes[:len(bytes)-1]
+	}
+
+	return bytes
+}
+
+// decodeHexToBytes decodes hex string to bytes
+func decodeHexToBytes(str string, targetValue reflect.Value) error {
+	hexStr := strings.TrimPrefix(str, "0x")
+	if len(hexStr)%2 == 1 {
+		hexStr = "0" + hexStr
+	}
+	bytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return fmt.Errorf("failed to decode hex string: %w", err)
+	}
+	targetValue.Set(reflect.ValueOf(bytes))
+
+	return nil
+}
+
+// decodeSliceElements decodes individual slice elements
+func decodeSliceElements(sourceSlice []any, targetValue reflect.Value) error {
 	elemType := targetValue.Type().Elem()
 	slice := reflect.MakeSlice(targetValue.Type(), len(sourceSlice), len(sourceSlice))
 
@@ -219,13 +263,344 @@ func decodeSlice(data any, targetValue reflect.Value) error {
 	return nil
 }
 
+// DecodeBase64 decodes a base64 encoded string
 func DecodeBase64(encoded string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(encoded)
 }
 
-// hexStringHook handles hex string conversions (ported from Aptos)
+// AnySliceToBytes converts slice of interface{} to byte slice
+func AnySliceToBytes(src []any) ([]byte, error) {
+	dst := make([]byte, len(src))
+	for i, v := range src {
+		//nolint:exhaustive
+		switch x := v.(type) {
+		case uint8:
+			dst[i] = x
+		case int:
+			if x < 0 || x > maxByteValue {
+				return nil, fmt.Errorf("element %d: int %d out of byte range", i, x)
+			}
+			dst[i] = byte(x)
+		case uint:
+			if x > maxByteValue {
+				return nil, fmt.Errorf("element %d: uint %d out of byte range", i, x)
+			}
+			dst[i] = byte(x)
+		default:
+			return nil, fmt.Errorf("element %d: unsupported type %T", i, v)
+		}
+	}
+
+	return dst, nil
+}
+
+// ParseSuiResponseValue extracts the actual value from Sui's response format
+func ParseSuiResponseValue(rawResponse any) (any, error) {
+	responseArray, ok := rawResponse.([]any)
+	if !ok {
+		return nil, fmt.Errorf("expected Sui response to be an array, got %T", rawResponse)
+	}
+
+	if len(responseArray) < minResponseArrayLen {
+		return nil, fmt.Errorf("expected Sui response array to have at least 2 elements, got %d", len(responseArray))
+	}
+
+	responseValue := responseArray[0]
+	responseType, ok := responseArray[1].(string)
+	if !ok {
+		return nil, fmt.Errorf("expected second response element to be type string, got %T", responseArray[1])
+	}
+
+	return parseValueByType(responseValue, responseType)
+}
+
+// parseValueByType parses response value based on its Sui type
+func parseValueByType(responseValue any, responseType string) (any, error) {
+	//nolint:exhaustive
+	switch {
+	case isUintType(responseType):
+		return parseUintValue(responseValue, responseType)
+	case isBigUintType(responseType):
+		return parseBigUintValue(responseValue)
+	case responseType == "bool":
+		return responseValue, nil
+	case isStringType(responseType):
+		return parseStringValue(responseValue)
+	case isVectorType(responseType):
+		return responseValue, nil
+	case isTupleType(responseType):
+		return parseTupleValue(responseValue, responseType)
+	case isStructType(responseType):
+		return parseStructValue(responseValue)
+	default:
+		return responseValue, nil
+	}
+}
+
+// Type checking helper functions
+func isUintType(t string) bool {
+	return t == "u8" || t == "u16" || t == "u32" || t == "u64"
+}
+
+func isBigUintType(t string) bool {
+	return t == "u128" || t == "u256"
+}
+
+func isStringType(t string) bool {
+	return strings.Contains(t, "string")
+}
+
+func isVectorType(t string) bool {
+	return strings.HasPrefix(t, "vector<")
+}
+
+func isTupleType(t string) bool {
+	return strings.Contains(t, ",")
+}
+
+func isStructType(t string) bool {
+	parts := strings.Split(t, "::")
+	return len(parts) == 3 && strings.HasPrefix(parts[0], "0x")
+}
+
+// parseUintValue handles parsing of uint types
+func parseUintValue(responseValue any, responseType string) (any, error) {
+	byteArray, ok := responseValue.([]any)
+	if !ok {
+		return responseValue, nil
+	}
+
+	expectedBytes := getExpectedBytesForUintType(responseType)
+	if len(byteArray) != expectedBytes {
+		return nil, fmt.Errorf("expected %d bytes for %s, got %d", expectedBytes, responseType, len(byteArray))
+	}
+
+	return convertBytesToUint64(byteArray)
+}
+
+// getExpectedBytesForUintType returns expected byte length for uint types
+func getExpectedBytesForUintType(responseType string) int {
+	switch responseType {
+	case "u8":
+		return uint8Bytes
+	case "u16":
+		return uint16Bytes
+	case "u32":
+		return uint32Bytes
+	case "u64":
+		return uint64Bytes
+	case "u128":
+		return bits128Bytes
+	case "u256":
+		return bits256Bytes
+	default:
+		return uint64Bytes
+	}
+}
+
+// convertBytesToUint64 converts byte array to uint64 (little-endian)
+func convertBytesToUint64(byteArray []any) (uint64, error) {
+	var result uint64
+	for i, v := range byteArray {
+		num, ok := v.(float64)
+		if !ok {
+			return 0, fmt.Errorf("expected byte value at index %d, got %T", i, v)
+		}
+		result |= uint64(byte(num)) << (i * bitShift)
+	}
+
+	return result, nil
+}
+
+// parseBigUintValue handles parsing of large uint types (u128, u256)
+func parseBigUintValue(responseValue any) (any, error) {
+	if byteArray, ok := responseValue.([]any); ok {
+		return convertBytesToBigInt(byteArray)
+	}
+
+	// Handle direct values
+	switch v := responseValue.(type) {
+	case float64:
+		return big.NewInt(int64(v)), nil
+	case string:
+		return parseBigIntFromString(v)
+	default:
+		return responseValue, nil
+	}
+}
+
+// convertBytesToBigInt converts byte array to big.Int
+func convertBytesToBigInt(byteArray []any) (*big.Int, error) {
+	bytesArray, err := AnySliceToBytes(byteArray)
+	if err != nil {
+		return nil, err
+	}
+
+	result := new(big.Int)
+	result.SetBytes(bytesArray)
+
+	return result, nil
+}
+
+// parseBigIntFromString parses big.Int from string
+func parseBigIntFromString(str string) (*big.Int, error) {
+	result := new(big.Int)
+	_, ok := result.SetString(str, base10)
+	if !ok {
+		return nil, fmt.Errorf("cannot parse string %s as big.Int", str)
+	}
+
+	return result, nil
+}
+
+// parseStringValue handles string type parsing
+func parseStringValue(responseValue any) (any, error) {
+	if byteArray, ok := responseValue.([]any); ok {
+		return convertBytesToString(byteArray)
+	}
+
+	return responseValue, nil
+}
+
+// convertBytesToString converts byte array to string
+func convertBytesToString(byteArray []any) (string, error) {
+	bytes := make([]byte, len(byteArray))
+	for i, v := range byteArray {
+		num, ok := v.(float64)
+		if !ok {
+			return "", fmt.Errorf("expected byte value at index %d, got %T", i, v)
+		}
+		bytes[i] = byte(num)
+	}
+
+	return string(bytes), nil
+}
+
+// parseTupleValue handles tuple type parsing
+func parseTupleValue(responseValue any, responseType string) (any, error) {
+	tupleArray, ok := responseValue.([]any)
+	if !ok {
+		return responseValue, nil
+	}
+
+	types := extractTupleTypes(responseType)
+	if len(tupleArray) != len(types) {
+		return nil, fmt.Errorf("tuple length mismatch: expected %d elements, got %d", len(types), len(tupleArray))
+	}
+
+	return convertTupleToMap(tupleArray, types)
+}
+
+// extractTupleTypes extracts individual types from tuple type string
+func extractTupleTypes(responseType string) []string {
+	typeStr := strings.Trim(responseType, "()")
+	return strings.Split(typeStr, ", ")
+}
+
+// convertTupleToMap converts tuple array to map with string keys
+func convertTupleToMap(tupleArray []any, types []string) (map[string]any, error) {
+	result := make(map[string]any)
+
+	for i, item := range tupleArray {
+		key := fmt.Sprintf("%d", i)
+
+		if i < len(types) {
+			elemType := strings.TrimSpace(types[i])
+			parsedValue, err := ParseSuiResponseValue([]any{item, elemType})
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse tuple element %d as %s: %w", i, elemType, err)
+			}
+			result[key] = parsedValue
+		} else {
+			result[key] = item
+		}
+	}
+
+	return result, nil
+}
+
+// parseStructValue handles Move struct type parsing
+func parseStructValue(responseValue any) (any, error) {
+	byteArray, ok := responseValue.([]any)
+	if !ok {
+		return nil, fmt.Errorf("expected byte array for struct type, got %T", responseValue)
+	}
+
+	return convertToBcsBytes(byteArray)
+}
+
+// ParseSuiResponseValueWithTarget extracts and decodes Sui response into target
+func ParseSuiResponseValueWithTarget(rawResponse any, target any) error {
+	responseArray, ok := rawResponse.([]any)
+	if !ok {
+		return fmt.Errorf("expected Sui response to be an array, got %T", rawResponse)
+	}
+
+	if len(responseArray) < minResponseArrayLen {
+		return fmt.Errorf("expected Sui response array to have at least 2 elements, got %d", len(responseArray))
+	}
+
+	responseValue := responseArray[0]
+	responseType, ok := responseArray[1].(string)
+	if !ok {
+		return fmt.Errorf("expected second response element to be type string, got %T", responseArray[1])
+	}
+
+	// Handle struct types with BCS decoding
+	if isStructType(responseType) {
+		return decodeBcsStruct(responseValue, responseType, target)
+	}
+
+	// Handle other types with standard parsing
+	parsedValue, err := ParseSuiResponseValue(rawResponse)
+	if err != nil {
+		return fmt.Errorf("failed to parse Sui response: %w", err)
+	}
+
+	return DecodeSuiJsonValue(parsedValue, target)
+}
+
+// decodeBcsStruct handles BCS decoding for struct types
+func decodeBcsStruct(responseValue any, responseType string, target any) error {
+	byteArray, ok := responseValue.([]any)
+	if !ok {
+		return fmt.Errorf("expected byte array for struct type %s, got %T", responseType, responseValue)
+	}
+
+	bcsBytes, err := convertToBcsBytes(byteArray)
+	if err != nil {
+		return fmt.Errorf("failed to convert to BCS bytes: %w", err)
+	}
+
+	_, err = bcs.Unmarshal(bcsBytes, target)
+	if err != nil {
+		return fmt.Errorf("failed to BCS decode struct type %s: %w", responseType, err)
+	}
+
+	return nil
+}
+
+// convertToBcsBytes converts interface slice to byte slice
+func convertToBcsBytes(byteArray []any) ([]byte, error) {
+	bcsBytes := make([]byte, len(byteArray))
+	for i, v := range byteArray {
+		if num, ok := v.(float64); ok {
+			bcsBytes[i] = byte(num)
+			continue
+		}
+
+		return nil, fmt.Errorf("expected float64 for BCS byte at index %d, got %T", i, v)
+	}
+
+	return bcsBytes, nil
+}
+
+// Mapstructure hook functions
+
+// hexStringHook handles hex string conversions
 func hexStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
-	if f.Kind() != reflect.String {
+	// if the source type is not a string or the target type is the same as the source type, we simply return the data as is
+	if f.Kind() != reflect.String || t.Kind() == f.Kind() {
 		return data, nil
 	}
 
@@ -236,78 +611,106 @@ func hexStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	str = strings.TrimPrefix(str, "0x")
 
-	// Handle single-field struct case first by recursing via DecodeSuiJsonValue
+	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		field := t.Field(0)
-		// Create a new zero value struct
-		newStructVal := reflect.New(t).Elem()
-		// Get a pointer to the field within the new struct
-		fieldPtr := newStructVal.Field(0).Addr().Interface()
-
-		// Recursively decode the original hex string data into the field pointer
-		if err := DecodeSuiJsonValue(data, fieldPtr); err != nil {
-			return nil, fmt.Errorf("failed decoding hex string for single-field struct %v field %s (%v): %w", t, field.Name, field.Type, err)
-		}
-		// Return the populated struct instance
-		return newStructVal.Interface(), nil
+		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
 	}
 
+	return processHexConversion(str, t)
+}
+
+// handleSingleFieldStruct processes structs with single fields
+func handleSingleFieldStruct(t reflect.Type, data any, decodeFn func(any, any) error) (any, error) {
+	field := t.Field(0)
+	newStructVal := reflect.New(t).Elem()
+	fieldPtr := newStructVal.Field(0).Addr().Interface()
+
+	if err := decodeFn(data, fieldPtr); err != nil {
+		return nil, fmt.Errorf("failed decoding for single-field struct %v field %s (%v): %w",
+			t, field.Name, field.Type, err)
+	}
+
+	return newStructVal.Interface(), nil
+}
+
+// processHexConversion handles hex string conversion based on target type
+func processHexConversion(hexStr string, t reflect.Type) (any, error) {
 	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.String:
-		return data, nil
+		return hexStr, nil
 	case reflect.Slice:
-		if t.Elem().Kind() != reflect.Uint8 {
-			return nil, fmt.Errorf("unsupported target slice element type for hex string conversion: %v", t.Elem().Kind())
-		}
-		if str == "" {
-			return []uint8{}, nil
-		} else if len(str)%2 == 1 {
-			str = "0" + str
-		}
-
-		return hex.DecodeString(str)
+		return processHexToSlice(hexStr, t)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.ParseUint(str, BASE_16, UINT64_BITS)
+		return strconv.ParseUint(hexStr, base16, uint64Bits)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		val, err := strconv.ParseInt(str, BASE_16, UINT64_BITS)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse hex to int: %w", err)
-		}
-
-		return reflect.ValueOf(val).Convert(t).Interface(), nil
+		return processHexToInt(hexStr, t)
 	case reflect.Ptr:
-		if t == reflect.TypeOf((*big.Int)(nil)) {
-			bi := new(big.Int)
-			bi.SetString(str, BASE_16)
-
-			return bi, nil
-		}
+		return processHexToPointer(hexStr, t)
 	case reflect.Array:
-		if t.Elem().Kind() == reflect.Uint8 {
-			if str == "" {
-				return []uint8{}, nil
-			} else if len(str)%2 == 1 {
-				str = "0" + str
-			}
-			bytes, err := hex.DecodeString(str)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode hex string %q: %w", str, err)
-			}
-			out := make([]uint8, t.Len())
-			copy(out, bytes)
-
-			return out, nil
-		}
-
-		return nil, fmt.Errorf("unsupported target array element type for hex string conversion: %v", t.Elem().Kind())
+		return processHexToArray(hexStr, t)
 	case reflect.Interface:
-		// return the original value for type "any" as target
-		return data, nil
+		return "0x" + hexStr, nil
 	default:
+		return nil, fmt.Errorf("unsupported target type for hex string conversion: %v", t.Kind())
+	}
+}
+
+// processHexToSlice converts hex string to byte slice
+func processHexToSlice(hexStr string, t reflect.Type) (any, error) {
+	if t.Elem().Kind() != reflect.Uint8 {
+		return nil, fmt.Errorf("unsupported target slice element type for hex string conversion: %v", t.Elem().Kind())
 	}
 
-	return nil, fmt.Errorf("unsupported target type for hex string conversion: %v", t.Kind())
+	if hexStr == "" {
+		return []uint8{}, nil
+	}
+
+	if len(hexStr)%2 == 1 {
+		hexStr = "0" + hexStr
+	}
+
+	return hex.DecodeString(hexStr)
+}
+
+// processHexToInt converts hex string to integer types
+func processHexToInt(hexStr string, t reflect.Type) (any, error) {
+	val, err := strconv.ParseInt(hexStr, base16, uint64Bits)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse hex to int: %w", err)
+	}
+
+	return reflect.ValueOf(val).Convert(t).Interface(), nil
+}
+
+// processHexToPointer converts hex string for pointer types
+func processHexToPointer(hexStr string, t reflect.Type) (any, error) {
+	if t == reflect.TypeOf((*big.Int)(nil)) {
+		bi := new(big.Int)
+		bi.SetString(hexStr, base16)
+
+		return bi, nil
+	}
+
+	return nil, fmt.Errorf("unsupported pointer type for hex conversion: %v", t)
+}
+
+// processHexToArray converts hex string to array types
+func processHexToArray(hexStr string, t reflect.Type) (any, error) {
+	if t.Elem().Kind() != reflect.Uint8 {
+		return nil, fmt.Errorf("unsupported target array element type for hex string conversion: %v", t.Elem().Kind())
+	}
+
+	bytes, err := processHexToSlice(hexStr, reflect.SliceOf(t.Elem()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode hex string %q: %w", hexStr, err)
+	}
+
+	byteSlice := bytes.([]byte)
+	out := make([]uint8, t.Len())
+	copy(out, byteSlice)
+
+	return out, nil
 }
 
 // base64StringHook handles base64 string conversions
@@ -323,20 +726,11 @@ func base64StringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		field := t.Field(0)
-		newStructVal := reflect.New(t).Elem()
-		fieldPtr := newStructVal.Field(0).Addr().Interface()
-
-		if err := DecodeSuiJsonValue(data, fieldPtr); err != nil {
-			return nil, fmt.Errorf("failed decoding base64 string for single-field struct %v field %s (%v): %w", t, field.Name, field.Type, err)
-		}
-
-		return newStructVal.Interface(), nil
+		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
 	}
 
 	// Only try base64 decoding for byte slices
 	if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8 {
-		// Try base64 decoding
 		if bytes, err := base64.StdEncoding.DecodeString(str); err == nil {
 			return bytes, nil
 		}
@@ -345,7 +739,7 @@ func base64StringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 	return data, nil
 }
 
-// numericStringHook handles numeric string conversions (enhanced from existing)
+// numericStringHook handles numeric string conversions
 func numericStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 	if f.Kind() != reflect.String {
 		return data, nil
@@ -358,86 +752,90 @@ func numericStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		field := t.Field(0)
-		newStructVal := reflect.New(t).Elem()
-		fieldPtr := newStructVal.Field(0).Addr().Interface()
-
-		if err := DecodeSuiJsonValue(data, fieldPtr); err != nil {
-			return nil, fmt.Errorf("failed decoding numeric string for single-field struct %v field %s (%v): %w", t, field.Name, field.Type, err)
-		}
-
-		return newStructVal.Interface(), nil
+		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
 	}
 
+	return processNumericString(str, t)
+}
+
+// processNumericString handles numeric string conversion based on target type
+func processNumericString(str string, t reflect.Type) (any, error) {
 	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.String:
-		return data, nil
+		return str, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		val, err := strconv.ParseInt(str, 10, UINT64_BITS)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse string to int: %w", err)
-		}
-		if overflowInt(t, val) {
-			return nil, fmt.Errorf("value %d overflows %v", val, t)
-		}
-
-		return reflect.ValueOf(val).Convert(t).Interface(), nil
+		return processStringToInt(str, t)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		val, err := strconv.ParseUint(str, 10, UINT64_BITS)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse string to uint: %w", err)
-		}
-		if overflowUint(t, val) {
-			return nil, fmt.Errorf("value %d overflows %v", val, t)
-		}
-
-		return reflect.ValueOf(val).Convert(t).Interface(), nil
+		return processStringToUint(str, t)
 	case reflect.Float32, reflect.Float64:
-		val, err := strconv.ParseFloat(str, UINT64_BITS)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse string to float: %w", err)
-		}
-		if overflowFloat(t, val) {
-			return nil, fmt.Errorf("value %f overflows %v", val, t)
-		}
-
-		return reflect.ValueOf(val).Convert(t).Interface(), nil
+		return processStringToFloat(str, t)
 	case reflect.Slice:
-		// Handle string to byte slice conversion for numeric strings
-		if t.Elem().Kind() == reflect.Uint8 {
-			// Parse as number and convert to bytes
-			if num, err := strconv.ParseUint(str, 10, 64); err == nil {
-				// Convert number to byte slice (little-endian)
-				bytes := make([]byte, UINT8_BITS)
-				for i := range UINT8_BITS {
-					bytes[i] = byte(num >> (i * UINT8_BITS))
-				}
-				// Remove trailing zeros
-				for len(bytes) > 1 && bytes[len(bytes)-1] == 0 {
-					bytes = bytes[:len(bytes)-1]
-				}
-
-				return bytes, nil
-			}
-		}
-
-		return data, nil
+		return processStringToSlice(str, t)
 	case reflect.Ptr:
-		if t == reflect.TypeOf((*big.Int)(nil)) {
-			bi := new(big.Int)
-			_, ok := bi.SetString(str, BASE_10)
-			if !ok {
-				return nil, fmt.Errorf("failed to parse string as big.Int: %s", str)
-			}
-
-			return bi, nil
-		}
+		return processStringToPointer(str, t)
 	default:
-		return data, nil
+		return str, nil
+	}
+}
+
+// processStringToInt converts string to integer types
+func processStringToInt(str string, t reflect.Type) (any, error) {
+	val, err := strconv.ParseInt(str, base10, uint64Bits)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse string to int: %w", err)
+	}
+	if overflowInt(t, val) {
+		return nil, fmt.Errorf("value %d overflows %v", val, t)
 	}
 
-	return data, nil
+	return reflect.ValueOf(val).Convert(t).Interface(), nil
+}
+
+// processStringToUint converts string to unsigned integer types
+func processStringToUint(str string, t reflect.Type) (any, error) {
+	val, err := strconv.ParseUint(str, base10, uint64Bits)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse string to uint: %w", err)
+	}
+	if overflowUint(t, val) {
+		return nil, fmt.Errorf("value %d overflows %v", val, t)
+	}
+
+	return reflect.ValueOf(val).Convert(t).Interface(), nil
+}
+
+// processStringToFloat converts string to float types
+func processStringToFloat(str string, t reflect.Type) (any, error) {
+	val, err := strconv.ParseFloat(str, uint64Bits)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse string to float: %w", err)
+	}
+	if overflowFloat(t, val) {
+		return nil, fmt.Errorf("value %f overflows %v", val, t)
+	}
+
+	return reflect.ValueOf(val).Convert(t).Interface(), nil
+}
+
+// processStringToSlice handles string to byte slice conversion for numeric strings
+func processStringToSlice(str string, t reflect.Type) (any, error) {
+	if t.Elem().Kind() == reflect.Uint8 {
+		if num, err := strconv.ParseUint(str, base10, uint64Bits); err == nil {
+			return numericToBytes(num), nil
+		}
+	}
+
+	return str, nil
+}
+
+// processStringToPointer handles string to pointer conversion
+func processStringToPointer(str string, t reflect.Type) (any, error) {
+	if t == reflect.TypeOf((*big.Int)(nil)) {
+		return parseBigIntFromString(str)
+	}
+
+	return str, nil
 }
 
 // booleanHook handles boolean conversions
@@ -453,17 +851,14 @@ func booleanHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		field := t.Field(0)
-		newStructVal := reflect.New(t).Elem()
-		fieldPtr := newStructVal.Field(0).Addr().Interface()
-
-		if err := DecodeSuiJsonValue(data, fieldPtr); err != nil {
-			return nil, fmt.Errorf("failed decoding boolean for single-field struct %v field %s (%v): %w", t, field.Name, field.Type, err)
-		}
-
-		return newStructVal.Interface(), nil
+		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
 	}
 
+	return processBooleanConversion(boolValue, t)
+}
+
+// processBooleanConversion handles boolean conversion based on target type
+func processBooleanConversion(boolValue bool, t reflect.Type) (any, error) {
 	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.Bool:
@@ -483,7 +878,6 @@ func booleanHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 			return big.NewInt(0), nil
 		}
-	default:
 	}
 
 	return nil, fmt.Errorf("unsupported target type for boolean conversion: %v", t.Kind())
@@ -498,21 +892,18 @@ func arrayHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		field := t.Field(0)
-		newStructVal := reflect.New(t).Elem()
-		fieldPtr := newStructVal.Field(0).Addr().Interface()
-
-		if err := DecodeSuiJsonValue(data, fieldPtr); err != nil {
-			return nil, fmt.Errorf("failed decoding array for single-field struct %v field %s (%v): %w", t, field.Name, field.Type, err)
-		}
-
-		return newStructVal.Interface(), nil
+		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
 	}
 
 	if t.Kind() != reflect.Slice {
 		return data, nil
 	}
 
+	return processArrayConversion(data, t)
+}
+
+// processArrayConversion handles array to slice conversion
+func processArrayConversion(data any, t reflect.Type) (any, error) {
 	sourceSlice := reflect.ValueOf(data)
 	targetSlice := reflect.MakeSlice(t, sourceSlice.Len(), sourceSlice.Cap())
 
@@ -530,18 +921,17 @@ func arrayHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 	return targetSlice.Interface(), nil
 }
 
-// Overflow checking functions (ported from Aptos)
+// Overflow checking functions
 func overflowFloat(t reflect.Type, x float64) bool {
-	k := t.Kind()
 	//nolint:exhaustive
-	switch k {
+	switch t.Kind() {
 	case reflect.Float32:
 		return overflowFloat32(x)
 	case reflect.Float64:
 		return false
 	default:
+		panic("reflect: OverflowFloat of non-float type " + t.String())
 	}
-	panic("reflect: OverflowFloat of non-float type " + t.String())
 }
 
 func overflowFloat32(x float64) bool {
@@ -553,213 +943,27 @@ func overflowFloat32(x float64) bool {
 }
 
 func overflowInt(t reflect.Type, x int64) bool {
-	k := t.Kind()
 	//nolint:exhaustive
-	switch k {
+	switch t.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		bitSize := t.Size() * UINT8_BITS
-		trunc := (x << (UINT64_BITS - bitSize)) >> (UINT64_BITS - bitSize)
+		bitSize := t.Size() * uint8Bits
+		trunc := (x << (uint64Bits - bitSize)) >> (uint64Bits - bitSize)
 
 		return x != trunc
 	default:
+		panic("reflect: OverflowInt of non-int type " + t.String())
 	}
-	panic("reflect: OverflowFloat of non-float type " + t.String())
 }
 
 func overflowUint(t reflect.Type, x uint64) bool {
-	k := t.Kind()
 	//nolint:exhaustive
-	switch k {
+	switch t.Kind() {
 	case reflect.Uint, reflect.Uintptr, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		bitSize := t.Size() * UINT8_BITS
-		trunc := (x << (UINT64_BITS - bitSize)) >> (UINT64_BITS - bitSize)
+		bitSize := t.Size() * uint8Bits
+		trunc := (x << (uint64Bits - bitSize)) >> (uint64Bits - bitSize)
 
 		return x != trunc
 	default:
-	}
-	panic("reflect: OverflowUint of non-uint type " + t.String())
-}
-
-// AnySliceToBytes converts a slice of interface{} into a byte slice.
-// It returns an error if any element isn't a valid byte value.
-func AnySliceToBytes(src []any) ([]byte, error) {
-	dst := make([]byte, len(src))
-	for i, v := range src {
-		switch x := v.(type) {
-		case uint8:
-			dst[i] = x
-		case int:
-			if x < 0 || x > maxByteValue {
-				return nil, fmt.Errorf("element %d: int %d out of byte range", i, x)
-			}
-			dst[i] = byte(x)
-		case uint:
-			if x > maxByteValue {
-				return nil, fmt.Errorf("element %d: uint %d out of byte range", i, x)
-			}
-			dst[i] = byte(x)
-		default:
-			return nil, fmt.Errorf("element %d: unsupported type %T, need byte/int", i, v)
-		}
-	}
-
-	return dst, nil
-}
-
-// ParseSuiResponseValue extracts the actual value from Sui's response format
-// Sui responses come as [value, typeString] tuples, this function extracts the value part
-func ParseSuiResponseValue(rawResponse any) (any, error) {
-	responseArray, ok := rawResponse.([]any)
-	if !ok {
-		return nil, fmt.Errorf("expected Sui response to be an array, got %T", rawResponse)
-	}
-
-	if len(responseArray) < minResponseArrayLen {
-		return nil, fmt.Errorf("expected Sui response array to have at least 2 elements, got %d", len(responseArray))
-	}
-
-	// Extract the actual value (first element) and type (second element)
-	responseValue := responseArray[0]
-	responseType, ok := responseArray[1].(string)
-	if !ok {
-		return nil, fmt.Errorf("expected second response element to be type string, got %T", responseArray[1])
-	}
-
-	// Handle different response structures based on type
-	switch {
-	case responseType == "u64" || responseType == "u32" || responseType == "u16" || responseType == "u8":
-		// For uint types, convert byte array to actual number
-		if byteArray, ok := responseValue.([]any); ok {
-			// Determine expected byte length based on type
-			var expectedBytes int
-			switch responseType {
-			case "u8":
-				expectedBytes = 1
-			case "u16":
-				expectedBytes = 2
-			case "u32":
-				expectedBytes = 4
-			case "u64":
-				expectedBytes = 8
-			default:
-				expectedBytes = 8 // fallback
-			}
-
-			if len(byteArray) != expectedBytes {
-				return nil, fmt.Errorf("expected %d bytes for %s, got %d", expectedBytes, responseType, len(byteArray))
-			}
-
-			// Convert byte array to uint64 (little-endian)
-			var result uint64
-			for i, v := range byteArray {
-				num, ok := v.(float64)
-				if !ok {
-					return nil, fmt.Errorf("expected byte value at index %d, got %T", i, v)
-				}
-				result |= uint64(byte(num)) << (i * bitShift)
-			}
-
-			return result, nil
-		}
-
-		return responseValue, nil
-
-	case responseType == "u128" || responseType == "u256":
-		// For large uints, return as *big.Int so JSON marshaling works correctly in LOOP mode
-		if byteArray, ok := responseValue.([]any); ok {
-			// Convert byte array to big.Int (little-endian)
-			result := new(big.Int)
-			bytesArray, err := AnySliceToBytes(byteArray)
-			if err != nil {
-				return nil, err
-			}
-			result.SetBytes(bytesArray)
-
-			return result, nil
-		}
-		// If it's already a number, convert to *big.Int
-		if num, ok := responseValue.(float64); ok {
-			return big.NewInt(int64(num)), nil
-		}
-		// If it's a string, parse as *big.Int
-		if str, ok := responseValue.(string); ok {
-			result := new(big.Int)
-			_, ok := result.SetString(str, BASE_10)
-			if !ok {
-				return nil, fmt.Errorf("cannot parse string %s as big.Int", str)
-			}
-
-			return result, nil
-		}
-
-		return responseValue, nil
-
-	case responseType == "bool":
-		return responseValue, nil
-
-	case strings.Contains(responseType, "string"):
-		// Handle string types - may come as byte array
-		if byteArray, ok := responseValue.([]any); ok {
-			bytes := make([]byte, len(byteArray))
-			for i, v := range byteArray {
-				num, ok := v.(float64)
-				if !ok {
-					return nil, fmt.Errorf("expected byte value at index %d, got %T", i, v)
-				}
-				bytes[i] = byte(num)
-			}
-
-			return string(bytes), nil
-		}
-
-		return responseValue, nil
-
-	case strings.HasPrefix(responseType, "vector<u8>"):
-		// Return byte arrays as-is for vector<u8>
-		return responseValue, nil
-
-	case strings.HasPrefix(responseType, "vector<"):
-		// Return other vectors as-is
-		return responseValue, nil
-
-	case strings.Contains(responseType, ","):
-		// Handle tuples - return as map with numeric string keys to match struct JSON tags
-		if tupleArray, ok := responseValue.([]any); ok {
-			// Extract individual types from the tuple type string
-			// e.g., "(u32, u64)" -> ["u32", "u64"]
-			typeStr := strings.Trim(responseType, "()")
-			types := strings.Split(typeStr, ", ")
-
-			if len(tupleArray) != len(types) {
-				return nil, fmt.Errorf("tuple length mismatch: expected %d elements, got %d", len(types), len(tupleArray))
-			}
-
-			// Return as map with string keys "0", "1", etc. to match JSON struct tags
-			result := make(map[string]any)
-			for i, item := range tupleArray {
-				if i < len(types) {
-					// Parse each tuple element according to its type
-					elemType := strings.TrimSpace(types[i])
-
-					// Create a fake response structure for each element to reuse our parsing logic
-					fakeResponse := []any{item, elemType}
-					parsedValue, err := ParseSuiResponseValue(fakeResponse)
-					if err != nil {
-						return nil, fmt.Errorf("failed to parse tuple element %d as %s: %w", i, elemType, err)
-					}
-					result[fmt.Sprintf("%d", i)] = parsedValue
-				} else {
-					result[fmt.Sprintf("%d", i)] = item
-				}
-			}
-
-			return result, nil
-		}
-
-		return responseValue, nil
-
-	default:
-		// For unknown types, return the value as-is
-		return responseValue, nil
+		panic("reflect: OverflowUint of non-uint type " + t.String())
 	}
 }

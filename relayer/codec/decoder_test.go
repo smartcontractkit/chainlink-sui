@@ -937,14 +937,14 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 
 		amount := float64(1000)
 		eventData := map[string]any{
-			"id":                "0x123",
-			"packageId":         "0x456",
+			"id":                "0xabcd1234",
+			"packageId":         "0x45678901",
 			"transactionModule": "test_module",
-			"sender":            "0x789",
-			"type":              "0x2::test::TestEvent",
+			"sender":            "0x12345678",
+			"type":              "0x12345678::test::TestEvent",
 			"parsedJson": map[string]any{
 				"amount":    amount,
-				"recipient": "0xabc",
+				"recipient": "0x12345678",
 			},
 			"bcs": base64.StdEncoding.EncodeToString([]byte("bcs_data")),
 		}
@@ -953,11 +953,11 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 		err := DecodeSuiJsonValue(eventData, &target)
 		require.NoError(t, err)
 
-		require.Equal(t, "0x123", target.ID)
-		require.Equal(t, "0x456", target.PackageID)
+		require.Equal(t, "0xabcd1234", target.ID)
+		require.Equal(t, "0x45678901", target.PackageID)
 		require.Equal(t, "test_module", target.TransactionModule)
-		require.Equal(t, "0x789", target.Sender)
-		require.Equal(t, "0x2::test::TestEvent", target.Type)
+		require.Equal(t, "0x12345678", target.Sender)
+		require.Equal(t, "0x12345678::test::TestEvent", target.Type)
 		require.NotNil(t, target.ParsedJSON)
 		require.InDelta(t, amount, target.ParsedJSON["amount"], 0.0)
 	})

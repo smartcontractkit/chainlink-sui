@@ -32,6 +32,8 @@ type ICounter interface {
 	IncrementMult(counter string, a uint64, b uint64) bind.IMethod
 	GetCount(counter string) bind.IMethod
 	GetCountNoEntry(counter string) bind.IMethod
+	GetAddressList() bind.IMethod
+	GetSimpleResult() bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -78,6 +80,15 @@ type CounterPointer struct {
 	Id         string `move:"sui::object::UID"`
 	CounterId  string `move:"address"`
 	AdminCapId string `move:"address"`
+}
+
+type AddressList struct {
+	Addresses []string `move:"vector<address>"`
+	Count     uint64   `move:"u64"`
+}
+
+type SimpleResult struct {
+	Value uint64 `move:"u64"`
 }
 
 // Functions
@@ -228,6 +239,34 @@ func (c *CounterContract) GetCountNoEntry(counter string) bind.IMethod {
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count_no_entry", false, "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_count_no_entry", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetAddressList() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_address_list", false, "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_address_list", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetSimpleResult() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_simple_result", false, "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_simple_result", err)
 		}
 
 		return ptb, nil

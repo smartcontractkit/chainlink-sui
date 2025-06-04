@@ -76,26 +76,28 @@ type EventFilterByMoveEventModule struct {
 	Event   string `json:"event"`
 }
 
+type EventData struct {
+	Id struct {
+		TxDigest string `json:"txDigest"`
+		EventSeq string `json:"eventSeq"`
+	} `json:"id"`
+	PackageId         string `json:"packageId"`
+	TransactionModule string `json:"transactionModule"`
+	Sender            string `json:"sender"`
+	Type              struct {
+		Address string `json:"address"`
+		Module  string `json:"module"`
+		Name    string `json:"name"`
+	} `json:"type"`
+	ParsedJson  any    `json:"parsedJson"`
+	Bcs         string `json:"bcs"`
+	TimestampMs string `json:"timestampMs"`
+}
+
 type PaginatedEventsResponse struct {
-	Data []struct {
-		Id struct {
-			TxDigest string `json:"txDigest"`
-			EventSeq string `json:"eventSeq"`
-		} `json:"id"`
-		PackageId         string `json:"packageId"`
-		TransactionModule string `json:"transactionModule"`
-		Sender            string `json:"sender"`
-		Type              struct {
-			Address string `json:"address"`
-			Module  string `json:"module"`
-			Name    string `json:"name"`
-		} `json:"type"`
-		ParsedJson  any    `json:"parsedJson"`
-		Bcs         string `json:"bcs"`
-		TimestampMs string `json:"timestampMs"`
-	} `json:"data"`
-	NextCursor  string `json:"nextCursor"`
-	HasNextPage bool   `json:"hasNextPage"`
+	Data        []EventData `json:"data"`
+	NextCursor  string      `json:"nextCursor"`
+	HasNextPage bool        `json:"hasNextPage"`
 }
 
 type EventId struct {

@@ -20,14 +20,6 @@ const (
 	maxUint8  = 255
 	maxUint16 = 65535
 	maxUint32 = 4294967295
-
-	// Number bases
-	base10 = 10
-	base2  = 2
-
-	// Bit sizes
-	bits128 = 128
-	bits256 = 256
 )
 
 // Safe conversion functions to avoid lint issues
