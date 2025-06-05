@@ -221,6 +221,7 @@ module ccip_offramp::offramp {
     const E_DEST_TRANSFER_CAP_EXISTS: u64 = 23;
     const E_RMN_BLESSING_MISMATCH: u64 = 24;
     const E_UNSUPPORTED_TOKEN: u64 = 25;
+    const E_INVALID_ON_RAMP_UPDATE: u64 = 25;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -354,7 +355,17 @@ module ccip_offramp::offramp {
 
             assert!(source_chain_selector != 0, E_ZERO_CHAIN_SELECTOR);
 
-            if (!state.source_chain_configs.contains(&source_chain_selector)) {
+            if (state.source_chain_configs.contains(&source_chain_selector)) {
+                // OnRamp updates should only happen due to a misconfiguration.
+                // If an OnRamp is misconfigured, no reports should have been
+                // committed and no messages should have been executed.
+                let existing_config =
+                    state.source_chain_configs.get(&source_chain_selector);
+                assert!(
+                    existing_config.min_seq_nr == 1 || existing_config.on_ramp == on_ramp,
+                    E_INVALID_ON_RAMP_UPDATE
+                );
+            } else {
                 state.source_chain_configs.insert(
                     source_chain_selector,
                     SourceChainConfig {
