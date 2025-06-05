@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -19,13 +20,14 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type INonceManager interface {
 	TypeAndVersion() bind.IMethod
 	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod
 	GetOutboundNonce(ref module_common.CCIPObjectRef, destChainSelector uint64, sender string) bind.IMethod
-	GetIncrementedOutboundNonce(ref module_common.CCIPObjectRef, param string, destChainSelector uint64, sender string) bind.IMethod
+	GetIncrementedOutboundNonce(ref module_common.CCIPObjectRef, param bind.Object, destChainSelector uint64, sender string) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -107,7 +109,7 @@ func (c *NonceManagerContract) GetOutboundNonce(ref module_common.CCIPObjectRef,
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *NonceManagerContract) GetIncrementedOutboundNonce(ref module_common.CCIPObjectRef, param string, destChainSelector uint64, sender string) bind.IMethod {
+func (c *NonceManagerContract) GetIncrementedOutboundNonce(ref module_common.CCIPObjectRef, param bind.Object, destChainSelector uint64, sender string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "get_incremented_outbound_nonce", false, "", ref, param, destChainSelector, sender)

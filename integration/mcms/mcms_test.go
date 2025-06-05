@@ -249,7 +249,7 @@ func TestMCMS(t *testing.T) {
 			},
 			{
 				Name:     "multisig_addr",
-				Type:     "object_id",
+				Type:     "vector<u8>",
 				Required: true,
 			},
 			{

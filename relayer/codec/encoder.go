@@ -1,7 +1,6 @@
 package codec
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,6 +12,8 @@ import (
 
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
 const (
@@ -72,6 +73,8 @@ func EncodeToSuiValue(typeName string, value any) (any, error) {
 	switch typeName {
 	case "address":
 		return encodeAddress(value)
+	case "object_id":
+		return encodeObject(value)
 	case "u8", "u16", "u32", "u64", "u128", "u256":
 		return encodeUint(typeName, value)
 	case "bool":
@@ -88,6 +91,15 @@ func EncodeToSuiValue(typeName string, value any) (any, error) {
 		}
 
 		return nil, fmt.Errorf("unsupported type: %s", typeName)
+	}
+}
+
+func encodeObject(value any) (bind.Object, error) {
+	switch v := value.(type) {
+	case bind.Object:
+		return bind.Object{Id: v.Id}, nil
+	default:
+		return bind.Object{}, fmt.Errorf("cannot convert %T to object", value)
 	}
 }
 
@@ -345,8 +357,4 @@ func encodeVector(typeName string, value any) ([]any, error) {
 	}
 
 	return encodedElements, nil
-}
-
-func EncodeBase64(data []byte) string {
-	return base64.StdEncoding.EncodeToString(data)
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
@@ -287,6 +288,14 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 				continue
 			}
 
+			if param.Type == "object_id" {
+				id, ok := argRawValue.(string)
+				if !ok {
+					return nil, fmt.Errorf("expected string for object id for param %s, got %T", param.Name, argRawValue)
+				}
+				argRawValue = bind.Object{Id: id}
+			}
+
 			// append to the array of args
 			processedArgValue, err := p.client.ToPTBArg(ctx, builder, argRawValue, IsMutable)
 			if err != nil {
@@ -303,7 +312,15 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 		// - arguments with default values do NOT have type arguments
 		// - objects do not have default values
 		if param.DefaultValue != nil {
-			ptbArg, err := p.client.ToPTBArg(ctx, builder, param.DefaultValue, IsMutable)
+			value := param.DefaultValue
+			if param.Type == "object_id" {
+				id, ok := param.DefaultValue.(string)
+				if !ok {
+					return nil, fmt.Errorf("expected string for object id for param %s, got %T", param.Name, param.DefaultValue)
+				}
+				value = bind.Object{Id: id}
+			}
+			ptbArg, err := p.client.ToPTBArg(ctx, builder, value, IsMutable)
 			if err != nil {
 				return nil, fmt.Errorf("failed to build default value for %s: %w", param.Name, err)
 			}

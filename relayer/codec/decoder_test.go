@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink-sui/shared"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -838,12 +840,12 @@ func TestDecodeBase64(t *testing.T) {
 	testData := []byte("Hello, World!")
 	encoded := base64.StdEncoding.EncodeToString(testData)
 
-	decoded, err := DecodeBase64(encoded)
+	decoded, err := shared.DecodeBase64(encoded)
 	require.NoError(t, err)
 	require.Equal(t, testData, decoded)
 
 	// Test invalid base64
-	_, err = DecodeBase64("invalid_base64!!!")
+	_, err = shared.DecodeBase64("invalid_base64!!!")
 	require.Error(t, err)
 }
 

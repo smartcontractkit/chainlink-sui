@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -19,22 +20,26 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type IOnramp interface {
 	TypeAndVersion() bind.IMethod
-	IsChainSupported(state string, destChainSelector uint64) bind.IMethod
-	GetExpectedNextSequenceNumber(state string, destChainSelector uint64) bind.IMethod
-	SetDynamicConfig(state string, param string, feeAggregator string, allowlistAdmin string) bind.IMethod
-	ApplyDestChainConfigUpdates(state string, param string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) bind.IMethod
-	GetDestChainConfig(state string, destChainSelector uint64) bind.IMethod
-	GetAllowedSendersList(state string, destChainSelector uint64) bind.IMethod
-	ApplyAllowlistUpdates(state string, param string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod
-	ApplyAllowlistUpdatesByAdmin(state string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod
+	Initialize(state bind.Object, param bind.Object, nonceManagerCap module_common.NonceManagerCap, sourceTransferCap module_common.SourceTransferCap, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) bind.IMethod
+	IsChainSupported(state bind.Object, destChainSelector uint64) bind.IMethod
+	GetExpectedNextSequenceNumber(state bind.Object, destChainSelector uint64) bind.IMethod
+	WithdrawFeeTokens(state bind.Object, param bind.Object, feeTokenMetadata bind.Object) bind.IMethod
+	GetFee(ref module_common.CCIPObjectRef, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) bind.IMethod
+	SetDynamicConfig(state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) bind.IMethod
+	ApplyDestChainConfigUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) bind.IMethod
+	GetDestChainConfig(state bind.Object, destChainSelector uint64) bind.IMethod
+	GetAllowedSendersList(state bind.Object, destChainSelector uint64) bind.IMethod
+	ApplyAllowlistUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod
+	ApplyAllowlistUpdatesByAdmin(state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod
 	GetOutboundNonce(ref module_common.CCIPObjectRef, destChainSelector uint64, sender string) bind.IMethod
-	GetStaticConfig(state string) bind.IMethod
+	GetStaticConfig(state bind.Object) bind.IMethod
 	GetStaticConfigFields(cfg StaticConfig) bind.IMethod
-	GetDynamicConfig(state string) bind.IMethod
+	GetDynamicConfig(state bind.Object) bind.IMethod
 	GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
@@ -70,10 +75,12 @@ type OwnerCap struct {
 }
 
 type OnRampState struct {
-	Id             string `move:"sui::object::UID"`
-	ChainSelector  uint64 `move:"u64"`
-	FeeAggregator  string `move:"address"`
-	AllowlistAdmin string `move:"address"`
+	Id                string                           `move:"sui::object::UID"`
+	ChainSelector     uint64                           `move:"u64"`
+	FeeAggregator     string                           `move:"address"`
+	AllowlistAdmin    string                           `move:"address"`
+	NonceManagerCap   *module_common.NonceManagerCap   `move:"0x1::option::Option<NonceManagerCap>"`
+	SourceTransferCap *module_common.SourceTransferCap `move:"0x1::option::Option<ccip::common::SourceTransferCap>"`
 }
 
 type OnRampStatePointer struct {
@@ -105,7 +112,7 @@ type Sui2AnyRampMessage struct {
 	ExtraArgs      []byte                 `move:"vector<u8>"`
 	FeeToken       string                 `move:"address"`
 	FeeTokenAmount uint64                 `move:"u64"`
-	FeeValueJuels  *big.Int               `move:"u256"`
+	FeeValueJuels  uint256.Int            `move:"u256"`
 	TokenAmounts   []Sui2AnyTokenTransfer `move:"vector<Sui2AnyTokenTransfer>"`
 }
 
@@ -179,7 +186,21 @@ func (c *OnrampContract) TypeAndVersion() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) IsChainSupported(state string, destChainSelector uint64) bind.IMethod {
+func (c *OnrampContract) Initialize(state bind.Object, param bind.Object, nonceManagerCap module_common.NonceManagerCap, sourceTransferCap module_common.SourceTransferCap, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "initialize", false, "", state, param, nonceManagerCap, sourceTransferCap, chainSelector, feeAggregator, allowlistAdmin, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "initialize", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) IsChainSupported(state bind.Object, destChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "is_chain_supported", false, "", state, destChainSelector)
@@ -193,7 +214,7 @@ func (c *OnrampContract) IsChainSupported(state string, destChainSelector uint64
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) GetExpectedNextSequenceNumber(state string, destChainSelector uint64) bind.IMethod {
+func (c *OnrampContract) GetExpectedNextSequenceNumber(state bind.Object, destChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_expected_next_sequence_number", false, "", state, destChainSelector)
@@ -207,7 +228,35 @@ func (c *OnrampContract) GetExpectedNextSequenceNumber(state string, destChainSe
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) SetDynamicConfig(state string, param string, feeAggregator string, allowlistAdmin string) bind.IMethod {
+func (c *OnrampContract) WithdrawFeeTokens(state bind.Object, param bind.Object, feeTokenMetadata bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "withdraw_fee_tokens", false, "", state, param, feeTokenMetadata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "withdraw_fee_tokens", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) GetFee(ref module_common.CCIPObjectRef, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_fee", false, "", ref, clock, destChainSelector, receiver, data, tokenAddresses, tokenAmounts, feeToken, extraArgs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "get_fee", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) SetDynamicConfig(state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "set_dynamic_config", false, "", state, param, feeAggregator, allowlistAdmin)
@@ -221,7 +270,7 @@ func (c *OnrampContract) SetDynamicConfig(state string, param string, feeAggrega
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) ApplyDestChainConfigUpdates(state string, param string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) bind.IMethod {
+func (c *OnrampContract) ApplyDestChainConfigUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "apply_dest_chain_config_updates", false, "", state, param, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
@@ -235,7 +284,7 @@ func (c *OnrampContract) ApplyDestChainConfigUpdates(state string, param string,
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) GetDestChainConfig(state string, destChainSelector uint64) bind.IMethod {
+func (c *OnrampContract) GetDestChainConfig(state bind.Object, destChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_dest_chain_config", false, "", state, destChainSelector)
@@ -249,7 +298,7 @@ func (c *OnrampContract) GetDestChainConfig(state string, destChainSelector uint
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) GetAllowedSendersList(state string, destChainSelector uint64) bind.IMethod {
+func (c *OnrampContract) GetAllowedSendersList(state bind.Object, destChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_allowed_senders_list", false, "", state, destChainSelector)
@@ -263,7 +312,7 @@ func (c *OnrampContract) GetAllowedSendersList(state string, destChainSelector u
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) ApplyAllowlistUpdates(state string, param string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod {
+func (c *OnrampContract) ApplyAllowlistUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "apply_allowlist_updates", false, "", state, param, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
@@ -277,7 +326,7 @@ func (c *OnrampContract) ApplyAllowlistUpdates(state string, param string, destC
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) ApplyAllowlistUpdatesByAdmin(state string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod {
+func (c *OnrampContract) ApplyAllowlistUpdatesByAdmin(state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "apply_allowlist_updates_by_admin", false, "", state, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
@@ -305,7 +354,7 @@ func (c *OnrampContract) GetOutboundNonce(ref module_common.CCIPObjectRef, destC
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) GetStaticConfig(state string) bind.IMethod {
+func (c *OnrampContract) GetStaticConfig(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_static_config", false, "", state)
@@ -333,7 +382,7 @@ func (c *OnrampContract) GetStaticConfigFields(cfg StaticConfig) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) GetDynamicConfig(state string) bind.IMethod {
+func (c *OnrampContract) GetDynamicConfig(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "get_dynamic_config", false, "", state)

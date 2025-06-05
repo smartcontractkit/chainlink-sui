@@ -17,7 +17,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 const maxCoinsPageSize uint = 50
@@ -380,7 +380,7 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 
 	signaturesString := SerializeSuiSignature(signatures, signerPublicKey)
 
-	b64bytes := codec.EncodeBase64(txBytes)
+	b64bytes := shared.EncodeBase64(txBytes)
 
 	return c.SendTransaction(ctx, TransactionBlockRequest{
 		TxBytes:     b64bytes,
@@ -606,7 +606,7 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey []byte
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to finish transaction: %w", err)
 	}
 
-	b64bytes := codec.EncodeBase64(txBytes)
+	b64bytes := shared.EncodeBase64(txBytes)
 
 	return c.SignAndSendTransaction(ctx, b64bytes, signerPublicKey, c.defaultRequestType)
 }
@@ -625,7 +625,7 @@ func (c *PTBClient) FinishPTBAndSendDevInspect(ctx context.Context, signerPublic
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to finish transaction: %w", err)
 	}
 
-	b64bytes := codec.EncodeBase64(txBytes)
+	b64bytes := shared.EncodeBase64(txBytes)
 
 	return c.SignAndSendTransaction(ctx, b64bytes, signerPublicKey, c.defaultRequestType)
 }

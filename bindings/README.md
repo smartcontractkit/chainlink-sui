@@ -48,7 +48,7 @@ func PublishAndIncrementCounter(client *suiclient.ClientImpl, signer rel.SuiSign
   testPackage, tx, err := PublishTest(ctx, bind.TxOpts{}, signer, *client)
 
   // Get the object created in the `init` function
-  counterObjectId, err := bind.FindObjectIdFromPublishTx(tx, "counter", "Counter")
+  counterObjectId, err := bind.FindObjectIdFromPublishTx(*tx, "counter", "Counter")
 
   // Get the Counter contract binding
   counter := testPackage.Counter()

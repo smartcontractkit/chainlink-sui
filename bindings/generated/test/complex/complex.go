@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -18,6 +19,7 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type IComplex interface {
@@ -25,6 +27,8 @@ type IComplex interface {
 	NewObject(someId []byte, someNumber uint64, someAddress string, someAddresses []string) bind.IMethod
 	FlattenAddress(someAddress string, someAddresses []string) bind.IMethod
 	FlattenU8(input [][]byte) bind.IMethod
+	CheckU128(input *big.Int) bind.IMethod
+	CheckU256(input uint256.Int) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -119,6 +123,34 @@ func (c *ComplexContract) FlattenU8(input [][]byte) bind.IMethod {
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "flatten_u8", false, "", input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "flatten_u8", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ComplexContract) CheckU128(input *big.Int) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "check_u128", false, "", input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "check_u128", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ComplexContract) CheckU256(input uint256.Int) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "check_u256", false, "", input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "check_u256", err)
 		}
 
 		return ptb, nil

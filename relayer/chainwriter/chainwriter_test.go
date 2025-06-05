@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
@@ -69,7 +70,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 						Params: []codec.SuiFunctionParam{
 							{
 								Name:         "counter",
-								Type:         "address",
+								Type:         "object_id",
 								Required:     true,
 								DefaultValue: nil,
 							},
@@ -194,7 +195,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:         testState.AccountAddress,
 			contractName:   "counter",
 			functionName:   "increment",
-			args:           chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
+			args:           chainwriter.Arguments{Args: map[string]any{"counter": bind.Object{Id: objectID}}},
 			expectError:    nil,
 			expectedResult: "1",
 			status:         commonTypes.Finalized,

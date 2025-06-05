@@ -305,6 +305,9 @@ func ToLowerCamelCase(input string) string {
 	if len(param) == 0 { // Give a default name if empty, mostly for `_` named params
 		param = "param"
 	}
+	if param == "c" {
+		param = "c_"
+	}
 	return param
 }
 

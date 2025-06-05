@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
@@ -80,7 +81,7 @@ func TestEnqueueIntegration(t *testing.T) {
 		txMeta          *commontypes.TxMeta
 		sender          string
 		function        string
-		typeArgs        []string
+		paramTypes      []string
 		args            []any
 		expectErr       bool
 		expectedValue   string
@@ -96,8 +97,8 @@ func TestEnqueueIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:          accountAddress,
 			function:        fmt.Sprintf("%s::counter::increment", packageId),
-			typeArgs:        []string{"address"},
-			args:            []any{counterObjectId},
+			paramTypes:      []string{"object_id"},
+			args:            []any{bind.Object{Id: counterObjectId}},
 			expectErr:       false,
 			expectedValue:   "1",
 			finalState:      commontypes.Finalized,
@@ -112,8 +113,8 @@ func TestEnqueueIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:          accountAddress,
 			function:        fmt.Sprintf("%s::counter::increment", packageId),
-			typeArgs:        []string{"address"},
-			args:            []any{counterObjectId},
+			paramTypes:      []string{"object_id"},
+			args:            []any{bind.Object{Id: counterObjectId}},
 			expectErr:       false,
 			expectedValue:   "2",
 			finalState:      commontypes.Finalized,
@@ -128,8 +129,8 @@ func TestEnqueueIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:          accountAddress,
 			function:        fmt.Sprintf("%s::counter::i-do-not-exist", packageId),
-			typeArgs:        []string{"address"},
-			args:            []any{counterObjectId},
+			paramTypes:      []string{"object_id"},
+			args:            []any{bind.Object{Id: counterObjectId}},
 			expectErr:       false,
 			expectedValue:   "",
 			finalState:      commontypes.Fatal,
@@ -144,8 +145,8 @@ func TestEnqueueIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:          accountAddress,
 			function:        fmt.Sprintf("%s::counter::increment", packageId),
-			typeArgs:        []string{"address"},
-			args:            []any{counterObjectId},
+			paramTypes:      []string{"object_id"},
+			args:            []any{bind.Object{Id: counterObjectId}},
 			expectErr:       true,
 			expectedValue:   "",
 			finalState:      commontypes.Failed,
@@ -183,7 +184,7 @@ func TestEnqueueIntegration(t *testing.T) {
 			}
 
 			tx, err := txManager.Enqueue(ctx, tc.txID, tc.txMeta,
-				tc.signerPublicKey, tc.function, nil, tc.typeArgs, tc.args, false)
+				tc.signerPublicKey, tc.function, nil, tc.paramTypes, tc.args, false)
 
 			if tc.expectErr {
 				assert.Error(t, err, "Expected an error but Enqueue succeeded")

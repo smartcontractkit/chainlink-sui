@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -18,11 +19,12 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type ILinkToken interface {
-	MintAndTransfer(treasuryCap string, amount uint64, recipient string) bind.IMethod
-	Mint(treasuryCap string, amount uint64) bind.IMethod
+	MintAndTransfer(treasuryCap bind.Object, amount uint64, recipient string) bind.IMethod
+	Mint(treasuryCap bind.Object, amount uint64) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -57,7 +59,7 @@ type LINK_TOKEN struct {
 
 // Functions
 
-func (c *LinkTokenContract) MintAndTransfer(treasuryCap string, amount uint64, recipient string) bind.IMethod {
+func (c *LinkTokenContract) MintAndTransfer(treasuryCap bind.Object, amount uint64, recipient string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "link_token", "mint_and_transfer", false, "", treasuryCap, amount, recipient)
@@ -71,7 +73,7 @@ func (c *LinkTokenContract) MintAndTransfer(treasuryCap string, amount uint64, r
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *LinkTokenContract) Mint(treasuryCap string, amount uint64) bind.IMethod {
+func (c *LinkTokenContract) Mint(treasuryCap bind.Object, amount uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "link_token", "mint", false, "", treasuryCap, amount)

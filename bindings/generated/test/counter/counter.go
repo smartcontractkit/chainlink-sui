@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -18,20 +19,21 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type ICounter interface {
 	Initialize() bind.IMethod
-	Increment(counter string) bind.IMethod
+	Increment(counter bind.Object) bind.IMethod
 	Create() bind.IMethod
-	IncrementByOne(counter string) bind.IMethod
-	IncrementByOneNoContext(counter string) bind.IMethod
-	IncrementByTwo(admin string, counter string) bind.IMethod
-	IncrementByTwoNoContext(admin string, counter string) bind.IMethod
-	IncrementBy(counter string, by uint64) bind.IMethod
-	IncrementMult(counter string, a uint64, b uint64) bind.IMethod
-	GetCount(counter string) bind.IMethod
-	GetCountNoEntry(counter string) bind.IMethod
+	IncrementByOne(counter bind.Object) bind.IMethod
+	IncrementByOneNoContext(counter bind.Object) bind.IMethod
+	IncrementByTwo(admin bind.Object, counter bind.Object) bind.IMethod
+	IncrementByTwoNoContext(admin bind.Object, counter bind.Object) bind.IMethod
+	IncrementBy(counter bind.Object, by uint64) bind.IMethod
+	IncrementMult(counter bind.Object, a uint64, b uint64) bind.IMethod
+	GetCount(counter bind.Object) bind.IMethod
+	GetCountNoEntry(counter bind.Object) bind.IMethod
 	GetAddressList() bind.IMethod
 	GetSimpleResult() bind.IMethod
 	// Connect adds/changes the client used in the contract
@@ -107,7 +109,7 @@ func (c *CounterContract) Initialize() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) Increment(counter string) bind.IMethod {
+func (c *CounterContract) Increment(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment", false, "", counter)
@@ -135,7 +137,7 @@ func (c *CounterContract) Create() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) IncrementByOne(counter string) bind.IMethod {
+func (c *CounterContract) IncrementByOne(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_one", false, "", counter)
@@ -149,7 +151,7 @@ func (c *CounterContract) IncrementByOne(counter string) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) IncrementByOneNoContext(counter string) bind.IMethod {
+func (c *CounterContract) IncrementByOneNoContext(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_one_no_context", false, "", counter)
@@ -163,7 +165,7 @@ func (c *CounterContract) IncrementByOneNoContext(counter string) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) IncrementByTwo(admin string, counter string) bind.IMethod {
+func (c *CounterContract) IncrementByTwo(admin bind.Object, counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_two", false, "", admin, counter)
@@ -177,7 +179,7 @@ func (c *CounterContract) IncrementByTwo(admin string, counter string) bind.IMet
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) IncrementByTwoNoContext(admin string, counter string) bind.IMethod {
+func (c *CounterContract) IncrementByTwoNoContext(admin bind.Object, counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_two_no_context", false, "", admin, counter)
@@ -191,7 +193,7 @@ func (c *CounterContract) IncrementByTwoNoContext(admin string, counter string) 
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) IncrementBy(counter string, by uint64) bind.IMethod {
+func (c *CounterContract) IncrementBy(counter bind.Object, by uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by", false, "", counter, by)
@@ -205,7 +207,7 @@ func (c *CounterContract) IncrementBy(counter string, by uint64) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) IncrementMult(counter string, a uint64, b uint64) bind.IMethod {
+func (c *CounterContract) IncrementMult(counter bind.Object, a uint64, b uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_mult", false, "", counter, a, b)
@@ -219,7 +221,7 @@ func (c *CounterContract) IncrementMult(counter string, a uint64, b uint64) bind
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) GetCount(counter string) bind.IMethod {
+func (c *CounterContract) GetCount(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count", false, "", counter)
@@ -233,7 +235,7 @@ func (c *CounterContract) GetCount(counter string) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *CounterContract) GetCountNoEntry(counter string) bind.IMethod {
+func (c *CounterContract) GetCountNoEntry(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count_no_entry", false, "", counter)

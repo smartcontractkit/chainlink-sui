@@ -10,8 +10,8 @@ import (
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
+	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 type PackageID = string
@@ -31,7 +31,7 @@ func PublishPackage(
 ) (PackageID, *suiclient.SuiTransactionBlockResponse, error) {
 	var modules = make([][]byte, 0, len(req.CompiledModules))
 	for _, encodedModule := range req.CompiledModules {
-		decodedModule, err := codec.DecodeBase64(encodedModule)
+		decodedModule, err := shared.DecodeBase64(encodedModule)
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to decode module: %w", err)
 		}
@@ -84,7 +84,7 @@ func PublishPackage(
 	}
 
 	if tx.Effects.Data.V1.Status.Status == FailureResultType {
-		return "", nil, fmt.Errorf("transaction failed: %v", tx.Effects.Data.V1.Status.Status)
+		return "", nil, fmt.Errorf("transaction failed: %v", tx.Effects.Data.V1.Status.Error)
 	}
 
 	// Find the object ID from the transaction
@@ -106,7 +106,17 @@ func FindPackageIdFromPublishTx(tx suiclient.SuiTransactionBlockResponse) (strin
 	return "", errors.New("package ID not found in transaction")
 }
 
-func FindObjectIdFromPublishTx(tx *suiclient.SuiTransactionBlockResponse, module, object string) (string, error) {
+func FindObjectIdFromPublishTx(tx suiclient.SuiTransactionBlockResponse, module, object string) (string, error) {
+	// More precise check
+	for _, change := range tx.ObjectChanges {
+		if change.Data.Created != nil {
+			parts := strings.Split(change.Data.Created.ObjectType, "::")
+			if len(parts) > 0 && parts[len(parts)-1] == object && parts[len(parts)-2] == module {
+				return change.Data.Created.ObjectId.String(), nil
+			}
+		}
+	}
+
 	for _, change := range tx.ObjectChanges {
 		if change.Data.Created != nil && strings.Contains(change.Data.Created.ObjectType, fmt.Sprintf("%v::%v", module, object)) {
 			return change.Data.Created.ObjectId.String(), nil

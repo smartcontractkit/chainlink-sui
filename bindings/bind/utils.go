@@ -2,11 +2,13 @@ package bind
 
 import (
 	"fmt"
+	"math/big"
+	"slices"
 
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/suisigner"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 // Utilities around the PTB and its types
@@ -28,7 +30,7 @@ func ToSuiSignatures(signatures []string) ([]*suisigner.Signature, error) {
 }
 
 func toSuiSignature(sig string) (*suisigner.Signature, error) {
-	decoded, err := codec.DecodeBase64(sig)
+	decoded, err := shared.DecodeBase64(sig)
 	if err != nil {
 		return nil, err
 	}
@@ -51,4 +53,13 @@ func IsSuiAddress(address string) bool {
 	_, err := ToSuiAddress(address)
 
 	return err == nil
+}
+
+func serializeUBigInt(size uint, v *big.Int) []byte {
+	ub := make([]byte, size)
+	v.FillBytes(ub)
+	// Reverse, since big.Int outputs bytes in BigEndian
+	slices.Reverse(ub)
+
+	return ub
 }

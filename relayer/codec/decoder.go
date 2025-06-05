@@ -263,11 +263,6 @@ func decodeSliceElements(sourceSlice []any, targetValue reflect.Value) error {
 	return nil
 }
 
-// DecodeBase64 decodes a base64 encoded string
-func DecodeBase64(encoded string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(encoded)
-}
-
 // AnySliceToBytes converts slice of interface{} to byte slice
 func AnySliceToBytes(src []any) ([]byte, error) {
 	dst := make([]byte, len(src))

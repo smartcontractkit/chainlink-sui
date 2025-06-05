@@ -5,8 +5,10 @@ package test
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/suiclient"
 
@@ -45,7 +47,7 @@ func TestComplex(t *testing.T) {
 		getAddress(t, "0x41234"),
 	}
 
-	// nolint:paralleltest
+	//nolint:paralleltest
 	t.Run("NewObject", func(t *testing.T) {
 		id := []byte("0x1234")
 		someNumber := uint64(1)
@@ -70,7 +72,7 @@ func TestComplex(t *testing.T) {
 		require.Equal(t, expectedBytes, bytes)
 	})
 
-	// nolint:paralleltest
+	//nolint:paralleltest
 	t.Run("FlattenU8", func(t *testing.T) {
 		input := [][]uint8{{0, 1, 2}, {3, 4, 5}}
 		flattenTx, err := contract.FlattenU8(input).Execute(ctx, bind.TxOpts{}, signer, *client)
@@ -85,6 +87,30 @@ func TestComplex(t *testing.T) {
 		require.NoError(t, err)
 		expectedBytes := []byte{6, 0, 1, 2, 3, 4, 5}
 		require.Equal(t, expectedBytes, bytes)
+	})
+
+	//nolint:paralleltest
+	t.Run("Check_u128", func(t *testing.T) {
+		input := big.NewInt(2000)
+		flattenTx, err := contract.CheckU128(input).Execute(ctx, bind.TxOpts{}, signer, *client)
+		require.NoError(t, err)
+		require.NotNil(t, flattenTx)
+
+		inspection, err := contract.CheckU128(input).Inspect(ctx, bind.TxOpts{}, signer, *client)
+		require.NoError(t, err)
+		require.NotNil(t, inspection)
+	})
+
+	//nolint:paralleltest
+	t.Run("Check_u256", func(t *testing.T) {
+		input := uint256.NewInt(2000)
+		flattenTx, err := contract.CheckU256(*input).Execute(ctx, bind.TxOpts{}, signer, *client)
+		require.NoError(t, err)
+		require.NotNil(t, flattenTx)
+
+		inspection, err := contract.CheckU256(*input).Inspect(ctx, bind.TxOpts{}, signer, *client)
+		require.NoError(t, err)
+		require.NotNil(t, inspection)
 	})
 }
 

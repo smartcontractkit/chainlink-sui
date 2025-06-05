@@ -7,12 +7,15 @@ import (
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/suiclient"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
+	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 const FailureResultType = "failure"
 
+type Object struct {
+	Id string
+}
 type TxOpts struct {
 	GasObject string
 	// Optional. GasLimit
@@ -26,7 +29,7 @@ func SignAndSendTx(ctx context.Context, signer rel.SuiSigner, client suiclient.C
 		return nil, fmt.Errorf("failed to sign tx: %w", err)
 	}
 
-	b64bytes := codec.EncodeBase64(txBytes)
+	b64bytes := shared.EncodeBase64(txBytes)
 	b64Tx, err := sui.NewBase64(b64bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert tx to base64: %w", err)
@@ -65,7 +68,7 @@ func DevInspectTx(ctx context.Context, signerAddress string, client suiclient.Cl
 		return nil, fmt.Errorf("failed to convert address: %w", err)
 	}
 
-	b64bytes := codec.EncodeBase64(txBytes)
+	b64bytes := shared.EncodeBase64(txBytes)
 	b64Tx, err := sui.NewBase64(b64bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert tx to base64: %w", err)

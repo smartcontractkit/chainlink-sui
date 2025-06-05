@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -19,28 +20,29 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type IMcms interface {
-	SetRoot(state string, clock string, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) bind.IMethod
-	Execute(state string, clock string, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) bind.IMethod
-	DispatchTimelockScheduleBatch(timelock string, clock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod
-	DispatchTimelockExecuteBatch(timelock string, clock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod
+	SetRoot(state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId uint256.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) bind.IMethod
+	Execute(state bind.Object, clock bind.Object, role byte, chainId uint256.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) bind.IMethod
+	DispatchTimelockScheduleBatch(timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod
+	DispatchTimelockExecuteBatch(timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod
 	DispatchTimelockBypasserExecuteBatch(timelockCallbackParams TimelockCallbackParams) bind.IMethod
-	DispatchTimelockCancel(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod
-	DispatchTimelockUpdateMinDelay(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod
-	DispatchTimelockBlockFunction(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod
-	DispatchTimelockUnblockFunction(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod
-	SetConfig(param module_common.OwnerCap, state string, role byte, chainId *big.Int, signerAddresses [][]byte, signerGroups []byte, groupQuorums []byte, groupParents []byte, clearRoot bool) bind.IMethod
+	DispatchTimelockCancel(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod
+	DispatchTimelockUpdateMinDelay(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod
+	DispatchTimelockBlockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod
+	DispatchTimelockUnblockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod
+	SetConfig(param module_common.OwnerCap, state bind.Object, role byte, chainId uint256.Int, signerAddresses [][]byte, signerGroups []byte, groupQuorums []byte, groupParents []byte, clearRoot bool) bind.IMethod
 	VerifyMerkleProof(proof [][]byte, root []byte, leaf []byte) bind.IMethod
 	ComputeEthMessageHash(root []byte, validUntil uint64) bind.IMethod
 	HashOpLeaf(domainSeparator []byte, op Op) bind.IMethod
-	SeenSignedHashes(state string, role byte) bind.IMethod
-	ExpiringRootAndOpCount(state string, role byte) bind.IMethod
+	SeenSignedHashes(state bind.Object, role byte) bind.IMethod
+	ExpiringRootAndOpCount(state bind.Object, role byte) bind.IMethod
 	RootMetadata(multisig Multisig) bind.IMethod
-	GetRootMetadata(state string, role byte) bind.IMethod
-	GetOpCount(state string, role byte) bind.IMethod
-	GetRoot(state string, role byte) bind.IMethod
+	GetRootMetadata(state bind.Object, role byte) bind.IMethod
+	GetOpCount(state bind.Object, role byte) bind.IMethod
+	GetRoot(state bind.Object, role byte) bind.IMethod
 	NumGroups() bind.IMethod
 	MaxNumSigners() bind.IMethod
 	BypasserRole() bind.IMethod
@@ -58,16 +60,16 @@ type IMcms interface {
 	ConfigSigners(config Config) bind.IMethod
 	ConfigGroupQuorums(config Config) bind.IMethod
 	ConfigGroupParents(config Config) bind.IMethod
-	TimelockExecuteBatch(timelock string, clock string, targets []string, moduleNames []string, functionNames []string, datas [][]byte, predecessor []byte, salt []byte) bind.IMethod
-	TimelockGetBlockedFunction(timelock string, index uint64) bind.IMethod
-	TimelockIsOperation(timelock string, id []byte) bind.IMethod
-	TimelockIsOperationPending(timelock string, id []byte) bind.IMethod
-	TimelockIsOperationReady(timelock string, clock string, id []byte) bind.IMethod
-	TimelockIsOperationDone(timelock string, id []byte) bind.IMethod
-	TimelockGetTimestamp(timelock string, id []byte) bind.IMethod
-	TimelockMinDelay(timelock string) bind.IMethod
-	TimelockGetBlockedFunctions(timelock string) bind.IMethod
-	TimelockGetBlockedFunctionsCount(timelock string) bind.IMethod
+	TimelockExecuteBatch(timelock bind.Object, clock bind.Object, targets []string, moduleNames []string, functionNames []string, datas [][]byte, predecessor []byte, salt []byte) bind.IMethod
+	TimelockGetBlockedFunction(timelock bind.Object, index uint64) bind.IMethod
+	TimelockIsOperation(timelock bind.Object, id []byte) bind.IMethod
+	TimelockIsOperationPending(timelock bind.Object, id []byte) bind.IMethod
+	TimelockIsOperationReady(timelock bind.Object, clock bind.Object, id []byte) bind.IMethod
+	TimelockIsOperationDone(timelock bind.Object, id []byte) bind.IMethod
+	TimelockGetTimestamp(timelock bind.Object, id []byte) bind.IMethod
+	TimelockMinDelay(timelock bind.Object) bind.IMethod
+	TimelockGetBlockedFunctions(timelock bind.Object) bind.IMethod
+	TimelockGetBlockedFunctionsCount(timelock bind.Object) bind.IMethod
 	CreateCalls(targets []string, moduleNames []string, functionNames []string, datas [][]byte) bind.IMethod
 	HashOperationBatch(calls []Call, predecessor []byte, salt []byte) bind.IMethod
 	SignerView(signer Signer) bind.IMethod
@@ -137,23 +139,23 @@ type ExpiringRootAndOpCount struct {
 }
 
 type Op struct {
-	Role         byte     `move:"u8"`
-	ChainId      *big.Int `move:"u256"`
-	Multisig     []byte   `move:"vector<u8>"`
-	Nonce        uint64   `move:"u64"`
-	To           []byte   `move:"vector<u8>"`
-	ModuleName   string   `move:"0x1::string::String"`
-	FunctionName string   `move:"0x1::string::String"`
-	Data         []byte   `move:"vector<u8>"`
+	Role         byte        `move:"u8"`
+	ChainId      uint256.Int `move:"u256"`
+	Multisig     []byte      `move:"vector<u8>"`
+	Nonce        uint64      `move:"u64"`
+	To           []byte      `move:"vector<u8>"`
+	ModuleName   string      `move:"0x1::string::String"`
+	FunctionName string      `move:"0x1::string::String"`
+	Data         []byte      `move:"vector<u8>"`
 }
 
 type RootMetadata struct {
-	Role                 byte     `move:"u8"`
-	ChainId              *big.Int `move:"u256"`
-	Multisig             []byte   `move:"vector<u8>"`
-	PreOpCount           uint64   `move:"u64"`
-	PostOpCount          uint64   `move:"u64"`
-	OverridePreviousRoot bool     `move:"bool"`
+	Role                 byte        `move:"u8"`
+	ChainId              uint256.Int `move:"u256"`
+	Multisig             []byte      `move:"vector<u8>"`
+	PreOpCount           uint64      `move:"u64"`
+	PostOpCount          uint64      `move:"u64"`
+	OverridePreviousRoot bool        `move:"bool"`
 }
 
 type TimelockCallbackParams struct {
@@ -183,14 +185,14 @@ type NewRoot struct {
 }
 
 type OpExecuted struct {
-	Role         byte     `move:"u8"`
-	ChainId      *big.Int `move:"u256"`
-	Multisig     []byte   `move:"vector<u8>"`
-	Nonce        uint64   `move:"u64"`
-	To           []byte   `move:"vector<u8>"`
-	ModuleName   string   `move:"0x1::string::String"`
-	FunctionName string   `move:"0x1::string::String"`
-	Data         []byte   `move:"vector<u8>"`
+	Role         byte        `move:"u8"`
+	ChainId      uint256.Int `move:"u256"`
+	Multisig     []byte      `move:"vector<u8>"`
+	Nonce        uint64      `move:"u64"`
+	To           []byte      `move:"vector<u8>"`
+	ModuleName   string      `move:"0x1::string::String"`
+	FunctionName string      `move:"0x1::string::String"`
+	Data         []byte      `move:"vector<u8>"`
 }
 
 type MCMS struct {
@@ -268,7 +270,7 @@ type FunctionUnblocked struct {
 
 // Functions
 
-func (c *McmsContract) SetRoot(state string, clock string, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) bind.IMethod {
+func (c *McmsContract) SetRoot(state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId uint256.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "set_root", false, "", state, clock, role, root, validUntil, chainId, multisigAddr, preOpCount, postOpCount, overridePreviousRoot, metadataProof, signatures)
@@ -282,7 +284,7 @@ func (c *McmsContract) SetRoot(state string, clock string, role byte, root []byt
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) Execute(state string, clock string, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) bind.IMethod {
+func (c *McmsContract) Execute(state bind.Object, clock bind.Object, role byte, chainId uint256.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "execute", false, "", state, clock, role, chainId, multisigAddr, nonce, to, moduleName, functionName, data, proof)
@@ -296,7 +298,7 @@ func (c *McmsContract) Execute(state string, clock string, role byte, chainId *b
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) DispatchTimelockScheduleBatch(timelock string, clock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
+func (c *McmsContract) DispatchTimelockScheduleBatch(timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_schedule_batch", false, "", timelock, clock, timelockCallbackParams)
@@ -310,7 +312,7 @@ func (c *McmsContract) DispatchTimelockScheduleBatch(timelock string, clock stri
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) DispatchTimelockExecuteBatch(timelock string, clock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
+func (c *McmsContract) DispatchTimelockExecuteBatch(timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_execute_batch", false, "", timelock, clock, timelockCallbackParams)
@@ -338,7 +340,7 @@ func (c *McmsContract) DispatchTimelockBypasserExecuteBatch(timelockCallbackPara
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) DispatchTimelockCancel(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
+func (c *McmsContract) DispatchTimelockCancel(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_cancel", false, "", timelock, timelockCallbackParams)
@@ -352,7 +354,7 @@ func (c *McmsContract) DispatchTimelockCancel(timelock string, timelockCallbackP
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) DispatchTimelockUpdateMinDelay(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
+func (c *McmsContract) DispatchTimelockUpdateMinDelay(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_update_min_delay", false, "", timelock, timelockCallbackParams)
@@ -366,7 +368,7 @@ func (c *McmsContract) DispatchTimelockUpdateMinDelay(timelock string, timelockC
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) DispatchTimelockBlockFunction(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
+func (c *McmsContract) DispatchTimelockBlockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_block_function", false, "", timelock, timelockCallbackParams)
@@ -380,7 +382,7 @@ func (c *McmsContract) DispatchTimelockBlockFunction(timelock string, timelockCa
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) DispatchTimelockUnblockFunction(timelock string, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
+func (c *McmsContract) DispatchTimelockUnblockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_unblock_function", false, "", timelock, timelockCallbackParams)
@@ -394,7 +396,7 @@ func (c *McmsContract) DispatchTimelockUnblockFunction(timelock string, timelock
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) SetConfig(param module_common.OwnerCap, state string, role byte, chainId *big.Int, signerAddresses [][]byte, signerGroups []byte, groupQuorums []byte, groupParents []byte, clearRoot bool) bind.IMethod {
+func (c *McmsContract) SetConfig(param module_common.OwnerCap, state bind.Object, role byte, chainId uint256.Int, signerAddresses [][]byte, signerGroups []byte, groupQuorums []byte, groupParents []byte, clearRoot bool) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "set_config", false, "", param, state, role, chainId, signerAddresses, signerGroups, groupQuorums, groupParents, clearRoot)
@@ -450,7 +452,7 @@ func (c *McmsContract) HashOpLeaf(domainSeparator []byte, op Op) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) SeenSignedHashes(state string, role byte) bind.IMethod {
+func (c *McmsContract) SeenSignedHashes(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "seen_signed_hashes", false, "", state, role)
@@ -464,7 +466,7 @@ func (c *McmsContract) SeenSignedHashes(state string, role byte) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) ExpiringRootAndOpCount(state string, role byte) bind.IMethod {
+func (c *McmsContract) ExpiringRootAndOpCount(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "expiring_root_and_op_count", false, "", state, role)
@@ -492,7 +494,7 @@ func (c *McmsContract) RootMetadata(multisig Multisig) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) GetRootMetadata(state string, role byte) bind.IMethod {
+func (c *McmsContract) GetRootMetadata(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_root_metadata", false, "", state, role)
@@ -506,7 +508,7 @@ func (c *McmsContract) GetRootMetadata(state string, role byte) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) GetOpCount(state string, role byte) bind.IMethod {
+func (c *McmsContract) GetOpCount(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_op_count", false, "", state, role)
@@ -520,7 +522,7 @@ func (c *McmsContract) GetOpCount(state string, role byte) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) GetRoot(state string, role byte) bind.IMethod {
+func (c *McmsContract) GetRoot(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_root", false, "", state, role)
@@ -772,7 +774,7 @@ func (c *McmsContract) ConfigGroupParents(config Config) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockExecuteBatch(timelock string, clock string, targets []string, moduleNames []string, functionNames []string, datas [][]byte, predecessor []byte, salt []byte) bind.IMethod {
+func (c *McmsContract) TimelockExecuteBatch(timelock bind.Object, clock bind.Object, targets []string, moduleNames []string, functionNames []string, datas [][]byte, predecessor []byte, salt []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_execute_batch", false, "", timelock, clock, targets, moduleNames, functionNames, datas, predecessor, salt)
@@ -786,7 +788,7 @@ func (c *McmsContract) TimelockExecuteBatch(timelock string, clock string, targe
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockGetBlockedFunction(timelock string, index uint64) bind.IMethod {
+func (c *McmsContract) TimelockGetBlockedFunction(timelock bind.Object, index uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_function", false, "", timelock, index)
@@ -800,7 +802,7 @@ func (c *McmsContract) TimelockGetBlockedFunction(timelock string, index uint64)
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockIsOperation(timelock string, id []byte) bind.IMethod {
+func (c *McmsContract) TimelockIsOperation(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation", false, "", timelock, id)
@@ -814,7 +816,7 @@ func (c *McmsContract) TimelockIsOperation(timelock string, id []byte) bind.IMet
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockIsOperationPending(timelock string, id []byte) bind.IMethod {
+func (c *McmsContract) TimelockIsOperationPending(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_pending", false, "", timelock, id)
@@ -828,7 +830,7 @@ func (c *McmsContract) TimelockIsOperationPending(timelock string, id []byte) bi
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockIsOperationReady(timelock string, clock string, id []byte) bind.IMethod {
+func (c *McmsContract) TimelockIsOperationReady(timelock bind.Object, clock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_ready", false, "", timelock, clock, id)
@@ -842,7 +844,7 @@ func (c *McmsContract) TimelockIsOperationReady(timelock string, clock string, i
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockIsOperationDone(timelock string, id []byte) bind.IMethod {
+func (c *McmsContract) TimelockIsOperationDone(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_done", false, "", timelock, id)
@@ -856,7 +858,7 @@ func (c *McmsContract) TimelockIsOperationDone(timelock string, id []byte) bind.
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockGetTimestamp(timelock string, id []byte) bind.IMethod {
+func (c *McmsContract) TimelockGetTimestamp(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_timestamp", false, "", timelock, id)
@@ -870,7 +872,7 @@ func (c *McmsContract) TimelockGetTimestamp(timelock string, id []byte) bind.IMe
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockMinDelay(timelock string) bind.IMethod {
+func (c *McmsContract) TimelockMinDelay(timelock bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_min_delay", false, "", timelock)
@@ -884,7 +886,7 @@ func (c *McmsContract) TimelockMinDelay(timelock string) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockGetBlockedFunctions(timelock string) bind.IMethod {
+func (c *McmsContract) TimelockGetBlockedFunctions(timelock bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_functions", false, "", timelock)
@@ -898,7 +900,7 @@ func (c *McmsContract) TimelockGetBlockedFunctions(timelock string) bind.IMethod
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsContract) TimelockGetBlockedFunctionsCount(timelock string) bind.IMethod {
+func (c *McmsContract) TimelockGetBlockedFunctionsCount(timelock bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_functions_count", false, "", timelock)

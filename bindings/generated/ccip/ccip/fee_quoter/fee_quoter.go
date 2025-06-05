@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -19,11 +20,12 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type IFeeQuoter interface {
 	TypeAndVersion() bind.IMethod
-	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod
+	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg uint256.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod
 	ApplyFeeTokenUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, feeTokensToRemove []string, feeTokensToAdd []string) bind.IMethod
 	ApplyTokenTransferFeeConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) bind.IMethod
 	ApplyDestChainConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) bind.IMethod
@@ -36,11 +38,11 @@ type IFeeQuoter interface {
 	GetTimestampedPriceFields(tp TimestampedPrice) bind.IMethod
 	GetTokenPrices(ref module_common.CCIPObjectRef, tokens []string) bind.IMethod
 	GetDestChainGasPrice(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod
-	GetTokenAndGasPrices(ref module_common.CCIPObjectRef, clock string, token string, destChainSelector uint64) bind.IMethod
+	GetTokenAndGasPrices(ref module_common.CCIPObjectRef, clock bind.Object, token string, destChainSelector uint64) bind.IMethod
 	GetDestChainConfig(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod
 	GetDestChainConfigFields(destChainConfig DestChainConfig) bind.IMethod
-	UpdatePrices(ref module_common.CCIPObjectRef, param string, clock string, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) bind.IMethod
-	GetValidatedFee(ref module_common.CCIPObjectRef, clock string, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) bind.IMethod
+	UpdatePrices(ref module_common.CCIPObjectRef, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []uint256.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []uint256.Int) bind.IMethod
+	GetValidatedFee(ref module_common.CCIPObjectRef, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) bind.IMethod
 	GetPremiumMultiplierWeiPerEth(ref module_common.CCIPObjectRef, token string) bind.IMethod
 	ProcessMessageArgs(ref module_common.CCIPObjectRef, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) bind.IMethod
 	GetFeeTokens(ref module_common.CCIPObjectRef) bind.IMethod
@@ -74,11 +76,11 @@ func (c *FeeQuoterContract) Connect(client suiclient.ClientImpl) {
 // Structs
 
 type FeeQuoterState struct {
-	Id                           string   `move:"sui::object::UID"`
-	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
-	LinkToken                    string   `move:"address"`
-	TokenPriceStalenessThreshold uint64   `move:"u64"`
-	FeeTokens                    []string `move:"vector<address>"`
+	Id                           string      `move:"sui::object::UID"`
+	MaxFeeJuelsPerMsg            uint256.Int `move:"u256"`
+	LinkToken                    string      `move:"address"`
+	TokenPriceStalenessThreshold uint64      `move:"u64"`
+	FeeTokens                    []string    `move:"vector<address>"`
 }
 
 type FeeQuoterCap struct {
@@ -86,9 +88,9 @@ type FeeQuoterCap struct {
 }
 
 type StaticConfig struct {
-	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
-	LinkToken                    string   `move:"address"`
-	TokenPriceStalenessThreshold uint64   `move:"u64"`
+	MaxFeeJuelsPerMsg            uint256.Int `move:"u256"`
+	LinkToken                    string      `move:"address"`
+	TokenPriceStalenessThreshold uint64      `move:"u64"`
 }
 
 type DestChainConfig struct {
@@ -123,8 +125,8 @@ type TokenTransferFeeConfig struct {
 }
 
 type TimestampedPrice struct {
-	Value     *big.Int `move:"u256"`
-	Timestamp uint64   `move:"u64"`
+	Value     uint256.Int `move:"u256"`
+	Timestamp uint64      `move:"u64"`
 }
 
 type FeeTokenAdded struct {
@@ -147,15 +149,15 @@ type TokenTransferFeeConfigRemoved struct {
 }
 
 type UsdPerTokenUpdated struct {
-	Token       string   `move:"address"`
-	UsdPerToken *big.Int `move:"u256"`
-	Timestamp   uint64   `move:"u64"`
+	Token       string      `move:"address"`
+	UsdPerToken uint256.Int `move:"u256"`
+	Timestamp   uint64      `move:"u64"`
 }
 
 type UsdPerUnitGasUpdated struct {
-	DestChainSelector uint64   `move:"u64"`
-	UsdPerUnitGas     *big.Int `move:"u256"`
-	Timestamp         uint64   `move:"u64"`
+	DestChainSelector uint64      `move:"u64"`
+	UsdPerUnitGas     uint256.Int `move:"u256"`
+	Timestamp         uint64      `move:"u64"`
 }
 
 type DestChainAdded struct {
@@ -189,7 +191,7 @@ func (c *FeeQuoterContract) TypeAndVersion() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod {
+func (c *FeeQuoterContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg uint256.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "initialize", false, "", ref, param, maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold, feeTokens)
@@ -371,7 +373,7 @@ func (c *FeeQuoterContract) GetDestChainGasPrice(ref module_common.CCIPObjectRef
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetTokenAndGasPrices(ref module_common.CCIPObjectRef, clock string, token string, destChainSelector uint64) bind.IMethod {
+func (c *FeeQuoterContract) GetTokenAndGasPrices(ref module_common.CCIPObjectRef, clock bind.Object, token string, destChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_and_gas_prices", false, "", ref, clock, token, destChainSelector)
@@ -413,7 +415,7 @@ func (c *FeeQuoterContract) GetDestChainConfigFields(destChainConfig DestChainCo
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) UpdatePrices(ref module_common.CCIPObjectRef, param string, clock string, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) bind.IMethod {
+func (c *FeeQuoterContract) UpdatePrices(ref module_common.CCIPObjectRef, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []uint256.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []uint256.Int) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "update_prices", false, "", ref, param, clock, sourceTokens, sourceUsdPerToken, gasDestChainSelectors, gasUsdPerUnitGas)
@@ -427,7 +429,7 @@ func (c *FeeQuoterContract) UpdatePrices(ref module_common.CCIPObjectRef, param 
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetValidatedFee(ref module_common.CCIPObjectRef, clock string, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) bind.IMethod {
+func (c *FeeQuoterContract) GetValidatedFee(ref module_common.CCIPObjectRef, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_validated_fee", false, "", ref, clock, destChainSelector, receiver, data, localTokenAddresses, localTokenAmounts, feeToken, extraArgs)

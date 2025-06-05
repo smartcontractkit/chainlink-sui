@@ -27,6 +27,12 @@ tasks:
     cmds:
       - go test -v ./bindings/... -tags="integration"
 
+  operations:
+    desc: "Run operation tests"
+    deps: [integration-setup]
+    cmds:
+      - go test -v ./ops/... -tags="integration"
+
   integration:
     desc: "Run integration tests"
     deps: [integration-setup]

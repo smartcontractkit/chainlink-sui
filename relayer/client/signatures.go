@@ -6,7 +6,7 @@ import (
 
 	"github.com/pattonkan/sui-go/suisigner"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 type SigFlag byte
@@ -60,7 +60,7 @@ func ToSuiSignatures(signatures []string) ([]*suisigner.Signature, error) {
 }
 
 func toSuiSignature(sig string) (*suisigner.Signature, error) {
-	decoded, err := codec.DecodeBase64(sig)
+	decoded, err := shared.DecodeBase64(sig)
 	if err != nil {
 		return nil, err
 	}

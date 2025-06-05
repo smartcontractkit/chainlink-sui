@@ -89,4 +89,17 @@ module test::complex {
         output
     }
 
+    public fun check_u128(
+        input: u128,
+        _ctx: &mut TxContext
+    ): u128 {
+        input
+    }
+
+    public fun check_u256(
+        input: u256,
+        _ctx: &mut TxContext
+    ): u256 {
+        input
+    }
 }

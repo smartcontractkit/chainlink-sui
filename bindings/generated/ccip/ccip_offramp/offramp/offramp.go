@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
@@ -19,26 +20,28 @@ import (
 // Unused vars used for unused imports
 var (
 	_ = big.NewInt
+	_ = uint256.NewInt
 )
 
 type IOfframp interface {
 	TypeAndVersion() bind.IMethod
-	GetOcr3Base(state string) bind.IMethod
-	InitExecute(ref module_common.CCIPObjectRef, state string, clock string, reportContext [][]byte, report []byte) bind.IMethod
-	ManuallyInitExecute(ref module_common.CCIPObjectRef, state string, clock string, reportBytes []byte) bind.IMethod
-	GetExecutionState(state string, sourceChainSelector uint64, sequenceNumber uint64) bind.IMethod
-	SetOcr3Config(state string, param string, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) bind.IMethod
-	Commit(ref module_common.CCIPObjectRef, state string, clock string, reportContext [][]byte, report []byte, signatures [][]byte) bind.IMethod
-	GetMerkleRoot(state string, root []byte) bind.IMethod
-	GetSourceChainConfig(state string, sourceChainSelector uint64) bind.IMethod
+	Initialize(state bind.Object, param bind.Object, feeQuoterCap module_common.FeeQuoterCap, destTransferCap module_common.DestTransferCap, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod
+	GetOcr3Base(state bind.Object) bind.IMethod
+	InitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) bind.IMethod
+	ManuallyInitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportBytes []byte) bind.IMethod
+	GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) bind.IMethod
+	SetOcr3Config(state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) bind.IMethod
+	Commit(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, signatures [][]byte) bind.IMethod
+	GetMerkleRoot(state bind.Object, root []byte) bind.IMethod
+	GetSourceChainConfig(state bind.Object, sourceChainSelector uint64) bind.IMethod
 	GetSourceChainConfigFields(sourceChainConfig SourceChainConfig) bind.IMethod
-	GetAllSourceChainConfigs(state string) bind.IMethod
-	GetStaticConfig(state string) bind.IMethod
+	GetAllSourceChainConfigs(state bind.Object) bind.IMethod
+	GetStaticConfig(state bind.Object) bind.IMethod
 	GetStaticConfigFields(cfg StaticConfig) bind.IMethod
-	GetDynamicConfig(state string) bind.IMethod
+	GetDynamicConfig(state bind.Object) bind.IMethod
 	GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod
-	SetDynamicConfig(state string, param string, permissionlessExecutionThresholdSeconds uint32) bind.IMethod
-	ApplySourceChainConfigUpdates(state string, param string, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod
+	SetDynamicConfig(state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) bind.IMethod
+	ApplySourceChainConfigUpdates(state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -73,10 +76,12 @@ type OwnerCap struct {
 }
 
 type OffRampState struct {
-	Id                                      string `move:"sui::object::UID"`
-	ChainSelector                           uint64 `move:"u64"`
-	PermissionlessExecutionThresholdSeconds uint32 `move:"u32"`
-	LatestPriceSequenceNumber               uint64 `move:"u64"`
+	Id                                      string                         `move:"sui::object::UID"`
+	ChainSelector                           uint64                         `move:"u64"`
+	PermissionlessExecutionThresholdSeconds uint32                         `move:"u32"`
+	LatestPriceSequenceNumber               uint64                         `move:"u64"`
+	FeeQuoterCap                            *module_common.FeeQuoterCap    `move:"0x1::option::Option<FeeQuoterCap>"`
+	DestTransferCap                         *module_common.DestTransferCap `move:"0x1::option::Option<ccip::common::DestTransferCap>"`
 }
 
 type OffRampStatePointer struct {
@@ -106,16 +111,16 @@ type Any2SuiRampMessage struct {
 	Sender       []byte                 `move:"vector<u8>"`
 	Data         []byte                 `move:"vector<u8>"`
 	Receiver     string                 `move:"address"`
-	GasLimit     *big.Int               `move:"u256"`
+	GasLimit     uint256.Int            `move:"u256"`
 	TokenAmounts []Any2SuiTokenTransfer `move:"vector<Any2SuiTokenTransfer>"`
 }
 
 type Any2SuiTokenTransfer struct {
-	SourcePoolAddress []byte   `move:"vector<u8>"`
-	DestTokenAddress  string   `move:"address"`
-	DestGasAmount     uint32   `move:"u32"`
-	ExtraData         []byte   `move:"vector<u8>"`
-	Amount            *big.Int `move:"u256"`
+	SourcePoolAddress []byte      `move:"vector<u8>"`
+	DestTokenAddress  string      `move:"address"`
+	DestGasAmount     uint32      `move:"u32"`
+	ExtraData         []byte      `move:"vector<u8>"`
+	Amount            uint256.Int `move:"u256"`
 }
 
 type ExecutionReport struct {
@@ -138,13 +143,13 @@ type PriceUpdates struct {
 }
 
 type TokenPriceUpdate struct {
-	SourceToken string   `move:"address"`
-	UsdPerToken *big.Int `move:"u256"`
+	SourceToken string      `move:"address"`
+	UsdPerToken uint256.Int `move:"u256"`
 }
 
 type GasPriceUpdate struct {
-	DestChainSelector uint64   `move:"u64"`
-	UsdPerUnitGas     *big.Int `move:"u256"`
+	DestChainSelector uint64      `move:"u64"`
+	UsdPerUnitGas     uint256.Int `move:"u256"`
 }
 
 type MerkleRoot struct {
@@ -222,7 +227,21 @@ func (c *OfframpContract) TypeAndVersion() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) GetOcr3Base(state string) bind.IMethod {
+func (c *OfframpContract) Initialize(state bind.Object, param bind.Object, feeQuoterCap module_common.FeeQuoterCap, destTransferCap module_common.DestTransferCap, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "initialize", false, "", state, param, feeQuoterCap, destTransferCap, chainSelector, permissionlessExecutionThresholdSeconds, sourceChainsSelectors, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "initialize", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OfframpContract) GetOcr3Base(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_ocr3_base", false, "", state)
@@ -236,7 +255,7 @@ func (c *OfframpContract) GetOcr3Base(state string) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) InitExecute(ref module_common.CCIPObjectRef, state string, clock string, reportContext [][]byte, report []byte) bind.IMethod {
+func (c *OfframpContract) InitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "init_execute", false, "", ref, state, clock, reportContext, report)
@@ -250,7 +269,7 @@ func (c *OfframpContract) InitExecute(ref module_common.CCIPObjectRef, state str
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) ManuallyInitExecute(ref module_common.CCIPObjectRef, state string, clock string, reportBytes []byte) bind.IMethod {
+func (c *OfframpContract) ManuallyInitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportBytes []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "manually_init_execute", false, "", ref, state, clock, reportBytes)
@@ -264,7 +283,7 @@ func (c *OfframpContract) ManuallyInitExecute(ref module_common.CCIPObjectRef, s
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) GetExecutionState(state string, sourceChainSelector uint64, sequenceNumber uint64) bind.IMethod {
+func (c *OfframpContract) GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_execution_state", false, "", state, sourceChainSelector, sequenceNumber)
@@ -278,7 +297,7 @@ func (c *OfframpContract) GetExecutionState(state string, sourceChainSelector ui
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) SetOcr3Config(state string, param string, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) bind.IMethod {
+func (c *OfframpContract) SetOcr3Config(state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "set_ocr3_config", false, "", state, param, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
@@ -292,7 +311,7 @@ func (c *OfframpContract) SetOcr3Config(state string, param string, configDigest
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) Commit(ref module_common.CCIPObjectRef, state string, clock string, reportContext [][]byte, report []byte, signatures [][]byte) bind.IMethod {
+func (c *OfframpContract) Commit(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, signatures [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "commit", false, "", ref, state, clock, reportContext, report, signatures)
@@ -306,7 +325,7 @@ func (c *OfframpContract) Commit(ref module_common.CCIPObjectRef, state string, 
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) GetMerkleRoot(state string, root []byte) bind.IMethod {
+func (c *OfframpContract) GetMerkleRoot(state bind.Object, root []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_merkle_root", false, "", state, root)
@@ -320,7 +339,7 @@ func (c *OfframpContract) GetMerkleRoot(state string, root []byte) bind.IMethod 
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) GetSourceChainConfig(state string, sourceChainSelector uint64) bind.IMethod {
+func (c *OfframpContract) GetSourceChainConfig(state bind.Object, sourceChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_source_chain_config", false, "", state, sourceChainSelector)
@@ -348,7 +367,7 @@ func (c *OfframpContract) GetSourceChainConfigFields(sourceChainConfig SourceCha
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) GetAllSourceChainConfigs(state string) bind.IMethod {
+func (c *OfframpContract) GetAllSourceChainConfigs(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_all_source_chain_configs", false, "", state)
@@ -362,7 +381,7 @@ func (c *OfframpContract) GetAllSourceChainConfigs(state string) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) GetStaticConfig(state string) bind.IMethod {
+func (c *OfframpContract) GetStaticConfig(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_static_config", false, "", state)
@@ -390,7 +409,7 @@ func (c *OfframpContract) GetStaticConfigFields(cfg StaticConfig) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) GetDynamicConfig(state string) bind.IMethod {
+func (c *OfframpContract) GetDynamicConfig(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_dynamic_config", false, "", state)
@@ -418,7 +437,7 @@ func (c *OfframpContract) GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) SetDynamicConfig(state string, param string, permissionlessExecutionThresholdSeconds uint32) bind.IMethod {
+func (c *OfframpContract) SetDynamicConfig(state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "set_dynamic_config", false, "", state, param, permissionlessExecutionThresholdSeconds)
@@ -432,7 +451,7 @@ func (c *OfframpContract) SetDynamicConfig(state string, param string, permissio
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) ApplySourceChainConfigUpdates(state string, param string, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod {
+func (c *OfframpContract) ApplySourceChainConfigUpdates(state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "apply_source_chain_config_updates", false, "", state, param, sourceChainsSelector, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)

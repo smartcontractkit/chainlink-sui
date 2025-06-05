@@ -8,6 +8,14 @@ import (
 )
 
 func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, externalStructs []parse.ExternalStruct) (tmplType, error) {
+	aliasMap := map[string]string{
+		"dd::SourceTransferCap": "ccip::common::SourceTransferCap",
+		"osh::DestTransferCap":  "ccip::common::DestTransferCap",
+	}
+	if realParam, ok := aliasMap[s]; ok {
+		s = realParam
+	}
+
 	switch s {
 	case "u8":
 		return tmplType{
@@ -29,9 +37,14 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 			GoType:   "uint64",
 			MoveType: s,
 		}, nil
-	case "u128", "u256":
+	case "u128":
 		return tmplType{
 			GoType:   "*big.Int",
+			MoveType: s,
+		}, nil
+	case "u256":
+		return tmplType{
+			GoType:   "uint256.Int",
 			MoveType: s,
 		}, nil
 	case "bool":
@@ -54,17 +67,10 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 			GoType:   "string",
 			MoveType: "sui::object::UID",
 		}, nil
-	// Sui has an object for accessing timestamps
-	case "clock::Clock", "Clock":
-		return tmplType{
-			GoType:   "string",
-			MoveType: s,
-		}, nil
 	default:
-		// Its a coin object
-		if strings.HasPrefix(s, "TreasuryCap") {
+		if isSuiObject(s) {
 			return tmplType{
-				GoType:   "string",
+				GoType:   "bind.Object",
 				MoveType: s,
 			}, nil
 		}
@@ -128,9 +134,9 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 		// Check if local struct
 		if _, ok := localStructs[s]; ok {
 			// If it's an object, we only want the object ID (string)
-			if isSuiObject(localStructs[s]) {
+			if isSuiObjectStruct(localStructs[s]) {
 				return tmplType{
-					GoType:   "string",
+					GoType:   "bind.Object",
 					MoveType: s,
 				}, nil
 			}
@@ -161,7 +167,25 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 	return tmplType{}, fmt.Errorf("unknown move type: %s", s)
 }
 
-func isSuiObject(s parse.Struct) bool {
+// Add as needed
+var hardCodedObjectTypes = []string{
+	"TreasuryCap",
+	"CoinMetadata",
+	"Clock",
+	"Coin",
+}
+
+func isSuiObject(s string) bool {
+	for _, hardCodedType := range hardCodedObjectTypes {
+		if strings.Contains(s, hardCodedType) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isSuiObjectStruct(s parse.Struct) bool {
 	if s.IsEvent {
 		return false
 	}

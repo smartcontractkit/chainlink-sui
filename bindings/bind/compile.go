@@ -24,73 +24,119 @@ type PackageManifest struct {
 func CompilePackage(packageName contracts.Package, namedAddresses map[string]string) (PackageArtifact, error) {
 	packageDir, ok := contracts.Contracts[packageName]
 	if !ok {
-		return PackageArtifact{}, fmt.Errorf("package %s not found", packageName)
+		return PackageArtifact{}, fmt.Errorf("unknown package: %s", packageName)
 	}
 
-	// Create a random temporary directory path
-	dstDir, err := os.MkdirTemp("", "sui-temp-*")
+	// Create temp dir for isolated compilation
+	dstDir, err := os.MkdirTemp(".", "sui-temp-*")
 	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to create temporary directory: %w", err)
+		return PackageArtifact{}, fmt.Errorf("creating temp dir: %w", err)
 	}
-	defer func(path string) {
-		_ = os.RemoveAll(path)
-	}(dstDir)
+	defer os.RemoveAll(dstDir)
 
-	srcDir := filepath.Join(".")
 	dstRoot := filepath.Join(dstDir, "contracts")
 	packageRoot := filepath.Join(dstRoot, packageDir)
 
-	// Copy the (embedded) source directories into the temporary directory root.
-	// We need to copy all contracts (not just the specified package) as different packages might depend on each other.
-	err = writeEFS(contracts.Embed, srcDir, dstRoot)
-	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to copy embedded files to %q: %w", dstRoot, err)
+	// Copy embedded contract files to temp workspace
+	if err = writeEFS(contracts.Embed, ".", dstRoot); err != nil {
+		return PackageArtifact{}, fmt.Errorf("copying embedded files to %q: %w", dstRoot, err)
 	}
 
-	// Update the TOML manifest with the named addresses
+	// Load and patch Move.toml
 	tomlPath := filepath.Join(packageRoot, "Move.toml")
-	docBytes, err := os.ReadFile(tomlPath)
+	manifest, err := loadManifest(tomlPath)
 	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to read TOML file %q: %w", tomlPath, err)
+		return PackageArtifact{}, fmt.Errorf("loading manifest: %w", err)
+	}
+	manifest.Addresses = namedAddresses
+	if err = writeManifest(tomlPath, manifest); err != nil {
+		return PackageArtifact{}, fmt.Errorf("writing manifest: %w", err)
+	}
+
+	// Special-case: update published-at of CCIP if this is the onramp package
+	if packageName == contracts.CCIPOnramp {
+		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+	}
+
+	// Special-case: update published-at of CCIP & CCIPRouter if this is the TokenPool package
+	if packageName == contracts.CCIPTokenPools {
+		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+
+		if err = updatePublishedAt(dstRoot, contracts.CCIPRouter, namedAddresses["ccip_router"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+	}
+
+	// Special-case: update published-at of CCIP & MCMs if it's a offRamp package
+	if packageName == contracts.CCIPOfframp {
+		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+	}
+
+	// Compile the Move package
+	cmd := exec.Command("sui", "move", "build", "--dump-bytecode-as-base64", "--ignore-chain")
+	cmd.Dir = packageRoot
+
+	output, err := cmd.Output()
+	if err != nil {
+		return PackageArtifact{}, fmt.Errorf("sui move build failed: %w\nOutput:\n%s", err, output)
+	}
+
+	return ToArtifact(string(output))
+}
+
+func loadManifest(path string) (PackageManifest, error) {
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return PackageManifest{}, fmt.Errorf("reading %s: %w", path, err)
 	}
 
 	var manifest PackageManifest
-	err = toml.Unmarshal(docBytes, &manifest)
-	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to parse Move TOML Manifest: %w", err)
+	if err := toml.Unmarshal(bytes, &manifest); err != nil {
+		return PackageManifest{}, fmt.Errorf("unmarshaling %s: %w", path, err)
 	}
-	manifest.Addresses = namedAddresses
 
-	// Write the updated TOML file back to the temporary directory
-	b, err := toml.Marshal(manifest)
+	return manifest, nil
+}
+
+func writeManifest(path string, manifest PackageManifest) error {
+	bytes, err := toml.Marshal(manifest)
 	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to marshal TOML file %q: %w", tomlPath, err)
+		return fmt.Errorf("marshaling TOML: %w", err)
 	}
+
 	//nolint:mnd
-	err = os.WriteFile(tomlPath, b, 0600)
+	return os.WriteFile(path, bytes, 0600)
+}
+
+func updatePublishedAt(root string, pkg contracts.Package, addr string) error {
+	dir, ok := contracts.Contracts[pkg]
+	if !ok {
+		return fmt.Errorf("unknown package: %s", pkg)
+	}
+	path := filepath.Join(root, dir, "Move.toml")
+
+	manifest, err := loadManifest(path)
 	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to write TOML file %q: %w", tomlPath, err)
+		return err
 	}
 
-	args := []string{
-		"move", "build",
-		"--dump-bytecode-as-base64",
-		"--ignore-chain",
+	var pkgTable map[string]any
+	if pkgTable, ok = manifest.Package.(map[string]any); !ok {
+		return fmt.Errorf("[package] table is not a map")
 	}
+	pkgTable["published-at"] = addr
 
-	cmd := exec.Command("sui", args...)
-	cmd.Dir = packageRoot // Command is run in the temporary destination directory
-	output, err := cmd.Output()
-	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to run sui move build: %w", err)
-	}
-
-	contractArtifact, err := ToArtifact(string(output))
-	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("failed to parse contract artifact: %w", err)
-	}
-
-	return contractArtifact, nil
+	return writeManifest(path, manifest)
 }
 
 func writeEFS(efs embed.FS, srcDir, dstDir string) error {

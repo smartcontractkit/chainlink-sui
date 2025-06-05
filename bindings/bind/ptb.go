@@ -3,15 +3,17 @@ package bind
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"reflect"
 
 	"github.com/fardream/go-bcs/bcs"
+	"github.com/holiman/uint256"
 	"github.com/pattonkan/sui-go/sui"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/pattonkan/sui-go/suiclient"
 )
 
-const defaultGasBudget = 200000000
+const defaultGasBudget = 200_000_000
 
 /*
 BuildPTBFromArgs creates a Programmable Transaction Builder (PTB) for a Sui Move call.
@@ -86,15 +88,26 @@ func ToPTBArg(
 	isMutable bool,
 ) (suiptb.Argument, error) {
 	switch v := arg.(type) {
+	// ────────────────────── OBJECT ──────────────────────
+	case Object:
+		if v.Id == "" {
+			return suiptb.Argument{}, fmt.Errorf("object ID cannot be empty")
+		}
+		if !IsSuiAddress(v.Id) {
+			return suiptb.Argument{}, fmt.Errorf("invalid Sui address: %s", v.Id)
+		}
+		// attempt to treat it as an object first
+		obj, err := ReadObject(ctx, v.Id, client)
+		if err == nil && obj.Error == nil && obj.Data != nil {
+			return ptb.Obj(ToObjectArg(obj.Data, isMutable))
+		}
+
+		return suiptb.Argument{}, fmt.Errorf("failed to read object %s: %w", v.Id, err)
+
 	// ────────────────────── STRING ──────────────────────
 	case string:
 		if IsSuiAddress(v) {
-			// attempt to treat it as an object first
-			obj, err := ReadObject(ctx, v, client)
-			if err == nil && obj.Error == nil && obj.Data != nil {
-				return ptb.Obj(ToObjectArg(obj.Data, isMutable))
-			}
-			// otherwise treat as raw address
+			// convert to Sui address
 			addr, err := ToSuiAddress(v)
 			if err != nil {
 				return suiptb.Argument{}, fmt.Errorf("bad address %s: %w", v, err)
@@ -131,6 +144,26 @@ func ToPTBArg(
 		}
 
 		return ptb.Pure(vv)
+
+	// ───────────────────── u256  ────────────────────────
+	case uint256.Int:
+		//nolint:mnd
+		bytes := serializeUBigInt(32, v.ToBig())
+		callArg := suiptb.CallArg{
+			Pure: &bytes,
+		}
+		// we skip the default serialization from the sdk
+		return ptb.Input(callArg)
+
+	// ───────────────────── u128  ────────────────────────
+	case *big.Int:
+		num, _ := bcs.NewUint128FromBigInt(v)
+		bytes, _ := num.MarshalBCS()
+		callArg := suiptb.CallArg{
+			Pure: &bytes,
+		}
+		// we skip the default serialization from the sdk
+		return ptb.Input(callArg)
 
 	// ───────────────────── generic slice ────────────────
 	default:

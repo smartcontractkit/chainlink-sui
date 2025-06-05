@@ -10,6 +10,7 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/utils"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -62,7 +63,7 @@ func TestPTBClient(t *testing.T) {
 	// Test GetLatestValue for different data types
 	//nolint:paralleltest
 	t.Run("FunctionRead", func(t *testing.T) {
-		args := []any{counterObjectId}
+		args := []any{bind.Object{Id: counterObjectId}}
 		argTypes := []string{"address"}
 
 		response, err := relayerClient.ReadFunction(
@@ -136,7 +137,7 @@ func TestPTBClient(t *testing.T) {
 			PackageObjectId: packageId,
 			Module:          "counter",
 			Function:        "increment", // Assuming this function exists in the contract
-			Arguments:       []any{counterObjectId},
+			Arguments:       []any{bind.Object{Id: counterObjectId}},
 		}
 
 		// Call MoveCall to prepare the transaction
@@ -283,7 +284,7 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 		PackageObjectId: packageId,
 		Module:          "counter",
 		Function:        "increment", // Assuming this function exists in the contract
-		Arguments:       []any{counterObjectId},
+		Arguments:       []any{bind.Object{Id: counterObjectId}},
 	}
 
 	// Call MoveCall to prepare the transaction

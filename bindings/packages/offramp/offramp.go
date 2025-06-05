@@ -52,9 +52,11 @@ func NewOfframp(address string, client suiclient.ClientImpl) (Offramp, error) {
 
 func PublishOfframp(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, ccipAddress string, mcmsAddress string) (Offramp, *suiclient.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.CCIPOfframp, map[string]string{
-		"mcms":    mcmsAddress,
-		"ccip":    ccipAddress,
-		"offramp": "0x0",
+		"mcms":                      mcmsAddress,
+		"ccip":                      ccipAddress,
+		"ccip_offramp":              "0x0",
+		"mcms_owner":                "0x1",
+		"mcms_register_entrypoints": "0x2",
 	})
 	if err != nil {
 		return nil, nil, err
