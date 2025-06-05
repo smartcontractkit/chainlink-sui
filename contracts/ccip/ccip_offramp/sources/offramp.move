@@ -891,7 +891,10 @@ module ccip_offramp::offramp {
 
         if (commit_report.blessed_merkle_roots.length() > 0) {
             verify_blessed_roots(
-                ref, &commit_report.blessed_merkle_roots, commit_report.rmn_signatures
+                ref,
+                object::id_to_address(&object::id(state)),
+                &commit_report.blessed_merkle_roots,
+                commit_report.rmn_signatures,
             );
         };
 
@@ -975,7 +978,10 @@ module ccip_offramp::offramp {
     }
 
     fun verify_blessed_roots(
-        ref: &CCIPObjectRef, blessed_merkle_roots: &vector<MerkleRoot>, rmn_signatures: vector<vector<u8>>
+        ref: &CCIPObjectRef,
+        off_ramp_state_address: address,
+        blessed_merkle_roots: &vector<MerkleRoot>,
+        rmn_signatures: vector<vector<u8>>,
     ) {
         let mut merkle_root_source_chains_selector = vector[];
         let mut merkle_root_on_ramp_addresses = vector[];
@@ -1003,6 +1009,7 @@ module ccip_offramp::offramp {
         );
         rmn_remote::verify(
             ref,
+            off_ramp_state_address,
             merkle_root_source_chains_selector,
             merkle_root_on_ramp_addresses,
             merkle_root_min_seq_nrs,

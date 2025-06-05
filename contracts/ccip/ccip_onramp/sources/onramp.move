@@ -579,8 +579,9 @@ module ccip_onramp::onramp {
         (cfg.fee_aggregator, cfg.allowlist_admin)
     }
 
+    // TODO: verify that we are using onramp state address in metadata hash
     fun calculate_metadata_hash(
-        source_chain_selector: u64, dest_chain_selector: u64
+        source_chain_selector: u64, dest_chain_selector: u64, on_ramp_address: address
     ): vector<u8> {
         let mut packed = vector[];
         eth_abi::encode_right_padded_bytes32(
@@ -588,7 +589,7 @@ module ccip_onramp::onramp {
         );
         eth_abi::encode_u64(&mut packed, source_chain_selector);
         eth_abi::encode_u64(&mut packed, dest_chain_selector);
-        eth_abi::encode_address(&mut packed, @ccip);
+        eth_abi::encode_address(&mut packed, on_ramp_address);
         hash::keccak256(&packed)
     }
 
@@ -843,7 +844,7 @@ module ccip_onramp::onramp {
         };
 
         // attach message id
-        let metadata_hash = calculate_metadata_hash(state.chain_selector, dest_chain_selector);
+        let metadata_hash = calculate_metadata_hash(state.chain_selector, dest_chain_selector, object::id_to_address(&object::id(state)));
         let message_id = calculate_message_hash(&message, metadata_hash);
         message.header.message_id = message_id;
 

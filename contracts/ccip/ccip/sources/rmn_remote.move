@@ -145,6 +145,7 @@ fun calculate_report(report: &Report): vector<u8> {
 
 public fun verify(
     ref: &CCIPObjectRef,
+    off_ramp_state_address: address,
     merkle_root_source_chain_selectors: vector<u64>,
     merkle_root_on_ramp_addresses: vector<vector<u8>>,
     merkle_root_min_seq_nrs: vector<u64>,
@@ -201,10 +202,12 @@ public fun verify(
         i = i + 1;
     };
 
+    // TODO: verify this.
+    // currently we use the CCIP state object id as rmn_remote_contract_address and offramp state address as off_ramp_address.
     let report = Report {
         dest_chain_selector: state.local_chain_selector,
-        rmn_remote_contract_address: @ccip,
-        off_ramp_address: @ccip,
+        rmn_remote_contract_address: object::id_to_address(&object::id(ref)),
+        off_ramp_address: off_ramp_state_address,
         rmn_home_contract_config_digest: state.config.rmn_home_contract_config_digest,
         merkle_roots
     };

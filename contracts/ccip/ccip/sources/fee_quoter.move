@@ -216,6 +216,8 @@ const E_INVALID_CHAIN_FAMILY_SELECTOR: u64 = 28;
 const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
 const E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS: u64 = 30;
 const E_INVALID_SVM_EXTRA_ARGS_WRITABLE_BITMAP: u64 = 31;
+const E_INVALID_FEE_RANGE: u64 = 32;
+const E_INVALID_DEST_BYTES_OVERHEAD: u64 = 33;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -361,6 +363,15 @@ public fun apply_token_transfer_fee_config_updates(
             dest_bytes_overhead,
             is_enabled
         };
+
+        assert!(
+            token_transfer_fee_config.min_fee_usd_cents < token_transfer_fee_config.max_fee_usd_cents,
+            E_INVALID_FEE_RANGE
+        );
+        assert!(
+            token_transfer_fee_config.dest_bytes_overhead >= CCIP_LOCK_OR_BURN_V1_RET_BYTES,
+            E_INVALID_DEST_BYTES_OVERHEAD
+        );
 
         token_transfer_fee_configs.add(token, token_transfer_fee_config);
 

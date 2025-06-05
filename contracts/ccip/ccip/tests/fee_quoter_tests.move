@@ -498,7 +498,7 @@ public fun test_get_validated_fee() {
         vector[30, 40], // add_max_fee_usd_cents
         vector[50, 60], // add_deci_bps
         vector[700, 800], // add_dest_gas_overhead
-        vector[9, 10], // add_dest_bytes_overhead
+        vector[90, 100], // add_dest_bytes_overhead
         vector[true, false], // add_is_enabled
         vector[], // remove_tokens
         ctx,
