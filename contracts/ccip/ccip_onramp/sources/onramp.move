@@ -139,6 +139,7 @@ module ccip_onramp::onramp {
     const E_NONCE_MANAGER_CAP_EXISTS: u64 = 12;
     const E_SOURCE_TRANSFER_CAP_EXISTS: u64 = 13;
     const E_CANNOT_SEND_ZERO_TOKENS: u64 = 14;
+    const E_ZERO_CHAIN_SELECTOR: u64 = 15;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -189,6 +190,7 @@ module ccip_onramp::onramp {
         dest_chain_enabled: vector<bool>,
         dest_chain_allowlist_enabled: vector<bool>
     ) {
+        assert!(chain_selector != 0, E_ZERO_CHAIN_SELECTOR);
         state.chain_selector = chain_selector;
         assert!(
             state.nonce_manager_cap.is_none(),
@@ -249,6 +251,9 @@ module ccip_onramp::onramp {
     fun set_dynamic_config_internal(
         state: &mut OnRampState, fee_aggregator: address, allowlist_admin: address
     ) {
+        ccip::address::assert_non_zero_address(fee_aggregator);
+        ccip::address::assert_non_zero_address(allowlist_admin);
+
         state.fee_aggregator = fee_aggregator;
         state.allowlist_admin = allowlist_admin;
 
@@ -578,7 +583,7 @@ module ccip_onramp::onramp {
         source_chain_selector: u64, dest_chain_selector: u64
     ): vector<u8> {
         let mut packed = vector[];
-        eth_abi::encode_bytes32(
+        eth_abi::encode_right_padded_bytes32(
             &mut packed, hash::keccak256(&b"Sui2AnyMessageHashV1")
         );
         eth_abi::encode_u64(&mut packed, source_chain_selector);
@@ -591,8 +596,8 @@ module ccip_onramp::onramp {
         message: &Sui2AnyRampMessage, metadata_hash: vector<u8>
     ): vector<u8> {
         let mut outer_hash = vector[];
-        eth_abi::encode_bytes32(&mut outer_hash, merkle_proof::leaf_domain_separator());
-        eth_abi::encode_bytes32(&mut outer_hash, metadata_hash);
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, merkle_proof::leaf_domain_separator());
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, metadata_hash);
 
         let mut inner_hash = vector[];
         eth_abi::encode_address(&mut inner_hash, message.sender);
@@ -600,12 +605,12 @@ module ccip_onramp::onramp {
         eth_abi::encode_u64(&mut inner_hash, message.header.nonce);
         eth_abi::encode_address(&mut inner_hash, message.fee_token);
         eth_abi::encode_u64(&mut inner_hash, message.fee_token_amount);
-        eth_abi::encode_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
 
-        eth_abi::encode_bytes32(
+        eth_abi::encode_right_padded_bytes32(
             &mut outer_hash, hash::keccak256(&message.receiver)
         );
-        eth_abi::encode_bytes32(&mut outer_hash, hash::keccak256(&message.data));
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&message.data));
 
         let mut token_hash = vector[];
         eth_abi::encode_u256(&mut token_hash, message.token_amounts.length() as u256);
@@ -621,9 +626,9 @@ module ccip_onramp::onramp {
                 eth_abi::encode_bytes(&mut token_hash, token_transfer.dest_exec_data);
             }
         );
-        eth_abi::encode_bytes32(&mut outer_hash, hash::keccak256(&token_hash));
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&token_hash));
 
-        eth_abi::encode_bytes32(
+        eth_abi::encode_right_padded_bytes32(
             &mut outer_hash, hash::keccak256(&message.extra_args)
         );
 

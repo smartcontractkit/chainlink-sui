@@ -6,6 +6,8 @@ module ccip_offramp::ocr3_base {
     use sui::hash;
     use sui::table::{Self, Table};
 
+    use ccip::address;
+
     const MAX_NUM_ORACLES: u64 = 256;
     const OCR_PLUGIN_TYPE_COMMIT: u8 = 0;
     const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
@@ -162,6 +164,11 @@ module ccip_offramp::ocr3_base {
         ocr_plugin_type: u8,
         transmitters: &vector<address>
     ) {
+        transmitters.do_ref!(
+            |transmitter_addr| {
+                address::assert_non_zero_address(*transmitter_addr);
+            }
+        );
         assert!(
             !has_duplicates(transmitters),
             E_REPEATED_TRANSMITTERS
@@ -178,6 +185,11 @@ module ccip_offramp::ocr3_base {
         ocr_plugin_type: u8,
         signers: &vector<vector<u8>>
     ) {
+        signers.do_ref!(
+            |signer| {
+                address::assert_non_zero_address_vector(signer);
+            }
+        );
         assert!(!has_duplicates(signers), E_REPEATED_SIGNERS);
 
         let validated_signers = signers.map_ref!(

@@ -5,6 +5,7 @@
     use sui::event;
     use sui::vec_map::{Self, VecMap};
 
+    use ccip::address;
     use ccip::eth_abi;
     use ccip::state_object;
     use ccip::rmn_remote;
@@ -77,7 +78,7 @@
 
     const ENotPublisher: u64 = 1;
     const EUnknownRemoteChainSelector: u64 = 2;
-    const EZeroAddressNotAllowed: u64 = 3;
+    const ECursedChain: u64 = 3;
     const ERemotePoolAlreadyAdded: u64 = 4;
     const EUnknownRemotePool: u64 = 5;
     const ERemoateChainToAddMismatch: u64 = 6;
@@ -86,7 +87,6 @@
     const EInvalidEncodedAmount: u64 = 9;
     const EUnknownToken: u64 = 10;
     const EDecimalOverflow: u64 = 11;
-    const ECursedChain: u64 = 12;
 
     // ================================================================
     // |                    Initialize and state                      |
@@ -171,10 +171,7 @@
             );
             let remote_pool_addresses = remote_pool_addresses_to_add[i];
             let remote_token_address = remote_token_addresses_to_add[i];
-            assert!(
-                !remote_token_address.is_empty(),
-                EZeroAddressNotAllowed
-            );
+            address::assert_non_zero_address_vector(&remote_token_address);
 
             let mut remote_chain_config = RemoteChainConfig {
                 remote_token_address,
@@ -184,6 +181,8 @@
             remote_pool_addresses.do_ref!(
                 |remote_pool_address| {
                     let remote_pool_address: vector<u8> = *remote_pool_address;
+                    address::assert_non_zero_address_vector(&remote_pool_address);
+
                     let (found, _) =
                         remote_chain_config.remote_pools.index_of(&remote_pool_address);
                     assert!(!found, ERemotePoolAlreadyAdded);
@@ -244,10 +243,7 @@
         remote_chain_selector: u64,
         remote_pool_address: vector<u8>
     ) {
-        assert!(
-            !remote_pool_address.is_empty(),
-            EZeroAddressNotAllowed
-        );
+        address::assert_non_zero_address_vector(&remote_pool_address);
 
         assert!(
             state.remote_chain_configs.contains(&remote_chain_selector),

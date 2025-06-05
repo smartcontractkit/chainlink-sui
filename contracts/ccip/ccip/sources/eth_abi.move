@@ -51,10 +51,11 @@ public fun encode_bool(out: &mut vector<u8>, value: bool) {
     else ENCODED_BOOL_FALSE);
 }
 
-public fun encode_bytes32(
+public fun encode_left_padded_bytes32(
     out: &mut vector<u8>, value: vector<u8>
 ) {
-    assert!(value.length() <= 32, E_INVALID_BYTES32_LENGTH);
+    assert!(value.length() <= 32, E_INVALID_U256_LENGTH);
+
     let padding_len = 32 - value.length();
     let mut i = 0;
     while (i < padding_len) {
@@ -62,6 +63,21 @@ public fun encode_bytes32(
         i = i + 1;
     };
     out.append(value);
+}
+
+/// For byte array types (bytes32, bytes4, etc.) - right padded with zeros
+public fun encode_right_padded_bytes32(
+    out: &mut vector<u8>, value: vector<u8>
+) {
+    assert!(value.length() <= 32, E_INVALID_BYTES32_LENGTH);
+
+    out.append(value);
+    let padding_len = 32 - value.length();
+    let mut i = 0;
+    while (i < padding_len) {
+        out.push_back(0);
+        i = i + 1;
+    };
 }
 
 public fun encode_bytes(out: &mut vector<u8>, value: vector<u8>) {
@@ -101,6 +117,13 @@ public fun encode_packed_bytes32(
 ) {
     assert!(value.length() <= 32, E_INVALID_BYTES32_LENGTH);
     out.append(value);
+
+    let padding_len = 32 - value.length();
+    let mut i = 0;
+    while (i < padding_len) {
+        out.push_back(0);
+        i = i + 1;
+    };
 }
 
 public fun encode_packed_u8(out: &mut vector<u8>, value: u8) {

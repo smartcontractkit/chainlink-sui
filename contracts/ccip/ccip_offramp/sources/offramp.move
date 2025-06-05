@@ -354,6 +354,7 @@ module ccip_offramp::offramp {
             let on_ramp = source_chains_on_ramp[i];
 
             assert!(source_chain_selector != 0, E_ZERO_CHAIN_SELECTOR);
+            ccip::address::assert_non_zero_address_vector(&on_ramp);
 
             if (state.source_chain_configs.contains(&source_chain_selector)) {
                 // OnRamp updates should only happen due to a misconfiguration.
@@ -708,12 +709,12 @@ module ccip_offramp::offramp {
         source_chain_selector: u64, dest_chain_selector: u64, on_ramp: vector<u8>
     ): vector<u8> {
         let mut packed = vector[];
-        eth_abi::encode_bytes32(
+        eth_abi::encode_right_padded_bytes32(
             &mut packed, hash::keccak256(&b"Any2SuiMessageHashV1")
         );
         eth_abi::encode_u64(&mut packed, source_chain_selector);
         eth_abi::encode_u64(&mut packed, dest_chain_selector);
-        eth_abi::encode_bytes32(&mut packed, hash::keccak256(&on_ramp));
+        eth_abi::encode_right_padded_bytes32(&mut packed, hash::keccak256(&on_ramp));
         hash::keccak256(&packed)
     }
 
@@ -721,19 +722,19 @@ module ccip_offramp::offramp {
         message: &Any2SuiRampMessage, metadata_hash: vector<u8>
     ): vector<u8> {
         let mut outer_hash = vector[];
-        eth_abi::encode_bytes32(&mut outer_hash, merkle_proof::leaf_domain_separator());
-        eth_abi::encode_bytes32(&mut outer_hash, metadata_hash);
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, merkle_proof::leaf_domain_separator());
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, metadata_hash);
 
         let mut inner_hash = vector[];
-        eth_abi::encode_bytes32(&mut inner_hash, message.header.message_id);
+        eth_abi::encode_right_padded_bytes32(&mut inner_hash, message.header.message_id);
         eth_abi::encode_address(&mut inner_hash, message.receiver);
         eth_abi::encode_u64(&mut inner_hash, message.header.sequence_number);
         eth_abi::encode_u256(&mut inner_hash, message.gas_limit);
         eth_abi::encode_u64(&mut inner_hash, message.header.nonce);
-        eth_abi::encode_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
 
-        eth_abi::encode_bytes32(&mut outer_hash, hash::keccak256(&message.sender));
-        eth_abi::encode_bytes32(&mut outer_hash, hash::keccak256(&message.data));
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&message.sender));
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&message.data));
 
         let mut token_hash = vector[];
         eth_abi::encode_u256(
@@ -749,7 +750,7 @@ module ccip_offramp::offramp {
                 eth_abi::encode_u256(&mut token_hash, token_transfer.amount);
             }
         );
-        eth_abi::encode_bytes32(&mut outer_hash, hash::keccak256(&token_hash));
+        eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&token_hash));
 
         hash::keccak256(&outer_hash)
     }
@@ -790,6 +791,8 @@ module ccip_offramp::offramp {
                 &mut stream,
                 |stream| { bcs_stream::deserialize_fixed_vector_u8(stream, 64) }
             );
+
+        bcs_stream::assert_is_consumed(&stream);
 
         CommitReport {
             price_updates: PriceUpdates { token_price_updates, gas_price_updates },

@@ -125,11 +125,11 @@ public fun initialize(
 
 fun calculate_report(report: &Report): vector<u8> {
     let mut digest = vector[];
-    eth_abi::encode_bytes32(&mut digest, get_report_digest_header());
+    eth_abi::encode_right_padded_bytes32(&mut digest, get_report_digest_header());
     eth_abi::encode_u64(&mut digest, report.dest_chain_selector);
     eth_abi::encode_address(&mut digest, report.rmn_remote_contract_address);
     eth_abi::encode_address(&mut digest, report.off_ramp_address);
-    eth_abi::encode_bytes32(&mut digest, report.rmn_home_contract_config_digest);
+    eth_abi::encode_right_padded_bytes32(&mut digest, report.rmn_home_contract_config_digest);
     report.merkle_roots.do_ref!(
         |merkle_root| {
             let merkle_root: &MerkleRoot = merkle_root;
@@ -137,7 +137,7 @@ fun calculate_report(report: &Report): vector<u8> {
             eth_abi::encode_bytes(&mut digest, merkle_root.on_ramp_address);
             eth_abi::encode_u64(&mut digest, merkle_root.min_seq_nr);
             eth_abi::encode_u64(&mut digest, merkle_root.max_seq_nr);
-            eth_abi::encode_bytes32(&mut digest, merkle_root.merkle_root);
+            eth_abi::encode_right_padded_bytes32(&mut digest, merkle_root.merkle_root);
         }
     );
     digest

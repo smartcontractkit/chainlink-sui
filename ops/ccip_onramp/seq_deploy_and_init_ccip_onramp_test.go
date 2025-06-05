@@ -103,6 +103,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 			NonceManagerCapId:         reportNonceManagerInit.Output.Objects.NonceManagerCapObjectId, // this is from NonceManager init Op
 			SourceTransferCapId:       report.Output.Objects.SourceTransferCapObjectId,               // this is from CCIP package publish
 			ChainSelector:             1,
+			FeeAggregator:             signerAddress,
 			AllowListAdmin:            signerAddress,
 			DestChainSelectors:        []uint64{2},
 			DestChainEnabled:          []bool{true},
