@@ -115,7 +115,7 @@ type PoolInfos struct {
 func (c *TokenAdminRegistryContract) TypeAndVersion() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "type_and_version", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "type_and_version", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "type_and_version", err)
 		}
@@ -129,7 +129,7 @@ func (c *TokenAdminRegistryContract) TypeAndVersion() bind.IMethod {
 func (c *TokenAdminRegistryContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "initialize", false, "", ref, param)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "initialize", false, "", "", ref, param)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "initialize", err)
 		}
@@ -143,7 +143,7 @@ func (c *TokenAdminRegistryContract) Initialize(ref module_common.CCIPObjectRef,
 func (c *TokenAdminRegistryContract) GetPools(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pools", false, "", ref, coinMetadataAddresses)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pools", false, "", "", ref, coinMetadataAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pools", err)
 		}
@@ -157,7 +157,7 @@ func (c *TokenAdminRegistryContract) GetPools(ref module_common.CCIPObjectRef, c
 func (c *TokenAdminRegistryContract) GetPoolInfos(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pool_infos", false, "", ref, coinMetadataAddresses)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pool_infos", false, "", "", ref, coinMetadataAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pool_infos", err)
 		}
@@ -171,7 +171,7 @@ func (c *TokenAdminRegistryContract) GetPoolInfos(ref module_common.CCIPObjectRe
 func (c *TokenAdminRegistryContract) GetPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pool", false, "", ref, coinMetadataAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pool", false, "", "", ref, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pool", err)
 		}
@@ -185,7 +185,7 @@ func (c *TokenAdminRegistryContract) GetPool(ref module_common.CCIPObjectRef, co
 func (c *TokenAdminRegistryContract) GetTokenConfig(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_token_config", false, "", ref, coinMetadataAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_token_config", false, "", "", ref, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_token_config", err)
 		}
@@ -199,7 +199,7 @@ func (c *TokenAdminRegistryContract) GetTokenConfig(ref module_common.CCIPObject
 func (c *TokenAdminRegistryContract) GetAllConfiguredTokens(ref module_common.CCIPObjectRef, startKey string, maxCount uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_all_configured_tokens", false, "", ref, startKey, maxCount)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_all_configured_tokens", false, "", "", ref, startKey, maxCount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_all_configured_tokens", err)
 		}
@@ -213,7 +213,7 @@ func (c *TokenAdminRegistryContract) GetAllConfiguredTokens(ref module_common.CC
 func (c *TokenAdminRegistryContract) UnregisterPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "unregister_pool", false, "", ref, coinMetadataAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "unregister_pool", false, "", "", ref, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "unregister_pool", err)
 		}
@@ -227,7 +227,7 @@ func (c *TokenAdminRegistryContract) UnregisterPool(ref module_common.CCIPObject
 func (c *TokenAdminRegistryContract) TransferAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string, newAdmin string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "transfer_admin_role", false, "", ref, coinMetadataAddress, newAdmin)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "transfer_admin_role", false, "", "", ref, coinMetadataAddress, newAdmin)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "transfer_admin_role", err)
 		}
@@ -241,7 +241,7 @@ func (c *TokenAdminRegistryContract) TransferAdminRole(ref module_common.CCIPObj
 func (c *TokenAdminRegistryContract) AcceptAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "accept_admin_role", false, "", ref, coinMetadataAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "accept_admin_role", false, "", "", ref, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "accept_admin_role", err)
 		}
@@ -255,7 +255,7 @@ func (c *TokenAdminRegistryContract) AcceptAdminRole(ref module_common.CCIPObjec
 func (c *TokenAdminRegistryContract) IsAdministrator(ref module_common.CCIPObjectRef, coinMetadataAddress string, administrator string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "is_administrator", false, "", ref, coinMetadataAddress, administrator)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "is_administrator", false, "", "", ref, coinMetadataAddress, administrator)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "is_administrator", err)
 		}

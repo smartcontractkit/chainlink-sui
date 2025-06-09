@@ -11,6 +11,7 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 	aliasMap := map[string]string{
 		"dd::SourceTransferCap": "ccip::common::SourceTransferCap",
 		"osh::DestTransferCap":  "ccip::common::DestTransferCap",
+		"dd::TokenParams":       "ccip::common::TokenParams",
 	}
 	if realParam, ok := aliasMap[s]; ok {
 		s = realParam
@@ -132,9 +133,10 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 			}, nil
 		}
 		// Check if local struct
-		if _, ok := localStructs[s]; ok {
+		baseType := stripGenericType(s)
+		if _, ok := localStructs[baseType]; ok {
 			// If it's an object, we only want the object ID (string)
-			if isSuiObjectStruct(localStructs[s]) {
+			if isSuiObjectStruct(localStructs[baseType]) {
 				return tmplType{
 					GoType:   "bind.Object",
 					MoveType: s,
@@ -196,4 +198,12 @@ func isSuiObjectStruct(s parse.Struct) bool {
 	}
 
 	return false
+}
+
+func stripGenericType(s string) string {
+	if i := strings.Index(s, "<"); i != -1 {
+		return s[:i]
+	}
+
+	return s
 }

@@ -273,7 +273,7 @@ type FunctionUnblocked struct {
 func (c *McmsContract) SetRoot(state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId uint256.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "set_root", false, "", state, clock, role, root, validUntil, chainId, multisigAddr, preOpCount, postOpCount, overridePreviousRoot, metadataProof, signatures)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "set_root", false, "", "", state, clock, role, root, validUntil, chainId, multisigAddr, preOpCount, postOpCount, overridePreviousRoot, metadataProof, signatures)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "set_root", err)
 		}
@@ -287,7 +287,7 @@ func (c *McmsContract) SetRoot(state bind.Object, clock bind.Object, role byte, 
 func (c *McmsContract) Execute(state bind.Object, clock bind.Object, role byte, chainId uint256.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "execute", false, "", state, clock, role, chainId, multisigAddr, nonce, to, moduleName, functionName, data, proof)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "execute", false, "", "", state, clock, role, chainId, multisigAddr, nonce, to, moduleName, functionName, data, proof)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "execute", err)
 		}
@@ -301,7 +301,7 @@ func (c *McmsContract) Execute(state bind.Object, clock bind.Object, role byte, 
 func (c *McmsContract) DispatchTimelockScheduleBatch(timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_schedule_batch", false, "", timelock, clock, timelockCallbackParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_schedule_batch", false, "", "", timelock, clock, timelockCallbackParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "dispatch_timelock_schedule_batch", err)
 		}
@@ -315,7 +315,7 @@ func (c *McmsContract) DispatchTimelockScheduleBatch(timelock bind.Object, clock
 func (c *McmsContract) DispatchTimelockExecuteBatch(timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_execute_batch", false, "", timelock, clock, timelockCallbackParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_execute_batch", false, "", "", timelock, clock, timelockCallbackParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "dispatch_timelock_execute_batch", err)
 		}
@@ -329,7 +329,7 @@ func (c *McmsContract) DispatchTimelockExecuteBatch(timelock bind.Object, clock 
 func (c *McmsContract) DispatchTimelockBypasserExecuteBatch(timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_bypasser_execute_batch", false, "", timelockCallbackParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_bypasser_execute_batch", false, "", "", timelockCallbackParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "dispatch_timelock_bypasser_execute_batch", err)
 		}
@@ -343,7 +343,7 @@ func (c *McmsContract) DispatchTimelockBypasserExecuteBatch(timelockCallbackPara
 func (c *McmsContract) DispatchTimelockCancel(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_cancel", false, "", timelock, timelockCallbackParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_cancel", false, "", "", timelock, timelockCallbackParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "dispatch_timelock_cancel", err)
 		}
@@ -357,7 +357,7 @@ func (c *McmsContract) DispatchTimelockCancel(timelock bind.Object, timelockCall
 func (c *McmsContract) DispatchTimelockUpdateMinDelay(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_update_min_delay", false, "", timelock, timelockCallbackParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_update_min_delay", false, "", "", timelock, timelockCallbackParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "dispatch_timelock_update_min_delay", err)
 		}
@@ -371,7 +371,7 @@ func (c *McmsContract) DispatchTimelockUpdateMinDelay(timelock bind.Object, time
 func (c *McmsContract) DispatchTimelockBlockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_block_function", false, "", timelock, timelockCallbackParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_block_function", false, "", "", timelock, timelockCallbackParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "dispatch_timelock_block_function", err)
 		}
@@ -385,7 +385,7 @@ func (c *McmsContract) DispatchTimelockBlockFunction(timelock bind.Object, timel
 func (c *McmsContract) DispatchTimelockUnblockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_unblock_function", false, "", timelock, timelockCallbackParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "dispatch_timelock_unblock_function", false, "", "", timelock, timelockCallbackParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "dispatch_timelock_unblock_function", err)
 		}
@@ -399,7 +399,7 @@ func (c *McmsContract) DispatchTimelockUnblockFunction(timelock bind.Object, tim
 func (c *McmsContract) SetConfig(param module_common.OwnerCap, state bind.Object, role byte, chainId uint256.Int, signerAddresses [][]byte, signerGroups []byte, groupQuorums []byte, groupParents []byte, clearRoot bool) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "set_config", false, "", param, state, role, chainId, signerAddresses, signerGroups, groupQuorums, groupParents, clearRoot)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "set_config", false, "", "", param, state, role, chainId, signerAddresses, signerGroups, groupQuorums, groupParents, clearRoot)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "set_config", err)
 		}
@@ -413,7 +413,7 @@ func (c *McmsContract) SetConfig(param module_common.OwnerCap, state bind.Object
 func (c *McmsContract) VerifyMerkleProof(proof [][]byte, root []byte, leaf []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "verify_merkle_proof", false, "", proof, root, leaf)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "verify_merkle_proof", false, "", "", proof, root, leaf)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "verify_merkle_proof", err)
 		}
@@ -427,7 +427,7 @@ func (c *McmsContract) VerifyMerkleProof(proof [][]byte, root []byte, leaf []byt
 func (c *McmsContract) ComputeEthMessageHash(root []byte, validUntil uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "compute_eth_message_hash", false, "", root, validUntil)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "compute_eth_message_hash", false, "", "", root, validUntil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "compute_eth_message_hash", err)
 		}
@@ -441,7 +441,7 @@ func (c *McmsContract) ComputeEthMessageHash(root []byte, validUntil uint64) bin
 func (c *McmsContract) HashOpLeaf(domainSeparator []byte, op Op) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "hash_op_leaf", false, "", domainSeparator, op)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "hash_op_leaf", false, "", "", domainSeparator, op)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "hash_op_leaf", err)
 		}
@@ -455,7 +455,7 @@ func (c *McmsContract) HashOpLeaf(domainSeparator []byte, op Op) bind.IMethod {
 func (c *McmsContract) SeenSignedHashes(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "seen_signed_hashes", false, "", state, role)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "seen_signed_hashes", false, "", "", state, role)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "seen_signed_hashes", err)
 		}
@@ -469,7 +469,7 @@ func (c *McmsContract) SeenSignedHashes(state bind.Object, role byte) bind.IMeth
 func (c *McmsContract) ExpiringRootAndOpCount(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "expiring_root_and_op_count", false, "", state, role)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "expiring_root_and_op_count", false, "", "", state, role)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "expiring_root_and_op_count", err)
 		}
@@ -483,7 +483,7 @@ func (c *McmsContract) ExpiringRootAndOpCount(state bind.Object, role byte) bind
 func (c *McmsContract) RootMetadata(multisig Multisig) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "root_metadata", false, "", multisig)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "root_metadata", false, "", "", multisig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "root_metadata", err)
 		}
@@ -497,7 +497,7 @@ func (c *McmsContract) RootMetadata(multisig Multisig) bind.IMethod {
 func (c *McmsContract) GetRootMetadata(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_root_metadata", false, "", state, role)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_root_metadata", false, "", "", state, role)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "get_root_metadata", err)
 		}
@@ -511,7 +511,7 @@ func (c *McmsContract) GetRootMetadata(state bind.Object, role byte) bind.IMetho
 func (c *McmsContract) GetOpCount(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_op_count", false, "", state, role)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_op_count", false, "", "", state, role)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "get_op_count", err)
 		}
@@ -525,7 +525,7 @@ func (c *McmsContract) GetOpCount(state bind.Object, role byte) bind.IMethod {
 func (c *McmsContract) GetRoot(state bind.Object, role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_root", false, "", state, role)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_root", false, "", "", state, role)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "get_root", err)
 		}
@@ -539,7 +539,7 @@ func (c *McmsContract) GetRoot(state bind.Object, role byte) bind.IMethod {
 func (c *McmsContract) NumGroups() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "num_groups", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "num_groups", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "num_groups", err)
 		}
@@ -553,7 +553,7 @@ func (c *McmsContract) NumGroups() bind.IMethod {
 func (c *McmsContract) MaxNumSigners() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "max_num_signers", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "max_num_signers", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "max_num_signers", err)
 		}
@@ -567,7 +567,7 @@ func (c *McmsContract) MaxNumSigners() bind.IMethod {
 func (c *McmsContract) BypasserRole() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "bypasser_role", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "bypasser_role", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "bypasser_role", err)
 		}
@@ -581,7 +581,7 @@ func (c *McmsContract) BypasserRole() bind.IMethod {
 func (c *McmsContract) CancellerRole() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "canceller_role", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "canceller_role", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "canceller_role", err)
 		}
@@ -595,7 +595,7 @@ func (c *McmsContract) CancellerRole() bind.IMethod {
 func (c *McmsContract) ProposerRole() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "proposer_role", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "proposer_role", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "proposer_role", err)
 		}
@@ -609,7 +609,7 @@ func (c *McmsContract) ProposerRole() bind.IMethod {
 func (c *McmsContract) TimelockRole() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_role", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_role", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_role", err)
 		}
@@ -623,7 +623,7 @@ func (c *McmsContract) TimelockRole() bind.IMethod {
 func (c *McmsContract) IsValidRole(role byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "is_valid_role", false, "", role)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "is_valid_role", false, "", "", role)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "is_valid_role", err)
 		}
@@ -637,7 +637,7 @@ func (c *McmsContract) IsValidRole(role byte) bind.IMethod {
 func (c *McmsContract) ZeroHash() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "zero_hash", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "zero_hash", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "zero_hash", err)
 		}
@@ -651,7 +651,7 @@ func (c *McmsContract) ZeroHash() bind.IMethod {
 func (c *McmsContract) Role(rootMetadata RootMetadata) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "role", false, "", rootMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "role", false, "", "", rootMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "role", err)
 		}
@@ -665,7 +665,7 @@ func (c *McmsContract) Role(rootMetadata RootMetadata) bind.IMethod {
 func (c *McmsContract) ChainId(rootMetadata RootMetadata) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "chain_id", false, "", rootMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "chain_id", false, "", "", rootMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "chain_id", err)
 		}
@@ -679,7 +679,7 @@ func (c *McmsContract) ChainId(rootMetadata RootMetadata) bind.IMethod {
 func (c *McmsContract) RootMetadataMultisig(rootMetadata RootMetadata) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "root_metadata_multisig", false, "", rootMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "root_metadata_multisig", false, "", "", rootMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "root_metadata_multisig", err)
 		}
@@ -693,7 +693,7 @@ func (c *McmsContract) RootMetadataMultisig(rootMetadata RootMetadata) bind.IMet
 func (c *McmsContract) PreOpCount(rootMetadata RootMetadata) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "pre_op_count", false, "", rootMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "pre_op_count", false, "", "", rootMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "pre_op_count", err)
 		}
@@ -707,7 +707,7 @@ func (c *McmsContract) PreOpCount(rootMetadata RootMetadata) bind.IMethod {
 func (c *McmsContract) PostOpCount(rootMetadata RootMetadata) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "post_op_count", false, "", rootMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "post_op_count", false, "", "", rootMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "post_op_count", err)
 		}
@@ -721,7 +721,7 @@ func (c *McmsContract) PostOpCount(rootMetadata RootMetadata) bind.IMethod {
 func (c *McmsContract) OverridePreviousRoot(rootMetadata RootMetadata) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "override_previous_root", false, "", rootMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "override_previous_root", false, "", "", rootMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "override_previous_root", err)
 		}
@@ -735,7 +735,7 @@ func (c *McmsContract) OverridePreviousRoot(rootMetadata RootMetadata) bind.IMet
 func (c *McmsContract) ConfigSigners(config Config) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "config_signers", false, "", config)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "config_signers", false, "", "", config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "config_signers", err)
 		}
@@ -749,7 +749,7 @@ func (c *McmsContract) ConfigSigners(config Config) bind.IMethod {
 func (c *McmsContract) ConfigGroupQuorums(config Config) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "config_group_quorums", false, "", config)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "config_group_quorums", false, "", "", config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "config_group_quorums", err)
 		}
@@ -763,7 +763,7 @@ func (c *McmsContract) ConfigGroupQuorums(config Config) bind.IMethod {
 func (c *McmsContract) ConfigGroupParents(config Config) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "config_group_parents", false, "", config)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "config_group_parents", false, "", "", config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "config_group_parents", err)
 		}
@@ -777,7 +777,7 @@ func (c *McmsContract) ConfigGroupParents(config Config) bind.IMethod {
 func (c *McmsContract) TimelockExecuteBatch(timelock bind.Object, clock bind.Object, targets []string, moduleNames []string, functionNames []string, datas [][]byte, predecessor []byte, salt []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_execute_batch", false, "", timelock, clock, targets, moduleNames, functionNames, datas, predecessor, salt)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_execute_batch", false, "", "", timelock, clock, targets, moduleNames, functionNames, datas, predecessor, salt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_execute_batch", err)
 		}
@@ -791,7 +791,7 @@ func (c *McmsContract) TimelockExecuteBatch(timelock bind.Object, clock bind.Obj
 func (c *McmsContract) TimelockGetBlockedFunction(timelock bind.Object, index uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_function", false, "", timelock, index)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_function", false, "", "", timelock, index)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_get_blocked_function", err)
 		}
@@ -805,7 +805,7 @@ func (c *McmsContract) TimelockGetBlockedFunction(timelock bind.Object, index ui
 func (c *McmsContract) TimelockIsOperation(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation", false, "", timelock, id)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation", false, "", "", timelock, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_is_operation", err)
 		}
@@ -819,7 +819,7 @@ func (c *McmsContract) TimelockIsOperation(timelock bind.Object, id []byte) bind
 func (c *McmsContract) TimelockIsOperationPending(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_pending", false, "", timelock, id)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_pending", false, "", "", timelock, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_is_operation_pending", err)
 		}
@@ -833,7 +833,7 @@ func (c *McmsContract) TimelockIsOperationPending(timelock bind.Object, id []byt
 func (c *McmsContract) TimelockIsOperationReady(timelock bind.Object, clock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_ready", false, "", timelock, clock, id)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_ready", false, "", "", timelock, clock, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_is_operation_ready", err)
 		}
@@ -847,7 +847,7 @@ func (c *McmsContract) TimelockIsOperationReady(timelock bind.Object, clock bind
 func (c *McmsContract) TimelockIsOperationDone(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_done", false, "", timelock, id)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_is_operation_done", false, "", "", timelock, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_is_operation_done", err)
 		}
@@ -861,7 +861,7 @@ func (c *McmsContract) TimelockIsOperationDone(timelock bind.Object, id []byte) 
 func (c *McmsContract) TimelockGetTimestamp(timelock bind.Object, id []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_timestamp", false, "", timelock, id)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_timestamp", false, "", "", timelock, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_get_timestamp", err)
 		}
@@ -875,7 +875,7 @@ func (c *McmsContract) TimelockGetTimestamp(timelock bind.Object, id []byte) bin
 func (c *McmsContract) TimelockMinDelay(timelock bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_min_delay", false, "", timelock)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_min_delay", false, "", "", timelock)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_min_delay", err)
 		}
@@ -889,7 +889,7 @@ func (c *McmsContract) TimelockMinDelay(timelock bind.Object) bind.IMethod {
 func (c *McmsContract) TimelockGetBlockedFunctions(timelock bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_functions", false, "", timelock)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_functions", false, "", "", timelock)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_get_blocked_functions", err)
 		}
@@ -903,7 +903,7 @@ func (c *McmsContract) TimelockGetBlockedFunctions(timelock bind.Object) bind.IM
 func (c *McmsContract) TimelockGetBlockedFunctionsCount(timelock bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_functions_count", false, "", timelock)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "timelock_get_blocked_functions_count", false, "", "", timelock)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "timelock_get_blocked_functions_count", err)
 		}
@@ -917,7 +917,7 @@ func (c *McmsContract) TimelockGetBlockedFunctionsCount(timelock bind.Object) bi
 func (c *McmsContract) CreateCalls(targets []string, moduleNames []string, functionNames []string, datas [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "create_calls", false, "", targets, moduleNames, functionNames, datas)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "create_calls", false, "", "", targets, moduleNames, functionNames, datas)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "create_calls", err)
 		}
@@ -931,7 +931,7 @@ func (c *McmsContract) CreateCalls(targets []string, moduleNames []string, funct
 func (c *McmsContract) HashOperationBatch(calls []Call, predecessor []byte, salt []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "hash_operation_batch", false, "", calls, predecessor, salt)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "hash_operation_batch", false, "", "", calls, predecessor, salt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "hash_operation_batch", err)
 		}
@@ -945,7 +945,7 @@ func (c *McmsContract) HashOperationBatch(calls []Call, predecessor []byte, salt
 func (c *McmsContract) SignerView(signer Signer) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "signer_view", false, "", signer)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "signer_view", false, "", "", signer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "signer_view", err)
 		}
@@ -959,7 +959,7 @@ func (c *McmsContract) SignerView(signer Signer) bind.IMethod {
 func (c *McmsContract) FunctionName(function Function) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "function_name", false, "", function)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "function_name", false, "", "", function)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "function_name", err)
 		}
@@ -973,7 +973,7 @@ func (c *McmsContract) FunctionName(function Function) bind.IMethod {
 func (c *McmsContract) ModuleName(function Function) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "module_name", false, "", function)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "module_name", false, "", "", function)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "module_name", err)
 		}
@@ -987,7 +987,7 @@ func (c *McmsContract) ModuleName(function Function) bind.IMethod {
 func (c *McmsContract) Target(function Function) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "target", false, "", function)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "target", false, "", "", function)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "target", err)
 		}
@@ -1001,7 +1001,7 @@ func (c *McmsContract) Target(function Function) bind.IMethod {
 func (c *McmsContract) Data(call Call) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "data", false, "", call)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "data", false, "", "", call)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "data", err)
 		}

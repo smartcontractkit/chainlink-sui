@@ -62,7 +62,7 @@ type LINK_TOKEN struct {
 func (c *LinkTokenContract) MintAndTransfer(treasuryCap bind.Object, amount uint64, recipient string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "link_token", "mint_and_transfer", false, "", treasuryCap, amount, recipient)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "link_token", "mint_and_transfer", false, "", "", treasuryCap, amount, recipient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "link_token", "mint_and_transfer", err)
 		}
@@ -76,7 +76,7 @@ func (c *LinkTokenContract) MintAndTransfer(treasuryCap bind.Object, amount uint
 func (c *LinkTokenContract) Mint(treasuryCap bind.Object, amount uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "link_token", "mint", false, "", treasuryCap, amount)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "link_token", "mint", false, "", "", treasuryCap, amount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "link_token", "mint", err)
 		}

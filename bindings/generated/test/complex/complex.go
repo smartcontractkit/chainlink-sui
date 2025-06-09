@@ -78,7 +78,7 @@ type DroppableObject struct {
 func (c *ComplexContract) NewObjectWithTransfer(someId []byte, someNumber uint64, someAddress string, someAddresses []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "new_object_with_transfer", false, "", someId, someNumber, someAddress, someAddresses)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "new_object_with_transfer", false, "", "", someId, someNumber, someAddress, someAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "new_object_with_transfer", err)
 		}
@@ -92,7 +92,7 @@ func (c *ComplexContract) NewObjectWithTransfer(someId []byte, someNumber uint64
 func (c *ComplexContract) NewObject(someId []byte, someNumber uint64, someAddress string, someAddresses []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "new_object", false, "", someId, someNumber, someAddress, someAddresses)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "new_object", false, "", "", someId, someNumber, someAddress, someAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "new_object", err)
 		}
@@ -106,7 +106,7 @@ func (c *ComplexContract) NewObject(someId []byte, someNumber uint64, someAddres
 func (c *ComplexContract) FlattenAddress(someAddress string, someAddresses []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "flatten_address", false, "", someAddress, someAddresses)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "flatten_address", false, "", "", someAddress, someAddresses)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "flatten_address", err)
 		}
@@ -120,7 +120,7 @@ func (c *ComplexContract) FlattenAddress(someAddress string, someAddresses []str
 func (c *ComplexContract) FlattenU8(input [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "flatten_u8", false, "", input)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "flatten_u8", false, "", "", input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "flatten_u8", err)
 		}
@@ -134,7 +134,7 @@ func (c *ComplexContract) FlattenU8(input [][]byte) bind.IMethod {
 func (c *ComplexContract) CheckU128(input *big.Int) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "check_u128", false, "", input)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "check_u128", false, "", "", input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "check_u128", err)
 		}
@@ -148,7 +148,7 @@ func (c *ComplexContract) CheckU128(input *big.Int) bind.IMethod {
 func (c *ComplexContract) CheckU256(input uint256.Int) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "check_u256", false, "", input)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "complex", "check_u256", false, "", "", input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "complex", "check_u256", err)
 		}

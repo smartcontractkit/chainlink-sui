@@ -108,7 +108,7 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 			return fmt.Errorf("invalid package ID: %w", err)
 		}
 
-		ptb, err := bind.BuildPTBFromArgs(ctx, *c.client, packageId, req.Module, req.Function, false, "", req.Arguments...)
+		ptb, err := bind.BuildPTBFromArgs(ctx, *c.client, packageId, req.Module, req.Function, false, "", "", req.Arguments...)
 		if err != nil {
 			return fmt.Errorf("failed to build PTB: %w", err)
 		}
@@ -330,7 +330,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			return fmt.Errorf("invalid package ID: %w", err)
 		}
 
-		ptb, err := bind.BuildPTBFromArgs(ctx, *c.client, pkgId, module, function, false, "", args...)
+		ptb, err := bind.BuildPTBFromArgs(ctx, *c.client, pkgId, module, function, false, "", "", args...)
 		if err != nil {
 			return fmt.Errorf("failed to build PTB: %w", err)
 		}

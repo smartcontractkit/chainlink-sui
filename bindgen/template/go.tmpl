@@ -71,9 +71,15 @@ type {{.Name}} struct { {{range $field := .Fields}}
 
 {{range .Funcs}}
 func (c *{{toUpperCamel $.Module}}Contract) {{.Name}}({{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) bind.IMethod {
+	{{- $hasTypeArgs := false }}
+		{{- range .Params }}
+			{{- if eq .Name "typeArgs" }}
+				{{- $hasTypeArgs = true }}
+			{{- end }}
+		{{- end }}
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "{{$.Module}}", "{{.MoveName}}", false, "", {{range .Params}} {{.Name}},{{end}})
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "{{$.Module}}", "{{.MoveName}}", false, "",{{if not $hasTypeArgs}}"",{{end}} {{range .Params}} {{.Name}},{{end}})
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "{{$.Module}}", "{{.MoveName}}", err)
 		}

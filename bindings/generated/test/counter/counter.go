@@ -98,7 +98,7 @@ type SimpleResult struct {
 func (c *CounterContract) Initialize() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "initialize", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "initialize", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "initialize", err)
 		}
@@ -112,7 +112,7 @@ func (c *CounterContract) Initialize() bind.IMethod {
 func (c *CounterContract) Increment(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment", false, "", counter)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment", false, "", "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment", err)
 		}
@@ -126,7 +126,7 @@ func (c *CounterContract) Increment(counter bind.Object) bind.IMethod {
 func (c *CounterContract) Create() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "create", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "create", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "create", err)
 		}
@@ -140,7 +140,7 @@ func (c *CounterContract) Create() bind.IMethod {
 func (c *CounterContract) IncrementByOne(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_one", false, "", counter)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_one", false, "", "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment_by_one", err)
 		}
@@ -154,7 +154,7 @@ func (c *CounterContract) IncrementByOne(counter bind.Object) bind.IMethod {
 func (c *CounterContract) IncrementByOneNoContext(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_one_no_context", false, "", counter)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_one_no_context", false, "", "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment_by_one_no_context", err)
 		}
@@ -168,7 +168,7 @@ func (c *CounterContract) IncrementByOneNoContext(counter bind.Object) bind.IMet
 func (c *CounterContract) IncrementByTwo(admin bind.Object, counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_two", false, "", admin, counter)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_two", false, "", "", admin, counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment_by_two", err)
 		}
@@ -182,7 +182,7 @@ func (c *CounterContract) IncrementByTwo(admin bind.Object, counter bind.Object)
 func (c *CounterContract) IncrementByTwoNoContext(admin bind.Object, counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_two_no_context", false, "", admin, counter)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by_two_no_context", false, "", "", admin, counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment_by_two_no_context", err)
 		}
@@ -196,7 +196,7 @@ func (c *CounterContract) IncrementByTwoNoContext(admin bind.Object, counter bin
 func (c *CounterContract) IncrementBy(counter bind.Object, by uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by", false, "", counter, by)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_by", false, "", "", counter, by)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment_by", err)
 		}
@@ -210,7 +210,7 @@ func (c *CounterContract) IncrementBy(counter bind.Object, by uint64) bind.IMeth
 func (c *CounterContract) IncrementMult(counter bind.Object, a uint64, b uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_mult", false, "", counter, a, b)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "increment_mult", false, "", "", counter, a, b)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "increment_mult", err)
 		}
@@ -224,7 +224,7 @@ func (c *CounterContract) IncrementMult(counter bind.Object, a uint64, b uint64)
 func (c *CounterContract) GetCount(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count", false, "", counter)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count", false, "", "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_count", err)
 		}
@@ -238,7 +238,7 @@ func (c *CounterContract) GetCount(counter bind.Object) bind.IMethod {
 func (c *CounterContract) GetCountNoEntry(counter bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count_no_entry", false, "", counter)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count_no_entry", false, "", "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_count_no_entry", err)
 		}
@@ -252,7 +252,7 @@ func (c *CounterContract) GetCountNoEntry(counter bind.Object) bind.IMethod {
 func (c *CounterContract) GetAddressList() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_address_list", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_address_list", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_address_list", err)
 		}
@@ -266,7 +266,7 @@ func (c *CounterContract) GetAddressList() bind.IMethod {
 func (c *CounterContract) GetSimpleResult() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_simple_result", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_simple_result", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_simple_result", err)
 		}

@@ -19,9 +19,11 @@ type Func struct {
 	IsView  bool `json:"is_view"`
 	IsEntry bool `json:"is_entry"`
 
-	Name        string   `json:"name"`
-	Params      []Param  `json:"params"`
-	ReturnTypes []string `json:"return_types"`
+	Name          string   `json:"name"`
+	Params        []Param  `json:"params"`
+	HasTypeParams bool     `json:"has_type_params"`
+	TypeParams    []string `json:"type_params"`
+	ReturnTypes   []string `json:"return_types"`
 }
 
 type Struct struct {
@@ -99,6 +101,7 @@ func ParseFunctions(module []byte) ([]Func, error) {
   (module_member_modifier)? @modifier
   (function_decl
   	name: (identifier) @function_name
+	type_parameters: (type_params)? @type_params
     return_type: (type)? @returnType
   ) @function
 )
@@ -159,7 +162,21 @@ func ParseFunctions(module []byte) ([]Func, error) {
 					testFunc = true
 				}
 				f.Name = capture.Node.Content(module)
-			case 4:
+			case 4: // @type_params
+				f.HasTypeParams = true
+				// type_params is something like < T, U >
+				childCount := int(capture.Node.NamedChildCount())
+				for i := 0; i < childCount; i++ {
+					child := capture.Node.NamedChild(i)
+					if child.Type() == "type_param" {
+						// first child of type_param is the identifier
+						paramIdent := child.NamedChild(0)
+						if paramIdent != nil {
+							f.TypeParams = append(f.TypeParams, paramIdent.Content(module))
+						}
+					}
+				}
+			case 5:
 				// @returnType
 				switch capture.Node.Child(0).Type() {
 				case "tuple_type":
@@ -171,7 +188,7 @@ func ParseFunctions(module []byte) ([]Func, error) {
 				default:
 					f.ReturnTypes = append(f.ReturnTypes, capture.Node.Content(module))
 				}
-			case 5:
+			case 6:
 				// @function
 				qcParam := tree_sitter.NewQueryCursor()
 				qcParam.Exec(queryParameters, capture.Node)

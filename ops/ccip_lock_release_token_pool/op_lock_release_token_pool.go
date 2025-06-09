@@ -34,6 +34,7 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 	}
 
 	method := contract.Initialize(
+		"",
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
@@ -182,6 +183,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	}
 
 	method := contract.ProvideLiquidity(
+		"",
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.Coin},
 	)

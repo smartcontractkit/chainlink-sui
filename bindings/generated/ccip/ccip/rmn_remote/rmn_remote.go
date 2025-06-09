@@ -128,7 +128,7 @@ type Uncursed struct {
 func (c *RmnRemoteContract) TypeAndVersion() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "type_and_version", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "type_and_version", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "type_and_version", err)
 		}
@@ -142,7 +142,7 @@ func (c *RmnRemoteContract) TypeAndVersion() bind.IMethod {
 func (c *RmnRemoteContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, localChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "initialize", false, "", ref, param, localChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "initialize", false, "", "", ref, param, localChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "initialize", err)
 		}
@@ -156,7 +156,7 @@ func (c *RmnRemoteContract) Initialize(ref module_common.CCIPObjectRef, param mo
 func (c *RmnRemoteContract) Verify(ref module_common.CCIPObjectRef, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "verify", false, "", ref, offRampStateAddress, merkleRootSourceChainSelectors, merkleRootOnRampAddresses, merkleRootMinSeqNrs, merkleRootMaxSeqNrs, merkleRootValues, signatures)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "verify", false, "", "", ref, offRampStateAddress, merkleRootSourceChainSelectors, merkleRootOnRampAddresses, merkleRootMinSeqNrs, merkleRootMaxSeqNrs, merkleRootValues, signatures)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "verify", err)
 		}
@@ -170,7 +170,7 @@ func (c *RmnRemoteContract) Verify(ref module_common.CCIPObjectRef, offRampState
 func (c *RmnRemoteContract) GetArm() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_arm", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_arm", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_arm", err)
 		}
@@ -184,7 +184,7 @@ func (c *RmnRemoteContract) GetArm() bind.IMethod {
 func (c *RmnRemoteContract) SetConfig(ref module_common.CCIPObjectRef, param module_common.OwnerCap, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "set_config", false, "", ref, param, rmnHomeContractConfigDigest, signerOnchainPublicKeys, nodeIndexes, fSign)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "set_config", false, "", "", ref, param, rmnHomeContractConfigDigest, signerOnchainPublicKeys, nodeIndexes, fSign)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "set_config", err)
 		}
@@ -198,7 +198,7 @@ func (c *RmnRemoteContract) SetConfig(ref module_common.CCIPObjectRef, param mod
 func (c *RmnRemoteContract) GetVersionedConfig(ref module_common.CCIPObjectRef) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_versioned_config", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_versioned_config", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_versioned_config", err)
 		}
@@ -212,7 +212,7 @@ func (c *RmnRemoteContract) GetVersionedConfig(ref module_common.CCIPObjectRef) 
 func (c *RmnRemoteContract) GetVersionedConfigFields(vc VersionedConfig) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_versioned_config_fields", false, "", vc)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_versioned_config_fields", false, "", "", vc)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_versioned_config_fields", err)
 		}
@@ -226,7 +226,7 @@ func (c *RmnRemoteContract) GetVersionedConfigFields(vc VersionedConfig) bind.IM
 func (c *RmnRemoteContract) GetLocalChainSelector(ref module_common.CCIPObjectRef) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_local_chain_selector", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_local_chain_selector", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_local_chain_selector", err)
 		}
@@ -240,7 +240,7 @@ func (c *RmnRemoteContract) GetLocalChainSelector(ref module_common.CCIPObjectRe
 func (c *RmnRemoteContract) GetReportDigestHeader() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_report_digest_header", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_report_digest_header", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_report_digest_header", err)
 		}
@@ -254,7 +254,7 @@ func (c *RmnRemoteContract) GetReportDigestHeader() bind.IMethod {
 func (c *RmnRemoteContract) Curse(ref module_common.CCIPObjectRef, ownerCap module_common.OwnerCap, subject []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "curse", false, "", ref, ownerCap, subject)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "curse", false, "", "", ref, ownerCap, subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "curse", err)
 		}
@@ -268,7 +268,7 @@ func (c *RmnRemoteContract) Curse(ref module_common.CCIPObjectRef, ownerCap modu
 func (c *RmnRemoteContract) CurseMultiple(ref module_common.CCIPObjectRef, param module_common.OwnerCap, subjects [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "curse_multiple", false, "", ref, param, subjects)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "curse_multiple", false, "", "", ref, param, subjects)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "curse_multiple", err)
 		}
@@ -282,7 +282,7 @@ func (c *RmnRemoteContract) CurseMultiple(ref module_common.CCIPObjectRef, param
 func (c *RmnRemoteContract) Uncurse(ref module_common.CCIPObjectRef, ownerCap module_common.OwnerCap, subject []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "uncurse", false, "", ref, ownerCap, subject)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "uncurse", false, "", "", ref, ownerCap, subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "uncurse", err)
 		}
@@ -296,7 +296,7 @@ func (c *RmnRemoteContract) Uncurse(ref module_common.CCIPObjectRef, ownerCap mo
 func (c *RmnRemoteContract) UncurseMultiple(ref module_common.CCIPObjectRef, param module_common.OwnerCap, subjects [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "uncurse_multiple", false, "", ref, param, subjects)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "uncurse_multiple", false, "", "", ref, param, subjects)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "uncurse_multiple", err)
 		}
@@ -310,7 +310,7 @@ func (c *RmnRemoteContract) UncurseMultiple(ref module_common.CCIPObjectRef, par
 func (c *RmnRemoteContract) GetCursedSubjects(ref module_common.CCIPObjectRef) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_cursed_subjects", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_cursed_subjects", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_cursed_subjects", err)
 		}
@@ -324,7 +324,7 @@ func (c *RmnRemoteContract) GetCursedSubjects(ref module_common.CCIPObjectRef) b
 func (c *RmnRemoteContract) IsCursedGlobal(ref module_common.CCIPObjectRef) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "is_cursed_global", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "is_cursed_global", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "is_cursed_global", err)
 		}
@@ -338,7 +338,7 @@ func (c *RmnRemoteContract) IsCursedGlobal(ref module_common.CCIPObjectRef) bind
 func (c *RmnRemoteContract) IsCursed(ref module_common.CCIPObjectRef, subject []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "is_cursed", false, "", ref, subject)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "is_cursed", false, "", "", ref, subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "is_cursed", err)
 		}
@@ -352,7 +352,7 @@ func (c *RmnRemoteContract) IsCursed(ref module_common.CCIPObjectRef, subject []
 func (c *RmnRemoteContract) IsCursedU128(ref module_common.CCIPObjectRef, subjectValue *big.Int) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "is_cursed_u128", false, "", ref, subjectValue)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "is_cursed_u128", false, "", "", ref, subjectValue)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "is_cursed_u128", err)
 		}
@@ -366,7 +366,7 @@ func (c *RmnRemoteContract) IsCursedU128(ref module_common.CCIPObjectRef, subjec
 func (c *RmnRemoteContract) GetActiveSigners(ref module_common.CCIPObjectRef) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_active_signers", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_active_signers", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_active_signers", err)
 		}

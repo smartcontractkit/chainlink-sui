@@ -217,6 +217,16 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 				importMap[typ.Import.Path] = typ.Import
 			}
 		}
+		if f.HasTypeParams {
+			typeArgField := &tmplField{
+				Type: tmplType{
+					GoType:   "string",
+					MoveType: "string",
+				},
+				Name: "typeArgs",
+			}
+			out.Params = append([]*tmplField{typeArgField}, out.Params...)
+		}
 		if skip {
 			continue
 		}

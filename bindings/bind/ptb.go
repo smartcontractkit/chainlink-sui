@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 
 	"github.com/fardream/go-bcs/bcs"
 	"github.com/holiman/uint256"
@@ -38,6 +39,7 @@ func BuildPTBFromArgs(
 	function string,
 	isObjectCreatedTransferred bool,
 	recipient string,
+	typeArg string,
 	args ...any) (*suiptb.ProgrammableTransactionBuilder, error) {
 	ptb := suiptb.NewTransactionDataTransactionBuilder()
 
@@ -50,12 +52,17 @@ func BuildPTBFromArgs(
 		ptbArgs = append(ptbArgs, ptbArg)
 	}
 
+	typeTags, err := parseTypeArg(typeArg)
+	if err != nil {
+		return nil, err
+	}
+
 	obj := ptb.Command(suiptb.Command{
 		MoveCall: &suiptb.ProgrammableMoveCall{
 			Package:       packageId,
 			Module:        module,
 			Function:      function,
-			TypeArguments: []sui.TypeTag{},
+			TypeArguments: typeTags,
 			Arguments:     ptbArgs,
 		}},
 	)
@@ -277,4 +284,39 @@ func ToObjectArg(object *suiclient.SuiObjectData, isMutable bool) suiptb.ObjectA
 			Digest:   object.Digest,
 		},
 	}
+}
+
+// parseTypeArg parses the given typeArg string into proper struct arg.
+// Example typeArg input: 0xbdf1d677a5730ecbd55cc65638937e0cfe16c0c125c0ee3628c5d7aed79c1a77::link_token::LINK_TOKEN
+func parseTypeArg(typeArg string) ([]sui.TypeTag, error) {
+	expectedPartsCount := 3
+
+	if typeArg == "" {
+		return nil, nil
+	}
+
+	parts := strings.Split(typeArg, "::")
+	if len(parts) != expectedPartsCount {
+		return nil, fmt.Errorf("invalid typeArg format: %s", typeArg)
+	}
+
+	packageID := parts[0]
+	module := parts[1]
+	name := parts[2]
+
+	addr, err := ToSuiAddress(packageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert string to sui.Address: %w", err)
+	}
+
+	return []sui.TypeTag{
+		{
+			Struct: &sui.StructTag{
+				Address:    addr,
+				Module:     module,
+				Name:       name,
+				TypeParams: []sui.TypeTag{},
+			},
+		},
+	}, nil
 }

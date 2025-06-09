@@ -26,7 +26,7 @@ type ITokenPool interface {
 	Initialize(coinMetadataAddress string, localDecimals byte, allowlist []string) bind.IMethod
 	GetRouter() bind.IMethod
 	GetToken(state TokenPoolState) bind.IMethod
-	GetTokenDecimals(coinMetadata bind.Object) bind.IMethod
+	GetTokenDecimals(typeArgs string, coinMetadata bind.Object) bind.IMethod
 	GetSupportedChains(state TokenPoolState) bind.IMethod
 	IsSupportedChain(state TokenPoolState, remoteChainSelector uint64) bind.IMethod
 	ApplyChainUpdates(state TokenPoolState, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod
@@ -41,7 +41,7 @@ type ITokenPool interface {
 	EmitLiquidityAdded(state TokenPoolState, provider string, amount uint64) bind.IMethod
 	EmitLiquidityRemoved(state TokenPoolState, provider string, amount uint64) bind.IMethod
 	GetLocalDecimals(pool TokenPoolState) bind.IMethod
-	EncodeLocalDecimals(coinMetadata bind.Object) bind.IMethod
+	EncodeLocalDecimals(typeArgs string, coinMetadata bind.Object) bind.IMethod
 	ParseRemoteDecimals(sourcePoolData []byte, localDecimals byte) bind.IMethod
 	CalculateLocalAmount(remoteAmount uint256.Int, remoteDecimals byte, localDecimals byte) bind.IMethod
 	SetChainRateLimiterConfig(clock bind.Object, state TokenPoolState, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod
@@ -139,7 +139,7 @@ type RebalancerSet struct {
 func (c *TokenPoolContract) Initialize(coinMetadataAddress string, localDecimals byte, allowlist []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "initialize", false, "", coinMetadataAddress, localDecimals, allowlist)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "initialize", false, "", "", coinMetadataAddress, localDecimals, allowlist)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "initialize", err)
 		}
@@ -153,7 +153,7 @@ func (c *TokenPoolContract) Initialize(coinMetadataAddress string, localDecimals
 func (c *TokenPoolContract) GetRouter() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_router", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_router", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_router", err)
 		}
@@ -167,7 +167,7 @@ func (c *TokenPoolContract) GetRouter() bind.IMethod {
 func (c *TokenPoolContract) GetToken(state TokenPoolState) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_token", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_token", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_token", err)
 		}
@@ -178,10 +178,10 @@ func (c *TokenPoolContract) GetToken(state TokenPoolState) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenPoolContract) GetTokenDecimals(coinMetadata bind.Object) bind.IMethod {
+func (c *TokenPoolContract) GetTokenDecimals(typeArgs string, coinMetadata bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_token_decimals", false, "", coinMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_token_decimals", false, "", typeArgs, coinMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_token_decimals", err)
 		}
@@ -195,7 +195,7 @@ func (c *TokenPoolContract) GetTokenDecimals(coinMetadata bind.Object) bind.IMet
 func (c *TokenPoolContract) GetSupportedChains(state TokenPoolState) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_supported_chains", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_supported_chains", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_supported_chains", err)
 		}
@@ -209,7 +209,7 @@ func (c *TokenPoolContract) GetSupportedChains(state TokenPoolState) bind.IMetho
 func (c *TokenPoolContract) IsSupportedChain(state TokenPoolState, remoteChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "is_supported_chain", false, "", state, remoteChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "is_supported_chain", false, "", "", state, remoteChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "is_supported_chain", err)
 		}
@@ -223,7 +223,7 @@ func (c *TokenPoolContract) IsSupportedChain(state TokenPoolState, remoteChainSe
 func (c *TokenPoolContract) ApplyChainUpdates(state TokenPoolState, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "apply_chain_updates", false, "", state, remoteChainSelectorsToRemove, remoteChainSelectorsToAdd, remotePoolAddressesToAdd, remoteTokenAddressesToAdd)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "apply_chain_updates", false, "", "", state, remoteChainSelectorsToRemove, remoteChainSelectorsToAdd, remotePoolAddressesToAdd, remoteTokenAddressesToAdd)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "apply_chain_updates", err)
 		}
@@ -237,7 +237,7 @@ func (c *TokenPoolContract) ApplyChainUpdates(state TokenPoolState, remoteChainS
 func (c *TokenPoolContract) GetRemotePools(state TokenPoolState, remoteChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_remote_pools", false, "", state, remoteChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_remote_pools", false, "", "", state, remoteChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_remote_pools", err)
 		}
@@ -251,7 +251,7 @@ func (c *TokenPoolContract) GetRemotePools(state TokenPoolState, remoteChainSele
 func (c *TokenPoolContract) IsRemotePool(state TokenPoolState, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "is_remote_pool", false, "", state, remoteChainSelector, remotePoolAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "is_remote_pool", false, "", "", state, remoteChainSelector, remotePoolAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "is_remote_pool", err)
 		}
@@ -265,7 +265,7 @@ func (c *TokenPoolContract) IsRemotePool(state TokenPoolState, remoteChainSelect
 func (c *TokenPoolContract) GetRemoteToken(state TokenPoolState, remoteChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_remote_token", false, "", state, remoteChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_remote_token", false, "", "", state, remoteChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_remote_token", err)
 		}
@@ -279,7 +279,7 @@ func (c *TokenPoolContract) GetRemoteToken(state TokenPoolState, remoteChainSele
 func (c *TokenPoolContract) AddRemotePool(state TokenPoolState, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "add_remote_pool", false, "", state, remoteChainSelector, remotePoolAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "add_remote_pool", false, "", "", state, remoteChainSelector, remotePoolAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "add_remote_pool", err)
 		}
@@ -293,7 +293,7 @@ func (c *TokenPoolContract) AddRemotePool(state TokenPoolState, remoteChainSelec
 func (c *TokenPoolContract) RemoveRemotePool(state TokenPoolState, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "remove_remote_pool", false, "", state, remoteChainSelector, remotePoolAddress)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "remove_remote_pool", false, "", "", state, remoteChainSelector, remotePoolAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "remove_remote_pool", err)
 		}
@@ -307,7 +307,7 @@ func (c *TokenPoolContract) RemoveRemotePool(state TokenPoolState, remoteChainSe
 func (c *TokenPoolContract) EmitReleasedOrMinted(state TokenPoolState, recipient string, amount uint64, remoteChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_released_or_minted", false, "", state, recipient, amount, remoteChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_released_or_minted", false, "", "", state, recipient, amount, remoteChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_released_or_minted", err)
 		}
@@ -321,7 +321,7 @@ func (c *TokenPoolContract) EmitReleasedOrMinted(state TokenPoolState, recipient
 func (c *TokenPoolContract) EmitLockedOrBurned(state TokenPoolState, amount uint64, remoteChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_locked_or_burned", false, "", state, amount, remoteChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_locked_or_burned", false, "", "", state, amount, remoteChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_locked_or_burned", err)
 		}
@@ -335,7 +335,7 @@ func (c *TokenPoolContract) EmitLockedOrBurned(state TokenPoolState, amount uint
 func (c *TokenPoolContract) EmitRebalancerSet(state TokenPoolState, previousRebalancer string, rebalancer string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_rebalancer_set", false, "", state, previousRebalancer, rebalancer)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_rebalancer_set", false, "", "", state, previousRebalancer, rebalancer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_rebalancer_set", err)
 		}
@@ -349,7 +349,7 @@ func (c *TokenPoolContract) EmitRebalancerSet(state TokenPoolState, previousReba
 func (c *TokenPoolContract) EmitLiquidityAdded(state TokenPoolState, provider string, amount uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_liquidity_added", false, "", state, provider, amount)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_liquidity_added", false, "", "", state, provider, amount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_liquidity_added", err)
 		}
@@ -363,7 +363,7 @@ func (c *TokenPoolContract) EmitLiquidityAdded(state TokenPoolState, provider st
 func (c *TokenPoolContract) EmitLiquidityRemoved(state TokenPoolState, provider string, amount uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_liquidity_removed", false, "", state, provider, amount)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_liquidity_removed", false, "", "", state, provider, amount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_liquidity_removed", err)
 		}
@@ -377,7 +377,7 @@ func (c *TokenPoolContract) EmitLiquidityRemoved(state TokenPoolState, provider 
 func (c *TokenPoolContract) GetLocalDecimals(pool TokenPoolState) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_local_decimals", false, "", pool)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_local_decimals", false, "", "", pool)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_local_decimals", err)
 		}
@@ -388,10 +388,10 @@ func (c *TokenPoolContract) GetLocalDecimals(pool TokenPoolState) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenPoolContract) EncodeLocalDecimals(coinMetadata bind.Object) bind.IMethod {
+func (c *TokenPoolContract) EncodeLocalDecimals(typeArgs string, coinMetadata bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "encode_local_decimals", false, "", coinMetadata)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "encode_local_decimals", false, "", typeArgs, coinMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "encode_local_decimals", err)
 		}
@@ -405,7 +405,7 @@ func (c *TokenPoolContract) EncodeLocalDecimals(coinMetadata bind.Object) bind.I
 func (c *TokenPoolContract) ParseRemoteDecimals(sourcePoolData []byte, localDecimals byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "parse_remote_decimals", false, "", sourcePoolData, localDecimals)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "parse_remote_decimals", false, "", "", sourcePoolData, localDecimals)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "parse_remote_decimals", err)
 		}
@@ -419,7 +419,7 @@ func (c *TokenPoolContract) ParseRemoteDecimals(sourcePoolData []byte, localDeci
 func (c *TokenPoolContract) CalculateLocalAmount(remoteAmount uint256.Int, remoteDecimals byte, localDecimals byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "calculate_local_amount", false, "", remoteAmount, remoteDecimals, localDecimals)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "calculate_local_amount", false, "", "", remoteAmount, remoteDecimals, localDecimals)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "calculate_local_amount", err)
 		}
@@ -433,7 +433,7 @@ func (c *TokenPoolContract) CalculateLocalAmount(remoteAmount uint256.Int, remot
 func (c *TokenPoolContract) SetChainRateLimiterConfig(clock bind.Object, state TokenPoolState, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "set_chain_rate_limiter_config", false, "", clock, state, remoteChainSelector, outboundIsEnabled, outboundCapacity, outboundRate, inboundIsEnabled, inboundCapacity, inboundRate)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "set_chain_rate_limiter_config", false, "", "", clock, state, remoteChainSelector, outboundIsEnabled, outboundCapacity, outboundRate, inboundIsEnabled, inboundCapacity, inboundRate)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "set_chain_rate_limiter_config", err)
 		}
@@ -447,7 +447,7 @@ func (c *TokenPoolContract) SetChainRateLimiterConfig(clock bind.Object, state T
 func (c *TokenPoolContract) GetAllowlistEnabled(state TokenPoolState) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_allowlist_enabled", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_allowlist_enabled", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_allowlist_enabled", err)
 		}
@@ -461,7 +461,7 @@ func (c *TokenPoolContract) GetAllowlistEnabled(state TokenPoolState) bind.IMeth
 func (c *TokenPoolContract) SetAllowlistEnabled(state TokenPoolState, enabled bool) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "set_allowlist_enabled", false, "", state, enabled)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "set_allowlist_enabled", false, "", "", state, enabled)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "set_allowlist_enabled", err)
 		}
@@ -475,7 +475,7 @@ func (c *TokenPoolContract) SetAllowlistEnabled(state TokenPoolState, enabled bo
 func (c *TokenPoolContract) GetAllowlist(state TokenPoolState) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_allowlist", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_allowlist", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_allowlist", err)
 		}
@@ -489,7 +489,7 @@ func (c *TokenPoolContract) GetAllowlist(state TokenPoolState) bind.IMethod {
 func (c *TokenPoolContract) ApplyAllowlistUpdates(state TokenPoolState, removes []string, adds []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "apply_allowlist_updates", false, "", state, removes, adds)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "apply_allowlist_updates", false, "", "", state, removes, adds)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "apply_allowlist_updates", err)
 		}

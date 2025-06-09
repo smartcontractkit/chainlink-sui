@@ -70,7 +70,7 @@ type NonceManagerState struct {
 func (c *NonceManagerContract) TypeAndVersion() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "type_and_version", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "type_and_version", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "nonce_manager", "type_and_version", err)
 		}
@@ -84,7 +84,7 @@ func (c *NonceManagerContract) TypeAndVersion() bind.IMethod {
 func (c *NonceManagerContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "initialize", false, "", ref, param)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "initialize", false, "", "", ref, param)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "nonce_manager", "initialize", err)
 		}
@@ -98,7 +98,7 @@ func (c *NonceManagerContract) Initialize(ref module_common.CCIPObjectRef, param
 func (c *NonceManagerContract) GetOutboundNonce(ref module_common.CCIPObjectRef, destChainSelector uint64, sender string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "get_outbound_nonce", false, "", ref, destChainSelector, sender)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "get_outbound_nonce", false, "", "", ref, destChainSelector, sender)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "nonce_manager", "get_outbound_nonce", err)
 		}
@@ -112,7 +112,7 @@ func (c *NonceManagerContract) GetOutboundNonce(ref module_common.CCIPObjectRef,
 func (c *NonceManagerContract) GetIncrementedOutboundNonce(ref module_common.CCIPObjectRef, param bind.Object, destChainSelector uint64, sender string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "get_incremented_outbound_nonce", false, "", ref, param, destChainSelector, sender)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "nonce_manager", "get_incremented_outbound_nonce", false, "", "", ref, param, destChainSelector, sender)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "nonce_manager", "get_incremented_outbound_nonce", err)
 		}

@@ -100,7 +100,7 @@ type STATE_OBJECT struct {
 func (c *OwnershipTransferRequestedContract) Contains(ref bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "contains", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "contains", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "contains", err)
 		}
@@ -114,7 +114,7 @@ func (c *OwnershipTransferRequestedContract) Contains(ref bind.Object) bind.IMet
 func (c *OwnershipTransferRequestedContract) Remove(ref bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "remove", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "remove", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "remove", err)
 		}
@@ -128,7 +128,7 @@ func (c *OwnershipTransferRequestedContract) Remove(ref bind.Object) bind.IMetho
 func (c *OwnershipTransferRequestedContract) Borrow(ref bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "borrow", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "borrow", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "borrow", err)
 		}
@@ -142,7 +142,7 @@ func (c *OwnershipTransferRequestedContract) Borrow(ref bind.Object) bind.IMetho
 func (c *OwnershipTransferRequestedContract) BorrowMut(ref bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "borrow_mut", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "borrow_mut", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "borrow_mut", err)
 		}
@@ -156,7 +156,7 @@ func (c *OwnershipTransferRequestedContract) BorrowMut(ref bind.Object) bind.IMe
 func (c *OwnershipTransferRequestedContract) TransferOwnership(ref bind.Object, to string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "transfer_ownership", false, "", ref, to)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "transfer_ownership", false, "", "", ref, to)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "transfer_ownership", err)
 		}
@@ -170,7 +170,7 @@ func (c *OwnershipTransferRequestedContract) TransferOwnership(ref bind.Object, 
 func (c *OwnershipTransferRequestedContract) AcceptOwnership(ref bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "accept_ownership", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "accept_ownership", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "accept_ownership", err)
 		}
@@ -184,7 +184,7 @@ func (c *OwnershipTransferRequestedContract) AcceptOwnership(ref bind.Object) bi
 func (c *OwnershipTransferRequestedContract) ExecuteOwnershipTransfer(ref bind.Object, to string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "execute_ownership_transfer", false, "", ref, to)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "execute_ownership_transfer", false, "", "", ref, to)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "execute_ownership_transfer", err)
 		}
@@ -198,7 +198,7 @@ func (c *OwnershipTransferRequestedContract) ExecuteOwnershipTransfer(ref bind.O
 func (c *OwnershipTransferRequestedContract) GetCurrentOwner(ref bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "get_current_owner", false, "", ref)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "OwnershipTransferRequested", "get_current_owner", false, "", "", ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "OwnershipTransferRequested", "get_current_owner", err)
 		}

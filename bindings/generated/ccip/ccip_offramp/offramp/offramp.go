@@ -216,7 +216,7 @@ type OFFRAMP struct {
 func (c *OfframpContract) TypeAndVersion() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "type_and_version", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "type_and_version", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "type_and_version", err)
 		}
@@ -230,7 +230,7 @@ func (c *OfframpContract) TypeAndVersion() bind.IMethod {
 func (c *OfframpContract) Initialize(state bind.Object, param bind.Object, feeQuoterCap module_common.FeeQuoterCap, destTransferCap module_common.DestTransferCap, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "initialize", false, "", state, param, feeQuoterCap, destTransferCap, chainSelector, permissionlessExecutionThresholdSeconds, sourceChainsSelectors, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "initialize", false, "", "", state, param, feeQuoterCap, destTransferCap, chainSelector, permissionlessExecutionThresholdSeconds, sourceChainsSelectors, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "initialize", err)
 		}
@@ -244,7 +244,7 @@ func (c *OfframpContract) Initialize(state bind.Object, param bind.Object, feeQu
 func (c *OfframpContract) GetOcr3Base(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_ocr3_base", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_ocr3_base", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_ocr3_base", err)
 		}
@@ -258,7 +258,7 @@ func (c *OfframpContract) GetOcr3Base(state bind.Object) bind.IMethod {
 func (c *OfframpContract) InitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "init_execute", false, "", ref, state, clock, reportContext, report)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "init_execute", false, "", "", ref, state, clock, reportContext, report)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "init_execute", err)
 		}
@@ -272,7 +272,7 @@ func (c *OfframpContract) InitExecute(ref module_common.CCIPObjectRef, state bin
 func (c *OfframpContract) ManuallyInitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportBytes []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "manually_init_execute", false, "", ref, state, clock, reportBytes)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "manually_init_execute", false, "", "", ref, state, clock, reportBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "manually_init_execute", err)
 		}
@@ -286,7 +286,7 @@ func (c *OfframpContract) ManuallyInitExecute(ref module_common.CCIPObjectRef, s
 func (c *OfframpContract) GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_execution_state", false, "", state, sourceChainSelector, sequenceNumber)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_execution_state", false, "", "", state, sourceChainSelector, sequenceNumber)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_execution_state", err)
 		}
@@ -300,7 +300,7 @@ func (c *OfframpContract) GetExecutionState(state bind.Object, sourceChainSelect
 func (c *OfframpContract) SetOcr3Config(state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "set_ocr3_config", false, "", state, param, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "set_ocr3_config", false, "", "", state, param, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "set_ocr3_config", err)
 		}
@@ -314,7 +314,7 @@ func (c *OfframpContract) SetOcr3Config(state bind.Object, param bind.Object, co
 func (c *OfframpContract) Commit(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, signatures [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "commit", false, "", ref, state, clock, reportContext, report, signatures)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "commit", false, "", "", ref, state, clock, reportContext, report, signatures)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "commit", err)
 		}
@@ -328,7 +328,7 @@ func (c *OfframpContract) Commit(ref module_common.CCIPObjectRef, state bind.Obj
 func (c *OfframpContract) GetMerkleRoot(state bind.Object, root []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_merkle_root", false, "", state, root)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_merkle_root", false, "", "", state, root)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_merkle_root", err)
 		}
@@ -342,7 +342,7 @@ func (c *OfframpContract) GetMerkleRoot(state bind.Object, root []byte) bind.IMe
 func (c *OfframpContract) GetSourceChainConfig(state bind.Object, sourceChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_source_chain_config", false, "", state, sourceChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_source_chain_config", false, "", "", state, sourceChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_source_chain_config", err)
 		}
@@ -356,7 +356,7 @@ func (c *OfframpContract) GetSourceChainConfig(state bind.Object, sourceChainSel
 func (c *OfframpContract) GetSourceChainConfigFields(sourceChainConfig SourceChainConfig) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_source_chain_config_fields", false, "", sourceChainConfig)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_source_chain_config_fields", false, "", "", sourceChainConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_source_chain_config_fields", err)
 		}
@@ -370,7 +370,7 @@ func (c *OfframpContract) GetSourceChainConfigFields(sourceChainConfig SourceCha
 func (c *OfframpContract) GetAllSourceChainConfigs(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_all_source_chain_configs", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_all_source_chain_configs", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_all_source_chain_configs", err)
 		}
@@ -384,7 +384,7 @@ func (c *OfframpContract) GetAllSourceChainConfigs(state bind.Object) bind.IMeth
 func (c *OfframpContract) GetStaticConfig(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_static_config", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_static_config", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_static_config", err)
 		}
@@ -398,7 +398,7 @@ func (c *OfframpContract) GetStaticConfig(state bind.Object) bind.IMethod {
 func (c *OfframpContract) GetStaticConfigFields(cfg StaticConfig) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_static_config_fields", false, "", cfg)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_static_config_fields", false, "", "", cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_static_config_fields", err)
 		}
@@ -412,7 +412,7 @@ func (c *OfframpContract) GetStaticConfigFields(cfg StaticConfig) bind.IMethod {
 func (c *OfframpContract) GetDynamicConfig(state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_dynamic_config", false, "", state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_dynamic_config", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_dynamic_config", err)
 		}
@@ -426,7 +426,7 @@ func (c *OfframpContract) GetDynamicConfig(state bind.Object) bind.IMethod {
 func (c *OfframpContract) GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_dynamic_config_fields", false, "", cfg)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "get_dynamic_config_fields", false, "", "", cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "get_dynamic_config_fields", err)
 		}
@@ -440,7 +440,7 @@ func (c *OfframpContract) GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod
 func (c *OfframpContract) SetDynamicConfig(state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "set_dynamic_config", false, "", state, param, permissionlessExecutionThresholdSeconds)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "set_dynamic_config", false, "", "", state, param, permissionlessExecutionThresholdSeconds)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "set_dynamic_config", err)
 		}
@@ -454,7 +454,7 @@ func (c *OfframpContract) SetDynamicConfig(state bind.Object, param bind.Object,
 func (c *OfframpContract) ApplySourceChainConfigUpdates(state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "apply_source_chain_config_updates", false, "", state, param, sourceChainsSelector, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "apply_source_chain_config_updates", false, "", "", state, param, sourceChainsSelector, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "apply_source_chain_config_updates", err)
 		}

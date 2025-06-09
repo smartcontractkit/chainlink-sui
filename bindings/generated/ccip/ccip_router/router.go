@@ -85,7 +85,7 @@ type RouterState struct {
 func (c *RouterContract) TypeAndVersion() bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "type_and_version", false, "")
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "type_and_version", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "type_and_version", err)
 		}
@@ -99,7 +99,7 @@ func (c *RouterContract) TypeAndVersion() bind.IMethod {
 func (c *RouterContract) IsChainSupported(router bind.Object, destChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "is_chain_supported", false, "", router, destChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "is_chain_supported", false, "", "", router, destChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "is_chain_supported", err)
 		}
@@ -113,7 +113,7 @@ func (c *RouterContract) IsChainSupported(router bind.Object, destChainSelector 
 func (c *RouterContract) GetOnRampInfo(router bind.Object, destChainSelector uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_info", false, "", router, destChainSelector)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_info", false, "", "", router, destChainSelector)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "get_on_ramp_info", err)
 		}
@@ -127,7 +127,7 @@ func (c *RouterContract) GetOnRampInfo(router bind.Object, destChainSelector uin
 func (c *RouterContract) GetOnRampInfos(router bind.Object, destChainSelectors []uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_infos", false, "", router, destChainSelectors)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_infos", false, "", "", router, destChainSelectors)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "get_on_ramp_infos", err)
 		}
@@ -141,7 +141,7 @@ func (c *RouterContract) GetOnRampInfos(router bind.Object, destChainSelectors [
 func (c *RouterContract) GetOnRampVersion(info OnRampInfo) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_version", false, "", info)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_version", false, "", "", info)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "get_on_ramp_version", err)
 		}
@@ -155,7 +155,7 @@ func (c *RouterContract) GetOnRampVersion(info OnRampInfo) bind.IMethod {
 func (c *RouterContract) GetOnRampAddress(info OnRampInfo) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_address", false, "", info)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "get_on_ramp_address", false, "", "", info)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "get_on_ramp_address", err)
 		}
@@ -169,7 +169,7 @@ func (c *RouterContract) GetOnRampAddress(info OnRampInfo) bind.IMethod {
 func (c *RouterContract) SetOnRampInfos(param bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "set_on_ramp_infos", false, "", param, router, destChainSelectors, onRampAddresses, onRampVersions)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "set_on_ramp_infos", false, "", "", param, router, destChainSelectors, onRampAddresses, onRampVersions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "set_on_ramp_infos", err)
 		}
