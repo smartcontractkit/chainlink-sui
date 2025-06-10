@@ -15,6 +15,7 @@
       # Go 1.24 + tools
       go_1_24
       gopls
+      mockgen
 
       # Keep adding as needed
 

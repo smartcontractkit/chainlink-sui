@@ -16,6 +16,7 @@ import (
 )
 
 const ServiceName = "SuiChainWriter"
+const CCIPExecuteReportFunctionName = "CCIPExecuteReport"
 
 type SuiChainWriter struct {
 	lggr       logger.Logger
@@ -23,17 +24,17 @@ type SuiChainWriter struct {
 	config     ChainWriterConfig
 	simulate   bool
 	ptbFactory *PTBConstructor
-
 	services.StateMachine
 }
 
 func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config ChainWriterConfig, simulate bool) (*SuiChainWriter, error) {
+	suiClient := txManager.GetClient()
 	return &SuiChainWriter{
 		lggr:       logger.Named(lggr, ServiceName),
 		txm:        txManager,
 		config:     config,
 		simulate:   simulate,
-		ptbFactory: NewPTBConstructor(config, txManager.GetClient(), lggr),
+		ptbFactory: NewPTBConstructor(config, suiClient, lggr),
 	}, nil
 }
 
@@ -106,7 +107,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 //   - meta: Transaction metadata (e.g., gas limits).
 //
 // Returns:
-//   - error: An error if configuration is not found, argument conversion fails, or the TxManager Enqueue call fails.
+//   - error: An error if configu\ration is not found, argument conversion fails, or the TxManager Enqueue call fails.
 func enqueueSmartContractCall(ctx context.Context, s *SuiChainWriter, contractName string, method string, args any, transactionID string, meta *commonTypes.TxMeta) error {
 	moduleConfig, exists := s.config.Modules[contractName]
 	if !exists {
@@ -188,7 +189,29 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
+	// TODO: Placeholder, this will be implemented in another PR
 	// Use the builder with the updated PTBConstructor
+	// optional pass the config overrides
+	// if method == CCIPExecuteReportFunctionName {
+	// 	var execArgs SuiOffRampExecCallArgs
+	// 	if err := mapstructure.Decode(args, &execArgs); err != nil {
+	// 		return fmt.Errorf("failed to decode args: %w", err)
+	// 	}
+
+	// 	ptbCommands, updatedArgs, err := s.ptbExpander.GetOffRampPTB(s.lggr, execArgs, functionConfig, functionConfig.PublicKey)
+	// 	if err != nil {
+	// 		s.lggr.Errorw("Error expanding PTB commands", "error", err)
+	// 		return err
+	// 	}
+	// 	args = updatedArgs
+	// 	fmt.Println("updatedArgs", updatedArgs)
+	// 	fmt.Println("ptbCommands", ptbCommands)
+	// } else {
+	// 	if err := mapstructure.Decode(args, &arguments); err != nil {
+	// 		return fmt.Errorf("failed to decode args: %w", err)
+	// 	}
+	// }
+
 	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, &ConfigOverrides{
 		ToAddress: toAddress,
 	})

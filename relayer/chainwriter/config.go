@@ -61,7 +61,12 @@ type ChainWriterFunction struct {
 	PublicKey []byte
 	// The values that need to be loaded into the args by making SuiX_GetOwnedObjects calls
 	PrerequisiteObjects []PrerequisiteObject
-	Params              []codec.SuiFunctionParam
+	// Mapping of logical names to package/module addresses
+	// e.g. ccip_package -> 0x123
+	// 		ccip_offramp -> 0x321
+	AddressMappings map[string]string
+
+	Params []codec.SuiFunctionParam
 	// The set of PTB commands to run as part of this function call.
 	// This field is used in replacement of `Params` above.
 	PTBCommands []ChainWriterPTBCommand

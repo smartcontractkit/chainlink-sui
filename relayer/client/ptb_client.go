@@ -351,6 +351,8 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			return fmt.Errorf("no results from function call")
 		}
 
+		c.log.Debugw("ReadFunction", "RPC response", response)
+
 		result = &response.Results[0]
 
 		return nil
