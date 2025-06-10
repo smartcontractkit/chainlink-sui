@@ -15,6 +15,7 @@ import (
 	commonConfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
@@ -32,6 +33,7 @@ type SuiRelayer struct {
 
 	cfg  *config.TOMLConfig
 	lggr logger.Logger
+	db   sqlutil.DataSource
 
 	client         *client.PTBClient
 	txm            *txm.SuiTxm
@@ -40,7 +42,7 @@ type SuiRelayer struct {
 
 var _ types.Relayer = &SuiRelayer{}
 
-func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keystore) (*SuiRelayer, error) {
+func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keystore, db sqlutil.DataSource) (*SuiRelayer, error) {
 	id := *cfg.ChainID
 
 	loggerInstance := logger.Named(logger.With(lggr, "chainID", id, "chain", "sui"), "SuiRelayer")
@@ -136,6 +138,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		client:         suiClient,
 		txm:            txManager,
 		balanceMonitor: balanceMonitorService,
+		db:             db,
 	}, nil
 }
 
@@ -223,7 +226,10 @@ func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig
 
 	// TODO: validate chainConfig
 
-	chainReader := chainreader.NewChainReader(r.lggr, *r.client, chainConfig)
+	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db)
+	if err != nil {
+		return nil, fmt.Errorf("error in NewContractReader: %w", err)
+	}
 
 	return chainReader, nil
 }

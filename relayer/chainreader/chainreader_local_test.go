@@ -5,6 +5,7 @@ package chainreader
 import (
 	"context"
 	"crypto/ed25519"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
@@ -66,6 +68,7 @@ func TestChainReaderLocal(t *testing.T) {
 
 func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
+	ctx := context.Background()
 
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "")
@@ -96,6 +99,14 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	// Set up the ChainReader
 	chainReaderConfig := ChainReaderConfig{
 		IsLoopPlugin: false,
+		EventsIndexer: EventsIndexerConfig{
+			PollingInterval: 10 * time.Second,
+			SyncTimeout:     10 * time.Second,
+		},
+		TransactionsIndexer: TransactionsIndexerConfig{
+			PollingInterval: 10 * time.Second,
+			SyncTimeout:     10 * time.Second,
+		},
 		Modules: map[string]*ChainReaderModule{
 			"counter": {
 				Name: "counter",
@@ -127,6 +138,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 					"counter_incremented": {
 						Name:      "counter_incremented",
 						EventType: "CounterIncremented",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "counter",
+							Event:   "CounterIncremented",
+						},
 					},
 				},
 			},
@@ -138,7 +154,19 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		Address: packageId, // Package ID of the deployed counter contract
 	}
 
-	chainReader := NewChainReader(log, *relayerClient, chainReaderConfig)
+	datastoreUrl := os.Getenv("TEST_DB_URL")
+	if datastoreUrl == "" {
+		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
+	}
+	db := sqltest.NewDB(t, datastoreUrl)
+
+	// attempt to connect
+	_, err = db.Connx(ctx)
+	require.NoError(t, err)
+
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db)
+	require.NoError(t, err)
+
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding})
 	require.NoError(t, err)
 
@@ -252,6 +280,10 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Run("QueryKey_Events", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
+
+		go func() {
+			_ = chainReader.Start(ctx)
+		}()
 
 		// Increment the counter to emit an event
 		log.Debugw("Incrementing counter to emit event", "counterObjectId", counterObjectId)

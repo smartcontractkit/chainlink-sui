@@ -76,6 +76,9 @@ type EventFilterByMoveEventModule struct {
 	Event   string `json:"event"`
 }
 
+// EventSelector is an alias for EventFilterByMoveEventModule
+type EventSelector = EventFilterByMoveEventModule
+
 type EventData struct {
 	Id struct {
 		TxDigest string `json:"txDigest"`

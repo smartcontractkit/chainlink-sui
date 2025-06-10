@@ -11,6 +11,20 @@ services:
     networks:
       - chainlink
       - sui
+  
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    networks:
+      - chainlink
+      - sui
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
 networks:
   chainlink:
@@ -18,6 +32,7 @@ networks:
   sui:
     name: sui
     driver: bridge
-
+    
 volumes:
   sui-data:
+  postgres-data:

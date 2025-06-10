@@ -50,3 +50,13 @@ tasks:
           matrix:
             MODULE: [".", "./relayer"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -tags="integration testnet" ./...
+
+  integration-with-db:
+    desc: "Run integration tests with database"
+    vars:
+      TEST_DB_URL: '{{.TEST_DB_URL | default "postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres"}}'
+    cmds:
+      - for:
+          matrix:
+            MODULE: [".", "./relayer"]
+        cmd: cd {{ .ITEM.MODULE }} && TEST_DB_URL={{.TEST_DB_URL}} go test {{.CLI_ARGS}} -p=1 -tags="integration" ./...

@@ -30,6 +30,23 @@ jobs:
   ci-test:
     name: Go Test - Unit and Integration
     runs-on: ubuntu-latest
+    
+    # Add PostgreSQL service
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chainlink_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -38,6 +55,8 @@ jobs:
         uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
 
       - name: Run Tests
+        env:
+          TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
         run: |
           nix develop --command task test
 

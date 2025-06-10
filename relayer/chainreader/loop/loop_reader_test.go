@@ -7,11 +7,13 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
@@ -52,6 +54,7 @@ func TestLoopChainReaderLocal(t *testing.T) {
 
 func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	t.Helper()
+	ctx := context.Background()
 
 	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "")
@@ -179,8 +182,16 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		Address: packageId, // Package ID of the deployed echo contract
 	}
 
+	// Set up DB
+	datastoreUrl := os.Getenv("TEST_DB_URL")
+	if datastoreUrl == "" {
+		t.Skip("Skipping persistent tests as TEST_DB_URL is not set in CI")
+	}
+	db := sqltest.NewDB(t, datastoreUrl)
+
 	// Create the base chain reader
-	chainReader := chainreader.NewChainReader(log, *relayerClient, chainReaderConfig)
+	chainReader, err := chainreader.NewChainReader(ctx, log, relayerClient, chainReaderConfig, db)
+	require.NoError(t, err)
 
 	// Wrap the base chain reader with loop chain reader
 	loopReader := NewLoopChainReader(log, chainReader)

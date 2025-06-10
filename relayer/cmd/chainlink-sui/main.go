@@ -11,6 +11,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	suiplugin "github.com/smartcontractkit/chainlink-sui/relayer/plugin"
@@ -24,7 +25,7 @@ func main() {
 	s := loop.MustNewStartedServer(loggerName)
 	defer s.Stop()
 
-	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}}
+	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}, db: s.DataSource}
 	defer s.Logger.ErrorIfFn(p.Close, "Failed to close")
 
 	s.MustRegister(p)
@@ -50,6 +51,7 @@ func main() {
 
 type pluginRelayer struct {
 	loop.Plugin
+	db sqlutil.DataSource
 }
 
 var _ loop.PluginRelayer = &pluginRelayer{}
@@ -71,7 +73,7 @@ func (c *pluginRelayer) NewRelayer(ctx context.Context, config string, keystore 
 		return nil, fmt.Errorf("cannot create new chain with ID %s: chain is disabled", *cfg.ChainID)
 	}
 
-	relayer, err := suiplugin.NewRelayer(&cfg, c.Logger, keystore)
+	relayer, err := suiplugin.NewRelayer(&cfg, c.Logger, keystore, c.db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create relayer: %w", err)
 	}
