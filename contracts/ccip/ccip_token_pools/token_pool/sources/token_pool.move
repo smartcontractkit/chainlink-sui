@@ -525,7 +525,6 @@
     // |                          Deconstruction                           |
     // ================================================================
 
-    #[test_only]
     public fun destroy_token_pool(state: TokenPoolState) {
         let TokenPoolState {
             allowlist_state,

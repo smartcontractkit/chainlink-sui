@@ -49,6 +49,7 @@ type ITokenPool interface {
 	SetAllowlistEnabled(state TokenPoolState, enabled bool) bind.IMethod
 	GetAllowlist(state TokenPoolState) bind.IMethod
 	ApplyAllowlistUpdates(state TokenPoolState, removes []string, adds []string) bind.IMethod
+	DestroyTokenPool(state TokenPoolState) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -492,6 +493,20 @@ func (c *TokenPoolContract) ApplyAllowlistUpdates(state TokenPoolState, removes 
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "apply_allowlist_updates", false, "", "", state, removes, adds)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "apply_allowlist_updates", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *TokenPoolContract) DestroyTokenPool(state TokenPoolState) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "destroy_token_pool", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "destroy_token_pool", err)
 		}
 
 		return ptb, nil

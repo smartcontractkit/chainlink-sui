@@ -102,10 +102,11 @@ func NewCCIP(address string, client suiclient.ClientImpl) (CCIP, error) {
 	}, nil
 }
 
-func PublishCCIP(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, mcmsAddress string) (CCIP, *suiclient.SuiTransactionBlockResponse, error) {
+func PublishCCIP(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, mcmsAddress string, mcmsOwner string) (CCIP, *suiclient.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.CCIP, map[string]string{
-		"mcms": mcmsAddress,
-		"ccip": "0x0",
+		"mcms":       mcmsAddress,
+		"mcms_owner": mcmsOwner,
+		"ccip":       "0x0",
 	})
 	if err != nil {
 		return nil, nil, err

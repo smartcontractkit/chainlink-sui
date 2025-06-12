@@ -50,10 +50,12 @@ func NewOnramp(address string, client suiclient.ClientImpl) (Onramp, error) {
 	}, nil
 }
 
-func PublishOnramp(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, ccipAddress string, mcmsAddress string) (Onramp, *suiclient.SuiTransactionBlockResponse, error) {
+func PublishOnramp(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, ccipAddress, mcmsAddress, mcmsOwnerAddress string) (Onramp, *suiclient.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.CCIPOnramp, map[string]string{
 		"ccip":        ccipAddress,
 		"ccip_onramp": "0x0",
+		"mcms":        mcmsAddress,
+		"mcms_owner":  mcmsOwnerAddress,
 	})
 	if err != nil {
 		return nil, nil, err

@@ -21,8 +21,9 @@ type DeployCCIPOnRampObjects struct {
 }
 
 type DeployCCIPOnRampInput struct {
-	CCIPPackageId string
-	MCMSPackageId string
+	CCIPPackageId      string
+	MCMSPackageId      string
+	MCMSOwnerPackageId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPOnRampInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
@@ -33,6 +34,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSPackageId,
+		input.MCMSOwnerPackageId,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err

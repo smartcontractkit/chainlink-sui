@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	linkops "github.com/smartcontractkit/chainlink-sui/ops/link"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 
@@ -62,7 +63,7 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 		Client: *client,
 		Signer: signer,
 		GetTxOpts: func() bind.TxOpts {
-			b := uint64(300_000_000)
+			b := uint64(400_000_000)
 			return bind.TxOpts{
 				GasBudget: &b,
 			}
@@ -79,6 +80,10 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
+
+	// Deploy MCMS
+	mcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
+	require.NoError(t, err, "failed to deploy MCMS Contract")
 
 	configDigest, err := uint256.FromHex("0xe3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	require.NoError(t, err, "failed to convert config digest to uint256")
@@ -97,7 +102,8 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput: DeployCCIPInput{
-			McmsPackageId: "0x2",
+			McmsPackageId: mcmsReport.Output.PackageId,
+			McmsOwner:     "0x2",
 		},
 		MaxFeeJuelsPerMsg:            "100000000",
 		TokenPriceStalenessThreshold: 60,

@@ -1,9 +1,12 @@
 module ccip::client;
 
-use ccip::eth_abi;
+use std::bcs;
 
 const GENERIC_EXTRA_ARGS_V2_TAG: vector<u8> = x"181dcf10";
 const SVM_EXTRA_ARGS_V1_TAG: vector<u8> = x"1f3b3aba";
+
+const EInvalidSVMTokenReceiverLength: u64 = 1;
+const EInvalidSVMAccountLength: u64 = 2;
 
 public fun generic_extra_args_v2_tag(): vector<u8> {
     GENERIC_EXTRA_ARGS_V2_TAG
@@ -17,9 +20,9 @@ public fun encode_generic_extra_args_v2(
     gas_limit: u256, allow_out_of_order_execution: bool
 ): vector<u8> {
     let mut extra_args = vector[];
-    eth_abi::encode_selector(&mut extra_args, GENERIC_EXTRA_ARGS_V2_TAG);
-    eth_abi::encode_u256(&mut extra_args, gas_limit);
-    eth_abi::encode_bool(&mut extra_args, allow_out_of_order_execution);
+    extra_args.append(GENERIC_EXTRA_ARGS_V2_TAG);
+    extra_args.append(bcs::to_bytes(&gas_limit));
+    extra_args.append(bcs::to_bytes(&allow_out_of_order_execution));
     extra_args
 }
 
@@ -27,22 +30,39 @@ public fun encode_svm_extra_args_v1(
     compute_units: u32,
     account_is_writable_bitmap: u64,
     allow_out_of_order_execution: bool,
-    token_receiver: vector<u8>,
-    accounts: vector<vector<u8>>
+    mut token_receiver: vector<u8>,
+    mut accounts: vector<vector<u8>>
 ): vector<u8> {
     let mut extra_args = vector[];
-    eth_abi::encode_selector(&mut extra_args, SVM_EXTRA_ARGS_V1_TAG);
-    eth_abi::encode_u32(&mut extra_args, compute_units);
-    eth_abi::encode_u64(&mut extra_args, account_is_writable_bitmap);
-    eth_abi::encode_bool(&mut extra_args, allow_out_of_order_execution);
-    eth_abi::encode_left_padded_bytes32(&mut extra_args, token_receiver);
-    eth_abi::encode_u256(&mut extra_args, accounts.length() as u256);
+    extra_args.append(SVM_EXTRA_ARGS_V1_TAG);
+    extra_args.append(bcs::to_bytes(&compute_units));
+    extra_args.append(bcs::to_bytes(&account_is_writable_bitmap));
+    extra_args.append(bcs::to_bytes(&allow_out_of_order_execution));
+
+    pad_svm_address(&mut token_receiver);
+    assert!(token_receiver.length() == 32, EInvalidSVMTokenReceiverLength);
+    extra_args.append(bcs::to_bytes(&token_receiver));
+
+    let accounts_len = accounts.length();
     let mut i = 0;
-    while (i < accounts.length()) {
-        eth_abi::encode_left_padded_bytes32(&mut extra_args, accounts[i]);
+    while (i < accounts_len) {
+        let account = accounts.borrow_mut(i);
+        pad_svm_address(account);
+        assert!(account.length() == 32, EInvalidSVMAccountLength);
         i = i + 1;
     };
+    extra_args.append(bcs::to_bytes(&accounts));
     extra_args
+}
+
+fun pad_svm_address(svm_address: &mut vector<u8>) {
+    if (svm_address.length() < 32) {
+        svm_address.reverse();
+        while (svm_address.length() < 32) {
+            svm_address.push_back(0);
+        };
+        svm_address.reverse();
+    }
 }
 
 public struct Any2SuiTokenAmount has store, drop, copy {
@@ -112,4 +132,11 @@ public fun new_dest_token_amounts(
             Any2SuiTokenAmount { token: *token_address, amount: *token_amount }
         }
     )
+}
+
+// ======================== Test functions ========================
+
+#[test_only]
+public fun test_pad_svm_address(svm_address: &mut vector<u8>) {
+    pad_svm_address(svm_address);
 }

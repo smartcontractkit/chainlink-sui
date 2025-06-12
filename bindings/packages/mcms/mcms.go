@@ -54,7 +54,7 @@ func NewMCMS(address string, client suiclient.ClientImpl) (MCMS, error) {
 func PublishMCMS(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl) (MCMS, *suiclient.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.MCMS, map[string]string{
 		"mcms":       "0x0",
-		"mcms_owner": "0x1",
+		"mcms_owner": "0x2",
 	})
 	if err != nil {
 		return nil, nil, err

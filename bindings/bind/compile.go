@@ -58,6 +58,10 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
+
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
+		}
 	}
 
 	// Special-case: update published-at of CCIP & CCIPRouter if this is the TokenPool package
@@ -67,7 +71,11 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 
 		if err = updatePublishedAt(dstRoot, contracts.CCIPRouter, namedAddresses["ccip_router"]); err != nil {
-			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+			return PackageArtifact{}, fmt.Errorf("updating CCIP Router published-at: %w", err)
+		}
+
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
 		}
 	}
 
@@ -78,7 +86,13 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 
 		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
-			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
+		}
+	}
+
+	if packageName == contracts.CCIP {
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
 		}
 	}
 

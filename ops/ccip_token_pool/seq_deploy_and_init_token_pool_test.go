@@ -14,6 +14,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 
@@ -61,7 +62,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 		Client: *client,
 		Signer: signer,
 		GetTxOpts: func() bind.TxOpts {
-			b := uint64(300_000_000)
+			b := uint64(400_000_000)
 			return bind.TxOpts{
 				GasBudget: &b,
 			}
@@ -75,8 +76,13 @@ func TestDeployAndInitSeq(t *testing.T) {
 		reporter,
 	)
 
+	// Deploy MCMS
+	mcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
+	require.NoError(t, err, "failed to deploy MCMS Contract")
+
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: "0x2",
+		McmsPackageId: mcmsReport.Output.PackageId,
+		McmsOwner:     "0x2",
 	}
 
 	// deploy CCIP package
@@ -91,6 +97,8 @@ func TestDeployAndInitSeq(t *testing.T) {
 	inputTokenPool := TokenPoolDeployInput{
 		CCIPPackageId:     reportCCIP.Output.PackageId,
 		CCIPRouterAddress: reportCCIPRouter.Output.PackageId,
+		MCMSAddress:       mcmsReport.Output.PackageId,
+		MCMSOwnerAddress:  "0x2",
 	}
 
 	_, err = cld_ops.ExecuteOperation(bundle, DeployCCIPTokenPoolOp, deps, inputTokenPool)

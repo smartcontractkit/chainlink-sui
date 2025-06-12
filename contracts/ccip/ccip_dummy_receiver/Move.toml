@@ -5,10 +5,14 @@ edition = "2024.beta"
 [addresses]
 ccip = "_"
 ccip_dummy_receiver = "_"
+mcms = "_"
+mcms_owner = "_"
 
 [dev-addresses]
 ccip = "0x1000"
 ccip_dummy_receiver = "0x3010"
+mcms = "0x4000"
+mcms_owner = "0x4010"
 
 [dependencies]
 ChainlinkCCIP = { local = "../ccip" }

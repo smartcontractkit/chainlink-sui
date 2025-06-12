@@ -86,7 +86,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 		Client: *client,
 		Signer: signer,
 		GetTxOpts: func() bind.TxOpts {
-			b := uint64(300_000_000)
+			b := uint64(400_000_000)
 			return bind.TxOpts{
 				GasBudget: &b,
 			}
@@ -100,17 +100,17 @@ func TestDeployAndInitSeq(t *testing.T) {
 		reporter,
 	)
 
+	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcms_ops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
+	require.NoError(t, err, "failed to deploy MCMS Package")
+
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: "0x2",
+		McmsPackageId: reportMCMs.Output.PackageId,
+		McmsOwner:     "0x2",
 	}
 
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
-
-	// Deploy MCMs
-	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcms_ops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy MCMS Package")
 
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})

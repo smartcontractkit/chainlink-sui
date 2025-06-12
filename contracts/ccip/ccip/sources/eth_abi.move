@@ -228,7 +228,7 @@ public fun decode_u256(stream: &mut ABIStream): u256 {
 
 /// Returns a new vector containing `len` elements from `vec`
 /// starting at index `start`. Panics if `start + len` exceeds the vector length.
-fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
+public(package) fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
     let vec_len = vec.length();
     // Ensure we have enough elements for the slice.
     assert!(start + len <= vec_len, E_OUT_OF_BYTES);

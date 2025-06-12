@@ -12,6 +12,8 @@ import (
 type TokenPoolDeployInput struct {
 	CCIPPackageId     string
 	CCIPRouterAddress string
+	MCMSAddress       string
+	MCMSOwnerAddress  string
 }
 
 type TokenPoolDeployOutput struct {
@@ -25,6 +27,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TokenPoo
 		deps.Client,
 		input.CCIPRouterAddress,
 		input.CCIPPackageId,
+		input.MCMSAddress,
+		input.MCMSOwnerAddress,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[TokenPoolDeployOutput]{}, err

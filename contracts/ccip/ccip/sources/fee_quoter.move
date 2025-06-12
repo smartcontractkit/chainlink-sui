@@ -2,7 +2,9 @@
 /// information and pricing.
 module ccip::fee_quoter;
 
+use std::bcs;
 use std::string::{Self, String};
+
 use sui::clock;
 use sui::event;
 use sui::table;
@@ -10,6 +12,8 @@ use sui::table;
 use ccip::eth_abi;
 use ccip::client;
 use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
+
+use mcms::bcs_stream;
 
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
@@ -218,6 +222,8 @@ const E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS: u64 = 30;
 const E_INVALID_SVM_EXTRA_ARGS_WRITABLE_BITMAP: u64 = 31;
 const E_INVALID_FEE_RANGE: u64 = 32;
 const E_INVALID_DEST_BYTES_OVERHEAD: u64 = 33;
+const E_INVALID_SVM_RECEIVER_LENGTH: u64 = 34;
+const E_INVALID_SVM_ACCOUNT_LENGTH: u64 = 35;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -990,6 +996,8 @@ fun resolve_svm_gas_limit(
     // tokens. Below, token and account overhead will count towards maxDataBytes.
     let mut svm_expanded_data_length = data_len;
 
+    // The receiver length has not yet been validated before this point.
+    assert!(receiver.length() == 32, E_INVALID_SVM_RECEIVER_LENGTH);
     let receiver_uint = eth_abi::decode_u256_value(receiver);
     if (receiver_uint == 0) {
         // When message receiver is zero, CCIP receiver is not invoked on SVM.
@@ -1005,6 +1013,12 @@ fun resolve_svm_gas_limit(
         svm_expanded_data_length = svm_expanded_data_length + (
             accounts_length + SVM_MESSAGING_ACCOUNTS_OVERHEAD
         ) * SVM_ACCOUNT_BYTE_SIZE;
+    };
+
+    let mut i = 0;
+    while (i < accounts_length) {
+        assert!(accounts[i].length() == 32, E_INVALID_SVM_ACCOUNT_LENGTH);
+        i = i + 1;
     };
 
     if (tokens_len > 0) {
@@ -1192,9 +1206,10 @@ fun decode_generic_extra_args(
 }
 
 fun decode_generic_extra_args_v2(extra_args: vector<u8>): (u256, bool) {
-    let mut stream = eth_abi::new_stream(extra_args);
-    let gas_limit = eth_abi::decode_u256(&mut stream);
-    let allow_out_of_order_execution = eth_abi::decode_bool(&mut stream);
+    let mut stream = bcs_stream::new(extra_args);
+    let gas_limit = bcs_stream::deserialize_u256(&mut stream);
+    let allow_out_of_order_execution = bcs_stream::deserialize_bool(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
     (gas_limit, allow_out_of_order_execution)
 }
 
@@ -1215,16 +1230,17 @@ fun decode_svm_extra_args(
 fun decode_svm_extra_args_v1(
     extra_args: vector<u8>
 ): (u32, u64, bool, vector<u8>, vector<vector<u8>>) {
-    let mut stream = eth_abi::new_stream(extra_args);
-    let compute_units = eth_abi::decode_u32(&mut stream);
-    let account_is_writable_bitmap = eth_abi::decode_u64(&mut stream);
-    let allow_out_of_order_execution = eth_abi::decode_bool(&mut stream);
-    let token_receiver = eth_abi::decode_bytes32(&mut stream);
+    let mut stream = bcs_stream::new(extra_args);
+    let compute_units = bcs_stream::deserialize_u32(&mut stream);
+    let account_is_writable_bitmap = bcs_stream::deserialize_u64(&mut stream);
+    let allow_out_of_order_execution = bcs_stream::deserialize_bool(&mut stream);
+    let token_receiver = bcs_stream::deserialize_vector_u8(&mut stream);
     let accounts =
-        eth_abi::decode_vector!(
+        bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { eth_abi::decode_bytes32(stream) }
+                |stream| bcs_stream::deserialize_vector_u8(stream)
         );
+    bcs_stream::assert_is_consumed(&stream);
     (
         compute_units,
         account_is_writable_bitmap,
@@ -1356,8 +1372,7 @@ fun process_pool_return_data(
                 dest_chain_config.default_token_dest_gas_overhead
             };
 
-        let mut dest_exec_data = vector[];
-        eth_abi::encode_u32(&mut dest_exec_data, dest_gas_amount);
+        let dest_exec_data = bcs::to_bytes(&dest_gas_amount);
         dest_exec_data_per_token.push_back(dest_exec_data);
 
         i = i + 1;

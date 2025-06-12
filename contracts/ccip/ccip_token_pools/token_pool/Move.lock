@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "0F62CE11E2E7B03333B8BBA88B453F5607837846EA17F6F2217159E019149162"
+manifest_digest = "C789BC40AAC390814F0068248D95B76FFA9F05FFFD8F81E199486A21E2F75255"
 deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -25,6 +25,18 @@ dependencies = [
 [[move.package]]
 id = "ChainlinkCCIP"
 source = { local = "../../ccip" }
+
+dependencies = [
+  { id = "Bridge", name = "Bridge" },
+  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
+  { id = "MoveStdlib", name = "MoveStdlib" },
+  { id = "Sui", name = "Sui" },
+  { id = "SuiSystem", name = "SuiSystem" },
+]
+
+[[move.package]]
+id = "ChainlinkManyChainMultisig"
+source = { local = "../../../mcms/mcms" }
 
 dependencies = [
   { id = "Bridge", name = "Bridge" },
