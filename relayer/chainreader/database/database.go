@@ -2,22 +2,31 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
+
+	"github.com/pattonkan/sui-go/sui"
+	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-
-	dbUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/util"
 )
 
 type DBStore struct {
-	ds sqlutil.DataSource
+	ds  sqlutil.DataSource
+	lgr logger.Logger
 }
 
-func NewDBStore(ds sqlutil.DataSource) *DBStore {
-	return &DBStore{ds: ds}
+func NewDBStore(ds sqlutil.DataSource, lgr logger.Logger) *DBStore {
+	return &DBStore{
+		ds:  ds,
+		lgr: logger.Named(lgr, "SuiDBStore"),
+	}
 }
 
 func (store *DBStore) EnsureSchema(ctx context.Context) error {
@@ -38,6 +47,7 @@ type EventRecord struct {
 	EventAccountAddress string
 	EventHandle         string
 	EventOffset         uint64
+	TxDigest            string
 	BlockVersion        uint64
 	BlockHeight         string
 	BlockHash           []byte
@@ -60,6 +70,7 @@ func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) e
 			record.EventAccountAddress,
 			record.EventHandle,
 			record.EventOffset,
+			record.TxDigest,
 			record.BlockVersion,
 			record.BlockHeight,
 			record.BlockHash,
@@ -81,29 +92,18 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 	args := []any{eventAccountAddress, eventHandle}
 	argCount := 3
 
-	tsFilter, hasTSFilter := dbUtil.ExtractTimestampFilter(expressions)
-	if hasTSFilter {
-		baseSQL += fmt.Sprintf(" AND block_timestamp >= $%d", argCount)
-		args = append(args, tsFilter)
-		argCount++
-	}
-
-	for _, expr := range expressions {
-		if expr.IsPrimitive() {
-			switch v := expr.Primitive.(type) {
-			case *primitives.Comparator:
-				for _, valueCmp := range v.ValueComparators {
-					var condition string
-					if dbUtil.IsNumeric(valueCmp.Value) {
-						condition = fmt.Sprintf("CAST(data->>'%s' AS numeric) %s $%d", v.Name, operatorSQL(valueCmp.Operator), argCount)
-					} else {
-						condition = fmt.Sprintf("data->>'%s' %s $%d", v.Name, operatorSQL(valueCmp.Operator), argCount)
-					}
-					baseSQL += " AND " + condition
-					args = append(args, valueCmp.Value)
-					argCount++
-				}
+	if len(expressions) > 0 {
+		var conditions []string
+		for _, expr := range expressions {
+			sqlCondition, err := BuildSQLCondition(expr, &args, &argCount)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build SQL condition: %w", err)
 			}
+			conditions = append(conditions, sqlCondition)
+		}
+
+		if len(conditions) > 0 {
+			baseSQL += " AND " + strings.Join(conditions, " AND ")
 		}
 	}
 
@@ -118,6 +118,8 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 	if limitAndSort.Limit.Count > 0 {
 		baseSQL += fmt.Sprintf(" LIMIT %d", limitAndSort.Limit.Count)
 	}
+
+	store.lgr.Debugw("querying events", "sql", baseSQL, "args", args)
 
 	rows, err := store.ds.QueryContext(ctx, baseSQL, args...)
 	if err != nil {
@@ -142,17 +144,31 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 		records = append(records, record)
 	}
 
+	store.lgr.Debugw("fetched DB events", "records", records)
+
 	return records, nil
 }
 
-func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, eventHandle string) (uint64, error) {
+// GetLatestOffset returns a cursor (of type EventId) based on the latest event recorded in the DB for a given type
+func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, eventHandle string) (*suiclient.EventId, error) {
 	var offset uint64
-	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset)
+	var txDigest string
+	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get latest offset: %w", err)
+		// no rows found in DB, return a nil index
+		//nolint:nilnil
+		if errors.Is(err, sql.ErrNoRows) {
+			// this is not an error, just nothing to return
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("failed to get latest offset: %w", err)
 	}
 
-	return offset, nil
+	return &suiclient.EventId{
+		TxDigest: *sui.MustNewDigest(txDigest),
+		EventSeq: sui.NewBigInt(offset),
+	}, nil
 }
 
 func (store *DBStore) GetTxVersionByID(ctx context.Context, id uint64) (uint64, error) {

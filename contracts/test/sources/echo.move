@@ -6,6 +6,10 @@ module test::echo {
         value: u64
     }
 
+    public struct NoConfigSingleValueEvent has copy, drop {
+            value: u64
+        }
+
     public struct DoubleValueEvent has copy, drop {
         number: u64,
         text: String
@@ -43,6 +47,22 @@ module test::echo {
         vector::push_back(&mut values, bytes);
         event::emit(TripleValueEvent { values });
     }
+
+    public entry fun simple_event_echo(
+        val: u64,
+        _ctx: &mut TxContext
+    ): u64 {
+        event::emit(SingleValueEvent { value: val });
+        val
+    }
+
+    public entry fun no_config_event_echo(
+            val: u64,
+            _ctx: &mut TxContext
+        ): u64 {
+            event::emit(NoConfigSingleValueEvent { value: val });
+            val
+        }
 
     public fun echo_u64(val: u64): u64 {
         val

@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
 
@@ -63,7 +64,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
 	require.NoError(t, err)
 	publicKey := privateKey.Public().(ed25519.PublicKey)
-	_ = []byte(publicKey) // Not used directly in this test
+	publicKeyBytes := []byte(publicKey)
 
 	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, clientErr)
@@ -158,11 +159,27 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 							},
 						},
 					},
+					"simple_event_echo": {
+						Name:          "simple_event_echo",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:     "u64",
+								Name:     "number",
+								Required: true,
+							},
+						},
+					},
 				},
 				Events: map[string]*chainreader.ChainReaderEvent{
 					"single_value_event": {
 						Name:      "single_value_event",
 						EventType: "SingleValueEvent",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "echo",
+							Event:   "SingleValueEvent",
+						},
 					},
 					"double_value_event": {
 						Name:      "double_value_event",
@@ -327,5 +344,198 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		)
 		require.NoError(t, err)
 		require.Equal(t, testString, retString)
+	})
+
+	// Test 7: echo_with_events function call and event querying
+	t.Run("LoopReader_EchoWithEvents_AndQueryEvents", func(t *testing.T) {
+		// Test data
+		testNumber := uint64(12345)
+		testText := "Hello Events!"
+		testBytes := []byte("test bytes data")
+
+		// First, call the function that emits events
+		var retUint64 uint64
+		err = loopReader.GetLatestValue(
+			ctx,
+			strings.Join([]string{packageId, echoBinding.Name, "simple_event_echo"}, "-"),
+			primitives.Finalized,
+			map[string]any{
+				"number": testNumber,
+			},
+			&retUint64,
+		)
+		require.NoError(t, err)
+
+		// Define event structures to match the Move contract
+		type SingleValueEvent struct {
+			Value uint64 `json:"value"`
+		}
+
+		type NoConfigSingleValueEvent struct {
+			Value uint64 `json:"value"`
+		}
+
+		type DoubleValueEvent struct {
+			Number uint64 `json:"number"`
+			Text   string `json:"text"`
+		}
+
+		type TripleValueEvent struct {
+			Values [][]byte `json:"values"`
+		}
+
+		// Query for SingleValueEvent
+		t.Run("QuerySingleValueEvent", func(t *testing.T) {
+			singleValueEvent := &SingleValueEvent{}
+			var sequences []types.Sequence
+			var err error
+
+			// Use relayerClient to call increment instead of using CLI
+			moveCallReq := client.MoveCallRequest{
+				Signer:          accountAddress,
+				PackageObjectId: packageId,
+				Module:          "echo",
+				Function:        "simple_event_echo",
+				TypeArguments:   []any{},
+				Arguments: []any{
+					testNumber,
+				},
+				GasBudget: "2000000",
+			}
+
+			log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
+			require.NoError(t, err)
+
+			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+			require.NoError(t, err)
+
+			require.Eventually(t, func() bool {
+				sequences, err = loopReader.QueryKey(
+					ctx,
+					echoBinding,
+					query.KeyFilter{
+						Key: "single_value_event",
+					},
+					query.LimitAndSort{
+						SortBy: []query.SortBy{},
+						Limit:  query.CountLimit(10),
+					},
+					singleValueEvent,
+				)
+
+				if err != nil {
+					log.Errorw("Error querying for SingleValueEvent", "err", err)
+				}
+
+				return err == nil && len(sequences) > 0
+			}, 30*time.Second, 1*time.Second)
+
+			require.NoError(t, err)
+			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")
+			log.Debugw("Sequences found", "sequences", sequences)
+		})
+
+		// Query for SingleValueEvent
+		t.Run("QuerySingleValueEvent_WithoutConfig", func(t *testing.T) {
+			singleValueEvent := &NoConfigSingleValueEvent{}
+			var sequences []types.Sequence
+			var err error
+
+			// Use relayerClient to call increment instead of using CLI
+			moveCallReq := client.MoveCallRequest{
+				Signer:          accountAddress,
+				PackageObjectId: packageId,
+				Module:          "echo",
+				Function:        "no_config_event_echo",
+				TypeArguments:   []any{},
+				Arguments: []any{
+					testNumber,
+				},
+				GasBudget: "2000000",
+			}
+
+			log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
+			require.NoError(t, err)
+
+			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+			require.NoError(t, err)
+
+			require.Eventually(t, func() bool {
+				sequences, err = loopReader.QueryKey(
+					ctx,
+					echoBinding,
+					query.KeyFilter{
+						Key: "NoConfigSingleValueEvent",
+					},
+					query.LimitAndSort{
+						SortBy: []query.SortBy{},
+						Limit:  query.CountLimit(10),
+					},
+					singleValueEvent,
+				)
+
+				if err != nil {
+					log.Errorw("Error querying for NoValueSingleValueEvent", "err", err)
+				}
+
+				return err == nil && len(sequences) > 0
+			}, 30*time.Second, 1*time.Second)
+
+			require.NoError(t, err)
+			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")
+			log.Debugw("Sequences found", "sequences", sequences)
+		})
+
+		// Query for DoubleValueEvent
+		t.Run("QueryDoubleValueEvent", func(t *testing.T) {
+			t.Skip("Skipping double value test")
+			doubleValueEvent := &DoubleValueEvent{}
+			sequences, err := loopReader.QueryKey(
+				ctx,
+				echoBinding,
+				query.KeyFilter{
+					Key: "double_value_event",
+				},
+				query.LimitAndSort{
+					Limit: query.CountLimit(10),
+				},
+				doubleValueEvent,
+			)
+			require.NoError(t, err)
+			require.NotEmpty(t, sequences, "Expected to find DoubleValueEvent")
+
+			// Check the latest event
+			latestEvent := sequences[0].Data.(*DoubleValueEvent)
+			require.Equal(t, testNumber, latestEvent.Number)
+			require.Equal(t, testText, latestEvent.Text)
+		})
+
+		// Query for TripleValueEvent
+		t.Run("QueryTripleValueEvent", func(t *testing.T) {
+			t.Skip("Skipping triple value event test")
+			tripleValueEvent := &TripleValueEvent{}
+			sequences, err := loopReader.QueryKey(
+				ctx,
+				echoBinding,
+				query.KeyFilter{
+					Key: "triple_value_event",
+				},
+				query.LimitAndSort{
+					Limit: query.CountLimit(10),
+				},
+				tripleValueEvent,
+			)
+			require.NoError(t, err)
+			require.NotEmpty(t, sequences, "Expected to find TripleValueEvent")
+
+			// Check the latest event
+			latestEvent := sequences[0].Data.(*TripleValueEvent)
+			require.NotEmpty(t, latestEvent.Values, "Expected non-empty values array")
+			require.Equal(t, testBytes, latestEvent.Values[0])
+		})
 	})
 }

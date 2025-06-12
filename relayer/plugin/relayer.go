@@ -300,3 +300,7 @@ func (r *SuiRelayer) NewMercuryProvider(ctx context.Context, rargs types.RelayAr
 func (r *SuiRelayer) NewOCR3CapabilityProvider(ctx context.Context, rargs types.RelayArgs, pargs types.PluginArgs) (types.OCR3CapabilityProvider, error) {
 	return nil, errors.New("ocr3 not supported for Sui")
 }
+
+func (r *SuiRelayer) EVM() (types.EVMService, error) {
+	return nil, errors.New("evm service not supported in Sui relayer")
+}

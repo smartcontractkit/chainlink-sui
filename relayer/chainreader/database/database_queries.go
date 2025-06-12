@@ -10,6 +10,7 @@ const (
 		event_account_address TEXT NOT NULL,
 		event_handle TEXT NOT NULL,
 		event_offset BIGINT NOT NULL,
+		tx_digest TEXT NOT NULL,
 		block_version BIGINT NOT NULL,
 		block_height TEXT NOT NULL,
 		block_hash BYTEA NOT NULL,
@@ -24,12 +25,13 @@ const (
 		event_account_address,
 		event_handle,
 		event_offset,
+	    tx_digest,
 		block_version,
 		block_height,
 		block_hash,
 		block_timestamp,
 		data
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	ON CONFLICT DO NOTHING;
     `
 
@@ -40,8 +42,11 @@ const (
     `
 
 	QueryEventsOffset = `
-	SELECT COALESCE(MAX(event_offset), 0) FROM sui.events
-	WHERE event_account_address = $1 AND event_handle = $2
+	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest 
+	FROM sui.events 
+	WHERE event_account_address = $1 AND event_handle = $2 
+	ORDER BY event_offset DESC 
+	LIMIT 1
 	`
 
 	QueryTransactionVersionByID = `

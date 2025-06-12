@@ -174,9 +174,9 @@ func (s *loopChainReader) QueryKey(ctx context.Context, contract types.BoundCont
 		}
 
 		eventData := reflect.New(reflect.TypeOf(sequenceDataType).Elem()).Interface()
-		err = codec.DecodeSuiJsonValue(jsonData, &eventData)
+		err = codec.DecodeSuiJsonValue(jsonData, eventData)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode LOOP sourced event data (`%s`) into an Sui value: %+w", string(*jsonBytes), err)
+			return nil, fmt.Errorf("failed to decode LOOP sourced event data (`%s`) into a Sui value: %+w", string(*jsonBytes), err)
 		}
 
 		sequences[i].Data = eventData

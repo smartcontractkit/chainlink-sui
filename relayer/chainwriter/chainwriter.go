@@ -242,6 +242,10 @@ func (s *SuiChainWriter) GetTransactionStatus(ctx context.Context, transactionID
 	return s.txm.GetTransactionStatus(ctx, transactionID)
 }
 
+func (s *SuiChainWriter) GetEstimateFee(ctx context.Context, contractName string, method string, args any, transactionID string, meta *commonTypes.TxMeta, _ *big.Int) (commonTypes.EstimateFee, error) {
+	return commonTypes.EstimateFee{}, errors.New("GetEstimateFee not implemented")
+}
+
 // Close implements types.ContractWriter.
 func (s *SuiChainWriter) Close() error {
 	return s.StopOnce(ServiceName, func() error {

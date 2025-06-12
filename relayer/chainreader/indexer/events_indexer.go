@@ -132,15 +132,30 @@ func (eIndexer *EventsIndexer) SyncAllEvents(ctx context.Context) error {
 }
 
 func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.EventSelector) error {
+	if selector == nil {
+		return fmt.Errorf("unspecified selector for SyncEvent call")
+	}
+
 	eventHandle := fmt.Sprintf("%s::%s::%s", selector.Package, selector.Module, selector.Event)
+
+	// check if the event selector is already tracked, if not add it to the list
+	if !eIndexer.isEventSelectorAdded(*selector) {
+		eIndexer.eventConfigurations = append(eIndexer.eventConfigurations, selector)
+	}
 
 	eIndexer.logger.Debugw("syncEvent: searching for event", "handle", eventHandle)
 
 	// Get the cursor for pagination - either from memory or start fresh
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
+	var err error
 	if cursor == nil {
-		// TODO: this starts fresh each time, need to store and get the cursor from the database
-		eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle)
+		// attempt to get the latest event sync of the given type and use its data to construct a cursor
+		cursor, err = eIndexer.db.GetLatestOffset(ctx, selector.Module, eventHandle)
+		if err != nil {
+			return err
+		}
+
+		eIndexer.logger.Debugw("syncEvent: starting fresh sync", "handle", eventHandle, "cursor", cursor)
 	}
 
 	batchSize := uint(batchSizeRecords)
@@ -200,6 +215,7 @@ eventLoop:
 					EventAccountAddress: selector.Package,
 					EventHandle:         eventHandle,
 					EventOffset:         event.Id.EventSeq.Uint64(),
+					TxDigest:            event.Id.TxDigest.String(),
 					BlockVersion:        0,
 					BlockHeight:         fmt.Sprintf("%d", block.Height),
 					BlockHash:           []byte(block.TxDigest),
@@ -247,4 +263,16 @@ eventLoop:
 	}
 
 	return nil
+}
+
+// IsEventSelectorAdded checks if a specific event selector has already been included in the list of events
+// to sync
+func (eIndexer *EventsIndexer) isEventSelectorAdded(eConfig client.EventSelector) bool {
+	for _, selector := range eIndexer.eventConfigurations {
+		if selector.Package == eConfig.Package && selector.Module == eConfig.Module && selector.Event == eConfig.Event {
+			return true
+		}
+	}
+
+	return false
 }

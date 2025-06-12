@@ -63,7 +63,7 @@ type readIdentifier struct {
 }
 
 func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *client.PTBClient, config ChainReaderConfig, db sqlutil.DataSource) (pkgtypes.ContractReader, error) {
-	dbStore := database.NewDBStore(db)
+	dbStore := database.NewDBStore(db, lgr)
 
 	err := dbStore.EnsureSchema(ctx)
 	if err != nil {
@@ -249,8 +249,18 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	// Get module and event configuration
 	moduleConfig := s.config.Modules[contract.Name]
 	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
+	// No event config found, construct a config
 	if err != nil {
-		return nil, err
+		// construct a new config ad-hoc
+		eventConfig = &ChainReaderEvent{
+			Name:      filter.Key,
+			EventType: filter.Key,
+			EventSelector: client.EventSelector{
+				Package: contract.Address,
+				Module:  contract.Name,
+				Event:   filter.Key,
+			},
+		}
 	}
 
 	// Sync the event in case it's not already in the database
@@ -626,11 +636,20 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 
 		s.logger.Debugw("Processing database event record", "data", record.Data, "offset", record.EventOffset)
 
-		if err := codec.DecodeSuiJsonValue(record.Data, eventData); err != nil {
+		// if we are running in loop plugin mode, we will want to decode into JSON and then into JSON bytes always
+		if s.config.IsLoopPlugin {
+			// decode into JSON and then into JSON bytes
+			jsonData, err := json.Marshal(record.Data)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal data for LOOP: %w", err)
+			}
+			eventData = &jsonData
+		} else if err := codec.DecodeSuiJsonValue(record.Data, eventData); err != nil {
 			return nil, fmt.Errorf("failed to decode event data: %w", err)
 		}
 
 		// Create cursor from the event offset - this is simpler than the blockchain event ID
+		// TODO: change this to match what's expected in DB lookups
 		cursor := fmt.Sprintf(`{"event_offset": %d}`, record.EventOffset)
 
 		sequence := pkgtypes.Sequence{
@@ -642,8 +661,11 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 				Height:    record.BlockHeight,
 			},
 		}
+
 		sequences = append(sequences, sequence)
 	}
+
+	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences))
 
 	return sequences, nil
 }
