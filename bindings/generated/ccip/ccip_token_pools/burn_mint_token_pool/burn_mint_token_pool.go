@@ -25,7 +25,7 @@ var (
 
 type IBurnMintTokenPool interface {
 	TypeAndVersion() bind.IMethod
-	Initialize(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string) bind.IMethod
+	Initialize(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod
 	GetToken(typeArgs string, state bind.Object) bind.IMethod
 	GetRouter() bind.IMethod
 	GetTokenDecimals(typeArgs string, state bind.Object) bind.IMethod
@@ -100,10 +100,10 @@ func (c *BurnMintTokenPoolContract) TypeAndVersion() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *BurnMintTokenPoolContract) Initialize(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string) bind.IMethod {
+func (c *BurnMintTokenPoolContract) Initialize(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "burn_mint_token_pool", "initialize", false, "", typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "burn_mint_token_pool", "initialize", false, "", typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "burn_mint_token_pool", "initialize", err)
 		}

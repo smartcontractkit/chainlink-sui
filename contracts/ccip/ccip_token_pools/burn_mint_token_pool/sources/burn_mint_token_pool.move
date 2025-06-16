@@ -45,6 +45,7 @@ public fun initialize<T: drop>(
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
     token_pool_package_id: address,
+    token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
@@ -68,7 +69,7 @@ public fun initialize<T: drop>(
         object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
         token_type_name.into_string(),
-        ctx.sender(),
+        token_pool_administrator,
         TypeProof {},
     );
 

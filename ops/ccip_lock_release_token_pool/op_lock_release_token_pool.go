@@ -19,12 +19,13 @@ type LockReleaseTokenPoolInitializeObjects struct {
 }
 
 type LockReleaseTokenPoolInitializeInput struct {
-	CCIPPackageId        string
-	StateObjectId        string
-	CoinMetadataObjectId string
-	TreasuryCapObjectId  string
-	TokenPoolPackageId   string
-	Rebalancer           string
+	CCIPPackageId          string
+	StateObjectId          string
+	CoinMetadataObjectId   string
+	TreasuryCapObjectId    string
+	TokenPoolPackageId     string
+	TokenPoolAdministrator string
+	Rebalancer             string
 }
 
 var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolInitializeInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects], err error) {
@@ -39,6 +40,7 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolPackageId,
+		input.TokenPoolAdministrator,
 		input.Rebalancer,
 	)
 	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)

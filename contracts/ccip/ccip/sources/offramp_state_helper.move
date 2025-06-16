@@ -14,6 +14,8 @@ const ETokenTransferAlreadyCompleted: u64 = 2;
 const ETokenPoolAddressMismatch: u64 = 3;
 const ETypeProofMismatch: u64 = 4;
 const ETokenTypeMismatch: u64 = 5;
+const E_TOKEN_TRANSFER_FAILED: u64 = 6;
+const E_CCIP_RECEIVE_FAILED: u64 = 7;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -46,10 +48,6 @@ fun init(_witness: OFFRAMP_STATE_HELPER, ctx: &mut TxContext) {
     };
 
     transfer::transfer(dest_cap, ctx.sender());
-}
-
-public fun get_completed(transfer: DestTokenTransfer): bool {
-    transfer.completed
 }
 
 public fun create_receiver_params(_: &DestTransferCap): ReceiverParams {
@@ -201,10 +199,26 @@ public fun extract_any2sui_message<TypeProof: drop>(
     (message, receiver_params)
 }
 
-public fun deconstruct_receiver_params(receiver_params: ReceiverParams): (vector<DestTokenTransfer>, Option<client::Any2SuiMessage>) {
+public fun deconstruct_receiver_params(
+    _: &DestTransferCap,
+    receiver_params: ReceiverParams,
+) {
     let ReceiverParams {
         params,
         message,
     } = receiver_params;
-    (params, message)
+
+    // make sure all token transfers are completed
+    let mut i = 0;
+    let number_of_tokens_in_msg = params.length();
+    while (i < number_of_tokens_in_msg) {
+        assert!(params[i].completed, E_TOKEN_TRANSFER_FAILED);
+        i = i + 1;
+    };
+
+    // make sure the any2sui message is extracted
+    assert!(
+        message.is_none(),
+        E_CCIP_RECEIVE_FAILED
+    );
 }

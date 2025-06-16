@@ -21,11 +21,12 @@ type DeployLockReleaseTokenPoolOutput struct {
 type DeployAndInitLockReleaseTokenPoolInput struct {
 	LockReleaseTokenPoolDeployInput
 	// init
-	CCIPObjectRefObjectId string
-	CoinMetadataObjectId  string
-	TreasuryCapObjectId   string
-	TokenPoolPackageId    string
-	Rebalancer            string
+	CCIPObjectRefObjectId  string
+	CoinMetadataObjectId   string
+	TreasuryCapObjectId    string
+	TokenPoolPackageId     string
+	TokenPoolAdministrator string
+	Rebalancer             string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -56,12 +57,13 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolInitializeOp,
 			deps,
 			LockReleaseTokenPoolInitializeInput{
-				CCIPPackageId:        deployReport.Output.PackageId,
-				StateObjectId:        input.CCIPObjectRefObjectId,
-				CoinMetadataObjectId: input.CoinMetadataObjectId,
-				TreasuryCapObjectId:  input.TreasuryCapObjectId,
-				TokenPoolPackageId:   input.TokenPoolPackageId,
-				Rebalancer:           input.Rebalancer,
+				CCIPPackageId:          deployReport.Output.PackageId,
+				StateObjectId:          input.CCIPObjectRefObjectId,
+				CoinMetadataObjectId:   input.CoinMetadataObjectId,
+				TreasuryCapObjectId:    input.TreasuryCapObjectId,
+				TokenPoolPackageId:     input.TokenPoolPackageId,
+				TokenPoolAdministrator: input.TokenPoolAdministrator,
+				Rebalancer:             input.Rebalancer,
 			},
 		)
 		if err != nil {

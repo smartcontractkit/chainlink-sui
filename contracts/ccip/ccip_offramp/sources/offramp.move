@@ -216,12 +216,11 @@ module ccip_offramp::offramp {
     const E_SIGNATURE_VERIFICATION_NOT_ALLOWED_IN_EXECUTION_PLUGIN: u64 = 18;
     const E_FEE_QUOTER_CAP_EXISTS: u64 = 19;
     const E_TOKEN_AMOUNT_OVERFLOW: u64 = 20;
-    const E_TOKEN_TRANSFER_FAILED: u64 = 21;
-    const E_CCIP_RECEIVE_FAILED: u64 = 22;
-    const E_DEST_TRANSFER_CAP_EXISTS: u64 = 23;
-    const E_RMN_BLESSING_MISMATCH: u64 = 24;
-    const E_UNSUPPORTED_TOKEN: u64 = 25;
-    const E_INVALID_ON_RAMP_UPDATE: u64 = 25;
+    const E_DEST_TRANSFER_CAP_EXISTS: u64 = 21;
+    const E_RMN_BLESSING_MISMATCH: u64 = 22;
+    const E_UNSUPPORTED_TOKEN: u64 = 23;
+    const E_INVALID_ON_RAMP_UPDATE: u64 = 24;
+    const E_DEST_TRANSFER_CAP_NOT_SET: u64 = 25;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -434,22 +433,12 @@ module ccip_offramp::offramp {
         pre_execute_single_report(ref, state, clock, reports, false)
     }
 
-    public fun finish_execute(receiver_params: osh::ReceiverParams) {
-        let (params, message) = osh::deconstruct_receiver_params(receiver_params);
-
-        // make sure all token transfers are completed
-        let mut i = 0;
-        let number_of_tokens_in_msg = params.length();
-        while (i < number_of_tokens_in_msg) {
-            assert!(osh::get_completed(params[i]), E_TOKEN_TRANSFER_FAILED);
-            i = i + 1;
-        };
-
-        // make sure the any2sui message is extracted
-        assert!(
-            message.is_none(),
-            E_CCIP_RECEIVE_FAILED
-        );
+    public fun finish_execute(
+        state: &mut OffRampState,
+        receiver_params: osh::ReceiverParams,
+    ) {
+        assert!(state.dest_transfer_cap.is_some(), E_DEST_TRANSFER_CAP_NOT_SET);
+        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params);
     }
 
     // this function does not involve ocr3 transmit & it sets manual_execution to true
@@ -621,6 +610,7 @@ module ccip_offramp::offramp {
             number_of_tokens_in_msg == execution_report.offchain_token_data.length(),
             E_TOKEN_DATA_MISMATCH
         );
+        assert!(state.dest_transfer_cap.is_some(), E_DEST_TRANSFER_CAP_NOT_SET);
 
         let mut i = 0;
         let mut receiver_params = osh::create_receiver_params(state.dest_transfer_cap.borrow());

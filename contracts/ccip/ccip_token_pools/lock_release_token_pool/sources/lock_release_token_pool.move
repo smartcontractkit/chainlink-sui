@@ -51,6 +51,7 @@ public fun initialize<T: drop>(
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: &TreasuryCap<T>,
     token_pool_package_id: address,
+    token_pool_administrator: address,
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
@@ -78,7 +79,7 @@ public fun initialize<T: drop>(
         object::uid_to_address(&lock_release_token_pool.id),
         string::utf8(b"lock_release_token_pool"),
         type_name.into_string(),
-        ctx.sender(),
+        token_pool_administrator,
         TypeProof {},
     );
 
