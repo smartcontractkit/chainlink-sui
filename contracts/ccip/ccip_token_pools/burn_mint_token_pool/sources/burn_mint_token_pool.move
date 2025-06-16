@@ -1,7 +1,6 @@
 module burn_mint_token_pool::burn_mint_token_pool;
 
 use std::string::{Self, String};
-use std::type_name;
 
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
@@ -50,7 +49,7 @@ public fun initialize<T: drop>(
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(
-        coin_metadata_address == @burn_mint_local_token,
+        coin_metadata_address == @burn_mint_token_coin_metadata,
         EInvalidCoinMetadata
     );
 
@@ -59,7 +58,6 @@ public fun initialize<T: drop>(
         token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
         treasury_cap,
     };
-    let token_type_name = type_name::get<T>();
 
     token_admin_registry::register_pool(
         ref,
@@ -68,7 +66,6 @@ public fun initialize<T: drop>(
         token_pool_package_id,
         object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
-        token_type_name.into_string(),
         token_pool_administrator,
         TypeProof {},
     );

@@ -1,0 +1,9 @@
+[package]
+name = "ManagedToken"
+edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
+
+[addresses]
+managed_token = "_"
+
+[dev-addresses]
+managed_token = "0x1113"
