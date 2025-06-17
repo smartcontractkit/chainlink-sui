@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -15,6 +16,7 @@ import (
 const (
 	DEFAULT_NR_OFFRAMP_PTB_COMMANDS  = 2
 	OFFRAMP_TOKEN_POOL_FUNCTION_NAME = "release_or_mint"
+	SUI_PATH_COMPONENTS_COUNT        = 3
 )
 
 type SuiAddress [32]byte
@@ -178,7 +180,7 @@ func (s *SuiPTBExpander) GetTokenPoolByTokenAddress(
 	poolInfos, err := s.ptbClient.ReadFunction(
 		context.Background(),
 		signerAddress,
-		s.AddressMappings["ccipObjectRef"],
+		s.AddressMappings["ccipPackageId"],
 		"token_admin_registry",
 		"get_pool_infos",
 		[]any{
@@ -202,6 +204,8 @@ func (s *SuiPTBExpander) GetTokenPoolByTokenAddress(
 	if err != nil {
 		return nil, err
 	}
+
+	lggr.Debugw("tokenPoolInfo Decoded", "tokenPoolInfo", tokenPoolInfo)
 
 	tokenPools := make([]TokenPool, len(tokenAmounts))
 	for i, tokenAmount := range tokenAmounts {
@@ -263,11 +267,13 @@ func (s *SuiPTBExpander) GetOffRampPTB(
 	}
 
 	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0)
+	messages := make([]ccipocr3.Message, 0)
 
 	// save all messages in a single slice
 	for _, report := range args.Info.AbstractReports {
 		for _, message := range report.Messages {
 			tokenAmounts = append(tokenAmounts, message.TokenAmounts...)
+			messages = append(messages, message)
 		}
 	}
 
@@ -281,15 +287,27 @@ func (s *SuiPTBExpander) GetOffRampPTB(
 		return nil, nil, err
 	}
 
+	// TODO: filter  out messages that have a receiver that is not registered
+
+	// Generate receiver call commands
+	//nolint:gosec // G115:
+	receiverCommands, err := GenerateReceiverCallCommands(lggr, messages, uint16(len(generatedTokenPoolCommands)))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Construct the final PTB commands by inserting generated commands between config commands
-	// TODO: add receiver call commands for each message
-	finalPTBCommands := make([]ChainWriterPTBCommand, 0, len(ptbConfigs.PTBCommands)+len(generatedTokenPoolCommands))
+	//nolint:gosec // G115:
+	finalPTBCommands := make([]ChainWriterPTBCommand, 0, len(ptbConfigs.PTBCommands)+len(generatedTokenPoolCommands)+len(receiverCommands))
 
 	// Add the first command from config (init_execute)
 	finalPTBCommands = append(finalPTBCommands, ptbConfigs.PTBCommands[0])
 
 	// Insert all generated token pool commands
 	finalPTBCommands = append(finalPTBCommands, generatedTokenPoolCommands...)
+
+	// Insert all generated receiver commands
+	finalPTBCommands = append(finalPTBCommands, receiverCommands...)
 
 	// Add the remaining commands from config (finish_execute)
 	endCommand := ptbConfigs.PTBCommands[len(ptbConfigs.PTBCommands)-1]
@@ -304,14 +322,173 @@ func (s *SuiPTBExpander) GetOffRampPTB(
 
 	finalPTBCommands = append(finalPTBCommands, endCommand)
 
-	ptbArguments, err := GenerateArgumentsForTokenPools(s.AddressMappings["ccipObjectRef"], s.AddressMappings["clockObject"], lggr, tokenPoolStateAddresses)
+	// Generate token pool arguments
+	tokenPoolArgs, err := GenerateArgumentsForTokenPools(s.AddressMappings["ccipObjectRef"], s.AddressMappings["clockObject"], lggr, tokenPoolStateAddresses)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// TODO: add receiver call commands for each message
+	filteredMessages, err := s.FilterRegisteredReceivers(lggr, messages, signerPublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Generate receiver call arguments
+	//nolint:gosec // G115:
+	receiverArgs, err := GenerateReceiverCallArguments(lggr, filteredMessages, uint16(len(generatedTokenPoolCommands)), s.AddressMappings["ccipObjectRef"])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Merge token pool and receiver arguments
+	ptbArguments := make(map[string]any)
+	for k, v := range tokenPoolArgs {
+		ptbArguments[k] = v
+	}
+	for k, v := range receiverArgs {
+		ptbArguments[k] = v
+	}
 
 	return finalPTBCommands, ptbArguments, nil
+}
+
+func GenerateReceiverCallCommands(
+	lggr logger.Logger,
+	messages []ccipocr3.Message,
+	previousCommandIndex uint16,
+) ([]ChainWriterPTBCommand, error) {
+	var receiverCommands []ChainWriterPTBCommand
+	receiverIndex := previousCommandIndex + 1
+	for _, message := range messages {
+		if len(message.Receiver) > 0 && len(message.Data) > 0 {
+			// Parse the receiver string into packageID:moduleID:functionName format
+			receiverParts := strings.Split(string(message.Receiver), "::")
+			if len(receiverParts) != SUI_PATH_COMPONENTS_COUNT {
+				return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
+			}
+
+			receiverCommands = append(receiverCommands, ChainWriterPTBCommand{
+				Type:      codec.SuiPTBCommandMoveCall,
+				PackageId: AnyPointer(receiverParts[0]),
+				ModuleId:  AnyPointer(receiverParts[1]),
+				Function:  AnyPointer(receiverParts[2]),
+				Params: []codec.SuiFunctionParam{
+					{
+						Name:     "ccip_object_ref",
+						Type:     "object_id",
+						Required: true,
+					},
+					{
+						Name:     fmt.Sprintf("package_id_%d", receiverIndex),
+						Type:     "address",
+						Required: true,
+					},
+					{
+						Name:     fmt.Sprintf("receiver_params_%d", receiverIndex),
+						Type:     "ptb_dependency",
+						Required: true,
+						PTBDependency: &codec.PTBCommandDependency{
+							// PTB commands are typically small in number, overflow extremely unlikely
+							//nolint:gosec
+							CommandIndex: receiverIndex - 1,
+						},
+					},
+				},
+			})
+			receiverIndex++
+		}
+	}
+
+	return receiverCommands, nil
+}
+
+func (s *SuiPTBExpander) FilterRegisteredReceivers(
+	lggr logger.Logger,
+	messages []ccipocr3.Message,
+	signerPublicKey []byte,
+) ([]ccipocr3.Message, error) {
+	registeredReceivers := make([]ccipocr3.Message, 0)
+	for _, message := range messages {
+		if len(message.Receiver) > 0 && len(message.Data) > 0 {
+			receiverParts := strings.Split(string(message.Receiver), "::")
+			if len(receiverParts) != SUI_PATH_COMPONENTS_COUNT {
+				return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
+			}
+
+			receiverPackageId := receiverParts[0]
+			receiverModuleId := receiverParts[1]
+			receiverFunctionName := receiverParts[2]
+
+			receiverAddress := fmt.Sprintf("%s::%s::%s", receiverPackageId, receiverModuleId, receiverFunctionName)
+
+			signerAddress, err := client.GetAddressFromPublicKey(signerPublicKey)
+			if err != nil {
+				return nil, err
+			}
+
+			lggr.Debugw("Getting receiver config", "receiverAddress", receiverAddress)
+
+			poolInfos, err := s.ptbClient.ReadFunction(
+				context.Background(),
+				signerAddress,
+				s.AddressMappings["ccipPackageId"],
+				"ccip",
+				"is_registered_receiver",
+				[]any{
+					s.AddressMappings["ccipObjectRef"],
+					receiverAddress,
+				},
+				[]string{
+					"object_id",
+					"address",
+				},
+			)
+
+			if err != nil {
+				lggr.Errorw("Error getting pool infos", "error", err)
+				return nil, err
+			}
+
+			var isRegistered bool
+			lggr.Debugw("isRegistered", "isRegistered", poolInfos.ReturnValues[0])
+			err = codec.ParseSuiResponseValueWithTarget(poolInfos.ReturnValues[0], &isRegistered)
+			if err != nil {
+				return nil, err
+			}
+
+			if isRegistered {
+				registeredReceivers = append(registeredReceivers, message)
+			}
+		}
+	}
+
+	return registeredReceivers, nil
+}
+
+func GenerateReceiverCallArguments(
+	lggr logger.Logger,
+	messages []ccipocr3.Message,
+	previousCommandIndex uint16,
+	ccipObjectRef string,
+) (map[string]any, error) {
+	arguments := make(map[string]any)
+
+	arguments["ccip_object_ref"] = ccipObjectRef
+
+	commandIndex := previousCommandIndex + 1
+
+	for _, message := range messages {
+		if len(message.Receiver) > 0 && len(message.Data) > 0 {
+			receiverParts := strings.Split(string(message.Receiver), "::")
+			if len(receiverParts) != SUI_PATH_COMPONENTS_COUNT {
+				return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
+			}
+			arguments[fmt.Sprintf("package_id_%d", commandIndex)] = receiverParts[0]
+			commandIndex++
+		}
+	}
+
+	return arguments, nil
 }
 
 // Auxiliary functions
@@ -396,39 +573,6 @@ func GenerateArgumentsForTokenPools(
 	}
 
 	return arguments, nil
-}
-
-// GenerateReceiverCallCommand generates receiver call command if the receiver exists in the original report
-func AppendReceiverCallCommand(
-	lggr logger.Logger,
-	ptbCommands []ChainWriterPTBCommand,
-	message ccipocr3.Message,
-) ([]ChainWriterPTBCommand, error) {
-	if len(message.Receiver) == 0 {
-		return ptbCommands, nil
-	}
-
-	// TODO: Implement receiver call command generation based on receiver data
-	// This would typically involve parsing the receiver address and creating
-	// appropriate PTB commands for calling the receiver contract
-	lggr.Debugw("Generating receiver call command", "receiver", message.Receiver)
-
-	// TODO Placeholder implementation - should be replaced with actual logic
-	receiverCommand := ChainWriterPTBCommand{
-		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: AnyPointer(string(message.Receiver)),
-		ModuleId:  AnyPointer(string(message.Receiver)),
-		Function:  AnyPointer(string(message.Receiver)),
-		Params: []codec.SuiFunctionParam{
-			{
-				Name:     "receiver",
-				Type:     "address",
-				Required: true,
-			},
-		},
-	}
-
-	return append(ptbCommands, receiverCommand), nil
 }
 
 func AnyPointer[T any](v T) *T {

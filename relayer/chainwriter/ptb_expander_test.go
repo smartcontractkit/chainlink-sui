@@ -5,6 +5,7 @@ package chainwriter_test
 import (
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fardream/go-bcs/bcs"
@@ -45,6 +46,10 @@ type ExpectedPoolInfo struct {
 	TokenPoolStateAddresses []string
 	TokenPoolModules        []string
 	TokenTypes              []string
+}
+
+type ExpectedReceiverInfo struct {
+	PackageIds []string
 }
 
 func GetTestChainWriterConfig() chainwriter.ChainWriterConfig {
@@ -109,11 +114,12 @@ func TestNewSuiPTBExpander(t *testing.T) {
 
 // setupMockExpectations sets up the mock expectations for ReadFunction based on test scenarios
 func setupMockExpectations(mockClient *mocks.MockSuiPTBClient, testCases []struct {
-	name         string
-	tokenAmounts []ccipocr3.RampTokenAmount
-	expected     ExpectedPoolInfo
-	expectedLen  int
-	expectError  bool
+	name                 string
+	tokenAmounts         []ccipocr3.RampTokenAmount
+	expected             ExpectedPoolInfo
+	expectedReceiverInfo ExpectedReceiverInfo
+	expectedLen          int
+	expectError          bool
 }) {
 	// Set up expectations for each test case individually
 	for _, tc := range testCases {
@@ -153,11 +159,12 @@ func setupMockExpectations(mockClient *mocks.MockSuiPTBClient, testCases []struc
 
 // generateMockResponseForTestCase creates a mock response tailored to the specific test case
 func generateMockResponseForTestCase(tc struct {
-	name         string
-	tokenAmounts []ccipocr3.RampTokenAmount
-	expected     ExpectedPoolInfo
-	expectedLen  int
-	expectError  bool
+	name                 string
+	tokenAmounts         []ccipocr3.RampTokenAmount
+	expected             ExpectedPoolInfo
+	expectedReceiverInfo ExpectedReceiverInfo
+	expectedLen          int
+	expectError          bool
 }) *suiclient.ExecutionResultType {
 	// Create token pool info based on the test case expectations
 	tokenPoolInfo := chainwriter.GetPoolInfosResult{}
@@ -224,11 +231,12 @@ func TestSuiPTBExpander_GetTokenPoolByTokenAddress(t *testing.T) {
 	mockSuiPTBClient := mocks.NewMockSuiPTBClient(ctrl)
 
 	tests := []struct {
-		name         string
-		tokenAmounts []ccipocr3.RampTokenAmount
-		expected     ExpectedPoolInfo
-		expectedLen  int
-		expectError  bool
+		name                 string
+		tokenAmounts         []ccipocr3.RampTokenAmount
+		expected             ExpectedPoolInfo
+		expectedReceiverInfo ExpectedReceiverInfo
+		expectedLen          int
+		expectError          bool
 	}{
 		{
 			name: "single token amount",
@@ -249,8 +257,9 @@ func TestSuiPTBExpander_GetTokenPoolByTokenAddress(t *testing.T) {
 				},
 				TokenTypes: []string{"0x66::link::LINK"},
 			},
-			expectedLen: 1,
-			expectError: false,
+			expectedReceiverInfo: ExpectedReceiverInfo{},
+			expectedLen:          1,
+			expectError:          false,
 		},
 		{
 			name: "multiple token amounts",
@@ -277,8 +286,9 @@ func TestSuiPTBExpander_GetTokenPoolByTokenAddress(t *testing.T) {
 				},
 				TokenTypes: []string{"0x66::link::LINK", "0x7::usdc::USDC"},
 			},
-			expectedLen: 2,
-			expectError: false,
+			expectedReceiverInfo: ExpectedReceiverInfo{},
+			expectedLen:          2,
+			expectError:          false,
 		},
 		{
 			name:         "empty token amounts",
@@ -289,8 +299,9 @@ func TestSuiPTBExpander_GetTokenPoolByTokenAddress(t *testing.T) {
 				TokenPoolModules:        []string{},
 				TokenTypes:              []string{},
 			},
-			expectedLen: 0,
-			expectError: false,
+			expectedReceiverInfo: ExpectedReceiverInfo{},
+			expectedLen:          0,
+			expectError:          false,
 		},
 		{
 			name: "error scenario - network failure",
@@ -299,9 +310,10 @@ func TestSuiPTBExpander_GetTokenPoolByTokenAddress(t *testing.T) {
 					DestTokenAddress: []byte("0x66::link::LINK"),
 				},
 			},
-			expected:    ExpectedPoolInfo{}, // Empty since we expect error
-			expectedLen: 0,
-			expectError: true,
+			expected:             ExpectedPoolInfo{}, // Empty since we expect error
+			expectedReceiverInfo: ExpectedReceiverInfo{},
+			expectedLen:          0,
+			expectError:          true,
 		},
 	}
 
@@ -349,12 +361,6 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockSuiPTBClient := mocks.NewMockSuiPTBClient(ctrl)
-
-	// reportContext := [2][32]byte{
-	// 	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-	// 	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-	// }
-	// report := []byte("test report")
 
 	executePTBcommands := []chainwriter.ChainWriterPTBCommand{
 		{
@@ -411,13 +417,14 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 	lggr.Debugw("executePTBcommands", "commands", executePTBcommands)
 
 	tests := []struct {
-		name                string
-		args                chainwriter.SuiOffRampExecCallArgs
-		ptbConfigs          *chainwriter.ChainWriterFunction
-		expectedPoolInfo    ExpectedPoolInfo
-		expectError         bool
-		errorMessage        string
-		expectedPTBCommands int
+		name                 string
+		args                 chainwriter.SuiOffRampExecCallArgs
+		ptbConfigs           *chainwriter.ChainWriterFunction
+		expectedPoolInfo     ExpectedPoolInfo
+		expectedReceiverInfo ExpectedReceiverInfo
+		expectError          bool
+		errorMessage         string
+		expectedPTBCommands  int
 	}{
 		{
 			name: "valid configuration with single token",
@@ -435,7 +442,7 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 										},
 									},
 									Data:     []byte("test data"),
-									Receiver: []byte("0xreceiver1"),
+									Receiver: []byte("0x66::ccip_dummy_receiver::CCIPDummyReceiver"),
 								},
 							},
 						},
@@ -457,8 +464,11 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 				},
 				TokenTypes: []string{"0x66::link::LINK"},
 			},
+			expectedReceiverInfo: ExpectedReceiverInfo{
+				PackageIds: []string{"0x66"},
+			},
 			expectError:         false,
-			expectedPTBCommands: 3, // init_execute + 1 token pool + finish_execute
+			expectedPTBCommands: 4, // init_execute + 1 token pool + receiver call + finish_execute
 		},
 		{
 			name: "invalid configuration with wrong number of PTB commands",
@@ -472,13 +482,14 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 			ptbConfigs: &chainwriter.ChainWriterFunction{
 				PTBCommands: executePTBcommands[:1],
 			},
-			expectedPoolInfo:    ExpectedPoolInfo{}, // Empty since we expect error
-			expectError:         true,
-			errorMessage:        "expected 2 PTB commands, got 1",
-			expectedPTBCommands: 0,
+			expectedPoolInfo:     ExpectedPoolInfo{}, // Empty since we expect error
+			expectedReceiverInfo: ExpectedReceiverInfo{},
+			expectError:          true,
+			errorMessage:         "expected 2 PTB commands, got 1",
+			expectedPTBCommands:  0,
 		},
 		{
-			name: "multiple messages with multiple token amounts",
+			name: "multiple messages with multiple token amounts and no receiver",
 			args: chainwriter.SuiOffRampExecCallArgs{
 				ReportContext: [2][32]byte{},
 				Report:        []byte("test report"),
@@ -495,7 +506,7 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 											DestTokenAddress: []byte("0x7::usdc::USDC"),
 										},
 									},
-									Receiver: []byte("0xreceiver1"),
+									Receiver: []byte("0x66::ccip_dummy_receiver::CCIPDummyReceiver"),
 								},
 								{
 									TokenAmounts: []ccipocr3.RampTokenAmount{
@@ -530,8 +541,69 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 				},
 				TokenTypes: []string{"0x66::link::LINK", "0x7::usdc::USDC", "0x8::eth::ETH"},
 			},
+			expectedReceiverInfo: ExpectedReceiverInfo{}, // empty since we have no data field
+			expectError:          false,
+			expectedPTBCommands:  5, // init_execute + 3 token pools + finish_execute
+		},
+		{
+			name: "multiple messages with multiple token amounts with receiver",
+			args: chainwriter.SuiOffRampExecCallArgs{
+				ReportContext: [2][32]byte{},
+				Report:        []byte("test report"),
+				Info: ccipocr3.ExecuteReportInfo{
+					AbstractReports: []ccipocr3.ExecutePluginReportSingleChain{
+						{
+							Messages: []ccipocr3.Message{
+								{
+									TokenAmounts: []ccipocr3.RampTokenAmount{
+										{
+											DestTokenAddress: []byte("0x66::link::LINK"),
+										},
+										{
+											DestTokenAddress: []byte("0x7::usdc::USDC"),
+										},
+									},
+									Receiver: []byte("0x66::ccip_dummy_receiver::CCIPDummyReceiver"),
+									Data:     []byte("test data"),
+								},
+								{
+									TokenAmounts: []ccipocr3.RampTokenAmount{
+										{
+											DestTokenAddress: []byte("0x8::eth::ETH"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ptbConfigs: &chainwriter.ChainWriterFunction{
+				PTBCommands: executePTBcommands,
+			},
+			expectedPoolInfo: ExpectedPoolInfo{
+				TokenPoolPackageIds: []string{
+					hex.EncodeToString([]byte{0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+					hex.EncodeToString([]byte{0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+					hex.EncodeToString([]byte{0x7, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+				},
+				TokenPoolStateAddresses: []string{
+					hex.EncodeToString([]byte{0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+					hex.EncodeToString([]byte{0x5, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+					hex.EncodeToString([]byte{0x8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+				},
+				TokenPoolModules: []string{
+					hex.EncodeToString([]byte{0x3, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+					hex.EncodeToString([]byte{0x6, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+					hex.EncodeToString([]byte{0x9, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}),
+				},
+				TokenTypes: []string{"0x66::link::LINK", "0x7::usdc::USDC", "0x8::eth::ETH"},
+			},
+			expectedReceiverInfo: ExpectedReceiverInfo{
+				PackageIds: []string{"0x66"},
+			},
 			expectError:         false,
-			expectedPTBCommands: 5, // init_execute + 3 token pools + finish_execute
+			expectedPTBCommands: 6, // init_execute + 3 token pools + receiver call + finish_execute
 		},
 		{
 			name: "empty messages - no tokens",
@@ -555,8 +627,9 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 				TokenPoolModules:        []string{},
 				TokenTypes:              []string{},
 			},
-			expectError:         false,
-			expectedPTBCommands: 2, // init_execute + finish_execute (no token pools)
+			expectedReceiverInfo: ExpectedReceiverInfo{}, // empty since we have no data field
+			expectError:          false,
+			expectedPTBCommands:  2, // init_execute + finish_execute (no token pools)
 		},
 	}
 
@@ -564,7 +637,7 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 	for _, tc := range tests {
 		if !tc.expectError {
 			// Generate response based on test case expectations
-			response := generateMockResponseForOffRampTest(tc)
+			response := generateMockResponseForOffRampTest(lggr, tc)
 
 			mockSuiPTBClient.EXPECT().
 				ReadFunction(
@@ -578,6 +651,41 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 				).
 				Return(response, nil).
 				Times(1)
+
+			// Add mock expectations for is_registered_receiver calls
+			for _, report := range tc.args.Info.AbstractReports {
+				for _, message := range report.Messages {
+					if len(message.Receiver) > 0 && len(message.Data) > 0 {
+						receiverParts := strings.Split(string(message.Receiver), "::")
+						if len(receiverParts) != chainwriter.SUI_PATH_COMPONENTS_COUNT {
+							continue
+						}
+
+						receiverAddress := fmt.Sprintf("%s::%s::%s", receiverParts[0], receiverParts[1], receiverParts[2])
+						results := []any{true, "bool"} // Assume all receivers are registered for these tests
+
+						expectedResult := &suiclient.ExecutionResultType{
+							ReturnValues: []suiclient.ReturnValueType{results},
+						}
+
+						mockSuiPTBClient.EXPECT().
+							ReadFunction(
+								gomock.Any(),
+								gomock.Any(),
+								gomock.Any(),
+								"ccip",
+								"is_registered_receiver",
+								[]any{
+									addressMappings["ccipObjectRef"],
+									receiverAddress,
+								},
+								[]string{"object_id", "address"},
+							).
+							Return(expectedResult, nil).
+							Times(1)
+					}
+				}
+			}
 		}
 	}
 
@@ -623,9 +731,9 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 				lggr.Debugw("PTB commands", "ptbCommands", ptbCommands)
 
 				// Verify command structure and ordering
-				expectedTotalCommands := 2 + expectedTokenAmounts // init_execute + token_pools + finish_execute
+				expectedTotalCommands := 2 + expectedTokenAmounts + len(tt.expectedReceiverInfo.PackageIds) // init_execute + token_pools + finish_execute
 				lggr.Debugw("expectedTotalCommands", "expectedTotalCommands", expectedTotalCommands)
-				assert.Len(t, ptbCommands, expectedTotalCommands, "Total PTB commands should include init, token pools, and finish")
+				assert.Len(t, ptbCommands, expectedTotalCommands, "Total PTB commands should include init, token pools, receiver calls and finish")
 
 				if expectedTotalCommands > 0 {
 					// Verify first command is init_execute
@@ -668,7 +776,7 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 							lastCmdDependencyFound = true
 							// Should reference the last token pool command (which is at index expectedTokenAmounts)
 							//nolint:gosec // G115: PTB commands are typically small in number, overflow extremely unlikely
-							expectedIndex := uint16(expectedTokenAmounts)
+							expectedIndex := uint16(expectedTokenAmounts) + uint16(len(tt.expectedReceiverInfo.PackageIds))
 							assert.Equal(t, expectedIndex, param.PTBDependency.CommandIndex,
 								"Last command should reference the last token pool command at index %d", expectedIndex)
 						}
@@ -681,17 +789,20 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 }
 
 // generateMockResponseForOffRampTest creates a mock response tailored to the specific OffRamp test case
-func generateMockResponseForOffRampTest(tc struct {
-	name                string
-	args                chainwriter.SuiOffRampExecCallArgs
-	ptbConfigs          *chainwriter.ChainWriterFunction
-	expectedPoolInfo    ExpectedPoolInfo
-	expectError         bool
-	errorMessage        string
-	expectedPTBCommands int
+func generateMockResponseForOffRampTest(lggr logger.Logger, tc struct {
+	name                 string
+	args                 chainwriter.SuiOffRampExecCallArgs
+	ptbConfigs           *chainwriter.ChainWriterFunction
+	expectedPoolInfo     ExpectedPoolInfo
+	expectedReceiverInfo ExpectedReceiverInfo
+	expectError          bool
+	errorMessage         string
+	expectedPTBCommands  int
 }) *suiclient.ExecutionResultType {
 	// Create token pool info based on the test case expectations
 	tokenPoolInfo := chainwriter.GetPoolInfosResult{}
+
+	lggr.Debugw("Running mock response for test", "test", tc.name)
 
 	// Convert expected hex strings back to SuiAddress for BCS encoding
 	for i := range tc.expectedPoolInfo.TokenPoolPackageIds {
@@ -897,61 +1008,286 @@ func TestGenerateArgumentsForTokenPools(t *testing.T) {
 	}
 }
 
-func TestAppendReceiverCallCommand(t *testing.T) {
+func TestGenerateReceiverCallArguments(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
+	ccipObjectRef := "0x123"
 
 	tests := []struct {
-		name            string
-		initialCommands []chainwriter.ChainWriterPTBCommand
-		message         ccipocr3.Message
-		expectedLen     int
-		expectReceiver  bool
+		name                 string
+		messages             []ccipocr3.Message
+		previousCommandIndex uint16
+		expectedArgs         map[string]any
+		expectError          bool
 	}{
 		{
-			name:            "message with receiver",
-			initialCommands: make([]chainwriter.ChainWriterPTBCommand, 2),
-			message: ccipocr3.Message{
-				Receiver: []byte("0xreceiver123"),
+			name: "single message with receiver and data",
+			messages: []ccipocr3.Message{
+				{
+					Receiver: []byte("0xpackage::module::function"),
+					Data:     []byte("test data"),
+				},
 			},
-			expectedLen:    3, // Original 2 + 1 receiver command
-			expectReceiver: true,
+			previousCommandIndex: 1,
+			expectedArgs: map[string]any{
+				"ccip_object_ref": ccipObjectRef,
+				"package_id_2":    "0xpackage",
+			},
+			expectError: false,
 		},
 		{
-			name:            "message without receiver",
-			initialCommands: make([]chainwriter.ChainWriterPTBCommand, 2),
-			message: ccipocr3.Message{
-				Receiver: []byte{}, // Empty receiver
+			name: "multiple messages with receivers and data",
+			messages: []ccipocr3.Message{
+				{
+					Receiver: []byte("0xpackage1::module1::function1"),
+					Data:     []byte("test data 1"),
+				},
+				{
+					Receiver: []byte("0xpackage2::module2::function2"),
+					Data:     []byte("test data 2"),
+				},
 			},
-			expectedLen:    2, // Original 2, no receiver command added
-			expectReceiver: false,
+			previousCommandIndex: 1,
+			expectedArgs: map[string]any{
+				"ccip_object_ref": ccipObjectRef,
+				"package_id_2":    "0xpackage1",
+				"package_id_3":    "0xpackage2",
+			},
+			expectError: false,
 		},
 		{
-			name:            "message with nil receiver",
-			initialCommands: make([]chainwriter.ChainWriterPTBCommand, 1),
-			message: ccipocr3.Message{
-				Receiver: nil,
+			name: "message without receiver",
+			messages: []ccipocr3.Message{
+				{
+					Data: []byte("test data"),
+				},
 			},
-			expectedLen:    1, // Original 1, no receiver command added
-			expectReceiver: false,
+			previousCommandIndex: 1,
+			expectedArgs: map[string]any{
+				"ccip_object_ref": ccipObjectRef,
+			},
+			expectError: false,
+		},
+		{
+			name: "message without data",
+			messages: []ccipocr3.Message{
+				{
+					Receiver: []byte("0xpackage::module::function"),
+				},
+			},
+			previousCommandIndex: 1,
+			expectedArgs: map[string]any{
+				"ccip_object_ref": ccipObjectRef,
+			},
+			expectError: false,
+		},
+		{
+			name:                 "empty messages",
+			messages:             []ccipocr3.Message{},
+			previousCommandIndex: 1,
+			expectedArgs: map[string]any{
+				"ccip_object_ref": ccipObjectRef,
+			},
+			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := chainwriter.AppendReceiverCallCommand(lggr, tt.initialCommands, tt.message)
+			args, err := chainwriter.GenerateReceiverCallArguments(lggr, tt.messages, tt.previousCommandIndex, ccipObjectRef)
 
-			require.NoError(t, err)
-			assert.Len(t, result, tt.expectedLen)
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Nil(t, args)
+			} else {
+				require.NoError(t, err)
+				assert.NotNil(t, args)
 
-			if tt.expectReceiver {
-				// Verify that a receiver command was added
-				receiverCmd := result[len(result)-1]
-				assert.NotNil(t, receiverCmd.PackageId)
-				assert.NotNil(t, receiverCmd.ModuleId)
-				assert.NotNil(t, receiverCmd.Function)
-				assert.Equal(t, string(tt.message.Receiver), *receiverCmd.PackageId)
+				// Verify common arguments
+				assert.Equal(t, ccipObjectRef, args["ccip_object_ref"])
+
+				// Verify receiver-specific arguments
+				commandIndex := tt.previousCommandIndex + 1
+				for _, message := range tt.messages {
+					if len(message.Receiver) > 0 && len(message.Data) > 0 {
+						packageKey := fmt.Sprintf("package_id_%d", commandIndex)
+						receiverParts := strings.Split(string(message.Receiver), "::")
+						assert.Equal(t, receiverParts[0], args[packageKey])
+						commandIndex++
+					}
+				}
+
+				// Verify total number of arguments
+				expectedArgCount := 1 // ccip_object_ref
+				for _, message := range tt.messages {
+					if len(message.Receiver) > 0 && len(message.Data) > 0 {
+						expectedArgCount++
+					}
+				}
+				assert.Len(t, args, expectedArgCount)
+			}
+		})
+	}
+}
+
+//nolint:paralleltest // This test cannot run in parallel due to shared mock expectations
+func TestSuiPTBExpander_FilterRegisteredReceivers(t *testing.T) {
+	lggr := logger.Test(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockSuiPTBClient := mocks.NewMockSuiPTBClient(ctrl)
+
+	cwConfig := GetTestChainWriterConfig()
+	expander := chainwriter.NewSuiPTBExpander(lggr, mockSuiPTBClient, cwConfig)
+
+	_, publicKey, _, err := testutils.GenerateAccountKeyPair(t, lggr)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name          string
+		messages      []ccipocr3.Message
+		mockResponses []bool
+		expectedCount int
+		expectError   bool
+		errorMessage  string
+	}{
+		{
+			name: "single registered receiver",
+			messages: []ccipocr3.Message{
+				{
+					Receiver: []byte("0x66::ccip_dummy_receiver::CCIPDummyReceiver"),
+					Data:     []byte("test data"),
+				},
+			},
+			mockResponses: []bool{true},
+			expectedCount: 1,
+			expectError:   false,
+		},
+		{
+			name: "multiple receivers with some registered",
+			messages: []ccipocr3.Message{
+				{
+					Receiver: []byte("0x66::ccip_dummy_receiver::CCIPDummyReceiver"),
+					Data:     []byte("test data 1"),
+				},
+				{
+					Receiver: []byte("0x77::ccip_dummy_receiver::CCIPDummyReceiver"),
+					Data:     []byte("test data 2"),
+				},
+			},
+			mockResponses: []bool{true, false},
+			expectedCount: 1,
+			expectError:   false,
+		},
+		{
+			name: "no receivers",
+			messages: []ccipocr3.Message{
+				{
+					Data: []byte("test data"),
+				},
+			},
+			mockResponses: []bool{},
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name: "invalid receiver format",
+			messages: []ccipocr3.Message{
+				{
+					Receiver: []byte("invalid_format"),
+					Data:     []byte("test data"),
+				},
+			},
+			mockResponses: []bool{},
+			expectedCount: 0,
+			expectError:   true,
+			errorMessage:  "invalid receiver format",
+		},
+		{
+			name: "client error",
+			messages: []ccipocr3.Message{
+				{
+					Receiver: []byte("0x66::ccip_dummy_receiver::CCIPDummyReceiver"),
+					Data:     []byte("test data"),
+				},
+			},
+			mockResponses: []bool{},
+			expectedCount: 0,
+			expectError:   true,
+			errorMessage:  "mock error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up mock expectations
+			for i, message := range tt.messages {
+				if len(message.Receiver) > 0 && len(message.Data) > 0 {
+					receiverParts := strings.Split(string(message.Receiver), "::")
+					if len(receiverParts) != chainwriter.SUI_PATH_COMPONENTS_COUNT {
+						continue // Skip invalid format cases
+					}
+
+					if tt.errorMessage == "mock error" {
+						mockSuiPTBClient.EXPECT().
+							ReadFunction(
+								gomock.Any(),
+								gomock.Any(),
+								gomock.Any(),
+								"ccip",
+								"is_registered_receiver",
+								gomock.Any(),
+								[]string{"object_id", "address"},
+							).
+							Return(nil, fmt.Errorf("mock error")).
+							Times(1)
+
+						break
+					}
+
+					response := tt.mockResponses[i]
+					results := []any{response, "bool"}
+
+					expectedResult := &suiclient.ExecutionResultType{
+						ReturnValues: []suiclient.ReturnValueType{results},
+					}
+
+					mockSuiPTBClient.EXPECT().
+						ReadFunction(
+							gomock.Any(),
+							gomock.Any(),
+							gomock.Any(),
+							"ccip",
+							"is_registered_receiver",
+							gomock.Any(),
+							[]string{"object_id", "address"},
+						).
+						Return(expectedResult, nil).
+						Times(1)
+				}
+			}
+
+			filteredMessages, err := expander.FilterRegisteredReceivers(lggr, tt.messages, publicKey)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorMessage != "" {
+					assert.Contains(t, err.Error(), tt.errorMessage)
+				}
+				assert.Nil(t, filteredMessages)
+			} else {
+				require.NoError(t, err)
+				assert.NotNil(t, filteredMessages)
+				assert.Len(t, filteredMessages, tt.expectedCount)
+
+				// Verify that only registered receivers are included
+				for _, message := range filteredMessages {
+					if len(message.Receiver) > 0 && len(message.Data) > 0 {
+						receiverParts := strings.Split(string(message.Receiver), "::")
+						assert.Len(t, receiverParts, chainwriter.SUI_PATH_COMPONENTS_COUNT)
+					}
+				}
 			}
 		})
 	}
