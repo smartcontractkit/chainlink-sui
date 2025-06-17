@@ -26,20 +26,13 @@ type IManagedToken interface {
 	TypeAndVersion() bind.IMethod
 	Initialize(typeArgs string, treasuryCap bind.Object) bind.IMethod
 	InitializeWithDenyCap(typeArgs string, treasuryCap bind.Object, denyCap bind.Object) bind.IMethod
-	GetMintCapId(typeArgs string, state bind.Object, controller string) bind.IMethod
 	MintAllowance(typeArgs string, state bind.Object, mintCap bind.Object) bind.IMethod
 	TotalSupply(typeArgs string, state bind.Object) bind.IMethod
 	IsAuthorizedMintCap(typeArgs string, state bind.Object, id bind.Object) bind.IMethod
-	GetAllowedMinters(typeArgs string, state bind.Object) bind.IMethod
-	GetAllowedBurners(typeArgs string, state bind.Object) bind.IMethod
-	IsMinterAllowed(typeArgs string, state bind.Object, minter string) bind.IMethod
-	IsBurnerAllowed(typeArgs string, state bind.Object, burner string) bind.IMethod
-	ConfigureNewController(typeArgs string, state bind.Object, ownerCap bind.Object, controller string, minter string) bind.IMethod
-	ConfigureController(typeArgs string, state bind.Object, param bind.Object, controller string, mintCapId bind.Object) bind.IMethod
-	RemoveController(typeArgs string, state bind.Object, param bind.Object, controller string) bind.IMethod
-	ConfigureMinter(typeArgs string, state bind.Object, param bind.Object, denyList bind.Object, newAllowance uint64, isUnlimited bool) bind.IMethod
-	IncrementMintAllowance(typeArgs string, state bind.Object, denyList bind.Object, allowanceIncrement uint64) bind.IMethod
-	RemoveMinter(typeArgs string, state bind.Object) bind.IMethod
+	ConfigureNewMinter(typeArgs string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) bind.IMethod
+	IncrementMintAllowance(typeArgs string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) bind.IMethod
+	SetUnlimitedMintAllowances(typeArgs string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object) bind.IMethod
+	GetAllMintCaps(typeArgs string, state bind.Object) bind.IMethod
 	MintAndTransfer(typeArgs string, state bind.Object, mintCap bind.Object, denyList bind.Object, amount uint64, recipient string) bind.IMethod
 	Mint(typeArgs string, state bind.Object, mintCap bind.Object, denyList bind.Object, amount uint64, recipient string) bind.IMethod
 	Burn(typeArgs string, state bind.Object, mintCap bind.Object, denyList bind.Object, coin bind.Object, from string) bind.IMethod
@@ -79,11 +72,10 @@ func (c *ManagedTokenContract) Connect(client suiclient.ClientImpl) {
 // Structs
 
 type TokenState struct {
-	Id             string      `move:"sui::object::UID"`
-	TreasuryCap    bind.Object `move:"TreasuryCap<T>"`
-	DenyCap        bind.Object `move:"Option<DenyCapV2<T>>"`
-	Controllers    bind.Object `move:"Table<address, ID>"`
-	MintAllowances bind.Object `move:"Table<ID, MintAllowance<T>>"`
+	Id                string      `move:"sui::object::UID"`
+	TreasuryCap       bind.Object `move:"TreasuryCap<T>"`
+	DenyCap           bind.Object `move:"Option<DenyCapV2<T>>"`
+	MintAllowancesMap bind.Object `move:"VecMap<ID, MintAllowance<T>>"`
 }
 
 type OwnerCap struct {
@@ -99,25 +91,11 @@ type MintCapCreated struct {
 	MintCap bind.Object `move:"ID"`
 }
 
-type ControllerConfigured struct {
-	Controller string      `move:"address"`
-	MintCap    bind.Object `move:"ID"`
-}
-
-type ControllerRemoved struct {
-	Controller string `move:"address"`
-}
-
 type MinterConfigured struct {
-	Controller  string      `move:"address"`
-	MintCap     bind.Object `move:"ID"`
-	Allowance   uint64      `move:"u64"`
-	IsUnlimited bool        `move:"bool"`
-}
-
-type MinterRemoved struct {
-	Controller string      `move:"address"`
-	MintCap    bind.Object `move:"ID"`
+	MintCapOwner string      `move:"address"`
+	MintCap      bind.Object `move:"ID"`
+	Allowance    uint64      `move:"u64"`
+	IsUnlimited  bool        `move:"bool"`
 }
 
 type Minted struct {
@@ -149,10 +127,13 @@ type Unpaused struct {
 }
 
 type MinterAllowanceIncremented struct {
-	Controller         string      `move:"address"`
 	MintCap            bind.Object `move:"ID"`
 	AllowanceIncrement uint64      `move:"u64"`
 	NewAllowance       uint64      `move:"u64"`
+}
+
+type MinterUnlimitedAllowanceSet struct {
+	MintCap bind.Object `move:"ID"`
 }
 
 // Functions
@@ -191,20 +172,6 @@ func (c *ManagedTokenContract) InitializeWithDenyCap(typeArgs string, treasuryCa
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "initialize_with_deny_cap", false, "", typeArgs, treasuryCap, denyCap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "initialize_with_deny_cap", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) GetMintCapId(typeArgs string, state bind.Object, controller string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "get_mint_cap_id", false, "", typeArgs, state, controller)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "get_mint_cap_id", err)
 		}
 
 		return ptb, nil
@@ -255,12 +222,12 @@ func (c *ManagedTokenContract) IsAuthorizedMintCap(typeArgs string, state bind.O
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenContract) GetAllowedMinters(typeArgs string, state bind.Object) bind.IMethod {
+func (c *ManagedTokenContract) ConfigureNewMinter(typeArgs string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "get_allowed_minters", false, "", typeArgs, state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "configure_new_minter", false, "", typeArgs, state, param, minter, allowance, isUnlimited)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "get_allowed_minters", err)
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "configure_new_minter", err)
 		}
 
 		return ptb, nil
@@ -269,108 +236,10 @@ func (c *ManagedTokenContract) GetAllowedMinters(typeArgs string, state bind.Obj
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenContract) GetAllowedBurners(typeArgs string, state bind.Object) bind.IMethod {
+func (c *ManagedTokenContract) IncrementMintAllowance(typeArgs string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "get_allowed_burners", false, "", typeArgs, state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "get_allowed_burners", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) IsMinterAllowed(typeArgs string, state bind.Object, minter string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "is_minter_allowed", false, "", typeArgs, state, minter)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "is_minter_allowed", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) IsBurnerAllowed(typeArgs string, state bind.Object, burner string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "is_burner_allowed", false, "", typeArgs, state, burner)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "is_burner_allowed", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) ConfigureNewController(typeArgs string, state bind.Object, ownerCap bind.Object, controller string, minter string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "configure_new_controller", false, "", typeArgs, state, ownerCap, controller, minter)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "configure_new_controller", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) ConfigureController(typeArgs string, state bind.Object, param bind.Object, controller string, mintCapId bind.Object) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "configure_controller", false, "", typeArgs, state, param, controller, mintCapId)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "configure_controller", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) RemoveController(typeArgs string, state bind.Object, param bind.Object, controller string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "remove_controller", false, "", typeArgs, state, param, controller)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "remove_controller", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) ConfigureMinter(typeArgs string, state bind.Object, param bind.Object, denyList bind.Object, newAllowance uint64, isUnlimited bool) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "configure_minter", false, "", typeArgs, state, param, denyList, newAllowance, isUnlimited)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "configure_minter", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenContract) IncrementMintAllowance(typeArgs string, state bind.Object, denyList bind.Object, allowanceIncrement uint64) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "increment_mint_allowance", false, "", typeArgs, state, denyList, allowanceIncrement)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "increment_mint_allowance", false, "", typeArgs, state, param, mintCapId, denyList, allowanceIncrement)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "increment_mint_allowance", err)
 		}
@@ -381,12 +250,26 @@ func (c *ManagedTokenContract) IncrementMintAllowance(typeArgs string, state bin
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenContract) RemoveMinter(typeArgs string, state bind.Object) bind.IMethod {
+func (c *ManagedTokenContract) SetUnlimitedMintAllowances(typeArgs string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "remove_minter", false, "", typeArgs, state)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "set_unlimited_mint_allowances", false, "", typeArgs, state, param, mintCapId, denyList)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "remove_minter", err)
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "set_unlimited_mint_allowances", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) GetAllMintCaps(typeArgs string, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "get_all_mint_caps", false, "", typeArgs, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "get_all_mint_caps", err)
 		}
 
 		return ptb, nil
