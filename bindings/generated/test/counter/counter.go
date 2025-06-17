@@ -66,7 +66,8 @@ func (c *CounterContract) Connect(client suiclient.ClientImpl) {
 // Structs
 
 type CounterIncremented struct {
-	NewValue uint64 `move:"u64"`
+	CounterId bind.Object `move:"ID"`
+	NewValue  uint64      `move:"u64"`
 }
 
 type AdminCap struct {

@@ -26,6 +26,7 @@ var (
 type IBurnMintTokenPool interface {
 	TypeAndVersion() bind.IMethod
 	Initialize(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod
+	InitializeByCcipAdmin(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod
 	GetToken(typeArgs string, state bind.Object) bind.IMethod
 	GetRouter() bind.IMethod
 	GetTokenDecimals(typeArgs string, state bind.Object) bind.IMethod
@@ -40,6 +41,8 @@ type IBurnMintTokenPool interface {
 	GetAllowlistEnabled(typeArgs string, state bind.Object) bind.IMethod
 	GetAllowlist(typeArgs string, state bind.Object) bind.IMethod
 	ApplyAllowlistUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) bind.IMethod
+	LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, c_ bind.Object, remoteChainSelector uint64, tokenParams module_common.TokenParams) bind.IMethod
+	ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, remoteChainSelector uint64, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod
 	SetChainRateLimiterConfigs(typeArgs string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) bind.IMethod
 	SetChainRateLimiterConfig(typeArgs string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod
 	DestroyTokenPool(typeArgs string, state bind.Object, ownerCap bind.Object) bind.IMethod
@@ -73,7 +76,8 @@ func (c *BurnMintTokenPoolContract) Connect(client suiclient.ClientImpl) {
 // Structs
 
 type OwnerCap struct {
-	Id string `move:"sui::object::UID"`
+	Id      string      `move:"sui::object::UID"`
+	StateId bind.Object `move:"ID"`
 }
 
 type BurnMintTokenPoolState struct {
@@ -106,6 +110,20 @@ func (c *BurnMintTokenPoolContract) Initialize(typeArgs string, ref module_commo
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "burn_mint_token_pool", "initialize", false, "", typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "burn_mint_token_pool", "initialize", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *BurnMintTokenPoolContract) InitializeByCcipAdmin(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "burn_mint_token_pool", "initialize_by_ccip_admin", false, "", typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "burn_mint_token_pool", "initialize_by_ccip_admin", err)
 		}
 
 		return ptb, nil
@@ -302,6 +320,34 @@ func (c *BurnMintTokenPoolContract) ApplyAllowlistUpdates(typeArgs string, state
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "burn_mint_token_pool", "apply_allowlist_updates", false, "", typeArgs, state, ownerCap, removes, adds)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "burn_mint_token_pool", "apply_allowlist_updates", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *BurnMintTokenPoolContract) LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, c_ bind.Object, remoteChainSelector uint64, tokenParams module_common.TokenParams) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "burn_mint_token_pool", "lock_or_burn", false, "", typeArgs, ref, clock, state, c_, remoteChainSelector, tokenParams)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "burn_mint_token_pool", "lock_or_burn", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *BurnMintTokenPoolContract) ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, remoteChainSelector uint64, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "burn_mint_token_pool", "release_or_mint", false, "", typeArgs, ref, clock, pool, remoteChainSelector, receiverParams, index)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "burn_mint_token_pool", "release_or_mint", err)
 		}
 
 		return ptb, nil

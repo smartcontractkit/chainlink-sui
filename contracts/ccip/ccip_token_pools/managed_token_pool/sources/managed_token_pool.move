@@ -1,6 +1,7 @@
 module managed_token_pool::managed_token_pool;
 
 use std::string::{Self, String};
+use std::type_name::{Self, TypeName};
 
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata, TreasuryCap};
@@ -51,17 +52,8 @@ public fun initialize<T: drop>(
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    assert!(
-        coin_metadata_address == @managed_token_coin_metadata,
-        EInvalidCoinMetadata
-    );
-
-    let managed_token_pool = ManagedTokenPoolState<T> {
-        id: object::new(ctx),
-        token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
-        mint_cap,
-    };
+    let (_, _, _, managed_token_pool) =
+        initialize_internal(coin_metadata, mint_cap, ctx);
 
     token_admin_registry::register_pool(
         ref,
@@ -74,13 +66,62 @@ public fun initialize<T: drop>(
         TypeProof {},
     );
 
+    transfer::share_object(managed_token_pool);
+}
+
+public fun initialize_by_ccip_admin<T: drop>(
+    ref: &mut CCIPObjectRef,
+    coin_metadata: &CoinMetadata<T>,
+    mint_cap: MintCap<T>,
+    token_pool_package_id: address,
+    token_pool_administrator: address,
+    ctx: &mut TxContext,
+) {
+    let (coin_metadata_address, token_type_name, type_proof_type_name, managed_token_pool) =
+        initialize_internal(coin_metadata, mint_cap, ctx);
+
+    token_admin_registry::register_pool_by_admin(
+        ref,
+        coin_metadata_address,
+        token_pool_package_id,
+        object::uid_to_address(&managed_token_pool.id),
+        string::utf8(b"managed_token_pool"),
+        token_type_name.into_string(),
+        token_pool_administrator,
+        type_proof_type_name.into_string(),
+        ctx,
+    );
+
+    transfer::share_object(managed_token_pool);
+}
+
+#[allow(lint(self_transfer))]
+fun initialize_internal<T: drop>(
+    coin_metadata: &CoinMetadata<T>,
+    mint_cap: MintCap<T>,
+    ctx: &mut TxContext,
+): (address, TypeName, TypeName, ManagedTokenPoolState<T>) {
+let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    assert!(
+        coin_metadata_address == @managed_token_coin_metadata,
+        EInvalidCoinMetadata
+    );
+
+    let managed_token_pool = ManagedTokenPoolState<T> {
+        id: object::new(ctx),
+        token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
+        mint_cap,
+    };
+    let token_type_name = type_name::get<T>();
+    let type_proof_type_name = type_name::get<TypeProof>();
+
     let owner_cap = OwnerCap {
         id: object::new(ctx),
         state_id: object::id(&managed_token_pool),
     };
-
-    transfer::share_object(managed_token_pool);
     transfer::public_transfer(owner_cap, ctx.sender());
+
+    (coin_metadata_address, token_type_name, type_proof_type_name, managed_token_pool)
 }
 
 public fun add_remote_pool<T>(

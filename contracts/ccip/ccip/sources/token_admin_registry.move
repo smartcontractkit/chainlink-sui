@@ -71,6 +71,7 @@ const E_TOKEN_ALREADY_REGISTERED: u64 = 3;
 const E_TOKEN_NOT_REGISTERED: u64 = 4;
 const E_NOT_ADMINISTRATOR: u64 = 5;
 const E_TOKEN_ADDRESS_NOT_REGISTERED: u64 = 6;
+const E_NOT_ALLOWED: u64 = 7;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -337,7 +338,6 @@ fun register_pool_internal(
     );
 }
 
-// TODO: should we allow CCIP admin to unregister pool?
 public fun unregister_pool(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
@@ -353,8 +353,8 @@ public fun unregister_pool(
     let token_config = state.token_configs.remove(coin_metadata_address);
     
     assert!(
-        token_config.administrator == ctx.sender(),
-        E_NOT_ADMINISTRATOR
+        token_config.administrator == ctx.sender() || ctx.sender() == state_object::get_current_owner(ref),
+        E_NOT_ALLOWED
     );
 
     let previous_pool_address = token_config.token_pool_package_id;
@@ -376,6 +376,7 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
+    let current_owner = state_object::get_current_owner(ref);
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(
@@ -387,8 +388,8 @@ public fun set_pool<TypeProof: drop>(
 
     // the tx signer must be the administrator of the token pool.
     assert!(
-        token_config.administrator == ctx.sender(),
-        E_NOT_ADMINISTRATOR
+        token_config.administrator == ctx.sender() || ctx.sender() == current_owner,
+        E_NOT_ALLOWED
     );
 
     // TODO: sort out the UX here.

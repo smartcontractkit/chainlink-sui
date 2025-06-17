@@ -10,3 +10,4 @@ type SourceTransferCap = bind.Object
 type DestTransferCap = bind.Object
 type FeeQuoterCap = bind.Object
 type TokenParams = bind.Object
+type ReceiverParams = bind.Object

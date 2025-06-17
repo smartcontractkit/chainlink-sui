@@ -10,8 +10,9 @@ import (
 func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, externalStructs []parse.ExternalStruct) (tmplType, error) {
 	aliasMap := map[string]string{
 		"dd::SourceTransferCap": "ccip::common::SourceTransferCap",
-		"osh::DestTransferCap":  "ccip::common::DestTransferCap",
 		"dd::TokenParams":       "ccip::common::TokenParams",
+		"osh::DestTransferCap":  "ccip::common::DestTransferCap",
+		"osh::ReceiverParams":   "ccip::common::ReceiverParams",
 	}
 	if realParam, ok := aliasMap[s]; ok {
 		s = realParam
@@ -175,6 +176,11 @@ var hardCodedObjectTypes = []string{
 	"CoinMetadata",
 	"Clock",
 	"Coin",
+	"MintCap",
+	"DenyCapV2",
+	"DenyList",
+	"TokenState",
+	"ID",
 }
 
 func isSuiObject(s string) bool {

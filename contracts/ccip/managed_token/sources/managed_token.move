@@ -8,7 +8,6 @@ use sui::coin::{
     deny_list_v2_contains_next_epoch as is_blocklisted,
 };
 use sui::deny_list::{DenyList};
-// use sui::dynamic_object_field as dof;
 use sui::event;
 use sui::table::{Self, Table};
 

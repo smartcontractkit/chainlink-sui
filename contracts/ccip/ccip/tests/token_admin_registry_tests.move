@@ -97,7 +97,7 @@ public fun test_transfer_admin_role_not_registered() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::E_NOT_ADMINISTRATOR)]
+#[expected_failure(abort_code = registry::E_NOT_ALLOWED)]
 public fun test_register_and_unregister_as_non_admin() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     let (treasury_cap, coin_metadata) = coin::create_currency(
@@ -138,7 +138,6 @@ public fun test_register_and_unregister_as_non_admin() {
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             string::utf8(b"mock_token_pool"),
-            ascii::string(b"0x2::test_token::TEST_TOKEN"),
             TOKEN_ADMIN_ADDRESS_2,
             TypeProof {},
         );
@@ -201,7 +200,6 @@ public fun test_register_and_unregister() {
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             string::utf8(b"mock_token_pool"),
-            ascii::string(b"0x2::test_token::TEST_TOKEN"),
             TOKEN_ADMIN_ADDRESS_2, // initial admin
             TypeProof {},
         );
@@ -287,7 +285,6 @@ public fun test_register_and_set_pool() {
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             string::utf8(b"mock_token_pool"),
-            ascii::string(b"0x2::test_token::TEST_TOKEN"),
             TOKEN_ADMIN_ADDRESS,
             TypeProof {},
         );
@@ -309,7 +306,7 @@ public fun test_register_and_set_pool() {
         assert!(token_pool_package_id == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(token_pool_state_address == MOCK_TOKEN_POOL_STATE_ADDRESS_1);
         assert!(token_pool_module == string::utf8(b"mock_token_pool"));
-        assert!(token_type == ascii::string(b"0x2::test_token::TEST_TOKEN"));
+        assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
         assert!(administrator == TOKEN_ADMIN_ADDRESS);
         assert!(pending_administrator == @0x0);
 
@@ -347,7 +344,7 @@ public fun test_register_and_set_pool() {
         assert!(token_pool_package_id == MOCK_TOKEN_POOL_PACKAGE_ID_2);
         assert!(token_pool_state_address == MOCK_TOKEN_POOL_STATE_ADDRESS_2);
         assert!(token_pool_module == string::utf8(b"mock_token_pool_2"));
-        assert!(token_type == ascii::string(b"0x2::test_token::TEST_TOKEN"));
+        assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
         assert!(administrator == TOKEN_ADMIN_ADDRESS);
         assert!(pending_administrator == TOKEN_ADMIN_ADDRESS_2);
         // after set_pool, the proof should be TypeProof2 bc it will come from a different pool

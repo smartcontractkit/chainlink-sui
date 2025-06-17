@@ -35,9 +35,14 @@ public struct ReceiverRegistered has copy, drop {
     proof_typename: TypeName,
 }
 
+public struct ReceiverUnregistered has copy, drop {
+    receiver_package_id: address,
+}
+
 const E_ALREADY_REGISTERED: u64 = 1;
 const E_ALREADY_INITIALIZED: u64 = 2;
 const E_UNKNOWN_RECEIVER: u64 = 3;
+const E_NOT_ALLOWED: u64 = 4;
 
 public fun type_and_version(): String {
     string::utf8(b"ReceiverRegistry 1.6.0")
@@ -86,6 +91,28 @@ public fun register_receiver<ProofType: drop>(
         receiver_state_id,
         receiver_module_name,
         proof_typename,
+    });
+}
+
+public fun unregister_receiver(
+    ref: &mut CCIPObjectRef,
+    receiver_package_id: address,
+    ctx: &TxContext,
+) {
+    let current_owner = state_object::get_current_owner(ref);
+    let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
+    
+    assert!(
+        registry.receiver_configs.contains(&receiver_package_id),
+        E_UNKNOWN_RECEIVER
+    );
+
+    assert!(ctx.sender() == current_owner, E_NOT_ALLOWED);
+
+    registry.receiver_configs.remove(&receiver_package_id);
+
+    event::emit(ReceiverUnregistered {
+        receiver_package_id,
     });
 }
 

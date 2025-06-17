@@ -1,6 +1,7 @@
 module lock_release_token_pool::lock_release_token_pool;
 
 use std::string::{Self, String};
+use std::type_name::{Self, TypeName};
 
 use sui::bag::{Self, Bag};
 use sui::clock::Clock;
@@ -44,7 +45,6 @@ public fun type_and_version(): String {
     string::utf8(b"LockReleaseTokenPool 1.6.0")
 }
 
-#[allow(lint(self_transfer))]
 public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
@@ -54,6 +54,51 @@ public fun initialize<T: drop>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
+    let (_, token_pool_state_address, _, _) =
+        initialize_internal(coin_metadata, rebalancer, ctx);
+
+    token_admin_registry::register_pool(
+        ref,
+        treasury_cap,
+        coin_metadata,
+        token_pool_package_id,
+        token_pool_state_address,
+        string::utf8(b"lock_release_token_pool"),
+        token_pool_administrator,
+        TypeProof {},
+    );
+}
+
+public fun initialize_by_ccip_admin<T: drop>(
+    ref: &mut CCIPObjectRef,
+    coin_metadata: &CoinMetadata<T>,
+    token_pool_package_id: address,
+    token_pool_administrator: address,
+    rebalancer: address,
+    ctx: &mut TxContext,
+) {
+    let (coin_metadata_address, token_pool_state_address, token_type_name, type_proof_type_name) =
+        initialize_internal(coin_metadata, rebalancer, ctx);
+
+    token_admin_registry::register_pool_by_admin(
+        ref,
+        coin_metadata_address,
+        token_pool_package_id,
+        token_pool_state_address,
+        string::utf8(b"lock_release_token_pool"),
+        token_type_name.into_string(),
+        token_pool_administrator,
+        type_proof_type_name.into_string(),
+        ctx,
+    );
+}
+
+#[allow(lint(self_transfer))]
+fun initialize_internal<T: drop>(
+    coin_metadata: &CoinMetadata<T>,
+    rebalancer: address,
+    ctx: &mut TxContext,
+): (address, address, TypeName, TypeName) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(
         coin_metadata_address == @lock_release_token_coin_metadata,
@@ -68,17 +113,9 @@ public fun initialize<T: drop>(
     };
     set_rebalancer_internal(&mut lock_release_token_pool, rebalancer);
     lock_release_token_pool.coin_store.add(COIN_STORE, coin::zero<T>(ctx));
-
-    token_admin_registry::register_pool(
-        ref,
-        treasury_cap,
-        coin_metadata,
-        token_pool_package_id,
-        object::uid_to_address(&lock_release_token_pool.id),
-        string::utf8(b"lock_release_token_pool"),
-        token_pool_administrator,
-        TypeProof {},
-    );
+    let token_type_name = type_name::get<T>();
+    let type_proof_type_name = type_name::get<TypeProof>();
+    let token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
 
     let owner_cap = OwnerCap {
         id: object::new(ctx),
@@ -87,6 +124,8 @@ public fun initialize<T: drop>(
 
     transfer::share_object(lock_release_token_pool);
     transfer::public_transfer(owner_cap, ctx.sender());
+
+    (coin_metadata_address, token_pool_state_address, token_type_name, type_proof_type_name)
 }
 
 // ================================================================

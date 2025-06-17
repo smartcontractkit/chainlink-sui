@@ -26,6 +26,7 @@ var (
 type IReceiverRegistry interface {
 	TypeAndVersion() bind.IMethod
 	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod
+	UnregisterReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
 	GetReceiverConfig(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
 	GetReceiverConfigFields(rc ReceiverConfig) bind.IMethod
 	IsRegisteredReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
@@ -75,6 +76,10 @@ type ReceiverRegistered struct {
 	ReceiverModuleName string `move:"0x1::string::String"`
 }
 
+type ReceiverUnregistered struct {
+	ReceiverPackageId string `move:"address"`
+}
+
 // Functions
 
 func (c *ReceiverRegistryContract) TypeAndVersion() bind.IMethod {
@@ -97,6 +102,20 @@ func (c *ReceiverRegistryContract) Initialize(ref module_common.CCIPObjectRef, p
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "receiver_registry", "initialize", false, "", "", ref, param)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "receiver_registry", "initialize", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ReceiverRegistryContract) UnregisterReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "receiver_registry", "unregister_receiver", false, "", "", ref, receiverPackageId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "receiver_registry", "unregister_receiver", err)
 		}
 
 		return ptb, nil

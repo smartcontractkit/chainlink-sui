@@ -23,14 +23,20 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./cont
 # # CCIP - LINK
 go run bindgen/main.go --moveConfig ./contracts/ccip/link_token --input ./contracts/ccip/link_token/sources/link_token.move --output ./bindings/generated/ccip/link_token/link_token
 
+# # CCIP - Managed Token
+go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./contracts/ccip/managed_token/sources/managed_token.move --output ./bindings/generated/ccip/managed_token/managed_token
+
 # # CCIP - Token Pool
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/token_pool --input ./contracts/ccip/ccip_token_pools/token_pool/sources/token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/token_pool --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/token_pool --input ./contracts/ccip/ccip_token_pools/token_pool/sources/token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/token_pool --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common""
 
 # # CCIP - Lock Release Token Pool
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/lock_release_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/lock_release_token_pool --input ./contracts/ccip/ccip_token_pools/lock_release_token_pool/sources/lock_release_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/lock_release_token_pool --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::TokenParams="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::ReceiverParams="github.com/smartcontractkit/chainlink-sui/bindings/common""
 
 # # CCIP - Burn Mint Token Pool
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/burn_mint_token_pool --input ./contracts/ccip/ccip_token_pools/burn_mint_token_pool/sources/burn_mint_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/burn_mint_token_pool --input ./contracts/ccip/ccip_token_pools/burn_mint_token_pool/sources/burn_mint_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::TokenParams="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::ReceiverParams="github.com/smartcontractkit/chainlink-sui/bindings/common""
+
+# # CCIP - Managed Token Pool
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/managed_token_pool --input ./contracts/ccip/ccip_token_pools/managed_token_pool/sources/managed_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/managed_token_pool --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::TokenParams="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::ReceiverParams="github.com/smartcontractkit/chainlink-sui/bindings/common""
 
 # # CCIP Router
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_router --input ./contracts/ccip/ccip_router/sources/router.move --output ./bindings/generated/ccip/ccip_router/ --externalStructs "ccip::common::CCIPObjectRef="github.com/smartcontractkit/chainlink-sui/bindings/common",ccip::common::OwnerCap="github.com/smartcontractkit/chainlink-sui/bindings/common""
