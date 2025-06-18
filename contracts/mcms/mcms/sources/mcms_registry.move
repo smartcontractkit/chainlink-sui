@@ -88,7 +88,7 @@ public fun register_entrypoint<T: drop, C: key + store>(
 
 public fun get_callback_params<T: drop, C: key + store>(
     registry: &mut Registry,
-    _witness: T,
+    _proof: T,
     params: ExecutingCallbackParams,
 ): (&C, String, vector<u8>) {
     let ExecutingCallbackParams { target, module_name, function_name, data } = params;

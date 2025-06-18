@@ -16,3 +16,4 @@ mcms_owner = "0x4010"
 
 [dependencies]
 ChainlinkCCIP = { local = "../ccip" }
+ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }

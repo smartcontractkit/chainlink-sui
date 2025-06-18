@@ -41,7 +41,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	}
 
 	// TODO: We should move the object ID finding logic into the binding package
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "onramp", "OwnerCap")
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "onramp", "OnRampState")
 
 	if err1 != nil || err2 != nil {

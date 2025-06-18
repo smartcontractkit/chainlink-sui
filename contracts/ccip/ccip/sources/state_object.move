@@ -193,19 +193,19 @@ public(package) fun create(ctx: &mut TxContext): (OwnerCap, CCIPObjectRef) {
 }
 
 #[test_only]
-public(package) fun destroy_state_object(ref: CCIPObjectRef) {
+public fun destroy_state_object(ref: CCIPObjectRef) {
     let CCIPObjectRef { id, current_owner: _owner, pending_transfer: _pending_transfer } = ref;
     object::delete(id);
 }
 
 #[test_only]
-public(package) fun destroy_owner_cap(cap: OwnerCap) {
+public fun destroy_owner_cap(cap: OwnerCap) {
     let OwnerCap { id } = cap;
     object::delete(id);
 }
 
 #[test_only]
-public(package) fun pending_transfer(ref: &CCIPObjectRef): (address, address, bool) {
+public fun pending_transfer(ref: &CCIPObjectRef): (address, address, bool) {
     let pt = ref.pending_transfer;
     if (pt.is_none()) {
         return (@0x0, @0x0, false)

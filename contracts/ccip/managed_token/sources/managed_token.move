@@ -10,8 +10,14 @@ use sui::coin::{
 use sui::deny_list::{DenyList};
 use sui::event;
 use sui::vec_map::{Self, VecMap};
+use sui::package::UpgradeCap;
 
 use managed_token::mint_allowance::{Self, MintAllowance};
+use managed_token::ownable::{Self, OwnerCap, OwnableState};
+
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use mcms::mcms_deployer::{Self, DeployerState};
+use mcms::bcs_stream;
 
 public struct TokenState<phantom T> has key, store {
     id: UID,
@@ -19,11 +25,7 @@ public struct TokenState<phantom T> has key, store {
     deny_cap: Option<DenyCapV2<T>>,
     /// A map of { authorized MintCap ID => its MintAllowance }.
     mint_allowances_map: VecMap<ID, MintAllowance<T>>,
-}
-
-public struct OwnerCap<phantom T> has key, store {
-    id: UID,
-    state_id: ID,
+    ownable_state: OwnableState<T>,
 }
 
 /// An object representing the ability to mint up to an allowance
@@ -90,6 +92,7 @@ const EPaused: u64 = 5;
 const EUnauthorizedMintCap: u64 = 6;
 const EZeroAmount: u64 = 7;
 const ECannotIncreaseUnlimitedAllowance: u64 = 8;
+const EInvalidFunction: u64 = 9;
 
 public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
@@ -116,16 +119,14 @@ fun initialize_internal<T: drop>(
     deny_cap: Option<DenyCapV2<T>>,
     ctx: &mut TxContext,
 ) {
+    let (ownable_state, owner_cap) = ownable::new(ctx);
+
     let state = TokenState<T> {
         id: object::new(ctx),
         treasury_cap,
         deny_cap,
         mint_allowances_map: vec_map::empty(),
-    };
-
-    let owner_cap = OwnerCap<T> {
-        id: object::new(ctx),
-        state_id: object::id(&state),
+        ownable_state,
     };
 
     transfer::share_object(state);
@@ -367,7 +368,7 @@ public fun blocklist<T>(
     addr: address,
     ctx: &mut TxContext
 ) {
-    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     // treasury.assert_is_compatible();
 
     if (!is_blocklisted<T>(deny_list, addr)) {
@@ -388,7 +389,7 @@ public fun unblocklist<T>(
     addr: address,
     ctx: &mut TxContext
 ) {
-    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     // treasury.assert_is_compatible();
 
     if (is_blocklisted<T>(deny_list, addr)) {
@@ -403,13 +404,13 @@ public fun unblocklist<T>(
 /// Triggers stopped state; pause all transfers.
 /// - Only callable by the pauser.
 /// - Only callable if the Treasury object is compatible with this package.
-public  fun pause<T>(
+public fun pause<T>(
     state: &mut TokenState<T>,
     owner_cap: &OwnerCap<T>,
     deny_list: &mut DenyList,
     ctx: &mut TxContext
 ) {
-    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     // treasury.assert_is_compatible();
 
     assert!(state.deny_cap.is_some(), EDenyCapNotFound);
@@ -429,7 +430,7 @@ public fun unpause<T>(
     deny_list: &mut DenyList,
     ctx: &mut TxContext,
 ) {
-    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     // treasury.assert_is_compatible();
 
     if (is_paused<T>(deny_list)) {
@@ -441,15 +442,16 @@ public fun unpause<T>(
 public fun destroy_managed_token<T>(
     owner_cap: OwnerCap<T>,
     state: TokenState<T>,
-    _ctx: &mut TxContext,
+    ctx: &mut TxContext,
 ): (TreasuryCap<T>, Option<DenyCapV2<T>>) {
-    assert!(owner_cap.state_id == object::id(&state), EInvalidOwnerCap);
+    assert!(object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
     let TokenState<T> {
         id: state_id,
         treasury_cap,
         deny_cap,
         mut mint_allowances_map,
+        ownable_state,
     } = state;
 
     object::delete(state_id);
@@ -462,11 +464,8 @@ public fun destroy_managed_token<T>(
     };
     mint_allowances_map.destroy_empty();
 
-    let OwnerCap {
-        id: owner_cap_id,
-        state_id: _,
-    } = owner_cap;
-    object::delete(owner_cap_id);
+    ownable::destroy_ownable_state(ownable_state, ctx);
+    ownable::destroy_owner_cap(owner_cap, ctx);
 
     // TODO: instead of returning the treasury cap, we can simply send it to ctx sender
     (treasury_cap, deny_cap)
@@ -475,7 +474,7 @@ public fun destroy_managed_token<T>(
 /// Returns an immutable reference of the TreasuryCap.
 public fun borrow_treasury_cap<T>(owner_cap: &OwnerCap<T>, state: &TokenState<T>): &TreasuryCap<T> {
     // state.assert_treasury_cap_exists();
-    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     &state.treasury_cap
 }
 
@@ -486,3 +485,112 @@ fun borrow_deny_cap_mut<T>(state: &mut TokenState<T>): &mut DenyCapV2<T> {
     state.deny_cap.borrow_mut()
 }
 
+// ================================================================
+// |                      Ownable Functions                       |
+// ================================================================
+
+public entry fun transfer_ownership<T>(
+    state: &mut TokenState<T>,
+    owner_cap: &OwnerCap<T>,
+    new_owner: address,
+    ctx: &mut TxContext,
+) {
+    ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
+}
+
+public entry fun accept_ownership<T>(
+    state: &mut TokenState<T>,
+    ctx: &mut TxContext,
+) {
+    ownable::accept_ownership(&mut state.ownable_state, ctx);
+}
+
+public fun accept_ownership_from_object<T>(
+    state: &mut TokenState<T>,
+    from: &mut UID,
+    ctx: &mut TxContext,
+) {
+    ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
+}
+
+public fun execute_ownership_transfer<T>(
+    owner_cap: OwnerCap<T>,
+    ownable_state: &mut OwnableState<T>,
+    registry: &mut Registry,
+    to: address,
+    ctx: &mut TxContext,
+) {
+    ownable::execute_ownership_transfer(owner_cap, ownable_state, registry, to, ctx);
+}
+
+public fun mcms_register_entrypoint<T>(
+    registry: &mut Registry,
+    state: &mut TokenState<T>,
+    owner_cap: OwnerCap<T>,
+    ctx: &mut TxContext,
+) {
+    ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
+
+    mcms_registry::register_entrypoint(
+        registry,
+        ownable::mcms_callback(),
+        option::some(owner_cap),
+        ctx,
+    );
+}
+
+public fun mcms_register_upgrade_cap(
+    upgrade_cap: UpgradeCap,
+    registry: &mut Registry,
+    state: &mut DeployerState,
+    ctx: &mut TxContext,
+) {
+    mcms_deployer::register_upgrade_cap(
+        state,
+        registry,
+        upgrade_cap,
+        ctx,
+    );
+}
+
+// ================================================================
+// |                      MCMS Entrypoint                         |
+// ================================================================
+
+public fun mcms_entrypoint<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deny_list: &mut DenyList,
+    params: ExecutingCallbackParams, // hot potato
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<
+        ownable::McmsCallback,
+        OwnerCap<T>,
+    >(
+        registry,
+        ownable::mcms_callback(),
+        params,
+    );
+
+    let function_bytes = *function.as_bytes();
+    let mut stream = bcs_stream::new(data);
+
+    if (function_bytes == b"blocklist") {
+        let addr = bcs_stream::deserialize_address(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+        blocklist(state, owner_cap, deny_list, addr, ctx);
+    } else if (function_bytes == b"unblocklist") {
+        let addr = bcs_stream::deserialize_address(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+        unblocklist(state, owner_cap, deny_list, addr, ctx);
+    } else if (function_bytes == b"pause") {
+        bcs_stream::assert_is_consumed(&stream);
+        pause(state, owner_cap, deny_list, ctx);
+    } else if (function_bytes == b"unpause") {
+        bcs_stream::assert_is_consumed(&stream);
+        unpause(state, owner_cap, deny_list, ctx);
+    } else {
+        abort EInvalidFunction
+    }
+}

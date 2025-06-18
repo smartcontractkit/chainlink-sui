@@ -88,3 +88,10 @@ public fun get_source_token_transfer_data(token_transfer: SourceTokenTransfer): 
         token_transfer.extra_data,
     )
 }
+
+// =========================== Test Functions =========================== //
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(DYNAMIC_DISPATCHER {}, ctx);
+}

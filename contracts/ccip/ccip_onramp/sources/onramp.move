@@ -11,6 +11,7 @@ module ccip_onramp::onramp {
     use std::string::{Self, String};
     use sui::table::{Self, Table};
     use sui::bag::{Self, Bag};
+    use sui::package::UpgradeCap;
 
     use ccip::dynamic_dispatcher as dd;
     use ccip::eth_abi;
@@ -19,10 +20,11 @@ module ccip_onramp::onramp {
     use ccip::nonce_manager::{Self, NonceManagerCap};
     use ccip::rmn_remote;
     use ccip::state_object::CCIPObjectRef;
+    use ccip_onramp::ownable::{Self, OwnerCap, OwnableState};
 
-    public struct OwnerCap has key, store {
-        id: UID
-    }
+    use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+    use mcms::mcms_deployer::{Self, DeployerState};
+    use mcms::bcs_stream;
 
     public struct OnRampState has key, store {
         id: UID,
@@ -36,6 +38,7 @@ module ccip_onramp::onramp {
         fee_tokens: Bag,
         nonce_manager_cap: Option<NonceManagerCap>,
         source_transfer_cap: Option<dd::SourceTransferCap>,
+        ownable_state: OwnableState,
     }
 
     public struct OnRampStatePointer has key, store {
@@ -125,21 +128,23 @@ module ccip_onramp::onramp {
         amount: u64
     }
 
-    const E_DEST_CHAIN_ARGUMENT_MISMATCH: u64 = 1;
-    const E_INVALID_DEST_CHAIN_SELECTOR: u64 = 2;
-    const E_UNKNOWN_DEST_CHAIN_SELECTOR: u64 = 3;
-    const E_DEST_CHAIN_NOT_ENABLED: u64 = 4;
-    const E_SENDER_NOT_ALLOWED: u64 = 5;
-    const E_ONLY_CALLABLE_BY_ALLOWLIST_ADMIN: u64 = 6;
-    const E_INVALID_ALLOWLIST_REQUEST: u64 = 7;
-    const E_INVALID_ALLOWLIST_ADDRESS: u64 = 8;
-    const E_CURSED_BY_RMN: u64 = 9;
-    const E_UNEXPECTED_WITHDRAW_AMOUNT: u64 = 10;
-    const E_FEE_AGGREGATOR_NOT_SET: u64 = 11;
-    const E_NONCE_MANAGER_CAP_EXISTS: u64 = 12;
-    const E_SOURCE_TRANSFER_CAP_EXISTS: u64 = 13;
-    const E_CANNOT_SEND_ZERO_TOKENS: u64 = 14;
-    const E_ZERO_CHAIN_SELECTOR: u64 = 15;
+    const EDestChainArgumentMismatch: u64 = 1;
+    const EInvalidDestChainSelector: u64 = 2;
+    const EUnknownDestChainSelector: u64 = 3;
+    const EDestChainNotEnabled: u64 = 4;
+    const ESenderNotAllowed: u64 = 5;
+    const EOnlyCallableByAllowlistAdmin: u64 = 6;
+    const EInvalidAllowlistRequest: u64 = 7;
+    const EInvalidAllowlistAddress: u64 = 8;
+    const ECursedByRmn: u64 = 9;
+    const EUnexpectedWithdrawAmount: u64 = 10;
+    const EFeeAggregatorNotSet: u64 = 11;
+    const ENonceManagerCapExists: u64 = 12;
+    const ESourceTransferCapExists: u64 = 13;
+    const EUnknownFunction: u64 = 14;
+    const ECannotSendZeroTokens: u64 = 14;
+    const EZeroChainSelector: u64 = 14;
+
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -148,9 +153,7 @@ module ccip_onramp::onramp {
     public struct ONRAMP has drop {}
 
     fun init(_witness: ONRAMP, ctx: &mut TxContext) {
-        let owner_cap = OwnerCap {
-            id: object::new(ctx)
-        };
+        let (ownable_state, owner_cap) = ownable::new(ctx);
 
         let state = OnRampState {
             id: object::new(ctx),
@@ -160,7 +163,8 @@ module ccip_onramp::onramp {
             dest_chain_configs: table::new(ctx),
             fee_tokens: bag::new(ctx),
             nonce_manager_cap: option::none(),
-            source_transfer_cap: option::none()
+            source_transfer_cap: option::none(),
+            ownable_state
         };
 
         let pointer = OnRampStatePointer {
@@ -174,7 +178,7 @@ module ccip_onramp::onramp {
         let package_id = address::from_ascii_bytes(&package_bytes);
 
         transfer::share_object(state);
-        transfer::transfer(owner_cap, ctx.sender());
+        transfer::public_transfer(owner_cap, ctx.sender());
         transfer::transfer(pointer, package_id);
     }
 
@@ -188,18 +192,19 @@ module ccip_onramp::onramp {
         allowlist_admin: address,
         dest_chain_selectors: vector<u64>,
         dest_chain_enabled: vector<bool>,
-        dest_chain_allowlist_enabled: vector<bool>
+        dest_chain_allowlist_enabled: vector<bool>,
+        _ctx: &mut TxContext
     ) {
-        assert!(chain_selector != 0, E_ZERO_CHAIN_SELECTOR);
+        assert!(chain_selector != 0, EZeroChainSelector);
         state.chain_selector = chain_selector;
         assert!(
             state.nonce_manager_cap.is_none(),
-            E_NONCE_MANAGER_CAP_EXISTS
+            ENonceManagerCapExists
         );
         state.nonce_manager_cap.fill(nonce_manager_cap);
         assert!(
             state.source_transfer_cap.is_none(),
-            E_SOURCE_TRANSFER_CAP_EXISTS
+            ESourceTransferCapExists
         );
         state.source_transfer_cap.fill(source_transfer_cap);
 
@@ -220,7 +225,7 @@ module ccip_onramp::onramp {
     public fun get_expected_next_sequence_number(state: &OnRampState, dest_chain_selector: u64): u64 {
         assert!(
             state.dest_chain_configs.contains(dest_chain_selector),
-            E_UNKNOWN_DEST_CHAIN_SELECTOR
+            EUnknownDestChainSelector
         );
         let dest_chain_config = &state.dest_chain_configs[dest_chain_selector];
         dest_chain_config.sequence_number + 1
@@ -232,7 +237,7 @@ module ccip_onramp::onramp {
         _: &OwnerCap,
         fee_token_metadata: &CoinMetadata<T>
     ) {
-        assert!(state.fee_aggregator != @0x0, E_FEE_AGGREGATOR_NOT_SET);
+        assert!(state.fee_aggregator != @0x0, EFeeAggregatorNotSet);
 
         let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
 
@@ -272,11 +277,11 @@ module ccip_onramp::onramp {
         let dest_chains_len = dest_chain_selectors.length();
         assert!(
             dest_chains_len == dest_chain_enabled.length(),
-            E_DEST_CHAIN_ARGUMENT_MISMATCH
+            EDestChainArgumentMismatch
         );
         assert!(
             dest_chains_len == dest_chain_allowlist_enabled.length(),
-            E_DEST_CHAIN_ARGUMENT_MISMATCH
+            EDestChainArgumentMismatch
         );
 
         let mut i = 0;
@@ -284,7 +289,7 @@ module ccip_onramp::onramp {
             let dest_chain_selector = dest_chain_selectors[i];
             assert!(
                 dest_chain_selector != 0,
-                E_INVALID_DEST_CHAIN_SELECTOR
+                EInvalidDestChainSelector
             );
 
             let is_enabled = dest_chain_enabled[i];
@@ -360,7 +365,7 @@ module ccip_onramp::onramp {
     ): u64 {
         assert!(
             !rmn_remote::is_cursed_u128(ref, dest_chain_selector as u128),
-            E_CURSED_BY_RMN
+            ECursedByRmn
         );
         fee_quoter::get_validated_fee(
             ref,
@@ -402,7 +407,7 @@ module ccip_onramp::onramp {
     public fun get_dest_chain_config(state: &OnRampState, dest_chain_selector: u64): (bool, u64, bool, vector<address>) {
         assert!(
             state.dest_chain_configs.contains(dest_chain_selector),
-            E_UNKNOWN_DEST_CHAIN_SELECTOR
+            EUnknownDestChainSelector
         );
 
         let dest_chain_config = &state.dest_chain_configs[dest_chain_selector];
@@ -418,7 +423,7 @@ module ccip_onramp::onramp {
     public fun get_allowed_senders_list(state: &OnRampState, dest_chain_selector: u64): (bool, vector<address>) {
         assert!(
             state.dest_chain_configs.contains(dest_chain_selector),
-            E_UNKNOWN_DEST_CHAIN_SELECTOR
+            EUnknownDestChainSelector
         );
 
         let dest_chain_config = &state.dest_chain_configs[dest_chain_selector];
@@ -432,7 +437,8 @@ module ccip_onramp::onramp {
         dest_chain_selectors: vector<u64>,
         dest_chain_allowlist_enabled: vector<bool>,
         dest_chain_add_allowed_senders: vector<vector<address>>,
-        dest_chain_remove_allowed_senders: vector<vector<address>>
+        dest_chain_remove_allowed_senders: vector<vector<address>>,
+        _ctx: &mut TxContext,
     ) {
         apply_allowlist_updates_internal(
             state,
@@ -453,7 +459,7 @@ module ccip_onramp::onramp {
     ) {
         assert!(
             state.allowlist_admin == ctx.sender(),
-            E_ONLY_CALLABLE_BY_ALLOWLIST_ADMIN
+            EOnlyCallableByAllowlistAdmin
         );
 
         apply_allowlist_updates_internal(
@@ -475,15 +481,15 @@ module ccip_onramp::onramp {
         let dest_chains_len = dest_chain_selectors.length();
         assert!(
             dest_chains_len == dest_chain_allowlist_enabled.length(),
-            E_DEST_CHAIN_ARGUMENT_MISMATCH
+            EDestChainArgumentMismatch
         );
         assert!(
             dest_chains_len == dest_chain_add_allowed_senders.length(),
-            E_DEST_CHAIN_ARGUMENT_MISMATCH
+            EDestChainArgumentMismatch
         );
         assert!(
             dest_chains_len == dest_chain_remove_allowed_senders.length(),
-            E_DEST_CHAIN_ARGUMENT_MISMATCH
+            EDestChainArgumentMismatch
         );
 
         let mut i = 0;
@@ -491,7 +497,7 @@ module ccip_onramp::onramp {
             let dest_chain_selector = dest_chain_selectors[i];
             assert!(
                 state.dest_chain_configs.contains(dest_chain_selector),
-                E_UNKNOWN_DEST_CHAIN_SELECTOR
+                EUnknownDestChainSelector
             );
 
             let allowlist_enabled = dest_chain_allowlist_enabled[i];
@@ -503,13 +509,13 @@ module ccip_onramp::onramp {
             dest_chain_config.allowlist_enabled = allowlist_enabled;
 
             if (add_allowed_senders.length() > 0) {
-                assert!(allowlist_enabled, E_INVALID_ALLOWLIST_REQUEST);
+                assert!(allowlist_enabled, EInvalidAllowlistRequest);
 
                 vector::do_ref!(
                     &add_allowed_senders,
                     |sender_address| {
                         let sender_address: address = *sender_address;
-                        assert!(sender_address != @0x0, E_INVALID_ALLOWLIST_ADDRESS);
+                        assert!(sender_address != @0x0, EInvalidAllowlistAddress);
 
                         let (found, _) = vector::index_of(
                             &dest_chain_config.allowed_senders, &sender_address
@@ -666,7 +672,7 @@ module ccip_onramp::onramp {
 
         while (i < tokens_len) {
             let (source_pool, amount, source_token_address, dest_token_address, extra_data) = dd::get_source_token_transfer_data(params[i]);
-            assert!(amount > 0, E_CANNOT_SEND_ZERO_TOKENS);
+            assert!(amount > 0, ECannotSendZeroTokens);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
                     source_pool_address: source_pool,
@@ -700,7 +706,7 @@ module ccip_onramp::onramp {
         if (fee_token_amount != 0) {
             assert!(
                 fee_token_amount <= fee_token_balance,
-                E_UNEXPECTED_WITHDRAW_AMOUNT
+                EUnexpectedWithdrawAmount
             );
 
             let refund = coin::split(&mut fee_token, fee_token_balance - fee_token_amount, ctx);
@@ -771,16 +777,16 @@ module ccip_onramp::onramp {
     fun verify_sender(state: &OnRampState, dest_chain_selector: u64, sender: address) {
         assert!(
             state.dest_chain_configs.contains(dest_chain_selector),
-            E_UNKNOWN_DEST_CHAIN_SELECTOR
+            EUnknownDestChainSelector
         );
 
         let dest_chain_config = &state.dest_chain_configs[dest_chain_selector];
-        assert!(dest_chain_config.is_enabled, E_DEST_CHAIN_NOT_ENABLED);
+        assert!(dest_chain_config.is_enabled, EDestChainNotEnabled);
 
         if (dest_chain_config.allowlist_enabled) {
             assert!(
                 dest_chain_config.allowed_senders.contains(&sender),
-                E_SENDER_NOT_ALLOWED
+                ESenderNotAllowed
             );
         };
     }
@@ -849,123 +855,171 @@ module ccip_onramp::onramp {
 
         message
     }
-}
 
-#[test_only]
-module ccip::onramp_test {
-    use ccip::onramp::{Self, OnRampState};
-    use ccip::state_object::{Self, CCIPObjectRef};
-    use sui::test_scenario::{Self, Scenario};
+    // ================================================================
+    // |                      CCIP Ownable Functions                    |
+    // ================================================================
 
-    const ON_RAMP_STATE_NAME: vector<u8> = b"OnRampState";
-    const DEST_CHAIN_SELECTOR_1: u64 = 1;
-    const DEST_CHAIN_SELECTOR_2: u64 = 2;
-    const ALLOWED_SENDER_1: address = @0x11;
-    const ALLOWED_SENDER_2: address = @0x22;
-    const ALLOWED_SENDER_3: address = @0x33;
-
-    fun set_up_test(): (Scenario, CCIPObjectRef) {
-        let mut scenario = test_scenario::begin(@0x1);
-        let ctx = scenario.ctx();
-
-        let ref = state_object::create(ctx);
-        (scenario, ref)
+    public entry fun transfer_ownership(
+        state: &mut OnRampState,
+        owner_cap: &OwnerCap,
+        new_owner: address,
+        ctx: &mut TxContext,
+    ) {
+        ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
     }
 
-    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
-        state_object::destroy_state_object(ref);
-        test_scenario::end(scenario);
+    public entry fun accept_ownership(
+        state: &mut OnRampState,
+        ctx: &mut TxContext,
+    ) {
+        ownable::accept_ownership(&mut state.ownable_state, ctx);
     }
 
-    fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        onramp::initialize(
-            ref,
-            123, // chain_selector
-            ctx.sender(),
-            vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // dest_chain_selectors
-            vector[true, false], // dest_chain_enabled
-            vector[true, false], // dest_chain_allowlist_enabled
-            ctx
+    public fun accept_ownership_from_object(
+        state: &mut OnRampState,
+        from: &mut UID,
+        _ctx: &mut TxContext,
+    ) {
+        ownable::accept_ownership_from_object(&mut state.ownable_state, from);
+    }
+
+    public fun execute_ownership_transfer(
+        owner_cap: OwnerCap,
+        ownable_state: &mut OwnableState,
+        registry: &mut Registry,
+        to: address,
+        ctx: &mut TxContext,
+    ) {
+        ownable::execute_ownership_transfer(owner_cap, ownable_state, registry, to, ctx);
+    }
+
+    public fun mcms_register_entrypoint(
+        registry: &mut Registry,
+        state: &mut OnRampState,
+        owner_cap: OwnerCap,
+        ctx: &mut TxContext,
+    ) {
+        ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
+
+        mcms_registry::register_entrypoint(
+            registry,
+            McmsCallback {},
+            option::some(owner_cap),
+            ctx,
         );
     }
 
-    #[test]
-    public fun test_initialize() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        let _state = state_object::borrow<OnRampState>(&ref, ON_RAMP_STATE_NAME);
-
-        assert!(onramp::is_chain_supported(&ref, DEST_CHAIN_SELECTOR_1));
-        assert!(onramp::is_chain_supported(&ref, DEST_CHAIN_SELECTOR_2));
-
-        assert!(onramp::get_expected_next_sequence_number(&ref, DEST_CHAIN_SELECTOR_1) == 1);
-        assert!(onramp::get_expected_next_sequence_number(&ref, DEST_CHAIN_SELECTOR_2) == 1);
-
-        let (enabled, seq, allowlist_enabled) = onramp::get_dest_chain_config(&ref, DEST_CHAIN_SELECTOR_1);
-        assert!(enabled == true);
-        assert!(seq == 0);
-        assert!(allowlist_enabled == true);
-
-        let (enabled, seq, allowlist_enabled) = onramp::get_dest_chain_config(&ref, DEST_CHAIN_SELECTOR_2);
-        assert!(enabled == false);
-        assert!(seq == 0);
-        assert!(allowlist_enabled == false);
-
-        tear_down_test(scenario, ref);
+    public fun mcms_register_upgrade_cap(
+        upgrade_cap: UpgradeCap,
+        registry: &mut Registry,
+        state: &mut DeployerState,
+        ctx: &mut TxContext,
+    ) {
+        mcms_deployer::register_upgrade_cap(
+            state,
+            registry,
+            upgrade_cap,
+            ctx,
+        );
     }
 
-    #[test]
-    public fun test_apply_allowlist_updates() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
+    // ================================================================
+    // |                      MCMS Entrypoint                         |
+    // ================================================================
 
-        onramp::apply_allowlist_updates(
-            &mut ref,
-            vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // dest_chain_selectors
-            vector[true, true], // dest_chain_allowlist_enabled
-            vector[
-                vector[ALLOWED_SENDER_1, ALLOWED_SENDER_2],
-                vector[ALLOWED_SENDER_3]
-            ], // dest_chain_add_allowed_senders
-            vector[
-                vector[],
-                vector[]
-            ], // dest_chain_remove_allowed_senders
-            ctx
+    public struct McmsCallback has drop {}
+
+    public fun mcms_entrypoint(
+        state: &mut OnRampState,
+        registry: &mut Registry,
+        params: ExecutingCallbackParams, // hot potato
+        ctx: &mut TxContext,
+    ) {
+        let (owner_cap, function, data) = mcms_registry::get_callback_params<
+            McmsCallback,
+            OwnerCap,
+        >(
+            registry,
+            McmsCallback {},
+            params,
         );
 
-        let (allowlist_enabled, allowed_senders) = onramp::get_allowed_senders_list(&ref, DEST_CHAIN_SELECTOR_1);
-        assert!(allowlist_enabled == true);
-        assert!(allowed_senders == vector[ALLOWED_SENDER_1, ALLOWED_SENDER_2]);
-        let (allowlist_enabled, allowed_senders) = onramp::get_allowed_senders_list(&ref, DEST_CHAIN_SELECTOR_2);
-        assert!(allowlist_enabled == true);
-        assert!(allowed_senders == vector[ALLOWED_SENDER_3]);
+        let function_bytes = *function.as_bytes();
+        let mut stream = bcs_stream::new(data);
 
-        onramp::apply_allowlist_updates(
-            &mut ref,
-            vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // dest_chain_selectors
-            vector[true, false], // dest_chain_allowlist_enabled
-            vector[
-                vector[],
-                vector[]
-            ], // dest_chain_add_allowed_senders
-            vector[
-                vector[ALLOWED_SENDER_2],
-                vector[]
-            ], // dest_chain_remove_allowed_senders
-            ctx
-        );
+        if (function_bytes == b"set_dynamic_config") {
+            let fee_aggregator = bcs_stream::deserialize_address(&mut stream);
+            let allowlist_admin = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            set_dynamic_config(state, owner_cap, fee_aggregator, allowlist_admin);
+        } else if (function_bytes == b"apply_dest_chain_config_updates") {
+            let dest_chain_selectors =
+                bcs_stream::deserialize_vector!(
+                    &mut stream,
+                    |stream| bcs_stream::deserialize_u64(stream)
+                );
+            let dest_chain_enabled =
+                bcs_stream::deserialize_vector!(
+                    &mut stream,
+                    |stream| bcs_stream::deserialize_bool(stream)
+                );
+            let dest_chain_allowlist_enabled =
+                bcs_stream::deserialize_vector!(
+                    &mut stream,
+                    |stream| bcs_stream::deserialize_bool(stream)
+                );
+            bcs_stream::assert_is_consumed(&stream);
+            apply_dest_chain_config_updates(state, owner_cap, dest_chain_selectors, dest_chain_enabled, dest_chain_allowlist_enabled);
+        } else if (function_bytes == b"apply_allowlist_updates") {
+            let dest_chain_selectors =
+                bcs_stream::deserialize_vector!(
+                    &mut stream,
+                    |stream| bcs_stream::deserialize_u64(stream)
+                );
+            let dest_chain_allowlist_enabled =
+                bcs_stream::deserialize_vector!(
+                    &mut stream,
+                    |stream| bcs_stream::deserialize_bool(stream)
+                );
+            let dest_chain_add_allowed_senders =
+                bcs_stream::deserialize_vector!(
+                    &mut stream,
+                    |stream| bcs_stream::deserialize_vector!(
+                        stream,
+                        |stream| bcs_stream::deserialize_address(stream)
+                    )
+                );
+            let dest_chain_remove_allowed_senders =
+                bcs_stream::deserialize_vector!(
+                    &mut stream,
+                    |stream| bcs_stream::deserialize_vector!(
+                        stream,
+                        |stream| bcs_stream::deserialize_address(stream)
+                    )
+                );
+            apply_allowlist_updates(state, owner_cap, dest_chain_selectors, dest_chain_allowlist_enabled, dest_chain_add_allowed_senders, dest_chain_remove_allowed_senders, ctx);
+        } else if (function_bytes == b"transfer_ownership") {
+            let to = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            transfer_ownership(state, owner_cap, to, ctx);
+        } else if (function_bytes == b"accept_ownership") {
+            bcs_stream::assert_is_consumed(&stream);
+            ownable::accept_ownership_as_mcms(&mut state.ownable_state, ctx);
+        } else if (function_bytes == b"execute_ownership_transfer") {
+            let to = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+            execute_ownership_transfer(owner_cap, &mut state.ownable_state, registry, to , ctx);
+        } else {
+            abort EUnknownFunction
+        };
+    }
 
-        let (allowlist_enabled, allowed_senders) = onramp::get_allowed_senders_list(&ref, DEST_CHAIN_SELECTOR_1);
-        assert!(allowlist_enabled == true);
-        assert!(allowed_senders == vector[ALLOWED_SENDER_1]);
-        let (allowlist_enabled, allowed_senders) = onramp::get_allowed_senders_list(&ref, DEST_CHAIN_SELECTOR_2);
-        assert!(allowlist_enabled == false);
-        assert!(allowed_senders == vector[ALLOWED_SENDER_3]);
+    // ============================== Test Functions ============================== //
 
-        tear_down_test(scenario, ref);
+    #[test_only]
+    public fun test_init(ctx: &mut TxContext) {
+        init(ONRAMP{}, ctx);
     }
 }
