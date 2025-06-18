@@ -42,6 +42,11 @@ type IOnramp interface {
 	GetDynamicConfig(state bind.Object) bind.IMethod
 	GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod
 	CcipSend(typeArgs string, ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams module_common.TokenParams, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) bind.IMethod
+	Owner(state bind.Object) bind.IMethod
+	HasPendingTransfer(state bind.Object) bind.IMethod
+	PendingTransferFrom(state bind.Object) bind.IMethod
+	PendingTransferTo(state bind.Object) bind.IMethod
+	PendingTransferAccepted(state bind.Object) bind.IMethod
 	TransferOwnership(state bind.Object, ownerCap module_common.OwnerCap, newOwner string) bind.IMethod
 	AcceptOwnership(state bind.Object) bind.IMethod
 	AcceptOwnershipFromObject(state bind.Object, from string) bind.IMethod
@@ -419,6 +424,76 @@ func (c *OnrampContract) CcipSend(typeArgs string, ref module_common.CCIPObjectR
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "ccip_send", false, "", typeArgs, ref, state, clock, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "ccip_send", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) Owner(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "owner", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "owner", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) HasPendingTransfer(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "has_pending_transfer", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "has_pending_transfer", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) PendingTransferFrom(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "pending_transfer_from", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "pending_transfer_from", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) PendingTransferTo(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "pending_transfer_to", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "pending_transfer_to", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *OnrampContract) PendingTransferAccepted(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "pending_transfer_accepted", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "pending_transfer_accepted", err)
 		}
 
 		return ptb, nil

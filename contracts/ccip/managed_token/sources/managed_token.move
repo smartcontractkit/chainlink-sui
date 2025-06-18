@@ -489,6 +489,26 @@ fun borrow_deny_cap_mut<T>(state: &mut TokenState<T>): &mut DenyCapV2<T> {
 // |                      Ownable Functions                       |
 // ================================================================
 
+public fun owner<T>(state: &TokenState<T>): address {
+    ownable::owner(&state.ownable_state)
+}
+
+public fun has_pending_transfer<T>(state: &TokenState<T>): bool {
+    ownable::has_pending_transfer(&state.ownable_state)
+}
+
+public fun pending_transfer_from<T>(state: &TokenState<T>): Option<address> {
+    ownable::pending_transfer_from(&state.ownable_state)
+}
+
+public fun pending_transfer_to<T>(state: &TokenState<T>): Option<address> {
+    ownable::pending_transfer_to(&state.ownable_state)
+}
+
+public fun pending_transfer_accepted<T>(state: &TokenState<T>): Option<bool> {
+    ownable::pending_transfer_accepted(&state.ownable_state)
+}
+
 public entry fun transfer_ownership<T>(
     state: &mut TokenState<T>,
     owner_cap: &OwnerCap<T>,
@@ -516,11 +536,10 @@ public fun accept_ownership_from_object<T>(
 public fun execute_ownership_transfer<T>(
     owner_cap: OwnerCap<T>,
     ownable_state: &mut OwnableState<T>,
-    registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::execute_ownership_transfer(owner_cap, ownable_state, registry, to, ctx);
+    ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
 
 public fun mcms_register_entrypoint<T>(
@@ -533,7 +552,7 @@ public fun mcms_register_entrypoint<T>(
 
     mcms_registry::register_entrypoint(
         registry,
-        ownable::mcms_callback(),
+        McmsCallback{},
         option::some(owner_cap),
         ctx,
     );
@@ -557,6 +576,8 @@ public fun mcms_register_upgrade_cap(
 // |                      MCMS Entrypoint                         |
 // ================================================================
 
+public struct McmsCallback has drop {}
+
 public fun mcms_entrypoint<T>(
     state: &mut TokenState<T>,
     registry: &mut Registry,
@@ -565,11 +586,11 @@ public fun mcms_entrypoint<T>(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<
-        ownable::McmsCallback,
+        McmsCallback,
         OwnerCap<T>,
     >(
         registry,
-        ownable::mcms_callback(),
+        McmsCallback{},
         params,
     );
 

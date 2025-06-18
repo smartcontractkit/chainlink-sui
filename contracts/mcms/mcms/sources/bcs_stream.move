@@ -2,6 +2,8 @@ module mcms::bcs_stream {
     use std::string::{Self, String};
     use sui::bcs;
 
+    use mcms::params;
+
     const E_MALFORMED_DATA: u64 = 1;
     const E_OUT_OF_BYTES: u64 = 2;
     const E_NOT_CONSUMED: u64 = 3;
@@ -67,7 +69,8 @@ module mcms::bcs_stream {
 
         assert!(cur + 32 <= data.length(), E_OUT_OF_BYTES);
 
-        let mut bcs_instance = bcs::new(stream.data);
+        let address_bytes = params::slice(data, cur, 32);
+        let mut bcs_instance = bcs::new(address_bytes);
         stream.cur = stream.cur + 32;
         bcs::peel_address(&mut bcs_instance)
     }

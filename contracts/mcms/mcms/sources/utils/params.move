@@ -7,6 +7,7 @@ use sui::bcs;
 use sui::hex;
 
 const E_CMP_VECTORS_DIFF_LEN: u64 = 0;
+const E_OUT_OF_BYTES: u64 = 1;
 
 public fun encode_uint<T: drop>(input: T, num_bytes: u64): vector<u8> {
     let mut bcs_bytes = bcs::to_bytes(&input);
@@ -70,4 +71,17 @@ public fun get_account_address_and_module_name(proof_type: TypeName): (address, 
     let account_address = address::from_bytes(account_address_bytes);
     let module_name = string::from_ascii(proof_type.get_module());
     (account_address, module_name)
+}
+
+public fun slice<T: copy>(v: &vector<T>, start: u64, len: u64): vector<T> {
+    let v_len = v.length();
+    assert!(start + len <= v_len, E_OUT_OF_BYTES);
+
+    let mut result = vector[];
+    let mut i = start;
+    while (i < start + len) {
+        result.push_back(v[i]);
+        i = i + 1;
+    };
+    result
 }

@@ -1,6 +1,5 @@
 module managed_token::ownable;
 
-use mcms::mcms_registry::{Self, Registry};
 use sui::event;
 
 public struct OwnerCap<phantom T> has key, store {
@@ -81,6 +80,26 @@ public fun owner_cap_id<T>(state: &OwnableState<T>): ID {
     state.owner_cap_id
 }
 
+public fun owner<T>(state: &OwnableState<T>): address {
+    state.owner
+}
+
+public fun has_pending_transfer<T>(state: &OwnableState<T>): bool {
+    state.pending_transfer.is_some()
+}
+
+public fun pending_transfer_from<T>(state: &OwnableState<T>): Option<address> {
+    state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.from)
+}
+
+public fun pending_transfer_to<T>(state: &OwnableState<T>): Option<address> {
+    state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.to)
+}
+
+public fun pending_transfer_accepted<T>(state: &OwnableState<T>): Option<bool> {
+    state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
+}
+
 public fun set_owner<T>(
     owner_cap: &OwnerCap<T>,
     state: &mut OwnableState<T>,
@@ -119,8 +138,8 @@ public fun accept_ownership_from_object<T>(state: &mut OwnableState<T>, from: &m
     accept_ownership_internal(state, from.to_address());
 }
 
-public(package) fun accept_ownership_as_mcms<T>(state: &mut OwnableState<T>) {
-    accept_ownership_internal(state, @mcms);
+public(package) fun accept_ownership_as_mcms<T>(state: &mut OwnableState<T>, mcms: address, _ctx: &mut TxContext) {
+    accept_ownership_internal(state, mcms);
 }
 
 fun accept_ownership_internal<T>(state: &mut OwnableState<T>, caller: address) {
@@ -144,9 +163,8 @@ fun accept_ownership_internal<T>(state: &mut OwnableState<T>, caller: address) {
 public fun execute_ownership_transfer<T>(
     owner_cap: OwnerCap<T>,
     state: &mut OwnableState<T>,
-    registry: &mut Registry,
     to: address,
-    ctx: &mut TxContext,
+    _ctx: &mut TxContext,
 ) {
     assert!(object::id(&owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
     assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
@@ -161,26 +179,12 @@ public fun execute_ownership_transfer<T>(
     assert!(new_owner == to, EProposedOwnerMismatch);
     assert!(pending_transfer.accepted, ETransferNotAccepted);
 
-    // if the new owner is mcms, we need to add the `OwnerCap` to the registry.
-    if (new_owner == @mcms) {
-        mcms_registry::register_entrypoint(
-            registry,
-            McmsCallback {},
-            option::some(owner_cap),
-            ctx,
-        );
-    } else {
-        transfer::transfer(owner_cap, new_owner);
-    };
+    transfer::transfer(owner_cap, new_owner);
 
     state.owner = new_owner;
     state.pending_transfer = option::none();
 
     event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
-}
-
-public(package) fun mcms_callback(): McmsCallback {
-    McmsCallback {}
 }
 
 public fun destroy_ownable_state<T>(state: OwnableState<T>, _ctx: &mut TxContext) {

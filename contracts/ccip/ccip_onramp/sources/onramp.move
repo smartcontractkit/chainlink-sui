@@ -858,6 +858,26 @@ module ccip_onramp::onramp {
     // |                      CCIP Ownable Functions                    |
     // ================================================================
 
+    public fun owner(state: &OnRampState): address {
+        ownable::owner(&state.ownable_state)
+    }
+
+    public fun has_pending_transfer(state: &OnRampState): bool {
+        ownable::has_pending_transfer(&state.ownable_state)
+    }
+
+    public fun pending_transfer_from(state: &OnRampState): Option<address> {
+        ownable::pending_transfer_from(&state.ownable_state)
+    }
+
+    public fun pending_transfer_to(state: &OnRampState): Option<address> {
+        ownable::pending_transfer_to(&state.ownable_state)
+    }
+
+    public fun pending_transfer_accepted(state: &OnRampState): Option<bool> {
+        ownable::pending_transfer_accepted(&state.ownable_state)
+    }
+
     public entry fun transfer_ownership(
         state: &mut OnRampState,
         owner_cap: &OwnerCap,
@@ -877,28 +897,28 @@ module ccip_onramp::onramp {
     public fun accept_ownership_from_object(
         state: &mut OnRampState,
         from: &mut UID,
-        _ctx: &mut TxContext,
+        ctx: &mut TxContext,
     ) {
-        ownable::accept_ownership_from_object(&mut state.ownable_state, from);
+        ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
     }
 
     public fun execute_ownership_transfer(
         owner_cap: OwnerCap,
         ownable_state: &mut OwnableState,
-        registry: &mut Registry,
         to: address,
         ctx: &mut TxContext,
     ) {
-        ownable::execute_ownership_transfer(owner_cap, ownable_state, registry, to, ctx);
+        ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
     public fun mcms_register_entrypoint(
         registry: &mut Registry,
         state: &mut OnRampState,
         owner_cap: OwnerCap,
+        mcms: address,
         ctx: &mut TxContext,
     ) {
-        ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
+        ownable::set_owner(&owner_cap, &mut state.ownable_state, mcms, ctx);
 
         mcms_registry::register_entrypoint(
             registry,
@@ -1001,14 +1021,16 @@ module ccip_onramp::onramp {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);
             transfer_ownership(state, owner_cap, to, ctx);
-        } else if (function_bytes == b"accept_ownership") {
+        } else if (function_bytes == b"accept_ownership_as_mcms") {
+            // TODO: This may not be needed as we call `mcms_registry::register_entrypoint` with the `OwnerCap`
+            let mcms = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);
-            ownable::accept_ownership_as_mcms(&mut state.ownable_state, ctx);
+            ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
         } else if (function_bytes == b"execute_ownership_transfer") {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);
             let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-            execute_ownership_transfer(owner_cap, &mut state.ownable_state, registry, to , ctx);
+            execute_ownership_transfer(owner_cap, &mut state.ownable_state, to , ctx);
         } else {
             abort EUnknownFunction
         };
