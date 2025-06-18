@@ -14,6 +14,7 @@ public struct SourceTransferCap has key, store {
 }
 
 public struct TokenParams {
+    destination_chain_selector: u64,
     params: vector<SourceTokenTransfer>
 }
 
@@ -33,10 +34,15 @@ fun init(_witness: DYNAMIC_DISPATCHER, ctx: &mut TxContext) {
     transfer::transfer(source_cap, ctx.sender());
 }
 
-public fun create_token_params(): TokenParams {
+public fun create_token_params(destination_chain_selector: u64): TokenParams {
     TokenParams {
+        destination_chain_selector,
         params: vector[]
     }
+}
+
+public fun get_destination_chain_selector(token_params: &TokenParams): u64 {
+    token_params.destination_chain_selector
 }
 
 // only the token pool with a proper type proof can add the corresponding token transfer
@@ -65,11 +71,12 @@ public fun add_source_token_transfer<TypeProof: drop>(
     token_params
 }
 
-public fun deconstruct_token_params(_: &SourceTransferCap, token_params: TokenParams): vector<SourceTokenTransfer> {
+public fun deconstruct_token_params(_: &SourceTransferCap, token_params: TokenParams): (u64, vector<SourceTokenTransfer>) {
     let TokenParams {
+        destination_chain_selector,
         params
     } = token_params;
-    params
+    (destination_chain_selector, params)
 }
 
 public fun get_source_token_transfer_data(token_transfer: SourceTokenTransfer): (address, u64, address, vector<u8>, vector<u8>) {

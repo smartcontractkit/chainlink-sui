@@ -250,12 +250,12 @@ public fun lock_or_burn<T>(
     deny_list: &DenyList,
     token_state: &mut TokenState<T>,
     c: Coin<T>,
-    remote_chain_selector: u64,
     token_params: dd::TokenParams,
     ctx: &mut TxContext
 ): dd::TokenParams {
     let amount = c.value();
     let sender = ctx.sender();
+    let remote_chain_selector = dd::get_destination_chain_selector(&token_params);
 
     // This metod validates various aspects of the lock or burn operation. If any of the
     // validations fail, the transaction will abort.
@@ -300,11 +300,11 @@ public fun release_or_mint<T>(
     pool: &mut ManagedTokenPoolState<T>,
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
-    remote_chain_selector: u64,
     receiver_params: osh::ReceiverParams,
     index: u64,
     ctx: &mut TxContext
 ): osh::ReceiverParams {
+    let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
     let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = osh::get_token_param_data(&receiver_params, index);
     let local_decimals = pool.token_pool_state.get_local_decimals();
     let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);

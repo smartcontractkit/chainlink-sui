@@ -41,8 +41,8 @@ type ILockReleaseTokenPool interface {
 	GetAllowlistEnabled(state bind.Object) bind.IMethod
 	GetAllowlist(state bind.Object) bind.IMethod
 	ApplyAllowlistUpdates(state bind.Object, ownerCap bind.Object, removes []string, adds []string) bind.IMethod
-	LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, c_ bind.Object, remoteChainSelector uint64, tokenParams module_common.TokenParams) bind.IMethod
-	ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, remoteChainSelector uint64, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod
+	LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, c_ bind.Object, tokenParams module_common.TokenParams) bind.IMethod
+	ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod
 	SetChainRateLimiterConfigs(state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) bind.IMethod
 	SetChainRateLimiterConfig(state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod
 	ProvideLiquidity(typeArgs string, state bind.Object, c_ bind.Object) bind.IMethod
@@ -333,10 +333,10 @@ func (c *LockReleaseTokenPoolContract) ApplyAllowlistUpdates(state bind.Object, 
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *LockReleaseTokenPoolContract) LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, c_ bind.Object, remoteChainSelector uint64, tokenParams module_common.TokenParams) bind.IMethod {
+func (c *LockReleaseTokenPoolContract) LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, c_ bind.Object, tokenParams module_common.TokenParams) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "lock_or_burn", false, "", typeArgs, ref, clock, state, c_, remoteChainSelector, tokenParams)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "lock_or_burn", false, "", typeArgs, ref, clock, state, c_, tokenParams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "lock_release_token_pool", "lock_or_burn", err)
 		}
@@ -347,10 +347,10 @@ func (c *LockReleaseTokenPoolContract) LockOrBurn(typeArgs string, ref module_co
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *LockReleaseTokenPoolContract) ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, remoteChainSelector uint64, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod {
+func (c *LockReleaseTokenPoolContract) ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "release_or_mint", false, "", typeArgs, ref, clock, pool, remoteChainSelector, receiverParams, index)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "release_or_mint", false, "", typeArgs, ref, clock, pool, receiverParams, index)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "lock_release_token_pool", "release_or_mint", err)
 		}

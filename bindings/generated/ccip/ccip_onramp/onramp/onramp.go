@@ -41,7 +41,7 @@ type IOnramp interface {
 	GetStaticConfigFields(cfg StaticConfig) bind.IMethod
 	GetDynamicConfig(state bind.Object) bind.IMethod
 	GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod
-	CcipSend(typeArgs string, ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams module_common.TokenParams, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) bind.IMethod
+	CcipSend(typeArgs string, ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams module_common.TokenParams, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -411,10 +411,10 @@ func (c *OnrampContract) GetDynamicConfigFields(cfg DynamicConfig) bind.IMethod 
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OnrampContract) CcipSend(typeArgs string, ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams module_common.TokenParams, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) bind.IMethod {
+func (c *OnrampContract) CcipSend(typeArgs string, ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams module_common.TokenParams, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "ccip_send", false, "", typeArgs, ref, state, clock, destChainSelector, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "onramp", "ccip_send", false, "", typeArgs, ref, state, clock, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "onramp", "ccip_send", err)
 		}
