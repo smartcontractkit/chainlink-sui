@@ -22,6 +22,7 @@ public struct OFFRAMP_STATE_HELPER has drop {}
 public struct ReceiverParams {
     params: vector<DestTokenTransfer>,
     message: Option<client::Any2SuiMessage>,
+    source_chain_selector: u64,
 }
 
 public struct DestTransferCap has key, store {
@@ -50,11 +51,16 @@ fun init(_witness: OFFRAMP_STATE_HELPER, ctx: &mut TxContext) {
     transfer::transfer(dest_cap, ctx.sender());
 }
 
-public fun create_receiver_params(_: &DestTransferCap): ReceiverParams {
+public fun create_receiver_params(_: &DestTransferCap, source_chain_selector: u64): ReceiverParams {
     ReceiverParams {
         params: vector[],
         message: option::none(),
+        source_chain_selector,
     }
+}
+
+public fun get_source_chain_selector(receiver_params: &ReceiverParams): u64 {
+    receiver_params.source_chain_selector
 }
 
 public fun add_dest_token_transfer(
@@ -206,6 +212,7 @@ public fun deconstruct_receiver_params(
     let ReceiverParams {
         params,
         message,
+        source_chain_selector: _,
     } = receiver_params;
 
     // make sure all token transfers are completed

@@ -552,7 +552,7 @@ module ccip_offramp::offramp {
 
             event::emit(SkippedReportExecution { source_chain_selector });
 
-            return osh::create_receiver_params(state.dest_transfer_cap.borrow())
+            return osh::create_receiver_params(state.dest_transfer_cap.borrow(), source_chain_selector)
         };
 
         assert_source_chain_enabled(state, source_chain_selector);
@@ -599,7 +599,7 @@ module ccip_offramp::offramp {
         if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
             event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
 
-            return osh::create_receiver_params(state.dest_transfer_cap.borrow())
+            return osh::create_receiver_params(state.dest_transfer_cap.borrow(), source_chain_selector)
         };
 
         // A zero nonce indicates out of order execution which is the only allowed case.
@@ -613,7 +613,7 @@ module ccip_offramp::offramp {
         assert!(state.dest_transfer_cap.is_some(), E_DEST_TRANSFER_CAP_NOT_SET);
 
         let mut i = 0;
-        let mut receiver_params = osh::create_receiver_params(state.dest_transfer_cap.borrow());
+        let mut receiver_params = osh::create_receiver_params(state.dest_transfer_cap.borrow(), source_chain_selector);
 
         let mut token_addresses = vector[];
         let mut token_amounts = vector[];
