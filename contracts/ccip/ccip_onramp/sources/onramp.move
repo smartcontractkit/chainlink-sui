@@ -585,7 +585,6 @@ module ccip_onramp::onramp {
         (cfg.fee_aggregator, cfg.allowlist_admin)
     }
 
-    // TODO: verify that we are using onramp state address in metadata hash
     fun calculate_metadata_hash(
         source_chain_selector: u64, dest_chain_selector: u64, on_ramp_address: address
     ): vector<u8> {
@@ -743,8 +742,7 @@ module ccip_onramp::onramp {
                 dest_pool_datas
             );
 
-        vector::zip_do_mut!(
-            &mut token_transfers,
+        token_transfers.zip_do_mut!(
             &mut dest_exec_data_per_token,
             |token_amount, dest_exec_data| {
                 let token_amount: &mut Sui2AnyTokenTransfer = token_amount;

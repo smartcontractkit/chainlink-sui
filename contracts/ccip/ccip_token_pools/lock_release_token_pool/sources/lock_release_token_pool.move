@@ -123,7 +123,7 @@ fun initialize_internal<T: drop>(
     };
 
     transfer::share_object(lock_release_token_pool);
-    transfer::public_transfer(owner_cap, ctx.sender());
+    transfer::transfer(owner_cap, ctx.sender());
 
     (coin_metadata_address, token_pool_state_address, token_type_name, type_proof_type_name)
 }
@@ -300,7 +300,7 @@ public fun release_or_mint<T>(
     ctx: &mut TxContext
 ): osh::ReceiverParams {
     let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = osh::get_token_param_data(&receiver_params, index);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(&receiver_params, index);
     let local_decimals = pool.token_pool_state.get_local_decimals();
     let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);
     let local_amount = token_pool::calculate_local_amount(source_amount as u256, remote_decimals, local_decimals);

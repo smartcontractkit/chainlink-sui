@@ -6,6 +6,7 @@ use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
 
 const ETypeProofMismatch: u64 = 1;
+const EInvalidDestinationChainSelector: u64 = 2;
 
 public struct DYNAMIC_DISPATCHER has drop {}
 
@@ -35,6 +36,7 @@ fun init(_witness: DYNAMIC_DISPATCHER, ctx: &mut TxContext) {
 }
 
 public fun create_token_params(destination_chain_selector: u64): TokenParams {
+    assert!(destination_chain_selector != 0, EInvalidDestinationChainSelector);
     TokenParams {
         destination_chain_selector,
         params: vector[]

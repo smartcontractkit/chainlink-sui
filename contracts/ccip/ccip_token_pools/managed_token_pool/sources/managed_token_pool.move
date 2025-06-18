@@ -52,7 +52,7 @@ public fun initialize<T: drop>(
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (_, _, _, managed_token_pool) =
+    let (_, managed_token_state_address, _, _) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     token_admin_registry::register_pool(
@@ -60,13 +60,11 @@ public fun initialize<T: drop>(
         treasury_cap,
         coin_metadata,
         token_pool_package_id,
-        object::uid_to_address(&managed_token_pool.id),
+        managed_token_state_address,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
         TypeProof {},
     );
-
-    transfer::share_object(managed_token_pool);
 }
 
 public fun initialize_by_ccip_admin<T: drop>(
@@ -77,22 +75,20 @@ public fun initialize_by_ccip_admin<T: drop>(
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, token_type_name, type_proof_type_name, managed_token_pool) =
+    let (coin_metadata_address, managed_token_state_address, token_type_name, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     token_admin_registry::register_pool_by_admin(
         ref,
         coin_metadata_address,
         token_pool_package_id,
-        object::uid_to_address(&managed_token_pool.id),
+        managed_token_state_address,
         string::utf8(b"managed_token_pool"),
         token_type_name.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
         ctx,
     );
-
-    transfer::share_object(managed_token_pool);
 }
 
 #[allow(lint(self_transfer))]
@@ -100,7 +96,7 @@ fun initialize_internal<T: drop>(
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     ctx: &mut TxContext,
-): (address, TypeName, TypeName, ManagedTokenPoolState<T>) {
+): (address, address, TypeName, TypeName) {
 let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(
         coin_metadata_address == @managed_token_coin_metadata,
@@ -114,14 +110,16 @@ let coin_metadata_address: address = object::id_to_address(&object::id(coin_meta
     };
     let token_type_name = type_name::get<T>();
     let type_proof_type_name = type_name::get<TypeProof>();
+    let managed_token_state_address = object::uid_to_address(&managed_token_pool.id);
 
     let owner_cap = OwnerCap {
         id: object::new(ctx),
         state_id: object::id(&managed_token_pool),
     };
-    transfer::public_transfer(owner_cap, ctx.sender());
+    transfer::share_object(managed_token_pool);
+    transfer::transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, token_type_name, type_proof_type_name, managed_token_pool)
+    (coin_metadata_address, managed_token_state_address, token_type_name, type_proof_type_name)
 }
 
 public fun add_remote_pool<T>(
@@ -305,7 +303,7 @@ public fun release_or_mint<T>(
     ctx: &mut TxContext
 ): osh::ReceiverParams {
     let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data) = osh::get_token_param_data(&receiver_params, index);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(&receiver_params, index);
     let local_decimals = pool.token_pool_state.get_local_decimals();
     let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);
     let local_amount = token_pool::calculate_local_amount(source_amount as u256, remote_decimals, local_decimals);

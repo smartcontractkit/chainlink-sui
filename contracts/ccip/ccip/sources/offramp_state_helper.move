@@ -101,7 +101,7 @@ public fun populate_message(
 
 public fun get_token_param_data(
     receiver_params: &ReceiverParams, index: u64
-): (address, u64, address, vector<u8>, vector<u8>) {
+): (address, u64, address, vector<u8>, vector<u8>, vector<u8>) {
     assert!(
         index < receiver_params.params.length(),
         EWrongIndexInReceiverParams
@@ -109,12 +109,12 @@ public fun get_token_param_data(
     let token_param = receiver_params.params[index];
 
     (
-        // token_param.sender,
         token_param.receiver,
         token_param.source_amount,
         token_param.dest_token_address,
         token_param.source_pool_address,
         token_param.source_pool_data, // this is the encoded decimals
+        token_param.offchain_token_data,
     )
 }
 
