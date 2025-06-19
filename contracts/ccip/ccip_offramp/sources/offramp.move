@@ -1191,6 +1191,10 @@ module ccip_offramp::offramp {
         )
     }
 
+    public fun get_ccip_package_id(): address {
+        @ccip
+    }
+
     #[test_only]
     public(package) fun show_source_chain_config(cfg: SourceChainConfig): (address, bool, u64, bool, vector<u8>) {
         (cfg.router, cfg.is_enabled, cfg.min_seq_nr, cfg.is_rmn_verification_disabled, cfg.on_ramp)

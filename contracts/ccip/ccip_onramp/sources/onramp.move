@@ -854,6 +854,10 @@ module ccip_onramp::onramp {
         message
     }
 
+    public fun get_ccip_package_id(): address {
+        @ccip
+    }
+
     // ================================================================
     // |                      CCIP Ownable Functions                    |
     // ================================================================
