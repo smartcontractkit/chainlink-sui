@@ -574,7 +574,7 @@ module ccip_offramp::offramp {
             &execution_report.message, metadata_hash
         );
 
-        let root = merkle_proof::merkle_root_simple(hashed_leaf, execution_report.proofs);
+        let root = merkle_proof::merkle_root(hashed_leaf, execution_report.proofs);
 
         // Reverts when the root is not committed
         // Essential security check
@@ -862,6 +862,14 @@ module ccip_offramp::offramp {
         cfg: OCRConfig,
     ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
         ocr3_base::latest_config_details_fields(cfg)
+    }
+
+    public fun config_signers(state: &OCRConfig): vector<vector<u8>> {
+        ocr3_base::config_signers(state)
+    }
+
+    public fun config_transmitters(state: &OCRConfig): vector<address> {
+        ocr3_base::config_transmitters(state)
     }
 
     // ================================================================

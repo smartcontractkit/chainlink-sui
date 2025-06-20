@@ -13,6 +13,48 @@ module ccip_offramp::ocr3_base {
     const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
     const PUBLIC_KEY_NUM_BYTES: u64 = 32;
 
+    public struct UnvalidatedPublicKey has copy, drop, store {
+        bytes: vector<u8>
+    }
+
+    public struct ConfigInfo has store, drop, copy {
+        config_digest: vector<u8>,
+        big_f: u8,
+        n: u8,
+        is_signature_verification_enabled: bool
+    }
+
+    public struct OCRConfig has store, drop, copy {
+        config_info: ConfigInfo,
+        signers: vector<vector<u8>>,
+        transmitters: vector<address>
+    }
+
+    // this struct is stored in offramp state object
+    public struct OCR3BaseState has key, store {
+        id: UID,
+        // ocr plugin type -> ocr config
+        ocr3_configs: Table<u8, OCRConfig>,
+        // ocr plugin type -> signers
+        signer_oracles: Table<u8, vector<UnvalidatedPublicKey>>,
+        // ocr plugin type -> transmitters
+        transmitter_oracles: Table<u8, vector<address>>
+    }
+
+    public struct ConfigSet has copy, drop {
+        ocr_plugin_type: u8,
+        config_digest: vector<u8>,
+        signers: vector<vector<u8>>,
+        transmitters: vector<address>,
+        big_f: u8
+    }
+
+    public struct Transmitted has copy, drop {
+        ocr_plugin_type: u8,
+        config_digest: vector<u8>,
+        sequence_number: u64
+    }
+
     const E_WRONG_PUBKEY_SIZE: u64 = 1;
     const E_BIG_F_MUST_BE_POSITIVE: u64 = 2;
     const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 3;
@@ -35,56 +77,6 @@ module ccip_offramp::ocr3_base {
     const E_OUT_OF_BYTES: u64 = 20;
     const E_CONFIG_NOT_SET: u64 = 21;
 
-    public struct UnvalidatedPublicKey has copy, drop, store {
-        bytes: vector<u8>
-    }
-
-    public struct ConfigInfo has store, drop, copy {
-        config_digest: vector<u8>,
-        big_f: u8,
-        n: u8,
-        is_signature_verification_enabled: bool
-    }
-
-    public struct Transmitted has copy, drop {
-        ocr_plugin_type: u8,
-        config_digest: vector<u8>,
-        sequence_number: u64
-    }
-
-    public struct ConfigSet has copy, drop {
-        ocr_plugin_type: u8,
-        config_digest: vector<u8>,
-        signers: vector<vector<u8>>,
-        transmitters: vector<address>,
-        big_f: u8
-    }
-
-    public struct OCRConfig has store, drop, copy {
-        config_info: ConfigInfo,
-        signers: vector<vector<u8>>,
-        transmitters: vector<address>
-    }
-
-    // this struct is stored in offramp state object
-    public struct OCR3BaseState has key, store {
-        id: UID,
-        // ocr plugin type -> ocr config
-        ocr3_configs: Table<u8, OCRConfig>,
-        // ocr plugin type -> signers
-        signer_oracles: Table<u8, vector<UnvalidatedPublicKey>>,
-        // ocr plugin type -> transmitters
-        transmitter_oracles: Table<u8, vector<address>>
-    }
-
-    public fun ocr_plugin_type_commit(): u8 {
-        OCR_PLUGIN_TYPE_COMMIT
-    }
-
-    public fun ocr_plugin_type_execution(): u8 {
-        OCR_PLUGIN_TYPE_EXECUTION
-    }
-
     // there is no init or initialize functions in ocr3 base
     // ocr3 base state is only created and stored in offramp state
     public fun new(ctx: &mut TxContext): OCR3BaseState {
@@ -96,225 +88,12 @@ module ccip_offramp::ocr3_base {
         }
     }
 
-    public fun latest_config_details(
-        state: &OCR3BaseState, ocr_plugin_type: u8
-    ): OCRConfig {
-        assert!(
-            state.ocr3_configs.contains(ocr_plugin_type),
-            E_CONFIG_NOT_SET
-        );
-        let ocr_config = &state.ocr3_configs[ocr_plugin_type];
-        *ocr_config
+    public fun ocr_plugin_type_commit(): u8 {
+        OCR_PLUGIN_TYPE_COMMIT
     }
 
-    public fun latest_config_details_fields(
-        ocr_config: OCRConfig
-    ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
-        (
-            ocr_config.config_info.config_digest,
-            ocr_config.config_info.big_f,
-            ocr_config.config_info.n,
-            ocr_config.config_info.is_signature_verification_enabled,
-            ocr_config.signers,
-            ocr_config.transmitters
-        )
-    }
-
-    // equivalent of uint64(uint256(reportContext[1]))
-    public fun deserialize_sequence_bytes(
-        sequence_bytes: vector<u8>
-    ): u64 {
-        let len = sequence_bytes.length();
-        let mut result: u64 = 0;
-        let mut i = len - 8;
-        while (i < len) {
-            result = (result << 8) + (sequence_bytes[i] as u64);
-            i = i + 1;
-        };
-        result
-    }
-
-    fun hash_report(
-        mut report: vector<u8>, config_digest: vector<u8>, sequence_bytes: vector<u8>
-    ): vector<u8> {
-        report.append(config_digest);
-        report.append(sequence_bytes);
-        hash::blake2b256(&report)
-    }
-
-    fun has_duplicates<T>(a: &vector<T>): bool {
-        let len = a.length();
-        let mut i = 0;
-
-        while (i < len) {
-            let mut j = i + 1;
-            while (j < len) {
-                if (&a[i] == &a[j]) {
-                    return true
-                };
-                j = j + 1;
-            };
-            i = i + 1;
-        };
-        false
-    }
-
-    fun assign_transmitter_oracles(
-        transmitter_oracles: &mut Table<u8, vector<address>>,
-        ocr_plugin_type: u8,
-        transmitters: &vector<address>
-    ) {
-        transmitters.do_ref!(
-            |transmitter_addr| {
-                address::assert_non_zero_address(*transmitter_addr);
-            }
-        );
-        assert!(
-            !has_duplicates(transmitters),
-            E_REPEATED_TRANSMITTERS
-        );
-
-        if (transmitter_oracles.contains(ocr_plugin_type)) {
-            let _old_value = transmitter_oracles.remove(ocr_plugin_type);
-        };
-        transmitter_oracles.add(ocr_plugin_type, *transmitters);
-    }
-
-    fun assign_signer_oracles(
-        signer_oracles: &mut Table<u8, vector<UnvalidatedPublicKey>>,
-        ocr_plugin_type: u8,
-        signers: &vector<vector<u8>>
-    ) {
-        signers.do_ref!(
-            |signer| {
-                address::assert_non_zero_address_vector(signer);
-            }
-        );
-        assert!(!has_duplicates(signers), E_REPEATED_SIGNERS);
-
-        let validated_signers = signers.map_ref!(
-            |signer| {
-                assert!(
-                    validate_public_key(signer),
-                    E_COULD_NOT_VALIDATE_SIGNER_KEY
-                );
-                UnvalidatedPublicKey { bytes: *signer }
-            }
-        );
-
-        if (signer_oracles.contains(ocr_plugin_type)) {
-            let _old_value = signer_oracles.remove(ocr_plugin_type);
-        };
-        signer_oracles.add(ocr_plugin_type, validated_signers);
-    }
-
-    fun validate_public_key(pubkey: &vector<u8>): bool {
-        pubkey.length() == 32
-    }
-
-    fun verify_signature(
-        signers: &vector<UnvalidatedPublicKey>,
-        hashed_report: vector<u8>,
-        signatures: vector<vector<u8>>
-    ) {
-        let mut seen = bit_vector::new(signers.length());
-        vector::do_ref!(
-            &signatures,
-            |signature_bytes| {
-                let public_key =
-                    new_unvalidated_public_key_from_bytes(slice(signature_bytes, 0, 32));
-                let (exists, index) = vector::index_of(signers, &public_key);
-                assert!(exists, E_UNAUTHORIZED_SIGNER);
-                assert!(
-                    !bit_vector::is_index_set(&seen, index),
-                    E_NON_UNIQUE_SIGNATURES
-                );
-                bit_vector::set(&mut seen, index);
-                let signature = slice(signature_bytes, 32, 64);
-
-                let verified =
-                    ed25519::ed25519_verify(
-                        &signature, &public_key.bytes, &hashed_report
-                    );
-                assert!(verified, E_INVALID_SIGNATURE);
-            }
-        );
-    }
-
-    fun new_unvalidated_public_key_from_bytes(bytes: vector<u8>): UnvalidatedPublicKey {
-        assert!(bytes.length() == PUBLIC_KEY_NUM_BYTES, E_WRONG_PUBKEY_SIZE);
-        UnvalidatedPublicKey { bytes }
-    }
-
-    /// Returns a new vector containing `len` elements from `vec`
-    /// starting at index `start`. Panics if `start + len` exceeds the vector length.
-    fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
-        let vec_len = vec.length();
-        // Ensure we have enough elements for the slice.
-        assert!(start + len <= vec_len, E_OUT_OF_BYTES);
-        let mut new_vec = vector::empty<T>();
-        let mut i = start;
-        while (i < start + len) {
-            // Copy each element from the original vector into the new vector.
-            new_vec.push_back(vec[i]);
-            i = i + 1;
-        };
-        new_vec
-    }
-
-    public(package) fun transmit(
-        ocr3_state: &OCR3BaseState,
-        transmitter: address,
-        ocr_plugin_type: u8,
-        report_context: vector<vector<u8>>,
-        report: vector<u8>,
-        signatures: vector<vector<u8>>,
-        _ctx: &TxContext
-    ) {
-        let ocr_config = ocr3_state.ocr3_configs.borrow(ocr_plugin_type);
-        let config_info = &ocr_config.config_info;
-
-        assert!(
-            report_context.length() == 2,
-            E_INVALID_REPORT_CONTEXT_LENGTH
-        );
-
-        let config_digest = report_context[0];
-        assert!(
-            config_digest.length() == 32,
-            E_INVALID_CONFIG_DIGEST_LENGTH
-        );
-
-        let sequence_bytes = report_context[1];
-        assert!(
-            sequence_bytes.length() == 32,
-            E_INVALID_SEQUENCE_LENGTH
-        );
-
-        assert!(
-            config_digest == config_info.config_digest,
-            E_CONFIG_DIGEST_MISMATCH
-        );
-
-        let plugin_transmitters = ocr3_state.transmitter_oracles[ocr_plugin_type];
-        assert!(
-            plugin_transmitters.contains(&transmitter),
-            E_UNAUTHORIZED_TRANSMITTER
-        );
-
-        if (config_info.is_signature_verification_enabled) {
-            assert!(
-                signatures.length() == (config_info.big_f as u64) + 1,
-                E_WRONG_NUMBER_OF_SIGNATURES
-            );
-
-            let hashed_report = hash_report(report, config_digest, sequence_bytes);
-            let plugin_signers = &ocr3_state.signer_oracles[ocr_plugin_type];
-            verify_signature(plugin_signers, hashed_report, signatures);
-        };
-
-        let sequence_number: u64 = deserialize_sequence_bytes(sequence_bytes);
-        event::emit(Transmitted { ocr_plugin_type, config_digest, sequence_number });
+    public fun ocr_plugin_type_execution(): u8 {
+        OCR_PLUGIN_TYPE_EXECUTION
     }
 
     public fun set_ocr3_config(
@@ -405,6 +184,235 @@ module ccip_offramp::ocr3_base {
         event::emit(
             ConfigSet { ocr_plugin_type, config_digest, signers, transmitters, big_f }
         );
+    }
+
+    fun assign_signer_oracles(
+        signer_oracles: &mut Table<u8, vector<UnvalidatedPublicKey>>,
+        ocr_plugin_type: u8,
+        signers: &vector<vector<u8>>
+    ) {
+        signers.do_ref!(
+            |signer| {
+                address::assert_non_zero_address_vector(signer);
+            }
+        );
+        assert!(!has_duplicates(signers), E_REPEATED_SIGNERS);
+
+        let validated_signers = signers.map_ref!(
+            |signer| {
+                assert!(
+                    validate_public_key(signer),
+                    E_COULD_NOT_VALIDATE_SIGNER_KEY
+                );
+                UnvalidatedPublicKey { bytes: *signer }
+            }
+        );
+
+        if (signer_oracles.contains(ocr_plugin_type)) {
+            let _old_value = signer_oracles.remove(ocr_plugin_type);
+        };
+        signer_oracles.add(ocr_plugin_type, validated_signers);
+    }
+
+    fun assign_transmitter_oracles(
+        transmitter_oracles: &mut Table<u8, vector<address>>,
+        ocr_plugin_type: u8,
+        transmitters: &vector<address>
+    ) {
+        transmitters.do_ref!(
+            |transmitter_addr| {
+                address::assert_non_zero_address(*transmitter_addr);
+            }
+        );
+        assert!(
+            !has_duplicates(transmitters),
+            E_REPEATED_TRANSMITTERS
+        );
+
+        if (transmitter_oracles.contains(ocr_plugin_type)) {
+            let _old_value = transmitter_oracles.remove(ocr_plugin_type);
+        };
+        transmitter_oracles.add(ocr_plugin_type, *transmitters);
+    }
+
+    public(package) fun transmit(
+        ocr3_state: &OCR3BaseState,
+        transmitter: address,
+        ocr_plugin_type: u8,
+        report_context: vector<vector<u8>>,
+        report: vector<u8>,
+        signatures: vector<vector<u8>>,
+        _ctx: &TxContext
+    ) {
+        let ocr_config = ocr3_state.ocr3_configs.borrow(ocr_plugin_type);
+        let config_info = &ocr_config.config_info;
+
+        assert!(
+            report_context.length() == 2,
+            E_INVALID_REPORT_CONTEXT_LENGTH
+        );
+
+        let config_digest = report_context[0];
+        assert!(
+            config_digest.length() == 32,
+            E_INVALID_CONFIG_DIGEST_LENGTH
+        );
+
+        let sequence_bytes = report_context[1];
+        assert!(
+            sequence_bytes.length() == 32,
+            E_INVALID_SEQUENCE_LENGTH
+        );
+
+        assert!(
+            config_digest == config_info.config_digest,
+            E_CONFIG_DIGEST_MISMATCH
+        );
+
+        let plugin_transmitters = ocr3_state.transmitter_oracles[ocr_plugin_type];
+        assert!(
+            plugin_transmitters.contains(&transmitter),
+            E_UNAUTHORIZED_TRANSMITTER
+        );
+
+        if (config_info.is_signature_verification_enabled) {
+            assert!(
+                signatures.length() == (config_info.big_f as u64) + 1,
+                E_WRONG_NUMBER_OF_SIGNATURES
+            );
+
+            let hashed_report = hash_report(report, config_digest, sequence_bytes);
+            let plugin_signers = &ocr3_state.signer_oracles[ocr_plugin_type];
+            verify_signature(plugin_signers, hashed_report, signatures);
+        };
+
+        let sequence_number: u64 = deserialize_sequence_bytes(sequence_bytes);
+        event::emit(Transmitted { ocr_plugin_type, config_digest, sequence_number });
+    }
+
+    public fun latest_config_details(
+        state: &OCR3BaseState, ocr_plugin_type: u8
+    ): OCRConfig {
+        assert!(
+            state.ocr3_configs.contains(ocr_plugin_type),
+            E_CONFIG_NOT_SET
+        );
+        let ocr_config = &state.ocr3_configs[ocr_plugin_type];
+        *ocr_config
+    }
+
+    // equivalent of uint64(uint256(reportContext[1]))
+    public fun deserialize_sequence_bytes(
+        sequence_bytes: vector<u8>
+    ): u64 {
+        let len = sequence_bytes.length();
+        let mut result: u64 = 0;
+        let mut i = len - 8;
+        while (i < len) {
+            result = (result << 8) + (sequence_bytes[i] as u64);
+            i = i + 1;
+        };
+        result
+    }
+
+    fun hash_report(
+        mut report: vector<u8>, config_digest: vector<u8>, sequence_bytes: vector<u8>
+    ): vector<u8> {
+        report.append(config_digest);
+        report.append(sequence_bytes);
+        hash::blake2b256(&report)
+    }
+
+    fun verify_signature(
+        signers: &vector<UnvalidatedPublicKey>,
+        hashed_report: vector<u8>,
+        signatures: vector<vector<u8>>
+    ) {
+        let mut seen = bit_vector::new(signers.length());
+        vector::do_ref!(
+            &signatures,
+            |signature_bytes| {
+                let public_key =
+                    new_unvalidated_public_key_from_bytes(slice(signature_bytes, 0, 32));
+                let (exists, index) = vector::index_of(signers, &public_key);
+                assert!(exists, E_UNAUTHORIZED_SIGNER);
+                assert!(
+                    !bit_vector::is_index_set(&seen, index),
+                    E_NON_UNIQUE_SIGNATURES
+                );
+                bit_vector::set(&mut seen, index);
+                let signature = slice(signature_bytes, 32, 64);
+
+                let verified =
+                    ed25519::ed25519_verify(
+                        &signature, &public_key.bytes, &hashed_report
+                    );
+                assert!(verified, E_INVALID_SIGNATURE);
+            }
+        );
+    }
+
+    fun has_duplicates<T>(a: &vector<T>): bool {
+        let len = a.length();
+        let mut i = 0;
+
+        while (i < len) {
+            let mut j = i + 1;
+            while (j < len) {
+                if (&a[i] == &a[j]) {
+                    return true
+                };
+                j = j + 1;
+            };
+            i = i + 1;
+        };
+        false
+    }
+
+    public(package) fun config_signers(ocr_config: &OCRConfig): vector<vector<u8>> {
+        ocr_config.signers
+    }
+
+    public(package) fun config_transmitters(ocr_config: &OCRConfig): vector<address> {
+        ocr_config.transmitters
+    }
+
+    fun validate_public_key(pubkey: &vector<u8>): bool {
+        pubkey.length() == 32
+    }
+
+    fun new_unvalidated_public_key_from_bytes(bytes: vector<u8>): UnvalidatedPublicKey {
+        assert!(bytes.length() == PUBLIC_KEY_NUM_BYTES, E_WRONG_PUBKEY_SIZE);
+        UnvalidatedPublicKey { bytes }
+    }
+
+    public fun latest_config_details_fields(
+        ocr_config: OCRConfig
+    ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
+        (
+            ocr_config.config_info.config_digest,
+            ocr_config.config_info.big_f,
+            ocr_config.config_info.n,
+            ocr_config.config_info.is_signature_verification_enabled,
+            ocr_config.signers,
+            ocr_config.transmitters
+        )
+    }
+
+    /// Returns a new vector containing `len` elements from `vec`
+    /// starting at index `start`. Panics if `start + len` exceeds the vector length.
+    fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
+        let vec_len = vec.length();
+        // Ensure we have enough elements for the slice.
+        assert!(start + len <= vec_len, E_OUT_OF_BYTES);
+        let mut new_vec = vector::empty<T>();
+        let mut i = start;
+        while (i < start + len) {
+            // Copy each element from the original vector into the new vector.
+            new_vec.push_back(vec[i]);
+            i = i + 1;
+        };
+        new_vec
     }
 
     #[test]

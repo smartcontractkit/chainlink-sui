@@ -51,7 +51,10 @@ fun test_svm_extra_args_v1_encoding() {
     let allow_ooo = true;
     let token_receiver =
         x"1234567890123456789012345678901234567890123456789012345678901234";
-    let accounts = vector[vector[1, 2, 3], vector[4, 5, 6, 7, 8]];
+    let accounts = vector[
+        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1a",
+        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1b"
+    ];
 
     let encoded =
         client::encode_svm_extra_args_v1(
@@ -67,19 +70,6 @@ fun test_svm_extra_args_v1_encoding() {
     assert!(tag == client::svm_extra_args_v1_tag());
 
     // Verify minimum size (tag + u32 + u64 + bool + token_receiver + accounts)
-    assert!(encoded.length() >= 4 + 4 + 8 + 1 + 32);
-}
-
-#[test]
-fun test_svm_token_receiver_padding() {
-    // Test with short token receiver - should be padded to 32 bytes
-    let short_receiver = vector[1, 2, 3];
-    let encoded =
-        client::encode_svm_extra_args_v1(
-            100u32, 0u64, false, short_receiver, vector[]
-        );
-
-    // Should not fail and should include the padded receiver
     assert!(encoded.length() >= 4 + 4 + 8 + 1 + 32);
 }
 
@@ -145,7 +135,7 @@ fun test_empty_accounts_svm_args() {
     assert!(encoded.length() >= 4 + 4 + 8 + 1 + 32);
 
     // Test with single account
-    let single_account = vector[vector[0xaa, 0xbb, 0xcc]];
+    let single_account = vector[x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1a"];
     let encoded_with_account =
         client::encode_svm_extra_args_v1(
             compute_units,
@@ -169,89 +159,13 @@ fun test_svm_args_rejects_long_token_receiver() {
     client::encode_svm_extra_args_v1(100, 0, false, long_receiver, vector[]);
 }
 
-
-#[test]
-fun test_pad_svm_address_empty() {
-    let mut addr = vector[];
-    client::test_pad_svm_address(&mut addr);
-    assert!(addr.length() == 32, 0);
-    // Verify all bytes are zeros
-    let mut i = 0;
-    while (i < 32) {
-        assert!(*addr.borrow(i) == 0, 1);
-        i = i + 1;
-    };
-}
-
-#[test]
-fun test_pad_svm_address_single_byte() {
-    let mut addr = vector[0x42];
-    client::test_pad_svm_address(&mut addr);
-    assert!(addr.length() == 32, 0);
-    // First 31 bytes should be zero, last byte should be 0x42
-    let mut i = 0;
-    while (i < 31) {
-        assert!(*addr.borrow(i) == 0, 1);
-        i = i + 1;
-    };
-    assert!(*addr.borrow(31) == 0x42, 2);
-}
-
-#[test]
-fun test_pad_svm_address_partial() {
-    let mut addr = vector[0x01, 0x02, 0x03, 0x04];
-    client::test_pad_svm_address(&mut addr);
-    assert!(addr.length() == 32, 0);
-    // First 28 bytes should be zero, last 4 bytes should be the original data\
-    let mut i = 0;
-    while (i < 28) {
-        assert!(*addr.borrow(i) == 0, 1);
-        i = i + 1;
-    };
-    assert!(*addr.borrow(28) == 0x01, 2);
-    assert!(*addr.borrow(29) == 0x02, 3);
-    assert!(*addr.borrow(30) == 0x03, 4);
-    assert!(*addr.borrow(31) == 0x04, 5);
-}
-
-#[test]
-fun test_pad_svm_address_exact_32_bytes() {
-    let mut addr = vector[];
-    let mut i = 0;
-    while (i < 32) {
-        addr.push_back((i as u8));
-        i = i + 1;
-    };
-    let original_addr = addr;
-    client::test_pad_svm_address(&mut addr);
-    assert!(addr.length() == 32, 0);
-    // Should remain unchanged since it's already 32 bytes
-    assert!(addr == original_addr, 1);
-}
-
-#[test]
-fun test_pad_svm_address_31_bytes() {
-    let mut addr = vector[];
-    let mut i = 0;
-    while (i < 31) {
-        addr.push_back((i as u8));
-        i = i + 1;
-    };
-    client::test_pad_svm_address(&mut addr);
-    assert!(addr.length() == 32, 0);
-    // First byte should be 0 (padding), rest should be the original data
-    assert!(*addr.borrow(0) == 0, 1);
-    i = 1;
-    while (i < 32) {
-        assert!(*addr.borrow(i) == ((i - 1) as u8), 2);
-        i = i + 1;
-    };
-}
-
 #[test]
 fun test_encode_svm_extra_args_v1_basic() {
-    let token_receiver = vector[0x01, 0x02, 0x03];
-    let accounts = vector[vector[0x04, 0x05], vector[0x06, 0x07, 0x08]];
+    let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1c";
+    let accounts = vector[
+        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1a",
+        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1b"
+    ];
 
     let result =
         client::encode_svm_extra_args_v1(
@@ -275,7 +189,7 @@ fun test_encode_svm_extra_args_v1_basic() {
 
 #[test]
 fun test_encode_svm_extra_args_v1_empty_accounts() {
-    let token_receiver = vector[0xFF];
+    let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1d";
     let accounts = vector[];
 
     let result =
@@ -314,26 +228,6 @@ fun test_encode_svm_extra_args_v1_32_byte_addresses() {
             accounts
         );
 
-    // Should succeed without padding since addresses are already 32 bytes
-    let tag_len = client::svm_extra_args_v1_tag().length();
-    assert!(result.length() > tag_len, 0);
-}
-
-#[test]
-fun test_encode_svm_extra_args_v1_mixed_address_lengths() {
-    let token_receiver = vector[0x11]; // 1 byte
-    let accounts = vector[
-        vector[0x22, 0x33], // 2 bytes
-        vector[], // 0 bytes (empty)
-        vector[0x44, 0x55, 0x66, 0x77, 0x88] // 5 bytes
-    ];
-
-    let result =
-        client::encode_svm_extra_args_v1(
-            750u32, 0u64, false, token_receiver, accounts
-        );
-
-    // All addresses should be padded to 32 bytes internally
     let tag_len = client::svm_extra_args_v1_tag().length();
     assert!(result.length() > tag_len, 0);
 }
@@ -356,14 +250,8 @@ fun test_encode_svm_extra_args_v1_invalid_token_receiver_length() {
 #[expected_failure(abort_code = client::EInvalidSVMAccountLength)]
 fun test_encode_svm_extra_args_v1_invalid_account_length() {
     // This test should fail because we're creating an account that's longer than 32 bytes
-    let token_receiver = vector[0x01];
-    let mut long_account = vector[];
-    let mut i = 0;
-    while (i < 33) { // 33 bytes - too long
-        long_account.push_back((i as u8));
-        i = i + 1;
-    };
-    let accounts = vector[long_account];
+    let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1e";
+    let accounts = vector[x"aaaaaaaa8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1f"];
 
     client::encode_svm_extra_args_v1(1000u32, 0u64, true, token_receiver, accounts);
 }

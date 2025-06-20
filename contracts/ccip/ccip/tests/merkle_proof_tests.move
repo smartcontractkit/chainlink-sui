@@ -4,7 +4,7 @@ module ccip::merkle_proof_test;
 use ccip::merkle_proof;
 
 #[test]
-#[expected_failure(abort_code = merkle_proof::E_VECTOR_LENGTH_MISMATCH)]
+#[expected_failure(abort_code = merkle_proof::EVectorLengthMismatch)]
 public fun vector_u8_gt_failed() {
     let a = vector[1, 2, 3];
     let b = vector[1, 2];
@@ -19,7 +19,7 @@ public fun vector_u8_gt() {
 }
 
 #[test]
-public fun merkle_root_simple_1() {
+public fun merkle_root_1() {
     let leaf = x"a20c0244af79697a4ef4e2378c9d5d14cbd49ddab3427b12594c7cfa67a7f240";
     let proofs = vector[
         x"7b43f2a9158ed1c62f904d7e8b195a3cb467e5821d9f46a0c873b25df831e994",
@@ -56,14 +56,14 @@ public fun merkle_root_simple_1() {
         x"65ac31f84ab56d238940e71cd692580fa47b4d853cf61ab27e09d45b832c970e",
         x"e259ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e39"
     ];
-    let res: vector<u8> = merkle_proof::merkle_root_simple(leaf, proofs);
+    let res: vector<u8> = merkle_proof::merkle_root(leaf, proofs);
 
     let hash_bytes = x"96a04377b175ac7aadd2e6babf30ef75b6df6d671f4709f765e65bbbd7b71339";
     assert!(res == hash_bytes);
 }
 
 #[test]
-public fun merkle_root_simple_2() {
+public fun merkle_root_2() {
     let leaf = x"8beab00297b94bf079fcd5893b0a33ebf6b0ce862cd06be07c87d3c63e1c4acf";
 
     let proofs = vector[
@@ -102,7 +102,7 @@ public fun merkle_root_simple_2() {
         x"e259ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e39"
     ];
 
-    let res: vector<u8> = merkle_proof::merkle_root_simple(leaf, proofs);
+    let res: vector<u8> = merkle_proof::merkle_root(leaf, proofs);
 
     let hash_bytes = x"397b8848147b5cfb6ea44a8c79515dac64bbcb8013925cce11df06432565e354";
 

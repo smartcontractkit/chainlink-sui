@@ -162,7 +162,7 @@ public fun encode_right_padded_bytes32() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_INVALID_BYTES32_LENGTH)]
+#[expected_failure(abort_code = eth_abi::EInvalidBytes32Length)]
 public fun encode_right_padded_bytes32_failed() {
     let mut v = vector[];
     let value: vector<u8> = vector[
@@ -210,7 +210,7 @@ public fun encode_selector() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_INVALID_SELECTOR)]
+#[expected_failure(abort_code = eth_abi::EInvalidSelector)]
 public fun encode_selector_failed() {
     let mut v = vector[];
     let value: vector<u8> = vector[0x01, 0x02, 0x03, 0x04, 0x05];
@@ -233,7 +233,7 @@ public fun encode_packed_bytes32() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_INVALID_BYTES32_LENGTH)]
+#[expected_failure(abort_code = eth_abi::EInvalidBytes32Length)]
 public fun encode_packed_bytes32_failed() {
     let mut v = vector[];
     let value: vector<u8> = vector[
@@ -318,7 +318,7 @@ public fun decode_address() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_OUT_OF_BYTES)]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
 public fun decode_address_failed() {
     let addr: vector<u8> =  vector[
         0x00, 0x00, 0x00, 0x00, 0xAD, 0xa8, 0x0b, 0x6a,
@@ -344,7 +344,7 @@ public fun decode_u256_value() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_INVALID_U256_LENGTH)]
+#[expected_failure(abort_code = eth_abi::EInvalidU256Length)]
 public fun decode_u256_value_failed() {
     let encoded_uint256: vector<u8> = vector[
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
@@ -402,7 +402,7 @@ public fun decode_bool() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_INVALID_BOOL)]
+#[expected_failure(abort_code = eth_abi::EInvalidBool)]
 public fun decode_bool_failed_invalid_bool() {
     let data: vector<u8> =  vector[
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -417,7 +417,7 @@ public fun decode_bool_failed_invalid_bool() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_OUT_OF_BYTES)]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
 public fun decode_bool_failed_out_of_bytes() {
     let data: vector<u8> =  vector[
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -447,7 +447,7 @@ public fun decode_bytes32() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_OUT_OF_BYTES)]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
 public fun decode_bytes32_failed() {
     let data: vector<u8> =  vector[
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -513,7 +513,7 @@ public fun decode_bytes_long() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_OUT_OF_BYTES)]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
 public fun decode_bytes_failed() {
     let data: vector<u8> = vector[
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -529,7 +529,7 @@ public fun decode_bytes_failed() {
 }
 
 #[test]
-#[expected_failure(abort_code = eth_abi::E_OUT_OF_BYTES)]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
 public fun decode_bytes_failed_padding() {
     let data: vector<u8> = vector[
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
