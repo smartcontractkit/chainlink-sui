@@ -1,5 +1,4 @@
-    module ccip_token_pool::token_pool {
-
+module ccip_token_pool::token_pool {
     use sui::clock::Clock;
     use sui::coin::CoinMetadata;
     use sui::event;
@@ -108,7 +107,7 @@
         }
     }
 
-    // TODO: is this ccip_router?
+    // TODO: is this needed?
     public fun get_router(): address {
         @ccip_router
     }
@@ -366,16 +365,6 @@
         event::emit(LockedOrBurned { remote_chain_selector, local_token: state.coin_metadata, amount });
     }
 
-    public fun emit_rebalancer_set(
-        state: &mut TokenPoolState, previous_rebalancer: address, rebalancer: address
-    ) {
-        event::emit(RebalancerSet {
-            local_token: state.coin_metadata,
-            previous_rebalancer,
-            rebalancer,
-        });
-    }
-
     public fun emit_liquidity_added(
         state: &mut TokenPoolState, provider: address, amount: u64
     ) {
@@ -386,6 +375,16 @@
         state: &mut TokenPoolState, provider: address, amount: u64
     ) {
         event::emit(LiquidityRemoved { local_token: state.coin_metadata, provider, amount });
+    }
+
+    public fun emit_rebalancer_set(
+        state: &mut TokenPoolState, previous_rebalancer: address, rebalancer: address
+    ) {
+        event::emit(RebalancerSet {
+            local_token: state.coin_metadata,
+            previous_rebalancer,
+            rebalancer,
+        });
     }
 
     // ================================================================
@@ -467,6 +466,17 @@
 
             return remote_amount * multiplier
         }
+    }
+
+    public fun calculate_release_or_mint_amount(
+        state: &TokenPoolState,
+        source_pool_data: vector<u8>,
+        source_amount: u64
+    ): u64 {
+        let local_decimals = state.get_local_decimals();
+        let remote_decimals = parse_remote_decimals(source_pool_data, local_decimals);
+
+        calculate_local_amount(source_amount as u256, remote_decimals, local_decimals)
     }
 
     // ================================================================

@@ -448,7 +448,7 @@ module ccip_onramp::onramp {
             dest_chain_remove_allowed_senders
         );
     }
-    
+
     public fun apply_allowlist_updates_by_admin(
         state: &mut OnRampState,
         dest_chain_selectors: vector<u64>,
@@ -470,7 +470,7 @@ module ccip_onramp::onramp {
             dest_chain_remove_allowed_senders
         );
     }
-    
+
     fun apply_allowlist_updates_internal(
         state: &mut OnRampState,
         dest_chain_selectors: vector<u64>,

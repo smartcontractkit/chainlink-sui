@@ -27,9 +27,9 @@ type IReceiverRegistry interface {
 	TypeAndVersion() bind.IMethod
 	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod
 	UnregisterReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
+	IsRegisteredReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
 	GetReceiverConfig(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
 	GetReceiverConfigFields(rc ReceiverConfig) bind.IMethod
-	IsRegisteredReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
 	GetReceiverModuleAndState(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
@@ -124,6 +124,20 @@ func (c *ReceiverRegistryContract) UnregisterReceiver(ref module_common.CCIPObje
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
+func (c *ReceiverRegistryContract) IsRegisteredReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "receiver_registry", "is_registered_receiver", false, "", "", ref, receiverPackageId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "receiver_registry", "is_registered_receiver", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
 func (c *ReceiverRegistryContract) GetReceiverConfig(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
@@ -144,20 +158,6 @@ func (c *ReceiverRegistryContract) GetReceiverConfigFields(rc ReceiverConfig) bi
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "receiver_registry", "get_receiver_config_fields", false, "", "", rc)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "receiver_registry", "get_receiver_config_fields", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ReceiverRegistryContract) IsRegisteredReceiver(ref module_common.CCIPObjectRef, receiverPackageId string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "receiver_registry", "is_registered_receiver", false, "", "", ref, receiverPackageId)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "receiver_registry", "is_registered_receiver", err)
 		}
 
 		return ptb, nil

@@ -37,13 +37,14 @@ type ITokenPool interface {
 	RemoveRemotePool(state TokenPoolState, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
 	EmitReleasedOrMinted(state TokenPoolState, recipient string, amount uint64, remoteChainSelector uint64) bind.IMethod
 	EmitLockedOrBurned(state TokenPoolState, amount uint64, remoteChainSelector uint64) bind.IMethod
-	EmitRebalancerSet(state TokenPoolState, previousRebalancer string, rebalancer string) bind.IMethod
 	EmitLiquidityAdded(state TokenPoolState, provider string, amount uint64) bind.IMethod
 	EmitLiquidityRemoved(state TokenPoolState, provider string, amount uint64) bind.IMethod
+	EmitRebalancerSet(state TokenPoolState, previousRebalancer string, rebalancer string) bind.IMethod
 	GetLocalDecimals(pool TokenPoolState) bind.IMethod
 	EncodeLocalDecimals(typeArgs string, coinMetadata bind.Object) bind.IMethod
 	ParseRemoteDecimals(sourcePoolData []byte, localDecimals byte) bind.IMethod
 	CalculateLocalAmount(remoteAmount uint256.Int, remoteDecimals byte, localDecimals byte) bind.IMethod
+	CalculateReleaseOrMintAmount(state TokenPoolState, sourcePoolData []byte, sourceAmount uint64) bind.IMethod
 	SetChainRateLimiterConfig(clock bind.Object, state TokenPoolState, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod
 	GetAllowlistEnabled(state TokenPoolState) bind.IMethod
 	SetAllowlistEnabled(state TokenPoolState, enabled bool) bind.IMethod
@@ -333,20 +334,6 @@ func (c *TokenPoolContract) EmitLockedOrBurned(state TokenPoolState, amount uint
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenPoolContract) EmitRebalancerSet(state TokenPoolState, previousRebalancer string, rebalancer string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_rebalancer_set", false, "", "", state, previousRebalancer, rebalancer)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_rebalancer_set", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
 func (c *TokenPoolContract) EmitLiquidityAdded(state TokenPoolState, provider string, amount uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
@@ -367,6 +354,20 @@ func (c *TokenPoolContract) EmitLiquidityRemoved(state TokenPoolState, provider 
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_liquidity_removed", false, "", "", state, provider, amount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_liquidity_removed", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *TokenPoolContract) EmitRebalancerSet(state TokenPoolState, previousRebalancer string, rebalancer string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "emit_rebalancer_set", false, "", "", state, previousRebalancer, rebalancer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "emit_rebalancer_set", err)
 		}
 
 		return ptb, nil
@@ -423,6 +424,20 @@ func (c *TokenPoolContract) CalculateLocalAmount(remoteAmount uint256.Int, remot
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "calculate_local_amount", false, "", "", remoteAmount, remoteDecimals, localDecimals)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "calculate_local_amount", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *TokenPoolContract) CalculateReleaseOrMintAmount(state TokenPoolState, sourcePoolData []byte, sourceAmount uint64) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "calculate_release_or_mint_amount", false, "", "", state, sourcePoolData, sourceAmount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "calculate_release_or_mint_amount", err)
 		}
 
 		return ptb, nil

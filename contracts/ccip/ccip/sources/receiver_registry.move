@@ -116,6 +116,13 @@ public fun unregister_receiver(
     });
 }
 
+// This function checks if a receiver is registered in the registry but not if the type proof matches.
+// this is not needed anymore?
+public fun is_registered_receiver(ref: &CCIPObjectRef, receiver_package_id: address): bool {
+    let registry = state_object::borrow<ReceiverRegistry>(ref);
+    registry.receiver_configs.contains(&receiver_package_id)
+}
+
 public fun get_receiver_config(
     ref: &CCIPObjectRef,
     receiver_package_id: address,
@@ -131,13 +138,6 @@ public fun get_receiver_config(
 
 public fun get_receiver_config_fields(rc: ReceiverConfig): (String, String, address, TypeName) {
     (rc.module_name, rc.function_name, rc.receiver_state_id, rc.proof_typename)
-}
-
-// This function checks if a receiver is registered in the registry but not if the type proof matches.
-// this is not needed anymore?
-public fun is_registered_receiver(ref: &CCIPObjectRef, receiver_package_id: address): bool {
-    let registry = state_object::borrow<ReceiverRegistry>(ref);
-    registry.receiver_configs.contains(&receiver_package_id)
 }
 
 // this will return empty string if the receiver is not registered. this can be called by the PTB to get the module name of the receiver and confirm if this receiver is registered.

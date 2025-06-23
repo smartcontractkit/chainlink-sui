@@ -73,8 +73,7 @@ public fun test_set_config() {
         1,
     );
 
-    let vc = &rmn_remote::get_versioned_config(&ref);
-    let (version, config) = rmn_remote::get_version(vc);
+    let (version, config) = rmn_remote::get_versioned_config(&ref);
 
     assert!(version == 1);
 

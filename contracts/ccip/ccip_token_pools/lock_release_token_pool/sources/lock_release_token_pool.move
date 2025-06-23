@@ -301,9 +301,11 @@ public fun release_or_mint<T>(
 ): osh::ReceiverParams {
     let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
     let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(&receiver_params, index);
-    let local_decimals = pool.token_pool_state.get_local_decimals();
-    let remote_decimals = token_pool::parse_remote_decimals(source_pool_data, local_decimals);
-    let local_amount = token_pool::calculate_local_amount(source_amount as u256, remote_decimals, local_decimals);
+    let local_amount = token_pool::calculate_release_or_mint_amount(
+        &pool.token_pool_state,
+        source_pool_data,
+        source_amount
+    );
 
     token_pool::validate_release_or_mint(
         ref,

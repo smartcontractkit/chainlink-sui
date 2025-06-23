@@ -11,6 +11,9 @@ use ccip::eth_abi;
 use ccip::merkle_proof;
 use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
+const SIGNATURE_NUM_BYTES: u64 = 64;
+const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
+
 public struct RMNRemoteState has key, store {
     id: UID,
     local_chain_selector: u64,
@@ -49,10 +52,6 @@ public struct MerkleRoot has drop {
     merkle_root: vector<u8>
 }
 
-public struct VersionedConfig has copy, drop {
-    version: u32,
-    config: Config
-}
 
 public struct ConfigSet has copy, drop {
     version: u32,
@@ -66,9 +65,6 @@ public struct Cursed has copy, drop {
 public struct Uncursed has copy, drop {
     subjects: vector<vector<u8>>
 }
-
-const SIGNATURE_NUM_BYTES: u64 = 64;
-const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
 
 const E_ALREADY_INITIALIZED: u64 = 1;
 const E_ALREADY_CURSED: u64 = 2;
@@ -241,40 +237,6 @@ public fun verify(
     true
 }
 
-/// Recover the Ethereum address using the signature and message, assuming the signature was
-/// produced over the Keccak256 hash of the message.
-/// this implementation is based on the SUI example: https://github.com/MystenLabs/sui/blob/main/examples/move/crypto/ecdsa_k1/sources/example.move#L62
-fun ecrecover_to_eth_address(
-    mut signature: vector<u8>,
-    msg: vector<u8>,
-): vector<u8> {
-    // no normalization is done bc the signature only includes 64 bytes.
-    // add a 0 byte to the end of the signature to make it 65 bytes.
-    signature.push_back(0);
-    // Ethereum signature is produced with Keccak256 hash of the message, so the last param is
-    // 0.
-    let pubkey = ecdsa_k1::secp256k1_ecrecover(&signature, &msg, 0);
-    let uncompressed = ecdsa_k1::decompress_pubkey(&pubkey);
-
-    // Take the last 64 bytes of the uncompressed pubkey.
-    let mut uncompressed_64 = vector[];
-    let mut i = 1;
-    while (i < 65) {
-        uncompressed_64.push_back(uncompressed[i]);
-        i = i + 1;
-    };
-
-    // Take the last 20 bytes of the hash of the 64-bytes uncompressed pubkey.
-    let hashed = sui::hash::keccak256(&uncompressed_64);
-    let mut addr = vector[];
-    let mut i = 12;
-    while (i < 32) {
-        addr.push_back(hashed[i]);
-        i = i + 1;
-    };
-    addr
-}
-
 // TODO: figure out what this does bc this won't work here. caller needs to know ccip package id already
 public fun get_arm(): address {
     @ccip
@@ -366,27 +328,10 @@ public fun set_config(
     event::emit(ConfigSet { version: new_config_count, config: new_config });
 }
 
-public fun get_versioned_config(ref: &CCIPObjectRef): VersionedConfig {
-    let state = state_object::borrow<RMNRemoteState>(ref);
+public fun get_versioned_config(ref: &CCIPObjectRef): (u32, Config) {
+    let state   = state_object::borrow<RMNRemoteState>(ref);
 
-    VersionedConfig { version: state.config_count, config: state.config }
-}
-
-public fun get_versioned_config_fields(vc: VersionedConfig): (u32, vector<u8>, vector<vector<u8>>, vector<u64>, u64) {
-    let digest = vc.config.rmn_home_contract_config_digest;
-    let signers = vc.config.signers;
-    let f_sign = vc.config.f_sign;
-    let mut pub_keys = vector[];
-    let mut node_indexes = vector[];
-    signers.do_ref!(
-        |signer| {
-            let signer: &Signer = signer;
-            pub_keys.push_back(signer.onchain_public_key);
-            node_indexes.push_back(signer.node_index);
-        }
-    );
-
-    (vc.version, digest, pub_keys, node_indexes, f_sign)
+    (state.config_count, state.config)
 }
 
 public fun get_local_chain_selector(ref: &CCIPObjectRef): u64 {
@@ -484,27 +429,41 @@ public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {
     is_cursed(ref, subject)
 }
 
-public fun get_active_signers(ref: &CCIPObjectRef): vector<vector<u8>> {
-    let state = state_object::borrow<RMNRemoteState>(ref);
+/// Recover the Ethereum address using the signature and message, assuming the signature was
+/// produced over the Keccak256 hash of the message.
+/// this implementation is based on the SUI example: https://github.com/MystenLabs/sui/blob/main/examples/move/crypto/ecdsa_k1/sources/example.move#L62
+fun ecrecover_to_eth_address(
+    mut signature: vector<u8>,
+    msg: vector<u8>,
+): vector<u8> {
+    // no normalization is done bc the signature only includes 64 bytes.
+    // add a 0 byte to the end of the signature to make it 65 bytes.
+    signature.push_back(0);
+    // Ethereum signature is produced with Keccak256 hash of the message, so the last param is
+    // 0.
+    let pubkey = ecdsa_k1::secp256k1_ecrecover(&signature, &msg, 0);
+    let uncompressed = ecdsa_k1::decompress_pubkey(&pubkey);
 
-    let mut active_signers = vector[];
-    state.signers.keys().do_ref!(
-        |signer| {
-            let signer: vector<u8> = *signer;
-            if (*state.signers.get(&signer)) {
-                active_signers.push_back(signer);
-            }
-        }
-    );
-    active_signers
+    // Take the last 64 bytes of the uncompressed pubkey.
+    let mut uncompressed_64 = vector[];
+    let mut i = 1;
+    while (i < 65) {
+        uncompressed_64.push_back(uncompressed[i]);
+        i = i + 1;
+    };
+
+    // Take the last 20 bytes of the hash of the 64-bytes uncompressed pubkey.
+    let hashed = sui::hash::keccak256(&uncompressed_64);
+    let mut addr = vector[];
+    let mut i = 12;
+    while (i < 32) {
+        addr.push_back(hashed[i]);
+        i = i + 1;
+    };
+    addr
 }
 
 #[test_only]
 public fun get_config(config: &Config): (vector<u8>, vector<Signer>, u64) {
     (config.rmn_home_contract_config_digest, config.signers, config.f_sign)
-}
-
-#[test_only]
-public fun get_version(vc: &VersionedConfig): (u32, Config) {
-    (vc.version, vc.config)
 }
