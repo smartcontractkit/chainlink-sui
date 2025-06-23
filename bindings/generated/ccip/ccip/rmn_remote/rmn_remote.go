@@ -27,7 +27,6 @@ type IRmnRemote interface {
 	TypeAndVersion() bind.IMethod
 	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, localChainSelector uint64) bind.IMethod
 	Verify(ref module_common.CCIPObjectRef, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) bind.IMethod
-	GetArm() bind.IMethod
 	SetConfig(ref module_common.CCIPObjectRef, param module_common.OwnerCap, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) bind.IMethod
 	GetVersionedConfig(ref module_common.CCIPObjectRef) bind.IMethod
 	GetLocalChainSelector(ref module_common.CCIPObjectRef) bind.IMethod
@@ -152,20 +151,6 @@ func (c *RmnRemoteContract) Verify(ref module_common.CCIPObjectRef, offRampState
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "verify", false, "", "", ref, offRampStateAddress, merkleRootSourceChainSelectors, merkleRootOnRampAddresses, merkleRootMinSeqNrs, merkleRootMaxSeqNrs, merkleRootValues, signatures)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "verify", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *RmnRemoteContract) GetArm() bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "rmn_remote", "get_arm", false, "", "")
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "rmn_remote", "get_arm", err)
 		}
 
 		return ptb, nil

@@ -27,7 +27,7 @@ public struct ReceiverParams {
     source_chain_selector: u64,
 }
 
-// the cap to be stored in the offramp state to control the updates to ReceiverParams
+/// the cap to be stored in the offramp state to control the updates to ReceiverParams
 public struct DestTransferCap has key, store {
     id: UID,
 }
@@ -70,8 +70,8 @@ public fun get_source_chain_selector(receiver_params: &ReceiverParams): u64 {
     receiver_params.source_chain_selector
 }
 
-// add a new token transfer to the ReceiverParams object, which is done within offramp.
-// this is permissioned by the DestTransferCap, which is stored in the offramp state.
+/// add a new token transfer to the ReceiverParams object, which is done within offramp.
+/// this is permissioned by the DestTransferCap, which is stored in the offramp state.
 public fun add_dest_token_transfer(
     _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
@@ -98,9 +98,9 @@ public fun add_dest_token_transfer(
     );
 }
 
-// if this CCIP message requires calling a function on a receiver in SUI, this function
-// should be called to populate the message field in the ReceiverParams object.
-// this is permissioned by the DestTransferCap, which is stored in the offramp state.
+/// if this CCIP message requires calling a function on a receiver in SUI, this function
+/// should be called to populate the message field in the ReceiverParams object.
+/// this is permissioned by the DestTransferCap, which is stored in the offramp state.
 public fun populate_message(
     _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
@@ -128,8 +128,8 @@ public fun get_token_param_data(
     )
 }
 
-// only the token pool with a proper type proof can mark the corresponding token transfer as completed
-// and set the local amount.
+/// only the token pool with a proper type proof can mark the corresponding token transfer as completed
+/// and set the local amount.
 public fun complete_token_transfer<T, TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut receiver_params: ReceiverParams,
@@ -166,7 +166,7 @@ public fun complete_token_transfer<T, TypeProof: drop>(
     receiver_params
 }
 
-// called by ccip receiver directly, permissioned by the type proof of the receiver.
+/// called by ccip receiver directly, permissioned by the type proof of the receiver.
 public fun extract_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut receiver_params: ReceiverParams,
@@ -187,8 +187,8 @@ public fun extract_any2sui_message<TypeProof: drop>(
     (message, receiver_params)
 }
 
-// deconstruct the ReceiverParams object and evaluate the token transfers are completed
-// and the message is extracted.
+/// deconstruct the ReceiverParams object and evaluate the token transfers are completed
+/// and the message is extracted.
 public fun deconstruct_receiver_params(
     _: &DestTransferCap,
     receiver_params: ReceiverParams,

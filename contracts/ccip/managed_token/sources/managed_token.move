@@ -1,3 +1,13 @@
+/// this module provides the functionality to:
+/// 1. store the treasury cap object within the token state
+/// 2. store the deny cap object if presented
+/// 3. provide the functionality to issue MintCap objects and configure its allowance
+/// 4. provide the functionality to mint and burn the token
+/// 5. provide the functionality to blocklist and unblocklist addresses
+/// 6. provide the functionality to pause and unpause the token
+/// 7. provide the functionality to destroy the token
+/// 8. provide the functionality to get the owner of the token
+/// 9. provide the functionality to get the total supply of the token
 module managed_token::managed_token;
 
 use std::string::{Self, String};
@@ -30,7 +40,7 @@ public struct TokenState<phantom T> has key, store {
 
 /// An object representing the ability to mint up to an allowance
 /// specified in the Treasury.
-/// The privilege can be revoked by the master minter.
+/// The privilege can be revoked by the token owner.
 public struct MintCap<phantom T> has key, store {
     id: UID,
 }
@@ -133,8 +143,6 @@ fun initialize_internal<T: drop>(
     transfer::public_transfer(owner_cap, ctx.sender());
 }
 
-/// Gets the allowance of a MintCap object.
-/// Returns 0 if the MintCap object is unauthorized.
 public fun mint_allowance<T>(state: &TokenState<T>, mint_cap: ID): (u64, bool) {
     if (!state.is_authorized_mint_cap(mint_cap)) return (0, false);
     state.mint_allowances_map.get(&mint_cap).allowance_info()
@@ -142,7 +150,6 @@ public fun mint_allowance<T>(state: &TokenState<T>, mint_cap: ID): (u64, bool) {
 
 /// Returns the total amount of Coin<T> in circulation.
 public fun total_supply<T>(state: &TokenState<T>): u64 {
-    // state.borrow_treasury_cap().total_supply()
     state.treasury_cap.total_supply()
 }
 
@@ -151,28 +158,11 @@ public fun is_authorized_mint_cap<T>(state: &TokenState<T>, id: ID): bool {
     state.mint_allowances_map.contains(&id)
 }
 
-/// Creates a MintCap object.
-/// - Only callable by the master minter.
-/// - Only callable if the Treasury object is compatible with this package.
-fun create_mint_cap<T>(
-    // state: &mut TokenState<T>,
-    ctx: &mut TxContext,
-): MintCap<T> {
-    // treasury.assert_is_compatible();
-    // assert!(treasury.roles.master_minter() == ctx.sender(), ENotMasterMinter);
-    let mint_cap = MintCap { id: object::new(ctx) };
-    event::emit(MintCapCreated<T> {
-        mint_cap: object::id(&mint_cap)
-    });
-    mint_cap
-}
-
 /// Convenience function that
-/// 1. creates a MintCap
+/// 1. creates a MintCap and its allowance object
 /// 2. transfers the MintCap object to a minter
 ///
-/// - Only callable by the master minter.
-/// - Only callable if the Treasury object is compatible with this package.
+/// - Only callable by the token owner.
 public fun configure_new_minter<T>(
     state: &mut TokenState<T>,
     _: &OwnerCap<T>,
@@ -181,7 +171,11 @@ public fun configure_new_minter<T>(
     is_unlimited: bool,
     ctx: &mut TxContext,
 ) {
-    let mint_cap = create_mint_cap<T>(ctx);
+    let mint_cap = MintCap<T> { id: object::new(ctx) };
+    event::emit(MintCapCreated<T> {
+        mint_cap: object::id(&mint_cap)
+    });
+
     let mut mint_allowance = mint_allowance::new<T>();
     mint_allowance.set(allowance, is_unlimited);
     state.mint_allowances_map.insert(object::id(&mint_cap), mint_allowance);
@@ -197,9 +191,8 @@ public fun configure_new_minter<T>(
 }
 
 /// Increment allowance for a MintCap
-/// - Only callable by the MintCap's controller.
+/// - Only callable by the token owner.
 /// - Only callable when not paused.
-/// - Only callable if the Treasury object is compatible with this package.
 public fun increment_mint_allowance<T>(
     state: &mut TokenState<T>,
     _: &OwnerCap<T>,
@@ -208,8 +201,6 @@ public fun increment_mint_allowance<T>(
     allowance_increment: u64,
     _ctx: &TxContext,
 ) {
-    // treasury.assert_is_compatible();
-
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(allowance_increment > 0, EZeroAmount);
     assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
@@ -225,23 +216,22 @@ public fun increment_mint_allowance<T>(
     });
 }
 
-/// Increment allowance for a MintCap
-/// - Only callable by the MintCap's controller.
+/// Set the unlimited bool for a MintCap's allowance
+/// - Only callable by the token owner.
 /// - Only callable when not paused.
-/// - Only callable if the Treasury object is compatible with this package.
 public fun set_unlimited_mint_allowances<T>(
     state: &mut TokenState<T>,
-    _: &OwnerCap<T>,
+    owner_cap: &OwnerCap<T>,
     mint_cap_id: ID,
     deny_list: &DenyList,
+    is_unlimited: bool,
     _ctx: &TxContext,
 ) {
-    // treasury.assert_is_compatible();
-
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
 
-    state.mint_allowances_map.get_mut(&mint_cap_id).set(0, true);
+    state.mint_allowances_map.get_mut(&mint_cap_id).set(0, is_unlimited);
 
     event::emit(MinterUnlimitedAllowanceSet<T> {
         mint_cap: mint_cap_id,
@@ -260,7 +250,6 @@ public fun get_all_mint_caps<T>(
 /// - Only callable when not paused.
 /// - Only callable if minter is not blocklisted.
 /// - Only callable if recipient is not blocklisted.
-/// - Only callable if the Treasury object is compatible with this package.
 public fun mint_and_transfer<T>(
     state: &mut TokenState<T>,
     mint_cap: &MintCap<T>,
@@ -269,8 +258,6 @@ public fun mint_and_transfer<T>(
     recipient: address,
     ctx: &mut TxContext
 ) {
-    // treasury.assert_is_compatible();
-
     validate_mint(state, deny_list, mint_cap, amount, recipient, ctx);
 
     state.treasury_cap.mint_and_transfer(amount, recipient, ctx);
@@ -291,8 +278,6 @@ public fun mint<T>(
     recipient: address,
     ctx: &mut TxContext
 ): Coin<T> {
-    // treasury.assert_is_compatible();
-
     validate_mint(state, deny_list, mint_cap, amount, recipient, ctx);
 
     let coin: Coin<T> = state.treasury_cap.mint(amount, ctx);
@@ -333,7 +318,6 @@ fun validate_mint<T>(
 /// - Only callable by a minter.
 /// - Only callable when not paused.
 /// - Only callable if minter is not blocklisted.
-/// - Only callable if the Treasury object is compatible with this package.
 public fun burn<T>(
     state: &mut TokenState<T>,
     mint_cap: &MintCap<T>,
@@ -342,8 +326,6 @@ public fun burn<T>(
     from: address,
     ctx: &TxContext,
 ) {
-    // treasury.assert_is_compatible();
-
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(!is_blocklisted<T>(deny_list, ctx.sender()), EDeniedAddress);
     let mint_cap_id = object::id(mint_cap);
@@ -361,6 +343,9 @@ public fun burn<T>(
     });
 }
 
+/// Blocklists an address.
+/// - Only callable by the token owner.
+/// - the address must not be blocklisted already
 public fun blocklist<T>(
     state: &mut TokenState<T>,
     owner_cap: &OwnerCap<T>,
@@ -369,19 +354,18 @@ public fun blocklist<T>(
     ctx: &mut TxContext
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-    // treasury.assert_is_compatible();
 
     if (!is_blocklisted<T>(deny_list, addr)) {
         coin::deny_list_v2_add<T>(deny_list, borrow_deny_cap_mut(state), addr, ctx);
+        event::emit(Blocklisted<T> {
+            address: addr,
+        })
     };
-    event::emit(Blocklisted<T> {
-        address: addr,
-    })
 }
 
 /// Unblocklists an address.
-/// - Only callable by the blocklister.
-/// - Only callable if the Treasury object is compatible with this package.
+/// - Only callable by the token owner.
+/// - the address must be blocklisted already
 public fun unblocklist<T>(
     state: &mut TokenState<T>,
     owner_cap: &OwnerCap<T>,
@@ -390,20 +374,17 @@ public fun unblocklist<T>(
     ctx: &mut TxContext
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-    // treasury.assert_is_compatible();
 
     if (is_blocklisted<T>(deny_list, addr)) {
         coin::deny_list_v2_remove<T>(deny_list, borrow_deny_cap_mut(state), addr, ctx);
+        event::emit(Unblocklisted<T> {
+            address: addr
+        })
     };
-    event::emit(Unblocklisted<T> {
-        address: addr
-    })
 }
 
-
 /// Triggers stopped state; pause all transfers.
-/// - Only callable by the pauser.
-/// - Only callable if the Treasury object is compatible with this package.
+/// - Only callable by the token owner.
 public fun pause<T>(
     state: &mut TokenState<T>,
     owner_cap: &OwnerCap<T>,
@@ -411,19 +392,17 @@ public fun pause<T>(
     ctx: &mut TxContext
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-    // treasury.assert_is_compatible();
 
     assert!(state.deny_cap.is_some(), EDenyCapNotFound);
 
     if (!is_paused<T>(deny_list)) {
         coin::deny_list_v2_enable_global_pause(deny_list, borrow_deny_cap_mut(state), ctx);
+        event::emit(Paused<T> {});
     };
-    event::emit(Paused<T> {});
 }
 
 /// Restores normal state; unpause all transfers.
-/// - Only callable by the pauser.
-/// - Only callable if the Treasury object is compatible with this package.
+/// - Only callable by the token owner.
 public fun unpause<T>(
     state: &mut TokenState<T>,
     owner_cap: &OwnerCap<T>,
@@ -431,7 +410,6 @@ public fun unpause<T>(
     ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-    // treasury.assert_is_compatible();
 
     if (is_paused<T>(deny_list)) {
         coin::deny_list_v2_disable_global_pause(deny_list, borrow_deny_cap_mut(state), ctx);
@@ -467,20 +445,17 @@ public fun destroy_managed_token<T>(
     ownable::destroy_ownable_state(ownable_state, ctx);
     ownable::destroy_owner_cap(owner_cap, ctx);
 
-    // TODO: instead of returning the treasury cap, we can simply send it to ctx sender
     (treasury_cap, deny_cap)
 }
 
 /// Returns an immutable reference of the TreasuryCap.
 public fun borrow_treasury_cap<T>(owner_cap: &OwnerCap<T>, state: &TokenState<T>): &TreasuryCap<T> {
-    // state.assert_treasury_cap_exists();
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     &state.treasury_cap
 }
 
 /// Returns a mutable reference of the DenyCap.
 fun borrow_deny_cap_mut<T>(state: &mut TokenState<T>): &mut DenyCapV2<T> {
-    // state.assert_treasury_cap_exists();
     assert!(state.deny_cap.is_some(), EDenyCapNotFound);
     state.deny_cap.borrow_mut()
 }

@@ -180,7 +180,7 @@ public fun test_init(ctx: &mut TxContext) {
 }
 
 #[test_only]
-public(package) fun create(ctx: &mut TxContext): (OwnerCap, CCIPObjectRef) {
+public fun create(ctx: &mut TxContext): (OwnerCap, CCIPObjectRef) {
     let ref = CCIPObjectRef {
         id: object::new(ctx),
         current_owner: ctx.sender(),

@@ -1,3 +1,7 @@
+/// this module will store the treasury cap object within the token pool state
+/// this will disable any burning/minting of the token outside of the token pool
+/// if this is not desired, consider using the lock release token pool or the
+/// combination of the managed token and managed token pool
 module burn_mint_token_pool::burn_mint_token_pool;
 
 use std::string::{Self, String};

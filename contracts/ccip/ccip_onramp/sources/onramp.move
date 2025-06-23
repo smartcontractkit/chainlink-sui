@@ -143,8 +143,8 @@ module ccip_onramp::onramp {
     const ENonceManagerCapExists: u64 = 12;
     const ESourceTransferCapExists: u64 = 13;
     const EUnknownFunction: u64 = 14;
-    const ECannotSendZeroTokens: u64 = 14;
-    const EZeroChainSelector: u64 = 14;
+    const ECannotSendZeroTokens: u64 = 15;
+    const EZeroChainSelector: u64 = 16;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -334,7 +334,7 @@ module ccip_onramp::onramp {
         dest_chain_selector: u64,
         receiver: vector<u8>,
         data: vector<u8>,
-        token_addresses: vector<address>,
+        token_addresses: vector<address>, // the token's coin metadata object ids
         token_amounts: vector<u64>,
         fee_token: &CoinMetadata<T>,
         extra_args: vector<u8>
@@ -358,7 +358,7 @@ module ccip_onramp::onramp {
         dest_chain_selector: u64,
         receiver: vector<u8>,
         data: vector<u8>,
-        token_addresses: vector<address>,
+        token_addresses: vector<address>, // the token's coin metadata object ids
         token_amounts: vector<u64>,
         fee_token: address,
         extra_args: vector<u8>

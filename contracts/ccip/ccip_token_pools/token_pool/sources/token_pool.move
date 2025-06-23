@@ -284,13 +284,13 @@ module ccip_token_pool::token_pool {
     // |                         Validation                           |
     // ================================================================
 
-    // Returns the remote token as bytes
+    /// Returns the remote token as bytes
     public fun validate_lock_or_burn(
         ref: &state_object::CCIPObjectRef,
         clock: &Clock,
         state: &mut TokenPoolState,
         sender: address,
-        remote_chain_selector: u64,
+        remote_chain_selector: u64, // the destination chain selector
         local_amount: u64
     ): vector<u8> {
         assert!(!rmn_remote::is_cursed_u128(ref, (remote_chain_selector as u128)), ECursedChain);
@@ -318,9 +318,9 @@ module ccip_token_pool::token_pool {
         ref: &state_object::CCIPObjectRef,
         clock: &Clock,
         state: &mut TokenPoolState,
-        remote_chain_selector: u64,
-        dest_token_address: address,
-        source_pool_address: vector<u8>,
+        remote_chain_selector: u64, // the source chain selector
+        dest_token_address: address, // the token's coin metadata object id
+        source_pool_address: vector<u8>, // the source pool's address
         local_amount: u64
     ) {
         let configured_token = get_token(state);
@@ -395,7 +395,7 @@ module ccip_token_pool::token_pool {
         pool.local_decimals
     }
 
-    // for a token, CoinMetadata is supposed to be shared
+    /// for a token, CoinMetadata is supposed to be shared
     public fun encode_local_decimals<T>(coin_metadata: &CoinMetadata<T>): vector<u8> {
         let decimals = coin_metadata.get_decimals();
         let mut ret = vector[];

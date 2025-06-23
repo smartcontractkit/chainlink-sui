@@ -1,3 +1,6 @@
+/// this module must be used in conjunction with the managed token module
+/// it will store the mint cap object within the token pool state
+/// the mint cap object is used to mint/burn the token on the managed token module
 module managed_token_pool::managed_token_pool;
 
 use std::string::{Self, String};
@@ -195,7 +198,7 @@ public fun apply_allowlist_updates<T>(
 // |                 Exposing token_pool functions                |
 // ================================================================
 
-// this now returns the address of coin metadata
+/// returns the coin metadata object id of the token
 public fun get_token<T>(state: &ManagedTokenPoolState<T>): address {
     token_pool::get_token(&state.token_pool_state)
 }
@@ -290,6 +293,10 @@ public fun lock_or_burn<T>(
     )
 }
 
+/// after releasing the token, this function will mark this particular token transfer as complete
+/// and set the local amount of this token transfer according to the balance of coin object.
+/// a token pool cannot update token transfer item for other tokens simply by changing the
+/// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     clock: &Clock,

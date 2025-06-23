@@ -237,11 +237,6 @@ public fun verify(
     true
 }
 
-// TODO: figure out what this does bc this won't work here. caller needs to know ccip package id already
-public fun get_arm(): address {
-    @ccip
-}
-
 public fun set_config(
     ref: &mut CCIPObjectRef,
     _: &OwnerCap,

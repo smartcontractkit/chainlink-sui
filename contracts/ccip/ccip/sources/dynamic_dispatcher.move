@@ -10,7 +10,7 @@ const EInvalidDestinationChainSelector: u64 = 2;
 
 public struct DYNAMIC_DISPATCHER has drop {}
 
-// the cap to be stored in the onramp state to control the source token transfer
+/// the cap to be stored in the onramp state to control the source token transfer
 public struct SourceTransferCap has key, store {
     id: UID,
 }
@@ -40,8 +40,8 @@ fun init(_witness: DYNAMIC_DISPATCHER, ctx: &mut TxContext) {
     transfer::transfer(source_cap, ctx.sender());
 }
 
-// create a new TokenParams object. this should generally be the first step in the PTB flow
-// from onramp side.
+/// create a new TokenParams object. this should generally be the first step in the PTB flow
+/// from onramp side.
 public fun create_token_params(destination_chain_selector: u64): TokenParams {
     assert!(destination_chain_selector != 0, EInvalidDestinationChainSelector);
     TokenParams {
@@ -54,9 +54,9 @@ public fun get_destination_chain_selector(token_params: &TokenParams): u64 {
     token_params.destination_chain_selector
 }
 
-// only the token pool with a proper type proof can add the corresponding token transfer.
-// this is not permissioned by a cap because this function is used by token pools in txs
-// signed by a CCIP user.
+/// only the token pool with a proper type proof can add the corresponding token transfer.
+/// this is not permissioned by a cap because this function is used by token pools in txs
+/// signed by a CCIP user.
 public fun add_source_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut token_params: TokenParams,
@@ -82,8 +82,8 @@ public fun add_source_token_transfer<TypeProof: drop>(
     token_params
 }
 
-// deconstruct the TokenParams object to get the destination chain selector and the list of source token transfers.
-// this is permissioned by the source transfer cap, which is stored in the onramp state.
+/// deconstruct the TokenParams object to get the destination chain selector and the list of source token transfers.
+/// this is permissioned by the source transfer cap, which is stored in the onramp state.
 public fun deconstruct_token_params(_: &SourceTransferCap, token_params: TokenParams): (u64, vector<SourceTokenTransfer>) {
     let TokenParams {
         destination_chain_selector,

@@ -573,9 +573,9 @@ public fun get_validated_fee(
     dest_chain_selector: u64,
     receiver: vector<u8>,
     data: vector<u8>,
-    local_token_addresses: vector<address>,
+    local_token_addresses: vector<address>, // the token's coin metadata object ids
     local_token_amounts: vector<u64>,
-    fee_token: address,
+    fee_token: address, // the fee token's coin metadata object id
     extra_args: vector<u8>
 ): u64 {
     let state = state_object::borrow<FeeQuoterState>(ref);

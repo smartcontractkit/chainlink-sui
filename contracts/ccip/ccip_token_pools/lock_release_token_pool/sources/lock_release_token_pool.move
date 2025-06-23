@@ -24,6 +24,7 @@ public struct LockReleaseTokenPoolState has key {
     id: UID,
     token_pool_state: TokenPoolState,
     coin_store: Bag, // use Bag to avoid type param
+    /// the rebalancer is the address that can manage liquidity of the token pool
     rebalancer: address,
 }
 
@@ -67,6 +68,9 @@ public fun initialize<T: drop>(
     );
 }
 
+/// this is used by the ccip admin to initialize the token pool
+/// it verifies that the tx signer is the CCIP admin
+/// it does not require a treasury cap object
 public fun initialize_by_ccip_admin<T: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
@@ -130,7 +134,7 @@ fun initialize_internal<T: drop>(
 // |                 Exposing token_pool functions                |
 // ================================================================
 
-// this now returns the address of coin metadata
+/// returns the coin metadata object id of the token
 public fun get_token(state: &LockReleaseTokenPoolState): address {
     token_pool::get_token(&state.token_pool_state)
 }
@@ -289,6 +293,10 @@ public fun lock_or_burn<T>(
     )
 }
 
+/// after releasing the token, this function will mark this particular token transfer as complete
+/// and set the local amount of this token transfer according to the balance of coin object.
+/// a token pool cannot update token transfer item for other tokens simply by changing the
+/// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     clock: &Clock,
@@ -475,8 +483,8 @@ public fun get_balance<T>(state: &LockReleaseTokenPoolState): u64 {
     stored_coin.value()
 }
 
-// destroy the lock release token pool state and the owner cap, return the remaining balance to the owner
-// this should only be called after unregistering the pool from the token admin registry
+/// destroy the lock release token pool state and the owner cap, return the remaining balance to the owner
+/// this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(
     state: LockReleaseTokenPoolState,
     owner_cap: OwnerCap,
