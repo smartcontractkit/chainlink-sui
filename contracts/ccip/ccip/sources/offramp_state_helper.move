@@ -14,32 +14,39 @@ const ETokenTransferAlreadyCompleted: u64 = 2;
 const ETokenPoolAddressMismatch: u64 = 3;
 const ETypeProofMismatch: u64 = 4;
 const ETokenTypeMismatch: u64 = 5;
-const E_TOKEN_TRANSFER_FAILED: u64 = 6;
-const E_CCIP_RECEIVE_FAILED: u64 = 7;
+const ETokenTransferFailed: u64 = 6;
+const ECCIPReceiveFailed: u64 = 7;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
 public struct ReceiverParams {
+    // if this CCIP message contains token transfers, this vector will be non-empty.
     params: vector<DestTokenTransfer>,
+    // if this CCIP message needs to call a function on the receiver, this will be populated.
     message: Option<client::Any2SuiMessage>,
     source_chain_selector: u64,
 }
 
+// the cap to be stored in the offramp state to control the updates to ReceiverParams
 public struct DestTransferCap has key, store {
     id: UID,
 }
 
 public struct DestTokenTransfer has copy, drop {
-    // sender: vector<u8>,
     receiver: address,
+    // the amount of token to transfer, denoted from the source chain
     source_amount: u64,
+    // the amount of token to unlock/mint, denoted from the destination chain (SUI)
     local_amount: u64,
-    // source_chain_selector: u64,
+    // the token's coin metadata object id on SUI
     dest_token_address: address,
+    // the token pool state object id on SUI
     token_pool_address: address,
+    // the source pool address on the source chain
     source_pool_address: vector<u8>,
     source_pool_data: vector<u8>,
     offchain_token_data: vector<u8>,
+    // whether the token transfer has been completed
     completed: bool
 }
 
@@ -63,6 +70,8 @@ public fun get_source_chain_selector(receiver_params: &ReceiverParams): u64 {
     receiver_params.source_chain_selector
 }
 
+// add a new token transfer to the ReceiverParams object, which is done within offramp.
+// this is permissioned by the DestTransferCap, which is stored in the offramp state.
 public fun add_dest_token_transfer(
     _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
@@ -76,21 +85,22 @@ public fun add_dest_token_transfer(
 ) {
     receiver_params.params.push_back(
         DestTokenTransfer {
-            // sender: message.sender,
             receiver,
             source_amount,
             local_amount: 0, // to be calculated by the destination token pool
-            // source_chain_selector: message.header.source_chain_selector,
             dest_token_address,
             token_pool_address,
             source_pool_address,
             source_pool_data,
             offchain_token_data: offchain_data,
-            completed: false,
+            completed: false, // to be set to true by the destination token pool
         }
     );
 }
 
+// if this CCIP message requires calling a function on a receiver in SUI, this function
+// should be called to populate the message field in the ReceiverParams object.
+// this is permissioned by the DestTransferCap, which is stored in the offramp state.
 public fun populate_message(
     _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
@@ -119,36 +129,8 @@ public fun get_token_param_data(
 }
 
 // only the token pool with a proper type proof can mark the corresponding token transfer as completed
-public fun complete_token_transfer<TypeProof: drop>(
-    ref: &CCIPObjectRef,
-    mut receiver_params: ReceiverParams,
-    index: u64,
-    local_amount: u64,
-    _: TypeProof,
-): ReceiverParams {
-    assert!(
-        index < receiver_params.params.length(),
-        EWrongIndexInReceiverParams,
-    );
-
-    let param = receiver_params.params[index];
-    assert!(!param.completed, ETokenTransferAlreadyCompleted);
-    let (token_pool_package_id, _, _, _, _, _, type_proof) = registry::get_token_config(ref, param.dest_token_address);
-    assert!(
-        param.token_pool_address == token_pool_package_id,
-        ETokenPoolAddressMismatch,
-    );
-    let proof_tn = type_name::get<TypeProof>();
-    let proof_tn_str = type_name::into_string(proof_tn);
-    assert!(type_proof == proof_tn_str, ETypeProofMismatch);
-
-    receiver_params.params[index].completed = true;
-    receiver_params.params[index].local_amount = local_amount;
-
-    receiver_params
-}
-
-public fun complete_token_transfer_new<T, TypeProof: drop>(
+// and set the local amount.
+public fun complete_token_transfer<T, TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut receiver_params: ReceiverParams,
     index: u64,
@@ -184,7 +166,7 @@ public fun complete_token_transfer_new<T, TypeProof: drop>(
     receiver_params
 }
 
-// called by ccip receiver directly, or by PTB to extract the message and send to the receiver
+// called by ccip receiver directly, permissioned by the type proof of the receiver.
 public fun extract_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut receiver_params: ReceiverParams,
@@ -205,6 +187,8 @@ public fun extract_any2sui_message<TypeProof: drop>(
     (message, receiver_params)
 }
 
+// deconstruct the ReceiverParams object and evaluate the token transfers are completed
+// and the message is extracted.
 public fun deconstruct_receiver_params(
     _: &DestTransferCap,
     receiver_params: ReceiverParams,
@@ -219,13 +203,10 @@ public fun deconstruct_receiver_params(
     let mut i = 0;
     let number_of_tokens_in_msg = params.length();
     while (i < number_of_tokens_in_msg) {
-        assert!(params[i].completed, E_TOKEN_TRANSFER_FAILED);
+        assert!(params[i].completed, ETokenTransferFailed);
         i = i + 1;
     };
 
     // make sure the any2sui message is extracted
-    assert!(
-        message.is_none(),
-        E_CCIP_RECEIVE_FAILED
-    );
+    assert!(message.is_none(), ECCIPReceiveFailed);
 }

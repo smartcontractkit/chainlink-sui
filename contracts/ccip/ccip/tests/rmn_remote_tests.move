@@ -32,7 +32,7 @@ public fun test_initialize() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_ZERO_VALUE_NOT_ALLOWED)]
+#[expected_failure(abort_code = rmn_remote::EZeroValueNotAllowed)]
 public fun test_initialize_zero_chain_selector() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -43,7 +43,7 @@ public fun test_initialize_zero_chain_selector() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_ALREADY_INITIALIZED)]
+#[expected_failure(abort_code = rmn_remote::EAlreadyInitialized)]
 public fun test_initialize_already_initialized() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -86,7 +86,7 @@ public fun test_set_config() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_INVALID_DIGEST_LENGTH)]
+#[expected_failure(abort_code = rmn_remote::EInvalidDigestLength)]
 public fun test_set_config_invalid_digest_length() {
     let( mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -109,7 +109,7 @@ public fun test_set_config_invalid_digest_length() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_ZERO_VALUE_NOT_ALLOWED)]
+#[expected_failure(abort_code = rmn_remote::EZeroValueNotAllowed)]
 public fun test_set_config_zero_digest() {
     let(mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -132,7 +132,7 @@ public fun test_set_config_zero_digest() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_NOT_ENOUGH_SIGNERS)]
+#[expected_failure(abort_code = rmn_remote::ENotEnoughSigners)]
 public fun test_set_config_not_enough_signers() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -155,7 +155,7 @@ public fun test_set_config_not_enough_signers() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_SIGNERS_MISMATCH)]
+#[expected_failure(abort_code = rmn_remote::ESignersMismatch)]
 public fun test_set_config_signers_mismatch() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -177,7 +177,7 @@ public fun test_set_config_signers_mismatch() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_INVALID_SIGNER_ORDER)]
+#[expected_failure(abort_code = rmn_remote::EInvalidSignerOrder)]
 public fun test_set_config_invalid_signer_order() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -216,7 +216,7 @@ public fun test_curse() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_INVALID_SUBJECT_LENGTH)]
+#[expected_failure(abort_code = rmn_remote::EInvalidSubjectLength)]
 public fun test_curse_invalid_subject_length() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -228,7 +228,7 @@ public fun test_curse_invalid_subject_length() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::E_ALREADY_CURSED)]
+#[expected_failure(abort_code = rmn_remote::EAlreadyCursed)]
 public fun test_curse_already_cursed() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();

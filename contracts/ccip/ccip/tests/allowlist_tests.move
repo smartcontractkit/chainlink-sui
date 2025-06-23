@@ -48,7 +48,7 @@ public fun init_non_empty_is_non_empty_and_enabled() {
 }
 
 #[test]
-#[expected_failure(abort_code = allowlist::E_ALLOWLIST_NOT_ENABLED, location = allowlist)]
+#[expected_failure(abort_code = allowlist::EAllowlistNotEnabled, location = allowlist)]
 public fun cannot_add_to_disabled_allowlist() {
     let mut scenario = test_scenario::begin(@0x1);
 

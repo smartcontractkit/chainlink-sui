@@ -19,10 +19,8 @@ public struct OwnerCap has key, store {
     state_id: ID,
 }
 
-// TODO: ownership model
 public struct BurnMintTokenPoolState<phantom T> has key {
     id: UID,
-    // ownable_state: ownable::OwnableState,
     token_pool_state: TokenPoolState,
     treasury_cap: TreasuryCap<T>,
 }
@@ -319,7 +317,7 @@ public fun release_or_mint<T>(
         remote_chain_selector,
     );
 
-    osh::complete_token_transfer_new(
+    osh::complete_token_transfer(
         ref,
         receiver_params,
         index,

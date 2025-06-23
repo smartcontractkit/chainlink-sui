@@ -15,7 +15,7 @@ public struct NonceManagerState has key, store {
     outbound_nonces: Table<u64, Table<address, u64>>,
 }
 
-const E_ALREADY_INITIALIZED: u64 = 1;
+const EAlreadyInitialized: u64 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"NonceManager 1.6.0")
@@ -23,7 +23,7 @@ public fun type_and_version(): String {
 
 #[allow(lint(self_transfer))]
 public fun initialize(ref: &mut CCIPObjectRef, _: &OwnerCap, ctx: &mut TxContext) {
-    assert!(!state_object::contains<NonceManagerState>(ref), E_ALREADY_INITIALIZED);
+    assert!(!state_object::contains<NonceManagerState>(ref), EAlreadyInitialized);
 
     let state = NonceManagerState {
         id: object::new(ctx),

@@ -17,7 +17,7 @@ public struct AllowlistAdd has copy, drop {
     sender: address,
 }
 
-const E_ALLOWLIST_NOT_ENABLED: u64 = 1;
+const EAllowlistNotEnabled: u64 = 1;
 
 public fun new(allowlist: vector<address>, ctx: &mut TxContext): AllowlistState {
     AllowlistState {
@@ -70,7 +70,7 @@ public fun apply_allowlist_updates(
     };
 
     if (!adds.is_empty()) {
-        assert!(state.allowlist_enabled, E_ALLOWLIST_NOT_ENABLED);
+        assert!(state.allowlist_enabled, EAllowlistNotEnabled);
 
         i = 0;
         len = adds.length();

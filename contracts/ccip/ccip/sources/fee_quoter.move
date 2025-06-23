@@ -78,7 +78,7 @@ const VAL_1E18: u256 = 1_000_000_000_000_000_000;
 
 // Link has 8 decimals on Sui and 18 decimals on it's native chain, Ethereum. We want to emit
 // the fee in juels (1e18) denomination for consistency across chains. This means we multiply
-// the fee by 1e8 on Sui before we emit it in the event.
+// the fee by 1e10 on Sui before we emit it in the event.
 const LOCAL_8_TO_18_DECIMALS_LINK_MULTIPLIER: u256 = 10_000_000_000;
 
 public struct FeeQuoterState has key, store {
@@ -189,41 +189,41 @@ public struct PremiumMultiplierWeiPerEthUpdated has copy, drop {
     premium_multiplier_wei_per_eth: u64
 }
 
-const E_ALREADY_INITIALIZED: u64 = 1;
-const E_OUT_OF_BOUND: u64 = 2;
-const E_UNKNOWN_DEST_CHAIN_SELECTOR: u64 = 3;
-const E_UNKNOWN_TOKEN: u64 = 4;
-const E_DEST_CHAIN_NOT_ENABLED: u64 = 5;
-const E_TOKEN_UPDATE_MISMATCH: u64 = 6;
-const E_GAS_UPDATE_MISMATCH: u64 = 7;
-const E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH: u64 = 8;
-const E_FEE_TOKEN_NOT_SUPPORTED: u64 = 9;
-const E_ZERO_TOKEN_PRICE: u64 = 10;
-const E_UNKNOWN_CHAIN_FAMILY_SELECTOR: u64 = 11;
-const E_STALE_GAS_PRICE: u64 = 12;
-const E_MESSAGE_TOO_LARGE: u64 = 13;
-const E_UNSUPPORTED_NUMBER_OF_TOKENS: u64 = 14;
-const E_INVALID_EVM_ADDRESS: u64 = 15;
-const E_INVALID_32BYTES_ADDRESS: u64 = 16;
-const E_FEE_TOKEN_COST_TOO_HIGH: u64 = 17;
-const E_MESSAGE_GAS_LIMIT_TOO_HIGH: u64 = 18;
-const E_EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE: u64 = 19;
-const E_INVALID_EXTRA_ARGS_TAG: u64 = 20;
-const E_INVALID_EXTRA_ARGS_DATA: u64 = 21;
-const E_INVALID_TOKEN_RECEIVER: u64 = 22;
-const E_MESSAGE_COMPUTE_UNIT_LIMIT_TOO_HIGH: u64 = 23;
-const E_MESSAGE_FEE_TOO_HIGH: u64 = 24;
-const E_SOURCE_TOKEN_DATA_TOO_LARGE: u64 = 25;
-const E_INVALID_DEST_CHAIN_SELECTOR: u64 = 26;
-const E_INVALID_GAS_LIMIT: u64 = 27;
-const E_INVALID_CHAIN_FAMILY_SELECTOR: u64 = 28;
-const E_TO_TOKEN_AMOUNT_TOO_LARGE: u64 = 29;
-const E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS: u64 = 30;
-const E_INVALID_SVM_EXTRA_ARGS_WRITABLE_BITMAP: u64 = 31;
-const E_INVALID_FEE_RANGE: u64 = 32;
-const E_INVALID_DEST_BYTES_OVERHEAD: u64 = 33;
-const E_INVALID_SVM_RECEIVER_LENGTH: u64 = 34;
-const E_INVALID_SVM_ACCOUNT_LENGTH: u64 = 35;
+const EAlreadyInitialized: u64 = 1;
+const EOutOfBound: u64 = 2;
+const EUnknownDestChainSelector: u64 = 3;
+const EUnknownToken: u64 = 4;
+const EDestChainNotEnabled: u64 = 5;
+const ETokenUpdateMismatch: u64 = 6;
+const EGasUpdateMismatch: u64 = 7;
+const ETokenTransferFeeConfigMismatch: u64 = 8;
+const EFeeTokenNotSupported: u64 = 9;
+const EZeroTokenPrice: u64 = 10;
+const EUnknownChainFamilySelector: u64 = 11;
+const EStaleGasPrice: u64 = 12;
+const EMessageTooLarge: u64 = 13;
+const EUnsupportedNumberOfTokens: u64 = 14;
+const EInvalidEvmAddress: u64 = 15;
+const EInvalid32BytesAddress: u64 = 16;
+const EFeeTokenCostTooHigh: u64 = 17;
+const EMessageGasLimitTooHigh: u64 = 18;
+const EExtraArgOutOfOrderExecutionMustBeTrue: u64 = 19;
+const EInvalidExtraArgsTag: u64 = 20;
+const EInvalidExtraArgsData: u64 = 21;
+const EInvalidTokenReceiver: u64 = 22;
+const EMessageComputeUnitLimitTooHigh: u64 = 23;
+const EMessageFeeTooHigh: u64 = 24;
+const ESourceTokenDataTooLarge: u64 = 25;
+const EInvalidDestChainSelector: u64 = 26;
+const EInvalidGasLimit: u64 = 27;
+const EInvalidChainFamilySelector: u64 = 28;
+const EToTokenAmountTooLarge: u64 = 29;
+const ETooManySvmExtraArgsAccounts: u64 = 30;
+const EInvalidSvmExtraArgsWritableBitmap: u64 = 31;
+const EInvalidFeeRange: u64 = 32;
+const EInvalidDestBytesOverhead: u64 = 33;
+const EInvalidSvmReceiverLength: u64 = 34;
+const EInvalidSvmAccountLength: u64 = 35;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -241,7 +241,7 @@ public fun initialize(
 ) {
     assert!(
         !state_object::contains<FeeQuoterState>(ref),
-        E_ALREADY_INITIALIZED
+        EAlreadyInitialized
     );
 
     let state = FeeQuoterState {
@@ -300,7 +300,7 @@ public fun get_token_and_gas_prices(
     );
     assert!(
         dest_chain_config.is_enabled,
-        E_DEST_CHAIN_NOT_ENABLED
+        EDestChainNotEnabled
     );
     let token_price = get_token_price_internal(state, token);
     let gas_price_value =
@@ -420,27 +420,27 @@ public fun apply_token_transfer_fee_config_updates(
     let add_tokens_len = add_tokens.length();
     assert!(
         add_tokens_len == add_min_fee_usd_cents.length(),
-        E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
+        ETokenTransferFeeConfigMismatch
     );
     assert!(
         add_tokens_len == add_max_fee_usd_cents.length(),
-        E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
+        ETokenTransferFeeConfigMismatch
     );
     assert!(
         add_tokens_len == add_deci_bps.length(),
-        E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
+        ETokenTransferFeeConfigMismatch
     );
     assert!(
         add_tokens_len == add_dest_gas_overhead.length(),
-        E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
+        ETokenTransferFeeConfigMismatch
     );
     assert!(
         add_tokens_len == add_dest_bytes_overhead.length(),
-        E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
+        ETokenTransferFeeConfigMismatch
     );
     assert!(
         add_tokens_len == add_is_enabled.length(),
-        E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH
+        ETokenTransferFeeConfigMismatch
     );
 
     let mut i = 0;
@@ -464,11 +464,11 @@ public fun apply_token_transfer_fee_config_updates(
 
         assert!(
             token_transfer_fee_config.min_fee_usd_cents < token_transfer_fee_config.max_fee_usd_cents,
-            E_INVALID_FEE_RANGE
+            EInvalidFeeRange
         );
         assert!(
             token_transfer_fee_config.dest_bytes_overhead >= CCIP_LOCK_OR_BURN_V1_RET_BYTES,
-            E_INVALID_DEST_BYTES_OVERHEAD
+            EInvalidDestBytesOverhead
         );
 
         token_transfer_fee_configs.add(token, token_transfer_fee_config);
@@ -510,11 +510,11 @@ public fun update_prices(
 ) {
     assert!(
         source_tokens.length() == source_usd_per_token.length(),
-        E_TOKEN_UPDATE_MISMATCH
+        ETokenUpdateMismatch
     );
     assert!(
         gas_dest_chain_selectors.length() == gas_usd_per_unit_gas.length(),
-        E_GAS_UPDATE_MISMATCH
+        EGasUpdateMismatch
     );
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -585,12 +585,12 @@ public fun get_validated_fee(
     );
     assert!(
         dest_chain_config.is_enabled,
-        E_DEST_CHAIN_NOT_ENABLED
+        EDestChainNotEnabled
     );
 
     assert!(
         state.fee_tokens.contains(&fee_token),
-        E_FEE_TOKEN_NOT_SUPPORTED
+        EFeeTokenNotSupported
     );
 
     let chain_family_selector = dest_chain_config.chain_family_selector;
@@ -616,13 +616,13 @@ public fun get_validated_fee(
                 local_token_addresses,
             )
         } else {
-            abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
+            abort EUnknownChainFamilySelector
         };
 
     validate_dest_family_address(chain_family_selector, receiver, gas_limit);
 
     let fee_token_price = get_token_price_internal(state, fee_token);
-    assert!(fee_token_price.value > 0, E_ZERO_TOKEN_PRICE);
+    assert!(fee_token_price.value > 0, EZeroTokenPrice);
     let packed_gas_price =
         get_validated_gas_price_internal(state, clock, dest_chain_config, dest_chain_selector);
 
@@ -685,7 +685,7 @@ public fun get_validated_fee(
 
     // we need to convert back to a u64 which is what the fungible asset module uses for amounts.
     assert!(
-        fee_token_cost <= MAX_U64, E_FEE_TOKEN_COST_TOO_HIGH
+        fee_token_cost <= MAX_U64, EFeeTokenCostTooHigh
     );
     fee_token_cost as u64
 }
@@ -732,7 +732,7 @@ fun get_premium_multiplier_wei_per_eth_internal(
 ): u64 {
     assert!(
         state.premium_multiplier_wei_per_eth.contains(token),
-        E_UNKNOWN_TOKEN
+        EUnknownToken
     );
     *state.premium_multiplier_wei_per_eth.borrow(token)
 }
@@ -744,11 +744,11 @@ fun resolve_generic_gas_limit(
         decode_generic_extra_args(dest_chain_config, extra_args);
     assert!(
         gas_limit <= (dest_chain_config.max_per_msg_gas_limit as u256),
-        E_MESSAGE_GAS_LIMIT_TOO_HIGH
+        EMessageGasLimitTooHigh
     );
     assert!(
         !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
-        E_EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE
+        EExtraArgOutOfOrderExecutionMustBeTrue
     );
     gas_limit
 }
@@ -764,7 +764,7 @@ fun resolve_svm_gas_limit(
     local_token_addresses: vector<address>,
 ): u256 {
     let extra_args_len = extra_args.length();
-    assert!(extra_args_len > 0, E_INVALID_EXTRA_ARGS_DATA);
+    assert!(extra_args_len > 0, EInvalidExtraArgsData);
 
     let (
         compute_units,
@@ -778,11 +778,11 @@ fun resolve_svm_gas_limit(
 
     assert!(
         !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
-        E_EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE
+        EExtraArgOutOfOrderExecutionMustBeTrue
     );
     assert!(
         gas_limit <= dest_chain_config.max_per_msg_gas_limit,
-        E_MESSAGE_COMPUTE_UNIT_LIMIT_TOO_HIGH
+        EMessageComputeUnitLimitTooHigh
     );
 
     let accounts_length = accounts.length();
@@ -791,14 +791,14 @@ fun resolve_svm_gas_limit(
     let mut svm_expanded_data_length = data_len;
 
     // The receiver length has not yet been validated before this point.
-    assert!(receiver.length() == 32, E_INVALID_SVM_RECEIVER_LENGTH);
+    assert!(receiver.length() == 32, EInvalidSvmReceiverLength);
     let receiver_uint = eth_abi::decode_u256_value(receiver);
     if (receiver_uint == 0) {
         // When message receiver is zero, CCIP receiver is not invoked on SVM.
         // There should not be additional accounts specified for the receiver.
         assert!(
             accounts_length == 0,
-            E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS
+            ETooManySvmExtraArgsAccounts
         );
     } else {
         // The messaging accounts needed for CCIP receiver on SVM are:
@@ -811,7 +811,7 @@ fun resolve_svm_gas_limit(
 
     let mut i = 0;
     while (i < accounts_length) {
-        assert!(accounts[i].length() == 32, E_INVALID_SVM_ACCOUNT_LENGTH);
+        assert!(accounts[i].length() == 32, EInvalidSvmAccountLength);
         i = i + 1;
     };
 
@@ -819,17 +819,17 @@ fun resolve_svm_gas_limit(
         assert!(
             token_receiver.length() == 32
                     && eth_abi::decode_u256_value(token_receiver) != 0,
-            E_INVALID_TOKEN_RECEIVER
+            EInvalidTokenReceiver
         );
     };
 
     assert!(
         accounts_length <= SVM_EXTRA_ARGS_MAX_ACCOUNTS,
-        E_TOO_MANY_SVM_EXTRA_ARGS_ACCOUNTS
+        ETooManySvmExtraArgsAccounts
     );
     assert!(
         (account_is_writable_bitmap >> (accounts_length as u8)) == 0,
-        E_INVALID_SVM_EXTRA_ARGS_WRITABLE_BITMAP
+        EInvalidSvmExtraArgsWritableBitmap
     );
 
     svm_expanded_data_length = svm_expanded_data_length + tokens_len * SVM_TOKEN_TRANSFER_DATA_OVERHEAD;
@@ -855,7 +855,7 @@ fun resolve_svm_gas_limit(
 
     assert!(
         svm_expanded_data_length <= (dest_chain_config.max_data_bytes as u64),
-        E_MESSAGE_TOO_LARGE
+        EMessageTooLarge
     );
 
     gas_limit as u256
@@ -871,13 +871,13 @@ fun decode_generic_extra_args(
     } else {
         assert!(
             extra_args_len >= 4,
-            E_INVALID_EXTRA_ARGS_DATA
+            EInvalidExtraArgsData
         );
 
         let args_tag = slice(&extra_args, 0, 4);
         assert!(
             args_tag == client::generic_extra_args_v2_tag(),
-            E_INVALID_EXTRA_ARGS_TAG
+            EInvalidExtraArgsTag
         );
 
         let args_data = slice(&extra_args, 4, extra_args_len - 4);
@@ -900,9 +900,9 @@ fun decode_svm_extra_args(
     let args_tag = slice(&extra_args, 0, 4);
     assert!(
         args_tag == client::svm_extra_args_v1_tag(),
-        E_INVALID_EXTRA_ARGS_TAG
+        EInvalidExtraArgsTag
     );
-    assert!(extra_args_len >= 4, E_INVALID_EXTRA_ARGS_DATA);
+    assert!(extra_args_len >= 4, EInvalidExtraArgsData);
     let args_data = slice(&extra_args, 4, extra_args_len - 4);
     decode_svm_extra_args_v1(args_data)
 }
@@ -1048,7 +1048,7 @@ public fun get_token_receiver(
         ) = decode_svm_extra_args(extra_args);
         token_receiver
     } else {
-        abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
+        abort EUnknownChainFamilySelector
     }
 }
 
@@ -1086,7 +1086,7 @@ public fun process_message_args(
     // max_fee_juels_per_msg is in juels denomination for consistency across chains.
     assert!(
         msg_fee_juels <= state.max_fee_juels_per_msg,
-        E_MESSAGE_FEE_TOO_HIGH
+        EMessageFeeTooHigh
     );
 
     let dest_chain_config = get_dest_chain_config_internal(
@@ -1145,17 +1145,17 @@ fun process_chain_family_selector(
         if (is_message_with_token_transfers) {
             assert!(
                 token_receiver.length() == 32,
-                E_INVALID_TOKEN_RECEIVER
+                EInvalidTokenReceiver
             );
             let token_receiver_uint = eth_abi::decode_u256_value(token_receiver);
             assert!(
                 token_receiver_uint > 0,
-                E_INVALID_TOKEN_RECEIVER
+                EInvalidTokenReceiver
             );
         };
         (extra_args, allow_out_of_order_execution)
     } else {
-        abort E_UNKNOWN_CHAIN_FAMILY_SELECTOR
+        abort EUnknownChainFamilySelector
     }
 }
 
@@ -1186,7 +1186,7 @@ fun process_pool_return_data(
         if (dest_pool_data_len > (CCIP_LOCK_OR_BURN_V1_RET_BYTES as u64)) {
             assert!(
                 dest_pool_data_len <= (token_transfer_fee_config.dest_bytes_overhead as u64),
-                E_SOURCE_TOKEN_DATA_TOO_LARGE
+                ESourceTokenDataTooLarge
             );
         };
 
@@ -1222,7 +1222,7 @@ fun get_dest_chain_config_internal(
 ): &DestChainConfig {
     assert!(
         state.dest_chain_configs.contains(dest_chain_selector),
-        E_UNKNOWN_DEST_CHAIN_SELECTOR
+        EUnknownDestChainSelector
     );
     state.dest_chain_configs.borrow(dest_chain_selector)
 }
@@ -1281,11 +1281,11 @@ public fun apply_dest_chain_config_updates(
 
     assert!(
         dest_chain_selector != 0,
-        E_INVALID_DEST_CHAIN_SELECTOR
+        EInvalidDestChainSelector
     );
     assert!(
         default_tx_gas_limit != 0 && default_tx_gas_limit <= max_per_msg_gas_limit,
-        E_INVALID_GAS_LIMIT
+        EInvalidGasLimit
     );
 
     assert!(
@@ -1293,7 +1293,7 @@ public fun apply_dest_chain_config_updates(
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI,
-        E_INVALID_CHAIN_FAMILY_SELECTOR
+        EInvalidChainFamilySelector
     );
 
     let dest_chain_config = DestChainConfig {
@@ -1348,7 +1348,7 @@ fun get_token_price_internal(
 ): TimestampedPrice {
     assert!(
         state.usd_per_token.contains(token),
-        E_UNKNOWN_TOKEN
+        EUnknownToken
     );
     *state.usd_per_token.borrow(token)
 }
@@ -1358,7 +1358,7 @@ fun get_dest_chain_gas_price_internal(
 ): TimestampedPrice {
     assert!(
         state.usd_per_unit_gas_by_dest_chain.contains(dest_chain_selector),
-        E_UNKNOWN_DEST_CHAIN_SELECTOR
+        EUnknownDestChainSelector
     );
     *state.usd_per_unit_gas_by_dest_chain.borrow(dest_chain_selector)
 }
@@ -1374,7 +1374,7 @@ fun get_validated_gas_price_internal(
         let time_passed_secs = clock::timestamp_ms(clock) / 1000 - gas_price.timestamp;
         assert!(
             time_passed_secs <= (dest_chain_config.gas_price_staleness_threshold as u64),
-            E_STALE_GAS_PRICE
+            EStaleGasPrice
         );
     };
     gas_price.value
@@ -1393,7 +1393,7 @@ fun convert_token_amount_internal(
         (from_token_amount as u256) * from_token_price.value / to_token_price.value;
     assert!(
         to_token_amount <= MAX_U64,
-        E_TO_TOKEN_AMOUNT_TOO_LARGE
+        EToTokenAmountTooLarge
     );
     to_token_amount as u64
 }
@@ -1403,11 +1403,11 @@ fun validate_message(
 ) {
     assert!(
         data_len <= (dest_chain_config.max_data_bytes as u64),
-        E_MESSAGE_TOO_LARGE
+        EMessageTooLarge
     );
     assert!(
         tokens_len <= (dest_chain_config.max_number_of_tokens_per_msg as u64),
-        E_UNSUPPORTED_NUMBER_OF_TOKENS
+        EUnsupportedNumberOfTokens
     );
 }
 
@@ -1432,29 +1432,29 @@ fun validate_dest_family_address(
 
 fun validate_evm_address(encoded_address: vector<u8>) {
     let encoded_address_len = encoded_address.length();
-    assert!(encoded_address_len == 32, E_INVALID_EVM_ADDRESS);
+    assert!(encoded_address_len == 32, EInvalidEvmAddress);
 
     let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
 
     assert!(
         encoded_address_uint >= EVM_PRECOMPILE_SPACE,
-        E_INVALID_EVM_ADDRESS
+        EInvalidEvmAddress
     );
     assert!(
         encoded_address_uint <= MAX_U160,
-        E_INVALID_EVM_ADDRESS
+        EInvalidEvmAddress
     );
 }
 
 fun validate_32byte_address(
     encoded_address: vector<u8>, min_value: u256
 ) {
-    assert!(encoded_address.length() == 32, E_INVALID_32BYTES_ADDRESS);
+    assert!(encoded_address.length() == 32, EInvalid32BytesAddress);
 
     let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
     assert!(
         encoded_address_uint >= min_value,
-        E_INVALID_32BYTES_ADDRESS
+        EInvalid32BytesAddress
     );
 }
 
@@ -1476,7 +1476,7 @@ public fun get_token_transfer_fee_config_fields(
 fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
     let vec_len = vec.length();
     // Ensure we have enough elements for the slice.
-    assert!(start + len <= vec_len, E_OUT_OF_BOUND);
+    assert!(start + len <= vec_len, EOutOfBound);
     let mut new_vec = vector::empty<T>();
     let mut i = start;
     while (i < start + len) {

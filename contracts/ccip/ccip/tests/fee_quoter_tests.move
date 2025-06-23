@@ -128,7 +128,7 @@ public fun test_apply_token_transfer_fee_config_updates() {
 }
 
 #[test]
-#[expected_failure(abort_code = fee_quoter::E_TOKEN_TRANSFER_FEE_CONFIG_MISMATCH)]
+#[expected_failure(abort_code = fee_quoter::ETokenTransferFeeConfigMismatch)]
 public fun test_apply_token_transfer_fee_config_updates_config_mismatch() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();

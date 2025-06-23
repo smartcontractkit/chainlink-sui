@@ -14,16 +14,20 @@ use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 // figure out & ask about the vector & map size limit for different structures
 public struct TokenAdminRegistryState has key, store {
     id: UID,
+    // coin metadata object id -> token config
     token_configs: LinkedTable<address, TokenConfig>,
 }
 
 public struct TokenConfig has store, drop, copy {
     token_pool_package_id: address,
+    // the state object id of the token pool
     token_pool_state_address: address,
     token_pool_module: String,
+    // the type of the token
     token_type: ascii::String,
     administrator: address,
     pending_administrator: address,
+    // type proof of the token pool
     type_proof: ascii::String,
 }
 
@@ -31,6 +35,7 @@ public struct PoolSet has copy, drop {
     coin_metadata_address: address,
     previous_pool_package_id: address,
     new_pool_package_id: address,
+    // type proof of the new token pool
     type_proof: ascii::String,
 }
 
@@ -38,6 +43,7 @@ public struct PoolRegistered has copy, drop {
     coin_metadata_address: address,
     token_pool_package_id: address,
     administrator: address,
+    // type proof of the token pool
     type_proof: ascii::String,
 }
 
@@ -65,13 +71,13 @@ public struct PoolInfos has copy, drop {
     token_types: vector<ascii::String>,
 }
 
-const E_NOT_PENDING_ADMINISTRATOR: u64 = 1;
-const E_ALREADY_INITIALIZED: u64 = 2;
-const E_TOKEN_ALREADY_REGISTERED: u64 = 3;
-const E_TOKEN_NOT_REGISTERED: u64 = 4;
-const E_NOT_ADMINISTRATOR: u64 = 5;
-const E_TOKEN_ADDRESS_NOT_REGISTERED: u64 = 6;
-const E_NOT_ALLOWED: u64 = 7;
+const ENotPendingAdministrator: u64 = 1;
+const EAlreadyInitialized: u64 = 2;
+const ETokenAlreadyRegistered: u64 = 3;
+const ETokenNotRegistered: u64 = 4;
+const ENotAdministrator: u64 = 5;
+const ETokenAddressNotRegistered: u64 = 6;
+const ENotAllowed: u64 = 7;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -84,7 +90,7 @@ public fun initialize(
 ) {
     assert!(
         !state_object::contains<TokenAdminRegistryState>(ref),
-        E_ALREADY_INITIALIZED
+        EAlreadyInitialized
     );
     let state = TokenAdminRegistryState {
         id: object::new(ctx),
@@ -223,7 +229,7 @@ public fun get_all_configured_tokens(
         result.push_back(key);
         i = 1;
     } else {
-        assert!(state.token_configs.contains(start_key), E_TOKEN_ADDRESS_NOT_REGISTERED);
+        assert!(state.token_configs.contains(start_key), ETokenAddressNotRegistered);
     };
 
     while (i < max_count) {
@@ -285,7 +291,7 @@ public fun register_pool_by_admin(
 ) {
     assert!(
         ctx.sender() == state_object::get_current_owner(ref),
-        E_NOT_ADMINISTRATOR,
+        ENotAdministrator,
     );
 
     register_pool_internal(
@@ -313,7 +319,7 @@ fun register_pool_internal(
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
     assert!(
         !state.token_configs.contains(coin_metadata_address),
-        E_TOKEN_ALREADY_REGISTERED
+        ETokenAlreadyRegistered
     );
 
     let token_config = TokenConfig {
@@ -347,14 +353,14 @@ public fun unregister_pool(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_TOKEN_NOT_REGISTERED
+        ETokenNotRegistered
     );
 
     let token_config = state.token_configs.remove(coin_metadata_address);
     
     assert!(
         token_config.administrator == ctx.sender() || ctx.sender() == state_object::get_current_owner(ref),
-        E_NOT_ALLOWED
+        ENotAllowed
     );
 
     let previous_pool_address = token_config.token_pool_package_id;
@@ -381,7 +387,7 @@ public fun set_pool<TypeProof: drop>(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_TOKEN_NOT_REGISTERED
+        ETokenNotRegistered
     );
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
@@ -389,7 +395,7 @@ public fun set_pool<TypeProof: drop>(
     // the tx signer must be the administrator of the token pool.
     assert!(
         token_config.administrator == ctx.sender() || ctx.sender() == current_owner,
-        E_NOT_ALLOWED
+        ENotAllowed
     );
 
     // TODO: sort out the UX here.
@@ -425,14 +431,14 @@ public fun transfer_admin_role(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_TOKEN_NOT_REGISTERED
+        ETokenNotRegistered
     );
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
     assert!(
         token_config.administrator == ctx.sender(),
-        E_NOT_ADMINISTRATOR
+        ENotAdministrator
     );
 
     // can be @0x0 to cancel a pending transfer.
@@ -456,14 +462,14 @@ public fun accept_admin_role(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_TOKEN_NOT_REGISTERED
+        ETokenNotRegistered
     );
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
     assert!(
         token_config.pending_administrator == ctx.sender(),
-        E_NOT_PENDING_ADMINISTRATOR
+        ENotPendingAdministrator
     );
 
     token_config.administrator = token_config.pending_administrator;
@@ -481,7 +487,7 @@ public fun is_administrator(
 
     assert!(
         state.token_configs.contains(coin_metadata_address),
-        E_TOKEN_NOT_REGISTERED
+        ETokenNotRegistered
     );
 
     let token_config = state.token_configs.borrow(coin_metadata_address);

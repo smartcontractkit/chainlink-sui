@@ -71,7 +71,7 @@ public fun test_initialize() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::E_TOKEN_NOT_REGISTERED)]
+#[expected_failure(abort_code = registry::ETokenNotRegistered)]
 public fun test_transfer_admin_role_not_registered() {
     let mut scenario = create_test_scenario(CCIP_ADMIN);
     {
@@ -97,7 +97,7 @@ public fun test_transfer_admin_role_not_registered() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::E_NOT_ALLOWED)]
+#[expected_failure(abort_code = registry::ENotAllowed)]
 public fun test_register_and_unregister_as_non_admin() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     let (treasury_cap, coin_metadata) = coin::create_currency(
@@ -510,7 +510,7 @@ public fun test_get_all_configured_tokens_pagination() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::E_TOKEN_ADDRESS_NOT_REGISTERED)]
+#[expected_failure(abort_code = registry::ETokenAddressNotRegistered)]
 public fun test_get_all_configured_tokens_non_existent() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     {

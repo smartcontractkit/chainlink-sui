@@ -39,10 +39,10 @@ public struct ReceiverUnregistered has copy, drop {
     receiver_package_id: address,
 }
 
-const E_ALREADY_REGISTERED: u64 = 1;
-const E_ALREADY_INITIALIZED: u64 = 2;
-const E_UNKNOWN_RECEIVER: u64 = 3;
-const E_NOT_ALLOWED: u64 = 4;
+const EAlreadyRegistered: u64 = 1;
+const EAlreadyInitialized: u64 = 2;
+const EUnknownReceiver: u64 = 3;
+const ENotAllowed: u64 = 4;
 
 public fun type_and_version(): String {
     string::utf8(b"ReceiverRegistry 1.6.0")
@@ -55,7 +55,7 @@ public fun initialize(
 ) {
     assert!(
         !state_object::contains<ReceiverRegistry>(ref),
-        E_ALREADY_INITIALIZED
+        EAlreadyInitialized
     );
     let state = ReceiverRegistry {
         id: object::new(ctx),
@@ -75,7 +75,7 @@ public fun register_receiver<ProofType: drop>(
     let address_str = type_name::get_address(&proof_tn);
     let receiver_module_name = std::string::from_ascii(type_name::get_module(&proof_tn));
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
-    assert!(!registry.receiver_configs.contains(&receiver_package_id), E_ALREADY_REGISTERED);
+    assert!(!registry.receiver_configs.contains(&receiver_package_id), EAlreadyRegistered);
 
     let proof_typename = type_name::get<ProofType>();
     let receiver_config = ReceiverConfig {
@@ -104,10 +104,10 @@ public fun unregister_receiver(
     
     assert!(
         registry.receiver_configs.contains(&receiver_package_id),
-        E_UNKNOWN_RECEIVER
+        EUnknownReceiver
     );
 
-    assert!(ctx.sender() == current_owner, E_NOT_ALLOWED);
+    assert!(ctx.sender() == current_owner, ENotAllowed);
 
     registry.receiver_configs.remove(&receiver_package_id);
 
@@ -131,7 +131,7 @@ public fun get_receiver_config(
 
     assert!(
         registry.receiver_configs.contains(&receiver_package_id),
-        E_UNKNOWN_RECEIVER
+        EUnknownReceiver
     );
     *registry.receiver_configs.get(&receiver_package_id)
 }

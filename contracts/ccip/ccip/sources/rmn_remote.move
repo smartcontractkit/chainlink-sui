@@ -66,23 +66,23 @@ public struct Uncursed has copy, drop {
     subjects: vector<vector<u8>>
 }
 
-const E_ALREADY_INITIALIZED: u64 = 1;
-const E_ALREADY_CURSED: u64 = 2;
-const E_CONFIG_NOT_SET: u64 = 3;
-const E_DUPLICATE_SIGNER: u64 = 4;
-const E_INVALID_SIGNATURE: u64 = 5;
-const E_INVALID_SIGNER_ORDER: u64 = 6;
-const E_NOT_ENOUGH_SIGNERS: u64 = 7;
-const E_NOT_CURSED: u64 = 8;
-const E_OUT_OF_ORDER_SIGNATURES: u64 = 9;
-const E_THRESHOLD_NOT_MET: u64 = 10;
-const E_UNEXPECTED_SIGNER: u64 = 11;
-const E_ZERO_VALUE_NOT_ALLOWED: u64 = 12;
-const E_MERKLE_ROOT_LENGTH_MISMATCH: u64 = 13;
-const E_INVALID_DIGEST_LENGTH: u64 = 14;
-const E_SIGNERS_MISMATCH: u64 = 15;
-const E_INVALID_SUBJECT_LENGTH: u64 = 16;
-const E_INVALID_PUBLIC_KEY_LENGTH: u64 = 17;
+const EAlreadyInitialized: u64 = 1;
+const EAlreadyCursed: u64 = 2;
+const EConfigNotSet: u64 = 3;
+const EDuplicateSigner: u64 = 4;
+const EInvalidSignature: u64 = 5;
+const EInvalidSignerOrder: u64 = 6;
+const ENotEnoughSigners: u64 = 7;
+const ENotCursed: u64 = 8;
+const EOutOfOrderSignatures: u64 = 9;
+const EThresholdNotMet: u64 = 10;
+const EUnexpectedSigner: u64 = 11;
+const EZeroValueNotAllowed: u64 = 12;
+const EMerkleRootLengthMismatch: u64 = 13;
+const EInvalidDigestLength: u64 = 14;
+const ESignersMismatch: u64 = 15;
+const EInvalidSubjectLength: u64 = 16;
+const EInvalidPublicKeyLength: u64 = 17;
 
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
@@ -96,11 +96,11 @@ public fun initialize(
 ) {
     assert!(
         !state_object::contains<RMNRemoteState>(ref),
-        E_ALREADY_INITIALIZED
+        EAlreadyInitialized
     );
     assert!(
         local_chain_selector != 0,
-        E_ZERO_VALUE_NOT_ALLOWED
+        EZeroValueNotAllowed
     );
 
     let state = RMNRemoteState {
@@ -151,30 +151,30 @@ public fun verify(
 ): bool {
     let state = state_object::borrow<RMNRemoteState>(ref);
 
-    assert!(state.config_count > 0, E_CONFIG_NOT_SET);
+    assert!(state.config_count > 0, EConfigNotSet);
 
     let signatures_len = signatures.length();
     assert!(
         signatures_len >= (state.config.f_sign + 1),
-        E_THRESHOLD_NOT_MET
+        EThresholdNotMet
     );
 
     let merkle_root_len = merkle_root_source_chain_selectors.length();
     assert!(
         merkle_root_len == merkle_root_on_ramp_addresses.length(),
-        E_MERKLE_ROOT_LENGTH_MISMATCH
+        EMerkleRootLengthMismatch
     );
     assert!(
         merkle_root_len == merkle_root_min_seq_nrs.length(),
-        E_MERKLE_ROOT_LENGTH_MISMATCH
+        EMerkleRootLengthMismatch
     );
     assert!(
         merkle_root_len == merkle_root_max_seq_nrs.length(),
-        E_MERKLE_ROOT_LENGTH_MISMATCH
+        EMerkleRootLengthMismatch
     );
     assert!(
         merkle_root_len == merkle_root_values.length(),
-        E_MERKLE_ROOT_LENGTH_MISMATCH
+        EMerkleRootLengthMismatch
     );
 
     // Since we cannot pass public structs, we need to reconpublic struct it from the individual components.
@@ -215,18 +215,18 @@ public fun verify(
     while (i < signatures_len) {
         let signature_bytes = signatures[i];
 
-        assert!(signature_bytes.length() == SIGNATURE_NUM_BYTES, E_INVALID_SIGNATURE);
+        assert!(signature_bytes.length() == SIGNATURE_NUM_BYTES, EInvalidSignature);
 
         let eth_address = ecrecover_to_eth_address(signature_bytes, digest);
 
         assert!(
             state.signers.contains(&eth_address),
-            E_UNEXPECTED_SIGNER
+            EUnexpectedSigner
         );
         if (i > 0) {
             assert!(
                 merkle_proof::vector_u8_gt(&eth_address, &previous_eth_address),
-                E_OUT_OF_ORDER_SIGNATURES
+                EOutOfOrderSignatures
             );
         };
         previous_eth_address = eth_address;
@@ -254,18 +254,18 @@ public fun set_config(
 
     assert!(
         rmn_home_contract_config_digest.length() == 32,
-        E_INVALID_DIGEST_LENGTH
+        EInvalidDigestLength
     );
 
     assert!(
         eth_abi::decode_u256_value(rmn_home_contract_config_digest) != 0,
-        E_ZERO_VALUE_NOT_ALLOWED
+        EZeroValueNotAllowed
     );
 
     let signers_len = signer_onchain_public_keys.length();
     assert!(
         signers_len == node_indexes.length(),
-        E_SIGNERS_MISMATCH
+        ESignersMismatch
     );
 
     let mut i = 1;
@@ -274,14 +274,14 @@ public fun set_config(
         let current_node_index = node_indexes[i];
         assert!(
             previous_node_index < current_node_index,
-            E_INVALID_SIGNER_ORDER
+            EInvalidSignerOrder
         );
         i = i + 1;
     };
 
     assert!(
         signers_len >= (2 * f_sign + 1),
-        E_NOT_ENOUGH_SIGNERS
+        ENotEnoughSigners
     );
 
     let keys = state.signers.keys();
@@ -301,11 +301,11 @@ public fun set_config(
             // expect an ethereum address of 20 bytes.
             assert!(
                 signer_public_key_bytes.length() == 20,
-                E_INVALID_PUBLIC_KEY_LENGTH
+                EInvalidPublicKeyLength
             );
             assert!(
                 !state.signers.contains(&signer_public_key_bytes),
-                E_DUPLICATE_SIGNER
+                EDuplicateSigner
             );
             state.signers.insert(signer_public_key_bytes, true);
             Signer {
@@ -364,11 +364,11 @@ public fun curse_multiple(
             let subject: vector<u8> = *subject;
             assert!(
                 subject.length() == 16,
-                E_INVALID_SUBJECT_LENGTH
+                EInvalidSubjectLength
             );
             assert!(
                 !state.cursed_subjects.contains(&subject),
-                E_ALREADY_CURSED
+                EAlreadyCursed
             );
             state.cursed_subjects.insert(subject, true);
         }
@@ -396,7 +396,7 @@ public fun uncurse_multiple(
             let subject: vector<u8> = *subject;
             assert!(
                 state.cursed_subjects.contains(&subject),
-                E_NOT_CURSED
+                ENotCursed
             );
             state.cursed_subjects.remove(&subject);
         }

@@ -89,7 +89,8 @@ module ccip_offramp::offramp {
 
     public struct Any2SuiTokenTransfer has drop {
         source_pool_address: vector<u8>,
-        dest_token_address: address, // this is the coin metadata address
+        // the token's coin metadata object id on SUI
+        dest_token_address: address,
         dest_gas_amount: u32,
         extra_data: vector<u8>,
 

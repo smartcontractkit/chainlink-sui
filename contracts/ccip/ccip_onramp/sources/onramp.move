@@ -79,7 +79,8 @@ module ccip_onramp::onramp {
 
     public struct Sui2AnyTokenTransfer has store, drop, copy {
         source_pool_address: address,
-        dest_token_address: vector<u8>, // this should become destination token coin metadata address? or remove
+        // the token address on the destination chain
+        dest_token_address: vector<u8>,
         extra_data: vector<u8>, // random bytes provided by token pool, e.g. encoded decimals
         amount: u64,
         dest_exec_data: vector<u8> // destination gas amount
@@ -144,7 +145,6 @@ module ccip_onramp::onramp {
     const EUnknownFunction: u64 = 14;
     const ECannotSendZeroTokens: u64 = 14;
     const EZeroChainSelector: u64 = 14;
-
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
