@@ -224,6 +224,7 @@ const EInvalidFeeRange: u64 = 32;
 const EInvalidDestBytesOverhead: u64 = 33;
 const EInvalidSvmReceiverLength: u64 = 34;
 const EInvalidSvmAccountLength: u64 = 35;
+const ETokenAmountMismatch: u64 = 36;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -1169,6 +1170,10 @@ fun process_pool_return_data(
     let chain_family_selector = dest_chain_config.chain_family_selector;
 
     let tokens_len = dest_token_addresses.length();
+    assert!(
+        tokens_len == dest_pool_datas.length(),
+        ETokenAmountMismatch
+    );
 
     let mut dest_exec_data_per_token = vector[];
     let mut i = 0;

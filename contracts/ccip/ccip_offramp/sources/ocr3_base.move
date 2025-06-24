@@ -56,27 +56,28 @@ public struct Transmitted has copy, drop {
     sequence_number: u64
 }
 
-const E_WRONG_PUBKEY_SIZE: u64 = 1;
-const E_BIG_F_MUST_BE_POSITIVE: u64 = 2;
-const E_STATIC_CONFIG_CANNOT_BE_CHANGED: u64 = 3;
-const E_TOO_MANY_SIGNERS: u64 = 4;
-const E_BIG_F_TOO_HIGH: u64 = 5;
-const E_TOO_MANY_TRANSMITTERS: u64 = 6;
-const E_NO_TRANSMITTERS: u64 = 7;
-const E_REPEATED_SIGNERS: u64 = 8;
-const E_REPEATED_TRANSMITTERS: u64 = 9;
-const E_CONFIG_DIGEST_MISMATCH: u64 = 10;
-const E_UNAUTHORIZED_TRANSMITTER: u64 = 11;
-const E_WRONG_NUMBER_OF_SIGNATURES: u64 = 12;
-const E_COULD_NOT_VALIDATE_SIGNER_KEY: u64 = 13;
-const E_INVALID_REPORT_CONTEXT_LENGTH: u64 = 14;
-const E_INVALID_CONFIG_DIGEST_LENGTH: u64 = 15;
-const E_INVALID_SEQUENCE_LENGTH: u64 = 16;
-const E_UNAUTHORIZED_SIGNER: u64 = 17;
-const E_NON_UNIQUE_SIGNATURES: u64 = 18;
-const E_INVALID_SIGNATURE: u64 = 19;
-const E_OUT_OF_BYTES: u64 = 20;
-const E_CONFIG_NOT_SET: u64 = 21;
+const EWrongPubkeySize: u64 = 1;
+const EBigFMustBePositive: u64 = 2;
+const EStaticConfigCannotBeChanged: u64 = 3;
+const ETooManySigners: u64 = 4;
+const EBigFTooHigh: u64 = 5;
+const ETooManyTransmitters: u64 = 6;
+const ENoTransmitters: u64 = 7;
+const ERepeatedSigners: u64 = 8;
+const ERepeatedTransmitters: u64 = 9;
+const EConfigDigestMismatch: u64 = 10;
+const EUnauthorizedTransmitter: u64 = 11;
+const EWrongNumberOfSignatures: u64 = 12;
+const ECouldNotValidateSignerKey: u64 = 13;
+const EInvalidReportContextLength: u64 = 14;
+const EInvalidConfigDigestLength: u64 = 15;
+const EInvalidSequenceLength: u64 = 16;
+const EUnauthorizedSigner: u64 = 17;
+const ENonUniqueSignatures: u64 = 18;
+const EInvalidSignature: u64 = 19;
+const EOutOfBytes: u64 = 20;
+const EConfigNotSet: u64 = 21;
+const EInvalidSignatureLength: u64 = 22;
 
 // there is no init or initialize functions in ocr3 base
 // ocr3 base state is only created and stored in offramp state
@@ -106,7 +107,11 @@ public fun set_ocr3_config(
     signers: vector<vector<u8>>,
     transmitters: vector<address>
 ) {
-    assert!(big_f != 0, E_BIG_F_MUST_BE_POSITIVE);
+    assert!(big_f != 0, EBigFMustBePositive);
+    assert!(
+        config_digest.length() == 32,
+        EInvalidConfigDigestLength
+    );
 
     let ocr_config = if (ocr3_state.ocr3_configs.contains(ocr_plugin_type)) {
         ocr3_state.ocr3_configs.borrow_mut(ocr_plugin_type)
@@ -135,33 +140,33 @@ public fun set_ocr3_config(
     } else {
         assert!(
             config_info.is_signature_verification_enabled == is_signature_verification_enabled,
-            E_STATIC_CONFIG_CANNOT_BE_CHANGED
+            EStaticConfigCannotBeChanged
         );
     };
 
     assert!(
         transmitters.length() <= MAX_NUM_ORACLES,
-        E_TOO_MANY_TRANSMITTERS
+        ETooManyTransmitters
     );
     assert!(
         transmitters.length() > 0,
-        E_NO_TRANSMITTERS
+        ENoTransmitters
     );
 
     if (is_signature_verification_enabled) {
         assert!(
             signers.length() <= MAX_NUM_ORACLES,
-            E_TOO_MANY_SIGNERS
+            ETooManySigners
         );
         assert!(
             signers.length() > 3 * (big_f as u64),
-            E_BIG_F_TOO_HIGH
+            EBigFTooHigh
         );
         // NOTE: Transmitters cannot exceed signers. Transmitters do not have to be >= 3F + 1 because they can
         // match >= 3fChain + 1, where fChain <= F. fChain is not represented in MultiOCR3Base - so we skip this check.
         assert!(
             signers.length() >= transmitters.length(),
-            E_TOO_MANY_TRANSMITTERS
+            ETooManyTransmitters
         );
 
         config_info.n = signers.length() as u8;
@@ -197,13 +202,13 @@ fun assign_signer_oracles(
             address::assert_non_zero_address_vector(signer);
         }
     );
-    assert!(!has_duplicates(signers), E_REPEATED_SIGNERS);
+    assert!(!has_duplicates(signers), ERepeatedSigners);
 
     let validated_signers = signers.map_ref!(
         |signer| {
             assert!(
                 validate_public_key(signer),
-                E_COULD_NOT_VALIDATE_SIGNER_KEY
+                ECouldNotValidateSignerKey
             );
             UnvalidatedPublicKey { bytes: *signer }
         }
@@ -227,7 +232,7 @@ fun assign_transmitter_oracles(
     );
     assert!(
         !has_duplicates(transmitters),
-        E_REPEATED_TRANSMITTERS
+        ERepeatedTransmitters
     );
 
     if (transmitter_oracles.contains(ocr_plugin_type)) {
@@ -250,36 +255,36 @@ public(package) fun transmit(
 
     assert!(
         report_context.length() == 2,
-        E_INVALID_REPORT_CONTEXT_LENGTH
+        EInvalidReportContextLength
     );
 
     let config_digest = report_context[0];
     assert!(
         config_digest.length() == 32,
-        E_INVALID_CONFIG_DIGEST_LENGTH
+        EInvalidConfigDigestLength
     );
 
     let sequence_bytes = report_context[1];
     assert!(
         sequence_bytes.length() == 32,
-        E_INVALID_SEQUENCE_LENGTH
+        EInvalidSequenceLength
     );
 
     assert!(
         config_digest == config_info.config_digest,
-        E_CONFIG_DIGEST_MISMATCH
+        EConfigDigestMismatch
     );
 
     let plugin_transmitters = ocr3_state.transmitter_oracles[ocr_plugin_type];
     assert!(
         plugin_transmitters.contains(&transmitter),
-        E_UNAUTHORIZED_TRANSMITTER
+        EUnauthorizedTransmitter
     );
 
     if (config_info.is_signature_verification_enabled) {
         assert!(
             signatures.length() == (config_info.big_f as u64) + 1,
-            E_WRONG_NUMBER_OF_SIGNATURES
+            EWrongNumberOfSignatures
         );
 
         let hashed_report = hash_report(report, config_digest, sequence_bytes);
@@ -296,7 +301,7 @@ public fun latest_config_details(
 ): OCRConfig {
     assert!(
         state.ocr3_configs.contains(ocr_plugin_type),
-        E_CONFIG_NOT_SET
+        EConfigNotSet
     );
     let ocr_config = &state.ocr3_configs[ocr_plugin_type];
     *ocr_config
@@ -330,25 +335,29 @@ fun verify_signature(
     signatures: vector<vector<u8>>
 ) {
     let mut seen = bit_vector::new(signers.length());
-    vector::do_ref!(
-        &signatures,
+    signatures.do_ref!(
         |signature_bytes| {
+            assert!(
+                signature_bytes.length() == 96,
+                EInvalidSignatureLength
+            );
+
             let public_key =
                 new_unvalidated_public_key_from_bytes(slice(signature_bytes, 0, 32));
-            let (exists, index) = vector::index_of(signers, &public_key);
-            assert!(exists, E_UNAUTHORIZED_SIGNER);
+            let (exists, index) = signers.index_of(&public_key);
+            assert!(exists, EUnauthorizedSigner);
             assert!(
-                !bit_vector::is_index_set(&seen, index),
-                E_NON_UNIQUE_SIGNATURES
+                !seen.is_index_set(index),
+                ENonUniqueSignatures
             );
-            bit_vector::set(&mut seen, index);
+            seen.set(index);
             let signature = slice(signature_bytes, 32, 64);
 
             let verified =
                 ed25519::ed25519_verify(
                     &signature, &public_key.bytes, &hashed_report
                 );
-            assert!(verified, E_INVALID_SIGNATURE);
+            assert!(verified, EInvalidSignature);
         }
     );
 }
@@ -383,7 +392,7 @@ fun validate_public_key(pubkey: &vector<u8>): bool {
 }
 
 fun new_unvalidated_public_key_from_bytes(bytes: vector<u8>): UnvalidatedPublicKey {
-    assert!(bytes.length() == PUBLIC_KEY_NUM_BYTES, E_WRONG_PUBKEY_SIZE);
+    assert!(bytes.length() == PUBLIC_KEY_NUM_BYTES, EWrongPubkeySize);
     UnvalidatedPublicKey { bytes }
 }
 
@@ -405,7 +414,7 @@ public fun latest_config_details_fields(
 fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
     let vec_len = vec.length();
     // Ensure we have enough elements for the slice.
-    assert!(start + len <= vec_len, E_OUT_OF_BYTES);
+    assert!(start + len <= vec_len, EOutOfBytes);
     let mut new_vec = vector::empty<T>();
     let mut i = start;
     while (i < start + len) {

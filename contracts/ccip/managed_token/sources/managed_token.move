@@ -205,7 +205,8 @@ public fun increment_mint_allowance<T>(
     assert!(allowance_increment > 0, EZeroAmount);
     assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
 
-    assert!(state.mint_allowances_map.get(&mint_cap_id).is_unlimited(), ECannotIncreaseUnlimitedAllowance);
+    assert!(!state.mint_allowances_map.get(&mint_cap_id).is_unlimited(), ECannotIncreaseUnlimitedAllowance);
+    state.mint_allowances_map.get_mut(&mint_cap_id).increase(allowance_increment);
 
     let new_allowance = state.mint_allowances_map.get(&mint_cap_id).value();
 
@@ -413,8 +414,8 @@ public fun unpause<T>(
 
     if (is_paused<T>(deny_list)) {
         coin::deny_list_v2_disable_global_pause(deny_list, borrow_deny_cap_mut(state), ctx);
+        event::emit(Unpaused<T> {});
     };
-    event::emit(Unpaused<T> {});
 }
 
 public fun destroy_managed_token<T>(
@@ -458,6 +459,11 @@ public fun borrow_treasury_cap<T>(owner_cap: &OwnerCap<T>, state: &TokenState<T>
 fun borrow_deny_cap_mut<T>(state: &mut TokenState<T>): &mut DenyCapV2<T> {
     assert!(state.deny_cap.is_some(), EDenyCapNotFound);
     state.deny_cap.borrow_mut()
+}
+
+#[test_only]
+public fun get_ownable_state<T>(state: &mut TokenState<T>): &mut OwnableState<T> {
+    &mut state.ownable_state
 }
 
 // ================================================================
