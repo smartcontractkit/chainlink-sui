@@ -199,31 +199,31 @@ module ccip_offramp::offramp {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0
     ];
-    const SourceChainSelectorsMismatch: u64 = 1;
-    const ZeroChainSelector: u64 = 2;
-    const UnknownSourceChainSelector: u64 = 3;
-    const MustBeOutOfOrderExec: u64 = 4;
-    const SourceChainSelectorMismatch: u64 = 5;
-    const DestChainSelectorMismatch: u64 = 6;
-    const TokenDataMismatch: u64 = 7;
-    const RootNotCommitted: u64 = 8;
-    const ManualExecutionNotYetEnabled: u64 = 9;
-    const SourceChainNotEnabled: u64 = 10;
-    const CommitOnRampMismatch: u64 = 11;
-    const InvalidInterval: u64 = 12;
-    const InvalidRoot: u64 = 13;
-    const RootAlreadyCommitted: u64 = 14;
-    const StaleCommitReport: u64 = 15;
-    const CursedByRmn: u64 = 16;
-    const SignatureVerificationRequiredInCommitPlugin: u64 = 17;
-    const SignatureVerificationNotAllowedInExecutionPlugin: u64 = 18;
-    const FeeQuoterCapExists: u64 = 19;
-    const TokenAmountOverflow: u64 = 20;
-    const DestTransferCapExists: u64 = 21;
-    const RmnBlessingMismatch: u64 = 22;
-    const UnsupportedToken: u64 = 23;
-    const InvalidOnRampUpdate: u64 = 24;
-    const DestTransferCapNotSet: u64 = 25;
+    const ESourceChainSelectorsMismatch: u64 = 1;
+    const EZeroChainSelector: u64 = 2;
+    const EUnknownSourceChainSelector: u64 = 3;
+    const EMustBeOutOfOrderExec: u64 = 4;
+    const ESourceChainSelectorMismatch: u64 = 5;
+    const EDestChainSelectorMismatch: u64 = 6;
+    const ETokenDataMismatch: u64 = 7;
+    const ERootNotCommitted: u64 = 8;
+    const EManualExecutionNotYetEnabled: u64 = 9;
+    const ESourceChainNotEnabled: u64 = 10;
+    const ECommitOnRampMismatch: u64 = 11;
+    const EInvalidInterval: u64 = 12;
+    const EInvalidRoot: u64 = 13;
+    const ERootAlreadyCommitted: u64 = 14;
+    const EStaleCommitReport: u64 = 15;
+    const ECursedByRmn: u64 = 16;
+    const ESignatureVerificationRequiredInCommitPlugin: u64 = 17;
+    const ESignatureVerificationNotAllowedInExecutionPlugin: u64 = 18;
+    const EFeeQuoterCapExists: u64 = 19;
+    const ETokenAmountOverflow: u64 = 20;
+    const EDestTransferCapExists: u64 = 21;
+    const ERmnBlessingMismatch: u64 = 22;
+    const EUnsupportedToken: u64 = 23;
+    const EInvalidOnRampUpdate: u64 = 24;
+    const EDestTransferCapNotSet: u64 = 25;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -281,12 +281,12 @@ module ccip_offramp::offramp {
 
         assert!(
             state.fee_quoter_cap.is_none(),
-            FeeQuoterCapExists
+            EFeeQuoterCapExists
         );
         state.fee_quoter_cap.fill(fee_quoter_cap);
         assert!(
             state.dest_transfer_cap.is_none(),
-            DestTransferCapExists
+            EDestTransferCapExists
         );
         state.dest_transfer_cap.fill(dest_transfer_cap);
 
@@ -337,15 +337,15 @@ module ccip_offramp::offramp {
         let source_chains_len = source_chains_selector.length();
         assert!(
             source_chains_len == source_chains_is_enabled.length(),
-            SourceChainSelectorsMismatch
+            ESourceChainSelectorsMismatch
         );
         assert!(
             source_chains_len == source_chains_is_rmn_verification_disabled.length(),
-            SourceChainSelectorsMismatch
+            ESourceChainSelectorsMismatch
         );
         assert!(
             source_chains_len == source_chains_on_ramp.length(),
-            SourceChainSelectorsMismatch
+            ESourceChainSelectorsMismatch
         );
 
         let mut i = 0;
@@ -355,7 +355,7 @@ module ccip_offramp::offramp {
             let is_rmn_verification_disabled = source_chains_is_rmn_verification_disabled[i];
             let on_ramp = source_chains_on_ramp[i];
 
-            assert!(source_chain_selector != 0, ZeroChainSelector);
+            assert!(source_chain_selector != 0, EZeroChainSelector);
             ccip::address::assert_non_zero_address_vector(&on_ramp);
 
             if (state.source_chain_configs.contains(&source_chain_selector)) {
@@ -366,7 +366,7 @@ module ccip_offramp::offramp {
                     state.source_chain_configs.get(&source_chain_selector);
                 assert!(
                     existing_config.min_seq_nr == 1 || existing_config.on_ramp == on_ramp,
-                    InvalidOnRampUpdate
+                    EInvalidOnRampUpdate
                 );
             } else {
                 state.source_chain_configs.insert(
@@ -400,12 +400,12 @@ module ccip_offramp::offramp {
         // assert that the source chain is enabled.
         assert!(
             state.source_chain_configs.contains(&source_chain_selector),
-            UnknownSourceChainSelector
+            EUnknownSourceChainSelector
         );
         let source_chain_config = state.source_chain_configs.get(&source_chain_selector);
         assert!(
             source_chain_config.is_enabled,
-            SourceChainNotEnabled
+            ESourceChainNotEnabled
         );
     }
 
@@ -440,7 +440,7 @@ module ccip_offramp::offramp {
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
     ) {
-        assert!(state.dest_transfer_cap.is_some(), DestTransferCapNotSet);
+        assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
         osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params);
     }
 
@@ -461,7 +461,7 @@ module ccip_offramp::offramp {
     ): u8 {
         assert!(
             state.execution_states.contains(source_chain_selector),
-            UnknownSourceChainSelector
+            EUnknownSourceChainSelector
         );
         let source_chain_execution_states =
             state.execution_states.borrow(source_chain_selector);
@@ -489,7 +489,7 @@ module ccip_offramp::offramp {
 
         assert!(
             source_chain_selector == header_source_chain_selector,
-            SourceChainSelectorMismatch
+            ESourceChainSelectorMismatch
         );
 
         let sender = bcs_stream::deserialize_vector_u8(&mut stream);
@@ -551,7 +551,7 @@ module ccip_offramp::offramp {
         let source_chain_selector = execution_report.source_chain_selector;
 
         if (rmn_remote::is_cursed_u128(ref, source_chain_selector as u128)) {
-            assert!(!manual_execution, CursedByRmn);
+            assert!(!manual_execution, ECursedByRmn);
 
             event::emit(SkippedReportExecution { source_chain_selector });
 
@@ -562,7 +562,7 @@ module ccip_offramp::offramp {
 
         assert!(
             execution_report.message.header.dest_chain_selector == state.chain_selector,
-            DestChainSelectorMismatch
+            EDestChainSelectorMismatch
         );
 
         let source_chain_config = state.source_chain_configs[&source_chain_selector];
@@ -584,7 +584,7 @@ module ccip_offramp::offramp {
         let is_old_commit_report = is_committed_root(state, clock, root);
 
         if (manual_execution) {
-            assert!(is_old_commit_report, ManualExecutionNotYetEnabled);
+            assert!(is_old_commit_report, EManualExecutionNotYetEnabled);
         };
 
         let source_chain_execution_states =
@@ -606,14 +606,14 @@ module ccip_offramp::offramp {
         };
 
         // A zero nonce indicates out of order execution which is the only allowed case.
-        assert!(message.header.nonce == 0, MustBeOutOfOrderExec);
+        assert!(message.header.nonce == 0, EMustBeOutOfOrderExec);
 
         let number_of_tokens_in_msg = message.token_amounts.length();
         assert!(
             number_of_tokens_in_msg == execution_report.offchain_token_data.length(),
-            TokenDataMismatch
+            ETokenDataMismatch
         );
-        assert!(state.dest_transfer_cap.is_some(), DestTransferCapNotSet);
+        assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
 
         let mut i = 0;
         let mut receiver_params = osh::create_receiver_params(state.dest_transfer_cap.borrow(), source_chain_selector);
@@ -623,11 +623,11 @@ module ccip_offramp::offramp {
 
         while (i < number_of_tokens_in_msg) {
             let token_pool_address: address = token_admin_registry::get_pool(ref, message.token_amounts[i].dest_token_address);
-            assert!(token_pool_address != @0x0, UnsupportedToken);
+            assert!(token_pool_address != @0x0, EUnsupportedToken);
             let mut amount_op = u256::try_as_u64(message.token_amounts[i].amount);
             assert!(
                 amount_op.is_some(),
-                TokenAmountOverflow
+                ETokenAmountOverflow
             );
             let amount = amount_op.extract();
 
@@ -687,7 +687,7 @@ module ccip_offramp::offramp {
     fun is_committed_root(
         state: &OffRampState, clock: &clock::Clock, root: vector<u8>
     ): bool {
-        assert!(state.roots.contains(root), RootNotCommitted);
+        assert!(state.roots.contains(root), ERootNotCommitted);
         let timestamp_committed_secs = state.roots[root];
 
         (clock.timestamp_ms() / 1000 - timestamp_committed_secs)
@@ -844,13 +844,13 @@ module ccip_offramp::offramp {
         if (ocr_plugin_type == ocr3_base::ocr_plugin_type_commit()) {
             assert!(
                 is_signature_verification_enabled,
-                SignatureVerificationRequiredInCommitPlugin
+                ESignatureVerificationRequiredInCommitPlugin
             );
             state.latest_price_sequence_number = 0;
         } else if (ocr_plugin_type == ocr3_base::ocr_plugin_type_execution()) {
             assert!(
                 !is_signature_verification_enabled,
-                SignatureVerificationNotAllowedInExecutionPlugin
+                ESignatureVerificationNotAllowedInExecutionPlugin
             );
         };
     }
@@ -948,7 +948,7 @@ module ccip_offramp::offramp {
                 assert!(
                     commit_report.blessed_merkle_roots.length() > 0
                         || commit_report.unblessed_merkle_roots.length() > 0,
-                    StaleCommitReport
+                    EStaleCommitReport
                 );
             };
         };
@@ -1034,7 +1034,7 @@ module ccip_offramp::offramp {
 
                 assert!(
                     !rmn_remote::is_cursed_u128(ref, source_chain_selector as u128),
-                    CursedByRmn
+                    ECursedByRmn
                 );
 
                 assert_source_chain_enabled(state, source_chain_selector);
@@ -1045,28 +1045,28 @@ module ccip_offramp::offramp {
                 // blessed but RMN blessing is enabled, we revert.
                 assert!(
                     is_blessed != source_chain_config.is_rmn_verification_disabled,
-                    RmnBlessingMismatch
+                    ERmnBlessingMismatch
                 );
 
                 assert!(
                     source_chain_config.on_ramp == root.on_ramp_address,
-                    CommitOnRampMismatch
+                    ECommitOnRampMismatch
                 );
                 assert!(
                     source_chain_config.min_seq_nr == root.min_seq_nr
                     && root.min_seq_nr <= root.max_seq_nr,
-                    InvalidInterval
+                    EInvalidInterval
                 );
 
                 let merkle_root = root.merkle_root;
                 assert!(
                     merkle_root.length() == 32 && merkle_root != ZERO_MERKLE_ROOT,
-                    InvalidRoot
+                    EInvalidRoot
                 );
 
                 assert!(
                     !state.roots.contains(merkle_root),
-                    RootAlreadyCommitted
+                    ERootAlreadyCommitted
                 );
 
                 source_chain_config.min_seq_nr = root.max_seq_nr + 1;
@@ -1082,7 +1082,7 @@ module ccip_offramp::offramp {
     public fun get_merkle_root(state: &OffRampState, root: vector<u8>): u64 {
         assert!(
             state.roots.contains(root),
-            InvalidRoot
+            EInvalidRoot
         );
 
         *table::borrow(&state.roots, root)

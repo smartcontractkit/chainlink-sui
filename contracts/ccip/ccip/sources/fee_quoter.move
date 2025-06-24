@@ -626,8 +626,7 @@ public fun get_validated_fee(
     let packed_gas_price =
         get_validated_gas_price_internal(state, clock, dest_chain_config, dest_chain_selector);
 
-    // TODO: this should probably be premium_fee_usd_octa for sui?
-    let (mut premium_fee_usd_wei, token_transfer_gas, token_transfer_bytes_overhead) =
+    let (mut premium_fee_usd_mysten, token_transfer_gas, token_transfer_bytes_overhead) =
         if (tokens_len > 0) {
             get_token_transfer_cost(
                 state,
@@ -642,7 +641,7 @@ public fun get_validated_fee(
             ((dest_chain_config.network_fee_usd_cents as u256) * VAL_1E16, 0, 0)
         };
     let premium_multiplier = get_premium_multiplier_wei_per_eth_internal(state, fee_token);
-    premium_fee_usd_wei = premium_fee_usd_wei * (premium_multiplier as u256); // Apply premium multiplier in wei/eth units
+    premium_fee_usd_mysten = premium_fee_usd_mysten * (premium_multiplier as u256); // Apply premium multiplier in mysten/sui units
 
     let data_availability_cost_usd_36_decimals =
         if (dest_chain_config.dest_data_availability_multiplier_bps > 0) {
@@ -679,7 +678,7 @@ public fun get_validated_fee(
     let total_cost_usd =
         (total_dest_chain_gas * gas_cost *
             (dest_chain_config.gas_multiplier_wei_per_eth as u256)) +
-        premium_fee_usd_wei + data_availability_cost_usd_36_decimals;
+        premium_fee_usd_mysten + data_availability_cost_usd_36_decimals;
 
     let fee_token_cost = total_cost_usd / fee_token_price.value;
 
