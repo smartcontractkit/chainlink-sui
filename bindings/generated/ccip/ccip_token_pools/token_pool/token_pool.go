@@ -24,7 +24,6 @@ var (
 
 type ITokenPool interface {
 	Initialize(coinMetadataAddress string, localDecimals byte, allowlist []string) bind.IMethod
-	GetRouter() bind.IMethod
 	GetToken(state TokenPoolState) bind.IMethod
 	GetTokenDecimals(typeArgs string, coinMetadata bind.Object) bind.IMethod
 	GetSupportedChains(state TokenPoolState) bind.IMethod
@@ -144,20 +143,6 @@ func (c *TokenPoolContract) Initialize(coinMetadataAddress string, localDecimals
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "initialize", false, "", "", coinMetadataAddress, localDecimals, allowlist)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "initialize", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *TokenPoolContract) GetRouter() bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "get_router", false, "", "")
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "get_router", err)
 		}
 
 		return ptb, nil

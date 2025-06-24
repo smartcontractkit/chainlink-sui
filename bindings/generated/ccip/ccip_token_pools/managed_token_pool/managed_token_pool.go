@@ -36,7 +36,6 @@ type IManagedTokenPool interface {
 	GetAllowlist(typeArgs string, state bind.Object) bind.IMethod
 	ApplyAllowlistUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) bind.IMethod
 	GetToken(typeArgs string, state bind.Object) bind.IMethod
-	GetRouter() bind.IMethod
 	GetTokenDecimals(typeArgs string, state bind.Object) bind.IMethod
 	GetRemotePools(typeArgs string, state bind.Object, remoteChainSelector uint64) bind.IMethod
 	IsRemotePool(typeArgs string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
@@ -249,20 +248,6 @@ func (c *ManagedTokenPoolContract) GetToken(typeArgs string, state bind.Object) 
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "get_token", false, "", typeArgs, state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "get_token", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *ManagedTokenPoolContract) GetRouter() bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "get_router", false, "", "")
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "get_router", err)
 		}
 
 		return ptb, nil

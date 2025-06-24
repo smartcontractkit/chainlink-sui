@@ -11,7 +11,6 @@ TokenMessengerMinter = { local = "../../../vendored/circlefin/sui-cctp/packages/
 
 [addresses]
 ccip = "_"
-ccip_router = "_"
 ccip_token_pool = "_"
 usdc_token_pool = "_"
 usdc_local_token = "_"
@@ -22,7 +21,6 @@ mcms_owner = "_"
 
 [dev-addresses]
 ccip = "0x1000"
-ccip_router = "0x1001"
 ccip_token_pool = "0x2000"
 usdc_token_pool = "0x2003"
 usdc_local_token = "0x9000"

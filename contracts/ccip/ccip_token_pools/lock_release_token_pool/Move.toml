@@ -7,7 +7,6 @@ CCIPTokenPool = { local = "../token_pool" }
 
 [addresses]
 ccip = "_"
-ccip_router = "_"
 ccip_token_pool = "_"
 lock_release_token_pool = "_"
 lock_release_token_coin_metadata = "_"
@@ -16,7 +15,6 @@ mcms_owner = "_"
 
 [dev-addresses]
 ccip = "0x1000"
-ccip_router = "0x1001"
 ccip_token_pool = "0x2000"
 mcms = "0x4000"
 mcms_owner = "0x4010"

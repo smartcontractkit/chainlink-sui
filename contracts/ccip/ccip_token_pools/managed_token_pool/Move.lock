@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "AC99BBFF5A42D9A2A01BA2106548EE3AF81C1B12F10254842EBDAEFA975555B7"
+manifest_digest = "0D605853D11DE6DD3371209C9F78A7018CD3A7CBAFDEC6E699B18124D24C86DF"
 deps_digest = "CAFAD8A7CF51067FB4358215BECB86BD100DD64E57C2AC8A7AE7D74B688F5965"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -65,6 +65,7 @@ source = { local = "../../managed_token" }
 
 dependencies = [
   { id = "Bridge", name = "Bridge" },
+  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },

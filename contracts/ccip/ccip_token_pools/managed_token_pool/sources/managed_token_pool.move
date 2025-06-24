@@ -203,10 +203,6 @@ public fun get_token<T>(state: &ManagedTokenPoolState<T>): address {
     token_pool::get_token(&state.token_pool_state)
 }
 
-public fun get_router(): address {
-    token_pool::get_router()
-}
-
 public fun get_token_decimals<T>(state: &ManagedTokenPoolState<T>): u8 {
     state.token_pool_state.get_local_decimals()
 }

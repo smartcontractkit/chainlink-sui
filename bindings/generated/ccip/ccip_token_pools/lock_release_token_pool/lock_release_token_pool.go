@@ -28,7 +28,6 @@ type ILockReleaseTokenPool interface {
 	Initialize(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) bind.IMethod
 	InitializeByCcipAdmin(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) bind.IMethod
 	GetToken(state bind.Object) bind.IMethod
-	GetRouter() bind.IMethod
 	GetTokenDecimals(state bind.Object) bind.IMethod
 	GetRemotePools(state bind.Object, remoteChainSelector uint64) bind.IMethod
 	IsRemotePool(state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
@@ -143,20 +142,6 @@ func (c *LockReleaseTokenPoolContract) GetToken(state bind.Object) bind.IMethod 
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "get_token", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "lock_release_token_pool", "get_token", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *LockReleaseTokenPoolContract) GetRouter() bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "get_router", false, "", "")
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "lock_release_token_pool", "get_router", err)
 		}
 
 		return ptb, nil

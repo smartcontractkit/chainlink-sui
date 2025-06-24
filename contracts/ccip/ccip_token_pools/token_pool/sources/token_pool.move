@@ -107,11 +107,6 @@ module ccip_token_pool::token_pool {
         }
     }
 
-    // TODO: is this needed?
-    public fun get_router(): address {
-        @ccip_router
-    }
-
     public fun get_token(state: &TokenPoolState): address {
         state.coin_metadata
     }

@@ -4,7 +4,6 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [addresses]
 ccip = "_"
-ccip_router = "_"
 ccip_token_pool = "_"
 managed_token_pool = "_"
 managed_token = "_"
@@ -14,7 +13,6 @@ mcms_owner = "_"
 
 [dev-addresses]
 ccip = "0x1000"
-ccip_router = "0x1001"
 ccip_token_pool = "0x2000"
 managed_token_pool = "0x2001"
 managed_token = "0x9000"
