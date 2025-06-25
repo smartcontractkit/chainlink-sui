@@ -9,7 +9,6 @@ CCIPTokenPool = { local = "../token_pool" }
 ccip = "_"
 ccip_token_pool = "_"
 lock_release_token_pool = "_"
-lock_release_token_coin_metadata = "_"
 mcms = "_"
 mcms_owner = "_"
 
@@ -19,4 +18,3 @@ ccip_token_pool = "0x2000"
 mcms = "0x4000"
 mcms_owner = "0x4010"
 lock_release_token_pool = "0x2001"
-lock_release_token_coin_metadata = "0x9000"

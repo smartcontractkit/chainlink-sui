@@ -47,15 +47,23 @@ fun set_up_test(): (Scenario, TokenPoolState) {
 
 fun set_up_token_pool_test_with_ccip(): (Scenario, ccip::state_object::OwnerCap, ccip::state_object::CCIPObjectRef, TokenPoolState) {
     let mut scenario = test_scenario::begin(@ccip_token_pool);
-    let ctx = scenario.ctx();
 
-    // Create CCIP object ref
-    let (owner_cap, mut ref) = ccip::state_object::create(ctx);
-    
+    ccip::state_object::test_init(scenario.ctx());
+
+    // Advance to next transaction to retrieve the created objects
+    scenario.next_tx(@ccip_token_pool);
+
+    // Retrieve the OwnerCap that was transferred to the sender
+    let owner_cap = scenario.take_from_sender<ccip::state_object::OwnerCap>();
+
+    // Retrieve the shared CCIPObjectRef
+    let mut ref = scenario.take_shared<ccip::state_object::CCIPObjectRef>();
+
     // Initialize RMN remote
-    ccip::rmn_remote::initialize(&mut ref, &owner_cap, 1000, ctx); // local chain selector = 1000
-    
+    ccip::rmn_remote::initialize(&mut ref, &owner_cap, 1000, scenario.ctx()); // local chain selector = 1000
+
     // Create token pool state
+    let ctx = scenario.ctx();
     let (treasury_cap, coin_metadata) = coin::create_currency(
         TOKEN_POOL_TEST {},
         Decimals,
@@ -399,8 +407,8 @@ fun test_validate_lock_or_burn_success() {
     assert!(remote_token == DefaultRemoteToken);
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -438,8 +446,8 @@ fun test_validate_lock_or_burn_cursed_chain() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -469,8 +477,8 @@ fun test_validate_lock_or_burn_allowlist_not_allowed() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -497,8 +505,8 @@ fun test_validate_lock_or_burn_unknown_chain() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -543,8 +551,8 @@ fun test_validate_lock_or_burn_with_allowlist_success() {
     assert!(remote_token == DefaultRemoteToken);
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -584,8 +592,8 @@ fun test_validate_release_or_mint_success() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -612,8 +620,8 @@ fun test_validate_release_or_mint_unknown_token() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -645,8 +653,8 @@ fun test_validate_release_or_mint_cursed_chain() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -674,8 +682,8 @@ fun test_validate_release_or_mint_unknown_remote_pool() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -704,8 +712,8 @@ fun test_validate_release_or_mint_unknown_chain() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -749,8 +757,8 @@ fun test_validate_release_or_mint_with_different_pool() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -791,8 +799,8 @@ fun test_validate_lock_or_burn_rate_limit_max_capacity_exceeded() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }
@@ -856,8 +864,8 @@ fun test_validate_lock_or_burn_rate_limit_reached() {
     );
 
     token_pool::destroy_token_pool(state);
-    ccip::state_object::destroy_owner_cap(owner_cap);
-    ccip::state_object::destroy_state_object(ref);
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
     clock.destroy_for_testing();
     scenario.end();
 }

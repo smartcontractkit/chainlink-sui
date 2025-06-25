@@ -39,6 +39,7 @@ type ILockReleaseTokenPool interface {
 	ApplyChainUpdates(state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod
 	GetAllowlistEnabled(state bind.Object) bind.IMethod
 	GetAllowlist(state bind.Object) bind.IMethod
+	SetAllowlistEnabled(state bind.Object, ownerCap bind.Object, enabled bool) bind.IMethod
 	ApplyAllowlistUpdates(state bind.Object, ownerCap bind.Object, removes []string, adds []string) bind.IMethod
 	LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, c_ bind.Object, tokenParams module_common.TokenParams) bind.IMethod
 	ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod
@@ -296,6 +297,20 @@ func (c *LockReleaseTokenPoolContract) GetAllowlist(state bind.Object) bind.IMet
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "get_allowlist", false, "", "", state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "lock_release_token_pool", "get_allowlist", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *LockReleaseTokenPoolContract) SetAllowlistEnabled(state bind.Object, ownerCap bind.Object, enabled bool) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "lock_release_token_pool", "set_allowlist_enabled", false, "", "", state, ownerCap, enabled)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "lock_release_token_pool", "set_allowlist_enabled", err)
 		}
 
 		return ptb, nil

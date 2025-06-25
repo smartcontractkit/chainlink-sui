@@ -11,16 +11,28 @@ fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef, TestObject) {
     let mut scenario = test_scenario::begin(SENDER_1);
     let ctx = scenario.ctx();
 
-    let (owner_cap, ref) = state_object::create(ctx);
+    state_object::test_init(ctx);
+    
+    // Advance to next transaction to retrieve the created objects
+    scenario.next_tx(SENDER_1);
+    
+    // Retrieve the OwnerCap that was transferred to SENDER_1
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
+    
+    // Retrieve the shared CCIPObjectRef
+    let ref = scenario.take_shared<CCIPObjectRef>();
+    
     let obj = TestObject {
-        id: object::new(ctx),
+        id: object::new(scenario.ctx()),
     };
     (scenario, owner_cap, ref, obj)
 }
 
 fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, ref: CCIPObjectRef) {
-    state_object::destroy_owner_cap(owner_cap);
-    state_object::destroy_state_object(ref);
+    // Return the owner cap back to the sender instead of destroying it
+    test_scenario::return_to_sender(&scenario, owner_cap);
+    // Return the shared object back to the scenario instead of destroying it
+    test_scenario::return_shared(ref);
     test_scenario::end(scenario);
 }
 
@@ -162,5 +174,8 @@ public fun test_accept_and_execute_ownership() {
     let TestObject { id } = obj2;
     object::delete(id);
 
-    tear_down_test(scenario_4, owner_cap, ref);
+    // Special cleanup for this test - ownership was transferred, so we transfer owner_cap to dummy address
+    transfer::public_transfer(owner_cap, @0x0);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario_4);
 }

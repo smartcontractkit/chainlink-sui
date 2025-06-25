@@ -11,147 +11,212 @@ use sui::test_scenario::{Self as ts, Scenario};
 use ccip::token_admin_registry as registry;
 use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
 
-public struct TOKEN_ADMIN_REGISTRY_TESTS has drop {}
+// === Test Witness Types ===
 
+public struct TOKEN_ADMIN_REGISTRY_TESTS has drop {}
 public struct TypeProof has drop {}
 public struct TypeProof2 has drop {}
 
-const Decimals: u8 = 8;
+// === Constants ===
+
+const DECIMALS: u8 = 8;
+
+// Test addresses
 const CCIP_ADMIN: address = @0x1000;
 const TOKEN_ADMIN_ADDRESS: address = @0x1;
 const TOKEN_ADMIN_ADDRESS_2: address = @0x2;
 const RANDOM_USER: address = @0x3;
+
+// Mock pool addresses
 const MOCK_TOKEN_POOL_PACKAGE_ID_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 const MOCK_TOKEN_POOL_PACKAGE_ID_2: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7;
 const MOCK_TOKEN_POOL_STATE_ADDRESS_1: address = @0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270;
 const MOCK_TOKEN_POOL_STATE_ADDRESS_2: address = @0xd8908c165dee785924e7421a0fd0418a19d5daeec395fd505a92a0fd3117e428;
 
+// === Helper Functions ===
+
 fun create_test_scenario(addr: address): Scenario {
     ts::begin(addr)
 }
 
-#[test]
-public fun test_initialize() {
-    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+fun initialize_state_and_registry(scenario: &mut Scenario, admin: address) {
+    scenario.next_tx(admin);
     {
         let ctx = scenario.ctx();
         state_object::test_init(ctx);
     };
 
-    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    scenario.next_tx(admin);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-
         let ctx = scenario.ctx();
+        
         registry::initialize(&mut ref, &owner_cap, ctx);
-        let (
-            token_pool_package_id,
-            token_pool_state_address,
-            token_pool_module,
-            token_type,
-            administrator,
-            pending_administrator,
-            proof,
-        ) = registry::get_token_config(&ref, @0x2);
-
-        assert!(token_pool_package_id == @0x0);
-        assert!(token_pool_state_address == @0x0);
-        assert!(token_pool_module == string::utf8(b""));
-        assert!(token_type == ascii::string(b""));
-        assert!(administrator == @0x0);
-        assert!(pending_administrator == @0x0);
-        assert!(proof == ascii::string(b""));
-
+        
         scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
     };
-
-    ts::end(scenario);
 }
 
-#[test]
-#[expected_failure(abort_code = registry::ETokenNotRegistered)]
-public fun test_transfer_admin_role_not_registered() {
-    let mut scenario = create_test_scenario(CCIP_ADMIN);
-    {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
-
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
-
-        registry::transfer_admin_role(&mut ref, @0x2, @0x3, ctx);
-
-        scenario.return_to_sender(owner_cap);
-        ts::return_shared(ref);
-    };
-
-    ts::end(scenario);
-}
-
-#[test]
-#[expected_failure(abort_code = registry::ENotAllowed)]
-public fun test_register_and_unregister_as_non_admin() {
-    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let (treasury_cap, coin_metadata) = coin::create_currency(
+fun create_test_token(scenario: &mut Scenario): (coin::TreasuryCap<TOKEN_ADMIN_REGISTRY_TESTS>, coin::CoinMetadata<TOKEN_ADMIN_REGISTRY_TESTS>) {
+    coin::create_currency(
         TOKEN_ADMIN_REGISTRY_TESTS {},
-        Decimals,
+        DECIMALS,
         b"TEST",
         b"TestToken",
         b"test_token",
         option::none(),
         scenario.ctx(),
+    )
+}
+
+fun create_named_test_token(
+    scenario: &mut Scenario, 
+    symbol: vector<u8>, 
+    name: vector<u8>, 
+    description: vector<u8>
+): (coin::TreasuryCap<TOKEN_ADMIN_REGISTRY_TESTS>, coin::CoinMetadata<TOKEN_ADMIN_REGISTRY_TESTS>) {
+    coin::create_currency(
+        TOKEN_ADMIN_REGISTRY_TESTS {},
+        DECIMALS,
+        symbol,
+        name,
+        description,
+        option::none(),
+        scenario.ctx(),
+    )
+}
+
+fun register_test_pool<T>(
+    ref: &mut CCIPObjectRef,
+    treasury_cap: &coin::TreasuryCap<T>,
+    coin_metadata: &coin::CoinMetadata<T>,
+    pool_package_id: address,
+    pool_state_address: address,
+    pool_module: vector<u8>,
+    admin: address
+) {
+    registry::register_pool(
+        ref,
+        treasury_cap,
+        coin_metadata,
+        pool_package_id,
+        pool_state_address,
+        string::utf8(pool_module),
+        admin,
+        TypeProof {},
     );
-    let local_token = object::id_to_address(&object::id(&coin_metadata));
+}
 
-    scenario.next_tx(CCIP_ADMIN);
+fun assert_empty_token_config(
+    ref: &CCIPObjectRef,
+    token_address: address
+) {
+    let (
+        token_pool_package_id,
+        token_pool_state_address,
+        token_pool_module,
+        token_type,
+        administrator,
+        pending_administrator,
+        proof,
+    ) = registry::get_token_config(ref, token_address);
+
+    assert!(token_pool_package_id == @0x0);
+    assert!(token_pool_state_address == @0x0);
+    assert!(token_pool_module == string::utf8(b""));
+    assert!(token_type == ascii::string(b""));
+    assert!(administrator == @0x0);
+    assert!(pending_administrator == @0x0);
+    assert!(proof == ascii::string(b""));
+}
+
+fun assert_token_config(
+    ref: &CCIPObjectRef,
+    token_address: address,
+    expected_package_id: address,
+    expected_state_address: address,
+    expected_module: vector<u8>,
+    expected_admin: address,
+    expected_pending_admin: address
+) {
+    let (
+        token_pool_package_id,
+        token_pool_state_address,
+        token_pool_module,
+        _token_type,
+        administrator,
+        pending_administrator,
+        _proof,
+    ) = registry::get_token_config(ref, token_address);
+
+    assert!(token_pool_package_id == expected_package_id);
+    assert!(token_pool_state_address == expected_state_address);
+    assert!(token_pool_module == string::utf8(expected_module));
+    assert!(administrator == expected_admin);
+    assert!(pending_administrator == expected_pending_admin);
+}
+
+// === Basic Initialization Tests ===
+
+#[test]
+public fun test_initialize() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+    
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
-
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
-        scenario.return_to_sender(owner_cap);
+        let ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // Verify empty configuration
+        assert_empty_token_config(&ref, @0x2);
+        
         ts::return_shared(ref);
     };
+    
+    ts::end(scenario);
+}
+
+#[test]
+public fun test_type_and_version() {
+    let version = registry::type_and_version();
+    assert!(version == string::utf8(b"TokenAdminRegistry 1.6.0"));
+}
+
+#[test]
+public fun test_get_pool() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        registry::register_pool(
+        
+        // Test with unregistered token
+        let pool_address = registry::get_pool(&ref, local_token);
+        assert!(pool_address == @0x0);
+        
+        // Register token
+        register_test_pool(
             &mut ref,
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
-            string::utf8(b"mock_token_pool"),
-            TOKEN_ADMIN_ADDRESS_2,
-            TypeProof {},
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS
         );
 
+        // Test with registered token
+        let pool_address = registry::get_pool(&ref, local_token);
+        assert!(pool_address == MOCK_TOKEN_POOL_PACKAGE_ID_1);
+        
         let ctx = scenario.ctx();
         transfer::public_transfer(treasury_cap, ctx.sender());
-        ts::return_shared(ref);
-    };
-
-    scenario.next_tx(RANDOM_USER);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        registry::unregister_pool(&mut ref, local_token, scenario.ctx());
-
         ts::return_shared(ref);
     };
 
@@ -160,83 +225,82 @@ public fun test_register_and_unregister_as_non_admin() {
 }
 
 #[test]
-public fun test_register_and_unregister() {
-    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let (treasury_cap, coin_metadata) = coin::create_currency(
-        TOKEN_ADMIN_REGISTRY_TESTS {},
-        Decimals,
-        b"TEST",
-        b"TestToken",
-        b"test_token",
-        option::none(),
-        scenario.ctx(),
-    );
-    let local_token = object::id_to_address(&object::id(&coin_metadata));
-
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
+public fun test_register_pool_by_admin() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(CCIP_ADMIN);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
         let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
-        scenario.return_to_sender(owner_cap);
+        
+        // Register pool as admin (without treasury cap)
+        registry::register_pool_by_admin(
+            &mut ref,
+            @0x123, // coin_metadata_address
+            MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1, // token_pool_state_address
+            string::utf8(b"admin_registered_pool"), // token_pool_module
+            ascii::string(b"TestTokenType"), // token_type
+            TOKEN_ADMIN_ADDRESS, // initial_administrator
+            ascii::string(b"AdminProof"), // proof
+            ctx,
+        );
+
+        // Verify registration
+        let pool_address = registry::get_pool(&ref, @0x123);
+        assert!(pool_address == MOCK_TOKEN_POOL_PACKAGE_ID_1);
+        assert!(registry::is_administrator(&ref, @0x123, TOKEN_ADMIN_ADDRESS));
+        
         ts::return_shared(ref);
     };
+
+    ts::end(scenario);
+}
+
+// === Registration and Pool Management Tests ===
+
+#[test]
+public fun test_register_and_unregister() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        registry::register_pool(
+        
+        register_test_pool(
             &mut ref,
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
-            string::utf8(b"mock_token_pool"),
-            TOKEN_ADMIN_ADDRESS_2, // initial admin
-            TypeProof {},
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS_2
         );
 
+        // Verify registration
         let pool_addresses = registry::get_pools(&ref, vector[local_token]);
         assert!(pool_addresses.length() == 1);
         assert!(pool_addresses[0] == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));
-
+        
         let ctx = scenario.ctx();
         transfer::public_transfer(treasury_cap, ctx.sender());
         ts::return_shared(ref);
     };
 
-    // unregister the token as the token admin
+    // Unregister the token as the token admin
     scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
         registry::unregister_pool(&mut ref, local_token, scenario.ctx());
-        let (
-            token_pool_package_id,
-            token_pool_state_address,
-            token_pool_module,
-            token_type,
-            administrator,
-            pending_administrator,
-            type_proof,
-        ) = registry::get_token_config(&ref, local_token);
-
-        assert!(token_pool_package_id == @0x0);
-        assert!(token_pool_state_address == @0x0);
-        assert!(token_pool_module == string::utf8(b""));
-        assert!(token_type == ascii::string(b""));
-        assert!(administrator == @0x0);
-        assert!(pending_administrator == @0x0);
-        assert!(type_proof == ascii::string(b""));
-
+        assert_empty_token_config(&ref, local_token);
+        
         ts::return_shared(ref);
     };
 
@@ -247,73 +311,49 @@ public fun test_register_and_unregister() {
 #[test]
 public fun test_register_and_set_pool() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    let (treasury_cap, coin_metadata) = coin::create_currency(
-        TOKEN_ADMIN_REGISTRY_TESTS {},
-        Decimals,
-        b"TEST",
-        b"TestToken",
-        b"test_token",
-        option::none(),
-        scenario.ctx(),
-    );
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
     let local_token = object::id_to_address(&object::id(&coin_metadata));
 
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
-
-    scenario.next_tx(CCIP_ADMIN);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
-        scenario.return_to_sender(owner_cap);
-        ts::return_shared(ref);
-    };
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        registry::register_pool(
+        
+        register_test_pool(
             &mut ref,
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
-            string::utf8(b"mock_token_pool"),
-            TOKEN_ADMIN_ADDRESS,
-            TypeProof {},
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS
         );
 
+        // Verify initial registration
         let pool_addresses = registry::get_pools(&ref, vector[local_token]);
         assert!(pool_addresses.length() == 1);
         assert!(pool_addresses[0] == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS));
 
-        let (
-            token_pool_package_id,
-            token_pool_state_address,
-            token_pool_module,
-            token_type,
-            administrator,
-            pending_administrator,
-            type_proof,
-        ) = registry::get_token_config(&ref, local_token);
-        assert!(token_pool_package_id == MOCK_TOKEN_POOL_PACKAGE_ID_1);
-        assert!(token_pool_state_address == MOCK_TOKEN_POOL_STATE_ADDRESS_1);
-        assert!(token_pool_module == string::utf8(b"mock_token_pool"));
-        assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
-        assert!(administrator == TOKEN_ADMIN_ADDRESS);
-        assert!(pending_administrator == @0x0);
+        // Verify detailed configuration
+        assert_token_config(
+            &ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS,
+            @0x0
+        );
 
+        let (_, _, _, token_type, _, _, type_proof) = registry::get_token_config(&ref, local_token);
+        assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
 
         let ctx = scenario.ctx();
 
+        // Update pool configuration
         registry::set_pool(
             &mut ref,
             local_token,
@@ -323,8 +363,10 @@ public fun test_register_and_set_pool() {
             TypeProof2 {},
             ctx,
         );
-        registry::transfer_admin_role(&mut ref, local_token, TOKEN_ADMIN_ADDRESS_2, ctx);
 
+        // Request admin transfer
+        registry::transfer_admin_role(&mut ref, local_token, TOKEN_ADMIN_ADDRESS_2, ctx);
+        
         transfer::public_transfer(treasury_cap, ctx.sender());
         ts::return_shared(ref);
     };
@@ -332,26 +374,26 @@ public fun test_register_and_set_pool() {
     scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let (
-            token_pool_package_id,
-            token_pool_state_address,
-            token_pool_module,
-            token_type,
-            administrator,
-            pending_administrator,
-            type_proof,
-        ) = registry::get_token_config(&ref, local_token);
-        assert!(token_pool_package_id == MOCK_TOKEN_POOL_PACKAGE_ID_2);
-        assert!(token_pool_state_address == MOCK_TOKEN_POOL_STATE_ADDRESS_2);
-        assert!(token_pool_module == string::utf8(b"mock_token_pool_2"));
+        
+        // Verify updated configuration
+        assert_token_config(
+            &ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            b"mock_token_pool_2",
+            TOKEN_ADMIN_ADDRESS,
+            TOKEN_ADMIN_ADDRESS_2
+        );
+
+        let (_, _, _, token_type, _, _, type_proof) = registry::get_token_config(&ref, local_token);
         assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
-        assert!(administrator == TOKEN_ADMIN_ADDRESS);
-        assert!(pending_administrator == TOKEN_ADMIN_ADDRESS_2);
-        // after set_pool, the proof should be TypeProof2 bc it will come from a different pool
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof2>()));
 
+        // Accept admin role
         registry::accept_admin_role(&mut ref, local_token, scenario.ctx());
         assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS_2));
+        
         ts::return_shared(ref);
     };
 
@@ -359,36 +401,106 @@ public fun test_register_and_set_pool() {
     ts::end(scenario);
 }
 
+// === Pool Information Retrieval Tests ===
+
 #[test]
-public fun test_get_all_configured_tokens() {
+public fun test_get_pool_infos() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
+    
+    // Create two test tokens
+    let (treasury_cap_1, coin_metadata_1) = create_named_test_token(&mut scenario, b"TEST1", b"TestToken1", b"test_token_1");
+    let token_1 = object::id_to_address(&object::id(&coin_metadata_1));
+    
+    let (treasury_cap_2, coin_metadata_2) = create_named_test_token(&mut scenario, b"TEST2", b"TestToken2", b"test_token_2");
+    let token_2 = object::id_to_address(&object::id(&coin_metadata_2));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        
+        // Register both tokens
+        register_test_pool(
+            &mut ref,
+            &treasury_cap_1,
+            &coin_metadata_1,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"mock_token_pool_1",
+            TOKEN_ADMIN_ADDRESS
+        );
+        
+        registry::register_pool(
+            &mut ref,
+            &treasury_cap_2,
+            &coin_metadata_2,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            string::utf8(b"mock_token_pool_2"),
+            TOKEN_ADMIN_ADDRESS,
+            TypeProof2 {},
+        );
 
+        // Test various scenarios
+        let _pool_infos = registry::get_pool_infos(&ref, vector[token_1, token_2]);
+        let unregistered_token = @0x999;
+        let _pool_infos_mixed = registry::get_pool_infos(&ref, vector[token_1, unregistered_token]);
+        let _empty_pool_infos = registry::get_pool_infos(&ref, vector[]);
+        
+        // Verify functionality through get_pools comparison
+        let pool_addresses = registry::get_pools(&ref, vector[token_1, token_2]);
+        assert!(pool_addresses.length() == 2);
+        assert!(pool_addresses[0] == MOCK_TOKEN_POOL_PACKAGE_ID_1);
+        assert!(pool_addresses[1] == MOCK_TOKEN_POOL_PACKAGE_ID_2);
+        
+        // Test with mixed registered/unregistered tokens
+        let mixed_pool_addresses = registry::get_pools(&ref, vector[token_1, unregistered_token]);
+        assert!(mixed_pool_addresses.length() == 2);
+        assert!(mixed_pool_addresses[0] == MOCK_TOKEN_POOL_PACKAGE_ID_1);
+        assert!(mixed_pool_addresses[1] == @0x0); // unregistered token
+        
+        // Test with empty vector
+        let empty_pool_addresses = registry::get_pools(&ref, vector[]);
+        assert!(empty_pool_addresses.length() == 0);
+        
         let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
+        transfer::public_transfer(treasury_cap_1, ctx.sender());
+        transfer::public_transfer(treasury_cap_2, ctx.sender());
+        ts::return_shared(ref);
+    };
 
+    transfer::public_freeze_object(coin_metadata_1);
+    transfer::public_freeze_object(coin_metadata_2);
+    ts::end(scenario);
+}
+
+// === Token Pagination Tests ===
+
+#[test]
+public fun test_get_all_configured_tokens() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
         registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
 
+        // Test with max_count = 0
         let (res, next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 0);
         assert!(res.length() == 0);
         assert!(next_key == @0x0);
         assert!(has_more);
 
+        // Test getting all tokens
         let (res, next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 3);
         assert!(res.length() == 3);
         assert!(vector[@0x1, @0x2, @0x3] == res);
         assert!(next_key == @0x3);
         assert!(!has_more);
-
-        scenario.return_to_sender(owner_cap);
+        
         ts::return_shared(ref);
     };
 
@@ -398,19 +510,12 @@ public fun test_get_all_configured_tokens() {
 #[test]
 public fun test_get_all_configured_tokens_edge_cases() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
-
+        
         // Test case 1: Empty state
         let (res, next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x0, 1);
         assert!(res.length() == 0);
@@ -439,8 +544,7 @@ public fun test_get_all_configured_tokens_edge_cases() {
         assert!(res[1] == @0x2);
         assert!(res[2] == @0x3);
         assert!(!has_more);
-
-        scenario.return_to_sender(owner_cap);
+        
         ts::return_shared(ref);
     };
 
@@ -450,19 +554,12 @@ public fun test_get_all_configured_tokens_edge_cases() {
 #[test]
 public fun test_get_all_configured_tokens_pagination() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
-        let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
-
+        
         registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3, @0x4, @0x5], TypeProof {});
 
         // Test pagination with different chunk sizes
@@ -501,8 +598,126 @@ public fun test_get_all_configured_tokens_pagination() {
         assert!(total_tokens[2] == @0x3);
         assert!(total_tokens[3] == @0x4);
         assert!(total_tokens[4] == @0x5);
+        
+        ts::return_shared(ref);
+    };
 
-        scenario.return_to_sender(owner_cap);
+    ts::end(scenario);
+}
+
+// === Pool Configuration Management Tests ===
+
+#[test]
+public fun test_set_pool_comprehensive() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // Register initial pool
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"initial_token_pool",
+            TOKEN_ADMIN_ADDRESS
+        );
+
+        // Verify initial configuration
+        assert_token_config(
+            &ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"initial_token_pool",
+            TOKEN_ADMIN_ADDRESS,
+            @0x0
+        );
+
+        let (_, _, _, _, _, _, type_proof) = registry::get_token_config(&ref, local_token);
+        assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
+
+        let ctx = scenario.ctx();
+
+        // Test set_pool with different package ID (should update)
+        registry::set_pool(
+            &mut ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            string::utf8(b"updated_token_pool"),
+            TypeProof2 {},
+            ctx,
+        );
+
+        // Verify pool was updated
+        assert_token_config(
+            &ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            b"updated_token_pool",
+            TOKEN_ADMIN_ADDRESS,
+            @0x0
+        );
+
+        let (_, _, _, _, _, _, updated_type_proof) = registry::get_token_config(&ref, local_token);
+        assert!(updated_type_proof == type_name::into_string(type_name::get<TypeProof2>()));
+
+        // Test set_pool with same package ID (should not trigger update)
+        registry::set_pool(
+            &mut ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2, // same package ID
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1, // different state address
+            string::utf8(b"should_not_update"),
+            TypeProof {},
+            ctx,
+        );
+
+        // Verify pool was NOT updated (same package ID means no change)
+        assert_token_config(
+            &ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2, // unchanged
+            b"updated_token_pool", // unchanged
+            TOKEN_ADMIN_ADDRESS,
+            @0x0
+        );
+
+        let (_, _, _, _, _, _, final_type_proof) = registry::get_token_config(&ref, local_token);
+        assert!(final_type_proof == type_name::into_string(type_name::get<TypeProof2>())); // unchanged
+        
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+// === Error Condition Tests ===
+
+#[test]
+#[expected_failure(abort_code = registry::ETokenNotRegistered)]
+public fun test_transfer_admin_role_not_registered() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        registry::transfer_admin_role(&mut ref, @0x2, @0x3, scenario.ctx());
+        
         ts::return_shared(ref);
     };
 
@@ -510,22 +725,56 @@ public fun test_get_all_configured_tokens_pagination() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::ETokenAddressNotRegistered)]
-public fun test_get_all_configured_tokens_non_existent() {
+#[expected_failure(abort_code = registry::ENotAllowed)]
+public fun test_register_and_unregister_as_non_admin() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-    {
-        let ctx = scenario.ctx();
-        state_object::test_init(ctx);
-    };
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
 
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
-
+        
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS_2
+        );
+        
         let ctx = scenario.ctx();
-        registry::initialize(&mut ref, &owner_cap, ctx);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
 
+    scenario.next_tx(RANDOM_USER);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        registry::unregister_pool(&mut ref, local_token, scenario.ctx());
+        
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ETokenAddressNotRegistered)]
+public fun test_get_all_configured_tokens_non_existent() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
         registry::insert_token_configs_for_test(&mut ref, vector[@0x1, @0x2, @0x3], TypeProof {});
 
         // Test starting from key between existing tokens
@@ -534,15 +783,328 @@ public fun test_get_all_configured_tokens_non_existent() {
         assert!(res[0] == @0x2);
         assert!(has_more);
 
-        // Test starting from non-existent key
-        let (res, next_key, has_more) = registry::get_all_configured_tokens(&ref, @0x4, 1);
-        assert!(res.length() == 0);
-        assert!(next_key == @0x4);
-        assert!(!has_more);
+        // Test starting from non-existent key - this should fail
+        let (_res, _next_key, _has_more) = registry::get_all_configured_tokens(&ref, @0x4, 1);
+        
+        ts::return_shared(ref);
+    };
 
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ETokenNotRegistered)]
+public fun test_set_pool_unregistered_token() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let ctx = scenario.ctx();
+        
+        // Try to set pool for unregistered token - should fail
+        registry::set_pool(
+            &mut ref,
+            @0x999, // unregistered token
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            string::utf8(b"test_pool"),
+            TypeProof {},
+            ctx,
+        );
+        
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ENotAllowed)]
+public fun test_set_pool_unauthorized() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // Register pool with TOKEN_ADMIN_ADDRESS_2 as admin
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"test_pool",
+            TOKEN_ADMIN_ADDRESS_2
+        );
+        
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Try to set pool as unauthorized user (not admin or owner)
+    scenario.next_tx(RANDOM_USER);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let ctx = scenario.ctx();
+        
+        // Should fail - RANDOM_USER is not the administrator or owner
+        registry::set_pool(
+            &mut ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            string::utf8(b"unauthorized_update"),
+            TypeProof2 {},
+            ctx,
+        );
+        
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::EAlreadyInitialized)]
+public fun test_initialize_already_initialized() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Try to initialize again - should fail
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ctx = scenario.ctx();
+        
+        // This should fail because registry is already initialized
+        registry::initialize(&mut ref, &owner_cap, ctx);
+        
         scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
     };
 
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ETokenAlreadyRegistered)]
+public fun test_register_pool_already_registered() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // Register pool first time
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"first_pool",
+            TOKEN_ADMIN_ADDRESS
+        );
+
+        // Try to register the same token again - should fail
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            b"second_pool",
+            TOKEN_ADMIN_ADDRESS
+        );
+        
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ENotAdministrator)]
+public fun test_register_pool_by_admin_not_owner() {
+    let mut scenario = create_test_scenario(CCIP_ADMIN);
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Try to register pool as non-owner - should fail
+    scenario.next_tx(RANDOM_USER);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let ctx = scenario.ctx();
+        
+        // This should fail because RANDOM_USER is not the owner
+        registry::register_pool_by_admin(
+            &mut ref,
+            @0x123, // coin_metadata_address
+            MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1, // token_pool_state_address
+            string::utf8(b"unauthorized_pool"), // token_pool_module
+            ascii::string(b"TestTokenType"), // token_type
+            TOKEN_ADMIN_ADDRESS, // initial_administrator
+            ascii::string(b"UnauthorizedProof"), // proof
+            ctx,
+        );
+        
+        ts::return_shared(ref);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ENotAdministrator)]
+public fun test_transfer_admin_role_not_administrator() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // Register pool with TOKEN_ADMIN_ADDRESS as admin
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"test_pool",
+            TOKEN_ADMIN_ADDRESS
+        );
+        
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Try to transfer admin role as non-administrator - should fail
+    scenario.next_tx(RANDOM_USER);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // This should fail because RANDOM_USER is not the administrator
+        registry::transfer_admin_role(&mut ref, local_token, TOKEN_ADMIN_ADDRESS_2, scenario.ctx());
+        
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ENotPendingAdministrator)]
+public fun test_accept_admin_role_not_pending() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // Register pool with TOKEN_ADMIN_ADDRESS as admin
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"test_pool",
+            TOKEN_ADMIN_ADDRESS
+        );
+
+        // Request admin transfer to TOKEN_ADMIN_ADDRESS_2
+        registry::transfer_admin_role(&mut ref, local_token, TOKEN_ADMIN_ADDRESS_2, scenario.ctx());
+        
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Try to accept admin role as someone who is NOT the pending administrator - should fail
+    scenario.next_tx(RANDOM_USER);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // This should fail because RANDOM_USER is not the pending administrator
+        // (TOKEN_ADMIN_ADDRESS_2 is the pending admin, not RANDOM_USER)
+        registry::accept_admin_role(&mut ref, local_token, scenario.ctx());
+        
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ENotPendingAdministrator)]
+public fun test_accept_admin_role_no_pending_transfer() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // Register pool with TOKEN_ADMIN_ADDRESS as admin
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            b"test_pool",
+            TOKEN_ADMIN_ADDRESS
+        );
+
+        // NOTE: No admin transfer request made
+        
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Try to accept admin role when no transfer was requested - should fail
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS_2);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        
+        // This should fail because no admin transfer was requested
+        // (pending_administrator is @0x0)
+        registry::accept_admin_role(&mut ref, local_token, scenario.ctx());
+        
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
     ts::end(scenario);
 }

@@ -29,9 +29,8 @@ public struct BurnMintTokenPoolState<phantom T> has key {
     treasury_cap: TreasuryCap<T>,
 }
 
-const EInvalidCoinMetadata: u64 = 1;
-const EInvalidArguments: u64 = 2;
-const EInvalidOwnerCap: u64 = 3;
+const EInvalidArguments: u64 = 1;
+const EInvalidOwnerCap: u64 = 2;
 
 // ================================================================
 // |                             Init                             |
@@ -99,10 +98,6 @@ fun initialize_internal<T: drop>(
     ctx: &mut TxContext,
 ): (address, TypeName, TypeName, BurnMintTokenPoolState<T>) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    assert!(
-        coin_metadata_address == @burn_mint_token_coin_metadata,
-        EInvalidCoinMetadata
-    );
 
     let burn_mint_token_pool = BurnMintTokenPoolState<T> {
         id: object::new(ctx),
@@ -218,6 +213,15 @@ public fun get_allowlist_enabled<T>(state: &BurnMintTokenPoolState<T>): bool {
 
 public fun get_allowlist<T>(state: &BurnMintTokenPoolState<T>): vector<address> {
     token_pool::get_allowlist(&state.token_pool_state)
+}
+
+public fun set_allowlist_enabled<T>(
+    state: &mut BurnMintTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    enabled: bool
+) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    token_pool::set_allowlist_enabled(&mut state.token_pool_state, enabled);
 }
 
 public fun apply_allowlist_updates<T>(

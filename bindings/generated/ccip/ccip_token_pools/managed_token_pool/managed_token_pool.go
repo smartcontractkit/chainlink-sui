@@ -34,6 +34,7 @@ type IManagedTokenPool interface {
 	ApplyChainUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod
 	GetAllowlistEnabled(typeArgs string, state bind.Object) bind.IMethod
 	GetAllowlist(typeArgs string, state bind.Object) bind.IMethod
+	SetAllowlistEnabled(typeArgs string, state bind.Object, ownerCap bind.Object, enabled bool) bind.IMethod
 	ApplyAllowlistUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) bind.IMethod
 	GetToken(typeArgs string, state bind.Object) bind.IMethod
 	GetTokenDecimals(typeArgs string, state bind.Object) bind.IMethod
@@ -220,6 +221,20 @@ func (c *ManagedTokenPoolContract) GetAllowlist(typeArgs string, state bind.Obje
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "get_allowlist", false, "", typeArgs, state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "get_allowlist", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) SetAllowlistEnabled(typeArgs string, state bind.Object, ownerCap bind.Object, enabled bool) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "set_allowlist_enabled", false, "", typeArgs, state, ownerCap, enabled)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "set_allowlist_enabled", err)
 		}
 
 		return ptb, nil

@@ -30,11 +30,10 @@ public struct LockReleaseTokenPoolState has key {
 
 const COIN_STORE: vector<u8> = b"CoinStore";
 
-const EInvalidCoinMetadata: u64 = 1;
-const EInvalidArguments: u64 = 2;
-const ETokenPoolBalanceTooLow: u64 = 3;
-const EUnauthorized: u64 = 4;
-const EInvalidOwnerCap: u64 = 5;
+const EInvalidArguments: u64 = 1;
+const ETokenPoolBalanceTooLow: u64 = 2;
+const EUnauthorized: u64 = 3;
+const EInvalidOwnerCap: u64 = 4;
 
 // ================================================================
 // |                             Init                             |
@@ -102,10 +101,6 @@ fun initialize_internal<T: drop>(
     ctx: &mut TxContext,
 ): (address, address, TypeName, TypeName) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    assert!(
-        coin_metadata_address == @lock_release_token_coin_metadata,
-        EInvalidCoinMetadata
-    );
 
     let mut lock_release_token_pool = LockReleaseTokenPoolState {
         id: object::new(ctx),
@@ -227,6 +222,15 @@ public fun get_allowlist_enabled(state: &LockReleaseTokenPoolState): bool {
 
 public fun get_allowlist(state: &LockReleaseTokenPoolState): vector<address> {
     token_pool::get_allowlist(&state.token_pool_state)
+}
+
+public fun set_allowlist_enabled(
+    state: &mut LockReleaseTokenPoolState,
+    owner_cap: &OwnerCap,
+    enabled: bool
+) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    token_pool::set_allowlist_enabled(&mut state.token_pool_state, enabled);
 }
 
 public fun apply_allowlist_updates(

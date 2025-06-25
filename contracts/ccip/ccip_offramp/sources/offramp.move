@@ -588,13 +588,13 @@ module ccip_offramp::offramp {
         };
 
         let source_chain_execution_states =
-            table::borrow_mut(&mut state.execution_states, source_chain_selector);
+            state.execution_states.borrow_mut(source_chain_selector);
 
         let message = &execution_report.message;
         let sequence_number = message.header.sequence_number;
         let execution_state_ref =
             if (source_chain_execution_states.contains(sequence_number)) {
-                table::borrow_mut(source_chain_execution_states, sequence_number)
+                source_chain_execution_states.borrow_mut(sequence_number)
             } else {
                 &mut EXECUTION_STATE_UNTOUCHED
             };
@@ -1206,201 +1206,10 @@ module ccip_offramp::offramp {
         @ccip
     }
 
+    // ============================== Test Functions ============================== //
+
     #[test_only]
-    public(package) fun show_source_chain_config(cfg: SourceChainConfig): (address, bool, u64, bool, vector<u8>) {
-        (cfg.router, cfg.is_enabled, cfg.min_seq_nr, cfg.is_rmn_verification_disabled, cfg.on_ramp)
-    }
-
-    #[test]
-    fun test_calculate_message_hash() {
-        let expected_hash =
-            x"c8d6cf666864a60dd6ecd89e5c294734c53b3218d3f83d2d19a3c3f9e200e00d";
-
-        let message_id =
-            x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-
-        let message = Any2SuiRampMessage {
-            header: RampMessageHeader {
-                message_id,
-                source_chain_selector: 1,
-                dest_chain_selector: 2,
-                sequence_number: 42,
-                nonce: 123
-            },
-            sender: x"8765432109fedcba8765432109fedcba87654321",
-            data: b"sample message data",
-            receiver: @0x1234,
-            gas_limit: 500000,
-            token_amounts: vector[
-                Any2SuiTokenTransfer {
-                    source_pool_address: x"abcdef1234567890abcdef1234567890abcdef12",
-                    dest_token_address: @0x5678,
-                    dest_gas_amount: 10000,
-                    extra_data: x"00112233",
-                    amount: 1000000
-                },
-                Any2SuiTokenTransfer {
-                    source_pool_address: x"123456789abcdef123456789abcdef123456789a",
-                    dest_token_address: @0x9abc,
-                    dest_gas_amount: 20000,
-                    extra_data: x"ffeeddcc",
-                    amount: 5000000
-                }
-            ]
-        };
-        let metadata_hash =
-            x"aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
-
-        let message_hash = calculate_message_hash(&message, metadata_hash);
-        assert!(message_hash == expected_hash);
-    }
-
-    #[test]
-    fun test_calculate_metadata_hash() {
-        let expected_hash =
-            x"b62ec658417caa5bcc6ff1d8c45f8b1cb52e1b0ed71603a04b250b107ed836d9";
-        let expected_hash_alternate =
-            x"89da72ab93f7bd546d60b58a1e1b5f628fd456fe163614ff1e31a2413ca1b55a";
-
-        let source_chain_selector = 123456789;
-        let dest_chain_selector = 987654321;
-        let on_ramp = b"source-onramp-address";
-
-        let metadata_hash =
-            calculate_metadata_hash(source_chain_selector, dest_chain_selector, on_ramp);
-        let metadata_hash_alternate =
-            calculate_metadata_hash(
-                source_chain_selector + 1, dest_chain_selector, on_ramp
-            );
-
-        assert!(metadata_hash == expected_hash, 1);
-        assert!(metadata_hash_alternate == expected_hash_alternate, 2);
-    }
-
-    #[test]
-    fun test_deserialize_execution_report() {
-        let expected_sender = x"d87929a32cf0cbdc9e2d07ffc7c33344079de727";
-        let expected_data = x"68656c6c6f20434349505265636569766572";
-        let expected_receiver =
-            @0xbd8a1fb0af25dc8700d2d302cfbae718c3b2c3c61cfe47f58a45b1126c006490;
-        let expected_gas_limit = 100000;
-        let expected_message_id =
-            x"20865dcacbd6afb6a2288daa164caf75517009a289fa3135281fb1e4800b11bc";
-        let expected_source_chain_selector = 909606746561742123;
-        let expected_dest_chain_selector = 743186221051783445;
-        let expected_sequence_number = 1;
-        let expected_nonce = 0;
-        let expected_leaf_bytes =
-            x"c50d2bc9b6bba65c578d8ba98560be9fd1e812e5798b752aa4b83f6739b60960";
-
-        let report_bytes =
-            x"2b851c4684929f0c20865dcacbd6afb6a2288daa164caf75517009a289fa3135281fb1e4800b11bc2b851c4684929f0c15a9c133ee53500a0100000000000000000000000000000014d87929a32cf0cbdc9e2d07ffc7c33344079de7271268656c6c6f20434349505265636569766572bd8a1fb0af25dc8700d2d302cfbae718c3b2c3c61cfe47f58a45b1126c006490a086010000000000000000000000000000000000000000000000000000000000000000";
-        let onramp = x"47a1f0a819457f01153f35c6b6b0d42e2e16e91e";
-        let execution_report = deserialize_execution_report(report_bytes);
-
-        assert!(
-            execution_report.message.header.source_chain_selector == expected_source_chain_selector,
-            1
-        );
-        assert!(
-            execution_report.message.header.dest_chain_selector == expected_dest_chain_selector,
-            2
-        );
-        assert!(
-            execution_report.message.header.sequence_number == expected_sequence_number,
-            3
-        );
-        assert!(execution_report.message.header.nonce == expected_nonce, 4);
-        assert!(execution_report.message.sender == expected_sender, 5);
-        assert!(execution_report.message.data == expected_data, 6);
-        assert!(execution_report.message.receiver == expected_receiver, 7);
-        assert!(execution_report.message.gas_limit == expected_gas_limit, 8);
-        assert!(execution_report.message.header.message_id == expected_message_id, 9);
-
-        let metadata_hash =
-            calculate_metadata_hash(
-                execution_report.source_chain_selector,
-                execution_report.message.header.dest_chain_selector,
-                onramp
-            );
-        let hashed_leaf = calculate_message_hash(&execution_report.message, metadata_hash);
-
-        assert!(expected_leaf_bytes == hashed_leaf, 1);
-    }
-}
-
-
-#[test_only]
-module ccip::ccip_offramp_test {
-    use ccip_offramp::offramp::{Self, OffRampState};
-    use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
-    use sui::test_scenario::{Self, Scenario};
-
-    const OFF_RAMP_STATE_NAME: vector<u8> = b"OffRampState";
-    const CHAIN_SELECTOR: u64 = 123456789;
-    const SOURCE_CHAIN_SELECTOR_1: u64 = 11223344;
-    const SOURCE_CHAIN_SELECTOR_2: u64 = 33445566;
-    const SOURCE_CHAIN_ONRAMP_1: vector<u8> = x"e5b948b5b6800dbeedf993ebbd3824b80f548c7c19ebfbd7982080b8ff68c24d";
-    const SOURCE_CHAIN_ONRAMP_2: vector<u8> = x"1b215d2fb37eeb21386c59a0c23ccaffe26c735100ca843d4226d9156cf84484";
-
-    fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
-        let mut scenario = test_scenario::begin(@0x1);
-        let ctx = scenario.ctx();
-
-        let (owner_cap, ref) = state_object::create(ctx);
-        (scenario, owner_cap, ref)
-    }
-
-    fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef) {
-        state_object::destroy_state_object(ref);
-        test_scenario::end(scenario);
-    }
-
-    fun initialize(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-        offramp::initialize(
-            ref,
-            CHAIN_SELECTOR,
-            10000, // permissionless_execution_threshold_seconds
-            vector[
-                SOURCE_CHAIN_SELECTOR_1, SOURCE_CHAIN_SELECTOR_2
-            ], // source_chains_selectors
-            vector[
-                true, false
-            ], // source_chains_is_enabled
-            vector[
-                false, true
-            ], // source_chains_is_rmn_verification_disabled
-            vector[
-                SOURCE_CHAIN_ONRAMP_1, SOURCE_CHAIN_ONRAMP_2
-            ], // source_chains_on_ramp
-            ctx
-        );
-    }
-
-    #[test]
-    public fun test_initialize() {
-        let (mut scenario, mut ref) = set_up_test();
-        let ctx = scenario.ctx();
-        initialize(&mut ref, ctx);
-
-        let _state = state_object::borrow<OffRampState>(&ref, OFF_RAMP_STATE_NAME);
-
-        let cfg = offramp::get_source_chain_config(&ref, SOURCE_CHAIN_SELECTOR_1);
-        let (router, is_enabled, min_seq_nr, is_rmn_enabled, on_ramp) = offramp::show_source_chain_config(cfg);
-        assert!(router == @ccip);
-        assert!(is_enabled == true);
-        assert!(min_seq_nr == 1);
-        assert!(is_rmn_enabled == false);
-        assert!(on_ramp == SOURCE_CHAIN_ONRAMP_1);
-
-        let cfg = offramp::get_source_chain_config(&ref, SOURCE_CHAIN_SELECTOR_2);
-        let (router, is_enabled, min_seq_nr, is_rmn_enabled, on_ramp) = offramp::show_source_chain_config(cfg);
-        assert!(router == @ccip);
-        assert!(is_enabled == false);
-        assert!(min_seq_nr == 1);
-        assert!(is_rmn_enabled == true);
-        assert!(on_ramp == SOURCE_CHAIN_ONRAMP_2);
-
-        tear_down_test(scenario, ref);
+    public fun test_init(ctx: &mut TxContext) {
+        init(OFFRAMP{}, ctx);
     }
 }

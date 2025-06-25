@@ -7,16 +7,16 @@ use sui::address;
 use sui::dynamic_object_field as dof;
 use sui::event;
 
-const E_MODULE_ALREADY_EXISTS: u64 = 1;
-const E_MODULE_DOES_NOT_EXISTS: u64 = 2;
-const E_CANNOT_TRANSFER_TO_SELF: u64 = 3;
-const E_OWNER_CHANGED: u64 = 4;
-const E_NO_PENDING_TRANSFER: u64 = 5;
-const E_TRANSFER_NOT_ACCEPTED: u64 = 6;
-const E_TRANSFER_ALREADY_ACCEPTED: u64 = 7;
-const E_MUST_BE_PROPOSED_OWNER: u64 = 8;
-const E_PROPOSED_OWNER_MISMATCH: u64 = 9;
-const E_UNAUTHORIZED: u64 = 10;
+const EModuleAlreadyExists: u64 = 1;
+const EModuleDoesNotExist: u64 = 2;
+const ECannotTransferToSelf: u64 = 3;
+const EOwnerChanged: u64 = 4;
+const ENoPendingTransfer: u64 = 5;
+const ETransferNotAccepted: u64 = 6;
+const ETransferAlreadyAccepted: u64 = 7;
+const EMustBeProposedOwner: u64 = 8;
+const EProposedOwnerMismatch: u64 = 9;
+const EUnauthorized: u64 = 10;
 
 public struct OwnershipTransferRequested has copy, drop {
     from: address,
@@ -90,9 +90,9 @@ public(package) fun add<T: key + store>(
     obj: T,
     ctx: &TxContext,
 ) {
-    assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
+    assert!(ctx.sender() == ref.current_owner, EUnauthorized);
     let tn = type_name::get<T>();
-    assert!(!dof::exists_(&ref.id, tn), E_MODULE_ALREADY_EXISTS);
+    assert!(!dof::exists_(&ref.id, tn), EModuleAlreadyExists);
     dof::add(&mut ref.id, tn, obj);
 }
 
@@ -105,9 +105,9 @@ public(package) fun remove<T: key + store>(
     ref: &mut CCIPObjectRef,
     ctx: &TxContext,
 ): T {
-    assert!(ctx.sender() == ref.current_owner, E_UNAUTHORIZED);
+    assert!(ctx.sender() == ref.current_owner, EUnauthorized);
     let tn = type_name::get<T>();
-    assert!(dof::exists_(&ref.id, tn), E_MODULE_DOES_NOT_EXISTS);
+    assert!(dof::exists_(&ref.id, tn), EModuleDoesNotExist);
     dof::remove(&mut ref.id, tn)
 }
 
@@ -123,8 +123,8 @@ public(package) fun borrow_mut<T: key + store>(ref: &mut CCIPObjectRef): &mut T 
 
 public fun transfer_ownership(ref: &mut CCIPObjectRef, to: address, ctx: &mut TxContext) {
     let caller = ctx.sender();
-    assert!(caller != to, E_CANNOT_TRANSFER_TO_SELF);
-    assert!(ref.current_owner == caller, E_UNAUTHORIZED);
+    assert!(caller != to, ECannotTransferToSelf);
+    assert!(ref.current_owner == caller, EUnauthorized);
 
     ref.pending_transfer = option::some(PendingTransfer { from: caller, to, accepted: false });
 
@@ -132,14 +132,14 @@ public fun transfer_ownership(ref: &mut CCIPObjectRef, to: address, ctx: &mut Tx
 }
 
 public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-    assert!(ref.pending_transfer.is_some(), E_NO_PENDING_TRANSFER);
+    assert!(ref.pending_transfer.is_some(), ENoPendingTransfer);
 
     let caller = ctx.sender();
     let pending_transfer = ref.pending_transfer.borrow_mut();
 
-    assert!(pending_transfer.from == ref.current_owner, E_OWNER_CHANGED);
-    assert!(pending_transfer.to == caller, E_MUST_BE_PROPOSED_OWNER);
-    assert!(!pending_transfer.accepted, E_TRANSFER_ALREADY_ACCEPTED);
+    assert!(pending_transfer.from == ref.current_owner, EOwnerChanged);
+    assert!(pending_transfer.to == caller, EMustBeProposedOwner);
+    assert!(!pending_transfer.accepted, ETransferAlreadyAccepted);
 
     pending_transfer.accepted = true;
 
@@ -152,14 +152,14 @@ public fun execute_ownership_transfer(
     ctx: &mut TxContext,
 ) {
     let caller = ctx.sender();
-    assert!(caller == ref.current_owner, E_UNAUTHORIZED);
+    assert!(caller == ref.current_owner, EUnauthorized);
 
     let pending_transfer = ref.pending_transfer.extract();
 
     // since ref is a shared object now, it's impossible to transfer its ownership
-    assert!(pending_transfer.from == ref.current_owner, E_OWNER_CHANGED);
-    assert!(pending_transfer.to == to, E_PROPOSED_OWNER_MISMATCH);
-    assert!(pending_transfer.accepted, E_TRANSFER_NOT_ACCEPTED);
+    assert!(pending_transfer.from == ref.current_owner, EOwnerChanged);
+    assert!(pending_transfer.to == to, EProposedOwnerMismatch);
+    assert!(pending_transfer.accepted, ETransferNotAccepted);
 
     // transfer the owner cap to the new owner
     // cannot transfer the shared object anymore
@@ -177,31 +177,6 @@ public(package) fun get_current_owner(ref: &CCIPObjectRef): address {
 #[test_only]
 public fun test_init(ctx: &mut TxContext) {
     init(STATE_OBJECT {}, ctx);
-}
-
-#[test_only]
-public fun create(ctx: &mut TxContext): (OwnerCap, CCIPObjectRef) {
-    let ref = CCIPObjectRef {
-        id: object::new(ctx),
-        current_owner: ctx.sender(),
-        pending_transfer: option::none(),
-    };
-    let owner_cap = OwnerCap {
-        id: object::new(ctx),
-    };
-    (owner_cap, ref)
-}
-
-#[test_only]
-public fun destroy_state_object(ref: CCIPObjectRef) {
-    let CCIPObjectRef { id, current_owner: _owner, pending_transfer: _pending_transfer } = ref;
-    object::delete(id);
-}
-
-#[test_only]
-public fun destroy_owner_cap(cap: OwnerCap) {
-    let OwnerCap { id } = cap;
-    object::delete(id);
 }
 
 #[test_only]

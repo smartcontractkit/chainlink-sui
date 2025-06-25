@@ -210,3 +210,22 @@ public fun deconstruct_receiver_params(
     // make sure the any2sui message is extracted
     assert!(message.is_none(), ECCIPReceiveFailed);
 }
+
+// =========================== Test Functions =========================== //
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(OFFRAMP_STATE_HELPER {}, ctx);
+}
+
+#[test_only]
+public fun deconstruct_receiver_params_for_test(
+    _: &DestTransferCap,
+    receiver_params: ReceiverParams,
+) {
+    let ReceiverParams {
+        params: _,
+        message: _,
+        source_chain_selector: _,
+    } = receiver_params;
+}

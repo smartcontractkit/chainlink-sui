@@ -26,7 +26,7 @@ fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContex
 }
 
 fun tear_down_test(scenario: Scenario, ref: CCIPObjectRef, owner_cap: OwnerCap) {
-    state_object::destroy_state_object(ref);
+    test_scenario::return_shared(ref);
     test_scenario::return_to_address(SENDER, owner_cap);
     test_scenario::end(scenario);
 }

@@ -255,3 +255,154 @@ fun test_encode_svm_extra_args_v1_invalid_account_length() {
 
     client::encode_svm_extra_args_v1(1000u32, 0u64, true, token_receiver, accounts);
 }
+
+#[test]
+#[expected_failure(abort_code = client::EInvalidSVMTokenReceiverLength)]
+fun test_svm_args_rejects_short_token_receiver() {
+    // Test that token receivers shorter than 32 bytes are rejected
+    let short_receiver = x"0000000000000000000000000000000000000000000000000000000000"; // 30 bytes
+    client::encode_svm_extra_args_v1(100, 0, false, short_receiver, vector[]);
+}
+
+#[test]
+#[expected_failure(abort_code = client::EInvalidSVMAccountLength)]
+fun test_svm_args_rejects_short_account() {
+    // Test that accounts shorter than 32 bytes are rejected
+    let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1e";
+    let short_account = x"0000000000000000000000000000000000000000000000000000000000"; // 30 bytes
+    let accounts = vector[short_account];
+    client::encode_svm_extra_args_v1(100, 0, false, token_receiver, accounts);
+}
+
+#[test]
+#[expected_failure(abort_code = client::EInvalidSVMAccountLength)]
+fun test_svm_args_rejects_empty_account() {
+    // Test that empty accounts are rejected
+    let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1e";
+    let empty_account = vector[];
+    let accounts = vector[empty_account];
+    client::encode_svm_extra_args_v1(100, 0, false, token_receiver, accounts);
+}
+
+#[test]
+fun test_new_any2sui_message() {
+    let message_id = x"abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+    let source_chain_selector = 12345u64;
+    let sender = x"1234567890123456789012345678901234567890";
+    let data = x"deadbeef";
+    let dest_token_amounts = vector[];
+
+    let message = client::new_any2sui_message(
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts
+    );
+
+    // Verify the message was created correctly by checking its fields
+    assert!(client::get_message_id(&message) == message_id, 0);
+    assert!(client::get_source_chain_selector(&message) == source_chain_selector, 1);
+    assert!(client::get_sender(&message) == sender, 2);
+    assert!(client::get_data(&message) == data, 3);
+    assert!(client::get_dest_token_amounts(&message) == dest_token_amounts, 4);
+}
+
+#[test]
+fun test_new_dest_token_amounts() {
+    let token_addresses = vector[@0x1, @0x2, @0x3];
+    let token_amounts = vector[100u64, 200u64, 300u64];
+
+    let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
+
+    // Verify the correct number of token amounts were created
+    assert!(dest_token_amounts.length() == 3, 0);
+
+    // Verify the first token amount
+    let first_amount = &dest_token_amounts[0];
+    assert!(client::get_token(first_amount) == @0x1, 1);
+    assert!(client::get_amount(first_amount) == 100u64, 2);
+
+    // Verify the second token amount
+    let second_amount = &dest_token_amounts[1];
+    assert!(client::get_token(second_amount) == @0x2, 3);
+    assert!(client::get_amount(second_amount) == 200u64, 4);
+
+    // Verify the third token amount
+    let third_amount = &dest_token_amounts[2];
+    assert!(client::get_token(third_amount) == @0x3, 5);
+    assert!(client::get_amount(third_amount) == 300u64, 6);
+}
+
+#[test]
+fun test_get_message_id() {
+    let message_id = x"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let message = client::new_any2sui_message(
+        message_id,
+        1u64,
+        x"deadbeef",
+        x"cafebabe",
+        vector[]
+    );
+
+    let retrieved_id = client::get_message_id(&message);
+    assert!(retrieved_id == message_id, 0);
+}
+
+#[test]
+fun test_get_source_chain_selector() {
+    let chain_selector = 98765u64;
+    let message = client::new_any2sui_message(
+        x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        chain_selector,
+        x"deadbeef",
+        x"cafebabe",
+        vector[]
+    );
+
+    let retrieved_selector = client::get_source_chain_selector(&message);
+    assert!(retrieved_selector == chain_selector, 0);
+}
+
+#[test]
+fun test_new_dest_token_amounts_empty() {
+    let empty_addresses = vector[];
+    let empty_amounts = vector[];
+
+    let dest_token_amounts = client::new_dest_token_amounts(empty_addresses, empty_amounts);
+    assert!(dest_token_amounts.length() == 0, 0);
+}
+
+#[test]
+fun test_message_with_token_amounts() {
+    let message_id = x"1111111111111111111111111111111111111111111111111111111111111111";
+    let source_chain_selector = 555u64;
+    let sender = x"9999999999999999999999999999999999999999";
+    let data = x"cafebabe";
+    
+    // Create some token amounts
+    let token_addresses = vector[@0xa, @0xb];
+    let token_amounts = vector[1000u64, 2000u64];
+    let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
+
+    let message = client::new_any2sui_message(
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts
+    );
+
+    // Verify all fields
+    assert!(client::get_message_id(&message) == message_id, 0);
+    assert!(client::get_source_chain_selector(&message) == source_chain_selector, 1);
+    assert!(client::get_sender(&message) == sender, 2);
+    assert!(client::get_data(&message) == data, 3);
+    
+    let retrieved_amounts = client::get_dest_token_amounts(&message);
+    assert!(retrieved_amounts.length() == 2, 4);
+    assert!(client::get_token(&retrieved_amounts[0]) == @0xa, 5);
+    assert!(client::get_amount(&retrieved_amounts[0]) == 1000u64, 6);
+    assert!(client::get_token(&retrieved_amounts[1]) == @0xb, 7);
+    assert!(client::get_amount(&retrieved_amounts[1]) == 2000u64, 8);
+}

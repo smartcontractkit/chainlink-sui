@@ -31,9 +31,8 @@ public struct ManagedTokenPoolState<phantom T> has key {
     mint_cap: MintCap<T>,
 }
 
-const EInvalidCoinMetadata: u64 = 1;
-const EInvalidArguments: u64 = 2;
-const EInvalidOwnerCap: u64 = 3;
+const EInvalidArguments: u64 = 1;
+const EInvalidOwnerCap: u64 = 2;
 
 // ================================================================
 // |                             Init                             |
@@ -98,11 +97,7 @@ fun initialize_internal<T: drop>(
     mint_cap: MintCap<T>,
     ctx: &mut TxContext,
 ): (address, address, TypeName, TypeName) {
-let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    assert!(
-        coin_metadata_address == @managed_token_coin_metadata,
-        EInvalidCoinMetadata
-    );
+    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
 
     let managed_token_pool = ManagedTokenPoolState<T> {
         id: object::new(ctx),
@@ -182,6 +177,15 @@ public fun get_allowlist_enabled<T>(state: &ManagedTokenPoolState<T>): bool {
 
 public fun get_allowlist<T>(state: &ManagedTokenPoolState<T>): vector<address> {
     token_pool::get_allowlist(&state.token_pool_state)
+}
+
+public fun set_allowlist_enabled<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    enabled: bool
+) {
+    assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
+    token_pool::set_allowlist_enabled(&mut state.token_pool_state, enabled);
 }
 
 public fun apply_allowlist_updates<T>(
