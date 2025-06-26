@@ -9,15 +9,16 @@ type PTBCommandDependency struct {
 type SuiFunctionParam struct {
 	// Name of the parameter
 	Name string
+	// PointerTag (optional) defines which field of the pointer of contract should be queried and found
+	// to get the value of the param.
+	PointerTag *string
 	// Type of the parameter (e.g., "u64", "String", "vector<u8>", "ptb_dependency")
 	Type string
 	// IsMutable specifies if the object is mutable or not (optional - defaults to true)
 	IsMutable *bool
-	// Whether the parameter is required
-
 	// IsGeneric specifies if the parameter is a generic argument
 	IsGeneric bool
-
+	// Whether the parameter is required
 	Required bool
 	// Default value to use if not provided
 	DefaultValue any

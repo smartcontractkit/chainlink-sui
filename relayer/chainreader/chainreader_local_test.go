@@ -96,6 +96,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
+	pointerTag := "_::counter::CounterPointer::counter_id"
+
 	// Set up the ChainReader
 	chainReaderConfig := ChainReaderConfig{
 		IsLoopPlugin: false,
@@ -132,6 +134,18 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						Name:          "get_simple_result",
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
+					"get_count_using_pointer": {
+						Name:          "get_count_using_pointer",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:       "object_id",
+								Name:       "counter_id",
+								PointerTag: &pointerTag,
+								Required:   true,
+							},
+						},
 					},
 				},
 				Events: map[string]*ChainReaderEvent{
@@ -301,11 +315,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
 
-		txMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
-		require.NoError(t, err)
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
 
-		txnResult, err := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
-		require.NoError(t, err)
+		txnResult, testErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
 
 		log.Debugw("Transaction result", "result", txnResult)
 
@@ -364,5 +378,27 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NotNil(t, event)
 		log.Debugw("Event data", "counterId", event.CounterID, "newValue", event.NewValue)
 		require.Equal(t, uint64(1), event.NewValue, "Expected counter value to be 1")
+	})
+
+	t.Run("GetLatestValue_PointerTag", func(t *testing.T) {
+		expectedUint64 := uint64(0)
+		var retUint64 uint64
+
+		log.Debugw("Testing get_simple_result function for BCS struct decoding",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "counter", "get_count_using_pointer"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed, the counter_id object should be populated from the pointer tag
+			&retUint64,
+		)
+		require.NoError(t, err)
+
+		// Verify the returned struct
+		require.NotNil(t, retUint64)
+		require.Equal(t, expectedUint64, retUint64, "Expected value to be 0")
 	})
 }

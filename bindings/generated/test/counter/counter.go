@@ -33,6 +33,7 @@ type ICounter interface {
 	IncrementBy(counter bind.Object, by uint64) bind.IMethod
 	IncrementMult(counter bind.Object, a uint64, b uint64) bind.IMethod
 	GetCount(counter bind.Object) bind.IMethod
+	GetCountUsingPointer(counter bind.Object) bind.IMethod
 	GetCountNoEntry(counter bind.Object) bind.IMethod
 	GetAddressList() bind.IMethod
 	GetSimpleResult() bind.IMethod
@@ -64,6 +65,9 @@ func (c *CounterContract) Connect(client suiclient.ClientImpl) {
 }
 
 // Structs
+
+type COUNTER struct {
+}
 
 type CounterIncremented struct {
 	CounterId bind.Object `move:"ID"`
@@ -228,6 +232,20 @@ func (c *CounterContract) GetCount(counter bind.Object) bind.IMethod {
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count", false, "", "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_count", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetCountUsingPointer(counter bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count_using_pointer", false, "", "", counter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_count_using_pointer", err)
 		}
 
 		return ptb, nil

@@ -5,6 +5,10 @@ module test::counter {
     use sui::event;
     use sui::address;
     use std::vector;
+    use std::ascii;
+    use std::type_name;
+
+    public struct COUNTER has drop {}
 
     // Event emitted when counter is incremented
     public struct CounterIncremented has copy, drop {
@@ -39,7 +43,7 @@ module test::counter {
         value: u64,
     }
 
-    fun init(ctx: &mut TxContext) {
+    fun init(_witness: COUNTER, ctx: &mut TxContext) {
         let counter = Counter { 
             id: object::new(ctx), 
             value: 0 
@@ -56,9 +60,20 @@ module test::counter {
             admin_cap_id: object::id_to_address(object::borrow_id(&admin_cap)),
         };
 
+        let pointer2 = CounterPointer {
+            id: object::new(ctx),
+            counter_id: object::id_to_address(object::borrow_id(&counter)),
+            admin_cap_id: object::id_to_address(object::borrow_id(&admin_cap)),
+        };
+
+        let tn = type_name::get_with_original_ids<COUNTER>();
+        let package_bytes = ascii::into_bytes(tn.get_address());
+        let package_id = address::from_ascii_bytes(&package_bytes);
+
         transfer::share_object(counter);
         transfer::transfer(admin_cap, tx_context::sender(ctx));
-        transfer::transfer(pointer, ctx.sender());
+        transfer::transfer(pointer, package_id);
+        transfer::transfer(pointer2, tx_context::sender(ctx));
     }
 
     /// Create and share a Counter object
@@ -161,6 +176,10 @@ module test::counter {
 
     /// Get the value of the count
     public entry fun get_count(counter: &Counter): u64 {
+        counter.value
+    }
+
+    public entry fun get_count_using_pointer(counter: &Counter): u64 {
         counter.value
     }
 

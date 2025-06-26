@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+
 	"github.com/mitchellh/mapstructure"
 	"github.com/pattonkan/sui-go/suiclient"
 
@@ -413,7 +415,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	args, argTypes, err := s.prepareArguments(argMap, functionConfig)
+	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
@@ -475,9 +477,61 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *ChainReader
 }
 
 // prepareArguments prepares function arguments and types for the call
-func (s *suiChainReader) prepareArguments(argMap map[string]any, functionConfig *ChainReaderFunction) ([]any, []string, error) {
+func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
 	if functionConfig.Params == nil {
 		return []any{}, []string{}, nil
+	}
+
+	// referring to the tag parts "_::module::Pointer::field"
+	tagLength := 4
+	// a map of object selector "module::object" to array of fields
+	pointersMap := make(map[string][]string)
+	// make a set of pointers that need to fetched
+	for _, paramConfig := range functionConfig.Params {
+		// the parameter has a pointer tag, add it to the set
+		if paramConfig.PointerTag != nil {
+			tag := strings.Split(*paramConfig.PointerTag, "::")
+			// must be 4 values, for example: "_::moduleName::pointerName::fieldName"
+			if len(tag) != tagLength {
+				return nil, nil, fmt.Errorf("invalid pointer tag: %s", *paramConfig.PointerTag)
+			}
+			// replace the initial underscore with the package ID from the read identifier
+			tag[0] = identifier.address
+			// append only the middle 2 parts of the tag to represent the pointer
+			appendTag := strings.Join(tag[1:3], "::")
+			if _, ok := pointersMap[appendTag]; !ok {
+				pointersMap[appendTag] = make([]string, 0)
+			}
+			pointersMap[appendTag] = append(pointersMap[appendTag], paramConfig.Name)
+		}
+	}
+
+	// fetch pointers
+	pointersSet := []string{}
+	for pointer := range pointersMap {
+		// make a read request to the contract
+		pointersSet = append(pointersSet, pointer)
+	}
+	pointersValuesMap, err := s.fetchPointers(ctx, pointersSet, identifier.address)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch pointers: %w", err)
+	}
+
+	// for each param, if it has a pointer value, add it to the args map
+	for _, paramConfig := range functionConfig.Params {
+		if paramConfig.PointerTag != nil {
+			tag := strings.Split(*paramConfig.PointerTag, "::")
+			pointerTag := strings.Join(tag[1:3], "::")
+			// if the value exists in the fetched pointers maps
+			if pointerValue, ok := pointersValuesMap[pointerTag][paramConfig.Name]; ok {
+				// add it to the args map
+				if paramConfig.Type == "object_id" {
+					argMap[paramConfig.Name] = bind.Object{Id: pointerValue.(string)}
+				} else {
+					argMap[paramConfig.Name] = pointerValue.(string)
+				}
+			}
+		}
 	}
 
 	args := make([]any, 0, len(functionConfig.Params))
@@ -497,6 +551,37 @@ func (s *suiChainReader) prepareArguments(argMap map[string]any, functionConfig 
 	}
 
 	return args, argTypes, nil
+}
+
+// fetchPointers gets all the specified pointers from a specific contract.
+// Returns a map of { pointerTag: { ... } }
+func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, packageId string) (map[string]map[string]any, error) {
+	var pointersValuesMap = make(map[string]map[string]any)
+
+	// fetch owned objects
+	ownedObjects, err := s.client.ReadOwnedObjects(ctx, packageId, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// check each returned object
+	for _, ownedObject := range ownedObjects {
+		// check if it matches any of the pointers
+		for _, pointer := range pointers {
+			// object tag matches
+			if ownedObject.Data.Type != nil && strings.Contains(*ownedObject.Data.Type, pointer) {
+				// parse the object into a map
+				parsedObject := map[string]any{}
+				err := json.Unmarshal(ownedObject.Data.Content.Data.MoveObject.Fields, &parsedObject)
+				if err != nil {
+					return nil, err
+				}
+				pointersValuesMap[pointer] = parsedObject
+			}
+		}
+	}
+
+	return pointersValuesMap, nil
 }
 
 // executeFunction executes the actual function call
