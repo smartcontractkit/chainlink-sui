@@ -641,7 +641,6 @@ module ccip_onramp::onramp {
         hash::keccak256(&outer_hash)
     }
 
-    #[allow(lint(self_transfer))]
     public fun ccip_send<T>(
         ref: &mut CCIPObjectRef,
         state: &mut OnRampState,
@@ -650,13 +649,12 @@ module ccip_onramp::onramp {
         data: vector<u8>,
         token_params: dd::TokenParams,
         fee_token_metadata: &CoinMetadata<T>,
-        mut fee_token: Coin<T>,
+        fee_token: &mut Coin<T>,
         extra_args: vector<u8>,
         ctx: &mut TxContext
     ): vector<u8> {
         // get_fee_internal will check curse status
         let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
-        let fee_token_balance = balance::value(coin::balance(&fee_token));
 
         // the hot potato is returned and consumed
         let (dest_chain_selector, params) = dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
@@ -702,23 +700,23 @@ module ccip_onramp::onramp {
                 extra_args,
             );
 
+        let fee_token_balance = balance::value(coin::balance(fee_token));
         if (fee_token_amount != 0) {
             assert!(
                 fee_token_amount <= fee_token_balance,
                 EUnexpectedWithdrawAmount
             );
+            let paid = coin::split(fee_token, fee_token_amount, ctx);
 
-            let refund = coin::split(&mut fee_token, fee_token_balance - fee_token_amount, ctx);
             if (state.fee_tokens.contains(fee_token_metadata_addr)) {
                 let coins: &mut Coin<T> = bag::borrow_mut(&mut state.fee_tokens, fee_token_metadata_addr);
-                coins.join(fee_token);
+                coins.join(paid);
             } else {
-                state.fee_tokens.add(fee_token_metadata_addr, fee_token);
+                state.fee_tokens.add(fee_token_metadata_addr, paid);
             };
-            transfer::public_transfer(refund, ctx.sender());
-        } else {
-            transfer::public_transfer(fee_token, ctx.sender());
+            // if overpaying, onramp will only take out the amount it needs, leaving the fee token object with the remaining balance
         };
+        // if fee_token_amount is 0, the fee_token object is returned to the sender unchanged.
 
         let sender = ctx.sender();
         verify_sender(state, dest_chain_selector, sender);

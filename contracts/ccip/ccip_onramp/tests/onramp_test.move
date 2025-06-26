@@ -814,7 +814,7 @@ module ccip_onramp::onramp_test {
         env.scenario.next_tx(OWNER);
         let ctx = env.scenario.ctx();
         let (mut treasury_cap, coin_metadata) = create_test_token(ctx);
-        let test_coin = coin::mint(&mut treasury_cap, 1000, ctx);
+        let mut test_coin = coin::mint(&mut treasury_cap, 1000, ctx);
 
         // Switch to unauthorized sender
         env.scenario.next_tx(@0x999); // Not in allowlist for DEST_CHAIN_SELECTOR_1
@@ -835,7 +835,7 @@ module ccip_onramp::onramp_test {
             b"data",
             token_params,
             &coin_metadata,
-            test_coin,
+            &mut test_coin,
             b"extra_args",
             env.scenario.ctx()
         );
@@ -843,6 +843,7 @@ module ccip_onramp::onramp_test {
         // Clean up test objects (won't be reached due to expected failure)
         transfer::public_transfer(treasury_cap, OWNER);
         transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(test_coin, OWNER);
         env.tear_down();
         ts::return_to_address(OWNER, owner_cap);
     }
