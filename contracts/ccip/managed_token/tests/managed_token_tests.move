@@ -718,7 +718,7 @@ fun test_operations_with_blocklisted_addresses() {
 #[test]
 #[expected_failure(abort_code = managed_token::EInvalidOwnerCap)]
 fun test_invalid_owner_cap_operations() {
-    let (mut scenario, mut state, owner_cap, coin_metadata) = setup_managed_token_test();
+    let (mut scenario, state, owner_cap, coin_metadata) = setup_managed_token_test();
 
     // Create another managed token to get different owner cap
     scenario.next_tx(OTHER_USER);

@@ -100,7 +100,7 @@ public fun test_initialize_and_basic_functionality() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         
         // Test basic getters
@@ -159,7 +159,7 @@ public fun test_chain_configuration_management() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         
         // Test chain updates
@@ -255,7 +255,7 @@ public fun test_liquidity_management() {
     // Test provide liquidity
     scenario.next_tx(REBALANCER);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         let initial_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
@@ -274,7 +274,7 @@ public fun test_liquidity_management() {
     // Test withdraw liquidity
     scenario.next_tx(REBALANCER);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         let withdraw_amount = 500000;
         let initial_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
@@ -338,7 +338,7 @@ public fun test_rebalancer_management() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         
         // Verify initial rebalancer
@@ -402,7 +402,7 @@ public fun test_rate_limiter_configuration() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ctx = scenario.ctx();
         let clock = clock::create_for_testing(ctx);
@@ -507,7 +507,7 @@ public fun test_allowlist_management() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         
         // Test initial allowlist state (should be disabled and empty)
@@ -599,7 +599,7 @@ public fun test_unauthorized_liquidity_provision() {
     // Try to provide liquidity as unauthorized user (should fail)
     scenario.next_tx(@0x999);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         // This should fail with EUnauthorized
@@ -657,7 +657,7 @@ public fun test_withdraw_exceeds_balance() {
     // Provide liquidity
     scenario.next_tx(REBALANCER);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         lock_release_token_pool::provide_liquidity(&mut pool_state, liquidity_coin, scenario.ctx());
@@ -668,7 +668,7 @@ public fun test_withdraw_exceeds_balance() {
     // Try to withdraw more than available (should fail)
     scenario.next_tx(REBALANCER);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         // Try to withdraw 200k tokens when only 100k are available
         let withdrawn_coin = lock_release_token_pool::withdraw_liquidity<LOCK_RELEASE_TOKEN_POOL_TESTS>(
@@ -730,7 +730,7 @@ public fun test_unauthorized_withdrawal() {
     // Provide liquidity as authorized rebalancer
     scenario.next_tx(REBALANCER);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         lock_release_token_pool::provide_liquidity(&mut pool_state, liquidity_coin, scenario.ctx());
@@ -741,7 +741,7 @@ public fun test_unauthorized_withdrawal() {
     // Try to withdraw as unauthorized user (should fail)
     scenario.next_tx(@0x999); // unauthorized user
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         // This should fail with EUnauthorized
         let withdrawn_coin = lock_release_token_pool::withdraw_liquidity<LOCK_RELEASE_TOKEN_POOL_TESTS>(
@@ -804,7 +804,7 @@ public fun test_destroy_token_pool() {
     // Provide some liquidity to test destruction with remaining balance
     scenario.next_tx(REBALANCER);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         lock_release_token_pool::provide_liquidity(&mut pool_state, liquidity_coin, scenario.ctx());
@@ -815,7 +815,7 @@ public fun test_destroy_token_pool() {
     // Test pool destruction
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ctx = scenario.ctx();
         
@@ -879,7 +879,7 @@ public fun test_edge_cases_and_getters() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         
         // Test applying empty chain updates (should work)
@@ -986,7 +986,7 @@ public fun test_lock_or_burn_functionality() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let source_transfer_cap = scenario.take_from_sender<dynamic_dispatcher::SourceTransferCap>();
         let mut ctx = tx_context::dummy();
@@ -1024,7 +1024,7 @@ public fun test_lock_or_burn_functionality() {
     // Test actual lock_or_burn function call
     scenario.next_tx(@0x456); // Switch to test user
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let test_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
@@ -1139,7 +1139,7 @@ public fun test_release_or_mint_functionality() {
     // Provide liquidity to the pool
     scenario.next_tx(REBALANCER);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         
         lock_release_token_pool::provide_liquidity(&mut pool_state, liquidity_coin, scenario.ctx());
@@ -1149,7 +1149,7 @@ public fun test_release_or_mint_functionality() {
     
     scenario.next_tx(TOKEN_ADMIN);
     {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let dest_transfer_cap = scenario.take_from_sender<offramp_state_helper::DestTransferCap>();
         let mut ctx = tx_context::dummy();

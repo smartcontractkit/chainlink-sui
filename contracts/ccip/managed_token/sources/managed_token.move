@@ -108,14 +108,14 @@ public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
 }
 
-public fun initialize<T: drop>(
+public fun initialize<T>(
     treasury_cap: TreasuryCap<T>,
     ctx: &mut TxContext,
 ) {
     initialize_internal(treasury_cap, option::none(), ctx);
 }
 
-public fun initialize_with_deny_cap<T: drop>(
+public fun initialize_with_deny_cap<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: DenyCapV2<T>,
     ctx: &mut TxContext,
@@ -124,7 +124,7 @@ public fun initialize_with_deny_cap<T: drop>(
 }
 
 #[allow(lint(self_transfer))]
-fun initialize_internal<T: drop>(
+fun initialize_internal<T>(
     treasury_cap: TreasuryCap<T>,
     deny_cap: Option<DenyCapV2<T>>,
     ctx: &mut TxContext,

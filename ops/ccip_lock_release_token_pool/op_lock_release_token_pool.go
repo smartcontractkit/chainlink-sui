@@ -94,6 +94,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 	}
 
 	method := contract.ApplyChainUpdates(
+		"",
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelectorsToRemove,
@@ -141,6 +142,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	}
 
 	method := contract.SetChainRateLimiterConfigs(
+		"",
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		bind.Object{Id: "0x6"}, // Clock object

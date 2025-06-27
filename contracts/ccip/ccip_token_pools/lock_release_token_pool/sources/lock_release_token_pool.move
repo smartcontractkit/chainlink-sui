@@ -3,7 +3,6 @@ module lock_release_token_pool::lock_release_token_pool;
 use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
 
-use sui::bag::{Self, Bag};
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 
@@ -20,15 +19,14 @@ public struct OwnerCap has key, store {
     state_id: ID,
 }
 
-public struct LockReleaseTokenPoolState has key {
+#[allow(lint(coin_field))]
+public struct LockReleaseTokenPoolState<phantom T> has key {
     id: UID,
     token_pool_state: TokenPoolState,
-    coin_store: Bag, // use Bag to avoid type param
+    reserve: Coin<T>,
     /// the rebalancer is the address that can manage liquidity of the token pool
     rebalancer: address,
 }
-
-const COIN_STORE: vector<u8> = b"CoinStore";
 
 const EInvalidArguments: u64 = 1;
 const ETokenPoolBalanceTooLow: u64 = 2;
@@ -43,7 +41,7 @@ public fun type_and_version(): String {
     string::utf8(b"LockReleaseTokenPool 1.6.0")
 }
 
-public fun initialize<T: drop>(
+public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: &TreasuryCap<T>,
@@ -70,7 +68,7 @@ public fun initialize<T: drop>(
 /// this is used by the ccip admin to initialize the token pool
 /// it verifies that the tx signer is the CCIP admin
 /// it does not require a treasury cap object
-public fun initialize_by_ccip_admin<T: drop>(
+public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     token_pool_package_id: address,
@@ -95,21 +93,20 @@ public fun initialize_by_ccip_admin<T: drop>(
 }
 
 #[allow(lint(self_transfer))]
-fun initialize_internal<T: drop>(
+fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     rebalancer: address,
     ctx: &mut TxContext,
 ): (address, address, TypeName, TypeName) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
 
-    let mut lock_release_token_pool = LockReleaseTokenPoolState {
+    let mut lock_release_token_pool = LockReleaseTokenPoolState<T> {
         id: object::new(ctx),
         token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
-        coin_store: bag::new(ctx),
+        reserve: coin::zero<T>(ctx),
         rebalancer: @0x0,
     };
     set_rebalancer_internal(&mut lock_release_token_pool, rebalancer);
-    lock_release_token_pool.coin_store.add(COIN_STORE, coin::zero<T>(ctx));
     let token_type_name = type_name::get<T>();
     let type_proof_type_name = type_name::get<TypeProof>();
     let token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
@@ -130,23 +127,23 @@ fun initialize_internal<T: drop>(
 // ================================================================
 
 /// returns the coin metadata object id of the token
-public fun get_token(state: &LockReleaseTokenPoolState): address {
+public fun get_token<T>(state: &LockReleaseTokenPoolState<T>): address {
     token_pool::get_token(&state.token_pool_state)
 }
 
-public fun get_token_decimals(state: &LockReleaseTokenPoolState): u8 {
+public fun get_token_decimals<T>(state: &LockReleaseTokenPoolState<T>): u8 {
     state.token_pool_state.get_local_decimals()
 }
 
-public fun get_remote_pools(
-    state: &LockReleaseTokenPoolState,
+public fun get_remote_pools<T>(
+    state: &LockReleaseTokenPoolState<T>,
     remote_chain_selector: u64
 ): vector<vector<u8>> {
     token_pool::get_remote_pools(&state.token_pool_state, remote_chain_selector)
 }
 
-public fun is_remote_pool(
-    state: &LockReleaseTokenPoolState,
+public fun is_remote_pool<T>(
+    state: &LockReleaseTokenPoolState<T>,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>
 ): bool {
@@ -157,14 +154,14 @@ public fun is_remote_pool(
     )
 }
 
-public fun get_remote_token(
-    state: &LockReleaseTokenPoolState, remote_chain_selector: u64
+public fun get_remote_token<T>(
+    state: &LockReleaseTokenPoolState<T>, remote_chain_selector: u64
 ): vector<u8> {
     token_pool::get_remote_token(&state.token_pool_state, remote_chain_selector)
 }
 
-public fun add_remote_pool(
-    state: &mut LockReleaseTokenPoolState,
+public fun add_remote_pool<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
@@ -175,8 +172,8 @@ public fun add_remote_pool(
     );
 }
 
-public fun remove_remote_pool(
-    state: &mut LockReleaseTokenPoolState,
+public fun remove_remote_pool<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
@@ -187,19 +184,19 @@ public fun remove_remote_pool(
     );
 }
 
-public fun is_supported_chain(
-    state: &LockReleaseTokenPoolState,
+public fun is_supported_chain<T>(
+    state: &LockReleaseTokenPoolState<T>,
     remote_chain_selector: u64
 ): bool {
     token_pool::is_supported_chain(&state.token_pool_state, remote_chain_selector)
 }
 
-public fun get_supported_chains(state: &LockReleaseTokenPoolState): vector<u64> {
+public fun get_supported_chains<T>(state: &LockReleaseTokenPoolState<T>): vector<u64> {
     token_pool::get_supported_chains(&state.token_pool_state)
 }
 
-public fun apply_chain_updates(
-    state: &mut LockReleaseTokenPoolState,
+public fun apply_chain_updates<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     remote_chain_selectors_to_remove: vector<u64>,
     remote_chain_selectors_to_add: vector<u64>,
@@ -216,16 +213,16 @@ public fun apply_chain_updates(
     );
 }
 
-public fun get_allowlist_enabled(state: &LockReleaseTokenPoolState): bool {
+public fun get_allowlist_enabled<T>(state: &LockReleaseTokenPoolState<T>): bool {
     token_pool::get_allowlist_enabled(&state.token_pool_state)
 }
 
-public fun get_allowlist(state: &LockReleaseTokenPoolState): vector<address> {
+public fun get_allowlist<T>(state: &LockReleaseTokenPoolState<T>): vector<address> {
     token_pool::get_allowlist(&state.token_pool_state)
 }
 
-public fun set_allowlist_enabled(
-    state: &mut LockReleaseTokenPoolState,
+public fun set_allowlist_enabled<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     enabled: bool
 ) {
@@ -233,8 +230,8 @@ public fun set_allowlist_enabled(
     token_pool::set_allowlist_enabled(&mut state.token_pool_state, enabled);
 }
 
-public fun apply_allowlist_updates(
-    state: &mut LockReleaseTokenPoolState,
+public fun apply_allowlist_updates<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     removes: vector<address>,
     adds: vector<address>
@@ -252,7 +249,7 @@ public struct TypeProof has drop {}
 public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
     clock: &Clock,
-    state: &mut LockReleaseTokenPoolState,
+    state: &mut LockReleaseTokenPoolState<T>,
     c: Coin<T>,
     token_params: dd::TokenParams,
     ctx: &mut TxContext
@@ -272,9 +269,7 @@ public fun lock_or_burn<T>(
             remote_chain_selector,
             amount,
         );
-
-    let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
-    stored_coin.join(c);
+    coin::join(&mut state.reserve, c);
 
     let mut extra_data = vector[];
     eth_abi::encode_u8(&mut extra_data, state.token_pool_state.get_local_decimals());
@@ -300,7 +295,7 @@ public fun lock_or_burn<T>(
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     clock: &Clock,
-    pool: &mut LockReleaseTokenPoolState,
+    pool: &mut LockReleaseTokenPoolState<T>,
     receiver_params: osh::ReceiverParams,
     index: u64,
     ctx: &mut TxContext
@@ -324,12 +319,11 @@ public fun release_or_mint<T>(
     );
 
     // split the coin to be released
-    let stored_coin: &mut Coin<T> = pool.coin_store.borrow_mut(COIN_STORE);
     assert!(
-        stored_coin.value() >= local_amount,
+        pool.reserve.value() >= local_amount,
         ETokenPoolBalanceTooLow
     );
-    let c: Coin<T> = stored_coin.split(local_amount, ctx);
+    let c: Coin<T> = coin::split(&mut pool.reserve, local_amount, ctx);
 
     token_pool::emit_released_or_minted(
         &mut pool.token_pool_state,
@@ -351,8 +345,8 @@ public fun release_or_mint<T>(
 // |                    Rate limit config                         |
 // ================================================================
 
-public fun set_chain_rate_limiter_configs(
-    state: &mut LockReleaseTokenPoolState,
+public fun set_chain_rate_limiter_configs<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     clock: &Clock,
     remote_chain_selectors: vector<u64>,
@@ -393,8 +387,8 @@ public fun set_chain_rate_limiter_configs(
     };
 }
 
-public fun set_chain_rate_limiter_config(
-    state: &mut LockReleaseTokenPoolState,
+public fun set_chain_rate_limiter_config<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     owner_cap: &OwnerCap,
     clock: &Clock,
     remote_chain_selector: u64,
@@ -424,15 +418,14 @@ public fun set_chain_rate_limiter_config(
 // ================================================================
 
 public fun provide_liquidity<T>(
-    state: &mut LockReleaseTokenPoolState,
+    state: &mut LockReleaseTokenPoolState<T>,
     c: Coin<T>,
     ctx: &mut TxContext,
 ) {
     assert!(ctx.sender() == state.rebalancer, EUnauthorized);
     let amount = c.value();
 
-    let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
-    stored_coin.join(c);
+    coin::join(&mut state.reserve, c);
 
     token_pool::emit_liquidity_added(
         &mut state.token_pool_state, state.rebalancer, amount
@@ -440,30 +433,29 @@ public fun provide_liquidity<T>(
 }
 
 public fun withdraw_liquidity<T>(
-    state: &mut LockReleaseTokenPoolState,
+    state: &mut LockReleaseTokenPoolState<T>,
     amount: u64,
     ctx: &mut TxContext,
 ): Coin<T> {
     assert!(ctx.sender() == state.rebalancer, EUnauthorized);
 
-    let stored_coin: &mut Coin<T> = state.coin_store.borrow_mut(COIN_STORE);
-    assert!(stored_coin.value() >= amount, ETokenPoolBalanceTooLow);
+    assert!(state.reserve.value() >= amount, ETokenPoolBalanceTooLow);
 
     token_pool::emit_liquidity_removed(&mut state.token_pool_state, state.rebalancer, amount);
-    stored_coin.split(amount, ctx)
+    coin::split(&mut state.reserve, amount, ctx)
 }
 
-public fun set_rebalancer(
+public fun set_rebalancer<T>(
     owner_cap: &OwnerCap,
-    state: &mut LockReleaseTokenPoolState,
+    state: &mut LockReleaseTokenPoolState<T>,
     rebalancer: address,
 ) {
     assert!(owner_cap.state_id == object::id(state), EInvalidOwnerCap);
     set_rebalancer_internal(state, rebalancer);
 }
 
-fun set_rebalancer_internal(
-    state: &mut LockReleaseTokenPoolState,
+fun set_rebalancer_internal<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
     rebalancer: address,
 ) {
     token_pool::emit_rebalancer_set(
@@ -474,28 +466,27 @@ fun set_rebalancer_internal(
     state.rebalancer = rebalancer;
 }
 
-public fun get_rebalancer(state: &LockReleaseTokenPoolState): address {
+public fun get_rebalancer<T>(state: &LockReleaseTokenPoolState<T>): address {
     state.rebalancer
 }
 
-public fun get_balance<T>(state: &LockReleaseTokenPoolState): u64 {
-    let stored_coin: &Coin<T> = state.coin_store.borrow(COIN_STORE);
-    stored_coin.value()
+public fun get_balance<T>(state: &LockReleaseTokenPoolState<T>): u64 {
+    state.reserve.value()
 }
 
 /// destroy the lock release token pool state and the owner cap, return the remaining balance to the owner
 /// this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(
-    state: LockReleaseTokenPoolState,
+    state: LockReleaseTokenPoolState<T>,
     owner_cap: OwnerCap,
     _ctx: &mut TxContext,
 ): Coin<T> {
     assert!(owner_cap.state_id == object::id(&state), EInvalidOwnerCap);
 
-    let LockReleaseTokenPoolState {
+    let LockReleaseTokenPoolState<T> {
         id: state_id,
         token_pool_state,
-        mut coin_store,
+        reserve,
         rebalancer: _,
     } = state;
     token_pool::destroy_token_pool(token_pool_state);
@@ -507,8 +498,5 @@ public fun destroy_token_pool<T>(
     } = owner_cap;
     object::delete(owner_cap_id);
 
-    let c: Coin<T> = coin_store.remove(COIN_STORE);
-    coin_store.destroy_empty();
-
-    c
+    reserve
 }

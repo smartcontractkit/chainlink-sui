@@ -43,7 +43,7 @@ public fun type_and_version(): String {
 }
 
 #[allow(lint(self_transfer))]
-public fun initialize<T: drop>(
+public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     treasury_cap: &TreasuryCap<T>,
     coin_metadata: &CoinMetadata<T>,
@@ -67,7 +67,7 @@ public fun initialize<T: drop>(
     );
 }
 
-public fun initialize_by_ccip_admin<T: drop>(
+public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
@@ -92,7 +92,7 @@ public fun initialize_by_ccip_admin<T: drop>(
 }
 
 #[allow(lint(self_transfer))]
-fun initialize_internal<T: drop>(
+fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     ctx: &mut TxContext,

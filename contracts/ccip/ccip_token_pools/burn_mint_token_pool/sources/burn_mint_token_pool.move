@@ -40,7 +40,7 @@ public fun type_and_version(): String {
     string::utf8(b"BurnMintTokenPool 1.6.0")
 }
 
-public fun initialize<T: drop>(
+public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
@@ -65,7 +65,7 @@ public fun initialize<T: drop>(
     transfer::share_object(burn_mint_token_pool);
 }
 
-public fun initialize_by_ccip_admin<T: drop>(
+public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
@@ -92,7 +92,7 @@ public fun initialize_by_ccip_admin<T: drop>(
 }
 
 #[allow(lint(self_transfer))]
-fun initialize_internal<T: drop>(
+fun initialize_internal<T>(
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
     ctx: &mut TxContext,
