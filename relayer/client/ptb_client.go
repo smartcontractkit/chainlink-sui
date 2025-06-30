@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
+	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/pattonkan/sui-go/sui/suiptb"
 
 	"github.com/pattonkan/sui-go/sui"
@@ -17,6 +19,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
@@ -31,7 +34,7 @@ type SuiPTBClient interface {
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error)
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]*sui.ObjectId, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
-	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error)
+	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, options *ReadFuncOpts) (*suiclient.ExecutionResultType, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
@@ -41,6 +44,7 @@ type SuiPTBClient interface {
 	FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
+	GetNormalizedModule(ctx context.Context, packageId string, module string) (sui.MoveNormalizedModule, error)
 }
 
 // PTBClient implements SuiClient interface using the bindings/bind package
@@ -52,6 +56,7 @@ type PTBClient struct {
 	keystoreService    loop.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
+	normalizedModules  map[string]sui.MoveNormalizedModule
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)
@@ -81,6 +86,7 @@ func NewPTBClient(
 		keystoreService:    keystoreService,
 		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
+		normalizedModules:  make(map[string]sui.MoveNormalizedModule),
 	}, nil
 }
 
@@ -322,7 +328,12 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 	return fee, nil
 }
 
-func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
+type ReadFuncOpts struct {
+	ParseStructToJson bool
+	WrapKeyValues     []string
+}
+
+func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, options *ReadFuncOpts) (*suiclient.ExecutionResultType, error) {
 	var result *suiclient.ExecutionResultType
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
 		pkgId, err := sui.AddressFromHex(packageId)
@@ -354,6 +365,51 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		c.log.Debugw("ReadFunction", "RPC response", response)
 
 		result = &response.Results[0]
+
+		if options != nil && options.ParseStructToJson {
+			returnedValue := result.ReturnValues[0].([]any)
+			structTag := returnedValue[1].(string)
+			structParts := strings.Split(structTag, "::")
+
+			// if the response type is not a struct, end operation and return the
+			// result above
+			structPartsLen := 3
+			if len(structParts) != structPartsLen {
+				return nil
+			}
+
+			// otherwise, get the normalized struct and attempt turning the result into JSON
+			normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
+			if err != nil {
+				return fmt.Errorf("failed to get normalized struct: %w", err)
+			}
+
+			bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
+			if err != nil {
+				return fmt.Errorf("failed to convert return value to bytes: %w", err)
+			}
+			bcsDecoder := aptosBCS.NewDeserializer(bcsBytes)
+			jsonResult, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structParts[2], bcsDecoder)
+			if err != nil {
+				return fmt.Errorf("failed to parse struct into JSON: %w", err)
+			}
+
+			c.log.Debug("ReadFunction JSON result", jsonResult)
+
+			// wrap the json value optionally
+			if len(options.WrapKeyValues) > 0 {
+				jsonResultWrapped := make(map[string]any)
+				for _, key := range options.WrapKeyValues {
+					jsonResultWrapped[key] = jsonResult
+				}
+				jsonResult = jsonResultWrapped
+			}
+
+			// set the result to the JSON result and the struct tag
+			result = &suiclient.ExecutionResultType{
+				ReturnValues: []suiclient.ReturnValueType{jsonResult, structTag},
+			}
+		}
 
 		return nil
 	})
@@ -672,4 +728,27 @@ func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int
 	}
 
 	return balanceResponse.TotalBalance.Int, nil
+}
+
+func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (sui.MoveNormalizedModule, error) {
+	// return the cached version if available
+	if normalizedModule, ok := c.normalizedModules[module]; ok {
+		return normalizedModule, nil
+	}
+
+	pkgId, err := sui.AddressFromHex(packageId)
+	if err != nil {
+		return sui.MoveNormalizedModule{}, fmt.Errorf("invalid package ID: %w", err)
+	}
+	normalizedModule, err := c.client.GetNormalizedMoveModule(ctx, pkgId, module)
+	if err != nil {
+		return sui.MoveNormalizedModule{}, fmt.Errorf("failed to get normalized module: %w", err)
+	}
+
+	c.log.Debugw("Getting normalized module", "normalizedModule", normalizedModule)
+
+	// add it to the cache
+	c.normalizedModules[module] = *normalizedModule
+
+	return *normalizedModule, nil
 }

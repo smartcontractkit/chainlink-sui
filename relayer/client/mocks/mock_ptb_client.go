@@ -181,18 +181,18 @@ func (mr *MockSuiPTBClientMockRecorder) ReadFilterOwnedObjectIds(ctx, ownerAddre
 }
 
 // ReadFunction mocks base method.
-func (m *MockSuiPTBClient) ReadFunction(ctx context.Context, signerAddress, packageId, module, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
+func (m *MockSuiPTBClient) ReadFunction(ctx context.Context, signerAddress, packageId, module, function string, args []any, argTypes []string, options *client.ReadFuncOpts) (*suiclient.ExecutionResultType, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFunction", ctx, signerAddress, packageId, module, function, args, argTypes)
+	ret := m.ctrl.Call(m, "ReadFunction", ctx, signerAddress, packageId, module, function, args, argTypes, options)
 	ret0, _ := ret[0].(*suiclient.ExecutionResultType)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadFunction indicates an expected call of ReadFunction.
-func (mr *MockSuiPTBClientMockRecorder) ReadFunction(ctx, signerAddress, packageId, module, function, args, argTypes any) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) ReadFunction(ctx, signerAddress, packageId, module, function, args, argTypes, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFunction", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFunction), ctx, signerAddress, packageId, module, function, args, argTypes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFunction", reflect.TypeOf((*MockSuiPTBClient)(nil).ReadFunction), ctx, signerAddress, packageId, module, function, args, argTypes, options)
 }
 
 // ReadObjectId mocks base method.
@@ -268,4 +268,19 @@ func (m *MockSuiPTBClient) ToPTBArg(ctx context.Context, builder *suiptb.Program
 func (mr *MockSuiPTBClientMockRecorder) ToPTBArg(ctx, builder, argValue, isMutable any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToPTBArg", reflect.TypeOf((*MockSuiPTBClient)(nil).ToPTBArg), ctx, builder, argValue, isMutable)
+}
+
+// GetNormalizedModule mocks base method.
+func (m *MockSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId, module string) (sui.MoveNormalizedModule, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNormalizedStruct", ctx, packageId, module)
+	ret0, _ := ret[0].(sui.MoveNormalizedModule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNormalizedStruct indicates an expected call of GetNormalizedStruct.
+func (mr *MockSuiPTBClientMockRecorder) GetNormalizedModule(ctx, packageId, module string) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNormalizedModule", reflect.TypeOf((*MockSuiPTBClient)(nil).GetNormalizedModule), ctx, packageId, module)
 }

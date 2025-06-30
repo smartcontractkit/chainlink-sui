@@ -191,6 +191,7 @@ func (s *SuiPTBExpander) GetTokenPoolByTokenAddress(
 			"object_id",
 			"vector<address>",
 		},
+		nil,
 	)
 
 	if err != nil {
@@ -442,6 +443,7 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 					"object_id",
 					"address",
 				},
+				nil,
 			)
 
 			if err != nil {

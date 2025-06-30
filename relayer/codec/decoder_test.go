@@ -10,6 +10,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/shared"
 
+	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
+	"github.com/pattonkan/sui-go/sui"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,6 +47,213 @@ type NestedStruct struct {
 	Inner struct {
 		Count uint32 `json:"count"`
 	} `json:"inner"`
+}
+
+func buildOCRNormalizedStructs() map[string]*sui.MoveNormalizedStruct {
+	/* ─────────────────── helpers ─────────────────── */
+	empty := &sui.EmptyEnum{} // convenience
+	abs := func(a sui.MoveAbility) sui.MoveAbility { return a }
+
+	abilitySet := sui.MoveAbilitySet{
+		Abilities: []sui.MoveAbility{
+			abs(sui.MoveAbilityCopy),
+			abs(sui.MoveAbilityDrop),
+			abs(sui.MoveAbilityStore),
+		},
+	}
+
+	/* ───────── 1. ConfigInfo ───────── */
+	configInfo := &sui.MoveNormalizedStruct{
+		Abilities: abilitySet,
+		Fields: []*sui.MoveNormalizedField{
+			{
+				Name: "config_digest",
+				Type: &sui.MoveNormalizedType{
+					Vector: &sui.MoveNormalizedType{U8: empty}, // vector<u8>
+				},
+			},
+			{Name: "big_f", Type: &sui.MoveNormalizedType{U8: empty}},
+			{Name: "n", Type: &sui.MoveNormalizedType{U8: empty}},
+			{Name: "is_signature_verification_enabled",
+				Type: &sui.MoveNormalizedType{Bool: empty}},
+		},
+	}
+
+	/* ───────── 2. OCRConfig ───────── */
+	const pkgAddr = "0xa2e88b3fb5d8222b06ec849960fa6a49beb48e4d8147519d212cb3181682329e"
+	const modName = "ocr3_base"
+
+	ocrConfig := &sui.MoveNormalizedStruct{
+		Abilities: abilitySet,
+		Fields: []*sui.MoveNormalizedField{
+			{
+				Name: "config_info",
+				Type: &sui.MoveNormalizedType{
+					Struct: &sui.MoveNormalizedTypeStructType{
+						Address: sui.MustAddressFromHex(pkgAddr),
+						Module:  sui.Identifier(modName),
+						Name:    sui.Identifier("ConfigInfo"),
+					},
+				},
+			},
+			{
+				Name: "signers",
+				Type: &sui.MoveNormalizedType{
+					Vector: &sui.MoveNormalizedType{
+						Vector: &sui.MoveNormalizedType{U8: empty}, // vector<vector<u8>>
+					},
+				},
+			},
+			{
+				Name: "transmitters",
+				Type: &sui.MoveNormalizedType{
+					Vector: &sui.MoveNormalizedType{Address: empty}, // vector<address>
+				},
+			},
+		},
+	}
+
+	/* ───────── 3. DynamicConfig ───────── */
+	dynamicConfig := &sui.MoveNormalizedStruct{
+		Abilities: abilitySet,
+		Fields: []*sui.MoveNormalizedField{
+			{
+				Name: "fee_quoter",
+				Type: &sui.MoveNormalizedType{Address: empty}, // address
+			},
+			{
+				Name: "permissionless_execution_threshold_seconds",
+				Type: &sui.MoveNormalizedType{U32: empty}, // u32
+			},
+		},
+	}
+
+	/* ───────── 4. StaticConfig ───────── */
+	staticConfig := &sui.MoveNormalizedStruct{
+		Abilities: abilitySet,
+		Fields: []*sui.MoveNormalizedField{
+			{Name: "chain_selector", Type: &sui.MoveNormalizedType{U64: empty}},
+			{Name: "rmn_remote", Type: &sui.MoveNormalizedType{Address: empty}},
+			{Name: "token_admin_registry", Type: &sui.MoveNormalizedType{Address: empty}},
+			{Name: "nonce_manager", Type: &sui.MoveNormalizedType{Address: empty}},
+		},
+	}
+
+	/* ───────── map population ───────── */
+	return map[string]*sui.MoveNormalizedStruct{
+		"ConfigInfo":    configInfo,
+		"OCRConfig":     ocrConfig,
+		"DynamicConfig": dynamicConfig,
+		"StaticConfig":  staticConfig,
+	}
+}
+
+func toInterfaceSlice(in [][]byte) []any {
+	out := make([]any, len(in))
+	for i, v := range in {
+		out[i] = v
+	}
+
+	return out
+}
+
+func TestDecoder(t *testing.T) {
+	t.Parallel()
+
+	normalizedStructs := buildOCRNormalizedStructs()
+
+	mocked_bcsOCRConfigByte := []byte{
+		32, 0, 10, 163, 58, 124, 44, 0, 205, 25, 175, 172, 143, 227, 22, 8, 175, 42, 52, 252, 74, 32, 10, 107, 236, 80, 1, 177, 162, 131, 82, 115, 71,
+		1, 4,
+		1, 4,
+		32, 153, 199, 47, 13, 162, 190, 48, 139, 149, 84, 92, 112, 93, 249, 186, 231, 136, 123, 47, 47, 228, 6, 126, 60, 15, 225, 137, 169, 88, 36, 111, 223,
+		32, 185, 6, 58, 13, 126, 86, 237, 190, 192, 150, 150, 19, 74, 225, 21, 7, 83, 19, 164, 225, 70, 37, 68, 140, 138, 155, 195, 18, 14, 201, 54, 184,
+		32, 237, 81, 16, 104, 37, 16, 243, 198, 124, 89, 11, 86, 195, 24, 18, 132, 120, 108, 13, 25, 116, 159, 64, 190, 1, 184, 175, 103, 72, 18, 122, 255,
+		32, 213, 192, 56, 2, 175, 151, 186, 105, 250, 60, 206, 8, 54, 91, 208, 80, 45, 64, 142, 15, 45, 182, 101, 87, 125, 144, 114, 146, 189, 165, 130, 187,
+		4, 51, 226, 204, 208, 210, 225, 178, 251, 215, 161, 23, 19, 167, 250, 208, 102, 88, 245, 8, 211, 230, 10, 7, 91, 68, 202, 111, 169, 46, 217, 9, 137,
+		88, 2, 84, 235, 187, 66, 243, 57, 245, 194, 18, 92, 179, 94, 242, 121, 119, 226, 188, 125, 133, 223, 136, 196, 186, 122, 104, 225, 215, 140, 230, 170,
+		118, 124, 155, 157, 80, 221, 219, 194, 82, 0, 141, 107, 133, 15, 228, 127, 248, 169, 211, 92, 82, 137, 101, 86, 107, 86, 17, 193, 42, 182, 100, 61,
+		63, 88, 117, 124, 145, 87, 42, 74, 17, 60, 67, 61, 23, 200, 219, 8, 212, 84, 233, 97, 22, 211, 228, 125, 79, 118, 102, 0, 252, 175, 97, 116,
+	}
+
+	mocked_bcsDynamicConfigByte := []byte{
+		170, 19, 66, 95, 197, 83, 230, 78, 103, 134, 74, 121, 132, 213, 150, 12, 158, 202, 36, 182, 151, 174, 135, 123, 186, 132, 119, 66, 155, 154, 16, 59, 170, 19, 66, 95, 197, 83, 230, 78, 103, 134, 74, 121, 132, 213, 150, 12, 158, 202, 36, 182, 151, 174, 135, 123, 186, 132, 119, 66, 155, 154, 16, 59,
+	}
+
+	mocked_bcsStaticConfigByte := []byte{
+		212, 226, 191, 180, 220, 244, 73, 255, 66, 142, 194, 196, 51, 195, 132, 3, 252, 28, 117, 107, 158, 168, 182, 58, 86, 221, 193, 11, 83, 238, 48, 109, 63, 162, 5, 228, 245, 85, 130, 159, 66, 142, 194, 196, 51, 195, 132, 3, 252, 28, 117, 107, 158, 168, 182, 58, 86, 221, 193, 11, 83, 238, 48, 109, 63, 162, 5, 228, 245, 85, 130, 159, 66, 142, 194, 196, 51, 195, 132, 3, 252, 28, 117, 107, 158, 168, 182, 58, 86, 221, 193, 11, 83, 238, 48, 109, 63, 162, 5, 228, 245, 85, 130, 159,
+	}
+
+	t.Run("OCRConfig", func(t *testing.T) {
+		t.Parallel()
+
+		bcsDecoder := aptosBCS.NewDeserializer(mocked_bcsOCRConfigByte)
+
+		got, err := DecodeSuiStructToJSON(normalizedStructs, "OCRConfig", bcsDecoder)
+		require.NoError(t, err)
+
+		want := map[string]any{
+			"config_info": map[string]any{
+				"config_digest": []byte{0, 10, 163, 58, 124, 44, 0, 205, 25, 175, 172, 143, 227, 22, 8, 175,
+					42, 52, 252, 74, 32, 10, 107, 236, 80, 1, 177, 162, 131, 82, 115, 71},
+				"big_f":                             uint8(1),
+				"n":                                 uint8(4),
+				"is_signature_verification_enabled": true,
+			},
+			"signers": [][]byte{
+				{153, 199, 47, 13, 162, 190, 48, 139, 149, 84, 92, 112, 93, 249, 186, 231, 136, 123, 47, 47, 228, 6, 126, 60, 15, 225, 137, 169, 88, 36, 111, 223},
+				{185, 6, 58, 13, 126, 86, 237, 190, 192, 150, 150, 19, 74, 225, 21, 7, 83, 19, 164, 225, 70, 37, 68, 140, 138, 155, 195, 18, 14, 201, 54, 184},
+				{237, 81, 16, 104, 37, 16, 243, 198, 124, 89, 11, 86, 195, 24, 18, 132, 120, 108, 13, 25, 116, 159, 64, 190, 1, 184, 175, 103, 72, 18, 122, 255},
+				{213, 192, 56, 2, 175, 151, 186, 105, 250, 60, 206, 8, 54, 91, 208, 80, 45, 64, 142, 15, 45, 182, 101, 87, 125, 144, 114, 146, 189, 165, 130, 187},
+			},
+			"transmitters": toInterfaceSlice([][]byte{
+				{51, 226, 204, 208, 210, 225, 178, 251, 215, 161, 23, 19, 167, 250, 208, 102, 88, 245, 8, 211, 230, 10, 7, 91, 68, 202, 111, 169, 46, 217, 9, 137},
+				{88, 2, 84, 235, 187, 66, 243, 57, 245, 194, 18, 92, 179, 94, 242, 121, 119, 226, 188, 125, 133, 223, 136, 196, 186, 122, 104, 225, 215, 140, 230, 170},
+				{118, 124, 155, 157, 80, 221, 219, 194, 82, 0, 141, 107, 133, 15, 228, 127, 248, 169, 211, 92, 82, 137, 101, 86, 107, 86, 17, 193, 42, 182, 100, 61},
+				{63, 88, 117, 124, 145, 87, 42, 74, 17, 60, 67, 61, 23, 200, 219, 8, 212, 84, 233, 97, 22, 211, 228, 125, 79, 118, 102, 0, 252, 175, 97, 116},
+			}),
+		}
+
+		require.Equal(t, want, got)
+	})
+
+	t.Run("DynamicConfig", func(t *testing.T) {
+		t.Parallel()
+
+		bcsDecoder := aptosBCS.NewDeserializer(mocked_bcsDynamicConfigByte)
+
+		got, err := DecodeSuiStructToJSON(normalizedStructs, "DynamicConfig", bcsDecoder)
+		require.NoError(t, err)
+
+		want := map[string]any{
+			"fee_quoter": []byte{
+				170, 19, 66, 95, 197, 83, 230, 78, 103, 134, 74, 121, 132, 213, 150, 12,
+				158, 202, 36, 182, 151, 174, 135, 123, 186, 132, 119, 66, 155, 154, 16, 59,
+			},
+			"permissionless_execution_threshold_seconds": uint32(1598165930),
+		}
+		require.Equal(t, want, got)
+	})
+
+	t.Run("StaticConfig", func(t *testing.T) {
+		t.Parallel()
+
+		bcsDecoder := aptosBCS.NewDeserializer(mocked_bcsStaticConfigByte)
+
+		got, err := DecodeSuiStructToJSON(normalizedStructs, "StaticConfig", bcsDecoder)
+		require.NoError(t, err)
+
+		addr := []byte{66, 142, 194, 196, 51, 195, 132, 3, 252, 28, 117, 107, 158,
+			168, 182, 58, 86, 221, 193, 11, 83, 238, 48, 109, 63, 162, 5, 228, 245, 85, 130, 159}
+
+		want := map[string]any{
+			"chain_selector":       uint64(18395503381733958356),
+			"rmn_remote":           addr,
+			"token_admin_registry": addr,
+			"nonce_manager":        addr,
+		}
+		require.Equal(t, want, got)
+	})
 }
 
 func TestDecodeSuiJsonValue_NilTarget(t *testing.T) {

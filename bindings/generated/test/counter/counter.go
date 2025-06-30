@@ -37,6 +37,11 @@ type ICounter interface {
 	GetCountNoEntry(counter bind.Object) bind.IMethod
 	GetAddressList() bind.IMethod
 	GetSimpleResult() bind.IMethod
+	GetResultStruct() bind.IMethod
+	GetNestedResultStruct() bind.IMethod
+	GetMultiNestedResultStruct() bind.IMethod
+	GetTupleStruct() bind.IMethod
+	GetOcrConfig() bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -96,6 +101,40 @@ type AddressList struct {
 
 type SimpleResult struct {
 	Value uint64 `move:"u64"`
+}
+
+type ComplexResult struct {
+	Count     uint64 `move:"u64"`
+	Addr      string `move:"address"`
+	IsComplex bool   `move:"bool"`
+	Bytes     []byte `move:"vector<u8>"`
+}
+
+type NestedStruct struct {
+	IsNested           bool          `move:"bool"`
+	DoubleCount        uint64        `move:"u64"`
+	NestedStruct       ComplexResult `move:"ComplexResult"`
+	NestedSimpleStruct SimpleResult  `move:"SimpleResult"`
+}
+
+type MultiNestedStruct struct {
+	IsMultiNested      bool         `move:"bool"`
+	DoubleCount        uint64       `move:"u64"`
+	NestedStruct       NestedStruct `move:"NestedStruct"`
+	NestedSimpleStruct SimpleResult `move:"SimpleResult"`
+}
+
+type ConfigInfo struct {
+	ConfigDigest                   []byte `move:"vector<u8>"`
+	BigF                           byte   `move:"u8"`
+	N                              byte   `move:"u8"`
+	IsSignatureVerificationEnabled bool   `move:"bool"`
+}
+
+type OCRConfig struct {
+	ConfigInfo   ConfigInfo `move:"ConfigInfo"`
+	Signers      [][]byte   `move:"vector<vector<u8>>"`
+	Transmitters []string   `move:"vector<address>"`
 }
 
 // Functions
@@ -288,6 +327,76 @@ func (c *CounterContract) GetSimpleResult() bind.IMethod {
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_simple_result", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_simple_result", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetResultStruct() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_result_struct", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_result_struct", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetNestedResultStruct() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_nested_result_struct", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_nested_result_struct", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetMultiNestedResultStruct() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_multi_nested_result_struct", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_multi_nested_result_struct", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetTupleStruct() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_tuple_struct", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_tuple_struct", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetOcrConfig() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_ocr_config", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_ocr_config", err)
 		}
 
 		return ptb, nil

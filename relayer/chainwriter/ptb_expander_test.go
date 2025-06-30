@@ -134,6 +134,7 @@ func setupMockExpectations(mockClient *mocks.MockSuiPTBClient, testCases []struc
 					"get_pool_infos",
 					gomock.Any(),
 					[]string{"object_id", "vector<address>"},
+					nil,
 				).
 				Return(nil, fmt.Errorf("mock error for test: %s", tc.name)).
 				Times(1)
@@ -150,6 +151,7 @@ func setupMockExpectations(mockClient *mocks.MockSuiPTBClient, testCases []struc
 					"get_pool_infos",
 					gomock.Any(),
 					[]string{"object_id", "vector<address>"},
+					nil,
 				).
 				Return(response, nil).
 				Times(1)
@@ -648,6 +650,7 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 					"get_pool_infos",
 					gomock.Any(),
 					[]string{"object_id", "vector<address>"},
+					nil,
 				).
 				Return(response, nil).
 				Times(1)
@@ -680,6 +683,7 @@ func TestSuiPTBExpander_GetOffRampPTB(t *testing.T) {
 									receiverAddress,
 								},
 								[]string{"object_id", "address"},
+								nil,
 							).
 							Return(expectedResult, nil).
 							Times(1)
@@ -1239,6 +1243,7 @@ func TestSuiPTBExpander_FilterRegisteredReceivers(t *testing.T) {
 								"is_registered_receiver",
 								gomock.Any(),
 								[]string{"object_id", "address"},
+								nil,
 							).
 							Return(nil, fmt.Errorf("mock error")).
 							Times(1)
@@ -1262,6 +1267,7 @@ func TestSuiPTBExpander_FilterRegisteredReceivers(t *testing.T) {
 							"is_registered_receiver",
 							gomock.Any(),
 							[]string{"object_id", "address"},
+							nil,
 						).
 						Return(expectedResult, nil).
 						Times(1)

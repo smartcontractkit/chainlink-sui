@@ -141,6 +141,8 @@ func (s *loopChainReader) BatchGetLatestValues(ctx context.Context, request type
 		convertedResult[contract] = convertedBatch
 	}
 
+	s.logger.Debugw("BatchGetLatestValues result", "result", convertedResult)
+
 	return convertedResult, nil
 }
 

@@ -42,7 +42,7 @@ func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, account string,
 	return []suiclient.SuiObjectResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
+func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, options *client.ReadFuncOpts) (*suiclient.ExecutionResultType, error) {
 	return nil, errors.New("invalid value")
 }
 
@@ -85,4 +85,8 @@ func (c *FakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey
 
 func (c *FakeSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
 	return big.NewInt(0), nil
+}
+
+func (c *FakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (sui.MoveNormalizedModule, error) {
+	return sui.MoveNormalizedModule{}, nil
 }

@@ -11,8 +11,10 @@ import (
 	"strconv"
 	"strings"
 
+	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/fardream/go-bcs/bcs"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pattonkan/sui-go/sui"
 )
 
 const (
@@ -70,6 +72,128 @@ func DecodeSuiJsonValue(data any, target any) error {
 	default:
 		return decodeGeneric(data, target)
 	}
+}
+
+// DecodeSuiStructToJSON decodes a Sui struct into a JSON object
+// using the normalized struct and the result
+func DecodeSuiStructToJSON(normalizedStructs map[string]*sui.MoveNormalizedStruct, identifier string, bcsDecoder *aptosBCS.Deserializer) (map[string]any, error) {
+	jsonResult := make(map[string]any)
+
+	// Add nil check for the normalizedStructs map itself
+	if normalizedStructs == nil {
+		return nil, fmt.Errorf("normalizedStructs map is nil")
+	}
+
+	normalizedStruct := normalizedStructs[identifier]
+
+	// Add nil check for the normalized struct
+	if normalizedStruct == nil {
+		return nil, fmt.Errorf("struct with identifier '%s' not found in normalized structs", identifier)
+	}
+
+	for _, field := range normalizedStruct.Fields {
+		fieldType := field.Type
+		fieldName := field.Name
+
+		if fieldType.Address != nil {
+			addressBytesLen := 32
+			jsonResult[fieldName] = bcsDecoder.ReadFixedBytes(addressBytesLen)
+		} else if fieldType.Bool != nil {
+			jsonResult[fieldName] = bcsDecoder.Bool()
+		} else if fieldType.U8 != nil {
+			jsonResult[fieldName] = bcsDecoder.U8()
+		} else if fieldType.U16 != nil {
+			jsonResult[fieldName] = bcsDecoder.U16()
+		} else if fieldType.U32 != nil {
+			jsonResult[fieldName] = bcsDecoder.U32()
+		} else if fieldType.U64 != nil {
+			jsonResult[fieldName] = bcsDecoder.U64()
+		} else if fieldType.U128 != nil {
+			jsonResult[fieldName] = bcsDecoder.U128()
+		} else if fieldType.U256 != nil {
+			jsonResult[fieldName] = bcsDecoder.U256()
+		} else if fieldType.Vector != nil {
+			decodedVector, err := decodeVectorField(bcsDecoder, fieldType.Vector, normalizedStructs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode vector field: %w", err)
+			}
+			jsonResult[fieldName] = decodedVector
+		} else if fieldType.Struct != nil {
+			inner, err := DecodeSuiStructToJSON(normalizedStructs, fieldType.Struct.Name, bcsDecoder)
+			if err != nil {
+				return nil, err
+			}
+			jsonResult[fieldName] = inner
+		}
+	}
+
+	return jsonResult, nil
+}
+
+func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType *sui.MoveNormalizedType, _normalizedStructs map[string]*sui.MoveNormalizedStruct) (any, error) {
+	// Read the length of the vector first
+	vectorLength := bcsDecoder.Uleb128()
+
+	// Check the inner type of the vector
+	if vectorType.U8 != nil {
+		// This is vector<u8> - read as bytes
+		bytes := make([]byte, vectorLength)
+		for i := range vectorLength {
+			bytes[i] = bcsDecoder.U8()
+		}
+
+		return bytes, nil
+	} else if vectorType.Vector != nil && vectorType.Vector.U8 != nil {
+		// This is vector<vector<u8>> - read as bytes
+		bytes := make([][]byte, vectorLength)
+		for i := range bytes {
+			bytes[i] = bcsDecoder.ReadBytes() // each inner vector is length-prefixed
+		}
+
+		return bytes, nil
+	} else if vectorType.Vector != nil {
+		vectorItem, err := decodeVectorField(bcsDecoder, vectorType.Vector, _normalizedStructs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode inner vector: %w", err)
+		}
+
+		return vectorItem, nil
+	} else if vectorType.Struct != nil {
+		// This is vector<SomeStruct> - decode each struct
+		structVector := make([]any, vectorLength)
+		for range vectorLength {
+			// For struct vectors, we'd need to calculate remaining bytes for each struct
+			// This is more complex and would require careful BCS parsing
+			return nil, fmt.Errorf("vector<struct> not yet implemented")
+		}
+
+		return structVector, nil
+	}
+
+	// Handle other primitive types in vectors
+	primitiveVector := make([]any, vectorLength)
+	for i := range vectorLength {
+		if vectorType.Bool != nil {
+			primitiveVector[i] = bcsDecoder.Bool()
+		} else if vectorType.U16 != nil {
+			primitiveVector[i] = bcsDecoder.U16()
+		} else if vectorType.U32 != nil {
+			primitiveVector[i] = bcsDecoder.U32()
+		} else if vectorType.U64 != nil {
+			primitiveVector[i] = bcsDecoder.U64()
+		} else if vectorType.U128 != nil {
+			primitiveVector[i] = bcsDecoder.U128()
+		} else if vectorType.U256 != nil {
+			primitiveVector[i] = bcsDecoder.U256()
+		} else if vectorType.Address != nil {
+			addressBytesLen := 32
+			primitiveVector[i] = bcsDecoder.ReadFixedBytes(addressBytesLen)
+		} else {
+			return nil, fmt.Errorf("unsupported vector inner type")
+		}
+	}
+
+	return primitiveVector, nil
 }
 
 // decodeString handles string type decoding
@@ -142,6 +266,13 @@ func decodeNumeric(data any, targetValue reflect.Value) error {
 		return setNumericValue(targetValue, uint64(n))
 	case []byte:
 		return decodeNumericFromBytes(v, targetValue)
+	case []any:
+		bytes, err := AnySliceToBytes(v)
+		if err != nil {
+			return fmt.Errorf("failed to convert slice to bytes: %w", err)
+		}
+
+		return decodeNumericFromBytes(bytes, targetValue)
 	default:
 		return fmt.Errorf("unsupported data type for numeric target: %T", data)
 	}
@@ -279,6 +410,11 @@ func AnySliceToBytes(src []any) ([]byte, error) {
 		case uint:
 			if x > maxByteValue {
 				return nil, fmt.Errorf("element %d: uint %d out of byte range", i, x)
+			}
+			dst[i] = byte(x)
+		case float64:
+			if x > maxByteValue {
+				return nil, fmt.Errorf("element %d: float64 %f out of byte range", i, x)
 			}
 			dst[i] = byte(x)
 		default:

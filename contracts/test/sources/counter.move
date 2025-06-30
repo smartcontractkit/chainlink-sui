@@ -43,6 +43,40 @@ module test::counter {
         value: u64,
     }
 
+    public struct ComplexResult has copy, drop {
+        count: u64,
+        addr: address,
+        is_complex: bool,
+        bytes: vector<u8>,
+    }
+
+    public struct NestedStruct has copy, drop {
+        is_nested: bool,
+        double_count: u64,
+        nested_struct: ComplexResult,
+        nested_simple_struct: SimpleResult,
+    }
+
+    public struct MultiNestedStruct has copy, drop {
+        is_multi_nested: bool,
+        double_count: u64,
+        nested_struct: NestedStruct,
+        nested_simple_struct: SimpleResult,
+    }
+
+    public struct ConfigInfo has store, drop, copy {
+        config_digest: vector<u8>,
+        big_f: u8,
+        n: u8,
+        is_signature_verification_enabled: bool
+    }
+
+    public struct OCRConfig has store, drop, copy {
+        config_info: ConfigInfo,
+        signers: vector<vector<u8>>,
+        transmitters: vector<address>
+    }
+
     fun init(_witness: COUNTER, ctx: &mut TxContext) {
         let counter = Counter { 
             id: object::new(ctx), 
@@ -208,10 +242,93 @@ module test::counter {
         }
     }
 
-    /// Returns a simple struct with a single value for BCS testing
     public fun get_simple_result(): SimpleResult {
         SimpleResult {
             value: 42,
+        }
+    }
+
+    /// Returns a simple struct with a single value for BCS testing
+    public fun get_result_struct(): ComplexResult {
+        let mut random_bytes = vector::empty<u8>();
+        vector::push_back(&mut random_bytes, 1);
+        vector::push_back(&mut random_bytes, 2);
+        vector::push_back(&mut random_bytes, 3);
+        vector::push_back(&mut random_bytes, 4);
+        
+        ComplexResult {
+            count: 42,
+            addr: @0x1,
+            is_complex: true,
+            bytes: random_bytes,
+        }
+    }
+
+    /// Returns a nested struct with a complex struct and a simple struct
+    public fun get_nested_result_struct(): NestedStruct {
+        let mut random_bytes = vector::empty<u8>();
+        vector::push_back(&mut random_bytes, 1);
+        vector::push_back(&mut random_bytes, 2);
+        vector::push_back(&mut random_bytes, 3);
+        vector::push_back(&mut random_bytes, 4);
+        
+        NestedStruct {
+            is_nested: true,
+            double_count: 42,
+            nested_struct: ComplexResult {
+                count: 42,
+                addr: @0x1,
+                is_complex: true,
+                bytes: random_bytes,
+            },
+            nested_simple_struct: SimpleResult {
+                value: 42,
+            },
+        }
+    }
+
+    /// Returns a multi nested struct with a nested struct and a simple struct
+    public fun get_multi_nested_result_struct(): MultiNestedStruct {
+        MultiNestedStruct {
+            is_multi_nested: true,
+            double_count: 42,
+            nested_struct: get_nested_result_struct(),
+            nested_simple_struct: SimpleResult {
+                value: 42,
+            },
+        }
+    }
+
+    public fun get_tuple_struct(): (u64, address, bool, vector<u8>) {
+        (42, @0x1, true, vector::empty<u8>())
+    }
+
+    public fun get_ocr_config(): OCRConfig {
+        let mut config_digest = vector::empty<u8>();
+        vector::push_back(&mut config_digest, 2);
+        vector::push_back(&mut config_digest, 3);
+        vector::push_back(&mut config_digest, 4);
+        vector::push_back(&mut config_digest, 5);
+
+        let mut signers = vector::empty<vector<u8>>();
+        vector::push_back(&mut signers, @0x5.to_bytes());
+        let mut signer2 = vector::empty<u8>();
+        vector::push_back(&mut signer2, 0x6);
+        vector::push_back(&mut signer2, 0x6);
+        vector::push_back(&mut signers, signer2);
+
+        let mut transmitters = vector::empty<address>();
+        vector::push_back(&mut transmitters, @0x7);
+
+        OCRConfig {
+            config_info: ConfigInfo {
+                config_digest,
+                big_f: 1,
+                n: 2,
+                is_signature_verification_enabled: true,
+            },
+            signers,
+            transmitters,
         }
     }
 }

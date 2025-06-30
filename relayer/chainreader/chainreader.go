@@ -594,7 +594,13 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		"argTypes", argTypes,
 	)
 
-	response, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, moduleConfig.Name, parsed.readName, args, argTypes)
+	// specify that we want to parse into JSON when in LOOP plugin mode
+	readFuncOpts := &client.ReadFuncOpts{
+		ParseStructToJson: s.config.IsLoopPlugin,
+		WrapKeyValues:     functionConfig.ResultUnwrapStruct,
+	}
+
+	response, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, moduleConfig.Name, parsed.readName, args, argTypes, readFuncOpts)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,
@@ -615,15 +621,15 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 // parseResponse parses the function response based on plugin mode
 func (s *suiChainReader) parseResponse(rawResponse any) (any, error) {
-	if s.config.IsLoopPlugin {
-		valueField, err := codec.ParseSuiResponseValue(rawResponse)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse Sui response: %w", err)
-		}
-		s.logger.Debugw("Sui ParseSuiResponseValue", "valueField", valueField)
+	// if s.config.IsLoopPlugin {
+	// 	valueField, err := codec.ParseSuiResponseValue(rawResponse)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to parse Sui response: %w", err)
+	// 	}
+	// 	s.logger.Debugw("Sui ParseSuiResponseValue", "valueField", valueField)
 
-		return valueField, nil
-	}
+	// 	return valueField, nil
+	// }
 
 	// For non-LOOP mode, we'll parse the response when encoding the result
 	return rawResponse, nil
@@ -647,7 +653,28 @@ func (s *suiChainReader) encodeResult(valueField any, returnVal any) error {
 
 // encodeLoopResult encodes results for LOOP plugin mode
 func (s *suiChainReader) encodeLoopResult(valueField any, returnVal any) error {
-	resultBytes, err := json.Marshal(valueField)
+	var toMarshal any
+
+	// Safely check if valueField is a slice
+	valueSlice, ok := valueField.([]any)
+	if !ok {
+		return fmt.Errorf("expected valueField to be []any, got %T", valueField)
+	}
+
+	// Check if slice has at least one element
+	if len(valueSlice) == 0 {
+		return fmt.Errorf("valueField slice is empty")
+	}
+
+	// Try to convert first element to map, if that fails use the element directly
+	if resultMap, mapOk := valueSlice[0].(map[string]any); mapOk {
+		toMarshal = resultMap
+	} else {
+		// For primitive values like uint64, the data might not be in a map structure
+		toMarshal = valueSlice[0]
+	}
+
+	resultBytes, err := json.Marshal(toMarshal)
 	if err != nil {
 		return fmt.Errorf("failed to marshal data for LOOP: %w", err)
 	}

@@ -74,6 +74,7 @@ func TestPTBClient(t *testing.T) {
 			"get_count",
 			args,
 			argTypes,
+			nil,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -273,6 +274,96 @@ func TestPTBClient(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "success", txStatus.Status, "Expected transaction status to be 'success', got: %s with error: %s",
 			txStatus.Status, txStatus.Error)
+	})
+
+	t.Run("ReadFunction_JSONResponseParsing", func(t *testing.T) {
+		response, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"get_result_struct",
+			[]any{},
+			[]string{},
+			&client.ReadFuncOpts{
+				ParseStructToJson: true,
+				WrapKeyValues:     []string{},
+			},
+		)
+		require.NoError(t, err)
+		utils.PrettyPrint(response)
+	})
+
+	t.Run("ReadFunction_NestedStruct", func(t *testing.T) {
+		response, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"get_nested_result_struct",
+			[]any{},
+			[]string{},
+			&client.ReadFuncOpts{
+				ParseStructToJson: true,
+				WrapKeyValues:     []string{},
+			},
+		)
+		require.NoError(t, err)
+		utils.PrettyPrint(response)
+	})
+
+	t.Run("ReadFunction_MultiNestedStruct", func(t *testing.T) {
+		response, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"get_multi_nested_result_struct",
+			[]any{},
+			[]string{},
+			&client.ReadFuncOpts{
+				ParseStructToJson: true,
+				WrapKeyValues:     []string{},
+			},
+		)
+		require.NoError(t, err)
+		utils.PrettyPrint(response)
+	})
+
+	t.Run("ReadFunction_Tuple", func(t *testing.T) {
+		response, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"get_tuple_struct",
+			[]any{},
+			[]string{},
+			&client.ReadFuncOpts{
+				ParseStructToJson: true,
+				WrapKeyValues:     []string{},
+			},
+		)
+		require.NoError(t, err)
+		utils.PrettyPrint(response)
+	})
+
+	t.Run("ReadFunction_OCRConfig", func(t *testing.T) {
+		response, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"get_ocr_config",
+			[]any{},
+			[]string{},
+			&client.ReadFuncOpts{
+				ParseStructToJson: true,
+				WrapKeyValues:     []string{},
+			},
+		)
+		require.NoError(t, err)
+		utils.PrettyPrint(response)
 	})
 }
 
