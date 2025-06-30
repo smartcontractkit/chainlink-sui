@@ -26,12 +26,9 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-// Go struct that matches the Move AddressList struct
-type SuiAddress [32]byte
-
 type AddressList struct {
-	Addresses []SuiAddress `json:"addresses"`
-	Count     uint64       `json:"count"`
+	Addresses [][]byte `json:"addresses"`
+	Count     uint64   `json:"count"`
 }
 
 // Go struct that matches the Move SimpleResult struct
@@ -135,6 +132,12 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
 					},
+					"get_tuple_struct": {
+						Name:                "get_tuple_struct",
+						SignerAddress:       accountAddress,
+						Params:              []codec.SuiFunctionParam{}, // No parameters needed
+						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
+					},
 					"get_count_using_pointer": {
 						Name:          "get_count_using_pointer",
 						SignerAddress: accountAddress,
@@ -185,24 +188,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	require.NoError(t, err)
 
 	log.Debugw("ChainReader setup complete")
-
-	// Test GetLatestValue for different data types
-
-	t.Run("GetLatestValue_Uint64", func(t *testing.T) {
-		expectedUint64 := uint64(0)
-		var retUint64 uint64
-		err = chainReader.GetLatestValue(
-			context.Background(),
-			strings.Join([]string{packageId, counterBinding.Name, counterObjectId}, "-"),
-			primitives.Finalized,
-			struct {
-				Value uint64
-			}{Value: expectedUint64},
-			&retUint64,
-		)
-		require.NoError(t, err)
-		require.Equal(t, expectedUint64, retUint64)
-	})
 
 	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
 		expectedUint64 := uint64(0)
@@ -275,11 +260,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.Len(t, retAddressList.Addresses, 4, "Expected 4 addresses in the list")
 
 		// Verify the expected addresses match what we defined in the Move function
-		expectedAddresses := []SuiAddress{
-			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
-			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
-			[32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
+		expectedAddresses := [][32]byte{
+			{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+			{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+			{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3},
+			{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
 		}
 
 		for i, addr := range retAddressList.Addresses {
@@ -289,6 +274,35 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		log.Debugw("AddressList test completed successfully",
 			"count", retAddressList.Count,
 			"addresses", retAddressList.Addresses)
+	})
+
+	t.Run("GetLatestValue_TupleToStruct", func(t *testing.T) {
+		var retTupleStruct map[string]any
+
+		log.Debugw("Testing get_tuple_struct function for BCS struct decoding",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "counter", "get_tuple_struct"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&retTupleStruct,
+		)
+		require.NoError(t, err)
+
+		// Verify the returned struct
+		require.NotNil(t, retTupleStruct)
+		require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
+		require.Len(t, retTupleStruct["address"].([]byte), 32, "Expected address to be 0x1")
+		require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
+
+		log.Debugw("TupleStruct test completed successfully",
+			"value", retTupleStruct["value"],
+			"address", retTupleStruct["address"],
+			"bool", retTupleStruct["bool"],
+			"struct_tag", retTupleStruct["struct_tag"])
 	})
 
 	t.Run("QueryKey_Events", func(t *testing.T) {

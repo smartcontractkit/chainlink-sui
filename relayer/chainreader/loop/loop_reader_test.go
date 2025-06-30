@@ -125,6 +125,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 								Required: true,
 							},
 						},
+						ResultTupleToStruct: []string{"first", "second"},
 					},
 					"echo_string": {
 						Name:          "echo_string",
@@ -191,11 +192,34 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 					},
 				},
 			},
+			"counter": {
+				Name: "counter",
+				Functions: map[string]*chainreader.ChainReaderFunction{
+					"get_tuple_struct": {
+						Name:                "get_tuple_struct",
+						SignerAddress:       accountAddress,
+						Params:              []codec.SuiFunctionParam{},
+						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
+					},
+					"get_ocr_config": {
+						Name:          "get_ocr_config",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{},
+						// used to wrap entire result
+						ResultTupleToStruct: []string{"OCRConfig"},
+					},
+				},
+			},
 		},
 	}
 
 	echoBinding := types.BoundContract{
 		Name:    "echo",
+		Address: packageId, // Package ID of the deployed echo contract
+	}
+
+	counterBinding := types.BoundContract{
+		Name:    "counter",
 		Address: packageId, // Package ID of the deployed echo contract
 	}
 
@@ -215,6 +239,9 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 
 	// Bind the contracts to the loop reader
 	err = loopReader.Bind(context.Background(), []types.BoundContract{echoBinding})
+	require.NoError(t, err)
+
+	err = loopReader.Bind(context.Background(), []types.BoundContract{counterBinding})
 	require.NoError(t, err)
 
 	log.Debugw("LoopChainReader setup complete")
@@ -301,14 +328,12 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 
 	// Test 5: echo_u32_u64_tuple function call
 	t.Run("LoopReader_GetLatestValue_EchoTuple", func(t *testing.T) {
-		t.Skip("Skipping tuple test")
-
 		testVal1 := uint32(100)
 		testVal2 := uint64(200)
 
 		type TupleResult struct {
-			First  uint32 `json:"0"`
-			Second uint64 `json:"1"`
+			First  uint32 `json:"first"`
+			Second uint64 `json:"second"`
 		}
 
 		var retTuple TupleResult
@@ -388,6 +413,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		t.Run("QuerySingleValueEvent", func(t *testing.T) {
 			singleValueEvent := &SingleValueEvent{}
 			var sequences []types.Sequence
+			//nolint:govet
 			var err error
 
 			// Use relayerClient to call increment instead of using CLI
@@ -441,6 +467,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		t.Run("QuerySingleValueEvent_WithoutConfig", func(t *testing.T) {
 			singleValueEvent := &NoConfigSingleValueEvent{}
 			var sequences []types.Sequence
+			//nolint:govet
 			var err error
 
 			// Use relayerClient to call increment instead of using CLI
@@ -494,6 +521,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		t.Run("QueryDoubleValueEvent", func(t *testing.T) {
 			t.Skip("Skipping double value test")
 			doubleValueEvent := &DoubleValueEvent{}
+			//nolint:govet
 			sequences, err := loopReader.QueryKey(
 				ctx,
 				echoBinding,
@@ -518,6 +546,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		t.Run("QueryTripleValueEvent", func(t *testing.T) {
 			t.Skip("Skipping triple value event test")
 			tripleValueEvent := &TripleValueEvent{}
+			//nolint:govet
 			sequences, err := loopReader.QueryKey(
 				ctx,
 				echoBinding,
@@ -537,5 +566,56 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			require.NotEmpty(t, latestEvent.Values, "Expected non-empty values array")
 			require.Equal(t, testBytes, latestEvent.Values[0])
 		})
+	})
+
+	t.Run("LoopReader_GetLatestValue_GetTupleStruct", func(t *testing.T) {
+		var retTupleStruct map[string]any
+		err = loopReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, counterBinding.Name, "get_tuple_struct"}, "-"),
+			primitives.Finalized,
+			map[string]any{},
+			&retTupleStruct,
+		)
+		require.NoError(t, err)
+		require.NotEmpty(t, retTupleStruct, "Expected to find TupleStruct")
+		log.Debugw("retTupleStruct", "retTupleStruct", retTupleStruct)
+
+		// require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
+		// require.Equal(t, "0x1", retTupleStruct["address"], "Expected address to be 0x1")
+		// require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
+		// require.Equal(t, "0x1", retTupleStruct["struct_tag"], "Expected struct_tag to be 0x1")
+	})
+
+	t.Run("LoopReader_GetLatestValue_GetOCRConfig", func(t *testing.T) {
+		type ConfigInfo struct {
+			ConfigDigest                   []byte `json:"config_digest"`
+			BigF                           uint64 `json:"big_f"`
+			N                              uint64 `json:"n"`
+			IsSignatureVerificationEnabled bool   `json:"is_signature_verification_enabled"`
+		}
+
+		type OCRConfig struct {
+			ConfigInfo   ConfigInfo `json:"config_info"`
+			Signers      [][]byte   `json:"signers"`
+			Transmitters [][]byte   `json:"transmitters"`
+		}
+
+		type OCRConfigWrapped struct {
+			OCRConfig OCRConfig `json:"OCRConfig"`
+		}
+
+		var retOCRConfig OCRConfigWrapped
+		err = loopReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-"),
+			primitives.Finalized,
+			map[string]any{},
+			&retOCRConfig,
+		)
+
+		require.NoError(t, err)
+		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
+		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
 	})
 }

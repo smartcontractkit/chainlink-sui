@@ -42,6 +42,9 @@ type ICounter interface {
 	GetMultiNestedResultStruct() bind.IMethod
 	GetTupleStruct() bind.IMethod
 	GetOcrConfig() bind.IMethod
+	GetVectorOfU8() bind.IMethod
+	GetVectorOfAddresses() bind.IMethod
+	GetVectorOfVectorsOfU8() bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -397,6 +400,48 @@ func (c *CounterContract) GetOcrConfig() bind.IMethod {
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_ocr_config", false, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_ocr_config", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetVectorOfU8() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_vector_of_u8", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_vector_of_u8", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetVectorOfAddresses() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_vector_of_addresses", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_vector_of_addresses", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetVectorOfVectorsOfU8() bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_vector_of_vectors_of_u8", false, "", "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_vector_of_vectors_of_u8", err)
 		}
 
 		return ptb, nil

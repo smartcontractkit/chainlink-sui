@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
-	"github.com/fardream/go-bcs/bcs"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pattonkan/sui-go/sui"
 )
@@ -130,6 +129,64 @@ func DecodeSuiStructToJSON(normalizedStructs map[string]*sui.MoveNormalizedStruc
 	return jsonResult, nil
 }
 
+// func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType *sui.MoveNormalizedType, _normalizedStructs map[string]*sui.MoveNormalizedStruct) (any, error) {
+// 	// Read the length of the vector first
+// 	vectorLength := bcsDecoder.Uleb128()
+
+// 	// Check the inner type of the vector
+// 	if vectorType.U8 != nil {
+// 		// This is vector<u8> - read as bytes
+// 		:= make([]byte, vectorLength)
+// 		for i := range vectorLength {
+// 			bytes[i] = bcsDecoder.U8()
+// 		}
+
+// 		return bytes, nil
+// 	} else if vectorType.Vector != nil {
+// 		vectorItem, err := decodeVectorField(bcsDecoder, vectorType.Vector, _normalizedStructs)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to decode inner vector: %w", err)
+// 		}
+
+// 		return vectorItem, nil
+// 	} else if vectorType.Struct != nil {
+// 		// This is vector<SomeStruct> - decode each struct
+// 		structVector := make([]any, vectorLength)
+// 		for range vectorLength {
+// 			// For struct vectors, we'd need to calculate remaining bytes for each struct
+// 			// This is more complex and would require careful BCS parsing
+// 			return nil, fmt.Errorf("vector<struct> not yet implemented")
+// 		}
+
+// 		return structVector, nil
+// 	}
+
+// 	// Handle other primitive types in vectors
+// 	primitiveVector := make([]any, vectorLength)
+// 	for i := range vectorLength {
+// 		if vectorType.Bool != nil {
+// 			primitiveVector[i] = bcsDecoder.Bool()
+// 		} else if vectorType.U16 != nil {
+// 			primitiveVector[i] = bcsDecoder.U16()
+// 		} else if vectorType.U32 != nil {
+// 			primitiveVector[i] = bcsDecoder.U32()
+// 		} else if vectorType.U64 != nil {
+// 			primitiveVector[i] = bcsDecoder.U64()
+// 		} else if vectorType.U128 != nil {
+// 			primitiveVector[i] = bcsDecoder.U128()
+// 		} else if vectorType.U256 != nil {
+// 			primitiveVector[i] = bcsDecoder.U256()
+// 		} else if vectorType.Address != nil {
+// 			addressBytesLen := 32
+// 			primitiveVector[i] = bcsDecoder.ReadFixedBytes(addressBytesLen)
+// 		} else {
+// 			return nil, fmt.Errorf("unsupported vector inner type")
+// 		}
+// 	}
+
+// 	return primitiveVector, nil
+// }
+
 func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType *sui.MoveNormalizedType, _normalizedStructs map[string]*sui.MoveNormalizedStruct) (any, error) {
 	// Read the length of the vector first
 	vectorLength := bcsDecoder.Uleb128()
@@ -143,21 +200,18 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType *sui.MoveNo
 		}
 
 		return bytes, nil
-	} else if vectorType.Vector != nil && vectorType.Vector.U8 != nil {
-		// This is vector<vector<u8>> - read as bytes
-		bytes := make([][]byte, vectorLength)
-		for i := range bytes {
-			bytes[i] = bcsDecoder.ReadBytes() // each inner vector is length-prefixed
-		}
-
-		return bytes, nil
 	} else if vectorType.Vector != nil {
-		vectorItem, err := decodeVectorField(bcsDecoder, vectorType.Vector, _normalizedStructs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode inner vector: %w", err)
+		// This is vector<vector<T>> - recursively decode each inner vector
+		outerVector := make([]any, vectorLength)
+		for i := range vectorLength {
+			innerResult, err := decodeVectorField(bcsDecoder, vectorType.Vector, _normalizedStructs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode inner vector at index %d: %w", i, err)
+			}
+			outerVector[i] = innerResult
 		}
 
-		return vectorItem, nil
+		return outerVector, nil
 	} else if vectorType.Struct != nil {
 		// This is vector<SomeStruct> - decode each struct
 		structVector := make([]any, vectorLength)
@@ -170,7 +224,6 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType *sui.MoveNo
 		return structVector, nil
 	}
 
-	// Handle other primitive types in vectors
 	primitiveVector := make([]any, vectorLength)
 	for i := range vectorLength {
 		if vectorType.Bool != nil {
@@ -194,6 +247,37 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType *sui.MoveNo
 	}
 
 	return primitiveVector, nil
+}
+
+func DecodeSuiPrimative(bcsDecoder *aptosBCS.Deserializer, primativeType string) (any, error) {
+	switch primativeType {
+	case "u8":
+		return bcsDecoder.U8(), nil
+	case "u16":
+		return bcsDecoder.U16(), nil
+	case "u32":
+		return bcsDecoder.U32(), nil
+	case "u64":
+		return bcsDecoder.U64(), nil
+	case "u128":
+		return bcsDecoder.U128(), nil
+	case "u256":
+		return bcsDecoder.U256(), nil
+	case "bool":
+		return bcsDecoder.Bool(), nil
+	//nolint:goconst
+	case "address":
+		addressBytesLen := 32
+		return bcsDecoder.ReadFixedBytes(addressBytesLen), nil
+	case "vector<address>":
+		return decodeVectorField(bcsDecoder, &sui.MoveNormalizedType{Address: &sui.EmptyEnum{}}, nil)
+	case "vector<u8>":
+		return decodeVectorField(bcsDecoder, &sui.MoveNormalizedType{U8: &sui.EmptyEnum{}}, nil)
+	case "vector<vector<u8>>":
+		return decodeVectorField(bcsDecoder, &sui.MoveNormalizedType{Vector: &sui.MoveNormalizedType{U8: &sui.EmptyEnum{}}}, nil)
+	}
+
+	return nil, fmt.Errorf("unsupported BCS primitive type: %s", primativeType)
 }
 
 // decodeString handles string type decoding
@@ -658,57 +742,6 @@ func parseStructValue(responseValue any) (any, error) {
 	}
 
 	return convertToBcsBytes(byteArray)
-}
-
-// ParseSuiResponseValueWithTarget extracts and decodes Sui response into target
-func ParseSuiResponseValueWithTarget(rawResponse any, target any) error {
-	responseArray, ok := rawResponse.([]any)
-	if !ok {
-		return fmt.Errorf("expected Sui response to be an array, got %T", rawResponse)
-	}
-
-	if len(responseArray) < minResponseArrayLen {
-		return fmt.Errorf("expected Sui response array to have at least 2 elements, got %d", len(responseArray))
-	}
-
-	responseValue := responseArray[0]
-	responseType, ok := responseArray[1].(string)
-	if !ok {
-		return fmt.Errorf("expected second response element to be type string, got %T", responseArray[1])
-	}
-
-	// Handle struct types with BCS decoding
-	if isStructType(responseType) {
-		return decodeBcsStruct(responseValue, responseType, target)
-	}
-
-	// Handle other types with standard parsing
-	parsedValue, err := ParseSuiResponseValue(rawResponse)
-	if err != nil {
-		return fmt.Errorf("failed to parse Sui response: %w", err)
-	}
-
-	return DecodeSuiJsonValue(parsedValue, target)
-}
-
-// decodeBcsStruct handles BCS decoding for struct types
-func decodeBcsStruct(responseValue any, responseType string, target any) error {
-	byteArray, ok := responseValue.([]any)
-	if !ok {
-		return fmt.Errorf("expected byte array for struct type %s, got %T", responseType, responseValue)
-	}
-
-	bcsBytes, err := convertToBcsBytes(byteArray)
-	if err != nil {
-		return fmt.Errorf("failed to convert to BCS bytes: %w", err)
-	}
-
-	_, err = bcs.Unmarshal(bcsBytes, target)
-	if err != nil {
-		return fmt.Errorf("failed to BCS decode struct type %s: %w", responseType, err)
-	}
-
-	return nil
 }
 
 // convertToBcsBytes converts interface slice to byte slice

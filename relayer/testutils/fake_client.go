@@ -42,7 +42,7 @@ func (c *FakeSuiPTBClient) ReadOwnedObjects(ctx context.Context, account string,
 	return []suiclient.SuiObjectResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, options *client.ReadFuncOpts) (*suiclient.ExecutionResultType, error) {
+func (c *FakeSuiPTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
 	return nil, errors.New("invalid value")
 }
 

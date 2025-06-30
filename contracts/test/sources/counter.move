@@ -299,8 +299,17 @@ module test::counter {
         }
     }
 
-    public fun get_tuple_struct(): (u64, address, bool, vector<u8>) {
-        (42, @0x1, true, vector::empty<u8>())
+    public fun get_tuple_struct(): (u64, address, bool, MultiNestedStruct) {
+        let nested_result = MultiNestedStruct {
+            is_multi_nested: true,
+            double_count: 42,
+            nested_struct: get_nested_result_struct(),
+            nested_simple_struct: SimpleResult {
+                value: 42,
+            },
+        };
+        
+        (42, @0x1, true, nested_result)
     }
 
     public fun get_ocr_config(): OCRConfig {
@@ -330,5 +339,32 @@ module test::counter {
             signers,
             transmitters,
         }
+    }
+
+    public fun get_vector_of_u8(): vector<u8> {
+        let mut bytes = vector::empty<u8>();
+        vector::push_back(&mut bytes, 1);
+        vector::push_back(&mut bytes, 2);
+        vector::push_back(&mut bytes, 3);
+        vector::push_back(&mut bytes, 4);
+        bytes
+    }
+
+    public fun get_vector_of_addresses(): vector<address> {
+        let mut addresses = vector::empty<address>();
+        vector::push_back(&mut addresses, @0x1);
+        vector::push_back(&mut addresses, @0x2);
+        vector::push_back(&mut addresses, @0x3);
+        vector::push_back(&mut addresses, @0x4);
+        addresses
+    }
+
+    public fun get_vector_of_vectors_of_u8(): vector<vector<u8>> {
+        let mut vectors = vector::empty<vector<u8>>();
+        vector::push_back(&mut vectors, @0x1.to_bytes());
+        vector::push_back(&mut vectors, @0x2.to_bytes());
+        vector::push_back(&mut vectors, @0x3.to_bytes());
+        vector::push_back(&mut vectors, @0x4.to_bytes());
+        vectors
     }
 }

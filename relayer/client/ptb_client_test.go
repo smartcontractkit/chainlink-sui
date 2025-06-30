@@ -74,7 +74,6 @@ func TestPTBClient(t *testing.T) {
 			"get_count",
 			args,
 			argTypes,
-			nil,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -285,10 +284,6 @@ func TestPTBClient(t *testing.T) {
 			"get_result_struct",
 			[]any{},
 			[]string{},
-			&client.ReadFuncOpts{
-				ParseStructToJson: true,
-				WrapKeyValues:     []string{},
-			},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(response)
@@ -303,10 +298,6 @@ func TestPTBClient(t *testing.T) {
 			"get_nested_result_struct",
 			[]any{},
 			[]string{},
-			&client.ReadFuncOpts{
-				ParseStructToJson: true,
-				WrapKeyValues:     []string{},
-			},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(response)
@@ -321,10 +312,6 @@ func TestPTBClient(t *testing.T) {
 			"get_multi_nested_result_struct",
 			[]any{},
 			[]string{},
-			&client.ReadFuncOpts{
-				ParseStructToJson: true,
-				WrapKeyValues:     []string{},
-			},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(response)
@@ -339,17 +326,13 @@ func TestPTBClient(t *testing.T) {
 			"get_tuple_struct",
 			[]any{},
 			[]string{},
-			&client.ReadFuncOpts{
-				ParseStructToJson: true,
-				WrapKeyValues:     []string{},
-			},
 		)
 		require.NoError(t, err)
 		utils.PrettyPrint(response)
 	})
 
 	t.Run("ReadFunction_OCRConfig", func(t *testing.T) {
-		response, err := relayerClient.ReadFunction(
+		values, err := relayerClient.ReadFunction(
 			context.Background(),
 			accountAddress,
 			packageId,
@@ -357,13 +340,37 @@ func TestPTBClient(t *testing.T) {
 			"get_ocr_config",
 			[]any{},
 			[]string{},
-			&client.ReadFuncOpts{
-				ParseStructToJson: true,
-				WrapKeyValues:     []string{},
-			},
 		)
 		require.NoError(t, err)
-		utils.PrettyPrint(response)
+		utils.PrettyPrint(values)
+	})
+
+	t.Run("ReadFunction_VectorOfU8", func(t *testing.T) {
+		values, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"get_vector_of_u8",
+			[]any{},
+			[]string{},
+		)
+		require.NoError(t, err)
+		utils.PrettyPrint(values)
+	})
+
+	t.Run("ReadFunction_VectorOfAddresses", func(t *testing.T) {
+		values, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"get_vector_of_addresses",
+			[]any{},
+			[]string{},
+		)
+		require.NoError(t, err)
+		utils.PrettyPrint(values)
 	})
 }
 

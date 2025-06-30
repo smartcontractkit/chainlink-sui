@@ -31,8 +31,8 @@ type ChainReaderFunction struct {
 	Name          string
 	SignerAddress string
 	Params        []codec.SuiFunctionParam
-	// ResultUnwrapStruct is a way to wrap the results map with a key for LOOP / core communication
-	ResultUnwrapStruct []string
+	// Defines a way to transform a tuple result into a JSON object
+	ResultTupleToStruct []string
 }
 
 type ChainReaderEvent struct {

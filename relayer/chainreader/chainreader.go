@@ -11,7 +11,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -226,19 +225,36 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return err
 	}
 
-	var valueField any
-
-	if isObjectRead(parsed.readName) {
-		valueField, err = s.readObject(ctx, parsed.readName)
-	} else {
-		valueField, err = s.callFunction(ctx, parsed, params)
-	}
-
+	results, err := s.callFunction(ctx, parsed, params)
 	if err != nil {
 		return err
 	}
 
-	return s.encodeResult(valueField, returnVal)
+	// get function config to determine if transformations for tuples are needed
+	functionConfig := s.config.Modules[parsed.contractName].Functions[parsed.readName]
+	if functionConfig.ResultTupleToStruct != nil {
+		structResult := make(map[string]any)
+		for i, mapKey := range functionConfig.ResultTupleToStruct {
+			structResult[mapKey] = results[i]
+		}
+
+		// if we are running in loop plugin mode, we will want to encode the result into JSON bytes
+		if s.config.IsLoopPlugin {
+			return s.encodeLoopResult(structResult, returnVal)
+		}
+
+		return codec.DecodeSuiJsonValue(structResult, returnVal)
+	}
+
+	// otherwise, no tuple to struct specification, just a slice of values
+	if s.config.IsLoopPlugin {
+		return s.encodeLoopResult(results, returnVal)
+	}
+
+	s.logger.Debugw("results", "results", results, "returnVal", returnVal)
+
+	// handle multiple results for non-loop plugin mode
+	return codec.DecodeSuiJsonValue(results[0], returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -382,28 +398,8 @@ func (s *suiChainReader) validateContractBinding(contract pkgtypes.BoundContract
 	return nil
 }
 
-// isObjectRead determines if the read operation is for an object (starts with 0x) or a function call
-func isObjectRead(readName string) bool {
-	return strings.HasPrefix(readName, objectIdPrefix)
-}
-
-// readObject reads a value from a Sui object
-func (s *suiChainReader) readObject(ctx context.Context, objectId string) (any, error) {
-	object, err := s.client.ReadObjectId(ctx, objectId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read object %s: %w", objectId, err)
-	}
-
-	valueField, ok := object["value"]
-	if !ok {
-		return nil, fmt.Errorf("object %s does not contain a 'value' field", objectId)
-	}
-
-	return valueField, nil
-}
-
 // callFunction calls a contract function and returns the result
-func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any) (any, error) {
+func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any) ([]any, error) {
 	moduleConfig := s.config.Modules[parsed.contractName]
 	functionConfig, ok := moduleConfig.Functions[parsed.readName]
 	if !ok {
@@ -420,12 +416,12 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
 
-	response, err := s.executeFunction(ctx, parsed, moduleConfig, functionConfig, args, argTypes)
+	responseValues, err := s.executeFunction(ctx, parsed, moduleConfig, functionConfig, args, argTypes)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.parseResponse(response.ReturnValues[0])
+	return responseValues, nil
 }
 
 // parseParams parses input parameters based on whether we're running as a LOOP plugin
@@ -585,7 +581,7 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 }
 
 // executeFunction executes the actual function call
-func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, moduleConfig *ChainReaderModule, functionConfig *ChainReaderFunction, args []any, argTypes []string) (*suiclient.ExecutionResultType, error) {
+func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, moduleConfig *ChainReaderModule, functionConfig *ChainReaderFunction, args []any, argTypes []string) ([]any, error) {
 	s.logger.Debugw("Calling ReadFunction",
 		"address", parsed.address,
 		"module", moduleConfig.Name,
@@ -594,13 +590,7 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		"argTypes", argTypes,
 	)
 
-	// specify that we want to parse into JSON when in LOOP plugin mode
-	readFuncOpts := &client.ReadFuncOpts{
-		ParseStructToJson: s.config.IsLoopPlugin,
-		WrapKeyValues:     functionConfig.ResultUnwrapStruct,
-	}
-
-	response, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, moduleConfig.Name, parsed.readName, args, argTypes, readFuncOpts)
+	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, moduleConfig.Name, parsed.readName, args, argTypes)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,
@@ -614,64 +604,29 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		return nil, fmt.Errorf("failed to call function %s: %w", parsed.readName, err)
 	}
 
-	s.logger.Debugw("Sui ReadFunction response", "response", response.ReturnValues[0])
+	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
 
-	return response, nil
-}
-
-// parseResponse parses the function response based on plugin mode
-func (s *suiChainReader) parseResponse(rawResponse any) (any, error) {
-	// if s.config.IsLoopPlugin {
-	// 	valueField, err := codec.ParseSuiResponseValue(rawResponse)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to parse Sui response: %w", err)
-	// 	}
-	// 	s.logger.Debugw("Sui ParseSuiResponseValue", "valueField", valueField)
-
-	// 	return valueField, nil
-	// }
-
-	// For non-LOOP mode, we'll parse the response when encoding the result
-	return rawResponse, nil
-}
-
-// encodeResult encodes the final result based on plugin mode
-func (s *suiChainReader) encodeResult(valueField any, returnVal any) error {
-	if s.config.IsLoopPlugin {
-		return s.encodeLoopResult(valueField, returnVal)
-	}
-
-	// For non-LOOP mode, handle both parsed responses and direct values
-	if responseArray, ok := valueField.([]any); ok && len(responseArray) >= 2 {
-		// This is a raw function response that needs parsing
-		return codec.ParseSuiResponseValueWithTarget(valueField, returnVal)
-	}
-
-	// This is already a parsed value (from object read)
-	return codec.DecodeSuiJsonValue(valueField, returnVal)
+	return values, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode
 func (s *suiChainReader) encodeLoopResult(valueField any, returnVal any) error {
 	var toMarshal any
 
-	// Safely check if valueField is a slice
-	valueSlice, ok := valueField.([]any)
-	if !ok {
-		return fmt.Errorf("expected valueField to be []any, got %T", valueField)
-	}
-
-	// Check if slice has at least one element
-	if len(valueSlice) == 0 {
-		return fmt.Errorf("valueField slice is empty")
-	}
-
-	// Try to convert first element to map, if that fails use the element directly
-	if resultMap, mapOk := valueSlice[0].(map[string]any); mapOk {
+	// Check if the value is a map
+	if resultMap, mapOk := valueField.(map[string]any); mapOk {
 		toMarshal = resultMap
-	} else {
+	} else if resultSlice, sliceOk := valueField.([]any); sliceOk {
 		// For primitive values like uint64, the data might not be in a map structure
-		toMarshal = valueSlice[0]
+		if len(resultSlice) == 1 {
+			// if it's a single value, we can just marshal it
+			toMarshal = resultSlice[0]
+		} else {
+			// if it's a slice of values, we need to marshal the whole slice
+			toMarshal = resultSlice
+		}
+	} else {
+		return fmt.Errorf("expected valueField to be map[string]any or []any, got %T", valueField)
 	}
 
 	resultBytes, err := json.Marshal(toMarshal)

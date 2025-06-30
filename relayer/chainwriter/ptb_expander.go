@@ -177,7 +177,7 @@ func (s *SuiPTBExpander) GetTokenPoolByTokenAddress(
 		return nil, err
 	}
 
-	poolInfos, err := s.ptbClient.ReadFunction(
+	poolInfoResponseValues, err := s.ptbClient.ReadFunction(
 		context.Background(),
 		signerAddress,
 		s.AddressMappings["ccipPackageId"],
@@ -191,7 +191,6 @@ func (s *SuiPTBExpander) GetTokenPoolByTokenAddress(
 			"object_id",
 			"vector<address>",
 		},
-		nil,
 	)
 
 	if err != nil {
@@ -200,8 +199,8 @@ func (s *SuiPTBExpander) GetTokenPoolByTokenAddress(
 	}
 
 	var tokenPoolInfo GetPoolInfosResult
-	lggr.Debugw("tokenPoolInfo", "tokenPoolInfo", poolInfos.ReturnValues[0])
-	err = codec.ParseSuiResponseValueWithTarget(poolInfos.ReturnValues[0], &tokenPoolInfo)
+	lggr.Debugw("tokenPoolInfo", "tokenPoolInfo", poolInfoResponseValues[0])
+	err = codec.DecodeSuiJsonValue(poolInfoResponseValues[0], &tokenPoolInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +428,7 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 
 			lggr.Debugw("Getting receiver config", "receiverAddress", receiverAddress)
 
-			poolInfos, err := s.ptbClient.ReadFunction(
+			isRegisteredResponseValues, err := s.ptbClient.ReadFunction(
 				context.Background(),
 				signerAddress,
 				s.AddressMappings["ccipPackageId"],
@@ -443,20 +442,14 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 					"object_id",
 					"address",
 				},
-				nil,
 			)
+			isRegistered := isRegisteredResponseValues[0].(bool)
 
 			if err != nil {
 				lggr.Errorw("Error getting pool infos", "error", err)
 				return nil, err
 			}
-
-			var isRegistered bool
-			lggr.Debugw("isRegistered", "isRegistered", poolInfos.ReturnValues[0])
-			err = codec.ParseSuiResponseValueWithTarget(poolInfos.ReturnValues[0], &isRegistered)
-			if err != nil {
-				return nil, err
-			}
+			lggr.Debugw("isRegistered", "isRegistered", isRegistered)
 
 			if isRegistered {
 				registeredReceivers = append(registeredReceivers, message)

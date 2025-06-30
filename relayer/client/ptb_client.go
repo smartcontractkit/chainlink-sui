@@ -34,7 +34,7 @@ type SuiPTBClient interface {
 	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error)
 	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]*sui.ObjectId, error)
 	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
-	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, options *ReadFuncOpts) (*suiclient.ExecutionResultType, error)
+	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
@@ -328,13 +328,8 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 	return fee, nil
 }
 
-type ReadFuncOpts struct {
-	ParseStructToJson bool
-	WrapKeyValues     []string
-}
-
-func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string, options *ReadFuncOpts) (*suiclient.ExecutionResultType, error) {
-	var result *suiclient.ExecutionResultType
+func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
+	var results []any
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
 		pkgId, err := sui.AddressFromHex(packageId)
 		if err != nil {
@@ -364,57 +359,50 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 
 		c.log.Debugw("ReadFunction", "RPC response", response)
 
-		result = &response.Results[0]
+		results = make([]any, len(response.Results[0].ReturnValues))
 
-		if options != nil && options.ParseStructToJson {
-			returnedValue := result.ReturnValues[0].([]any)
+		// parse one or more results
+		for i, returnedValue := range response.Results[0].ReturnValues {
+			returnedValue := returnedValue.([]any)
 			structTag := returnedValue[1].(string)
 			structParts := strings.Split(structTag, "::")
 
-			// if the response type is not a struct, end operation and return the
-			// result above
-			structPartsLen := 3
-			if len(structParts) != structPartsLen {
-				return nil
-			}
-
-			// otherwise, get the normalized struct and attempt turning the result into JSON
-			normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
-			if err != nil {
-				return fmt.Errorf("failed to get normalized struct: %w", err)
-			}
-
+			// create a bcs decoder from the return value
 			bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
 			if err != nil {
 				return fmt.Errorf("failed to convert return value to bytes: %w", err)
 			}
 			bcsDecoder := aptosBCS.NewDeserializer(bcsBytes)
-			jsonResult, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structParts[2], bcsDecoder)
-			if err != nil {
-				return fmt.Errorf("failed to parse struct into JSON: %w", err)
-			}
 
-			c.log.Debug("ReadFunction JSON result", jsonResult)
-
-			// wrap the json value optionally
-			if len(options.WrapKeyValues) > 0 {
-				jsonResultWrapped := make(map[string]any)
-				for _, key := range options.WrapKeyValues {
-					jsonResultWrapped[key] = jsonResult
+			// if the response type is not a struct (primitive type), skip the result (keep it as is)
+			structPartsLen := 3
+			if len(structParts) != structPartsLen {
+				primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
+				if err != nil {
+					return fmt.Errorf("failed to decode primitive: %w", err)
 				}
-				jsonResult = jsonResultWrapped
-			}
+				results[i] = primitive
+			} else {
+				// otherwise, get the normalized struct and attempt turning the result into JSON
+				normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
+				if err != nil {
+					return fmt.Errorf("failed to get normalized struct: %w", err)
+				}
+				jsonResult, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structParts[2], bcsDecoder)
+				if err != nil {
+					return fmt.Errorf("failed to parse struct into JSON: %w", err)
+				}
 
-			// set the result to the JSON result and the struct tag
-			result = &suiclient.ExecutionResultType{
-				ReturnValues: []suiclient.ReturnValueType{jsonResult, structTag},
+				results[i] = jsonResult
 			}
 		}
+
+		c.log.Debugw("ReadFunction results", "results", results)
 
 		return nil
 	})
 
-	return result, err
+	return results, err
 }
 
 func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
