@@ -11,7 +11,6 @@ import (
 
 type LockReleaseTokenPoolDeployInput struct {
 	CCIPPackageId          string
-	CCIPRouterAddress      string
 	CCIPTokenPoolPackageId string
 }
 
@@ -25,7 +24,6 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 		deps.Signer,
 		deps.Client,
 		input.CCIPPackageId,
-		input.CCIPRouterAddress,
 		input.CCIPTokenPoolPackageId,
 	)
 	if err != nil {

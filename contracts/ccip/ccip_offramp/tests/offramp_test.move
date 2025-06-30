@@ -1,7 +1,8 @@
 #[test_only]
 #[allow(implicit_const_copy)]
 module ccip_offramp::offramp_test {
-    use ccip_offramp::offramp::{Self, OffRampState, OwnerCap};
+    use ccip_offramp::offramp::{Self, OffRampState};
+    use ccip_offramp::ownable::OwnerCap;
     use ccip_offramp::ocr3_base;
     use ccip::state_object::{Self, CCIPObjectRef};
     use ccip::fee_quoter::{Self, FeeQuoterCap};

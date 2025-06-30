@@ -1,10 +1,11 @@
 [move]
 version = 3
-manifest_digest = "EC219F8AF4E3149BB95F4346F1DCC78AFA1DDAF1C3C49F704975630246EA8535"
-deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
+manifest_digest = "C6FE6AF5198C4EC1AC94834909FC037496FBA9AD0341ED40EF35CD5D16ED819E"
+deps_digest = "52B406A7A21811BEF51751CF88DA0E76DAEFFEAC888D4F4060B1A72BBE7D8D35"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
   { id = "CCIPTokenPool", name = "CCIPTokenPool" },
+  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },

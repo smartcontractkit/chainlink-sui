@@ -13,7 +13,8 @@ use ccip::rmn_remote;
 
 use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::ownable::OwnerCap as TokenOwnerCap;
-use managed_token_pool::managed_token_pool::{Self, OwnerCap, ManagedTokenPoolState};
+use managed_token_pool::managed_token_pool::{Self, ManagedTokenPoolState};
+use ccip_token_pool::ownable::OwnerCap;
 
 public struct MANAGED_TOKEN_POOL_TESTS has drop {}
 

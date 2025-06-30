@@ -4,6 +4,7 @@ edition = "2024.beta"
 
 [dependencies]
 CCIPTokenPool = { local = "../token_pool" }
+ChainlinkManyChainMultisig = { local = "../../../mcms/mcms" }
 
 [addresses]
 ccip = "_"

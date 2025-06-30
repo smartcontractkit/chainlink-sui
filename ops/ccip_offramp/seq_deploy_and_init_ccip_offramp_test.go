@@ -127,7 +127,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 	}
 
 	reportFeeQuoterInit, err := cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterInitializeOp, deps, feeQuoterInit)
-	require.NoError(t, err, "failed to initialize Nonce Manager Package")
+	require.NoError(t, err, "failed to initialize Fee Quoter Package")
 
 	// Run OffRamp Sequence
 	seqOffRampInput := DeployAndInitCCIPOffRampSeqInput{
@@ -162,5 +162,5 @@ func TestDeployAndInitSeq(t *testing.T) {
 	}
 
 	_, err = cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPOffRampSequence, deps, seqOffRampInput)
-	require.NoError(t, err, "failed to deploy CCIP Package")
+	require.NoError(t, err, "failed to deploy CCIP OffRamp Package")
 }

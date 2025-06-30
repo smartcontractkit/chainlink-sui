@@ -1,8 +1,10 @@
 module ccip::nonce_manager;
 
-use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 use std::string::{Self, String};
+
 use sui::table::{Self, Table};
+
+use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
 
 // store this cap to onramp
 public struct NonceManagerCap has key, store {

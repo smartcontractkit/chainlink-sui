@@ -1,10 +1,11 @@
 module ccip::rmn_remote;
 
 use std::bcs;
+use std::string::{Self, String};
+
 use sui::ecdsa_k1;
 use sui::event;
 use sui::hash;
-use std::string::{Self, String};
 use sui::vec_map::{Self, VecMap};
 
 use ccip::eth_abi;

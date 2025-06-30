@@ -22,3 +22,4 @@ mcms_owner = "0x4010"
 ChainlinkCCIP = { local = "../../ccip" }
 CCIPTokenPool = { local = "../token_pool" }
 ManagedToken = { local = "../../managed_token"}
+ChainlinkManyChainMultisig = { local = "../../../mcms/mcms" }

@@ -10,10 +10,9 @@ import (
 )
 
 type TokenPoolDeployInput struct {
-	CCIPPackageId     string
-	CCIPRouterAddress string
-	MCMSAddress       string
-	MCMSOwnerAddress  string
+	CCIPPackageId    string
+	MCMSAddress      string
+	MCMSOwnerAddress string
 }
 
 type TokenPoolDeployOutput struct {
@@ -25,7 +24,6 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TokenPoo
 		deps.GetTxOpts(),
 		deps.Signer,
 		deps.Client,
-		input.CCIPRouterAddress,
 		input.CCIPPackageId,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,

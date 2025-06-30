@@ -11,7 +11,8 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::rmn_remote;
 
-use burn_mint_token_pool::burn_mint_token_pool::{Self, OwnerCap, BurnMintTokenPoolState};
+use burn_mint_token_pool::burn_mint_token_pool::{Self, BurnMintTokenPoolState};
+use ccip_token_pool::ownable::OwnerCap;
 
 public struct BURN_MINT_TOKEN_POOL_TESTS has drop {}
 

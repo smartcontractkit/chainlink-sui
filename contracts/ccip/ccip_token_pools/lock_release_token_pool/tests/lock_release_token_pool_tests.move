@@ -13,7 +13,8 @@ use ccip::offramp_state_helper;
 use ccip::rmn_remote;
 use ccip::token_admin_registry;
 
-use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState, OwnerCap};
+use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState};
+use ccip_token_pool::ownable::OwnerCap;
 
 public struct LOCK_RELEASE_TOKEN_POOL_TESTS has drop {}
 

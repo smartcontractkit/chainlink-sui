@@ -10,7 +10,6 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
-	ccip_routerops "github.com/smartcontractkit/chainlink-sui/ops/ccip_router"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
@@ -89,18 +88,13 @@ func TestDeployAndInitSeq(t *testing.T) {
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
 
-	// deploy Router package
-	reportCCIPRouter, err := cld_ops.ExecuteOperation(bundle, ccip_routerops.DeployCCIPRouterOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy CCIP Package")
-
 	// deploy CCIP Token Pool
 	inputTokenPool := TokenPoolDeployInput{
-		CCIPPackageId:     reportCCIP.Output.PackageId,
-		CCIPRouterAddress: reportCCIPRouter.Output.PackageId,
-		MCMSAddress:       mcmsReport.Output.PackageId,
-		MCMSOwnerAddress:  "0x2",
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		MCMSAddress:      mcmsReport.Output.PackageId,
+		MCMSOwnerAddress: "0x2",
 	}
 
 	_, err = cld_ops.ExecuteOperation(bundle, DeployCCIPTokenPoolOp, deps, inputTokenPool)
-	require.NoError(t, err, "failed to deploy CCIP Package")
+	require.NoError(t, err, "failed to deploy CCIP Token Pool Package")
 }

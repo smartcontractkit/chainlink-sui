@@ -3,14 +3,15 @@
 /// during upgrades.
 module ccip_offramp::offramp {
     use std::ascii;
+    use std::string::{Self, String};
     use std::type_name;
+    use std::u256;
 
     use sui::address;
     use sui::clock;
     use sui::event;
     use sui::hash;
-    use std::string::{Self, String};
-    use std::u256;
+    use sui::package::UpgradeCap;
     use sui::table::{Self, Table};
     use sui::vec_map::{Self, VecMap};
 
@@ -25,12 +26,11 @@ module ccip_offramp::offramp {
     use ccip::state_object::CCIPObjectRef;
 
     use ccip_offramp::ocr3_base::{Self, OCR3BaseState, OCRConfig};
+    use ccip_offramp::ownable::{Self, OwnerCap, OwnableState};
 
     use mcms::bcs_stream::{Self, BCSStream};
-
-    public struct OwnerCap has key, store {
-        id: UID
-    }
+    use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+    use mcms::mcms_deployer::{Self, DeployerState};
 
     public struct OffRampState has key, store {
         id: UID,
@@ -53,6 +53,7 @@ module ccip_offramp::offramp {
         latest_price_sequence_number: u64,
         fee_quoter_cap: Option<FeeQuoterCap>,
         dest_transfer_cap: Option<osh::DestTransferCap>,
+        ownable_state: OwnableState,
     }
 
     public struct OffRampStatePointer has key, store {
@@ -232,9 +233,7 @@ module ccip_offramp::offramp {
     public struct OFFRAMP has drop {}
 
     fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
-        let owner_cap = OwnerCap {
-            id: object::new(ctx)
-        };
+        let (ownable_state, owner_cap) = ownable::new(ctx);
 
         let state = OffRampState {
             id: object::new(ctx),
@@ -247,6 +246,7 @@ module ccip_offramp::offramp {
             latest_price_sequence_number: 0,
             fee_quoter_cap: option::none(),
             dest_transfer_cap: option::none(),
+            ownable_state,
         };
 
         let pointer = OffRampStatePointer {
@@ -260,7 +260,7 @@ module ccip_offramp::offramp {
         let package_id = address::from_ascii_bytes(&package_bytes);
 
         transfer::share_object(state);
-        transfer::transfer(owner_cap, ctx.sender());
+        transfer::public_transfer(owner_cap, ctx.sender());
         transfer::transfer(pointer, package_id);
     }
 
@@ -1205,6 +1205,192 @@ module ccip_offramp::offramp {
     public fun get_ccip_package_id(): address {
         @ccip
     }
+
+    // ================================================================
+    // |                      Ownable Functions                       |
+    // ================================================================
+
+    public fun owner(state: &OffRampState): address {
+        ownable::owner(&state.ownable_state)
+    }
+
+    public fun has_pending_transfer(state: &OffRampState): bool {
+        ownable::has_pending_transfer(&state.ownable_state)
+    }
+
+    public fun pending_transfer_from(state: &OffRampState): Option<address> {
+        ownable::pending_transfer_from(&state.ownable_state)
+    }
+
+    public fun pending_transfer_to(state: &OffRampState): Option<address> {
+        ownable::pending_transfer_to(&state.ownable_state)
+    }
+
+    public fun pending_transfer_accepted(state: &OffRampState): Option<bool> {
+        ownable::pending_transfer_accepted(&state.ownable_state)
+    }
+
+    public entry fun transfer_ownership(
+        state: &mut OffRampState,
+        owner_cap: &OwnerCap,
+        new_owner: address,
+        ctx: &mut TxContext,
+    ) {
+        ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
+    }
+
+    public entry fun accept_ownership(
+        state: &mut OffRampState,
+        ctx: &mut TxContext,
+    ) {
+        ownable::accept_ownership(&mut state.ownable_state, ctx);
+    }
+
+    public fun accept_ownership_from_object(
+        state: &mut OffRampState,
+        from: &mut UID,
+        ctx: &mut TxContext,
+    ) {
+        ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
+    }
+
+    public fun execute_ownership_transfer(
+        owner_cap: OwnerCap,
+        ownable_state: &mut OwnableState,
+        to: address,
+        ctx: &mut TxContext,
+    ) {
+        ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
+    }
+
+    public fun mcms_register_entrypoint(
+        registry: &mut Registry,
+        state: &mut OffRampState,
+        owner_cap: OwnerCap,
+        ctx: &mut TxContext,
+    ) {
+        ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
+
+        mcms_registry::register_entrypoint(
+            registry,
+            McmsCallback{},
+            option::some(owner_cap),
+            ctx,
+        );
+    }
+
+    public fun mcms_register_upgrade_cap(
+        upgrade_cap: UpgradeCap,
+        registry: &mut Registry,
+        state: &mut DeployerState,
+        ctx: &mut TxContext,
+    ) {
+        mcms_deployer::register_upgrade_cap(
+            state,
+            registry,
+            upgrade_cap,
+            ctx,
+        );
+    }
+
+    // ================================================================
+    // |                      MCMS Entrypoint                         |
+    // ================================================================
+
+    public struct McmsCallback has drop {}
+
+    public fun mcms_entrypoint(
+        state: &mut OffRampState,
+        registry: &mut Registry,
+        params: ExecutingCallbackParams, // hot potato
+        ctx: &mut TxContext,
+    ) {
+        let (owner_cap, function, data) = mcms_registry::get_callback_params<
+            McmsCallback,
+            OwnerCap,
+        >(
+            registry,
+            McmsCallback{},
+            params,
+        );
+
+        let function_bytes = *function.as_bytes();
+        let mut stream = bcs_stream::new(data);
+
+        if (function_bytes == b"set_dynamic_config") {
+            let permissionless_execution_threshold_seconds = bcs_stream::deserialize_u32(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            set_dynamic_config(state, owner_cap, permissionless_execution_threshold_seconds);
+        } else if (function_bytes == b"apply_source_chain_config_updates") {
+            let source_chains_selector = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_u64(stream)
+            );
+            let source_chains_is_enabled = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_bool(stream)
+            );
+            let source_chains_is_rmn_verification_disabled = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_bool(stream)
+            );
+            let source_chains_on_ramp = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_vector_u8(stream)
+            );
+            bcs_stream::assert_is_consumed(&stream);
+            apply_source_chain_config_updates(
+                state,
+                owner_cap,
+                source_chains_selector,
+                source_chains_is_enabled,
+                source_chains_is_rmn_verification_disabled,
+                source_chains_on_ramp,
+                ctx
+            );
+        } else if (function_bytes == b"set_ocr3_config") {
+            let config_digest = bcs_stream::deserialize_fixed_vector_u8(&mut stream, 32);
+            let ocr_plugin_type = bcs_stream::deserialize_u8(&mut stream);
+            let big_f = bcs_stream::deserialize_u8(&mut stream);
+            let is_signature_verification_enabled = bcs_stream::deserialize_bool(&mut stream);
+            let signers = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_fixed_vector_u8(stream, 32)
+            );
+            let transmitters = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_address(stream)
+            );
+            bcs_stream::assert_is_consumed(&stream);
+            set_ocr3_config(
+                state,
+                owner_cap,
+                config_digest,
+                ocr_plugin_type,
+                big_f,
+                is_signature_verification_enabled,
+                signers,
+                transmitters
+            );
+        } else if (function_bytes == b"transfer_ownership") {
+            let to = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            transfer_ownership(state, owner_cap, to, ctx);
+        } else if (function_bytes == b"accept_ownership_as_mcms") {
+            let mcms = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+        } else if (function_bytes == b"execute_ownership_transfer") {
+            let to = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            let owner_cap = mcms_registry::release_cap(registry, McmsCallback{});
+            execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+        } else {
+            abort EInvalidFunction
+        };
+    }
+
+    const EInvalidFunction: u64 = 26;
 
     // ============================== Test Functions ============================== //
 

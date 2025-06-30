@@ -1,7 +1,8 @@
 #[test_only]
 module ccip_router::router_tests;
 
-use ccip_router::router::{Self, OwnerCap, RouterState};
+use ccip_router::router::{Self, RouterState};
+use ccip_router::ownable::OwnerCap;
 use sui::test_scenario::{Self as ts, Scenario};
 
 const SENDER_1: address = @0x1;

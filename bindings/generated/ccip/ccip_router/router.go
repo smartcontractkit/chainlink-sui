@@ -14,6 +14,7 @@ import (
 	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_common "github.com/smartcontractkit/chainlink-sui/bindings/common"
 )
 
 // Unused vars used for unused imports
@@ -29,7 +30,15 @@ type IRouter interface {
 	GetOnRampInfos(router bind.Object, destChainSelectors []uint64) bind.IMethod
 	GetOnRampVersion(info OnRampInfo) bind.IMethod
 	GetOnRampAddress(info OnRampInfo) bind.IMethod
-	SetOnRampInfos(param bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) bind.IMethod
+	SetOnRampInfos(ownerCap module_common.OwnerCap, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) bind.IMethod
+	Owner(state bind.Object) bind.IMethod
+	HasPendingTransfer(state bind.Object) bind.IMethod
+	PendingTransferFrom(state bind.Object) bind.IMethod
+	PendingTransferTo(state bind.Object) bind.IMethod
+	PendingTransferAccepted(state bind.Object) bind.IMethod
+	TransferOwnership(state bind.Object, ownerCap module_common.OwnerCap, newOwner string) bind.IMethod
+	AcceptOwnership(state bind.Object) bind.IMethod
+	AcceptOwnershipFromObject(state bind.Object, from string) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -62,10 +71,6 @@ func (c *RouterContract) Connect(client suiclient.ClientImpl) {
 type ROUTER struct {
 }
 
-type OwnerCap struct {
-	Id string `move:"sui::object::UID"`
-}
-
 type OnRampSet struct {
 	DestChainSelector uint64     `move:"u64"`
 	OnRampInfo        OnRampInfo `move:"OnRampInfo"`
@@ -78,6 +83,9 @@ type OnRampInfo struct {
 
 type RouterState struct {
 	Id string `move:"sui::object::UID"`
+}
+
+type McmsCallback struct {
 }
 
 // Functions
@@ -166,12 +174,124 @@ func (c *RouterContract) GetOnRampAddress(info OnRampInfo) bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *RouterContract) SetOnRampInfos(param bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) bind.IMethod {
+func (c *RouterContract) SetOnRampInfos(ownerCap module_common.OwnerCap, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "set_on_ramp_infos", false, "", "", param, router, destChainSelectors, onRampAddresses, onRampVersions)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "set_on_ramp_infos", false, "", "", ownerCap, router, destChainSelectors, onRampAddresses, onRampVersions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "set_on_ramp_infos", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) Owner(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "owner", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "owner", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) HasPendingTransfer(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "has_pending_transfer", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "has_pending_transfer", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) PendingTransferFrom(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "pending_transfer_from", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "pending_transfer_from", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) PendingTransferTo(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "pending_transfer_to", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "pending_transfer_to", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) PendingTransferAccepted(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "pending_transfer_accepted", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "pending_transfer_accepted", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) TransferOwnership(state bind.Object, ownerCap module_common.OwnerCap, newOwner string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "transfer_ownership", false, "", "", state, ownerCap, newOwner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "transfer_ownership", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) AcceptOwnership(state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "accept_ownership", false, "", "", state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "accept_ownership", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *RouterContract) AcceptOwnershipFromObject(state bind.Object, from string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "router", "accept_ownership_from_object", false, "", "", state, from)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "router", "accept_ownership_from_object", err)
 		}
 
 		return ptb, nil

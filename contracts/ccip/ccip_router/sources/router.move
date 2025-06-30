@@ -3,12 +3,15 @@ module ccip_router::router {
 
     use sui::event;
     use sui::table::{Self, Table};
+    use sui::package::UpgradeCap;
+
+    use ccip_router::ownable::{Self, OwnerCap, OwnableState};
+
+    use mcms::bcs_stream;
+    use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+    use mcms::mcms_deployer::{Self, DeployerState};
 
     public struct ROUTER has drop {}
-
-    public struct OwnerCap has key, store {
-        id: UID,
-    }
 
     public struct OnRampSet has copy, drop {
         dest_chain_selector: u64,
@@ -22,25 +25,27 @@ module ccip_router::router {
 
     public struct RouterState has key {
         id: UID,
-        // ownable_state: ownable::OwnableState,
+        ownable_state: OwnableState,
         on_ramp_infos: Table<u64, OnRampInfo>,
     }
 
     const EParamsLengthMismatch: u64 = 1;
     const EOnrampInfoNotFound: u64 = 2;
     const EInvalidOnrampVersion: u64 = 3;
+    const EInvalidOwnerCap: u64 = 4;
+    const EInvalidFunction: u64 = 5;
 
     fun init(_witness: ROUTER, ctx: &mut TxContext) {
+        let (ownable_state, owner_cap) = ownable::new(ctx);
+
         let router = RouterState {
             id: object::new(ctx),
+            ownable_state,
             on_ramp_infos: table::new(ctx),
-        };
-        let owner_cap = OwnerCap {
-            id: object::new(ctx),
         };
 
         transfer::share_object(router);
-        transfer::transfer(owner_cap, ctx.sender());
+        transfer::public_transfer(owner_cap, ctx.sender());
     }
 
     public fun type_and_version(): String {
@@ -98,12 +103,13 @@ module ccip_router::router {
     /// @param on_ramp_versions The onRamp versions, the inner vector must be of length 0 or 3. 0 indicates
     /// the destination chain is no longer supported. Length 3 encodes the version of the onRamp contract.
     public fun set_on_ramp_infos(
-        _: &OwnerCap,
+        owner_cap: &OwnerCap,
         router: &mut RouterState,
         dest_chain_selectors: vector<u64>,
         on_ramp_addresses: vector<address>,
         on_ramp_versions: vector<vector<u8>>,
     ) {
+        assert!(object::id(owner_cap) == ownable::owner_cap_id(&router.ownable_state), EInvalidOwnerCap);
         assert!(
             dest_chain_selectors.length() == on_ramp_addresses.length(),
             EParamsLengthMismatch
@@ -147,6 +153,159 @@ module ccip_router::router {
                 event::emit(OnRampSet { dest_chain_selector, on_ramp_info: info });
             };
             i = i + 1;
+        };
+    }
+
+    // ================================================================
+    // |                      Ownable Functions                       |
+    // ================================================================
+
+    public fun owner(state: &RouterState): address {
+        ownable::owner(&state.ownable_state)
+    }
+
+    public fun has_pending_transfer(state: &RouterState): bool {
+        ownable::has_pending_transfer(&state.ownable_state)
+    }
+
+    public fun pending_transfer_from(state: &RouterState): Option<address> {
+        ownable::pending_transfer_from(&state.ownable_state)
+    }
+
+    public fun pending_transfer_to(state: &RouterState): Option<address> {
+        ownable::pending_transfer_to(&state.ownable_state)
+    }
+
+    public fun pending_transfer_accepted(state: &RouterState): Option<bool> {
+        ownable::pending_transfer_accepted(&state.ownable_state)
+    }
+
+    public entry fun transfer_ownership(
+        state: &mut RouterState,
+        owner_cap: &OwnerCap,
+        new_owner: address,
+        ctx: &mut TxContext,
+    ) {
+        ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
+    }
+
+    public entry fun accept_ownership(
+        state: &mut RouterState,
+        ctx: &mut TxContext,
+    ) {
+        ownable::accept_ownership(&mut state.ownable_state, ctx);
+    }
+
+    public fun accept_ownership_from_object(
+        state: &mut RouterState,
+        from: &mut UID,
+        ctx: &mut TxContext,
+    ) {
+        ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
+    }
+
+    public fun execute_ownership_transfer(
+        owner_cap: OwnerCap,
+        ownable_state: &mut OwnableState,
+        to: address,
+        ctx: &mut TxContext,
+    ) {
+        ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
+    }
+
+    public fun mcms_register_entrypoint(
+        registry: &mut Registry,
+        state: &mut RouterState,
+        owner_cap: OwnerCap,
+        ctx: &mut TxContext,
+    ) {
+        ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
+
+        mcms_registry::register_entrypoint(
+            registry,
+            McmsCallback{},
+            option::some(owner_cap),
+            ctx,
+        );
+    }
+
+    public fun mcms_register_upgrade_cap(
+        upgrade_cap: UpgradeCap,
+        registry: &mut Registry,
+        state: &mut DeployerState,
+        ctx: &mut TxContext,
+    ) {
+        mcms_deployer::register_upgrade_cap(
+            state,
+            registry,
+            upgrade_cap,
+            ctx,
+        );
+    }
+
+    // ================================================================
+    // |                      MCMS Entrypoint                         |
+    // ================================================================
+
+    public struct McmsCallback has drop {}
+
+    public fun mcms_entrypoint(
+        state: &mut RouterState,
+        registry: &mut Registry,
+        params: ExecutingCallbackParams, // hot potato
+        ctx: &mut TxContext,
+    ) {
+        let (owner_cap, function, data) = mcms_registry::get_callback_params<
+            McmsCallback,
+            OwnerCap,
+        >(
+            registry,
+            McmsCallback{},
+            params,
+        );
+
+        let function_bytes = *function.as_bytes();
+        let mut stream = bcs_stream::new(data);
+
+        if (function_bytes == b"set_on_ramp_infos") {
+            let dest_chain_selectors = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_u64(stream)
+            );
+            let on_ramp_addresses = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_address(stream)
+            );
+            let on_ramp_versions = bcs_stream::deserialize_vector!(
+                &mut stream,
+                |stream| bcs_stream::deserialize_vector!(
+                    stream,
+                    |stream| bcs_stream::deserialize_u8(stream)
+                )
+            );
+            bcs_stream::assert_is_consumed(&stream);
+            set_on_ramp_infos(
+                owner_cap,
+                state,
+                dest_chain_selectors,
+                on_ramp_addresses,
+                on_ramp_versions
+            );
+        } else if (function_bytes == b"transfer_ownership") {
+            let to = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            transfer_ownership(state, owner_cap, to, ctx);
+        } else if (function_bytes == b"accept_ownership_as_mcms") {
+            let mcms = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+        } else if (function_bytes == b"execute_ownership_transfer") {
+            let to = bcs_stream::deserialize_address(&mut stream);
+            bcs_stream::assert_is_consumed(&stream);
+            let owner_cap = mcms_registry::release_cap(registry, McmsCallback{});
+            execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+        } else {
+            abort EInvalidFunction
         };
     }
 

@@ -64,14 +64,10 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 	}
 
-	// Special-case: update published-at of CCIP & CCIPRouter if this is the TokenPool package
+	// Special-case: update published-at of CCIP & MCMS if this is the TokenPool package
 	if packageName == contracts.CCIPTokenPools {
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
-		}
-
-		if err = updatePublishedAt(dstRoot, contracts.CCIPRouter, namedAddresses["ccip_router"]); err != nil {
-			return PackageArtifact{}, fmt.Errorf("updating CCIP Router published-at: %w", err)
 		}
 
 		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {

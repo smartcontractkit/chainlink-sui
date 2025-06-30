@@ -1,28 +1,52 @@
 package routerops
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/router"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 )
 
-var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyInput) (output sui_ops.OpTxResult[cld_ops.EmptyInput], err error) {
+type DeployCCIPRouterInput struct {
+	McmsPackageId string
+	McmsOwner     string
+}
+type DeployCCIPRouterObjects struct {
+	OwnerCapObjectId    string
+	RouterStateObjectId string
+}
+
+var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPRouterInput) (output sui_ops.OpTxResult[DeployCCIPRouterObjects], err error) {
 	routerPackage, tx, err := router.PublishCCIPRouter(
 		b.GetContext(),
 		deps.GetTxOpts(),
 		deps.Signer,
 		deps.Client,
+		input.McmsPackageId,
+		input.McmsOwner,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, err
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, err
 	}
 
-	return sui_ops.OpTxResult[cld_ops.EmptyInput]{
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "router", "OwnerCap")
+	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterState")
+	if err1 != nil || err2 != nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
+	}
+
+	return sui_ops.OpTxResult[DeployCCIPRouterObjects]{
 		Digest:    tx.Digest.String(),
 		PackageId: routerPackage.Address().String(),
+		Objects: DeployCCIPRouterObjects{
+			OwnerCapObjectId:    obj1,
+			RouterStateObjectId: obj2,
+		},
 	}, err
 }
 
