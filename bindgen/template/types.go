@@ -181,6 +181,7 @@ var hardCodedObjectTypes = []string{
 	"DenyList",
 	"TokenState",
 	"ID",
+	"OwnerCap<T>",
 }
 
 func isSuiObject(s string) bool {

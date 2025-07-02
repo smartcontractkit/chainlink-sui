@@ -14,6 +14,7 @@ import (
 	"github.com/pattonkan/sui-go/suiclient"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_common "github.com/smartcontractkit/chainlink-sui/bindings/common"
 )
 
 // Unused vars used for unused imports
@@ -34,6 +35,8 @@ type ITokenPool interface {
 	GetRemoteToken(state TokenPoolState, remoteChainSelector uint64) bind.IMethod
 	AddRemotePool(state TokenPoolState, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
 	RemoveRemotePool(state TokenPoolState, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
+	ValidateLockOrBurn(ref module_common.CCIPObjectRef, clock bind.Object, state TokenPoolState, sender string, remoteChainSelector uint64, localAmount uint64) bind.IMethod
+	ValidateReleaseOrMint(ref module_common.CCIPObjectRef, clock bind.Object, state TokenPoolState, remoteChainSelector uint64, destTokenAddress string, sourcePoolAddress []byte, localAmount uint64) bind.IMethod
 	EmitReleasedOrMinted(state TokenPoolState, recipient string, amount uint64, remoteChainSelector uint64) bind.IMethod
 	EmitLockedOrBurned(state TokenPoolState, amount uint64, remoteChainSelector uint64) bind.IMethod
 	EmitLiquidityAdded(state TokenPoolState, provider string, amount uint64) bind.IMethod
@@ -283,6 +286,34 @@ func (c *TokenPoolContract) RemoveRemotePool(state TokenPoolState, remoteChainSe
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "remove_remote_pool", false, "", "", state, remoteChainSelector, remotePoolAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "remove_remote_pool", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *TokenPoolContract) ValidateLockOrBurn(ref module_common.CCIPObjectRef, clock bind.Object, state TokenPoolState, sender string, remoteChainSelector uint64, localAmount uint64) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "validate_lock_or_burn", false, "", "", ref, clock, state, sender, remoteChainSelector, localAmount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "validate_lock_or_burn", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *TokenPoolContract) ValidateReleaseOrMint(ref module_common.CCIPObjectRef, clock bind.Object, state TokenPoolState, remoteChainSelector uint64, destTokenAddress string, sourcePoolAddress []byte, localAmount uint64) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_pool", "validate_release_or_mint", false, "", "", ref, clock, state, remoteChainSelector, destTokenAddress, sourcePoolAddress, localAmount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_pool", "validate_release_or_mint", err)
 		}
 
 		return ptb, nil

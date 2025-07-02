@@ -7,7 +7,7 @@ use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
 
 use sui::clock::Clock;
-use sui::coin::{Coin, CoinMetadata, TreasuryCap};
+use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::{DenyList};
 use sui::package::UpgradeCap;
 
@@ -21,6 +21,7 @@ use ccip_token_pool::token_pool::{Self, TokenPoolState};
 use ccip_token_pool::ownable::{Self, OwnerCap, OwnableState};
 
 use managed_token::managed_token::{Self, TokenState, MintCap};
+use managed_token::ownable::OwnerCap as ManagedTokenOwnerCap;
 
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -45,25 +46,36 @@ public fun type_and_version(): String {
     string::utf8(b"ManagedTokenPool 1.6.0")
 }
 
-#[allow(lint(self_transfer))]
-public fun initialize<T>(
+/// Initialize token pool for a managed token
+/// This function works with any existing managed token by:
+/// 1. Getting the treasury cap reference for registration
+/// 2. Creating the token pool state
+/// 3. Registering the pool with the token admin registry
+/// Note: The mint_cap must be created beforehand through managed_token::configure_new_minter
+public fun initialize_with_managed_token<T>(
     ref: &mut CCIPObjectRef,
-    treasury_cap: &TreasuryCap<T>,
+    managed_token_state: &TokenState<T>,
+    owner_cap: &ManagedTokenOwnerCap<T>,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     token_pool_package_id: address,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (_, managed_token_state_address, _, _) =
+    // Get treasury cap reference for registration
+    let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
+    
+    // Initialize the token pool
+    let (_, managed_token_pool_state_address, _, _) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
+    // Register the pool with the token admin registry
     token_admin_registry::register_pool(
         ref,
-        treasury_cap,
+        treasury_cap_ref,
         coin_metadata,
         token_pool_package_id,
-        managed_token_state_address,
+        managed_token_pool_state_address,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
         TypeProof {},

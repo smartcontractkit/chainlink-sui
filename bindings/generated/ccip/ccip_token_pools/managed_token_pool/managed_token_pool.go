@@ -25,17 +25,17 @@ var (
 
 type IManagedTokenPool interface {
 	TypeAndVersion() bind.IMethod
-	Initialize(typeArgs string, ref module_common.CCIPObjectRef, treasuryCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod
+	InitializeWithManagedToken(typeArgs string, ref module_common.CCIPObjectRef, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod
 	InitializeByCcipAdmin(typeArgs string, ref module_common.CCIPObjectRef, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod
-	AddRemotePool(typeArgs string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
-	RemoveRemotePool(typeArgs string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
+	AddRemotePool(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
+	RemoveRemotePool(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod
 	IsSupportedChain(typeArgs string, state bind.Object, remoteChainSelector uint64) bind.IMethod
 	GetSupportedChains(typeArgs string, state bind.Object) bind.IMethod
-	ApplyChainUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod
+	ApplyChainUpdates(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod
 	GetAllowlistEnabled(typeArgs string, state bind.Object) bind.IMethod
 	GetAllowlist(typeArgs string, state bind.Object) bind.IMethod
-	SetAllowlistEnabled(typeArgs string, state bind.Object, ownerCap bind.Object, enabled bool) bind.IMethod
-	ApplyAllowlistUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) bind.IMethod
+	SetAllowlistEnabled(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, enabled bool) bind.IMethod
+	ApplyAllowlistUpdates(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, removes []string, adds []string) bind.IMethod
 	GetToken(typeArgs string, state bind.Object) bind.IMethod
 	GetTokenDecimals(typeArgs string, state bind.Object) bind.IMethod
 	GetRemotePools(typeArgs string, state bind.Object, remoteChainSelector uint64) bind.IMethod
@@ -43,8 +43,18 @@ type IManagedTokenPool interface {
 	GetRemoteToken(typeArgs string, state bind.Object, remoteChainSelector uint64) bind.IMethod
 	LockOrBurn(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, state bind.Object, denyList bind.Object, tokenState bind.Object, c_ bind.Object, tokenParams module_common.TokenParams) bind.IMethod
 	ReleaseOrMint(typeArgs string, ref module_common.CCIPObjectRef, clock bind.Object, pool bind.Object, tokenState bind.Object, denyList bind.Object, receiverParams module_common.ReceiverParams, index uint64) bind.IMethod
-	SetChainRateLimiterConfigs(typeArgs string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) bind.IMethod
-	SetChainRateLimiterConfig(typeArgs string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod
+	SetChainRateLimiterConfigs(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) bind.IMethod
+	SetChainRateLimiterConfig(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod
+	Owner(typeArgs string, state bind.Object) bind.IMethod
+	HasPendingTransfer(typeArgs string, state bind.Object) bind.IMethod
+	PendingTransferFrom(typeArgs string, state bind.Object) bind.IMethod
+	PendingTransferTo(typeArgs string, state bind.Object) bind.IMethod
+	PendingTransferAccepted(typeArgs string, state bind.Object) bind.IMethod
+	TransferOwnership(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, newOwner string) bind.IMethod
+	AcceptOwnership(typeArgs string, state bind.Object) bind.IMethod
+	AcceptOwnershipFromObject(typeArgs string, state bind.Object, from string) bind.IMethod
+	ExecuteOwnershipTransfer(ownerCap module_common.OwnerCap, ownableState module_common.OwnableState, to string) bind.IMethod
+	DestroyTokenPool(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -74,17 +84,17 @@ func (c *ManagedTokenPoolContract) Connect(client suiclient.ClientImpl) {
 
 // Structs
 
-type OwnerCap struct {
-	Id      string      `move:"sui::object::UID"`
-	StateId bind.Object `move:"ID"`
-}
-
 type ManagedTokenPoolState struct {
-	Id      string      `move:"sui::object::UID"`
-	MintCap bind.Object `move:"MintCap<T>"`
+	Id             string                       `move:"sui::object::UID"`
+	TokenPoolState module_common.TokenPoolState `move:"TokenPoolState"`
+	MintCap        bind.Object                  `move:"MintCap<T>"`
+	OwnableState   module_common.OwnableState   `move:"OwnableState"`
 }
 
 type TypeProof struct {
+}
+
+type McmsCallback struct {
 }
 
 // Functions
@@ -103,12 +113,12 @@ func (c *ManagedTokenPoolContract) TypeAndVersion() bind.IMethod {
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) Initialize(typeArgs string, ref module_common.CCIPObjectRef, treasuryCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod {
+func (c *ManagedTokenPoolContract) InitializeWithManagedToken(typeArgs string, ref module_common.CCIPObjectRef, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "initialize", false, "", typeArgs, ref, treasuryCap, coinMetadata, mintCap, tokenPoolPackageId, tokenPoolAdministrator)
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "initialize_with_managed_token", false, "", typeArgs, ref, managedTokenState, ownerCap, coinMetadata, mintCap, tokenPoolPackageId, tokenPoolAdministrator)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "initialize", err)
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "initialize_with_managed_token", err)
 		}
 
 		return ptb, nil
@@ -131,7 +141,7 @@ func (c *ManagedTokenPoolContract) InitializeByCcipAdmin(typeArgs string, ref mo
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) AddRemotePool(typeArgs string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod {
+func (c *ManagedTokenPoolContract) AddRemotePool(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "add_remote_pool", false, "", typeArgs, state, ownerCap, remoteChainSelector, remotePoolAddress)
@@ -145,7 +155,7 @@ func (c *ManagedTokenPoolContract) AddRemotePool(typeArgs string, state bind.Obj
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) RemoveRemotePool(typeArgs string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod {
+func (c *ManagedTokenPoolContract) RemoveRemotePool(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, remoteChainSelector uint64, remotePoolAddress []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "remove_remote_pool", false, "", typeArgs, state, ownerCap, remoteChainSelector, remotePoolAddress)
@@ -187,7 +197,7 @@ func (c *ManagedTokenPoolContract) GetSupportedChains(typeArgs string, state bin
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) ApplyChainUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod {
+func (c *ManagedTokenPoolContract) ApplyChainUpdates(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, remoteChainSelectorsToRemove []uint64, remoteChainSelectorsToAdd []uint64, remotePoolAddressesToAdd [][][]byte, remoteTokenAddressesToAdd [][]byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "apply_chain_updates", false, "", typeArgs, state, ownerCap, remoteChainSelectorsToRemove, remoteChainSelectorsToAdd, remotePoolAddressesToAdd, remoteTokenAddressesToAdd)
@@ -229,7 +239,7 @@ func (c *ManagedTokenPoolContract) GetAllowlist(typeArgs string, state bind.Obje
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) SetAllowlistEnabled(typeArgs string, state bind.Object, ownerCap bind.Object, enabled bool) bind.IMethod {
+func (c *ManagedTokenPoolContract) SetAllowlistEnabled(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, enabled bool) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "set_allowlist_enabled", false, "", typeArgs, state, ownerCap, enabled)
@@ -243,7 +253,7 @@ func (c *ManagedTokenPoolContract) SetAllowlistEnabled(typeArgs string, state bi
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) ApplyAllowlistUpdates(typeArgs string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) bind.IMethod {
+func (c *ManagedTokenPoolContract) ApplyAllowlistUpdates(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, removes []string, adds []string) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "apply_allowlist_updates", false, "", typeArgs, state, ownerCap, removes, adds)
@@ -355,7 +365,7 @@ func (c *ManagedTokenPoolContract) ReleaseOrMint(typeArgs string, ref module_com
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) SetChainRateLimiterConfigs(typeArgs string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) bind.IMethod {
+func (c *ManagedTokenPoolContract) SetChainRateLimiterConfigs(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "set_chain_rate_limiter_configs", false, "", typeArgs, state, ownerCap, clock, remoteChainSelectors, outboundIsEnableds, outboundCapacities, outboundRates, inboundIsEnableds, inboundCapacities, inboundRates)
@@ -369,12 +379,152 @@ func (c *ManagedTokenPoolContract) SetChainRateLimiterConfigs(typeArgs string, s
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *ManagedTokenPoolContract) SetChainRateLimiterConfig(typeArgs string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod {
+func (c *ManagedTokenPoolContract) SetChainRateLimiterConfig(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "set_chain_rate_limiter_config", false, "", typeArgs, state, ownerCap, clock, remoteChainSelector, outboundIsEnabled, outboundCapacity, outboundRate, inboundIsEnabled, inboundCapacity, inboundRate)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "set_chain_rate_limiter_config", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) Owner(typeArgs string, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "owner", false, "", typeArgs, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "owner", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) HasPendingTransfer(typeArgs string, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "has_pending_transfer", false, "", typeArgs, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "has_pending_transfer", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) PendingTransferFrom(typeArgs string, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "pending_transfer_from", false, "", typeArgs, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "pending_transfer_from", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) PendingTransferTo(typeArgs string, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "pending_transfer_to", false, "", typeArgs, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "pending_transfer_to", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) PendingTransferAccepted(typeArgs string, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "pending_transfer_accepted", false, "", typeArgs, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "pending_transfer_accepted", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) TransferOwnership(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap, newOwner string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "transfer_ownership", false, "", typeArgs, state, ownerCap, newOwner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "transfer_ownership", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) AcceptOwnership(typeArgs string, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "accept_ownership", false, "", typeArgs, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "accept_ownership", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) AcceptOwnershipFromObject(typeArgs string, state bind.Object, from string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "accept_ownership_from_object", false, "", typeArgs, state, from)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "accept_ownership_from_object", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) ExecuteOwnershipTransfer(ownerCap module_common.OwnerCap, ownableState module_common.OwnableState, to string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "execute_ownership_transfer", false, "", "", ownerCap, ownableState, to)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "execute_ownership_transfer", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenPoolContract) DestroyTokenPool(typeArgs string, state bind.Object, ownerCap module_common.OwnerCap) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token_pool", "destroy_token_pool", false, "", typeArgs, state, ownerCap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token_pool", "destroy_token_pool", err)
 		}
 
 		return ptb, nil

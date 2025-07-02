@@ -277,7 +277,7 @@ public fun mint<T>(
     deny_list: &DenyList,
     amount: u64,
     recipient: address,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ): Coin<T> {
     validate_mint(state, deny_list, mint_cap, amount, recipient, ctx);
 
@@ -449,8 +449,9 @@ public fun destroy_managed_token<T>(
     (treasury_cap, deny_cap)
 }
 
-/// Returns an immutable reference of the TreasuryCap.
-public fun borrow_treasury_cap<T>(owner_cap: &OwnerCap<T>, state: &TokenState<T>): &TreasuryCap<T> {
+/// Access function to get a reference to the treasury cap
+/// This allows other modules to access the treasury cap for registration purposes
+public fun borrow_treasury_cap<T>(state: &TokenState<T>, owner_cap: &OwnerCap<T>): &TreasuryCap<T> {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     &state.treasury_cap
 }

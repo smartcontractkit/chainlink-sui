@@ -142,7 +142,7 @@ fun test_treasury_cap_access_and_total_supply() {
     let (mut scenario, mut state, owner_cap, coin_metadata) = setup_managed_token_test();
 
     // Test borrow_treasury_cap function
-    let treasury_cap_ref = managed_token::borrow_treasury_cap(&owner_cap, &state);
+    let treasury_cap_ref = managed_token::borrow_treasury_cap(&state, &owner_cap);
     assert!(treasury_cap_ref.total_supply() == 0);
     assert!(managed_token::total_supply(&state) == 0);
 
@@ -158,7 +158,7 @@ fun test_treasury_cap_access_and_total_supply() {
     let coin = managed_token::mint(&mut state, &mint_cap, &deny_list, amount, RECIPIENT, scenario.ctx());
     assert!(managed_token::total_supply(&state) == amount);
     
-    let treasury_cap_ref = managed_token::borrow_treasury_cap(&owner_cap, &state);
+    let treasury_cap_ref = managed_token::borrow_treasury_cap(&state, &owner_cap);
     assert!(treasury_cap_ref.total_supply() == amount);
 
     // Clean up

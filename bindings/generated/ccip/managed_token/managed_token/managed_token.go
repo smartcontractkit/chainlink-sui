@@ -29,15 +29,25 @@ type IManagedToken interface {
 	MintAllowance(typeArgs string, state bind.Object, mintCap bind.Object) bind.IMethod
 	TotalSupply(typeArgs string, state bind.Object) bind.IMethod
 	IsAuthorizedMintCap(typeArgs string, state bind.Object, id bind.Object) bind.IMethod
+	ConfigureNewMinter(typeArgs string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) bind.IMethod
+	IncrementMintAllowance(typeArgs string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) bind.IMethod
+	SetUnlimitedMintAllowances(typeArgs string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, isUnlimited bool) bind.IMethod
 	GetAllMintCaps(typeArgs string, state bind.Object) bind.IMethod
 	MintAndTransfer(typeArgs string, state bind.Object, mintCap bind.Object, denyList bind.Object, amount uint64, recipient string) bind.IMethod
 	Mint(typeArgs string, state bind.Object, mintCap bind.Object, denyList bind.Object, amount uint64, recipient string) bind.IMethod
 	Burn(typeArgs string, state bind.Object, mintCap bind.Object, denyList bind.Object, coin bind.Object, from string) bind.IMethod
+	Blocklist(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object, addr string) bind.IMethod
+	Unblocklist(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object, addr string) bind.IMethod
+	Pause(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object) bind.IMethod
+	Unpause(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object) bind.IMethod
+	DestroyManagedToken(typeArgs string, ownerCap bind.Object, state bind.Object) bind.IMethod
+	BorrowTreasuryCap(typeArgs string, state bind.Object, ownerCap bind.Object) bind.IMethod
 	Owner(typeArgs string, state bind.Object) bind.IMethod
 	HasPendingTransfer(typeArgs string, state bind.Object) bind.IMethod
 	PendingTransferFrom(typeArgs string, state bind.Object) bind.IMethod
 	PendingTransferTo(typeArgs string, state bind.Object) bind.IMethod
 	PendingTransferAccepted(typeArgs string, state bind.Object) bind.IMethod
+	TransferOwnership(typeArgs string, state bind.Object, ownerCap bind.Object, newOwner string) bind.IMethod
 	AcceptOwnership(typeArgs string, state bind.Object) bind.IMethod
 	AcceptOwnershipFromObject(typeArgs string, state bind.Object, from string) bind.IMethod
 	// Connect adds/changes the client used in the contract
@@ -218,6 +228,48 @@ func (c *ManagedTokenContract) IsAuthorizedMintCap(typeArgs string, state bind.O
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
+func (c *ManagedTokenContract) ConfigureNewMinter(typeArgs string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "configure_new_minter", false, "", typeArgs, state, param, minter, allowance, isUnlimited)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "configure_new_minter", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) IncrementMintAllowance(typeArgs string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "increment_mint_allowance", false, "", typeArgs, state, param, mintCapId, denyList, allowanceIncrement)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "increment_mint_allowance", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) SetUnlimitedMintAllowances(typeArgs string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, isUnlimited bool) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "set_unlimited_mint_allowances", false, "", typeArgs, state, ownerCap, mintCapId, denyList, isUnlimited)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "set_unlimited_mint_allowances", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
 func (c *ManagedTokenContract) GetAllMintCaps(typeArgs string, state bind.Object) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
@@ -266,6 +318,90 @@ func (c *ManagedTokenContract) Burn(typeArgs string, state bind.Object, mintCap 
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "burn", false, "", typeArgs, state, mintCap, denyList, coin, from)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "burn", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) Blocklist(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object, addr string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "blocklist", false, "", typeArgs, state, ownerCap, denyList, addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "blocklist", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) Unblocklist(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object, addr string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "unblocklist", false, "", typeArgs, state, ownerCap, denyList, addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "unblocklist", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) Pause(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "pause", false, "", typeArgs, state, ownerCap, denyList)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "pause", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) Unpause(typeArgs string, state bind.Object, ownerCap bind.Object, denyList bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "unpause", false, "", typeArgs, state, ownerCap, denyList)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "unpause", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) DestroyManagedToken(typeArgs string, ownerCap bind.Object, state bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "destroy_managed_token", false, "", typeArgs, ownerCap, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "destroy_managed_token", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) BorrowTreasuryCap(typeArgs string, state bind.Object, ownerCap bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "borrow_treasury_cap", false, "", typeArgs, state, ownerCap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "borrow_treasury_cap", err)
 		}
 
 		return ptb, nil
@@ -336,6 +472,20 @@ func (c *ManagedTokenContract) PendingTransferAccepted(typeArgs string, state bi
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "pending_transfer_accepted", false, "", typeArgs, state)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "pending_transfer_accepted", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *ManagedTokenContract) TransferOwnership(typeArgs string, state bind.Object, ownerCap bind.Object, newOwner string) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "managed_token", "transfer_ownership", false, "", typeArgs, state, ownerCap, newOwner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "managed_token", "transfer_ownership", err)
 		}
 
 		return ptb, nil

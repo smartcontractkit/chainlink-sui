@@ -6,7 +6,7 @@ module ccip_token_pool::token_pool {
 
     use ccip::address;
     use ccip::eth_abi;
-    use ccip::state_object;
+    use ccip::state_object::CCIPObjectRef;
     use ccip::rmn_remote;
     use ccip::allowlist;
 
@@ -281,7 +281,7 @@ module ccip_token_pool::token_pool {
 
     /// Returns the remote token as bytes
     public fun validate_lock_or_burn(
-        ref: &state_object::CCIPObjectRef,
+        ref: &CCIPObjectRef,
         clock: &Clock,
         state: &mut TokenPoolState,
         sender: address,
@@ -310,7 +310,7 @@ module ccip_token_pool::token_pool {
     }
 
     public fun validate_release_or_mint(
-        ref: &state_object::CCIPObjectRef,
+        ref: &CCIPObjectRef,
         clock: &Clock,
         state: &mut TokenPoolState,
         remote_chain_selector: u64, // the source chain selector
