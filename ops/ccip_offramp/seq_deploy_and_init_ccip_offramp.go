@@ -42,14 +42,6 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 			return DeployCCIPOffRampSeqOutput{}, err
 		}
 
-		input.SetOCR3ConfigInput.OffRampPackageId = deployReport.Output.PackageId
-		input.SetOCR3ConfigInput.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
-		input.SetOCR3ConfigInput.OffRampStateId = deployReport.Output.Objects.CCIPOffRampStateObjectId
-		_, err = cld_ops.ExecuteOperation(env, SetOCR3ConfigOp, deps, input.SetOCR3ConfigInput)
-		if err != nil {
-			return DeployCCIPOffRampSeqOutput{}, err
-		}
-
 		return DeployCCIPOffRampSeqOutput{
 			CCIPOffRampPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPOffRampSeqObjects{

@@ -50,13 +50,16 @@ func PublishCCIPLockReleaseTokenPool(
 	opts bind.TxOpts,
 	signer rel.SuiSigner,
 	client suiclient.ClientImpl,
-	ccipAddress string,
-	ccipTokenPoolAddress string) (LockReleaseTokenPool, *suiclient.SuiTransactionBlockResponse, error) {
-	artifact, err := bind.CompilePackage(contracts.CCIPTokenPools, map[string]string{
-		"ccip":                     ccipAddress,
-		"ccip_token_pool":          ccipTokenPoolAddress,
-		"lock_release_token_pool":  "0x0",
-		"lock_release_local_token": "0x1",
+	ccipAddress,
+	ccipTokenPoolAddress,
+	mcmsAddress,
+	mcmsOwnerAddres string) (LockReleaseTokenPool, *suiclient.SuiTransactionBlockResponse, error) {
+	artifact, err := bind.CompilePackage(contracts.LockReleaseTokenPool, map[string]string{
+		"ccip":                    ccipAddress,
+		"ccip_token_pool":         ccipTokenPoolAddress,
+		"lock_release_token_pool": "0x0",
+		"mcms":                    mcmsAddress,
+		"mcms_owner":              mcmsOwnerAddres,
 	})
 	if err != nil {
 		return nil, nil, err

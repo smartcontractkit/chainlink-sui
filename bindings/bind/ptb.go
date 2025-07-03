@@ -103,6 +103,10 @@ func ToPTBArg(
 		if !IsSuiAddress(v.Id) {
 			return suiptb.Argument{}, fmt.Errorf("invalid Sui address: %s", v.Id)
 		}
+		// this is specific to Clock
+		if v.Id == sui.SuiObjectIdClock.String() {
+			isMutable = false
+		}
 		// attempt to treat it as an object first
 		obj, err := ReadObject(ctx, v.Id, client)
 		if err == nil && obj.Error == nil && obj.Data != nil {

@@ -267,19 +267,12 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	// Get module and event configuration
 	moduleConfig := s.config.Modules[contract.Name]
 	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
-	// No event config found, construct a config
 	if err != nil {
-		// construct a new config ad-hoc
-		eventConfig = &ChainReaderEvent{
-			Name:      filter.Key,
-			EventType: filter.Key,
-			EventSelector: client.EventSelector{
-				Package: contract.Address,
-				Module:  contract.Name,
-				Event:   filter.Key,
-			},
-		}
+		return nil, err
 	}
+
+	// only write contract address, rest will be handled during chainreader config
+	eventConfig.EventSelector.Package = contract.Address
 
 	// Sync the event in case it's not already in the database
 	err = s.eventsIndexer.SyncEvent(ctx, &eventConfig.EventSelector)

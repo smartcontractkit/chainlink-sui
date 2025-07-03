@@ -92,6 +92,21 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 	}
 
+	// Special-case: update published-at of CCIP & MCMs if it's a LockReleaseTokenPool package
+	if packageName == contracts.LockReleaseTokenPool {
+		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+
+		if err = updatePublishedAt(dstRoot, contracts.CCIPTokenPools, namedAddresses["ccip_token_pool"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP Token Pool published-at: %w", err)
+		}
+
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
+		}
+	}
+
 	// Compile the Move package
 	cmd := exec.Command("sui", "move", "build", "--dump-bytecode-as-base64", "--ignore-chain")
 	cmd.Dir = packageRoot

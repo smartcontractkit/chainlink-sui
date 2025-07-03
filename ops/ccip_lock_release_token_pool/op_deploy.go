@@ -12,6 +12,8 @@ import (
 type LockReleaseTokenPoolDeployInput struct {
 	CCIPPackageId          string
 	CCIPTokenPoolPackageId string
+	MCMSAddress            string
+	MCMSOwnerAddress       string
 }
 
 type LockReleaseTokenPoolDeployOutput struct {
@@ -25,6 +27,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 		deps.Client,
 		input.CCIPPackageId,
 		input.CCIPTokenPoolPackageId,
+		input.MCMSAddress,
+		input.MCMSOwnerAddress,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput]{}, err
@@ -36,7 +40,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 	}, err
 }
 
-var DeployCCIPTokenPoolOp = cld_ops.NewOperation(
+var DeployCCIPLockReleaseTokenPoolOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-lock-release-token-pool", "package", "deploy"),
 	semver.MustParse("0.1.0"),
 	"Deploys the CCIP lock release token pool package",

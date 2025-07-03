@@ -21,6 +21,7 @@ type DeployLockReleaseTokenPoolOutput struct {
 type DeployAndInitLockReleaseTokenPoolInput struct {
 	LockReleaseTokenPoolDeployInput
 	// init
+	CoinObjectTypeArg      string
 	CCIPObjectRefObjectId  string
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
@@ -47,7 +48,7 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 	semver.MustParse("0.1.0"),
 	"Deploys and sets initial lock release token pool configuration",
 	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployAndInitLockReleaseTokenPoolInput) (DeployLockReleaseTokenPoolOutput, error) {
-		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPTokenPoolOp, deps, input.LockReleaseTokenPoolDeployInput)
+		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPLockReleaseTokenPoolOp, deps, input.LockReleaseTokenPoolDeployInput)
 		if err != nil {
 			return DeployLockReleaseTokenPoolOutput{}, err
 		}
@@ -57,7 +58,8 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolInitializeOp,
 			deps,
 			LockReleaseTokenPoolInitializeInput{
-				CCIPPackageId:          deployReport.Output.PackageId,
+				CoinObjectTypeArg:      input.CoinObjectTypeArg,
+				LockReleasePackageId:   deployReport.Output.PackageId,
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
@@ -75,7 +77,8 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolApplyChainUpdatesOp,
 			deps,
 			LockReleaseTokenPoolApplyChainUpdatesInput{
-				CCIPPackageId:                deployReport.Output.PackageId,
+				LockReleasePackageId:         deployReport.Output.PackageId,
+				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectId:                initReport.Output.Objects.StateObjectId,
 				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
@@ -93,7 +96,8 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolSetChainRateLimiterOp,
 			deps,
 			LockReleaseTokenPoolSetChainRateLimiterInput{
-				CCIPPackageId:        deployReport.Output.PackageId,
+				LockReleasePackageId: deployReport.Output.PackageId,
+				CoinObjectTypeArg:    input.CoinObjectTypeArg,
 				StateObjectId:        initReport.Output.Objects.StateObjectId,
 				OwnerCap:             initReport.Output.Objects.OwnerCapObjectId,
 				RemoteChainSelectors: input.RemoteChainSelectors,

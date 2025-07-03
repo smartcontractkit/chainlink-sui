@@ -396,10 +396,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			Value uint64 `json:"value"`
 		}
 
-		type NoConfigSingleValueEvent struct {
-			Value uint64 `json:"value"`
-		}
-
 		type DoubleValueEvent struct {
 			Number uint64 `json:"number"`
 			Text   string `json:"text"`
@@ -453,60 +449,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 
 				if err != nil {
 					log.Errorw("Error querying for SingleValueEvent", "err", err)
-				}
-
-				return err == nil && len(sequences) > 0
-			}, 30*time.Second, 1*time.Second)
-
-			require.NoError(t, err)
-			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")
-			log.Debugw("Sequences found", "sequences", sequences)
-		})
-
-		// Query for SingleValueEvent
-		t.Run("QuerySingleValueEvent_WithoutConfig", func(t *testing.T) {
-			singleValueEvent := &NoConfigSingleValueEvent{}
-			var sequences []types.Sequence
-			//nolint:govet
-			var err error
-
-			// Use relayerClient to call increment instead of using CLI
-			moveCallReq := client.MoveCallRequest{
-				Signer:          accountAddress,
-				PackageObjectId: packageId,
-				Module:          "echo",
-				Function:        "no_config_event_echo",
-				TypeArguments:   []any{},
-				Arguments: []any{
-					testNumber,
-				},
-				GasBudget: "2000000",
-			}
-
-			log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
-
-			txMetadata, err := relayerClient.MoveCall(ctx, moveCallReq)
-			require.NoError(t, err)
-
-			_, err = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
-			require.NoError(t, err)
-
-			require.Eventually(t, func() bool {
-				sequences, err = loopReader.QueryKey(
-					ctx,
-					echoBinding,
-					query.KeyFilter{
-						Key: "NoConfigSingleValueEvent",
-					},
-					query.LimitAndSort{
-						SortBy: []query.SortBy{},
-						Limit:  query.CountLimit(10),
-					},
-					singleValueEvent,
-				)
-
-				if err != nil {
-					log.Errorw("Error querying for NoValueSingleValueEvent", "err", err)
 				}
 
 				return err == nil && len(sequences) > 0
