@@ -43,6 +43,7 @@ type IMcms interface {
 	GetRootMetadata(state bind.Object, role byte) bind.IMethod
 	GetOpCount(state bind.Object, role byte) bind.IMethod
 	GetRoot(state bind.Object, role byte) bind.IMethod
+	GetConfig(state bind.Object, role byte) bind.IMethod
 	NumGroups() bind.IMethod
 	MaxNumSigners() bind.IMethod
 	BypasserRole() bind.IMethod
@@ -528,6 +529,20 @@ func (c *McmsContract) GetRoot(state bind.Object, role byte) bind.IMethod {
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_root", false, "", "", state, role)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "get_root", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *McmsContract) GetConfig(state bind.Object, role byte) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms", "get_config", false, "", "", state, role)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms", "get_config", err)
 		}
 
 		return ptb, nil

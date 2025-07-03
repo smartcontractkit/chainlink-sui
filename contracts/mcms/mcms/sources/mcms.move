@@ -1305,6 +1305,10 @@ module mcms::mcms {
         (multisig.expiring_root_and_op_count.root, multisig.expiring_root_and_op_count.valid_until)
     }
 
+    public fun get_config(state: &MultisigState, role: u8): Config {
+        borrow_multisig(state, role).config
+    }
+
     public fun num_groups(): u64 {
         NUM_GROUPS
     }
