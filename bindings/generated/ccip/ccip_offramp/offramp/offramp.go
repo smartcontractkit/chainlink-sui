@@ -28,12 +28,9 @@ type IOfframp interface {
 	Initialize(state bind.Object, param module_common.OwnerCap, feeQuoterCap module_common.FeeQuoterCap, destTransferCap module_common.DestTransferCap, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) bind.IMethod
 	GetOcr3Base(state bind.Object) bind.IMethod
 	InitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) bind.IMethod
-	FinishExecute(state bind.Object, receiverParams module_common.ReceiverParams) bind.IMethod
 	ManuallyInitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportBytes []byte) bind.IMethod
 	GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) bind.IMethod
 	SetOcr3Config(state bind.Object, param module_common.OwnerCap, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) bind.IMethod
-	ConfigSigners(state module_common.OCRConfig) bind.IMethod
-	ConfigTransmitters(state module_common.OCRConfig) bind.IMethod
 	Commit(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, signatures [][]byte) bind.IMethod
 	GetMerkleRoot(state bind.Object, root []byte) bind.IMethod
 	GetSourceChainConfig(state bind.Object, sourceChainSelector uint64) bind.IMethod
@@ -54,7 +51,6 @@ type IOfframp interface {
 	TransferOwnership(state bind.Object, ownerCap module_common.OwnerCap, newOwner string) bind.IMethod
 	AcceptOwnership(state bind.Object) bind.IMethod
 	AcceptOwnershipFromObject(state bind.Object, from string) bind.IMethod
-	ExecuteOwnershipTransfer(ownerCap module_common.OwnerCap, ownableState module_common.OwnableState, to string) bind.IMethod
 	// Connect adds/changes the client used in the contract
 	Connect(client suiclient.ClientImpl)
 }
@@ -91,7 +87,6 @@ type OffRampState struct {
 	LatestPriceSequenceNumber               uint64                         `move:"u64"`
 	FeeQuoterCap                            *module_common.FeeQuoterCap    `move:"0x1::option::Option<FeeQuoterCap>"`
 	DestTransferCap                         *module_common.DestTransferCap `move:"0x1::option::Option<ccip::common::DestTransferCap>"`
-	OwnableState                            module_common.OwnableState     `move:"OwnableState"`
 }
 
 type OffRampStatePointer struct {
@@ -282,20 +277,6 @@ func (c *OfframpContract) InitExecute(ref module_common.CCIPObjectRef, state bin
 	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *OfframpContract) FinishExecute(state bind.Object, receiverParams module_common.ReceiverParams) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "finish_execute", false, "", "", state, receiverParams)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "finish_execute", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
 func (c *OfframpContract) ManuallyInitExecute(ref module_common.CCIPObjectRef, state bind.Object, clock bind.Object, reportBytes []byte) bind.IMethod {
 	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
 		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
@@ -330,34 +311,6 @@ func (c *OfframpContract) SetOcr3Config(state bind.Object, param module_common.O
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "set_ocr3_config", false, "", "", state, param, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "set_ocr3_config", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *OfframpContract) ConfigSigners(state module_common.OCRConfig) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "config_signers", false, "", "", state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "config_signers", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *OfframpContract) ConfigTransmitters(state module_common.OCRConfig) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "config_transmitters", false, "", "", state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "config_transmitters", err)
 		}
 
 		return ptb, nil
@@ -638,20 +591,6 @@ func (c *OfframpContract) AcceptOwnershipFromObject(state bind.Object, from stri
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "accept_ownership_from_object", false, "", "", state, from)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "accept_ownership_from_object", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
-}
-
-func (c *OfframpContract) ExecuteOwnershipTransfer(ownerCap module_common.OwnerCap, ownableState module_common.OwnableState, to string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "offramp", "execute_ownership_transfer", false, "", "", ownerCap, ownableState, to)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "offramp", "execute_ownership_transfer", err)
 		}
 
 		return ptb, nil
