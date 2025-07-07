@@ -1127,7 +1127,6 @@ func TestGenerateReceiverCallArguments(t *testing.T) {
 
 //nolint:paralleltest // This test cannot run in parallel due to shared mock expectations
 func TestSuiPTBExpander_FilterRegisteredReceivers(t *testing.T) {
-	t.Skip("Skipping FilterRegisteredReceivers test")
 	lggr := logger.Test(t)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -1244,8 +1243,6 @@ func TestSuiPTBExpander_FilterRegisteredReceivers(t *testing.T) {
 					response := tt.mockResponses[i]
 					results := []any{response, "bool"}
 
-					expectedResult := []any{results}
-
 					mockSuiPTBClient.EXPECT().
 						ReadFunction(
 							gomock.Any(),
@@ -1256,7 +1253,7 @@ func TestSuiPTBExpander_FilterRegisteredReceivers(t *testing.T) {
 							gomock.Any(),
 							[]string{"object_id", "address"},
 						).
-						Return(expectedResult, nil).
+						Return(results, nil).
 						Times(1)
 				}
 			}

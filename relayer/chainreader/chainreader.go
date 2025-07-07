@@ -8,8 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -513,12 +511,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			pointerTag := strings.Join(tag[1:3], "::")
 			// if the value exists in the fetched pointers maps
 			if pointerValue, ok := pointersValuesMap[pointerTag][paramConfig.Name]; ok {
-				// add it to the args map
-				if paramConfig.Type == "object_id" {
-					argMap[paramConfig.Name] = bind.Object{Id: pointerValue.(string)}
-				} else {
-					argMap[paramConfig.Name] = pointerValue.(string)
-				}
+				argMap[paramConfig.Name] = pointerValue.(string)
 			}
 		}
 	}
@@ -558,14 +551,8 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 		// check if it matches any of the pointers
 		for _, pointer := range pointers {
 			// object tag matches
-			if ownedObject.Data.Type != nil && strings.Contains(*ownedObject.Data.Type, pointer) {
-				// parse the object into a map
-				parsedObject := map[string]any{}
-				err := json.Unmarshal(ownedObject.Data.Content.Data.MoveObject.Fields, &parsedObject)
-				if err != nil {
-					return nil, err
-				}
-				pointersValuesMap[pointer] = parsedObject
+			if ownedObject.Data.Type != "" && strings.Contains(ownedObject.Data.Type, pointer) {
+				pointersValuesMap[pointer] = ownedObject.Data.Content.Fields
 			}
 		}
 	}

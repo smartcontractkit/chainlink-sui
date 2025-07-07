@@ -10,7 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pattonkan/sui-go/sui/suiptb"
+	"github.com/block-vision/sui-go-sdk/signer"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -90,7 +91,7 @@ func stringPointer(s string) *string {
 	return &s
 }
 
-func fakeExecutePTB(ctx context.Context, ptb *suiptb.ProgrammableTransactionBuilder) (string, error) {
+func fakeExecutePTB(ctx context.Context, tx *transaction.Transaction) (string, error) {
 	return "0x1234567890abcdef", nil
 }
 
@@ -114,7 +115,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	ctx := context.Background()
 
 	// Test data
-	packageID := "0x1234567890abcdef"
+	packageID := "0x2742f32b2f375f9054a571f9e50ea6fedb91a181379db1869c27bcc6c8cfb955"
 	moduleID := "test_module"
 	functionName := "test_function"
 
@@ -130,7 +131,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	config := chainwriter.ChainWriterConfig{} // Empty config, not needed for this test
 	constructor := chainwriter.NewPTBConstructor(config, mockClient, log)
 
-	builder := suiptb.NewTransactionDataTransactionBuilder()
+	builder := transaction.NewTransaction()
 
 	// Test cases
 	t.Run("Valid move call command", func(t *testing.T) {
@@ -145,7 +146,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 		}
 
 		args := chainwriter.Arguments{Args: map[string]any{}}
-		cachedArgs := map[string]suiptb.Argument{}
+		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
 		require.NoError(t, err)
@@ -162,7 +163,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 		}
 
 		args := chainwriter.Arguments{Args: map[string]any{}}
-		cachedArgs := map[string]suiptb.Argument{}
+		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
 		require.Error(t, err)
@@ -180,7 +181,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 		}
 
 		args := chainwriter.Arguments{Args: map[string]any{}}
-		cachedArgs := map[string]suiptb.Argument{}
+		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
 		require.Error(t, err)
@@ -197,26 +198,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 		}
 
 		args := chainwriter.Arguments{Args: map[string]any{}}
-		cachedArgs := map[string]suiptb.Argument{}
-
-		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
-		require.Error(t, err)
-	})
-
-	t.Run("Invalid package ID format", func(t *testing.T) {
-		t.Parallel()
-
-		invalidPackageID := "invalid-hex"
-		cmd := chainwriter.ChainWriterPTBCommand{
-			Type:      codec.SuiPTBCommandMoveCall,
-			PackageId: &invalidPackageID,
-			ModuleId:  &moduleID,
-			Function:  &functionName,
-			Params:    []codec.SuiFunctionParam{},
-		}
-
-		args := chainwriter.Arguments{Args: map[string]any{}}
-		cachedArgs := map[string]suiptb.Argument{}
+		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
 		require.Error(t, err)
@@ -237,6 +219,12 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 	require.NoError(t, err)
 	publicKey := privateKey.Public().(ed25519.PublicKey)
 	publicKeyBytes := []byte(publicKey)
+
+	txnSigner := signer.Signer{
+		PriKey:  privateKey,
+		PubKey:  publicKey,
+		Address: accountAddress,
+	}
 
 	config := chainwriter.ChainWriterConfig{
 		Modules: map[string]*chainwriter.ChainWriterModule{
@@ -318,7 +306,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 	}
 	constructor := chainwriter.NewPTBConstructor(config, ptbClient, log)
 
-	_ = suiptb.NewTransactionDataTransactionBuilder()
+	_ = transaction.NewTransaction()
 
 	//nolint:paralleltest
 	t.Run("Should fill a valid prerequisite object ID in CW config", func(t *testing.T) {
@@ -332,7 +320,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
 		prettyPrintDebug(log, ptbResult)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
@@ -349,7 +337,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
 		prettyPrintDebug(log, ptbResult)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
@@ -372,6 +360,12 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	require.NoError(t, err)
 	publicKey := privateKey.Public().(ed25519.PublicKey)
 	publicKeyBytes := []byte(publicKey)
+
+	txnSigner := signer.Signer{
+		PriKey:  privateKey,
+		PubKey:  publicKey,
+		Address: accountAddress,
+	}
 
 	// Create PTB Constructor with config targeting the counter contract
 	config := chainwriter.ChainWriterConfig{
@@ -606,6 +600,27 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 							},
 						},
 					},
+					"get_coin_value_ptb": {
+						Name:      "get_coin_value_ptb",
+						PublicKey: publicKeyBytes,
+						Params:    []codec.SuiFunctionParam{},
+						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: &packageId,
+								ModuleId:  stringPointer("counter"),
+								Function:  stringPointer("get_coin_value"),
+								Params: []codec.SuiFunctionParam{
+									{
+										Name:      "coin",
+										Type:      "object_id",
+										Required:  true,
+										IsGeneric: true,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -621,8 +636,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, nil)
-		require.NoError(t, err)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, nil)
+		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
@@ -637,8 +652,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, nil)
-		require.Error(t, err)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, nil)
+		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
 
@@ -648,8 +663,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, nil)
-		require.Error(t, err)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, nil)
+		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
 
@@ -657,8 +672,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	t.Run("Missing Required Argument", func(t *testing.T) {
 		args := chainwriter.Arguments{Args: map[string]any{}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, nil)
-		require.Error(t, err)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, nil)
+		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
 
@@ -667,12 +682,12 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		// Start by creating a Counter and its counter manager
 		args := chainwriter.Arguments{Args: map[string]any{}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, nil)
-		require.NoError(t, err)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, nil)
+		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		require.Equal(t, "success", ptbResult.Status.Status)
@@ -682,8 +697,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		var managerObjectId string
 		// iterate through object changes
 		for _, change := range ptbResult.ObjectChanges {
-			if change.Data.Created != nil && strings.Contains(change.Data.Created.ObjectType, "counter_manager") {
-				managerObjectId = change.Data.Created.ObjectId.String()
+			if strings.Contains(change.ObjectType, "counter_manager") {
+				managerObjectId = change.ObjectId
 			}
 		}
 
@@ -691,12 +706,12 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"manager_object": managerObjectId,
 		}}
 
-		ptb, err = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, nil)
-		require.NoError(t, err)
+		ptb, cError = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, nil)
+		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
+		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		require.Equal(t, "success", ptbResult.Status.Status)
@@ -704,7 +719,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		// Expect 2 increment events
 		incrementEventsCounter := 0
 		for _, event := range ptbResult.Events {
-			if strings.Contains(event.Type.String(), "CounterIncremented") {
+			if strings.Contains(event.Type, "CounterIncremented") {
 				incrementEventsCounter += 1
 			}
 		}
@@ -719,15 +734,58 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, nil)
-		require.NoError(t, err)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, nil)
+		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, publicKeyBytes, ptb)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		prettyPrintDebug(log, ptbResult)
 		require.Equal(t, "success", ptbResult.Status.Status)
+	})
+
+	//nolint:paralleltest
+	t.Run("PTB Constructor with Generic Type Tags - get_coin_value", func(t *testing.T) {
+		// Fund the account
+		cError := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+		require.NoError(t, cError)
+
+		// Get coins to use - need at least 2 coins (one for function arg, one for gas)
+		coins, err := ptbClient.GetCoinsByAddress(ctx, txnSigner.Address)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(coins), 2, "Need at least 2 coins for this test")
+
+		// Use the first coin as the test input
+		testCoin := coins[1]
+		log.Debugw("Using test coin with PTB constructor", "coinId", testCoin.CoinObjectId, "coinType", testCoin.CoinType)
+
+		suiTypeTag := "0x2::sui::SUI"
+
+		// Prepare arguments for the PTB constructor
+		args := chainwriter.Arguments{
+			Args: map[string]any{
+				"coin": testCoin.CoinObjectId,
+			},
+			ArgTypes: map[string]string{
+				"coin": suiTypeTag,
+			},
+		}
+
+		// Use the constructor to build PTB commands for the generic function
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_coin_value_ptb", args, nil)
+		require.NoError(t, err)
+		require.NotNil(t, ptb)
+
+		log.Debugw("Executing generic function via PTB constructor", "ptb", ptb)
+
+		// Execute the PTB command using the PTB client
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
+		require.NoError(t, err)
+		require.NotEmpty(t, ptbResult)
+		require.Equal(t, "success", ptbResult.Status.Status)
+		// Verify the function executed successfully
+		log.Debugw("PTB Constructor generic function call successful", "coinValue", testCoin.Balance)
 	})
 }

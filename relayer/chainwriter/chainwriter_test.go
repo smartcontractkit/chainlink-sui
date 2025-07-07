@@ -16,7 +16,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
@@ -130,8 +129,8 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 							},
 						},
 					},
-					"array_size_ptb": {
-						Name:      "array_size_ptb",
+					"get_coin_value_ptb": {
+						Name:      "get_coin_value_ptb",
 						PublicKey: publicKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
 						PTBCommands: []chainwriter.ChainWriterPTBCommand{
@@ -139,11 +138,11 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
 								ModuleId:  strPtr("counter"),
-								Function:  strPtr("array_size"),
+								Function:  strPtr("get_coin_value"),
 								Params: []codec.SuiFunctionParam{
 									{
-										Name:      "arr",
-										Type:      "vector<u64>",
+										Name:      "coin",
+										Type:      "object_id",
 										Required:  true,
 										IsGeneric: true,
 									},
@@ -174,97 +173,129 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		"counter": objectID,
 	}
 
+	// Get coins to use - need at least 2 coins (one for function arg, one for gas)
+	coins, err := testState.SuiGateway.GetCoinsByAddress(ctx, testState.AccountAddress)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(coins), 2, "Need at least 2 coins for this test")
+
+	// Use the first coin as the test input
+	testCoin := coins[1]
+
+	// Common validation functions
+	getCounterValue := func() (string, error) {
+		objectDetails, callBackErr := testState.SuiGateway.ReadObjectId(ctx, objectID)
+		if callBackErr != nil {
+			return "", callBackErr
+		}
+
+		return objectDetails.Content.SuiMoveObject.Fields["value"].(string), nil
+	}
+	getCoinBalance := func() (string, error) {
+		return testCoin.Balance, nil
+	}
+
+	getErrorValue := func() (string, error) {
+		return "", nil
+	}
+
 	// Test scenarios
 	testScenarios := []struct {
-		name           string
-		txID           string
-		txMeta         *commonTypes.TxMeta
-		sender         string
-		contractName   string
-		functionName   string
-		args           chainwriter.Arguments
-		expectError    error
-		expectedResult string
-		status         commonTypes.TransactionStatus
-		numberAttemps  int
+		name             string
+		txID             string
+		txMeta           *commonTypes.TxMeta
+		sender           string
+		contractName     string
+		functionName     string
+		args             chainwriter.Arguments
+		expectError      error
+		expectedResult   string
+		status           commonTypes.TransactionStatus
+		numberAttemps    int
+		getExpectedValue func() (string, error) // Function to fetch the expected value for comparison
 	}{
 		{
-			name:           "Test ChainWriter with valid parameters",
-			txID:           "test-txID",
-			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:         testState.AccountAddress,
-			contractName:   "counter",
-			functionName:   "increment",
-			args:           chainwriter.Arguments{Args: map[string]any{"counter": bind.Object{Id: objectID}}},
-			expectError:    nil,
-			expectedResult: "1",
-			status:         commonTypes.Finalized,
-			numberAttemps:  1,
+			name:             "Test ChainWriter with valid parameters",
+			txID:             "test-txID",
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:           testState.AccountAddress,
+			contractName:     "counter",
+			functionName:     "increment",
+			args:             chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
+			expectError:      nil,
+			expectedResult:   "1",
+			status:           commonTypes.Finalized,
+			numberAttemps:    1,
+			getExpectedValue: getCounterValue,
 		},
 		{
-			name:           "Test ChainWriter with PTB using builder",
-			txID:           "test-ptb-txID",
-			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:         testState.AccountAddress,
-			contractName:   chainwriter.PTBChainWriterModuleName,
-			functionName:   "ptb_call",
-			args:           chainwriter.Arguments{Args: simpleArgs},
-			expectError:    nil,
-			expectedResult: "2",
-			status:         commonTypes.Finalized,
-			numberAttemps:  1,
+			name:             "Test ChainWriter with PTB using builder",
+			txID:             "test-ptb-txID",
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:           testState.AccountAddress,
+			contractName:     chainwriter.PTBChainWriterModuleName,
+			functionName:     "ptb_call",
+			args:             chainwriter.Arguments{Args: simpleArgs},
+			expectError:      nil,
+			expectedResult:   "2",
+			status:           commonTypes.Finalized,
+			numberAttemps:    1,
+			getExpectedValue: getCounterValue,
 		},
 		{
-			name:           "Test ChainWriter with missing argument for PTB using builder",
-			txID:           "test-ptb-txID-missing-arg",
-			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:         testState.AccountAddress,
-			contractName:   chainwriter.PTBChainWriterModuleName,
-			functionName:   "ptb_call",
-			args:           chainwriter.Arguments{Args: map[string]any{}},
-			expectError:    errors.New("required parameter counter has no value"),
-			expectedResult: "",
-			status:         commonTypes.Failed,
-			numberAttemps:  1,
+			name:             "Test ChainWriter with missing argument for PTB using builder",
+			txID:             "test-ptb-txID-missing-arg",
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:           testState.AccountAddress,
+			contractName:     chainwriter.PTBChainWriterModuleName,
+			functionName:     "ptb_call",
+			args:             chainwriter.Arguments{Args: map[string]any{}},
+			expectError:      errors.New("required parameter counter has no value"),
+			expectedResult:   "",
+			status:           commonTypes.Failed,
+			numberAttemps:    1,
+			getExpectedValue: getErrorValue,
 		},
 		{
-			name:           "Test ChainWriter with PTB using simple map",
-			txID:           "test-ptb-simple-map",
-			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:         testState.AccountAddress,
-			contractName:   chainwriter.PTBChainWriterModuleName,
-			functionName:   "ptb_call",
-			args:           chainwriter.Arguments{Args: simpleArgs},
-			expectError:    nil,
-			expectedResult: "3",
-			status:         commonTypes.Finalized,
-			numberAttemps:  1,
+			name:             "Test ChainWriter with PTB using simple map",
+			txID:             "test-ptb-simple-map",
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:           testState.AccountAddress,
+			contractName:     chainwriter.PTBChainWriterModuleName,
+			functionName:     "ptb_call",
+			args:             chainwriter.Arguments{Args: simpleArgs},
+			expectError:      nil,
+			expectedResult:   "3",
+			status:           commonTypes.Finalized,
+			numberAttemps:    1,
+			getExpectedValue: getCounterValue,
 		},
 		{
-			name:           "Test ChainWriter with invalid function call",
-			txID:           "test-txID-invalid-func",
-			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:         testState.AccountAddress,
-			contractName:   "counter",
-			functionName:   "nonexistent_function",
-			args:           chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
-			expectError:    commonTypes.ErrNotFound,
-			expectedResult: "",
-			status:         commonTypes.Failed,
-			numberAttemps:  1,
+			name:             "Test ChainWriter with invalid function call",
+			txID:             "test-txID-invalid-func",
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:           testState.AccountAddress,
+			contractName:     "counter",
+			functionName:     "nonexistent_function",
+			args:             chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
+			expectError:      commonTypes.ErrNotFound,
+			expectedResult:   "",
+			status:           commonTypes.Failed,
+			numberAttemps:    1,
+			getExpectedValue: getErrorValue,
 		},
 		{
-			name:           "Test ChainWriter with invalid contract",
-			txID:           "test-txID-invalid-contract",
-			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:         testState.AccountAddress,
-			contractName:   "nonexistent_contract",
-			functionName:   "increment",
-			args:           chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
-			expectError:    commonTypes.ErrNotFound,
-			expectedResult: "",
-			status:         commonTypes.Failed,
-			numberAttemps:  1,
+			name:             "Test ChainWriter with invalid contract",
+			txID:             "test-txID-invalid-contract",
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:           testState.AccountAddress,
+			contractName:     "nonexistent_contract",
+			functionName:     "increment",
+			args:             chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
+			expectError:      commonTypes.ErrNotFound,
+			expectedResult:   "",
+			status:           commonTypes.Failed,
+			numberAttemps:    1,
+			getExpectedValue: getErrorValue,
 		},
 		{
 			name:         "Test ChainWriter with invalid arguments",
@@ -279,10 +310,11 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 				"extra_arg":   "extra_value",
 				"extra_arg2":  123,
 			}},
-			expectError:    errors.New("argument count mismatch"),
-			expectedResult: "",
-			status:         commonTypes.Failed,
-			numberAttemps:  1,
+			expectError:      errors.New("argument count mismatch"),
+			expectedResult:   "",
+			status:           commonTypes.Failed,
+			numberAttemps:    1,
+			getExpectedValue: getErrorValue,
 		},
 		{
 			name:         "Test ChainWriter with the same transaction ID",
@@ -294,43 +326,46 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			args: chainwriter.Arguments{Args: map[string]any{
 				"counter": objectID,
 			}},
-			expectError:    errors.New("transaction already exists"),
-			expectedResult: "",
-			status:         commonTypes.Failed,
-			numberAttemps:  1,
+			expectError:      errors.New("txn already exists"),
+			expectedResult:   "",
+			status:           commonTypes.Failed,
+			numberAttemps:    1,
+			getExpectedValue: getErrorValue,
 		},
 		{
-			name:           "Test Prefetch with owner override",
-			txID:           "prefetch_with_owner_override_txID",
-			txMeta:         &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:         testState.AccountAddress,
-			contractName:   chainwriter.PTBChainWriterModuleName,
-			functionName:   "increment_by_two_no_context",
-			args:           chainwriter.Arguments{Args: map[string]any{}},
-			expectError:    nil,
-			expectedResult: "3",
-			status:         commonTypes.Finalized,
-			numberAttemps:  1,
+			name:             "Test Prefetch with owner override",
+			txID:             "prefetch_with_owner_override_txID",
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			sender:           testState.AccountAddress,
+			contractName:     chainwriter.PTBChainWriterModuleName,
+			functionName:     "increment_by_two_no_context",
+			args:             chainwriter.Arguments{Args: map[string]any{}},
+			expectError:      nil,
+			expectedResult:   "3",
+			status:           commonTypes.Finalized,
+			numberAttemps:    1,
+			getExpectedValue: getCounterValue,
 		},
 		{
 			name:         "Test ChainWriter with generic function",
-			txID:         "test-array-size-txID",
+			txID:         "test-get-coin-value-txID",
 			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:       testState.AccountAddress,
 			contractName: chainwriter.PTBChainWriterModuleName,
-			functionName: "array_size_ptb",
+			functionName: "get_coin_value_ptb",
 			args: chainwriter.Arguments{
 				Args: map[string]any{
-					"arr": []uint64{1, 2, 3, 4, 5},
+					"coin": testCoin.CoinObjectId,
 				},
 				ArgTypes: map[string]string{
-					"arr": "u64",
+					"coin": "0x2::sui::SUI",
 				},
 			},
-			expectError:    nil,
-			expectedResult: "",
-			status:         commonTypes.Finalized,
-			numberAttemps:  1,
+			expectError:      nil,
+			expectedResult:   testCoin.Balance,
+			status:           commonTypes.Finalized,
+			numberAttemps:    1,
+			getExpectedValue: getCoinBalance,
 		},
 	}
 
@@ -358,11 +393,10 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 					return status == scenario.status
 				}, 3*time.Second, 1*time.Second, "Transaction final state not reached")
 
-				objectDetails, err := testState.SuiGateway.ReadObjectId(ctx, objectID)
+				actualValue, err := scenario.getExpectedValue()
 				require.NoError(t, err)
 
-				counter := testutils.ExtractStruct[Counter](t, objectDetails)
-				assert.Contains(t, counter.Value, scenario.expectedResult, "Counter value does not match")
+				assert.Equal(t, scenario.expectedResult, actualValue, "Expected value does not match")
 
 				tx, err := testState.TxStore.GetTransaction(scenario.txID)
 				require.NoError(t, err, "Failed to get transaction from repository")

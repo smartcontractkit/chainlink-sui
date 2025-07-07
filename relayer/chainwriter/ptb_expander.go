@@ -443,12 +443,13 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 					"address",
 				},
 			)
-			isRegistered := isRegisteredResponseValues[0].(bool)
 
 			if err != nil {
 				lggr.Errorw("Error getting pool infos", "error", err)
 				return nil, err
 			}
+
+			isRegistered := isRegisteredResponseValues[0].(bool)
 			lggr.Debugw("isRegistered", "isRegistered", isRegistered)
 
 			if isRegistered {

@@ -17,7 +17,7 @@ func GetTransaction() SuiTx {
 		Sender:        "0x123",
 		Metadata:      nil,
 		Timestamp:     0,
-		Payload:       []byte("payload"),
+		Payload:       "payload",
 		Attempt:       0,
 		State:         StatePending,
 	}

@@ -1,8 +1,7 @@
 package client
 
 import (
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
 )
 
 type TransactionBlockOptions struct {
@@ -51,9 +50,9 @@ type MoveCallRequest struct {
 	// the arguments to the function
 	Arguments []any `json:"arguments"`
 	// gas object to be used in this transaction, node will pick one from the signer's possession if not provided
-	Gas *string `json:"gas"`
+	Gas uint64 `json:"gas"`
 	// the gas budget, the transaction will fail if the gas cost exceed the budget
-	GasBudget string `json:"gasBudget"`
+	GasBudget uint64 `json:"gasBudget"`
 }
 
 type TxnMetaData struct {
@@ -61,13 +60,13 @@ type TxnMetaData struct {
 }
 
 type SuiTransactionBlockResponse struct {
-	TxDigest      string                                                `json:"txDigest"`
-	Status        SuiExecutionStatus                                    `json:"status"`
-	Effects       suiclient.SuiTransactionBlockEffectsV1                `json:"effects"`
-	Events        []*suiclient.Event                                    `json:"events,omitempty"`
-	Timestamp     uint64                                                `json:"timestamp"`
-	Height        uint64                                                `json:"height"`
-	ObjectChanges []suiclient.WrapperTaggedJson[suiclient.ObjectChange] `json:"objectChanges,omitempty"`
+	TxDigest      string                    `json:"txDigest"`
+	Status        SuiExecutionStatus        `json:"status"`
+	Effects       models.SuiEffects         `json:"effects"`
+	Events        []models.SuiEventResponse `json:"events,omitempty"`
+	Timestamp     uint64                    `json:"timestamp"`
+	Height        uint64                    `json:"height"`
+	ObjectChanges []models.ObjectChange     `json:"objectChanges,omitempty"`
 }
 
 type EventFilterByMoveEventModule struct {
@@ -104,17 +103,8 @@ type PaginatedEventsResponse struct {
 }
 
 type EventId struct {
-	TxDigest string      `json:"txDigest"`
-	EventSeq *sui.BigInt `json:"eventSeq"`
-}
-
-type CoinData struct {
-	CoinType     string `json:"coinType"`
-	CoinObjectId string `json:"coinObjectId"`
-	Version      string `json:"version"`
-	Digest       string `json:"digest"`
-	Balance      string `json:"balance"`
-	PreviousTx   string `json:"previousTx"`
+	TxDigest string `json:"txDigest"`
+	EventSeq string `json:"eventSeq"`
 }
 
 type SuiExecutionStatus struct {
@@ -129,4 +119,8 @@ type QuerySortOptions struct {
 type TransactionResult struct {
 	Status string `json:"status"`
 	Error  string `json:"error"`
+}
+
+type FunctionReadResponse struct {
+	ReturnValues []any `json:"returnValues"`
 }

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
@@ -21,7 +23,7 @@ type EventsIndexer struct {
 	syncTimeout         time.Duration
 	eventConfigurations []*client.EventSelector
 	// a map of event handles to the last processed cursor
-	lastProcessedCursors map[string]*suiclient.EventId
+	lastProcessedCursors map[string]*models.EventId
 }
 
 type EventsIndexerApi interface {
@@ -30,7 +32,7 @@ type EventsIndexerApi interface {
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
 }
 
-const batchSizeRecords = 100
+const batchSizeRecords = 50
 
 func NewEventIndexer(
 	db *database.DBStore,
@@ -47,7 +49,7 @@ func NewEventIndexer(
 		pollingInterval:      pollingInterval,
 		syncTimeout:          syncTimeout,
 		eventConfigurations:  eventConfigurations,
-		lastProcessedCursors: make(map[string]*suiclient.EventId),
+		lastProcessedCursors: make(map[string]*models.EventId),
 	}
 }
 
@@ -169,7 +171,7 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 	var clientCursor *client.EventId
 	if cursor != nil {
 		clientCursor = &client.EventId{
-			TxDigest: cursor.TxDigest.String(),
+			TxDigest: cursor.TxDigest,
 			EventSeq: cursor.EventSeq,
 		}
 	}
@@ -202,10 +204,18 @@ eventLoop:
 			var batchRecords []database.EventRecord
 			for _, event := range eventsPage.Data {
 				// Get block information
-				block, err := eIndexer.client.BlockByDigest(ctx, event.Id.TxDigest.String())
+				block, err := eIndexer.client.BlockByDigest(ctx, event.Id.TxDigest)
 				if err != nil {
 					eIndexer.logger.Errorw("syncEvent: failed to fetch block metadata",
-						"txDigest", event.Id.TxDigest.String(), "error", err)
+						"txDigest", event.Id.TxDigest, "error", err)
+
+					continue
+				}
+
+				offset, err := strconv.ParseUint(event.Id.EventSeq, 10, 64)
+				if err != nil {
+					eIndexer.logger.Errorw("syncEvent: failed to parse event offset",
+						"eventSeq", event.Id.EventSeq, "error", err)
 
 					continue
 				}
@@ -214,13 +224,14 @@ eventLoop:
 				record := database.EventRecord{
 					EventAccountAddress: selector.Package,
 					EventHandle:         eventHandle,
-					EventOffset:         event.Id.EventSeq.Uint64(),
-					TxDigest:            event.Id.TxDigest.String(),
-					BlockVersion:        0,
-					BlockHeight:         fmt.Sprintf("%d", block.Height),
-					BlockHash:           []byte(block.TxDigest),
-					BlockTimestamp:      block.Timestamp,
-					Data:                event.ParsedJson.(map[string]any),
+					// TODO: event offset is a string and should be stored in the DB as a string
+					EventOffset:    offset,
+					TxDigest:       event.Id.TxDigest,
+					BlockVersion:   0,
+					BlockHeight:    fmt.Sprintf("%d", block.Height),
+					BlockHash:      []byte(block.TxDigest),
+					BlockTimestamp: block.Timestamp,
+					Data:           event.ParsedJson,
 				}
 				batchRecords = append(batchRecords, record)
 			}
@@ -243,10 +254,13 @@ eventLoop:
 			}
 
 			// Update cursor for next iteration
-			if eventsPage.HasNextPage && eventsPage.NextCursor != nil {
-				cursor = eventsPage.NextCursor
+			if eventsPage.HasNextPage && eventsPage.NextCursor.TxDigest != "" && eventsPage.NextCursor.EventSeq != "" {
+				cursor = &models.EventId{
+					TxDigest: cursor.TxDigest,
+					EventSeq: cursor.EventSeq,
+				}
 				clientCursor = &client.EventId{
-					TxDigest: eventsPage.NextCursor.TxDigest.String(),
+					TxDigest: eventsPage.NextCursor.TxDigest,
 					EventSeq: eventsPage.NextCursor.EventSeq,
 				}
 				eIndexer.lastProcessedCursors[eventHandle] = cursor

@@ -454,6 +454,8 @@ This approach has several advantages:
 
 When working with generic types in Sui Move functions, you need to specify both the value arguments and the type arguments. The `chainwriter.Arguments` struct supports this through the `ArgTypes` field.
 
+**⚠️ Important Limitation**: The current implementation only supports parametrizing generic types as SUI objects (e.g., `Coin<T>`, `TokenPool<T>`, custom struct types). Native types like `u64`, `string`, `address`, `bool`, and primitive vectors are **not supported** as generic type parameters. Generic type arguments must resolve to Sui struct types with a valid package address, module name, and struct name format (e.g., `0x2::coin::Coin`, `0x123::my_module::MyStruct`).
+
 Here's a real-world example from a CCIP (Cross-Chain Interoperability Protocol) implementation that uses generics to handle different token types:
 
 ```go

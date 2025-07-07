@@ -1,15 +1,19 @@
 package testutils
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	netUrl "net/url"
 	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
@@ -126,7 +130,7 @@ func waitForConnection(url string, timeout time.Duration, backoffDelay time.Dura
 func GetFaucetHost(network string) string {
 	switch network {
 	default:
-		return LocalFaucetUrl
+		return LocalUrl
 	}
 }
 
@@ -142,22 +146,59 @@ func GetFaucetHost(network string) string {
 func FundWithFaucet(log logger.Logger, network string, recipient string) error {
 	log.Infow("Funding account with test tokens", "address", recipient)
 
-	faucetHost := GetFaucetHost(network)
-
-	log.Infow("Faucet host", "host", faucetHost)
-
-	// Using pattonkan SDK for faucet request
-	recipientAddr, err := sui.AddressFromHex(recipient)
+	faucetHost, err := sui.GetFaucetHost(network)
 	if err != nil {
-		log.Errorw("Invalid recipient address", "err", err)
 		return err
 	}
 
+	body := models.FaucetRequest{
+		FixedAmountRequest: &models.FaucetFixedAmountRequest{
+			Recipient: recipient,
+		},
+	}
+
 	// Request funds from faucet
-	faucetRequestErr := suiclient.RequestFundFromFaucet(recipientAddr, faucetHost)
+	faucetRequestErr := faucetRequest(faucetHost, body, map[string]string{})
 	if faucetRequestErr != nil {
 		log.Errorw("Failed to request funds from faucet", "err", faucetRequestErr)
 		return faucetRequestErr
+	}
+
+	return nil
+}
+
+func faucetRequest(faucetUrl string, body any, headers map[string]string) error {
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, faucetUrl, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("request faucet failed, statusCode: %d, err: %+v", resp.StatusCode, string(bodyBytes))
 	}
 
 	return nil

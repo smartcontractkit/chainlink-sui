@@ -3,23 +3,23 @@ package txm
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
+
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/google/uuid"
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/sui/suiptb"
-	"github.com/pattonkan/sui-go/suiclient"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 
-	"github.com/fardream/go-bcs/bcs"
-
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 const defaultGasBudget = 200000000
@@ -52,7 +52,7 @@ type SuiTx struct {
 	Sender        string
 	Metadata      *commontypes.TxMeta
 	Timestamp     uint64
-	Payload       []byte
+	Payload       string // BCS base64 encoded transaction bytes
 	Functions     []*SuiFunction
 	Signatures    []string
 	RequestType   string
@@ -119,7 +119,9 @@ func GenerateTransaction(
 	requestType string,
 	transactionID string, txMetadata *commontypes.TxMeta,
 	function *SuiFunction,
-	typeArgs []string, paramTypes []string, paramValues []any,
+	typeArgs []string,
+	paramTypes []string,
+	paramValues []any,
 ) (*SuiTx, error) {
 	packageObjectId := function.PackageId
 	moduleName := function.Module
@@ -130,17 +132,6 @@ func GenerateTransaction(
 		lggr.Error(msg)
 
 		return nil, errors.New(msg)
-	}
-
-	functionValues := make([]any, len(paramValues))
-	for i, v := range paramValues {
-		value, err := codec.EncodeToSuiValue(paramTypes[i], v)
-		if err != nil {
-			lggr.Errorf("failed to encode value: %v", err)
-			return nil, err
-		}
-
-		functionValues[i] = value
 	}
 
 	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
@@ -157,8 +148,8 @@ func GenerateTransaction(
 		Function:        functionName,
 		// We will only need to pass the type arguments if the function is generic
 		TypeArguments: []any{},
-		Arguments:     functionValues,
-		GasBudget:     txMetadata.GasLimit.String(),
+		Arguments:     paramValues,
+		GasBudget:     txMetadata.GasLimit.Uint64(),
 	})
 
 	if err != nil {
@@ -190,7 +181,7 @@ func GenerateTransaction(
 		Sender:        signerAddress,
 		Metadata:      &commontypes.TxMeta{},
 		Timestamp:     GetCurrentUnixTimestamp(),
-		Payload:       txBytes,
+		Payload:       rsp.TxBytes,
 		Functions:     []*SuiFunction{function},
 		Signatures:    signatureStrings,
 		RequestType:   requestType,
@@ -237,7 +228,7 @@ func GeneratePTBTransaction(
 	requestType string,
 	transactionID string,
 	txMetadata *commontypes.TxMeta,
-	ptb *suiptb.ProgrammableTransaction,
+	ptb *transaction.Transaction,
 	simulateTx bool,
 ) (*SuiTx, error) {
 	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
@@ -246,13 +237,7 @@ func GeneratePTBTransaction(
 		return nil, err
 	}
 
-	address, err := sui.AddressFromHex(signerAddress)
-	if err != nil {
-		lggr.Errorf("failed to get address from hex: %v", err)
-		return nil, err
-	}
-
-	// Define gasBudget outside the if statement
+	// Define gasBudget
 	var gasBudget uint64
 	if txMetadata.GasLimit != nil {
 		gasBudget = txMetadata.GasLimit.Uint64()
@@ -260,14 +245,14 @@ func GeneratePTBTransaction(
 		gasBudget = uint64(defaultGasBudget)
 	}
 
-	// Get all available coins for this address
+	// Get available coins
 	coinData, err := suiClient.GetCoinsByAddress(ctx, signerAddress)
 	if err != nil {
 		lggr.Errorf("failed to get coins by address: %v", err)
 		return nil, err
 	}
 
-	// Use the new function to select coins for gas budget
+	// Select coins for gas budget
 	gasBudgetCoins, err := SelectCoinsForGasBudget(gasBudget, coinData)
 	if err != nil {
 		lggr.Errorf("failed to select coins for gas budget: %v", err)
@@ -279,40 +264,62 @@ func GeneratePTBTransaction(
 		"numCoins", len(gasBudgetCoins),
 		"gasBudgetCoins", gasBudgetCoins)
 
-	// We can get the reference from the current epoch -> https://docs.sui.io/sui-api-ref#suix_getreferencegasprice
-	// TODO: decide if we need this or not
-	gasPrice := suiclient.DefaultGasPrice
+	// Create payment coins using block-vision SDK format
+	paymentCoins := make([]transaction.SuiObjectRef, 0, len(gasBudgetCoins))
+	for _, coin := range gasBudgetCoins {
+		coinObjectIdBytes, coinErr := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(coin.CoinObjectId))
+		if coinErr != nil {
+			return nil, coinErr
+		}
+		versionUint, coinErr := strconv.ParseUint(coin.Version, 10, 64)
+		if coinErr != nil {
+			return nil, fmt.Errorf("failed to parse version: %w", err)
+		}
+		digestBytes, coinErr := transaction.ConvertObjectDigestStringToBytes(models.ObjectDigest(coin.Digest))
+		if coinErr != nil {
+			return nil, fmt.Errorf("failed to convert object digest for payment coin: %w", err)
+		}
+		paymentCoins = append(paymentCoins, transaction.SuiObjectRef{
+			ObjectId: *coinObjectIdBytes,
+			Version:  versionUint,
+			Digest:   *digestBytes,
+		})
+	}
 
-	// Create transaction data
-	txData := suiptb.NewTransactionData(
-		address,
-		(*ptb),
-		gasBudgetCoins,
-		gasBudget,
-		gasPrice,
-	)
+	ptb.SetGasBudget(gasBudget)
+	ptb.SetSender(models.SuiAddress(signerAddress))
+	ptb.SetGasOwner(models.SuiAddress(signerAddress))
+	ptb.SetGasPayment(paymentCoins)
 
-	lggr.Debugw("Transaction data", "txData", txData)
-
-	// Marshal the transaction data using BCS
-	ptbBytes, err := bcs.Marshal(txData)
+	// Use the toBCSBase64 to get transaction bytes for signing (similar to MoveCall)
+	txBytes, err := toBCSBase64(ctx, ptb, signerAddress, lggr)
 	if err != nil {
-		lggr.Errorf("failed to marshal transaction data: %v", err)
+		lggr.Errorf("failed to get bcs bytes: %v", err)
 		return nil, err
 	}
 
-	signatures, err := keystoreService.Sign(ctx, signerAddress, ptbBytes)
+	bytesTx, err := base64.StdEncoding.DecodeString(txBytes)
+	if err != nil {
+		lggr.Errorf("failed to decode tx bytes: %v", err)
+		return nil, err
+	}
+
+	// Sign using keystore (similar to working examples)
+	signature, err := keystoreService.Sign(ctx, signerAddress, bytesTx)
 	if err != nil {
 		lggr.Errorf("Error signing transaction: %v", err)
 		return nil, err
 	}
 
-	signatureStrings := []string{client.SerializeSuiSignature(signatures, pubKey)}
+	// Serialize signature (same as working code)
+	signatureStrings := []string{client.SerializeSuiSignature(signature, pubKey)}
 
+	// Extract functions from PTB commands
 	functions := []*SuiFunction{}
-	for _, command := range ptb.Commands {
+	for _, command := range ptb.Data.V1.Kind.ProgrammableTransaction.Commands {
+		packageIDstr := "0x" + hex.EncodeToString(command.MoveCall.Package[:])
 		functions = append(functions, &SuiFunction{
-			PackageId: command.MoveCall.Package.String(),
+			PackageId: packageIDstr,
 			Module:    command.MoveCall.Module,
 			Name:      command.MoveCall.Function,
 		})
@@ -323,7 +330,7 @@ func GeneratePTBTransaction(
 		Sender:        signerAddress,
 		Metadata:      txMetadata,
 		Timestamp:     GetCurrentUnixTimestamp(),
-		Payload:       ptbBytes,
+		Payload:       txBytes, // Use base64 encoded bytes
 		Functions:     functions,
 		Signatures:    signatureStrings,
 		RequestType:   requestType,
@@ -338,77 +345,45 @@ func GeneratePTBTransaction(
 // SelectCoinsForGasBudget selects the optimal set of coins that match the required gas budget.
 // It tries to find coins whose total balance is equal to or greater than the gas budget.
 // If exact match isn't possible, it returns coins with the smallest excess over the budget.
-func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []client.CoinData) ([]*sui.ObjectRef, error) {
+func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []models.CoinData) ([]models.CoinData, error) {
 	if len(availableCoins) == 0 {
 		return nil, fmt.Errorf("no coins available for gas budget")
 	}
 
-	// Convert CoinData to a more workable format with parsed balances
-	type coinInfo struct {
-		coinData  client.CoinData
-		balance   uint64
-		objectRef *sui.ObjectRef
-	}
-
-	coins := make([]coinInfo, 0, len(availableCoins))
-	for _, coin := range availableCoins {
-		// Parse balance to uint64
+	// parse all balances once
+	balances := make([]uint64, len(availableCoins))
+	for i, coin := range availableCoins {
 		var balance uint64
 		_, err := fmt.Sscanf(coin.Balance, "%d", &balance)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse coin balance: %w", err)
 		}
-
-		coinObjectId, err := sui.ObjectIdFromHex(coin.CoinObjectId)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse coin object id: %w", err)
-		}
-
-		digest, err := sui.NewDigest(coin.Digest)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse coin digest: %w", err)
-		}
-
-		// Convert version string to uint64
-		var version uint64
-		_, err = fmt.Sscanf(coin.Version, "%d", &version)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse coin version: %w", err)
-		}
-
-		ref := &sui.ObjectRef{
-			ObjectId: coinObjectId,
-			Version:  version,
-			Digest:   digest,
-		}
-
-		coins = append(coins, coinInfo{
-			coinData:  coin,
-			balance:   balance,
-			objectRef: ref,
-		})
+		balances[i] = balance
 	}
 
-	// Sort coins by balance in descending order
-	sort.Slice(coins, func(i, j int) bool {
-		return coins[i].balance > coins[j].balance
+	// create index slice and sort by balance (descending)
+	indices := make([]int, len(availableCoins))
+	for i := range indices {
+		indices[i] = i
+	}
+	sort.Slice(indices, func(i, j int) bool {
+		return balances[indices[i]] > balances[indices[j]]
 	})
 
-	// First, check if there's a single coin that's close to the gas budget
-	for _, coin := range coins {
-		if coin.balance >= gasBudget {
-			return []*sui.ObjectRef{coin.objectRef}, nil
+	// check if there's a single coin that covers the gas budget
+	for _, idx := range indices {
+		if balances[idx] >= gasBudget {
+			return []models.CoinData{availableCoins[idx]}, nil
 		}
 	}
 
-	// If no single coin is sufficient, try to find a combination
-	// This is a simplified greedy approach (not guaranteed optimal for all cases)
-	selected := make([]*sui.ObjectRef, 0)
+	// if no single coin is sufficient, find the minimal combination
+	selected := make([]models.CoinData, 0)
 	var totalBalance uint64
 
-	for _, coin := range coins {
-		selected = append(selected, coin.objectRef)
-		totalBalance += coin.balance
+	for _, idx := range indices {
+		selected = append(selected, availableCoins[idx])
+		totalBalance += balances[idx]
 
 		if totalBalance >= gasBudget {
 			break
@@ -421,4 +396,40 @@ func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []client.CoinData)
 	}
 
 	return selected, nil
+}
+
+// toBCSBase64 converts a transaction to a BCS base64 string.
+// This is taken from the block-vision SDK to gain more control over the signing process.
+func toBCSBase64(ctx context.Context, tx *transaction.Transaction, signerAddress string, lggr logger.Logger) (string, error) {
+	if tx.Data.V1.GasData.Price == nil {
+		if tx.SuiClient != nil {
+			rsp, err := tx.SuiClient.SuiXGetReferenceGasPrice(ctx)
+			if err != nil {
+				return "", err
+			}
+			tx.SetGasPrice(rsp)
+		}
+	}
+	tx.SetGasBudgetIfNotSet(defaultGasBudget)
+	tx.SetSenderIfNotSet(models.SuiAddress(signerAddress))
+
+	if tx.Data.V1.Sender == nil {
+		return "", errors.New("sender not set")
+	}
+	if tx.Data.V1.GasData.Owner == nil {
+		tx.SetGasOwner(models.SuiAddress(signerAddress))
+	}
+	if !tx.Data.V1.GasData.IsAllSet() {
+		return "", errors.New("gas data not all set")
+	}
+
+	lggr.Infow("Transaction Data", "Transaction Data", tx.Data)
+
+	bcsEncodedMsg, err := tx.Data.Marshal()
+	if err != nil {
+		return "", err
+	}
+	bcsBase64 := mystenbcs.ToBase64(bcsEncodedMsg)
+
+	return bcsBase64, nil
 }

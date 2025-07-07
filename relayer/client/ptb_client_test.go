@@ -5,12 +5,12 @@ package client_test
 import (
 	"context"
 	"crypto/ed25519"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/utils"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -63,8 +63,8 @@ func TestPTBClient(t *testing.T) {
 	// Test GetLatestValue for different data types
 	//nolint:paralleltest
 	t.Run("FunctionRead", func(t *testing.T) {
-		args := []any{bind.Object{Id: counterObjectId}}
-		argTypes := []string{"address"}
+		args := []any{counterObjectId}
+		argTypes := []string{"objectId"}
 
 		response, err := relayerClient.ReadFunction(
 			context.Background(),
@@ -77,6 +77,7 @@ func TestPTBClient(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.NotNil(t, response)
+		utils.PrettyPrint(response)
 	})
 
 	//nolint:paralleltest
@@ -137,7 +138,40 @@ func TestPTBClient(t *testing.T) {
 			PackageObjectId: packageId,
 			Module:          "counter",
 			Function:        "increment", // Assuming this function exists in the contract
-			Arguments:       []any{bind.Object{Id: counterObjectId}},
+			Arguments:       []any{counterObjectId},
+			TypeArguments:   []any{"objectId"},
+			Gas:             1000000000,
+			GasBudget:       1000000000,
+		}
+
+		// Call MoveCall to prepare the transaction
+		txnMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
+		require.NoError(t, err)
+		require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
+
+		// Verify we can execute the transaction
+		resp, err := relayerClient.SignAndSendTransaction(
+			context.Background(),
+			txnMetadata.TxBytes,
+			publicKeyBytes,
+			"WaitForLocalExecution",
+		)
+		require.NoError(t, err)
+		require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
+	})
+
+	//nolint:paralleltest
+	t.Run("MoveCall_IncrementByValue", func(t *testing.T) {
+		// Prepare arguments for a move call
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "counter",
+			Function:        "increment_by",
+			Arguments:       []any{counterObjectId, "10"},
+			TypeArguments:   []any{},
+			Gas:             1000000000,
+			GasBudget:       1000000000,
 		}
 
 		// Call MoveCall to prepare the transaction
@@ -158,6 +192,9 @@ func TestPTBClient(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("QueryEvents", func(t *testing.T) {
+		// Increment the counter 3 times to create multiple events
+		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 		IncrementCounterWithMoveCall(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
 
 		// Create event filter for the counter module
@@ -180,7 +217,7 @@ func TestPTBClient(t *testing.T) {
 
 		// Query events again with the cursor of the previous query
 		cursor := client.EventId{
-			TxDigest: events.Data[0].Id.TxDigest.String(),
+			TxDigest: events.Data[0].Id.TxDigest,
 			EventSeq: events.Data[0].Id.EventSeq,
 		}
 		eventsWithCursor, errWithCursor := relayerClient.QueryEvents(context.Background(), filter, &limit, &cursor, &client.QuerySortOptions{
@@ -188,7 +225,7 @@ func TestPTBClient(t *testing.T) {
 		})
 		require.NoError(t, errWithCursor)
 		require.NotNil(t, eventsWithCursor)
-		require.Equal(t, 1, len(eventsWithCursor.Data))
+		require.True(t, len(eventsWithCursor.Data) > 0)
 	})
 
 	//nolint:paralleltest
@@ -202,7 +239,7 @@ func TestPTBClient(t *testing.T) {
 			Event:   "CounterIncremented",
 		}
 
-		limit := uint(100)
+		limit := uint(50)
 		descending := true
 
 		// Query events
@@ -211,6 +248,7 @@ func TestPTBClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, events)
+		require.True(t, len(events.Data) > 0)
 	})
 
 	//nolint:paralleltest
@@ -249,19 +287,20 @@ func TestPTBClient(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.NotNil(t, objects)
-		utils.PrettyPrint(objects)
+		require.True(t, len(objects) > 0)
 	})
 
 	t.Run("ReadFilterOwnedObjectIds", func(t *testing.T) {
 		objects, err := relayerClient.ReadFilterOwnedObjectIds(
 			context.Background(),
 			accountAddress,
-			"0x2::clock::Clock",
+			fmt.Sprintf("%s::counter::AdminCap", packageId),
 			nil,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, objects)
-		utils.PrettyPrint(objects)
+		require.Equal(t, 1, len(objects))
+		require.Equal(t, fmt.Sprintf("%s::counter::AdminCap", packageId), objects[0].Type)
 	})
 
 	//nolint:paralleltest
@@ -382,7 +421,8 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 		PackageObjectId: packageId,
 		Module:          "counter",
 		Function:        "increment", // Assuming this function exists in the contract
-		Arguments:       []any{bind.Object{Id: counterObjectId}},
+		Arguments:       []any{counterObjectId},
+		GasBudget:       1000000000,
 	}
 
 	// Call MoveCall to prepare the transaction

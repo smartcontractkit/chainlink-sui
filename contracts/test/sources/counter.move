@@ -4,6 +4,8 @@ module test::counter {
     use sui::tx_context::{Self, TxContext};
     use sui::event;
     use sui::address;
+    use sui::coin::{Self as coin, Coin};
+    use sui::balance::{Self, Balance};
     use std::vector;
     use std::ascii;
     use std::type_name;
@@ -221,9 +223,9 @@ module test::counter {
         counter.value
     }
 
-
-    public fun array_size<T: drop>(arr: vector<T>): u64 {
-        vector::length(&arr)
+    /// Get the value of a coin of generic type T
+    public fun get_coin_value<T>(coin: &Coin<T>): u64 {
+        coin::value(coin)
     }
 
     /// Returns a struct containing a list of addresses

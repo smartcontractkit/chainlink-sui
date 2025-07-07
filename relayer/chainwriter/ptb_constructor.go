@@ -2,16 +2,15 @@ package chainwriter
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/sui/suiptb"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
@@ -139,7 +138,7 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments Arguments, configOverrides *ConfigOverrides) (*suiptb.ProgrammableTransactionBuilder, error) {
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments Arguments, configOverrides *ConfigOverrides) (*transaction.Transaction, error) {
 	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
 
 	// Look up the module
@@ -154,8 +153,11 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		return nil, fmt.Errorf("missing function config (%s) not found in module (%s)", function, moduleName)
 	}
 
-	// Create a new PTB builder
-	builder := suiptb.NewTransactionDataTransactionBuilder()
+	// Create a new transaction builder
+	ptb := transaction.NewTransaction()
+	clientInstance := *p.client.GetClient()
+
+	ptb.SetSuiClient(clientInstance.(*sui.Client))
 
 	var overrideToAddress *string
 	if configOverrides == nil {
@@ -171,14 +173,14 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	}
 
 	// Create a map for caching objects
-	cachedArgs := make(map[string]suiptb.Argument)
+	cachedArgs := make(map[string]transaction.Argument)
 
 	// Process each command in order
 	for _, cmd := range txnConfig.PTBCommands {
 		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
-			_, err := p.ProcessMoveCall(ctx, builder, cmd, &arguments, &cachedArgs)
+			_, err := p.ProcessMoveCall(ctx, ptb, cmd, &arguments, &cachedArgs)
 			if err != nil {
 				p.log.Errorw("Error processing move call", "Error", err)
 				return nil, err
@@ -192,17 +194,17 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		}
 	}
 
-	return builder, nil
+	return ptb, nil
 }
 
 // ProcessMoveCall handles constructing move call commands and adds it to the PTB `builder` instance.
 func (p *PTBConstructor) ProcessMoveCall(
 	ctx context.Context,
-	builder *suiptb.ProgrammableTransactionBuilder,
+	builder *transaction.Transaction,
 	cmd ChainWriterPTBCommand,
 	arguments *Arguments,
-	cachedArgs *map[string]suiptb.Argument,
-) (*suiptb.Argument, error) {
+	cachedArgs *map[string]transaction.Argument,
+) (*transaction.Argument, error) {
 	p.log.Debugw("Processing move call", "Command", cmd, "Args", arguments)
 
 	// All three fields below are required for a successful move call
@@ -217,10 +219,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 	}
 
 	// Convert package ID to Address
-	packageId, err := sui.AddressFromHex(*cmd.PackageId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build package address from hex (%s): %w", *cmd.PackageId, err)
-	}
+	packageId := models.SuiAddress(*cmd.PackageId)
 
 	// Process arguments
 	processedArgs, err := p.ProcessArgsForCommand(ctx, builder, cmd.Params, arguments, cachedArgs)
@@ -236,7 +235,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 	p.log.Debugw("Processed Type Tags", "Type Tags", processedArgTypes)
 	p.log.Debugw("Processed args", "Args", processedArgs)
 	// Add the move call to the builder
-	ptbArgument := builder.ProgrammableMoveCall(packageId, *cmd.ModuleId, *cmd.Function, processedArgTypes, processedArgs)
+	ptbArgument := builder.MoveCall(packageId, *cmd.ModuleId, *cmd.Function, processedArgTypes, processedArgs)
 
 	return &ptbArgument, nil
 }
@@ -244,17 +243,19 @@ func (p *PTBConstructor) ProcessMoveCall(
 // ProcessArgsForCommand converts parametedsr specifications into concrete arguments
 func (p *PTBConstructor) ProcessArgsForCommand(
 	ctx context.Context,
-	builder *suiptb.ProgrammableTransactionBuilder,
+	builder *transaction.Transaction,
 	params []codec.SuiFunctionParam,
 	arguments *Arguments,
-	cachedArgs *map[string]suiptb.Argument,
-) ([]suiptb.Argument, error) {
-	processedArgs := make([]suiptb.Argument, 0, len(params))
+	cachedArgs *map[string]transaction.Argument,
+) ([]transaction.Argument, error) {
+	processedArgs := make([]transaction.Argument, 0, len(params))
 	for _, param := range params {
+		p.log.Debugw("Processing PTB parameter", "Param", param)
+
 		// specify if the value is Mutable, this is used specifically for object PTB args
-		IsMutable := true
+		isMutable := true
 		if param.IsMutable != nil {
-			IsMutable = *param.IsMutable
+			isMutable = *param.IsMutable
 		}
 
 		// check if this is a PTB result dependency
@@ -262,7 +263,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 			// if the config does not specify a ResultIndex, then the dependency is
 			// on the entire result of the dependee command
 			if param.PTBDependency.ResultIndex == nil {
-				processedArgs = append(processedArgs, suiptb.Argument{
+				processedArgs = append(processedArgs, transaction.Argument{
 					Result: &param.PTBDependency.CommandIndex,
 				})
 
@@ -270,10 +271,10 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 			}
 
 			// otherwise, we need a specific result from the dependee command
-			processedArgs = append(processedArgs, suiptb.Argument{
-				NestedResult: &suiptb.NestedResult{
-					Cmd:    param.PTBDependency.CommandIndex,
-					Result: *param.PTBDependency.ResultIndex,
+			processedArgs = append(processedArgs, transaction.Argument{
+				NestedResult: &transaction.NestedResult{
+					Index:       param.PTBDependency.CommandIndex,
+					ResultIndex: *param.PTBDependency.ResultIndex,
 				},
 			})
 
@@ -293,17 +294,17 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 				if !ok {
 					return nil, fmt.Errorf("expected string for object id for param %s, got %T", param.Name, argRawValue)
 				}
-				argRawValue = bind.Object{Id: id}
+				argRawValue = id
 			}
 
 			// append to the array of args
-			processedArgValue, err := p.client.ToPTBArg(ctx, builder, argRawValue, IsMutable)
+			processedArgValue, err := p.client.(*client.PTBClient).TransformTransactionArg(ctx, builder, argRawValue, param.Type, isMutable)
 			if err != nil {
 				return nil, fmt.Errorf("failed to build argument for %s: %w", param.Name, err)
 			}
-			processedArgs = append(processedArgs, processedArgValue)
+			processedArgs = append(processedArgs, *processedArgValue)
 			// add the processed arg to the cache
-			(*cachedArgs)[param.Name] = processedArgValue
+			(*cachedArgs)[param.Name] = *processedArgValue
 
 			continue
 		}
@@ -318,14 +319,14 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 				if !ok {
 					return nil, fmt.Errorf("expected string for object id for param %s, got %T", param.Name, param.DefaultValue)
 				}
-				value = bind.Object{Id: id}
+				value = id
 			}
-			ptbArg, err := p.client.ToPTBArg(ctx, builder, value, IsMutable)
+			ptbArg, err := p.client.(*client.PTBClient).TransformTransactionArg(ctx, builder, value, param.Type, isMutable)
 			if err != nil {
 				return nil, fmt.Errorf("failed to build default value for %s: %w", param.Name, err)
 			}
 			// append to the array of args
-			processedArgs = append(processedArgs, ptbArg)
+			processedArgs = append(processedArgs, *ptbArg)
 
 			continue
 		}
@@ -336,7 +337,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 		}
 
 		// append an empty argument since it is not required and no value found
-		processedArgs = append(processedArgs, suiptb.Argument{})
+		processedArgs = append(processedArgs, transaction.Argument{})
 	}
 
 	return processedArgs, nil
@@ -362,24 +363,20 @@ func (p *PTBConstructor) FetchPrereqObjects(ctx context.Context, prereqObjects [
 		// check each returned object
 		for _, ownedObject := range ownedObjects {
 			// object tag matches
-			if ownedObject.Data.Type != nil && strings.Contains(*ownedObject.Data.Type, prereq.Tag) {
+			if ownedObject.Data != nil && ownedObject.Data.Type != "" && strings.Contains(ownedObject.Data.Type, prereq.Tag) {
 				p.log.Debugw("Found pre-requisite object", "Object", ownedObject.Data, "Prereq", prereq)
 				// object must be parsed and its keys added to the args map
 				if prereq.SetKeys {
 					// parse the object into a map
-					parsedObject := map[string]any{}
-					err := json.Unmarshal(ownedObject.Data.Content.Data.MoveObject.Fields, &parsedObject)
-					if err != nil {
-						return err
-					}
-
-					// add each key and value to the args map
-					for key, value := range parsedObject {
-						(*args)[key] = value
+					if ownedObject.Data.Content != nil && ownedObject.Data.Content.Fields != nil {
+						// add each key and value to the args map
+						for key, value := range ownedObject.Data.Content.Fields {
+							(*args)[key] = value
+						}
 					}
 				} else {
 					// add the object id to the args map
-					(*args)[prereq.Name] = ownedObject.Data.ObjectId.String()
+					(*args)[prereq.Name] = ownedObject.Data.ObjectId
 				}
 			}
 		}

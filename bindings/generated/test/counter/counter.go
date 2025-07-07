@@ -35,6 +35,7 @@ type ICounter interface {
 	GetCount(counter bind.Object) bind.IMethod
 	GetCountUsingPointer(counter bind.Object) bind.IMethod
 	GetCountNoEntry(counter bind.Object) bind.IMethod
+	GetCoinValue(typeArgs string, coin bind.Object) bind.IMethod
 	GetAddressList() bind.IMethod
 	GetSimpleResult() bind.IMethod
 	GetResultStruct() bind.IMethod
@@ -302,6 +303,20 @@ func (c *CounterContract) GetCountNoEntry(counter bind.Object) bind.IMethod {
 		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_count_no_entry", false, "", "", counter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_count_no_entry", err)
+		}
+
+		return ptb, nil
+	}
+
+	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+}
+
+func (c *CounterContract) GetCoinValue(typeArgs string, coin bind.Object) bind.IMethod {
+	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
+		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
+		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "counter", "get_coin_value", false, "", typeArgs, coin)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "counter", "get_coin_value", err)
 		}
 
 		return ptb, nil

@@ -10,7 +10,6 @@ import (
 
 	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/utils"
-	"github.com/pattonkan/sui-go/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/shared"
 
@@ -971,7 +970,816 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 	t.Run("JSON Struct Decoder", func(t *testing.T) {
 		t.Parallel()
 
-		normalizedStructs := buildOCRNormalizedStructs()
+		jsonModule := `
+		{
+			"fileFormatVersion": 6,
+			"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+			"name": "counter",
+			"friends": [],
+			"structs": {
+				"AddressList": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop"
+					]
+				},
+				"fields": [
+					{
+					"name": "addresses",
+					"type": {
+						"Vector": "Address"
+					}
+					},
+					{
+					"name": "count",
+					"type": "U64"
+					}
+				],
+				"typeParameters": []
+				},
+				"AdminCap": {
+				"abilities": {
+					"abilities": [
+					"Store",
+					"Key"
+					]
+				},
+				"fields": [
+					{
+					"name": "id",
+					"type": {
+						"Struct": {
+						"address": "0x2",
+						"module": "object",
+						"name": "UID",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"typeParameters": []
+				},
+				"COUNTER": {
+				"abilities": {
+					"abilities": [
+					"Drop"
+					]
+				},
+				"fields": [
+					{
+					"name": "dummy_field",
+					"type": "Bool"
+					}
+				],
+				"typeParameters": []
+				},
+				"ComplexResult": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop"
+					]
+				},
+				"fields": [
+					{
+					"name": "count",
+					"type": "U64"
+					},
+					{
+					"name": "addr",
+					"type": "Address"
+					},
+					{
+					"name": "is_complex",
+					"type": "Bool"
+					},
+					{
+					"name": "bytes",
+					"type": {
+						"Vector": "U8"
+					}
+					}
+				],
+				"typeParameters": []
+				},
+				"ConfigInfo": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop",
+					"Store"
+					]
+				},
+				"fields": [
+					{
+					"name": "config_digest",
+					"type": {
+						"Vector": "U8"
+					}
+					},
+					{
+					"name": "big_f",
+					"type": "U8"
+					},
+					{
+					"name": "n",
+					"type": "U8"
+					},
+					{
+					"name": "is_signature_verification_enabled",
+					"type": "Bool"
+					}
+				],
+				"typeParameters": []
+				},
+				"Counter": {
+				"abilities": {
+					"abilities": [
+					"Store",
+					"Key"
+					]
+				},
+				"fields": [
+					{
+					"name": "id",
+					"type": {
+						"Struct": {
+						"address": "0x2",
+						"module": "object",
+						"name": "UID",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"name": "value",
+					"type": "U64"
+					}
+				],
+				"typeParameters": []
+				},
+				"CounterIncremented": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop"
+					]
+				},
+				"fields": [
+					{
+					"name": "counter_id",
+					"type": {
+						"Struct": {
+						"address": "0x2",
+						"module": "object",
+						"name": "ID",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"name": "new_value",
+					"type": "U64"
+					}
+				],
+				"typeParameters": []
+				},
+				"CounterPointer": {
+				"abilities": {
+					"abilities": [
+					"Store",
+					"Key"
+					]
+				},
+				"fields": [
+					{
+					"name": "id",
+					"type": {
+						"Struct": {
+						"address": "0x2",
+						"module": "object",
+						"name": "UID",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"name": "counter_id",
+					"type": "Address"
+					},
+					{
+					"name": "admin_cap_id",
+					"type": "Address"
+					}
+				],
+				"typeParameters": []
+				},
+				"MultiNestedStruct": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop"
+					]
+				},
+				"fields": [
+					{
+					"name": "is_multi_nested",
+					"type": "Bool"
+					},
+					{
+					"name": "double_count",
+					"type": "U64"
+					},
+					{
+					"name": "nested_struct",
+					"type": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "NestedStruct",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"name": "nested_simple_struct",
+					"type": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "SimpleResult",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"typeParameters": []
+				},
+				"NestedStruct": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop"
+					]
+				},
+				"fields": [
+					{
+					"name": "is_nested",
+					"type": "Bool"
+					},
+					{
+					"name": "double_count",
+					"type": "U64"
+					},
+					{
+					"name": "nested_struct",
+					"type": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "ComplexResult",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"name": "nested_simple_struct",
+					"type": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "SimpleResult",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"typeParameters": []
+				},
+				"OCRConfig": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop",
+					"Store"
+					]
+				},
+				"fields": [
+					{
+					"name": "config_info",
+					"type": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "ConfigInfo",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"name": "signers",
+					"type": {
+						"Vector": {
+						"Vector": "U8"
+						}
+					}
+					},
+					{
+					"name": "transmitters",
+					"type": {
+						"Vector": "Address"
+					}
+					}
+				],
+				"typeParameters": []
+				},
+				"SimpleResult": {
+				"abilities": {
+					"abilities": [
+					"Copy",
+					"Drop"
+					]
+				},
+				"fields": [
+					{
+					"name": "value",
+					"type": "U64"
+					}
+				],
+				"typeParameters": []
+				}
+			},
+			"exposedFunctions": {
+				"array_size": {
+				"isEntry": false,
+				"parameters": [
+					{
+					"Vector": {
+						"TypeParameter": 0
+					}
+					}
+				],
+				"return": [
+					"U64"
+				],
+				"typeParameters": [
+					{
+					"abilities": [
+						"Drop"
+					]
+					}
+				],
+				"visibility": "Public"
+				},
+				"create": {
+				"isEntry": false,
+				"parameters": [
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x2",
+						"module": "tx_context",
+						"name": "TxContext",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_address_list": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "AddressList",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_count": {
+				"isEntry": true,
+				"parameters": [
+					{
+					"Reference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [
+					"U64"
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_count_no_entry": {
+				"isEntry": false,
+				"parameters": [
+					{
+					"Reference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [
+					"U64"
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_count_using_pointer": {
+				"isEntry": true,
+				"parameters": [
+					{
+					"Reference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [
+					"U64"
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_multi_nested_result_struct": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "MultiNestedStruct",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_nested_result_struct": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "NestedStruct",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_ocr_config": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "OCRConfig",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_result_struct": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "ComplexResult",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_simple_result": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "SimpleResult",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_tuple_struct": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					"U64",
+					"Address",
+					"Bool",
+					{
+					"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "MultiNestedStruct",
+						"typeArguments": []
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_vector_of_addresses": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Vector": "Address"
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_vector_of_u8": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Vector": "U8"
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"get_vector_of_vectors_of_u8": {
+				"isEntry": false,
+				"parameters": [],
+				"return": [
+					{
+					"Vector": {
+						"Vector": "U8"
+					}
+					}
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"increment": {
+				"isEntry": true,
+				"parameters": [
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"increment_by": {
+				"isEntry": true,
+				"parameters": [
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					},
+					"U64"
+				],
+				"return": [],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"increment_by_one": {
+				"isEntry": false,
+				"parameters": [
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x2",
+						"module": "tx_context",
+						"name": "TxContext",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [
+					"U64"
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"increment_by_one_no_context": {
+				"isEntry": false,
+				"parameters": [
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [
+					"U64"
+				],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"increment_by_two": {
+				"isEntry": false,
+				"parameters": [
+					{
+					"Reference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "AdminCap",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x2",
+						"module": "tx_context",
+						"name": "TxContext",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"increment_by_two_no_context": {
+				"isEntry": true,
+				"parameters": [
+					{
+					"Reference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "AdminCap",
+						"typeArguments": []
+						}
+					}
+					},
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"increment_mult": {
+				"isEntry": true,
+				"parameters": [
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+						"module": "counter",
+						"name": "Counter",
+						"typeArguments": []
+						}
+					}
+					},
+					"U64",
+					"U64",
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x2",
+						"module": "tx_context",
+						"name": "TxContext",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [],
+				"typeParameters": [],
+				"visibility": "Public"
+				},
+				"initialize": {
+				"isEntry": true,
+				"parameters": [
+					{
+					"MutableReference": {
+						"Struct": {
+						"address": "0x2",
+						"module": "tx_context",
+						"name": "TxContext",
+						"typeArguments": []
+						}
+					}
+					}
+				],
+				"return": [],
+				"typeParameters": [],
+				"visibility": "Public"
+				}
+			}
+		}
+		`
+
+		var schema map[string]any
+		err := json.Unmarshal([]byte(jsonModule), &schema)
+		require.NoError(t, err)
+
+		structs, ok := schema["structs"].(map[string]any)
+		require.True(t, ok)
 
 		bcsBytes := []byte{
 			32, 0, 10, 163, 58, 124, 44, 0, 205, 25, 175, 172, 143, 227, 22, 8, 175, 42, 52, 252, 74, 32, 10, 107, 236, 80, 1, 177, 162, 131, 82, 115, 71, 1, 4, 1, 4, 32, 153, 199, 47, 13, 162, 190, 48, 139, 149, 84, 92, 112, 93, 249, 186, 231, 136, 123, 47, 47, 228, 6, 126, 60, 15, 225, 137, 169, 88, 36, 111, 223, 32, 185, 6, 58, 13, 126, 86, 237, 190, 192, 150, 150, 19, 74, 225, 21, 7, 83, 19, 164, 225, 70, 37, 68, 140, 138, 155, 195, 18, 14, 201, 54, 184, 32, 237, 81, 16, 104, 37, 16, 243, 198, 124, 89, 11, 86, 195, 24, 18, 132, 120, 108, 13, 25, 116, 159, 64, 190, 1, 184, 175, 103, 72, 18, 122, 255, 32, 213, 192, 56, 2, 175, 151, 186, 105, 250, 60, 206, 8, 54, 91, 208, 80, 45, 64, 142, 15, 45, 182, 101, 87, 125, 144, 114, 146, 189, 165, 130, 187, 4, 51, 226, 204, 208, 210, 225, 178, 251, 215, 161, 23, 19, 167, 250, 208, 102, 88, 245, 8, 211, 230, 10, 7, 91, 68, 202, 111, 169, 46, 217, 9, 137, 88, 2, 84, 235, 187, 66, 243, 57, 245, 194, 18, 92, 179, 94, 242, 121, 119, 226, 188, 125, 133, 223, 136, 196, 186, 122, 104, 225, 215, 140, 230, 170, 118, 124, 155, 157, 80, 221, 219, 194, 82, 0, 141, 107, 133, 15, 228, 127, 248, 169, 211, 92, 82, 137, 101, 86, 107, 86, 17, 193, 42, 182, 100, 61, 63, 88, 117, 124, 145, 87, 42, 74, 17, 60, 67, 61, 23, 200, 219, 8, 212, 84, 233, 97, 22, 211, 228, 125, 79, 118, 102, 0, 252, 175, 97, 116,
@@ -979,9 +1787,8 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 
 		deserializer := aptosBCS.NewDeserializer(bcsBytes)
 
-		// later in your decoder:
 		jsonMap, err := DecodeSuiStructToJSON(
-			normalizedStructs,
+			structs,
 			"OCRConfig",
 			deserializer,
 		)
@@ -989,90 +1796,4 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 		require.NoError(t, err)
 		utils.PrettyPrint(jsonMap)
 	})
-}
-
-func buildOCRNormalizedStructs() map[string]*sui.MoveNormalizedStruct {
-	/* ─────────────────── helpers ─────────────────── */
-	empty := &sui.EmptyEnum{} // convenience
-	abs := func(a sui.MoveAbility) sui.MoveAbility { return a }
-
-	abilitySet := sui.MoveAbilitySet{
-		Abilities: []sui.MoveAbility{
-			abs(sui.MoveAbilityCopy),
-			abs(sui.MoveAbilityDrop),
-			abs(sui.MoveAbilityStore),
-		},
-	}
-
-	/* ───────── 1. ConfigInfo ───────── */
-	configInfo := &sui.MoveNormalizedStruct{
-		Abilities:      abilitySet,
-		TypeParameters: nil, // none
-		Fields: []*sui.MoveNormalizedField{
-			{
-				Name: "config_digest",
-				Type: &sui.MoveNormalizedType{
-					Vector: &sui.MoveNormalizedType{U8: empty}, // vector<u8>
-				},
-			},
-			{
-				Name: "big_f",
-				Type: &sui.MoveNormalizedType{U8: empty},
-			},
-			{
-				Name: "n",
-				Type: &sui.MoveNormalizedType{U8: empty},
-			},
-			{
-				Name: "is_signature_verification_enabled",
-				Type: &sui.MoveNormalizedType{Bool: empty},
-			},
-		},
-	}
-
-	/* ───────── 2. OCRConfig ───────── */
-	// common prefix for map keys
-	const pkgAddr = "0xa2e88b3fb5d8222b06ec849960fa6a49beb48e4d8147519d212cb3181682329e"
-	const modName = "ocr3_base"
-
-	ocrConfig := &sui.MoveNormalizedStruct{
-		Abilities:      abilitySet,
-		TypeParameters: nil,
-		Fields: []*sui.MoveNormalizedField{
-			{
-				Name: "config_info",
-				Type: &sui.MoveNormalizedType{
-					Struct: &sui.MoveNormalizedTypeStructType{
-						Address: sui.MustAddressFromHex(pkgAddr),
-						Module:  sui.Identifier(modName),
-						Name:    sui.Identifier("ConfigInfo"),
-						// no type arguments
-					},
-				},
-			},
-			{
-				Name: "signers",
-				Type: &sui.MoveNormalizedType{
-					Vector: &sui.MoveNormalizedType{ // vector<...>
-						Vector: &sui.MoveNormalizedType{U8: empty}, // vector<u8>
-					},
-				},
-			},
-			{
-				Name: "transmitters",
-				Type: &sui.MoveNormalizedType{
-					Vector: &sui.MoveNormalizedType{Address: empty}, // vector<address>
-				},
-			},
-		},
-	}
-
-	/* ───────── map population ───────── */
-	norm := map[string]*sui.MoveNormalizedStruct{
-		// fully-qualified keys
-		"ConfigInfo": configInfo,
-		"OCRConfig":  ocrConfig,
-	}
-
-	return norm
 }

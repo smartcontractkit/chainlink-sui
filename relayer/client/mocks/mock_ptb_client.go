@@ -9,9 +9,10 @@ import (
 	big "math/big"
 	reflect "reflect"
 
-	sui "github.com/pattonkan/sui-go/sui"
-	suiptb "github.com/pattonkan/sui-go/sui/suiptb"
-	suiclient "github.com/pattonkan/sui-go/suiclient"
+	models "github.com/block-vision/sui-go-sdk/models"
+	signer "github.com/block-vision/sui-go-sdk/signer"
+	sui "github.com/block-vision/sui-go-sdk/sui"
+	transaction "github.com/block-vision/sui-go-sdk/transaction"
 	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -71,25 +72,39 @@ func (mr *MockSuiPTBClientMockRecorder) EstimateGas(ctx, txBytes interface{}) *g
 }
 
 // FinishPTBAndSend mocks base method.
-func (m *MockSuiPTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (client.SuiTransactionBlockResponse, error) {
+func (m *MockSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FinishPTBAndSend", ctx, signerPublicKey, builder)
+	ret := m.ctrl.Call(m, "FinishPTBAndSend", ctx, txnSigner, tx, requestType)
 	ret0, _ := ret[0].(client.SuiTransactionBlockResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FinishPTBAndSend indicates an expected call of FinishPTBAndSend.
-func (mr *MockSuiPTBClientMockRecorder) FinishPTBAndSend(ctx, signerPublicKey, builder interface{}) *gomock.Call {
+func (mr *MockSuiPTBClientMockRecorder) FinishPTBAndSend(ctx, txnSigner, tx, requestType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishPTBAndSend", reflect.TypeOf((*MockSuiPTBClient)(nil).FinishPTBAndSend), ctx, signerPublicKey, builder)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishPTBAndSend", reflect.TypeOf((*MockSuiPTBClient)(nil).FinishPTBAndSend), ctx, txnSigner, tx, requestType)
+}
+
+// GetClient mocks base method.
+func (m *MockSuiPTBClient) GetClient() *sui.ISuiAPI {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetClient")
+	ret0, _ := ret[0].(*sui.ISuiAPI)
+	return ret0
+}
+
+// GetClient indicates an expected call of GetClient.
+func (mr *MockSuiPTBClientMockRecorder) GetClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClient", reflect.TypeOf((*MockSuiPTBClient)(nil).GetClient))
 }
 
 // GetCoinsByAddress mocks base method.
-func (m *MockSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]client.CoinData, error) {
+func (m *MockSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCoinsByAddress", ctx, address)
-	ret0, _ := ret[0].([]client.CoinData)
+	ret0, _ := ret[0].([]models.CoinData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -98,21 +113,6 @@ func (m *MockSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string
 func (mr *MockSuiPTBClientMockRecorder) GetCoinsByAddress(ctx, address interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCoinsByAddress", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCoinsByAddress), ctx, address)
-}
-
-// GetNormalizedModule mocks base method.
-func (m *MockSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId, module string) (sui.MoveNormalizedModule, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNormalizedModule", ctx, packageId, module)
-	ret0, _ := ret[0].(sui.MoveNormalizedModule)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetNormalizedModule indicates an expected call of GetNormalizedModule.
-func (mr *MockSuiPTBClientMockRecorder) GetNormalizedModule(ctx, packageId, module interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNormalizedModule", reflect.TypeOf((*MockSuiPTBClient)(nil).GetNormalizedModule), ctx, packageId, module)
 }
 
 // GetSUIBalance mocks base method.
@@ -161,10 +161,10 @@ func (mr *MockSuiPTBClientMockRecorder) MoveCall(ctx, req interface{}) *gomock.C
 }
 
 // QueryEvents mocks base method.
-func (m *MockSuiPTBClient) QueryEvents(ctx context.Context, filter client.EventFilterByMoveEventModule, limit *uint, cursor *client.EventId, sortOptions *client.QuerySortOptions) (*suiclient.EventPage, error) {
+func (m *MockSuiPTBClient) QueryEvents(ctx context.Context, filter client.EventFilterByMoveEventModule, limit *uint, cursor *client.EventId, sortOptions *client.QuerySortOptions) (*models.PaginatedEventsResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryEvents", ctx, filter, limit, cursor, sortOptions)
-	ret0, _ := ret[0].(*suiclient.EventPage)
+	ret0, _ := ret[0].(*models.PaginatedEventsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -176,10 +176,10 @@ func (mr *MockSuiPTBClientMockRecorder) QueryEvents(ctx, filter, limit, cursor, 
 }
 
 // ReadFilterOwnedObjectIds mocks base method.
-func (m *MockSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress, structType string, limit *uint) ([]*sui.ObjectId, error) {
+func (m *MockSuiPTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress, structType string, limit *uint) ([]models.SuiObjectData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadFilterOwnedObjectIds", ctx, ownerAddress, structType, limit)
-	ret0, _ := ret[0].([]*sui.ObjectId)
+	ret0, _ := ret[0].([]models.SuiObjectData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -206,10 +206,10 @@ func (mr *MockSuiPTBClientMockRecorder) ReadFunction(ctx, signerAddress, package
 }
 
 // ReadObjectId mocks base method.
-func (m *MockSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (map[string]any, error) {
+func (m *MockSuiPTBClient) ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadObjectId", ctx, objectId)
-	ret0, _ := ret[0].(map[string]any)
+	ret0, _ := ret[0].(models.SuiObjectData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -221,10 +221,10 @@ func (mr *MockSuiPTBClientMockRecorder) ReadObjectId(ctx, objectId interface{}) 
 }
 
 // ReadOwnedObjects mocks base method.
-func (m *MockSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error) {
+func (m *MockSuiPTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadOwnedObjects", ctx, ownerAddress, cursor)
-	ret0, _ := ret[0].([]suiclient.SuiObjectResponse)
+	ret0, _ := ret[0].([]models.SuiObjectResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -263,19 +263,4 @@ func (m *MockSuiPTBClient) SignAndSendTransaction(ctx context.Context, txBytesRa
 func (mr *MockSuiPTBClientMockRecorder) SignAndSendTransaction(ctx, txBytesRaw, signerPublicKey, executionRequestType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignAndSendTransaction", reflect.TypeOf((*MockSuiPTBClient)(nil).SignAndSendTransaction), ctx, txBytesRaw, signerPublicKey, executionRequestType)
-}
-
-// ToPTBArg mocks base method.
-func (m *MockSuiPTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any, isMutable bool) (suiptb.Argument, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ToPTBArg", ctx, builder, argValue, isMutable)
-	ret0, _ := ret[0].(suiptb.Argument)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ToPTBArg indicates an expected call of ToPTBArg.
-func (mr *MockSuiPTBClientMockRecorder) ToPTBArg(ctx, builder, argValue, isMutable interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToPTBArg", reflect.TypeOf((*MockSuiPTBClient)(nil).ToPTBArg), ctx, builder, argValue, isMutable)
 }

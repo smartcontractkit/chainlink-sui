@@ -4,21 +4,18 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"testing"
 
-	"github.com/fardream/go-bcs/bcs"
-	"github.com/pattonkan/sui-go/sui/suiptb"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/signer"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
-	suiAlt "github.com/pattonkan/sui-go/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -97,56 +94,50 @@ func DeriveAddressFromPublicKey(publicKey ed25519.PublicKey) string {
 	return "0x" + hex.EncodeToString(publicKey)
 }
 
-func DrainAccountCoins(ctx context.Context, lgr logger.Logger, accountAddress string, suiKeystore keystore.SuiKeystore, cli *client.PTBClient, suiCoins []client.CoinData, receiver string) error {
+func DrainAccountCoins(ctx context.Context, lgr logger.Logger, accountAddress string, suiKeystore keystore.SuiKeystore, cli *client.PTBClient, suiCoins []models.CoinData, receiver string) error {
 	lgr.Infow("Draining account coins from account address", "accountAddress", accountAddress)
-	senderAddress, _ := suiAlt.AddressFromHex(accountAddress)
-	receiverAddresss, _ := suiAlt.AddressFromHex(receiver)
 
-	coins := make([]*suiAlt.ObjectRef, 0)
-
-	for _, coin := range suiCoins {
-		objectId := suiAlt.MustObjectIdFromHex(coin.CoinObjectId)
-
-		version, _ := strconv.ParseUint(coin.Version, 10, 64)
-		digest := suiAlt.MustNewDigest(coin.Digest)
-
-		coinObject := &suiAlt.ObjectRef{
-			ObjectId: objectId,
-			Version:  version,
-			Digest:   digest,
-		}
-		coins = append(coins, coinObject)
-	}
-
-	ptb := suiptb.NewTransactionDataTransactionBuilder()
-	_ = ptb.PayAllSui(
-		receiverAddresss,
-	)
-	pt := ptb.Finish()
-
-	tx := suiptb.NewTransactionData(
-		senderAddress,
-		pt,
-		coins,
-		suiclient.DefaultGasBudget,
-		suiclient.DefaultGasPrice,
-	)
-	txBytesBCS, err := bcs.Marshal(tx)
-	if err != nil {
-		return fmt.Errorf("failed to marshal transaction: %w", err)
-	}
-
+	// Get private key from keystore
 	privateKey, err := suiKeystore.GetPrivateKeyByAddress(accountAddress)
 	if err != nil {
 		return fmt.Errorf("failed to get private key: %w", err)
 	}
-
 	publicKey := privateKey.Public().(ed25519.PublicKey)
+	accountAddress = DeriveAddressFromPublicKey(publicKey)
 
-	_, err = cli.SignAndSendTransaction(ctx, base64.StdEncoding.EncodeToString(txBytesBCS), []byte(publicKey), client.WaitForLocalExecution)
-	if err != nil {
-		return fmt.Errorf("failed to sign and send transaction: %w", err)
+	// Create signer from private key
+	txnSigner := signer.Signer{
+		PriKey:  privateKey,
+		PubKey:  publicKey,
+		Address: accountAddress,
 	}
+
+	// Create new transaction
+	tx := transaction.NewTransaction()
+
+	// Convert coin data to object references for the transaction
+	coinObjectRefs := make([]string, 0)
+	for _, coin := range suiCoins {
+		coinObjectRefs = append(coinObjectRefs, coin.CoinObjectId)
+	}
+
+	// Add PayAllSui command to transfer all coins to receiver
+	err = cli.PayAllSui(ctx, receiver, coinObjectRefs, accountAddress)
+	if err != nil {
+		return fmt.Errorf("failed to add PayAllSui command: %w", err)
+	}
+
+	// Execute the transaction using the PTB client
+	response, err := cli.FinishPTBAndSend(ctx, &txnSigner, tx, client.WaitForLocalExecution)
+	if err != nil {
+		return fmt.Errorf("failed to execute drain transaction: %w", err)
+	}
+
+	lgr.Infow("Successfully drained account coins",
+		"accountAddress", accountAddress,
+		"receiver", receiver,
+		"txDigest", response.TxDigest,
+	)
 
 	return nil
 }

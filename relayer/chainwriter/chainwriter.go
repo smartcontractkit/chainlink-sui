@@ -212,7 +212,7 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 	// 	}
 	// }
 
-	ptbCommands, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, &ConfigOverrides{
+	ptb, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, &ConfigOverrides{
 		ToAddress: toAddress,
 	})
 
@@ -221,8 +221,9 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return err
 	}
 
-	ptb := ptbCommands.Finish()
-	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.PublicKey, &ptb, s.simulate)
+	s.lggr.Infow("PTB commands", "ptb", ptb, "functionConfig", functionConfig)
+
+	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.PublicKey, ptb, s.simulate)
 	if err != nil {
 		s.lggr.Errorw("Error enqueuing PTB", "error", err)
 		return err

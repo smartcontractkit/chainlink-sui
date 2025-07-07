@@ -2,61 +2,64 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
-	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
-	"github.com/pattonkan/sui-go/sui/suiptb"
-
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/aptos-labs/aptos-go-sdk/bcs"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/signer"
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 const maxCoinsPageSize uint = 50
+const Base10 = 10
+const DefaultGasPrice = 10_000
+const DefaultGasBudget = 1_000_000_000
 
 // var since it's passed via pointer
-var maxOwnedObjectsSize uint = 50
+var maxPageSize uint = 50
 
 type SuiPTBClient interface {
 	MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error)
 	SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error)
-	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error)
-	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]*sui.ObjectId, error)
-	ReadObjectId(ctx context.Context, objectId string) (map[string]any, error)
+	ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error)
+	ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error)
+	ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error)
 	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
-	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error)
+	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
-	GetCoinsByAddress(ctx context.Context, address string) ([]CoinData, error)
-	ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any, isMutable bool) (suiptb.Argument, error)
+	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
-	FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error)
+	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
-	GetNormalizedModule(ctx context.Context, packageId string, module string) (sui.MoveNormalizedModule, error)
+	GetClient() *sui.ISuiAPI
 }
 
-// PTBClient implements SuiClient interface using the bindings/bind package
+// PTBClient implements SuiClient interface using the blockvision SDK
 type PTBClient struct {
 	log                logger.Logger
-	client             *suiclient.ClientImpl
+	client             sui.ISuiAPI
 	maxRetries         *int
 	transactionTimeout time.Duration
 	keystoreService    loop.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
-	normalizedModules  map[string]sui.MoveNormalizedModule
+	normalizedModules  map[string]map[string]models.GetNormalizedMoveModuleResponse
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)
@@ -70,9 +73,9 @@ func NewPTBClient(
 	maxConcurrentRequests int64,
 	defaultRequestType TransactionRequestType,
 ) (*PTBClient, error) {
-	log.Infof("Creating new SUI client")
+	log.Infof("Creating new SUI client with blockvision SDK")
 
-	client := suiclient.NewClient(rpcUrl)
+	client := sui.NewSuiClient(rpcUrl)
 
 	if maxConcurrentRequests <= 0 {
 		maxConcurrentRequests = 100 // Default value
@@ -86,7 +89,7 @@ func NewPTBClient(
 		keystoreService:    keystoreService,
 		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
-		normalizedModules:  make(map[string]sui.MoveNormalizedModule),
+		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
 	}, nil
 }
 
@@ -109,22 +112,27 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
 	var result TxnMetaData
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
-		packageId, err := sui.AddressFromHex(req.PackageObjectId)
-		if err != nil {
-			return fmt.Errorf("invalid package ID: %w", err)
+		moveCallReq := models.MoveCallRequest{
+			Signer:          req.Signer,
+			PackageObjectId: req.PackageObjectId,
+			Module:          req.Module,
+			Function:        req.Function,
+			// TODO: handle type arguments
+			TypeArguments: []any{},
+			Arguments:     req.Arguments,
+			GasBudget:     strconv.FormatUint(req.GasBudget, 10),
+			Gas:           nil,
+			ExecutionMode: models.TransactionExecutionCommit,
 		}
 
-		ptb, err := bind.BuildPTBFromArgs(ctx, *c.client, packageId, req.Module, req.Function, false, "", "", req.Arguments...)
+		c.log.Debugw("MoveCall request", "request", moveCallReq)
+
+		response, err := c.client.MoveCall(ctx, moveCallReq)
 		if err != nil {
-			return fmt.Errorf("failed to build PTB: %w", err)
+			return fmt.Errorf("failed to create move call: %w", err)
 		}
 
-		txBytes, err := bind.FinishTransactionFromBuilder(ctx, ptb, bind.TxOpts{}, req.Signer, *c.client)
-		if err != nil {
-			return fmt.Errorf("failed to finish transaction: %w", err)
-		}
-
-		result.TxBytes = base64.StdEncoding.EncodeToString(txBytes)
+		result.TxBytes = response.TxBytes
 
 		return nil
 	})
@@ -135,47 +143,30 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error) {
 	var result SuiTransactionBlockResponse
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
-		suiSignatures, err := bind.ToSuiSignatures(payload.Signatures)
-		if err != nil {
-			return fmt.Errorf("failed to convert signatures: %w", err)
+		// Use blockvision SDK's execute transaction
+		executeReq := models.SuiExecuteTransactionBlockRequest{
+			TxBytes:   payload.TxBytes,
+			Signature: payload.Signatures,
+			Options: models.SuiTransactionBlockOptions{
+				ShowInput:          payload.Options.ShowInput,
+				ShowRawInput:       payload.Options.ShowRawInput,
+				ShowEffects:        payload.Options.ShowEffects,
+				ShowEvents:         payload.Options.ShowEvents,
+				ShowObjectChanges:  payload.Options.ShowObjectChanges,
+				ShowBalanceChanges: payload.Options.ShowBalanceChanges,
+			},
+			RequestType: payload.RequestType,
 		}
 
-		b64Tx, err := sui.NewBase64(payload.TxBytes)
-		if err != nil {
-			return fmt.Errorf("invalid transaction bytes: %w", err)
-		}
+		c.log.Debugw("Executing transaction", "request", executeReq)
 
-		options := &suiclient.SuiTransactionBlockResponseOptions{
-			ShowInput:          payload.Options.ShowInput,
-			ShowRawInput:       payload.Options.ShowRawInput,
-			ShowEffects:        payload.Options.ShowEffects,
-			ShowEvents:         payload.Options.ShowEvents,
-			ShowObjectChanges:  payload.Options.ShowObjectChanges,
-			ShowBalanceChanges: payload.Options.ShowBalanceChanges,
-		}
-
-		// Convert string request type to the appropriate type
-		requestType := c.defaultRequestType
-		if payload.RequestType != "" {
-			requestType = TransactionRequestType(payload.RequestType)
-		}
-
-		blockReq := &suiclient.ExecuteTransactionBlockRequest{
-			TxDataBytes: *b64Tx,
-			Signatures:  suiSignatures,
-			Options:     options,
-			RequestType: suiclient.ExecuteTransactionRequestType(requestType),
-		}
-
-		c.log.Debugw("Executing transaction", "request", blockReq)
-
-		response, err := c.client.ExecuteTransactionBlock(ctx, blockReq)
+		response, err := c.client.SuiExecuteTransactionBlock(ctx, executeReq)
 		if err != nil {
 			return fmt.Errorf("failed to execute transaction: %w", err)
 		}
 
-		// Convert suiclient response to models response
-		result = convertSuiResponse(response)
+		// Convert blockvision response to models response
+		result = c.convertBlockvisionResponse(&response)
 
 		return nil
 	})
@@ -183,10 +174,19 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 	return result, err
 }
 
-func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (map[string]any, error) {
-	var result map[string]any
+func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error) {
+	var result models.SuiObjectData
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
-		response, err := bind.ReadObject(ctx, objectId, *c.client)
+		objectReq := models.SuiGetObjectRequest{
+			ObjectId: objectId,
+			Options: models.SuiObjectDataOptions{
+				ShowContent: true,
+				ShowType:    true,
+				ShowOwner:   true,
+			},
+		}
+
+		response, err := c.client.SuiGetObject(ctx, objectReq)
 		if err != nil {
 			return fmt.Errorf("failed to read object: %w", err)
 		}
@@ -195,15 +195,44 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (map[stri
 			return fmt.Errorf("object has no content")
 		}
 
-		if response.Data.Content.Data.MoveObject == nil ||
-			response.Data.Content.Data.MoveObject.Fields == nil {
-			return fmt.Errorf("object has no fields")
+		result = *response.Data
+
+		return nil
+	})
+
+	return result, err
+}
+
+func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error) {
+	var result []models.SuiObjectData
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		limitVal := uint64(maxPageSize)
+		if limit != nil {
+			limitVal = uint64(*limit)
 		}
 
-		// Decode JSON fields to map
-		err = json.Unmarshal(response.Data.Content.Data.MoveObject.Fields, &result)
+		ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
+			Address: ownerAddress,
+			Query: models.SuiObjectResponseQuery{
+				Filter: models.ObjectFilterByStructType{
+					StructType: structType,
+				},
+				Options: models.SuiObjectDataOptions{
+					ShowType: true,
+				},
+			},
+			Limit: limitVal,
+		}
+
+		response, err := c.client.SuiXGetOwnedObjects(ctx, ownedObjectsReq)
 		if err != nil {
-			return fmt.Errorf("failed to decode object fields: %w", err)
+			return fmt.Errorf("failed to read owned objects: %w", err)
+		}
+
+		for _, obj := range response.Data {
+			if obj.Data != nil {
+				result = append(result, *obj.Data)
+			}
 		}
 
 		return nil
@@ -212,157 +241,135 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (map[stri
 	return result, err
 }
 
-func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]*sui.ObjectId, error) {
-	address, err := sui.AddressFromHex(ownerAddress)
-	if err != nil {
-		return nil, fmt.Errorf("invalid owner address: %w", err)
-	}
-
-	structTag, err := sui.StructTagFromString(structType)
-	if err != nil {
-		return nil, fmt.Errorf("invalid struct type: %w", err)
-	}
-
-	resultsLimit := maxOwnedObjectsSize
-	if limit != nil {
-		resultsLimit = min(resultsLimit, *limit)
-	}
-
-	var result *suiclient.ObjectsPage
-	err = c.WithRateLimit(ctx, func(ctx context.Context) error {
-		result, err = c.client.GetOwnedObjects(ctx, &suiclient.GetOwnedObjectsRequest{
-			Address: address,
-			Limit:   &resultsLimit,
-			Query: &suiclient.SuiObjectResponseQuery{
-				Filter: &suiclient.SuiObjectDataFilter{
-					StructType: structTag,
+func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
+	var result []models.SuiObjectResponse
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
+			Address: ownerAddress,
+			Query: models.SuiObjectResponseQuery{
+				Options: models.SuiObjectDataOptions{
+					ShowContent: true,
+					ShowType:    true,
+					ShowOwner:   true,
 				},
 			},
-		})
+			Limit: uint64(maxPageSize),
+		}
 
-		return err
+		if cursor != nil {
+			cursorHex := cursor
+			ownedObjectsReq.Cursor = string(cursorHex.Data())
+		}
+
+		response, err := c.client.SuiXGetOwnedObjects(ctx, ownedObjectsReq)
+		if err != nil {
+			return fmt.Errorf("failed to read owned objects: %w", err)
+		}
+
+		result = response.Data
+
+		return nil
 	})
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to build owned objects request: %w", err)
-	}
-
-	objectIds := []*sui.ObjectId{}
-	for _, objectResponse := range result.Data {
-		if objectResponse.Error != nil {
-			return nil, fmt.Errorf("received error in object response, tag: %s, content: %s",
-				objectResponse.Error.Data.Tag(), objectResponse.Error.Data.Content())
-		}
-		if objectResponse.Data == nil || objectResponse.Data.ObjectId == nil {
-			continue
-		}
-		objectIds = append(objectIds, objectResponse.Data.ObjectId)
-	}
-
-	return objectIds, nil
+	return result, err
 }
 
-// TODO: add cursor, SDK call currently fails when using the cursor
-func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *sui.ObjectId) ([]suiclient.SuiObjectResponse, error) {
-	address, err := sui.AddressFromHex(ownerAddress)
-	if err != nil {
-		return nil, fmt.Errorf("invalid owner address: %w", err)
-	}
+func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
+	var result uint64
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		// Use blockvision SDK's dry run transaction
+		dryRunReq := models.SuiDryRunTransactionBlockRequest{
+			TxBytes: txBytes,
+		}
 
-	var results []suiclient.SuiObjectResponse
+		response, err := c.client.SuiDryRunTransactionBlock(ctx, dryRunReq)
+		if err != nil {
+			return fmt.Errorf("failed to estimate gas: %w", err)
+		}
 
-	err = c.WithRateLimit(ctx, func(ctx context.Context) error {
-		for {
-			request := suiclient.GetOwnedObjectsRequest{
-				Address: address,
-				Limit:   &maxOwnedObjectsSize,
-				Query: &suiclient.SuiObjectResponseQuery{
-					Options: &suiclient.SuiObjectDataOptions{
-						ShowType:    true,
-						ShowContent: true,
-					},
-				},
+		// Extract gas used from response
+		if response.Effects.GasUsed.ComputationCost != "" {
+			computationCost, err := strconv.ParseUint(response.Effects.GasUsed.ComputationCost, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse computation cost: %w", err)
 			}
-			// add the pagination cursor if provided
-			if cursor != nil {
-				request.Cursor = &suiclient.CheckpointedObjectId{
-					ObjectId: *cursor,
-				}
+			storageCost, err := strconv.ParseUint(response.Effects.GasUsed.StorageCost, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse storage cost: %w", err)
 			}
-			// fetch the batch and append it to results
-			batchResults, batchErr := c.client.GetOwnedObjects(ctx, &request)
-			if batchErr != nil {
-				return fmt.Errorf("failed to get owned objects: %w", err)
-			}
-			c.log.Debugw("Get owned objects batch", "response", batchResults)
-			results = append(results, batchResults.Data...)
-			// check if there are more to fetch
-			if !batchResults.HasNextPage {
-				break
-			}
-
-			cursor = batchResults.NextCursor
+			result = computationCost + storageCost
 		}
 
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return results, nil
-}
-
-func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
-	response, err := c.client.DryRunTransaction(ctx, sui.Base64(txBytes))
-	if err != nil {
-		return 0, fmt.Errorf("failed to dry run transaction: %w", err)
-	}
-
-	// Referenced from https://docs.sui.io/concepts/tokenomics/gas-in-sui
-	fee := response.Effects.Data.V1.GasUsed.StorageCost.Uint64() -
-		response.Effects.Data.V1.GasUsed.StorageRebate.Uint64() +
-		response.Effects.Data.V1.GasUsed.ComputationCost.Uint64()
-
-	return fee, nil
+	return result, err
 }
 
 func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
 	var results []any
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
-		pkgId, err := sui.AddressFromHex(packageId)
-		if err != nil {
-			return fmt.Errorf("invalid package ID: %w", err)
+		txn := transaction.NewTransaction()
+
+		var txnArgs []transaction.Argument
+		var txnTypeArgs []transaction.TypeTag
+		for i, arg := range args {
+			argType, ok := common.ValueAt(argTypes, i)
+			if !ok {
+				argType = common.InferArgumentType(arg)
+			}
+
+			arg, err := c.TransformTransactionArg(ctx, txn, arg, argType, true)
+			if err != nil {
+				return fmt.Errorf("failed to transform transaction arg: %w", err)
+			}
+			txnArgs = append(txnArgs, *arg)
 		}
 
-		ptb, err := bind.BuildPTBFromArgs(ctx, *c.client, pkgId, module, function, false, "", "", args...)
+		txn.SetSuiClient(c.client.(*sui.Client))
+		txn.SetSender(models.SuiAddress(signerAddress))
+		txn.SetGasBudget(DefaultGasBudget)
+		txn.SetGasPrice(DefaultGasPrice)
+		txn.MoveCall(models.SuiAddress(packageId), module, function, txnTypeArgs, txnArgs)
+
+		// Get transaction bytes
+		bcsEncodedMsg, err := txn.Data.V1.Kind.Marshal()
 		if err != nil {
-			return fmt.Errorf("failed to build PTB: %w", err)
+			return fmt.Errorf("failed to marshal transaction: %w", err)
+		}
+		txBytes := mystenbcs.ToBase64(bcsEncodedMsg)
+
+		// Use dev inspect for read-only function calls
+		devInspectReq := models.SuiDevInspectTransactionBlockRequest{
+			Sender:  signerAddress,
+			TxBytes: txBytes,
 		}
 
-		txBytes, err := bind.FinishDevInspectTransactionFromBuilder(ctx, ptb, bind.TxOpts{}, signerAddress, *c.client)
+		response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
 		if err != nil {
-			return fmt.Errorf("failed to finish transaction: %w", err)
+			return fmt.Errorf("failed to read function: %w", err)
 		}
-
-		response, err := bind.DevInspectTx(ctx, signerAddress, *c.client, txBytes)
-		if err != nil {
-			return fmt.Errorf("failed to inspect transaction: %w", err)
-		}
-
-		c.log.Debugw("Function Read Response: ", "results", response)
 
 		if len(response.Results) == 0 {
 			return fmt.Errorf("no results from function call")
 		}
 
-		c.log.Debugw("ReadFunction", "RPC response", response)
+		c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
 
-		results = make([]any, len(response.Results[0].ReturnValues))
+		resultsMarshalled, err := response.Results.MarshalJSON()
+		if err != nil {
+			return fmt.Errorf("failed to marshal results: %w", err)
+		}
+		var functionReadResponse []FunctionReadResponse
+		err = json.Unmarshal(resultsMarshalled, &functionReadResponse)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal results: %w", err)
+		}
+
+		results = make([]any, len(functionReadResponse[0].ReturnValues))
 
 		// parse one or more results
-		for i, returnedValue := range response.Results[0].ReturnValues {
+		for i, returnedValue := range functionReadResponse[0].ReturnValues {
 			returnedValue := returnedValue.([]any)
 			structTag := returnedValue[1].(string)
 			structParts := strings.Split(structTag, "::")
@@ -372,7 +379,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			if err != nil {
 				return fmt.Errorf("failed to convert return value to bytes: %w", err)
 			}
-			bcsDecoder := aptosBCS.NewDeserializer(bcsBytes)
+			bcsDecoder := bcs.NewDeserializer(bcsBytes)
 
 			// if the response type is not a struct (primitive type), skip the result (keep it as is)
 			structPartsLen := 3
@@ -388,6 +395,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 				if err != nil {
 					return fmt.Errorf("failed to get normalized struct: %w", err)
 				}
+
 				jsonResult, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structParts[2], bcsDecoder)
 				if err != nil {
 					return fmt.Errorf("failed to parse struct into JSON: %w", err)
@@ -397,7 +405,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			}
 		}
 
-		c.log.Debugw("ReadFunction results", "results", results)
+		c.log.Debugw("ReadFunction results", "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function), "results", results)
 
 		return nil
 	})
@@ -409,14 +417,14 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
-	txBytes, err := base64.StdEncoding.DecodeString(txBytesRaw)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %w", err)
-	}
-
 	signerAddress, err := GetAddressFromPublicKey(signerPublicKey)
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get signer address: %w", err)
+	}
+
+	txBytes, err := shared.DecodeBase64(txBytesRaw)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %w", err)
 	}
 
 	signatures, err := c.keystoreService.Sign(ctx, signerAddress, txBytes)
@@ -426,12 +434,10 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 
 	signaturesString := SerializeSuiSignature(signatures, signerPublicKey)
 
-	b64bytes := shared.EncodeBase64(txBytes)
-
 	return c.SendTransaction(ctx, TransactionBlockRequest{
-		TxBytes:     b64bytes,
+		TxBytes:     txBytesRaw,
 		Signatures:  []string{signaturesString},
-		RequestType: string(c.defaultRequestType),
+		RequestType: string(executionRequestType),
 		Options: TransactionBlockOptions{
 			ShowInput:          true,
 			ShowRawInput:       true,
@@ -443,50 +449,38 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 	})
 }
 
-func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*suiclient.EventPage, error) {
-	var result *suiclient.EventPage
+func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error) {
+	var result *models.PaginatedEventsResponse
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
-		// Create package ID
-		packageId, err := sui.AddressFromHex(filter.Package)
-		if err != nil {
-			return fmt.Errorf("invalid package ID: %w", err)
+		limitVal := uint64(maxPageSize)
+		if limit != nil {
+			limitVal = uint64(*limit)
 		}
 
-		// Create the query filter structure
-		queryFilter := &suiclient.EventFilter{
-			MoveEventType: &sui.StructTag{
-				Address: packageId,
+		eventFilter := models.EventFilterByMoveEventModule{
+			MoveEventModule: models.MoveEventModule{
+				Package: filter.Package,
 				Module:  filter.Module,
-				Name:    filter.Event,
+				Event:   filter.Event,
 			},
 		}
 
-		// Convert cursor to SDK client format
-		var queryCursor *suiclient.EventId
+		queryReq := models.SuiXQueryEventsRequest{
+			SuiEventFilter:  eventFilter,
+			Limit:           limitVal,
+			DescendingOrder: sortOptions != nil && sortOptions.Descending,
+		}
+
 		if cursor != nil {
-			queryCursor = &suiclient.EventId{
-				TxDigest: *sui.MustNewDigest(cursor.TxDigest),
-				EventSeq: cursor.EventSeq,
-			}
-		} else {
-			queryCursor = nil
+			queryReq.Cursor = cursor
 		}
 
-		// Create the query request
-		req := &suiclient.QueryEventsRequest{
-			Query:           queryFilter,
-			Cursor:          queryCursor,
-			Limit:           limit,
-			DescendingOrder: sortOptions.Descending,
-		}
-
-		response, err := c.client.QueryEvents(ctx, req)
+		response, err := c.client.SuiXQueryEvents(ctx, queryReq)
 		if err != nil {
 			return fmt.Errorf("failed to query events: %w", err)
 		}
 
-		// Convert response to models format
-		result = response
+		result = &response
 
 		return nil
 	})
@@ -497,246 +491,173 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error) {
 	var result TransactionResult
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
-		txDigest, err := sui.NewDigest(digest)
-		if err != nil {
-			return fmt.Errorf("invalid tx digest: %w", err)
+		txReq := models.SuiGetTransactionBlockRequest{
+			Digest: digest,
+			Options: models.SuiTransactionBlockOptions{
+				ShowEffects: true,
+			},
 		}
 
-		req := &suiclient.GetTransactionBlockRequest{
+		response, err := c.client.SuiGetTransactionBlock(ctx, txReq)
+		if err != nil {
+			return err
+		}
+
+		result = TransactionResult{
+			Status: response.Effects.Status.Status,
+			Error:  response.Effects.Status.Error,
+		}
+
+		return nil
+	})
+
+	return result, err
+}
+
+func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
+	var result []models.CoinData
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		coinsReq := models.SuiXGetAllCoinsRequest{
+			Owner: address,
+			Limit: uint64(maxCoinsPageSize),
+		}
+
+		response, err := c.client.SuiXGetAllCoins(ctx, coinsReq)
+		if err != nil {
+			return fmt.Errorf("failed to get coins: %w", err)
+		}
+
+		result = response.Data
+
+		return nil
+	})
+
+	return result, err
+}
+
+func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
+	tx.SetSigner(txnSigner)
+	// TODO: get gas price and budget from the txn
+	tx.SetGasPrice(DefaultGasPrice)
+	tx.SetGasBudget(DefaultGasBudget)
+
+	// Set gas payment - use the first coin available for the signer
+	coins, err := c.GetCoinsByAddress(ctx, txnSigner.Address)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get coins for gas payment: %w", err)
+	}
+	if len(coins) == 0 {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("no coins available for gas payment")
+	}
+	// Use the first coin as gas payment
+	paymentCoin, version, digest, err := c.GetTransactionPaymentCoinForAddress(ctx, txnSigner.Address)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to create coin object id: %w", err)
+	}
+	tx.SetGasPayment([]transaction.SuiObjectRef{
+		{
+			ObjectId: paymentCoin,
+			Version:  version,
+			Digest:   digest,
+		},
+	})
+
+	c.log.Debugw("Executing transaction in PTB Client", "tx", tx)
+
+	response, err := tx.Execute(ctx, models.SuiTransactionBlockOptions{
+		ShowInput:          true,
+		ShowRawInput:       true,
+		ShowEffects:        true,
+		ShowEvents:         true,
+		ShowObjectChanges:  true,
+		ShowBalanceChanges: true,
+	}, string(requestType))
+
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to execute transaction: %w", err)
+	}
+
+	return c.convertBlockvisionResponse(response), nil
+}
+
+func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error) {
+	var result *SuiTransactionBlockResponse
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		txReq := models.SuiGetTransactionBlockRequest{
 			Digest: txDigest,
-			Options: &suiclient.SuiTransactionBlockResponseOptions{
+			Options: models.SuiTransactionBlockOptions{
 				ShowInput:          true,
-				ShowRawInput:       true,
 				ShowEffects:        true,
+				ShowEvents:         true,
 				ShowObjectChanges:  true,
 				ShowBalanceChanges: true,
 			},
 		}
 
-		response, err := c.client.GetTransactionBlock(ctx, req)
+		response, err := c.client.SuiGetTransactionBlock(ctx, txReq)
 		if err != nil {
-			return fmt.Errorf("failed to get transaction: %w", err)
+			return fmt.Errorf("failed to get transaction block: %w", err)
 		}
 
-		// Set status if available
-		if response.Effects != nil && response.Effects.Data.V1 != nil {
-			result.Status = response.Effects.Data.V1.Status.Status
-			result.Error = response.Effects.Data.V1.Status.Error
-		}
+		converted := c.convertBlockvisionResponse(&response)
+		result = &converted
 
 		return nil
 	})
 
 	return result, err
-}
-
-func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]CoinData, error) {
-	var result []CoinData
-
-	// NOTE: the context with the timeout (from the WithRateLimit callback) is being ignored
-	// because it is taking a significant amount of time in local testing (>30s) which is unusual.
-	// Currently deferring to using a timeout context when calling the GetCoinsByAddress method.
-	err := c.WithRateLimit(ctx, func(_ctx context.Context) error {
-		suiAddress, err := sui.AddressFromHex(address)
-		if err != nil {
-			return fmt.Errorf("invalid address: %w", err)
-		}
-
-		var cursor *sui.ObjectId
-		for {
-			req := &suiclient.GetCoinsRequest{
-				Owner:  suiAddress,
-				Limit:  maxCoinsPageSize,
-				Cursor: cursor,
-			}
-
-			c.log.Debugw("About to fetch coin data", "request", req)
-
-			resp, err := c.client.GetCoins(ctx, req)
-			if err != nil {
-				return fmt.Errorf("failed to get coins: %w", err)
-			}
-
-			c.log.Debugw("Coins page", "response", resp)
-
-			// Convert coin data to models format
-			for _, coin := range resp.Data {
-				coinObjId := coin.CoinObjectId
-				result = append(result, CoinData{
-					CoinType:     coin.CoinType,
-					CoinObjectId: coinObjId.String(),
-					Version:      fmt.Sprint(coin.Version),
-					Digest:       coin.Digest.String(),
-					Balance:      coin.Balance.String(),
-					PreviousTx:   coin.PreviousTransaction.String(),
-				})
-			}
-
-			if !resp.HasNextPage {
-				break
-			}
-
-			cursor = resp.NextCursor
-
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-		}
-
-		return nil
-	})
-
-	return result, err
-}
-
-// Helper functions to convert between suiclient and models types
-func convertSuiResponse(resp *suiclient.SuiTransactionBlockResponse) SuiTransactionBlockResponse {
-	result := SuiTransactionBlockResponse{}
-
-	// If response is nil, return empty result
-	if resp == nil {
-		return result
-	}
-
-	// Set digest if available
-	if resp.Digest != nil {
-		result.TxDigest = resp.Digest.String()
-	}
-
-	if resp.Events != nil {
-		result.Events = resp.Events
-	}
-
-	// Check for nil at each level before accessing nested properties
-	if resp.Effects != nil &&
-		resp.Effects.Data.V1 != nil {
-		// Copy effects
-		result.Effects = *resp.Effects.Data.V1
-
-		// Set status
-		result.Status = SuiExecutionStatus{
-			Status: resp.Effects.Data.V1.Status.Status,
-			Error:  resp.Effects.Data.V1.Status.Error,
-		}
-	}
-
-	if resp.ObjectChanges != nil {
-		result.ObjectChanges = resp.ObjectChanges
-	}
-
-	return result
-}
-
-// ToPTBArg converts an argument into a format compatible with PTB based on the specified type.
-func (c *PTBClient) ToPTBArg(ctx context.Context, builder *suiptb.ProgrammableTransactionBuilder, argValue any, isMutable bool) (suiptb.Argument, error) {
-	// TODO: this method should be improved in the following ways
-	// 1. Given that we already know the expect type from the config, the actual conversion to a PTB arg type should be more strict and well defined
-	// 		than what's currently available in the bindings
-	// 2. There's no need to pass the builder (by value) around which incurs a lot of (extra) work on the underlying Go process
-	//
-	// NOTE: This is currently placed here simply to avoid leaking the SDK client outside
-	return bind.ToPTBArg(ctx, builder, *c.client, argValue, isMutable)
-}
-
-// FinishPTBAndSend receives a constructed PTB and proceeds to attach a gas token and finally signs and sends the request.
-func (c *PTBClient) FinishPTBAndSend(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error) {
-	// TODO: edit `bind.FinishTransactionFromBuilder()` to receive a reference to the client instead of passing by value
-
-	signerAddress, err := GetAddressFromPublicKey(signerPublicKey)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get signer address: %w", err)
-	}
-
-	txBytes, err := bind.FinishTransactionFromBuilder(ctx, builder, bind.TxOpts{}, signerAddress, *c.client)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to finish transaction: %w", err)
-	}
-
-	b64bytes := shared.EncodeBase64(txBytes)
-
-	return c.SignAndSendTransaction(ctx, b64bytes, signerPublicKey, c.defaultRequestType)
-}
-
-// FinishPTBAndSendDevInspect is the same as the regular FinishPTBAndSend but does not update state and is useful for development
-func (c *PTBClient) FinishPTBAndSendDevInspect(ctx context.Context, signerPublicKey []byte, builder *suiptb.ProgrammableTransactionBuilder) (SuiTransactionBlockResponse, error) {
-	// TODO: edit `bind.FinishTransactionFromBuilder()` to receive a reference to the client instead of passing by value
-
-	signerAddress, err := GetAddressFromPublicKey(signerPublicKey)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get signer address: %w", err)
-	}
-
-	txBytes, err := bind.FinishDevInspectTransactionFromBuilder(ctx, builder, bind.TxOpts{}, signerAddress, *c.client)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to finish transaction: %w", err)
-	}
-
-	b64bytes := shared.EncodeBase64(txBytes)
-
-	return c.SignAndSendTransaction(ctx, b64bytes, signerPublicKey, c.defaultRequestType)
-}
-
-func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error) {
-	response, err := c.client.GetTransactionBlock(ctx, &suiclient.GetTransactionBlockRequest{
-		Digest: sui.MustNewDigest(txDigest),
-		Options: &suiclient.SuiTransactionBlockResponseOptions{
-			ShowBalanceChanges: false,
-			ShowEffects:        false,
-			ShowObjectChanges:  false,
-			ShowRawInput:       false,
-			ShowInput:          false,
-			ShowEvents:         false,
-			ShowRawEffects:     false,
-		},
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get block: %w", err)
-	}
-
-	return &SuiTransactionBlockResponse{
-		TxDigest:  response.Digest.String(),
-		Height:    response.Checkpoint.Uint64(),
-		Timestamp: response.TimestampMs.Uint64(),
-	}, nil
 }
 
 func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
-	accountAddress, err := sui.AddressFromHex(address)
-	if err != nil {
-		return nil, fmt.Errorf("invalid address: %w", err)
-	}
+	var result *big.Int
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		balanceReq := models.SuiXGetBalanceRequest{
+			Owner:    address,
+			CoinType: "0x2::sui::SUI", // Default SUI coin type
+		}
 
-	balanceResponse, err := c.client.GetBalance(ctx, &suiclient.GetBalanceRequest{
-		CoinType: "",
-		Owner:    accountAddress,
+		response, err := c.client.SuiXGetBalance(ctx, balanceReq)
+		if err != nil {
+			return fmt.Errorf("failed to get SUI balance: %w", err)
+		}
+
+		balance, ok := new(big.Int).SetString(response.TotalBalance, Base10)
+		if !ok {
+			return fmt.Errorf("failed to parse balance: %s", response.TotalBalance)
+		}
+		result = balance
+
+		return nil
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get balance: %w", err)
-	}
 
-	return balanceResponse.TotalBalance.Int, nil
+	return result, err
 }
 
-func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (sui.MoveNormalizedModule, error) {
-	// return the cached version if available
-	if normalizedModule, ok := c.normalizedModules[module]; ok {
+func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
+	// check if the normalized module is already cached
+	normalizedModule, ok := c.normalizedModules[packageId][module]
+	if ok {
 		return normalizedModule, nil
 	}
 
-	pkgId, err := sui.AddressFromHex(packageId)
+	normalizedModule, err := c.client.SuiGetNormalizedMoveModule(ctx, models.GetNormalizedMoveModuleRequest{
+		Package:    packageId,
+		ModuleName: module,
+	})
 	if err != nil {
-		return sui.MoveNormalizedModule{}, fmt.Errorf("invalid package ID: %w", err)
-	}
-	normalizedModule, err := c.client.GetNormalizedMoveModule(ctx, pkgId, module)
-	if err != nil {
-		return sui.MoveNormalizedModule{}, fmt.Errorf("failed to get normalized module: %w", err)
+		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get normalized module: %w", err)
 	}
 
-	c.log.Debugw("Getting normalized module", "normalizedModule", normalizedModule)
+	if _, ok := c.normalizedModules[packageId]; !ok {
+		c.normalizedModules[packageId] = make(map[string]models.GetNormalizedMoveModuleResponse)
+	}
 
-	// add it to the cache
-	c.normalizedModules[module] = *normalizedModule
+	// cache the normalized module
+	c.normalizedModules[packageId][module] = normalizedModule
 
-	return *normalizedModule, nil
+	return normalizedModule, nil
+}
+
+func (c *PTBClient) GetClient() *sui.ISuiAPI {
+	return &c.client
 }

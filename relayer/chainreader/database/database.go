@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -150,7 +151,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 }
 
 // GetLatestOffset returns a cursor (of type EventId) based on the latest event recorded in the DB for a given type
-func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, eventHandle string) (*suiclient.EventId, error) {
+func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, eventHandle string) (*models.EventId, error) {
 	var offset uint64
 	var txDigest string
 	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest)
@@ -165,9 +166,10 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 		return nil, fmt.Errorf("failed to get latest offset: %w", err)
 	}
 
-	return &suiclient.EventId{
-		TxDigest: *sui.MustNewDigest(txDigest),
-		EventSeq: sui.NewBigInt(offset),
+	// TODO: event offset is a string and should be stored in the DB as a string
+	return &models.EventId{
+		TxDigest: txDigest,
+		EventSeq: strconv.FormatUint(offset, 10),
 	}, nil
 }
 

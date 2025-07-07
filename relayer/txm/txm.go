@@ -7,12 +7,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pattonkan/sui-go/sui/suiptb"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
+
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
@@ -23,7 +24,7 @@ const numberGoroutines = 2
 type TxManager interface {
 	services.Service
 	Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error)
-	EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error)
+	EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *transaction.Transaction, simulateTx bool) (*SuiTx, error)
 	GetTransactionStatus(ctx context.Context, transactionID string) (commontypes.TransactionStatus, error)
 	GetClient() client.SuiPTBClient
 }
@@ -85,11 +86,11 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 	if transactionID == "" {
 		transactionID = TransactionIDGenerator()
 	} else {
-		// Check if the transaction ID already exists in the transactions map
-		// If the transaction ID already exists, return an error
+		// Check if the txn ID already exists in the transactions map
+		// If the txn ID already exists, return an error
 		_, err := txm.transactionRepository.GetTransaction(transactionID)
 		if err == nil {
-			return nil, errors.New("transaction already exists")
+			return nil, errors.New("txn already exists")
 		}
 	}
 
@@ -107,19 +108,19 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 		Name:      functionTokens[2],
 	}
 
-	transaction, err := GenerateTransaction(
+	txn, err := GenerateTransaction(
 		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
 		txm.configuration.RequestType, transactionID, txMetadata,
 		suiFunction, typeArgs, paramTypes, paramValues,
 	)
 	if err != nil {
-		txm.lggr.Errorw("Failed to generate transaction", "error", err)
+		txm.lggr.Errorw("Failed to generate txn", "error", err)
 		return nil, err
 	}
 
-	err = txm.transactionRepository.AddTransaction(*transaction)
+	err = txm.transactionRepository.AddTransaction(*txn)
 	if err != nil {
-		txm.lggr.Errorw("Failed to add transaction to repository", "error", err)
+		txm.lggr.Errorw("Failed to add txn to repository", "error", err)
 		return nil, err
 	}
 
@@ -127,7 +128,7 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 	txm.lggr.Infow("Transaction added to broadcast channel", "transactionID", transactionID)
 	txm.lggr.Infow("Transaction enqueued", "transactionID", transactionID)
 
-	return transaction, nil
+	return txn, nil
 }
 
 // EnqueuePTB generates a transaction based on a pre-constructed Programmable Transaction Block (PTB),
@@ -146,24 +147,24 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 // Returns:
 //   - *SuiTx: The generated and stored transaction object.
 //   - error: An error if transaction generation or storage fails.
-func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *suiptb.ProgrammableTransaction, simulateTx bool) (*SuiTx, error) {
+func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *transaction.Transaction, simulateTx bool) (*SuiTx, error) {
 	txm.lggr.Infow("Enqueuing PTB", "transactionID", transactionID, "ptb", ptb)
 
-	transaction, err := GeneratePTBTransaction(
+	txn, err := GeneratePTBTransaction(
 		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
 		txm.configuration.RequestType, transactionID, txMetadata,
 		ptb, simulateTx,
 	)
 	if err != nil {
-		txm.lggr.Errorw("Failed to generate PTB transaction", "error", err)
+		txm.lggr.Errorw("Failed to generate PTB txn", "error", err)
 		return nil, err
 	}
 
-	txm.lggr.Infow("PTB transaction generated", "transactionID", transactionID, "ptb", transaction)
+	txm.lggr.Infow("PTB txn generated", "transactionID", transactionID, "ptb", txn)
 
-	err = txm.transactionRepository.AddTransaction(*transaction)
+	err = txm.transactionRepository.AddTransaction(*txn)
 	if err != nil {
-		txm.lggr.Errorw("Failed to add transaction to repository", "error", err)
+		txm.lggr.Errorw("Failed to add txn to repository", "error", err)
 		return nil, err
 	}
 
@@ -171,7 +172,7 @@ func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetad
 	txm.lggr.Infow("PTB Transaction added to broadcast channel", "transactionID", transactionID)
 	txm.lggr.Infow("PTB Transaction enqueued", "transactionID", transactionID)
 
-	return transaction, nil
+	return txn, nil
 }
 
 // GetTransactionStatus implements TxManager.

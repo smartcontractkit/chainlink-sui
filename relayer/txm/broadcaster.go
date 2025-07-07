@@ -5,7 +5,6 @@ package txm
 
 import (
 	"context"
-	"encoding/base64"
 	"sort"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -61,7 +60,7 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 	for _, tx := range transactions {
 		// Process the transaction for broadcasting
 		payload := client.TransactionBlockRequest{
-			TxBytes:    base64.StdEncoding.EncodeToString(tx.Payload),
+			TxBytes:    tx.Payload,
 			Signatures: tx.Signatures,
 			Options: client.TransactionBlockOptions{
 				ShowInput:          true,
@@ -76,6 +75,8 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 		txm.lggr.Infow("Broadcasting transaction", "txID", tx.TransactionID, "payload", tx)
 
 		resp, err := txm.suiGateway.SendTransaction(loopCtx, payload)
+		txm.lggr.Infow("Transaction broadcasted", "txID", tx.TransactionID, "resp", resp)
+
 		// We increment the attempts here regardless of the error
 		// This is because we want to keep track of how many times we tried to broadcast the transaction
 		// Even in the case the transaction is malformed (e.g wrong function name)

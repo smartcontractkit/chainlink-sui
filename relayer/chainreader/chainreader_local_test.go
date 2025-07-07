@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 
@@ -115,7 +114,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						SignerAddress: accountAddress,
 						Params: []codec.SuiFunctionParam{
 							{
-								Type:         "address",
+								Type:         "object_id",
 								Name:         "counter_id",
 								DefaultValue: counterObjectId,
 								Required:     true,
@@ -203,7 +202,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			strings.Join([]string{packageId, "counter", "get_count"}, "-"),
 			primitives.Finalized,
 			map[string]any{
-				"counter_id": bind.Object{Id: counterObjectId},
+				"counter_id": counterObjectId,
 			},
 			&retUint64,
 		)
@@ -323,8 +322,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			Module:          "counter",
 			Function:        "increment",
 			TypeArguments:   []any{},
-			Arguments:       []any{bind.Object{Id: counterObjectId}},
-			GasBudget:       "2000000",
+			Arguments:       []any{counterObjectId},
+			GasBudget:       2000000,
 		}
 
 		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)

@@ -6,7 +6,6 @@ package txm
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"math/big"
@@ -98,9 +97,7 @@ func NewSuiGasManager(lggr logger.Logger, ptbClient client.SuiPTBClient, maxGasB
 //   - uint64: The estimated gas budget.
 //   - error: An error if the estimation fails.
 func (s *SuiGasManager) EstimateGasBudget(ctx context.Context, tx *SuiTx) (uint64, error) {
-	txBytes := base64.StdEncoding.EncodeToString(tx.Payload)
-
-	gasBudget, err := s.ptbClient.EstimateGas(ctx, txBytes)
+	gasBudget, err := s.ptbClient.EstimateGas(ctx, tx.Payload)
 	if err != nil {
 		return 0, fmt.Errorf("failed to estimate gas budget: %w", err)
 	}

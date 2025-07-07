@@ -64,7 +64,7 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 		Sender:        "dummy-sender",
 		Metadata:      &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
 		Timestamp:     txm.GetCurrentUnixTimestamp(),
-		Payload:       []byte("payload"),
+		Payload:       "payload",
 		Signatures:    []string{"signature"},
 		RequestType:   "WaitForEffectsCert",
 		Attempt:       1,
