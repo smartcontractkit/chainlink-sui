@@ -87,12 +87,24 @@ public struct FeeQuoterState has key, store {
     link_token: address,
     token_price_staleness_threshold: u64,
     fee_tokens: vector<address>,
+    /// @dev The gas price per unit of gas for a given destination chain, in USD with 18 decimals. Multiple gas prices can
+    /// be encoded into the same value. Each price takes {Internal.GAS_PRICE_BITS} bits. For example, if Optimism is the
+    /// destination chain, gas price can include L1 base fee and L2 gas price. Logic to parse the price components is
+    ///  chain-specific, and should live in OnRamp.
+    /// @dev Price of 1e18 is 1 USD. Examples:
+    ///     Very Expensive:   1 unit of gas costs 1 USD                  -> 1e18.
+    ///     Expensive:        1 unit of gas costs 0.1 USD                -> 1e17.
+    ///     Cheap:            1 unit of gas costs 0.000001 USD           -> 1e12.
     usd_per_unit_gas_by_dest_chain: table::Table<u64, TimestampedPrice>,
+    /// @dev The price, in USD with 18 decimals, per 1e18 of the smallest token denomination.
+    /// @dev Price of 1e18 represents 1 USD per 1e18 token amount.
+    ///     1 USDC = 1.00 USD per full token, each full token is 1e6 units -> 1 * 1e18 * 1e18 / 1e6 = 1e30.
+    ///     1 ETH = 2,000 USD per full token, each full token is 1e18 units -> 2000 * 1e18 * 1e18 / 1e18 = 2_000e18.
+    ///     1 LINK = 5.00 USD per full token, each full token is 1e18 units -> 5 * 1e18 * 1e18 / 1e18 = 5e18.
     usd_per_token: table::Table<address, TimestampedPrice>,
     dest_chain_configs: table::Table<u64, DestChainConfig>,
     // dest chain selector -> local token -> TokenTransferFeeConfig
     token_transfer_fee_configs: table::Table<u64, table::Table<address, TokenTransferFeeConfig>>,
-    // TODO: update calculations - should this be octa per apt?
     premium_multiplier_wei_per_eth: table::Table<address, u64>,
 }
 
@@ -108,34 +120,34 @@ public struct StaticConfig has drop {
 
 public struct DestChainConfig has store, drop, copy {
     is_enabled: bool,
-    max_number_of_tokens_per_msg: u16,
-    max_data_bytes: u32,
+    max_number_of_tokens_per_msg: u16, // Maximum number of distinct tokens transferred per message.
+    max_data_bytes: u32, // Maximum data payload size in bytes.
     max_per_msg_gas_limit: u32,
-    dest_gas_overhead: u32,
-    dest_gas_per_payload_byte_base: u8,
-    dest_gas_per_payload_byte_high: u8,
-    dest_gas_per_payload_byte_threshold: u16,
-    dest_data_availability_overhead_gas: u32,
-    dest_gas_per_data_availability_byte: u16,
-    dest_data_availability_multiplier_bps: u16,
-    chain_family_selector: vector<u8>,
-    enforce_out_of_order: bool,
-    default_token_fee_usd_cents: u16,
-    default_token_dest_gas_overhead: u32,
-    default_tx_gas_limit: u32,
-    // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
-    gas_multiplier_wei_per_eth: u64,
-    gas_price_staleness_threshold: u32,
-    network_fee_usd_cents: u32
+    dest_gas_overhead: u32, // Gas charged on top of the gasLimit to cover destination chain costs.
+    dest_gas_per_payload_byte_base: u8, // Default dest-chain gas charged each byte of `data` payload.
+    dest_gas_per_payload_byte_high: u8, // High dest-chain gas charged each byte of `data` payload, used to account for eip-7623.
+    dest_gas_per_payload_byte_threshold: u16, // The value at which the billing switches from destGasPerPayloadByteBase to destGasPerPayloadByteHigh.
+    dest_data_availability_overhead_gas: u32, // Data availability gas charged for overhead costs e.g. for OCR.
+    dest_gas_per_data_availability_byte: u16, // Gas units charged per byte of message data that needs availability.
+    dest_data_availability_multiplier_bps: u16, // Multiplier for data availability gas, multiples of bps, or 0.0001.
+    chain_family_selector: vector<u8>, // Selector that identifies the destination chain's family. Used to determine the correct validations to perform for the dest chain.
+    enforce_out_of_order: bool, // Whether to enforce the allowOutOfOrderExecution extraArg value to be true.
+    // The following three properties are defaults, they can be overridden by setting the TokenTransferFeeConfig for a token.
+    default_token_fee_usd_cents: u16, // Default token fee charged per token transfer.
+    default_token_dest_gas_overhead: u32, // Default gas charged to execute a token transfer on the destination chain.
+    default_tx_gas_limit: u32, // Default gas limit for a tx.
+    gas_multiplier_wei_per_eth: u64, // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
+    gas_price_staleness_threshold: u32, // The amount of time a gas price can be stale before it is considered invalid (0 means disabled).
+    network_fee_usd_cents: u32, // Flat network fee to charge for messages, multiples of 0.01 USD.
 }
 
 public struct TokenTransferFeeConfig has store, drop, copy {
-    min_fee_usd_cents: u32,
-    max_fee_usd_cents: u32,
-    deci_bps: u16,
-    dest_gas_overhead: u32,
-    dest_bytes_overhead: u32,
-    is_enabled: bool,
+    min_fee_usd_cents: u32, // Minimum fee to charge per token transfer, multiples of 0.01 USD.
+    max_fee_usd_cents: u32, // Maximum fee to charge per token transfer, multiples of 0.01 USD.
+    deci_bps: u16, // Basis points charged on token transfers, multiples of 0.1bps, or 1e-5.
+    dest_gas_overhead: u32, // Gas charged to execute the token transfer on the destination chain.
+    dest_bytes_overhead: u32, // Data availability bytes that are returned from the source pool and sent to the dest pool. Must be >= Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES. Set as multiple of 32 bytes.
+    is_enabled: bool, // Whether this token has custom transfer fees.
 }
 
 public struct TimestampedPrice has store, drop, copy {

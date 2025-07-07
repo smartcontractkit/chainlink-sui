@@ -26,8 +26,8 @@ const MOCK_ADDRESS_5: address = @0xd1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b
 const ONE_E_18: u256 = 1_000_000_000_000_000_000;
 const DEFAULT_MAX_FEE_JUELS: u256 = 200;
 const DEFAULT_TOKEN_PRICE_STALENESS_THRESHOLD: u64 = 1000;
-const DEFAULT_GAS_PRICE: u256 = 1_000_000_000_000;
-const DEFAULT_TOKEN_PRICE: u256 = 150_000_000_000;
+const DEFAULT_GAS_PRICE: u256 = 7_500_000_000_000;
+const DEFAULT_TOKEN_PRICE: u256 = 150_000_000_000; // 15$ / LINK
 
 // Test scenario constants
 const ADMIN_ADDRESS: address = @0x1;
@@ -437,22 +437,22 @@ public fun test_get_validated_fee() {
         true, // is_enabled
         1, // max_number_of_tokens_per_msg
         30_000, // max_data_bytes
-        30_000_000, // max_per_msg_gas_limit
-        250_000, // dest_gas_overhead
+        3_000_000, // max_per_msg_gas_limit
+        300_000, // dest_gas_overhead
         16, // dest_gas_per_payload_byte_base
-        0, // dest_gas_per_payload_byte_high
-        0, // dest_gas_per_payload_byte_threshold
-        0, // dest_data_availability_overhead_gas
-        0, // dest_gas_per_data_availability_byte
-        0, // dest_data_availability_multiplier_bps
+        40, // dest_gas_per_payload_byte_high
+        3000, // dest_gas_per_payload_byte_threshold
+        100, // dest_data_availability_overhead_gas
+        16, // dest_gas_per_data_availability_byte
+        1, // dest_data_availability_multiplier_bps
         CHAIN_FAMILY_SELECTOR_EVM, // chain_family_selector
         false, // enforce_out_of_order
-        50, // default_token_fee_usd_cents
+        25, // default_token_fee_usd_cents
         90_000, // default_token_dest_gas_overhead
         200_000, // default_tx_gas_limit
         ONE_E_18 as u64, // gas_multiplier_wei_per_eth
         1_000_000, // gas_price_staleness_threshold
-        50 // network_fee_usd_cents
+        10 // network_fee_usd_cents
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -460,11 +460,11 @@ public fun test_get_validated_fee() {
         &owner_cap,
         100, // dest_chain_selector
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // add_tokens
-        vector[1, 2], // add_min_fee_usd_cents
-        vector[30, 40], // add_max_fee_usd_cents
-        vector[50, 60], // add_deci_bps
-        vector[700, 800], // add_dest_gas_overhead
-        vector[90, 100], // add_dest_bytes_overhead
+        vector[50, 50], // add_min_fee_usd_cents
+        vector[5000, 5000], // add_max_fee_usd_cents
+        vector[0, 0], // add_deci_bps
+        vector[180_000, 190_000], // add_dest_gas_overhead
+        vector[640, 650], // add_dest_bytes_overhead
         vector[true, false], // add_is_enabled
         vector[], // remove_tokens
         ctx,
@@ -478,8 +478,8 @@ public fun test_get_validated_fee() {
         vector[900_000_000_000_000_000, 900_000_000_000_000_000] // premium_multiplier_wei_per_eth
     );
 
-    // The gas limit is hex(503412) = 5256210
-    let evm_extra_args = x"181dcf10123450000000000000000000000000000000000000000000000000000000000001";
+    // The gas limit is hex(30D40) = 200000
+    let evm_extra_args = x"181dcf10400D03000000000000000000000000000000000000000000000000000000000001";
 
     let val = fee_quoter::get_validated_fee(
         &ref,
@@ -493,7 +493,7 @@ public fun test_get_validated_fee() {
         evm_extra_args, // extra_args
     );
 
-    assert!(val == 36772733);
+    assert!(val == 37516800); // equivalent to 0.375 LINK on SUI if LINK has 8 decimals
 
     fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
