@@ -149,10 +149,11 @@ func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.E
 
 	// Get the cursor for pagination - either from memory or start fresh
 	cursor := eIndexer.lastProcessedCursors[eventHandle]
+	var totalCount uint64
 	var err error
 	if cursor == nil {
 		// attempt to get the latest event sync of the given type and use its data to construct a cursor
-		cursor, err = eIndexer.db.GetLatestOffset(ctx, selector.Module, eventHandle)
+		cursor, totalCount, err = eIndexer.db.GetLatestOffset(ctx, selector.Package, eventHandle)
 		if err != nil {
 			return err
 		}
@@ -202,7 +203,7 @@ eventLoop:
 
 			// Convert events to database records
 			var batchRecords []database.EventRecord
-			for _, event := range eventsPage.Data {
+			for i, event := range eventsPage.Data {
 				// Get block information
 				block, err := eIndexer.client.BlockByDigest(ctx, event.Id.TxDigest)
 				if err != nil {
@@ -220,6 +221,11 @@ eventLoop:
 					continue
 				}
 
+				// offset is the event sequence number, we need to add the total number of events processed so far
+				// and the index of the event in the current batch
+				//nolint:gosec
+				offset += uint64(i) + totalCount
+
 				// Convert event to database record
 				record := database.EventRecord{
 					EventAccountAddress: selector.Package,
@@ -235,10 +241,6 @@ eventLoop:
 				}
 				batchRecords = append(batchRecords, record)
 			}
-
-			eIndexer.logger.Debugw("syncEvent: about to insert batch of events",
-				"batch_count", len(batchRecords),
-			)
 
 			// Insert batch of events into database
 			if len(batchRecords) > 0 {
@@ -256,8 +258,8 @@ eventLoop:
 			// Update cursor for next iteration
 			if eventsPage.HasNextPage && eventsPage.NextCursor.TxDigest != "" && eventsPage.NextCursor.EventSeq != "" {
 				cursor = &models.EventId{
-					TxDigest: cursor.TxDigest,
-					EventSeq: cursor.EventSeq,
+					TxDigest: eventsPage.NextCursor.TxDigest,
+					EventSeq: eventsPage.NextCursor.EventSeq,
 				}
 				clientCursor = &client.EventId{
 					TxDigest: eventsPage.NextCursor.TxDigest,

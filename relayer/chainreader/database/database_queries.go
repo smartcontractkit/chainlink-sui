@@ -7,6 +7,7 @@ const (
 
 	CreateEventsTable = `
 	CREATE TABLE IF NOT EXISTS sui.events (
+		id BIGSERIAL PRIMARY KEY,
 		event_account_address TEXT NOT NULL,
 		event_handle TEXT NOT NULL,
 		event_offset BIGINT NOT NULL,
@@ -16,7 +17,7 @@ const (
 		block_hash BYTEA NOT NULL,
 		block_timestamp BIGINT NOT NULL,
 		data JSONB NOT NULL,
-		PRIMARY KEY (event_account_address, event_handle, event_offset)
+		UNIQUE (event_account_address, event_handle, tx_digest, event_offset)
 	);
     `
 
@@ -42,11 +43,17 @@ const (
     `
 
 	QueryEventsOffset = `
-	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest 
+	SELECT COALESCE(event_offset, 0) as event_offset, tx_digest, COUNT(*) OVER() as total_count
 	FROM sui.events 
 	WHERE event_account_address = $1 AND event_handle = $2 
-	ORDER BY event_offset DESC 
+	ORDER BY id DESC 
 	LIMIT 1
+	`
+
+	CountEvents = `
+	SELECT COUNT(*) as total_count
+	FROM sui.events 
+	WHERE event_account_address = $1 AND event_handle = $2 
 	`
 
 	QueryTransactionVersionByID = `

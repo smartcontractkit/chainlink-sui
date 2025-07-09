@@ -13,6 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
@@ -152,7 +154,7 @@ func (s *loopChainReader) QueryKey(ctx context.Context, contract types.BoundCont
 		return nil, fmt.Errorf("failed to re-bind before BatchGetLatestValues: %w", err)
 	}
 
-	convertedExpressions, err := SerializeExpressions(filter.Expressions)
+	convertedExpressions, err := loop.SerializeExpressions(filter.Expressions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize QueryKey expressions: %w", err)
 	}

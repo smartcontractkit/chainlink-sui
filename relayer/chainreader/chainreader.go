@@ -13,6 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
+	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -279,7 +281,7 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	}
 
 	// Query events from database
-	eventRecords, err := s.queryEvents(ctx, contract, eventConfig, limitAndSort)
+	eventRecords, err := s.queryEvents(ctx, contract, eventConfig, filter.Expressions, limitAndSort)
 	if err != nil {
 		return nil, err
 	}
@@ -640,7 +642,7 @@ func (s *suiChainReader) getEventConfig(moduleConfig *ChainReaderModule, eventKe
 }
 
 // queryEvents queries events from the database instead of the Sui blockchain
-func (s *suiChainReader) queryEvents(ctx context.Context, contract pkgtypes.BoundContract, eventConfig *ChainReaderEvent, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
+func (s *suiChainReader) queryEvents(ctx context.Context, contract pkgtypes.BoundContract, eventConfig *ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
 	eventHandle := fmt.Sprintf("%s::%s::%s", contract.Address, contract.Name, eventConfig.EventType)
 
@@ -652,8 +654,16 @@ func (s *suiChainReader) queryEvents(ctx context.Context, contract pkgtypes.Boun
 		"limit", limitAndSort.Limit.Count,
 	)
 
+	if s.config.IsLoopPlugin {
+		deserializedExpressions, err := loop.DeserializeExpressions(expressions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize expressions: %w", err)
+		}
+		expressions = deserializedExpressions
+	}
+
 	// Query events from database
-	records, err := s.dbStore.QueryEvents(ctx, contract.Address, eventHandle, []query.Expression{}, limitAndSort)
+	records, err := s.dbStore.QueryEvents(ctx, contract.Address, eventHandle, expressions, limitAndSort)
 	if err != nil {
 		s.logger.Errorw("Failed to query events from database",
 			"error", err,

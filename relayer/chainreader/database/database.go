@@ -114,6 +114,9 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 			direction = "DESC"
 		}
 		baseSQL += " ORDER BY event_offset " + direction
+	} else {
+		// default to descending order if no sort is provided
+		baseSQL += " ORDER BY event_offset ASC"
 	}
 
 	if limitAndSort.Limit.Count > 0 {
@@ -151,26 +154,30 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 }
 
 // GetLatestOffset returns a cursor (of type EventId) based on the latest event recorded in the DB for a given type
-func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, eventHandle string) (*models.EventId, error) {
+func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, eventHandle string) (*models.EventId, uint64, error) {
 	var offset uint64
 	var txDigest string
-	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest)
+	var totalCount uint64
+	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest, &totalCount)
 	if err != nil {
+		store.lgr.Errorw("failed to get latest offset", "error", err, "eventAccountAddress", eventAccountAddress, "eventHandle", eventHandle)
 		// no rows found in DB, return a nil index
 		//nolint:nilnil
 		if errors.Is(err, sql.ErrNoRows) {
 			// this is not an error, just nothing to return
-			return nil, nil
+			return nil, 0, nil
 		}
 
-		return nil, fmt.Errorf("failed to get latest offset: %w", err)
+		return nil, 0, fmt.Errorf("failed to get latest offset: %w", err)
 	}
+
+	store.lgr.Debugw("latest offset", "offset", offset, "txDigest", txDigest)
 
 	// TODO: event offset is a string and should be stored in the DB as a string
 	return &models.EventId{
 		TxDigest: txDigest,
 		EventSeq: strconv.FormatUint(offset, 10),
-	}, nil
+	}, totalCount, nil
 }
 
 func (store *DBStore) GetTxVersionByID(ctx context.Context, id uint64) (uint64, error) {
