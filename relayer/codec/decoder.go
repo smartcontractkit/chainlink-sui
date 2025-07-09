@@ -207,6 +207,16 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType any, normal
 				return nil, fmt.Errorf("struct name not found in vector element")
 			}
 
+			// this is a special case where strings are defined as a struct in Sui normalized module structs definition
+			if structName == "String" {
+				vecOfStrings := make([]any, vectorLength)
+				for i := range vectorLength {
+					vecOfStrings[i] = bcsDecoder.ReadString()
+				}
+
+				return vecOfStrings, nil
+			}
+
 			for i := range vectorLength {
 				structResult, err := DecodeSuiStructToJSON(normalizedStructs, structName, bcsDecoder)
 				if err != nil {

@@ -1796,4 +1796,810 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 		require.NoError(t, err)
 		utils.PrettyPrint(jsonMap)
 	})
+
+	t.Run("JSON Struct Decoder (String case)", func(t *testing.T) {
+		t.Parallel()
+
+		jsonModule := `
+		{
+			"fileFormatVersion": 6,
+			"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+			"name": "token_admin_registry",
+			"friends": [],
+			"structs": {
+				"AdministratorTransferRequested": {
+					"abilities": {
+						"abilities": [
+							"Copy",
+							"Drop"
+						]
+					},
+					"fields": [
+						{
+							"name": "coin_metadata_address",
+							"type": "Address"
+						},
+						{
+							"name": "current_admin",
+							"type": "Address"
+						},
+						{
+							"name": "new_admin",
+							"type": "Address"
+						}
+					],
+					"typeParameters": []
+				},
+				"AdministratorTransferred": {
+					"abilities": {
+						"abilities": [
+							"Copy",
+							"Drop"
+						]
+					},
+					"fields": [
+						{
+							"name": "coin_metadata_address",
+							"type": "Address"
+						},
+						{
+							"name": "new_admin",
+							"type": "Address"
+						}
+					],
+					"typeParameters": []
+				},
+				"PoolInfos": {
+					"abilities": {
+						"abilities": [
+							"Copy",
+							"Drop"
+						]
+					},
+					"fields": [
+						{
+							"name": "token_pool_package_ids",
+							"type": {
+								"Vector": "Address"
+							}
+						},
+						{
+							"name": "token_pool_state_addresses",
+							"type": {
+								"Vector": "Address"
+							}
+						},
+						{
+							"name": "token_pool_modules",
+							"type": {
+								"Vector": {
+									"Struct": {
+										"address": "0x1",
+										"module": "string",
+										"name": "String",
+										"typeArguments": []
+									}
+								}
+							}
+						},
+						{
+							"name": "token_types",
+							"type": {
+								"Vector": {
+									"Struct": {
+										"address": "0x1",
+										"module": "ascii",
+										"name": "String",
+										"typeArguments": []
+									}
+								}
+							}
+						}
+					],
+					"typeParameters": []
+				},
+				"PoolRegistered": {
+					"abilities": {
+						"abilities": [
+							"Copy",
+							"Drop"
+						]
+					},
+					"fields": [
+						{
+							"name": "coin_metadata_address",
+							"type": "Address"
+						},
+						{
+							"name": "token_pool_package_id",
+							"type": "Address"
+						},
+						{
+							"name": "administrator",
+							"type": "Address"
+						},
+						{
+							"name": "type_proof",
+							"type": {
+								"Struct": {
+									"address": "0x1",
+									"module": "ascii",
+									"name": "String",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"typeParameters": []
+				},
+				"PoolSet": {
+					"abilities": {
+						"abilities": [
+							"Copy",
+							"Drop"
+						]
+					},
+					"fields": [
+						{
+							"name": "coin_metadata_address",
+							"type": "Address"
+						},
+						{
+							"name": "previous_pool_package_id",
+							"type": "Address"
+						},
+						{
+							"name": "new_pool_package_id",
+							"type": "Address"
+						},
+						{
+							"name": "type_proof",
+							"type": {
+								"Struct": {
+									"address": "0x1",
+									"module": "ascii",
+									"name": "String",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"typeParameters": []
+				},
+				"PoolUnregistered": {
+					"abilities": {
+						"abilities": [
+							"Copy",
+							"Drop"
+						]
+					},
+					"fields": [
+						{
+							"name": "coin_metadata_address",
+							"type": "Address"
+						},
+						{
+							"name": "previous_pool_address",
+							"type": "Address"
+						}
+					],
+					"typeParameters": []
+				},
+				"TokenAdminRegistryState": {
+					"abilities": {
+						"abilities": [
+							"Store",
+							"Key"
+						]
+					},
+					"fields": [
+						{
+							"name": "id",
+							"type": {
+								"Struct": {
+									"address": "0x2",
+									"module": "object",
+									"name": "UID",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"name": "token_configs",
+							"type": {
+								"Struct": {
+									"address": "0x2",
+									"module": "linked_table",
+									"name": "LinkedTable",
+									"typeArguments": [
+										"Address",
+										{
+											"Struct": {
+												"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+												"module": "token_admin_registry",
+												"name": "TokenConfig",
+												"typeArguments": []
+											}
+										}
+									]
+								}
+							}
+						}
+					],
+					"typeParameters": []
+				},
+				"TokenConfig": {
+					"abilities": {
+						"abilities": [
+							"Copy",
+							"Drop",
+							"Store"
+						]
+					},
+					"fields": [
+						{
+							"name": "token_pool_package_id",
+							"type": "Address"
+						},
+						{
+							"name": "token_pool_state_address",
+							"type": "Address"
+						},
+						{
+							"name": "token_pool_module",
+							"type": {
+								"Struct": {
+									"address": "0x1",
+									"module": "string",
+									"name": "String",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"name": "token_type",
+							"type": {
+								"Struct": {
+									"address": "0x1",
+									"module": "ascii",
+									"name": "String",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"name": "administrator",
+							"type": "Address"
+						},
+						{
+							"name": "pending_administrator",
+							"type": "Address"
+						},
+						{
+							"name": "type_proof",
+							"type": {
+								"Struct": {
+									"address": "0x1",
+									"module": "ascii",
+									"name": "String",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"typeParameters": []
+				}
+			},
+			"exposedFunctions": {
+				"accept_admin_role": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address",
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "tx_context",
+									"name": "TxContext",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"return": [],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"get_all_configured_tokens": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address",
+						"U64"
+					],
+					"return": [
+						{
+							"Vector": "Address"
+						},
+						"Address",
+						"Bool"
+					],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"get_pool": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address"
+					],
+					"return": [
+						"Address"
+					],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"get_pool_infos": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"Vector": "Address"
+						}
+					],
+					"return": [
+						{
+							"Struct": {
+								"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+								"module": "token_admin_registry",
+								"name": "PoolInfos",
+								"typeArguments": []
+							}
+						}
+					],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"get_pools": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"Vector": "Address"
+						}
+					],
+					"return": [
+						{
+							"Vector": "Address"
+						}
+					],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"get_token_config": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address"
+					],
+					"return": [
+						"Address",
+						"Address",
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "string",
+								"name": "String",
+								"typeArguments": []
+							}
+						},
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "ascii",
+								"name": "String",
+								"typeArguments": []
+							}
+						},
+						"Address",
+						"Address",
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "ascii",
+								"name": "String",
+								"typeArguments": []
+							}
+						}
+					],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"initialize": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "OwnerCap",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "tx_context",
+									"name": "TxContext",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"return": [],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"is_administrator": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address",
+						"Address"
+					],
+					"return": [
+						"Bool"
+					],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"register_pool": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "coin",
+									"name": "TreasuryCap",
+									"typeArguments": [
+										{
+											"TypeParameter": 0
+										}
+									]
+								}
+							}
+						},
+						{
+							"Reference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "coin",
+									"name": "CoinMetadata",
+									"typeArguments": [
+										{
+											"TypeParameter": 0
+										}
+									]
+								}
+							}
+						},
+						"Address",
+						"Address",
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "string",
+								"name": "String",
+								"typeArguments": []
+							}
+						},
+						"Address",
+						{
+							"TypeParameter": 1
+						}
+					],
+					"return": [],
+					"typeParameters": [
+						{
+							"abilities": []
+						},
+						{
+							"abilities": [
+								"Drop"
+							]
+						}
+					],
+					"visibility": "Public"
+				},
+				"register_pool_by_admin": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address",
+						"Address",
+						"Address",
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "string",
+								"name": "String",
+								"typeArguments": []
+							}
+						},
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "ascii",
+								"name": "String",
+								"typeArguments": []
+							}
+						},
+						"Address",
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "ascii",
+								"name": "String",
+								"typeArguments": []
+							}
+						},
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "tx_context",
+									"name": "TxContext",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"return": [],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"set_pool": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address",
+						"Address",
+						"Address",
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "string",
+								"name": "String",
+								"typeArguments": []
+							}
+						},
+						{
+							"TypeParameter": 0
+						},
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "tx_context",
+									"name": "TxContext",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"return": [],
+					"typeParameters": [
+						{
+							"abilities": [
+								"Drop"
+							]
+						}
+					],
+					"visibility": "Public"
+				},
+				"transfer_admin_role": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address",
+						"Address",
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "tx_context",
+									"name": "TxContext",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"return": [],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"type_and_version": {
+					"isEntry": false,
+					"parameters": [],
+					"return": [
+						{
+							"Struct": {
+								"address": "0x1",
+								"module": "string",
+								"name": "String",
+								"typeArguments": []
+							}
+						}
+					],
+					"typeParameters": [],
+					"visibility": "Public"
+				},
+				"unregister_pool": {
+					"isEntry": false,
+					"parameters": [
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x93e6aa7d7efd881081c4523eb1225d7345da0c2e3188067a43e09ac58ade00f2",
+									"module": "state_object",
+									"name": "CCIPObjectRef",
+									"typeArguments": []
+								}
+							}
+						},
+						"Address",
+						{
+							"MutableReference": {
+								"Struct": {
+									"address": "0x2",
+									"module": "tx_context",
+									"name": "TxContext",
+									"typeArguments": []
+								}
+							}
+						}
+					],
+					"return": [],
+					"typeParameters": [],
+					"visibility": "Public"
+				}
+			}
+		}
+		`
+
+		var schema map[string]any
+		err := json.Unmarshal([]byte(jsonModule), &schema)
+		require.NoError(t, err)
+
+		structs, ok := schema["structs"].(map[string]any)
+		require.True(t, ok)
+
+		bcsBytes := []byte{1, 203, 131, 104, 67, 247, 212, 213, 63, 234, 0, 172, 253, 104, 80, 167, 198, 167, 122, 227, 165, 211, 158, 27, 218, 248, 148, 160, 212, 92, 144, 255, 107, 1, 5, 248, 236, 185, 248, 254, 11, 147, 254, 142, 242, 226, 6, 109, 14, 31, 63, 215, 241, 104, 164, 118, 6, 179, 25, 147, 35, 171, 213, 189, 127, 240, 1, 23, 108, 111, 99, 107, 95, 114, 101, 108, 101, 97, 115, 101, 95, 116, 111, 107, 101, 110, 95, 112, 111, 111, 108, 1, 88, 101, 57, 48, 98, 55, 52, 57, 101, 97, 53, 53, 50, 57, 100, 101, 49, 52, 51, 52, 49, 102, 55, 51, 54, 57, 98, 50, 53, 52, 98, 50, 56, 50, 54, 56, 101, 54, 99, 48, 50, 57, 97, 55, 50, 51, 57, 53, 51, 56, 99, 48, 54, 49, 98, 101, 97, 53, 56, 97, 54, 52, 50, 100, 50, 58, 58, 108, 105, 110, 107, 95, 116, 111, 107, 101, 110, 58, 58, 76, 73, 78, 75, 95, 84, 79, 75, 69, 78}
+
+		deserializer := aptosBCS.NewDeserializer(bcsBytes)
+
+		jsonMap, err := DecodeSuiStructToJSON(
+			structs,
+			"PoolInfos",
+			deserializer,
+		)
+
+		require.NoError(t, err)
+		utils.PrettyPrint(jsonMap)
+	})
 }
