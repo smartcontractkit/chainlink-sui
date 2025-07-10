@@ -22,6 +22,7 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
+const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
 const REBALANCER: address = @0x100;
 const TOKEN_ADMIN: address = @0x200;
 
@@ -92,6 +93,8 @@ public fun test_initialize_and_basic_functionality() {
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -151,6 +154,8 @@ public fun test_chain_configuration_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -242,6 +247,8 @@ public fun test_liquidity_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -330,6 +337,8 @@ public fun test_rebalancer_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -394,6 +403,8 @@ public fun test_rate_limiter_configuration() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -499,6 +510,8 @@ public fun test_allowlist_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -586,6 +599,8 @@ public fun test_unauthorized_liquidity_provision() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -644,6 +659,8 @@ public fun test_withdraw_exceeds_balance() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -717,6 +734,8 @@ public fun test_unauthorized_withdrawal() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -791,6 +810,8 @@ public fun test_destroy_token_pool() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -871,6 +892,8 @@ public fun test_edge_cases_and_getters() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -974,6 +997,8 @@ public fun test_lock_or_burn_functionality() {
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -1037,7 +1062,7 @@ public fun test_lock_or_burn_functionality() {
         let initial_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         
         // Create token params for the operation
-        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain);
+        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Call the actual lock_or_burn function
         let updated_token_params = lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
@@ -1059,8 +1084,9 @@ public fun test_lock_or_burn_functionality() {
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(TOKEN_ADMIN);
-        let (chain_selector, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
         assert!(chain_selector == DefaultRemoteChain);
+        assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);
         
         // Verify transfer data
@@ -1126,6 +1152,8 @@ public fun test_release_or_mint_functionality() {
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         

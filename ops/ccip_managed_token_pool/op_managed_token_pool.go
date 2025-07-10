@@ -28,6 +28,8 @@ type ManagedTokenPoolInitializeInput struct {
 	MintCapObjectId           string
 	TokenPoolPackageId        string
 	TokenPoolAdministrator    string
+	LockOrBurnParams          []string
+	ReleaseOrMintParams       []string
 }
 
 var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
@@ -49,6 +51,8 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		bind.Object{Id: input.MintCapObjectId},
 		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
+		input.LockOrBurnParams,
+		input.ReleaseOrMintParams,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization: %w", err)

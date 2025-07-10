@@ -22,8 +22,8 @@ var (
 
 type IManagedTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
-	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
+	InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
+	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
 	AddRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
 	RemoveRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
 	IsSupportedChain(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -83,9 +83,9 @@ type IManagedTokenPoolDevInspect interface {
 type ManagedTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	InitializeWithManagedToken(typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error)
+	InitializeWithManagedToken(typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
 	InitializeWithManagedTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error)
+	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
 	InitializeByCcipAdminWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	AddRemotePool(typeArgs []string, state bind.Object, ownerCap bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error)
 	AddRemotePoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -278,8 +278,8 @@ func (c *ManagedTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bin
 }
 
 // InitializeWithManagedToken executes the initialize_with_managed_token Move function.
-func (c *ManagedTokenPoolContract) InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.InitializeWithManagedToken(typeArgs, ref, managedTokenState, ownerCap, coinMetadata, mintCap, tokenPoolPackageId, tokenPoolAdministrator)
+func (c *ManagedTokenPoolContract) InitializeWithManagedToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.InitializeWithManagedToken(typeArgs, ref, managedTokenState, ownerCap, coinMetadata, mintCap, tokenPoolPackageId, tokenPoolAdministrator, lockOrBurnParams, releaseOrMintParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -288,8 +288,8 @@ func (c *ManagedTokenPoolContract) InitializeWithManagedToken(ctx context.Contex
 }
 
 // InitializeByCcipAdmin executes the initialize_by_ccip_admin Move function.
-func (c *ManagedTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, coinMetadata, mintCap, tokenPoolPackageId, tokenPoolAdministrator)
+func (c *ManagedTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, coinMetadata, mintCap, tokenPoolPackageId, tokenPoolAdministrator, lockOrBurnParams, releaseOrMintParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1028,7 +1028,7 @@ func (c managedTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Enco
 }
 
 // InitializeWithManagedToken encodes a call to the initialize_with_managed_token Move function.
-func (c managedTokenPoolEncoder) InitializeWithManagedToken(typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) InitializeWithManagedToken(typeArgs []string, ref bind.Object, managedTokenState bind.Object, ownerCap bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1041,6 +1041,8 @@ func (c managedTokenPoolEncoder) InitializeWithManagedToken(typeArgs []string, r
 		"MintCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}, []any{
 		ref,
 		managedTokenState,
@@ -1049,6 +1051,8 @@ func (c managedTokenPoolEncoder) InitializeWithManagedToken(typeArgs []string, r
 		mintCap,
 		tokenPoolPackageId,
 		tokenPoolAdministrator,
+		lockOrBurnParams,
+		releaseOrMintParams,
 	}, nil)
 }
 
@@ -1063,6 +1067,8 @@ func (c managedTokenPoolEncoder) InitializeWithManagedTokenWithArgs(typeArgs []s
 		"MintCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1076,7 +1082,7 @@ func (c managedTokenPoolEncoder) InitializeWithManagedTokenWithArgs(typeArgs []s
 }
 
 // InitializeByCcipAdmin encodes a call to the initialize_by_ccip_admin Move function.
-func (c managedTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, mintCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1087,12 +1093,16 @@ func (c managedTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bi
 		"MintCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}, []any{
 		ref,
 		coinMetadata,
 		mintCap,
 		tokenPoolPackageId,
 		tokenPoolAdministrator,
+		lockOrBurnParams,
+		releaseOrMintParams,
 	}, nil)
 }
 
@@ -1105,6 +1115,8 @@ func (c managedTokenPoolEncoder) InitializeByCcipAdminWithArgs(typeArgs []string
 		"MintCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {

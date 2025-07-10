@@ -60,6 +60,8 @@ public fun initialize_with_managed_token<T>(
     mint_cap: MintCap<T>,
     token_pool_package_id: address,
     token_pool_administrator: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     // Get treasury cap reference for registration
@@ -78,6 +80,8 @@ public fun initialize_with_managed_token<T>(
         managed_token_pool_state_address,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
+        lock_or_burn_params,
+        release_or_mint_params,
         TypeProof {},
     );
 }
@@ -88,6 +92,8 @@ public fun initialize_by_ccip_admin<T>(
     mint_cap: MintCap<T>,
     token_pool_package_id: address,
     token_pool_administrator: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     let (coin_metadata_address, managed_token_state_address, token_type_name, type_proof_type_name) =
@@ -102,6 +108,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type_name.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
+        lock_or_burn_params,
+        release_or_mint_params,
         ctx,
     );
 }

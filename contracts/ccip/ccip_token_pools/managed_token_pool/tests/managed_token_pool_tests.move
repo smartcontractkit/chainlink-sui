@@ -22,6 +22,7 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
+const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
 
 const CCIP_ADMIN: address = @0x400;
 
@@ -114,6 +115,8 @@ public fun test_initialize_and_basic_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         scenario.return_to_sender(token_owner_cap);
@@ -368,6 +371,8 @@ public fun test_lock_or_burn_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -442,7 +447,7 @@ public fun test_lock_or_burn_functionality() {
         assert!(initial_coin_value == 1000);
         
         // Create token params for the lock_or_burn operation
-        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain);
+        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Actually call lock_or_burn function
         let updated_token_params = managed_token_pool::lock_or_burn(
@@ -462,8 +467,9 @@ public fun test_lock_or_burn_functionality() {
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@managed_token_pool);
-        let (chain_selector, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
         assert!(chain_selector == DefaultRemoteChain);
+        assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);
         
         // Verify transfer data
@@ -549,6 +555,8 @@ public fun test_release_or_mint_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in add_dest_token_transfer
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -733,6 +741,8 @@ public fun test_initialize_by_ccip_admin() {
             mint_cap,
             @managed_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
     };
@@ -820,6 +830,8 @@ public fun test_invalid_owner_cap_error() {
             mint_cap2,
             @0x2000, // Different package ID
             @0x999,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -1078,6 +1090,8 @@ public fun test_initialize_with_managed_token_function() {
             mint_cap,
             @0x1000, // token pool package id
             @managed_token_pool, // token pool administrator
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -1119,7 +1133,7 @@ public fun test_initialize_with_managed_token_function() {
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
         assert!(pool_address == @0x1000); // Should match the package id we passed
         
-        let (pool_package_id, pool_state_address, pool_module, _token_type, admin, pending_admin, type_proof) = 
+        let (pool_package_id, pool_state_address, pool_module, _token_type, admin, pending_admin, type_proof, _lock_or_burn_params, _release_or_mint_params) = 
             token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
         
         assert!(pool_package_id == @0x1000);
@@ -1196,6 +1210,8 @@ fun setup_basic_pool(scenario: &mut test_scenario::Scenario): (CCIPOwnerCap, CCI
             mint_cap,
             @0x1000,
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         

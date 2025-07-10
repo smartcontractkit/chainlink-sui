@@ -56,6 +56,8 @@ module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[],
+            vector[],
             scenario.ctx()
         );
         

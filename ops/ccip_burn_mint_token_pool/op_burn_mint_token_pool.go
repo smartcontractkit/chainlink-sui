@@ -26,6 +26,8 @@ type BurnMintTokenPoolInitializeInput struct {
 	TreasuryCapObjectId    string
 	TokenPoolPackageId     string
 	TokenPoolAdministrator string
+	LockOrBurnParams       []string
+	ReleaseOrMintParams    []string
 }
 
 var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
@@ -45,6 +47,8 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
+		input.LockOrBurnParams,
+		input.ReleaseOrMintParams,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization: %w", err)
@@ -85,9 +89,8 @@ type BurnMintTokenPoolApplyChainUpdatesInput struct {
 	OwnerCap                     string
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
-	// TODO: Provide a more human readable type for these
-	RemotePoolAddressesToAdd  [][]string
-	RemoteTokenAddressesToAdd []string
+	RemotePoolAddressesToAdd     [][]string
+	RemoteTokenAddressesToAdd    []string
 }
 
 var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolApplyChainUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {

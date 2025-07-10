@@ -48,6 +48,8 @@ public fun initialize<T>(
     treasury_cap: TreasuryCap<T>,
     token_pool_package_id: address,
     token_pool_administrator: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,    
     ctx: &mut TxContext,
 ) {
     let (_, _, _, burn_mint_token_pool) =
@@ -61,6 +63,8 @@ public fun initialize<T>(
         object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
         token_pool_administrator,
+        lock_or_burn_params,
+        release_or_mint_params,
         TypeProof {},
     );
 
@@ -73,6 +77,8 @@ public fun initialize_by_ccip_admin<T>(
     treasury_cap: TreasuryCap<T>,
     token_pool_package_id: address,
     token_pool_administrator: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     let (coin_metadata_address, token_type_name, type_proof_type_name, burn_mint_token_pool) =
@@ -87,6 +93,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type_name.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
+        lock_or_burn_params,
+        release_or_mint_params,
         ctx,
     );
 

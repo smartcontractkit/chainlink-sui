@@ -22,8 +22,8 @@ var (
 
 type IBurnMintTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
-	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
+	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -83,9 +83,9 @@ type IBurnMintTokenPoolDevInspect interface {
 type BurnMintTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error)
+	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
 	InitializeByCcipAdminWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -278,8 +278,8 @@ func (c *BurnMintTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bi
 }
 
 // Initialize executes the initialize Move function.
-func (c *BurnMintTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator)
+func (c *BurnMintTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator, lockOrBurnParams, releaseOrMintParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -288,8 +288,8 @@ func (c *BurnMintTokenPoolContract) Initialize(ctx context.Context, opts *bind.C
 }
 
 // InitializeByCcipAdmin executes the initialize_by_ccip_admin Move function.
-func (c *BurnMintTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator)
+func (c *BurnMintTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator, lockOrBurnParams, releaseOrMintParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1028,7 +1028,7 @@ func (c burnMintTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Enc
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1039,12 +1039,16 @@ func (c burnMintTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object,
 		"TreasuryCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}, []any{
 		ref,
 		coinMetadata,
 		treasuryCap,
 		tokenPoolPackageId,
 		tokenPoolAdministrator,
+		lockOrBurnParams,
+		releaseOrMintParams,
 	}, nil)
 }
 
@@ -1057,6 +1061,8 @@ func (c burnMintTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...
 		"TreasuryCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1070,7 +1076,7 @@ func (c burnMintTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...
 }
 
 // InitializeByCcipAdmin encodes a call to the initialize_by_ccip_admin Move function.
-func (c burnMintTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1081,12 +1087,16 @@ func (c burnMintTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref b
 		"TreasuryCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}, []any{
 		ref,
 		coinMetadata,
 		treasuryCap,
 		tokenPoolPackageId,
 		tokenPoolAdministrator,
+		lockOrBurnParams,
+		releaseOrMintParams,
 	}, nil)
 }
 
@@ -1099,6 +1109,8 @@ func (c burnMintTokenPoolEncoder) InitializeByCcipAdminWithArgs(typeArgs []strin
 		"TreasuryCap<T>",
 		"address",
 		"address",
+		"vector<address>",
+		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
