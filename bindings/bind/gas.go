@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
+
+	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 )
 
 // Fetches every coin owned by the address. Looks for a SUI object, returns the first it finds
-func FetchDefaultGasCoinRef(ctx context.Context, client suiclient.ClientImpl, address string) (*sui.ObjectRef, error) {
+func FetchDefaultGasCoinRef(ctx context.Context, client sui.ISuiAPI, address string) (*models.SuiObjectRef, error) {
 	suiCoins, err := fetchOwnedSuiCoins(ctx, client, address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch owned SUI coins: %w", err)
@@ -22,20 +24,20 @@ func FetchDefaultGasCoinRef(ctx context.Context, client suiclient.ClientImpl, ad
 	return suiCoins[0], nil
 }
 
-func ToSuiObjectRef(ctx context.Context, client suiclient.ClientImpl, objectId string, address string) (*sui.ObjectRef, error) {
-	// Convert the object ID to a Sui address
-	suiAddress, err := ToSuiAddress(objectId)
+func ToSuiObjectRef(ctx context.Context, client sui.ISuiAPI, objectId string, address string) (*models.SuiObjectRef, error) {
+	// Normalize the object ID
+	normalizedObjId, err := bindutils.ConvertAddressToString(objectId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert object ID to address: %w", err)
+		return nil, fmt.Errorf("invalid object ID %v: %w", objectId, err)
 	}
 
 	refs, err := fetchOwnedSuiCoins(ctx, client, address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert object ID to address: %w", err)
+		return nil, fmt.Errorf("failed to fetch owned SUI coins: %w", err)
 	}
 
 	for _, ref := range refs {
-		if ref.ObjectId == suiAddress {
+		if ref.ObjectId == normalizedObjId {
 			return ref, nil
 		}
 	}
@@ -43,32 +45,49 @@ func ToSuiObjectRef(ctx context.Context, client suiclient.ClientImpl, objectId s
 	return nil, errors.New("gas object ID not found in SUI owned coins")
 }
 
-func fetchOwnedSuiCoins(ctx context.Context, client suiclient.ClientImpl, address string) ([]*sui.ObjectRef, error) {
-	suiAddress, err := ToSuiAddress(address)
+func fetchOwnedSuiCoins(ctx context.Context, client sui.ISuiAPI, address string) ([]*models.SuiObjectRef, error) {
+	// Normalize address
+	normalizedAddr, err := bindutils.ConvertAddressToString(address)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid address %v: %w", address, err)
 	}
-	coin, err := client.GetAllCoins(ctx, &suiclient.GetAllCoinsRequest{
-		Owner: suiAddress,
-	})
+
+	// Create request for getting all coins
+	var limit uint64 = 50
+	req := models.SuiXGetAllCoinsRequest{
+		Owner: normalizedAddr,
+		Limit: limit,
+	}
+
+	coins, err := client.SuiXGetAllCoins(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get default Gas coins: %w", err)
 	}
 
-	if len(coin.Data) == 0 {
+	if len(coins.Data) == 0 {
 		return nil, fmt.Errorf("no coin data found for signer: %s", address)
 	}
 
-	var coinRefs []*sui.ObjectRef
-	for _, coinData := range coin.Data {
-		if isSuiCoin(*coinData) {
-			coinRefs = append(coinRefs, coinData.Ref())
+	var coinRefs []*models.SuiObjectRef
+	for _, coinData := range coins.Data {
+		if isSuiCoin(coinData) {
+			version, err := parseVersionString(coinData.Version)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse coin version: %w", err)
+			}
+
+			coinRef := &models.SuiObjectRef{
+				ObjectId: coinData.CoinObjectId,
+				Version:  version,
+				Digest:   coinData.Digest,
+			}
+			coinRefs = append(coinRefs, coinRef)
 		}
 	}
 
 	return coinRefs, nil
 }
 
-func isSuiCoin(coin suiclient.Coin) bool {
+func isSuiCoin(coin models.CoinData) bool {
 	return coin.CoinType == "0x2::sui::SUI"
 }

@@ -8,54 +8,118 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/holiman/uint256"
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/sui/suiptb"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	module_common "github.com/smartcontractkit/chainlink-sui/bindings/common"
 )
 
-// Unused vars used for unused imports
 var (
 	_ = big.NewInt
-	_ = uint256.NewInt
 )
 
 type IMcmsDeployer interface {
-	AuthorizeUpgrade(param module_common.OwnerCap, state bind.Object, policy byte, digest []byte, packageAddress string) bind.IMethod
-	// Connect adds/changes the client used in the contract
-	Connect(client suiclient.ClientImpl)
+	RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, upgradeCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*models.SuiTransactionBlockResponse, error)
+	CommitUpgrade(ctx context.Context, opts *bind.CallOpts, state bind.Object, receipt bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DevInspect() IMcmsDeployerDevInspect
+	Encoder() McmsDeployerEncoder
+}
+
+type IMcmsDeployerDevInspect interface {
+	AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (bind.Object, error)
+}
+
+type McmsDeployerEncoder interface {
+	RegisterUpgradeCap(state bind.Object, registry bind.Object, upgradeCap bind.Object) (*bind.EncodedCall, error)
+	RegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	AuthorizeUpgrade(param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*bind.EncodedCall, error)
+	AuthorizeUpgradeWithArgs(args ...any) (*bind.EncodedCall, error)
+	CommitUpgrade(state bind.Object, receipt bind.Object) (*bind.EncodedCall, error)
+	CommitUpgradeWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type McmsDeployerContract struct {
-	packageID *sui.Address
-	client    suiclient.ClientImpl
+	*bind.BoundContract
+	mcmsDeployerEncoder
+	devInspect *McmsDeployerDevInspect
+}
+
+type McmsDeployerDevInspect struct {
+	contract *McmsDeployerContract
 }
 
 var _ IMcmsDeployer = (*McmsDeployerContract)(nil)
+var _ IMcmsDeployerDevInspect = (*McmsDeployerDevInspect)(nil)
 
-func NewMcmsDeployer(packageID string, client suiclient.ClientImpl) (*McmsDeployerContract, error) {
-	pkgObjectId, err := bind.ToSuiAddress(packageID)
+func NewMcmsDeployer(packageID string, client sui.ISuiAPI) (*McmsDeployerContract, error) {
+	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_deployer", client)
 	if err != nil {
-		return nil, fmt.Errorf("package ID is not a Sui address: %w", err)
+		return nil, err
 	}
 
-	return &McmsDeployerContract{
-		packageID: pkgObjectId,
-		client:    client,
-	}, nil
+	c := &McmsDeployerContract{
+		BoundContract:       contract,
+		mcmsDeployerEncoder: mcmsDeployerEncoder{BoundContract: contract},
+	}
+	c.devInspect = &McmsDeployerDevInspect{contract: c}
+	return c, nil
 }
 
-func (c *McmsDeployerContract) Connect(client suiclient.ClientImpl) {
-	c.client = client
+func (c *McmsDeployerContract) Encoder() McmsDeployerEncoder {
+	return c.mcmsDeployerEncoder
 }
 
-// Structs
+func (c *McmsDeployerContract) DevInspect() IMcmsDeployerDevInspect {
+	return c.devInspect
+}
+
+func (c *McmsDeployerContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
+	var callArgManager *bind.CallArgManager
+	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
+		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
+		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
+	} else {
+		callArgManager = bind.NewCallArgManager()
+	}
+
+	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
+	}
+
+	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
+
+	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
+	for i, tag := range encoded.TypeArgs {
+		if tag != nil {
+			typeTagValues[i] = *tag
+		}
+	}
+
+	argumentValues := make([]transaction.Argument, len(arguments))
+	for i, arg := range arguments {
+		if arg != nil {
+			argumentValues[i] = *arg
+		}
+	}
+
+	result := ptb.MoveCall(
+		models.SuiAddress(encoded.Module.PackageID),
+		encoded.Module.ModuleName,
+		encoded.Function,
+		typeTagValues,
+		argumentValues,
+	)
+
+	return &result, nil
+}
 
 type DeployerState struct {
-	Id string `move:"sui::object::UID"`
+	Id          string      `move:"sui::object::UID"`
+	UpgradeCaps bind.Object `move:"Table<address, UpgradeCap>"`
 }
 
 type UpgradeCapRegistered struct {
@@ -80,18 +144,254 @@ type UpgradeReceiptCommitted struct {
 type MCMS_DEPLOYER struct {
 }
 
-// Functions
+type bcsUpgradeCapRegistered struct {
+	PrevOwner      [32]byte
+	PackageAddress [32]byte
+	Version        uint64
+	Policy         byte
+}
 
-func (c *McmsDeployerContract) AuthorizeUpgrade(param module_common.OwnerCap, state bind.Object, policy byte, digest []byte, packageAddress string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_deployer", "authorize_upgrade", false, "", "", param, state, policy, digest, packageAddress)
+func convertUpgradeCapRegisteredFromBCS(bcs bcsUpgradeCapRegistered) UpgradeCapRegistered {
+	return UpgradeCapRegistered{
+		PrevOwner:      fmt.Sprintf("0x%x", bcs.PrevOwner),
+		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
+		Version:        bcs.Version,
+		Policy:         bcs.Policy,
+	}
+}
+
+type bcsUpgradeTicketAuthorized struct {
+	PackageAddress [32]byte
+	Policy         byte
+	Digest         []byte
+}
+
+func convertUpgradeTicketAuthorizedFromBCS(bcs bcsUpgradeTicketAuthorized) UpgradeTicketAuthorized {
+	return UpgradeTicketAuthorized{
+		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
+		Policy:         bcs.Policy,
+		Digest:         bcs.Digest,
+	}
+}
+
+type bcsUpgradeReceiptCommitted struct {
+	PackageAddress [32]byte
+	OldVersion     uint64
+	NewVersion     uint64
+}
+
+func convertUpgradeReceiptCommittedFromBCS(bcs bcsUpgradeReceiptCommitted) UpgradeReceiptCommitted {
+	return UpgradeReceiptCommitted{
+		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
+		OldVersion:     bcs.OldVersion,
+		NewVersion:     bcs.NewVersion,
+	}
+}
+
+func init() {
+	bind.RegisterStructDecoder("mcms::mcms_deployer::DeployerState", func(data []byte) (interface{}, error) {
+		var result DeployerState
+		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_deployer", "authorize_upgrade", err)
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeCapRegistered", func(data []byte) (interface{}, error) {
+		var temp bcsUpgradeCapRegistered
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
 		}
 
-		return ptb, nil
+		result := convertUpgradeCapRegisteredFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeTicketAuthorized", func(data []byte) (interface{}, error) {
+		var temp bcsUpgradeTicketAuthorized
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertUpgradeTicketAuthorizedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeReceiptCommitted", func(data []byte) (interface{}, error) {
+		var temp bcsUpgradeReceiptCommitted
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertUpgradeReceiptCommittedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_deployer::MCMS_DEPLOYER", func(data []byte) (interface{}, error) {
+		var result MCMS_DEPLOYER
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+}
+
+// RegisterUpgradeCap executes the register_upgrade_cap Move function.
+func (c *McmsDeployerContract) RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, upgradeCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsDeployerEncoder.RegisterUpgradeCap(state, registry, upgradeCap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AuthorizeUpgrade executes the authorize_upgrade Move function.
+func (c *McmsDeployerContract) AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsDeployerEncoder.AuthorizeUpgrade(param, state, policy, digest, packageAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CommitUpgrade executes the commit_upgrade Move function.
+func (c *McmsDeployerContract) CommitUpgrade(ctx context.Context, opts *bind.CallOpts, state bind.Object, receipt bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsDeployerEncoder.CommitUpgrade(state, receipt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AuthorizeUpgrade executes the authorize_upgrade Move function using DevInspect to get return values.
+//
+// Returns: UpgradeTicket
+func (d *McmsDeployerDevInspect) AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (bind.Object, error) {
+	encoded, err := d.contract.mcmsDeployerEncoder.AuthorizeUpgrade(param, state, policy, digest, packageAddress)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
+type mcmsDeployerEncoder struct {
+	*bind.BoundContract
+}
+
+// RegisterUpgradeCap encodes a call to the register_upgrade_cap Move function.
+func (c mcmsDeployerEncoder) RegisterUpgradeCap(state bind.Object, registry bind.Object, upgradeCap bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_upgrade_cap", typeArgsList, typeParamsList, []string{
+		"&mut DeployerState",
+		"&Registry",
+		"UpgradeCap",
+	}, []any{
+		state,
+		registry,
+		upgradeCap,
+	}, nil)
+}
+
+// RegisterUpgradeCapWithArgs encodes a call to the register_upgrade_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsDeployerEncoder) RegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut DeployerState",
+		"&Registry",
+		"UpgradeCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// AuthorizeUpgrade encodes a call to the authorize_upgrade Move function.
+func (c mcmsDeployerEncoder) AuthorizeUpgrade(param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("authorize_upgrade", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
+		"&mut DeployerState",
+		"u8",
+		"vector<u8>",
+		"address",
+	}, []any{
+		param,
+		state,
+		policy,
+		digest,
+		packageAddress,
+	}, []string{
+		"UpgradeTicket",
+	})
+}
+
+// AuthorizeUpgradeWithArgs encodes a call to the authorize_upgrade Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsDeployerEncoder) AuthorizeUpgradeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OwnerCap",
+		"&mut DeployerState",
+		"u8",
+		"vector<u8>",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("authorize_upgrade", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"UpgradeTicket",
+	})
+}
+
+// CommitUpgrade encodes a call to the commit_upgrade Move function.
+func (c mcmsDeployerEncoder) CommitUpgrade(state bind.Object, receipt bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("commit_upgrade", typeArgsList, typeParamsList, []string{
+		"&mut DeployerState",
+		"UpgradeReceipt",
+	}, []any{
+		state,
+		receipt,
+	}, nil)
+}
+
+// CommitUpgradeWithArgs encodes a call to the commit_upgrade Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsDeployerEncoder) CommitUpgradeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut DeployerState",
+		"UpgradeReceipt",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("commit_upgrade", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

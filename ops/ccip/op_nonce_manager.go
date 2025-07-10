@@ -29,11 +29,14 @@ var initNMHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitNMIn
 		return sui_ops.OpTxResult[InitNMObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	method := contract.Initialize(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Initialize(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitNMObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
@@ -46,7 +49,7 @@ var initNMHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitNMIn
 	}
 
 	return sui_ops.OpTxResult[InitNMObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects: InitNMObjects{
 			NonceManagerStateObjectId: obj1,

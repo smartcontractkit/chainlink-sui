@@ -3,8 +3,8 @@ package ccip
 import (
 	"context"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
@@ -13,11 +13,10 @@ import (
 	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type CCIP interface {
-	Address() sui.Address
+	Address() string
 	FeeQuoter() module_fee_quoter.IFeeQuoter
 	NonceManager() module_nonce_manager.INonceManager
 	ReceiverRegistry() module_receiver_registry.IReceiverRegistry
@@ -28,7 +27,7 @@ type CCIP interface {
 var _ CCIP = CCIPPackage{}
 
 type CCIPPackage struct {
-	address sui.Address
+	address string
 
 	feeQuoter          module_fee_quoter.IFeeQuoter
 	nonceManager       module_nonce_manager.INonceManager
@@ -37,7 +36,7 @@ type CCIPPackage struct {
 	tokenAdminRegistry module_token_admin_registry.ITokenAdminRegistry
 }
 
-func (p CCIPPackage) Address() sui.Address {
+func (p CCIPPackage) Address() string {
 	return p.address
 }
 
@@ -61,7 +60,7 @@ func (p CCIPPackage) TokenAdminRegistry() module_token_admin_registry.ITokenAdmi
 	return p.tokenAdminRegistry
 }
 
-func NewCCIP(address string, client suiclient.ClientImpl) (CCIP, error) {
+func NewCCIP(address string, client sui.ISuiAPI) (CCIP, error) {
 	feeQuoterContract, err := module_fee_quoter.NewFeeQuoter(address, client)
 	if err != nil {
 		return nil, err
@@ -93,7 +92,7 @@ func NewCCIP(address string, client suiclient.ClientImpl) (CCIP, error) {
 	}
 
 	return CCIPPackage{
-		address:            *packageId,
+		address:            packageId,
 		feeQuoter:          feeQuoterContract,
 		nonceManager:       nonceManagerContract,
 		receiverRegistry:   receiverRegistryContract,
@@ -102,7 +101,7 @@ func NewCCIP(address string, client suiclient.ClientImpl) (CCIP, error) {
 	}, nil
 }
 
-func PublishCCIP(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, mcmsAddress string, mcmsOwner string) (CCIP, *suiclient.SuiTransactionBlockResponse, error) {
+func PublishCCIP(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner string) (CCIP, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.CCIP, map[string]string{
 		"mcms":       mcmsAddress,
 		"mcms_owner": mcmsOwner,
@@ -112,7 +111,7 @@ func PublishCCIP(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, cl
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})

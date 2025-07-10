@@ -20,7 +20,6 @@ func main() {
 	outputFolder := flag.String("output", "", "path to output directory")
 	moveConfigPath := flag.String("moveConfig", "", "path to Move.toml file")
 	uppercase := flag.String("uppercase", "", "list of words to convert to uppercase")
-	externalStructs := flag.String("externalStructs", "", "comma-separated list of struct names, usage: --externalStructs ccip::ocr3_base::OCRConfig=github.com/smartcontractkit/chainlink-aptos/bindings/ccip/ocr3_base")
 
 	flag.Parse()
 
@@ -44,34 +43,6 @@ func main() {
 			template.UppercaseWords = append(template.UppercaseWords, strings.ToUpper(w))
 		}
 		log.Printf("Capitalizing %v words: %v", len(template.UppercaseWords), strings.Join(template.UppercaseWords, ", "))
-	}
-
-	// Parse external structs
-	var extStructs []parse.ExternalStruct
-	if *externalStructs != "" {
-		for _, s := range strings.Split(*externalStructs, ",") {
-			// package::module::Struct=github.com/smartcontractkit/chainlink-aptos/bindings/path
-			split := strings.Split(s, "=")
-			if len(split) != 2 {
-				log.Fatalf("Invalid external structure definition: %v", s)
-			}
-			from := strings.Split(split[0], "::")
-			if len(from) != 3 {
-				log.Fatalf("Invalid external structure definition: %v", s)
-			}
-			packageName := from[0]
-			moduleName := from[1]
-			structName := from[2]
-			importPath := split[1]
-
-			log.Printf("Importing struct %v::%v::%v from %v", packageName, moduleName, structName, importPath)
-			extStructs = append(extStructs, parse.ExternalStruct{
-				ImportPath: importPath,
-				Package:    packageName,
-				Module:     moduleName,
-				Name:       structName,
-			})
-		}
 	}
 
 	file, err := os.Open(*inputFile)
@@ -98,7 +69,7 @@ func main() {
 		panic(err)
 	}
 
-	data, err := template.Convert(pkg, mod, structs, funcs, extStructs)
+	data, err := template.Convert(pkg, mod, structs, funcs)
 	if err != nil {
 		log.Fatal(err)
 	}

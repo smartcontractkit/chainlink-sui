@@ -6,63 +6,30 @@ import (
 	"context"
 	"testing"
 
-	"github.com/pattonkan/sui-go/suiclient"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
-	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 
 	"github.com/stretchr/testify/require"
 )
 
-func setupSuiTest(t *testing.T) (rel.SuiSigner, *suiclient.ClientImpl) {
-	t.Helper()
-
-	log := logger.Test(t)
-
-	// Start the node.
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			if perr := cmd.Process.Kill(); perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
-	})
-
-	// Generate key pair and create a signer.
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t, log)
-	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-
-	// Create the client.
-	client := suiclient.NewClient("http://localhost:9000")
-
-	// Fund the account.
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err)
-	err = testutils.FundWithFaucet(log, "localnet", signerAddress)
-	require.NoError(t, err)
-
-	return signer, client
-}
-
 func TestDeployMCMSSeq(t *testing.T) {
 	t.Parallel()
-	signer, client := setupSuiTest(t)
+
+	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
-		Client: *client,
+		Client: client,
 		Signer: signer,
-		GetTxOpts: func() bind.TxOpts {
+		GetCallOpts: func() *bind.CallOpts {
 			b := uint64(300_000_000)
-			return bind.TxOpts{
-				GasBudget: &b,
+			return &bind.CallOpts{
+				WaitForExecution: true,
+				GasBudget:        &b,
 			}
 		},
 	}

@@ -17,7 +17,7 @@ const (
 	CCIPOfframp          = Package("ccip_offramp")
 	CCIPOnramp           = Package("ccip_onramp")
 	CCIPRouter           = Package("ccip_router")
-	CCIPTokenPools       = Package("ccip_token_pools")
+	CCIPTokenPool        = Package("ccip_token_pool")
 	LINKToken            = Package("link_token")
 	LockReleaseTokenPool = Package("lock_release_token_pool")
 	// MCMS
@@ -34,7 +34,7 @@ var Contracts map[Package]string = map[Package]string{
 	CCIPOfframp:          filepath.Join("ccip", "ccip_offramp"),
 	CCIPOnramp:           filepath.Join("ccip", "ccip_onramp"),
 	CCIPRouter:           filepath.Join("ccip", "ccip_router"),
-	CCIPTokenPools:       filepath.Join("ccip", "ccip_token_pools", "token_pool"),
+	CCIPTokenPool:        filepath.Join("ccip", "ccip_token_pools", "token_pool"),
 	LockReleaseTokenPool: filepath.Join("ccip", "ccip_token_pools", "lock_release_token_pool"),
 	LINKToken:            filepath.Join("ccip", "link_token"),
 	// MCMS

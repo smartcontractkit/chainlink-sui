@@ -3,32 +3,31 @@ package lockreleasetokenpool
 import (
 	"context"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type LockReleaseTokenPool interface {
-	Address() sui.Address
+	Address() string
 }
 
 var _ LockReleaseTokenPool = CCIPLockReleaseTokenPool{}
 
 type CCIPLockReleaseTokenPool struct {
-	address sui.Address
+	address string
 
 	tokenPool module_lock_release_token_pool.ILockReleaseTokenPool
 }
 
-func (p CCIPLockReleaseTokenPool) Address() sui.Address {
+func (p CCIPLockReleaseTokenPool) Address() string {
 	return p.address
 }
 
-func NewCCIPLockReleaseTokenPool(address string, client suiclient.ClientImpl) (LockReleaseTokenPool, error) {
+func NewCCIPLockReleaseTokenPool(address string, client sui.ISuiAPI) (LockReleaseTokenPool, error) {
 	tokenPoolContract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(address, client)
 	if err != nil {
 		return nil, err
@@ -40,32 +39,31 @@ func NewCCIPLockReleaseTokenPool(address string, client suiclient.ClientImpl) (L
 	}
 
 	return CCIPLockReleaseTokenPool{
-		address:   *packageId,
+		address:   packageId,
 		tokenPool: tokenPoolContract,
 	}, nil
 }
 
 func PublishCCIPLockReleaseTokenPool(
 	ctx context.Context,
-	opts bind.TxOpts,
-	signer rel.SuiSigner,
-	client suiclient.ClientImpl,
-	ccipAddress,
-	ccipTokenPoolAddress,
+	opts *bind.CallOpts,
+	client sui.ISuiAPI,
+	ccipAddress string,
+	ccipTokenPoolAddress string,
 	mcmsAddress,
-	mcmsOwnerAddres string) (LockReleaseTokenPool, *suiclient.SuiTransactionBlockResponse, error) {
+	mcmsOwnerAddress string) (LockReleaseTokenPool, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.LockReleaseTokenPool, map[string]string{
 		"ccip":                    ccipAddress,
 		"ccip_token_pool":         ccipTokenPoolAddress,
 		"lock_release_token_pool": "0x0",
 		"mcms":                    mcmsAddress,
-		"mcms_owner":              mcmsOwnerAddres,
+		"mcms_owner":              mcmsOwnerAddress,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})

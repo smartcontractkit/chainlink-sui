@@ -27,10 +27,11 @@ type DeployCCIPOnRampInput struct {
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPOnRampInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	onRampPackage, tx, err := onramp.PublishOnramp(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSPackageId,
@@ -49,8 +50,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	}
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
-		Digest:    tx.Digest.String(),
-		PackageId: onRampPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: onRampPackage.Address(),
 		Objects: DeployCCIPOnRampObjects{
 			OwnerCapObjectId:        obj1,
 			CCIPOnrampStateObjectId: obj2,
@@ -78,7 +79,11 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
 
-	call := onRampPackage.Initialize(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.Initialize(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.OnRampStateId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.NonceManagerCapId},
@@ -90,14 +95,12 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 		input.DestChainEnabled,
 		input.DestChainAllowListEnabled,
 	)
-
-	tx, err := call.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute onRamp initialization: %w", err)
 	}
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
@@ -118,21 +121,23 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
 
-	call := onRampPackage.ApplyDestChainConfigUpdates(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.ApplyDestChainConfigUpdates(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
 		input.DestChainEnabled,
 		input.DestChainAllowListEnabled,
 	)
-
-	tx, err := call.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
@@ -154,22 +159,20 @@ var IsChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, err
 	}
 
-	call := onRampPackage.IsChainSupported(bind.Object{Id: input.StateObjectId}, input.DestChainSelector)
-
-	inspectResp, err := call.Inspect(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	isSupported, err := onRampPackage.DevInspect().IsChainSupported(b.GetContext(), opts, bind.Object{Id: input.StateObjectId}, input.DestChainSelector)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
-
-	IsChainSupported := inspectResp.Results[0].ReturnValues[0].([]any)[0].([]any)[0].(float64)
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
 		PackageId: input.OnRampPackageId,
 		Objects: IsChainSupportedOutput{
-			IsChainSupported: IsChainSupported != 0,
+			IsChainSupported: isSupported,
 		},
-	}, err
+	}, nil
 }
 
 // Note: Shares the same input as IsChainSupported
@@ -180,22 +183,26 @@ var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, err
 	}
 
-	call := onRampPackage.GetDestChainConfig(bind.Object{Id: input.StateObjectId}, input.DestChainSelector)
-
-	inspectResp, err := call.Inspect(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	config, err := onRampPackage.DevInspect().GetDestChainConfig(b.GetContext(), opts, bind.Object{Id: input.StateObjectId}, input.DestChainSelector)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
 
-	isEnabled := inspectResp.Results[0].ReturnValues[0].([]any)[0].([]any)[0].(float64)
+	// The first return value is isEnabled (bool)
+	isEnabled, ok := config[0].(bool)
+	if !ok {
+		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to parse isEnabled from config")
+	}
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
 		PackageId: input.OnRampPackageId,
 		Objects: IsChainSupportedOutput{
-			IsChainSupported: isEnabled != 0,
+			IsChainSupported: isEnabled,
 		},
-	}, err
+	}, nil
 }
 
 var DeployCCIPOnRampOp = cld_ops.NewOperation(

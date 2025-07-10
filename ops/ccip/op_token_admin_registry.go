@@ -29,11 +29,14 @@ var initTarHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitTAR
 		return sui_ops.OpTxResult[InitTARObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	method := contract.Initialize(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Initialize(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitTARObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
@@ -44,7 +47,7 @@ var initTarHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitTAR
 	}
 
 	return sui_ops.OpTxResult[InitTARObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects: InitTARObjects{
 			TARStateObjectId: obj1,

@@ -26,10 +26,11 @@ type DeployMCMSObjects struct {
 }
 
 var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyInput) (output sui_ops.OpTxResult[DeployMCMSObjects], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	mcmsPackage, tx, err := mcms.PublishMCMS(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 	)
 	if err != nil {
@@ -49,8 +50,8 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 	}
 
 	return sui_ops.OpTxResult[DeployMCMSObjects]{
-		Digest:    tx.Digest.String(),
-		PackageId: mcmsPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: mcmsPackage.Address(),
 		Objects: DeployMCMSObjects{
 			McmsMultisigStateObjectId:   mcmsObject,
 			TimelockObjectId:            timelockObj,

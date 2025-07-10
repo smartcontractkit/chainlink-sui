@@ -54,18 +54,60 @@ func MustParseFunctionInfo(info ...string) []FunctionInfo {
 var tmpl string
 
 type tmplData struct {
-	Package      string
-	Module       string
-	FunctionInfo string
-	Structs      []*tmplStruct
-	Funcs        []*tmplFunc
-	Imports      []*tmplImport
-	Artifact     bind.PackageArtifact
+	Package  string
+	Module   string
+	Structs  []*tmplStruct
+	Funcs    []*tmplFunc
+	Imports  []*tmplImport
+	Artifact bind.PackageArtifact
+}
+
+func (d *tmplData) BuildStructMap() map[string]*tmplStruct {
+	structMap := make(map[string]*tmplStruct)
+	for _, s := range d.Structs {
+		structMap[s.Name] = s
+	}
+	return structMap
 }
 
 type tmplStruct struct {
 	Name   string
 	Fields []*tmplField
+}
+
+func (s *tmplStruct) NeedsCustomDecoder(allStructs map[string]*tmplStruct) bool {
+	for _, field := range s.Fields {
+		// TODO: recursively handle address decoding
+		if field.Type.MoveType == "address" || field.Type.MoveType == "vector<address>" || field.Type.MoveType == "vector<vector<address>>" {
+			return true
+		}
+
+		if nestedStruct, ok := allStructs[field.Type.MoveType]; ok {
+			if nestedStruct.NeedsCustomDecoder(allStructs) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func GetBCSType(field *tmplField, allStructs map[string]*tmplStruct) string {
+	// TODO: recursively handle address decoding
+	switch field.Type.MoveType {
+	case "address":
+		return "[32]byte"
+	case "vector<address>":
+		return "[][32]byte"
+	case "vector<vector<address>>":
+		return "[][][32]byte"
+	default:
+		if nestedStruct, ok := allStructs[field.Type.MoveType]; ok {
+			if nestedStruct.NeedsCustomDecoder(allStructs) {
+				return "bcs" + field.Type.MoveType
+			}
+		}
+		return field.Type.GoType
+	}
 }
 
 type tmplOption struct {
@@ -78,8 +120,9 @@ type tmplImport struct {
 }
 
 type tmplType struct {
-	GoType   string
-	MoveType string
+	GoType       string
+	MoveType     string
+	OriginalType string // original move type with modifiers
 
 	Option *tmplOption
 	Import *tmplImport // Optional go import to add for this type
@@ -91,13 +134,53 @@ type tmplField struct {
 }
 
 type tmplFunc struct {
-	Name     string
-	MoveName string
-	Params   []*tmplField
-	Returns  []tmplType
+	Name            string
+	MoveName        string
+	Params          []*tmplField
+	Returns         []tmplType
+	IsEntry         bool
+	HasReturnValues bool
+	HasTypeParams   bool
+	TypeParams      []string
 }
 
-func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, externalStructs []parse.ExternalStruct) (tmplData, error) {
+func (f *tmplFunc) HasSingleReturn() bool {
+	return len(f.Returns) == 1
+}
+
+func (f *tmplFunc) HasMultipleReturns() bool {
+	return len(f.Returns) > 1
+}
+
+func (f *tmplFunc) GetSingleReturnGoType() string {
+	if !f.HasSingleReturn() {
+		return ""
+	}
+	return f.Returns[0].GoType
+}
+
+func (f *tmplFunc) HasGenericReturns() bool {
+	for _, ret := range f.Returns {
+		if containsGenericTypeParam(ret.MoveType, f.TypeParams) {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *tmplFunc) GetSingleReturnGoTypeForDevInspect() string {
+	if !f.HasSingleReturn() {
+		return ""
+	}
+
+	if containsGenericTypeParam(f.Returns[0].MoveType, f.TypeParams) {
+		return "any"
+	}
+
+	return f.Returns[0].GoType
+}
+
+func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (tmplData, error) {
 	data := tmplData{
 		Package: pkg,
 		Module:  mod,
@@ -115,7 +198,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 	for i, s := range data.Structs {
 		parsedStruct := structMap[s.Name]
 		for _, field := range parsedStruct.Fields {
-			goType, err := createGoTypeFromMove(field.Type, structMap, externalStructs)
+			goType, err := createGoTypeFromMove(field.Type, structMap)
 			if err != nil {
 				log.Printf("WARNING: Ignoring unknown type of struct %q: %v\n", s.Name, field.Type)
 				continue
@@ -136,11 +219,16 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 		if f.Name == "init_module" {
 			continue
 		}
+
 		out := &tmplFunc{
-			Name:     ToUpperCamelCase(f.Name),
-			MoveName: f.Name,
-			Params:   nil,
-			Returns:  nil,
+			Name:            ToUpperCamelCase(f.Name),
+			MoveName:        f.Name,
+			Params:          nil,
+			Returns:         nil,
+			IsEntry:         f.IsEntry,
+			HasReturnValues: len(f.ReturnTypes) > 0,
+			HasTypeParams:   f.HasTypeParams,
+			TypeParams:      f.TypeParams,
 		}
 		functionInfo := FunctionInfo{
 			Package:    pkg,
@@ -150,19 +238,18 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 		}
 		skip := false
 		for _, param := range f.Params {
-			// Strip the string "mut" from param.Type
-			param.Type = strings.ReplaceAll(param.Type, "&mut", "")
-			param.Type = strings.TrimSpace(param.Type)
+			originalType := param.Type
 
-			param.Type = strings.ReplaceAll(param.Type, "&", "")
-			param.Type = strings.TrimSpace(param.Type)
+			// strip modifiers for go type generation
+			cleanType := strings.ReplaceAll(param.Type, "&mut", "")
+			cleanType = strings.TrimSpace(cleanType)
+			cleanType = strings.ReplaceAll(cleanType, "&", "")
+			cleanType = strings.TrimSpace(cleanType)
 
-			if param.Type == "TxContext" {
-				// Ignore the context parameter
+			if cleanType == "TxContext" {
 				continue
 			}
-			// external types aren't supported as parameters, therefore passing no externalStructs
-			typ, err := createGoTypeFromMove(param.Type, structMap, externalStructs)
+			typ, err := createGoTypeFromMove(cleanType, structMap)
 			if err != nil {
 				if f.IsEntry {
 					panic(fmt.Sprintf("Function %v has unsupported parameter %v, type %v", f.Name, param.Name, param.Type))
@@ -190,42 +277,28 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 			if name == "" {
 				panic(fmt.Sprintf("Function %v has unsupported parameter name %v, type %v", f.Name, param.Name, param.Type))
 			}
+			typ.OriginalType = originalType
 			out.Params = append(out.Params, &tmplField{
 				Type: typ,
 				Name: name,
 			})
 			functionInfo.Parameters = append(functionInfo.Parameters, FunctionParameter{
 				Name: param.Name,
-				Type: typ.MoveType,
+				Type: originalType,
 			})
 		}
 		for _, returnType := range f.ReturnTypes {
-			typ, err := createGoTypeFromMove(returnType, structMap, externalStructs)
+			typ, err := createGoTypeFromMove(returnType, structMap)
 			if err != nil {
-				if f.IsView {
-					// If the function is a view function and has an unknown return type, panic
-					panic(fmt.Sprintf("Function %v has an unknown return type: %v: %v", f.Name, returnType, err))
-				} else {
-					log.Printf("WARNING: Function %v has an unknown return type: %v", f.Name, returnType)
-					// skip = true
+				log.Printf("WARNING: Function %v has an unknown return type: %v", f.Name, returnType)
+				// skip = true
 
-					break
-				}
+				break
 			}
 			out.Returns = append(out.Returns, typ)
 			if typ.Import != nil {
 				importMap[typ.Import.Path] = typ.Import
 			}
-		}
-		if f.HasTypeParams {
-			typeArgField := &tmplField{
-				Type: tmplType{
-					GoType:   "string",
-					MoveType: "string",
-				},
-				Name: "typeArgs",
-			}
-			out.Params = append([]*tmplField{typeArgField}, out.Params...)
 		}
 		if skip {
 			continue
@@ -236,11 +309,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 	slices.SortFunc(functionInfos, func(a, b FunctionInfo) int {
 		return strings.Compare(a.Name, b.Name)
 	})
-	marshalledInfo, err := json.Marshal(functionInfos)
-	if err != nil {
-		return tmplData{}, err
-	}
-	data.FunctionInfo = string(marshalledInfo)
+
 	for _, v := range importMap {
 		data.Imports = append(data.Imports, v)
 	}
@@ -248,11 +317,60 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func, ex
 	return data, nil
 }
 
+func getZeroValue(goType string) string {
+	switch goType {
+	case "string":
+		return `""`
+	case "bool":
+		return "false"
+	case "byte", "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64":
+		return "0"
+	case "*big.Int":
+		return "nil"
+	case "[]byte":
+		return "nil"
+	case "any":
+		return "nil"
+	default:
+		if len(goType) > 2 && goType[:2] == "[]" {
+			return "nil"
+		}
+		if len(goType) > 1 && goType[:1] == "*" {
+			return "nil"
+		}
+		return goType + "{}"
+	}
+}
+
 func Generate(data tmplData) (string, error) {
+	structMap := data.BuildStructMap()
+
 	funcs := template.FuncMap{
 		"toLowerCamel": ToLowerCamelCase,
 		"toUpperCamel": ToUpperCamelCase,
-		"toJSON":       FormatStructToJSON,
+		"getZeroValue": getZeroValue,
+		"needsCustomDecoder": func(structName string) bool {
+			if s, ok := structMap[structName]; ok {
+				return s.NeedsCustomDecoder(structMap)
+			}
+			return false
+		},
+		"getBCSType": func(field *tmplField) string {
+			return GetBCSType(field, structMap)
+		},
+		"isNestedStructWithDecoder": func(moveType string) bool {
+			if s, ok := structMap[moveType]; ok {
+				return s.NeedsCustomDecoder(structMap)
+			}
+			return false
+		},
+		"getFullyQualifiedType": func(moveType string, packageName string, moduleName string) string {
+			// check if this is a struct defined in this module, else return as-is
+			if _, ok := structMap[moveType]; ok {
+				return packageName + "::" + moduleName + "::" + moveType
+			}
+			return moveType
+		},
 	}
 
 	tpl := template.Must(template.New("").Funcs(funcs).Parse(tmpl))
@@ -319,14 +437,4 @@ func ToLowerCamelCase(input string) string {
 		param = "c_"
 	}
 	return param
-}
-
-// FormatStructToJSON converts any struct into a pretty-printed JSON string.
-func FormatStructToJSON(v interface{}) (string, error) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal struct to JSON: %w", err)
-	}
-
-	return string(b), nil
 }

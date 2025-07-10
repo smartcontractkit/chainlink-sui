@@ -32,32 +32,86 @@ Package bindings live in [./packages](./packages/). Each Move package should hav
 
 ## Using bindings
 
-This is an example that publishes a package, and interacts with one of its contracts.
+### Execution Example
+
+This is an example that publishes a package and interacts with one of its contracts. When invoking the contract interface functions directly, this creates a PTB with a single MoveCall.
 
 ```go
 import (
-  "github.com/pattonkan/sui-go/suiclient"
+  "github.com/block-vision/sui-go-sdk/sui"
   "github.com/smartcontractkit/chainlink-sui/bindings/bind"
-  rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
+  "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 )
 
-func PublishAndIncrementCounter(client *suiclient.ClientImpl, signer rel.SuiSigner) {
+func PublishAndIncrementCounter(client *sui.Client, signer utils.SuiSigner) {
   ctx := context.Background()
 
+  opts := &bind.CallOpts{
+    Signer: signer,
+    WaitForExecution: true,
+  }
+
   // Deploys the Test package using the Package binding
-  testPackage, tx, err := PublishTest(ctx, bind.TxOpts{}, signer, *client)
-
-  // Get the object created in the `init` function
-  counterObjectId, err := bind.FindObjectIdFromPublishTx(*tx, "counter", "Counter")
-
-  // Get the Counter contract binding
+  testPackage, tx, err := PublishTest(ctx, opts, client)
+  
   counter := testPackage.Counter()
+  initTx, err := counter.Initialize(ctx, opts)
+  
+  // Find the created counter object
+  var counterObjectId string
+  var initialSharedVersion *uint64
+  for _, change := range initTx.ObjectChanges {
+    if change.Type == "created" && strings.Contains(change.ObjectType, "::counter::Counter") {
+      counterObjectId = change.ObjectId
+      // Get initial shared version if it's a shared object
+      if change.Owner != nil {
+        share := change.GetObjectOwnerShare()
+        if share.InitialSharedVersion != nil {
+          version := uint64(*share.InitialSharedVersion)
+          initialSharedVersion = &version
+        }
+      }
+    }
+  }
 
-  // We construct the Increment method pasing the `increment` needed params
-  increment := counter.Increment(counterObjectId)
+  // Create object reference for the counter
+  // Note that InitialSharedVersion could be omitted, in which case, it would automatically
+  // be resolved via sui_getObject
+  counterObject := bind.Object{
+    Id:                   counterObjectId,
+    InitialSharedVersion: initialSharedVersion,
+  }
 
-  // We decide what to do with the method
-  ptb, err := increment.Build(ctx) // we can extract the PTB
-  tx, err := increment.Execute(ctx, bind.TxOpts{}, signer, *client) // or we can send the transaction
+  // Increment the counter
+  incrementTx, err := counter.Increment(ctx, opts, counterObject)
+  ...
+}
+```
+
+### Multi-command PTB Example
+
+```go
+import (
+  "github.com/block-vision/sui-go-sdk/transaction"
+)
+
+func ExecuteWithPTB(client *sui.Client, signer utils.SuiSigner, counter ICounter) {
+  // Create a PTB
+  ptb := transaction.NewTransaction()
+  
+  // Get the function call encoder
+  ptbEncoder := counter.Encoder()
+  
+  // Add multiple calls to the PTB
+  moveCall1, err := ptbEncoder.Increment(ptb, counterObject)
+  moveCall2, err := ptbEncoder.IncrementBy(ptb, counterObject, 5)
+  
+  // Execute the PTB and wait for the results
+  opts := &bind.CallOpts{
+    Signer: signer,
+    WaitForExecution: true,
+  }
+  tx, err := bind.ExecutePTB(ctx, opts, client, ptb)
+  ...
 }
 ```

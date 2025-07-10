@@ -47,8 +47,7 @@ module test::complex {
 
     public fun flatten_address(
         some_address: address,
-        some_addresses: vector<address>,
-        _ctx: &mut TxContext
+        some_addresses: vector<address>
     ): vector<address> {
         let mut addresses = vector::empty<address>();
         vector::push_back(&mut addresses, some_address);
@@ -65,8 +64,7 @@ module test::complex {
     }
 
     public fun flatten_u8(
-        input: vector<vector<u8>>,
-        _ctx: &mut TxContext
+        input: vector<vector<u8>>
     ): vector<u8> {
         let mut output = vector::empty<u8>();
         let mut i = 0;
@@ -90,16 +88,28 @@ module test::complex {
     }
 
     public fun check_u128(
-        input: u128,
-        _ctx: &mut TxContext
+        input: u128
     ): u128 {
         input
     }
 
     public fun check_u256(
-        input: u256,
-        _ctx: &mut TxContext
+        input: u256
     ): u256 {
         input
+    }
+
+    public fun check_with_object_ref(
+        obj: &SampleObject
+    ): u64 {
+        obj.some_number
+    }
+
+    public fun check_with_mut_object_ref(
+        obj: &mut SampleObject,
+        new_number: u64
+    ): u64 {
+        obj.some_number = new_number;
+        obj.some_number
     }
 }

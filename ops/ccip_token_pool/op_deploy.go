@@ -19,10 +19,11 @@ type TokenPoolDeployOutput struct {
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TokenPoolDeployInput) (output sui_ops.OpTxResult[TokenPoolDeployOutput], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	tokenPoolPackage, tx, err := tokenpool.PublishCCIPTokenPool(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSAddress,
@@ -33,8 +34,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TokenPoo
 	}
 
 	return sui_ops.OpTxResult[TokenPoolDeployOutput]{
-		Digest:    tx.Digest.String(),
-		PackageId: tokenPoolPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: tokenPoolPackage.Address(),
 	}, err
 }
 

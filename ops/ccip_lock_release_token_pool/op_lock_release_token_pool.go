@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/pattonkan/sui-go/sui"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -36,8 +35,12 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
 
-	method := contract.Initialize(
-		input.CoinObjectTypeArg,
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Initialize(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
@@ -45,7 +48,6 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute lock release token pool initialization: %w", err)
 	}
@@ -58,7 +60,7 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 	}
 
 	return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.LockReleasePackageId,
 		Objects: LockReleaseTokenPoolInitializeObjects{
 			OwnerCapObjectId: obj1,
@@ -96,8 +98,12 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
 
-	method := contract.ApplyChainUpdates(
-		input.CoinObjectTypeArg,
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.ApplyChainUpdates(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelectorsToRemove,
@@ -105,7 +111,6 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 		input.RemotePoolAddressesToAdd,
 		input.RemoteTokenAddressesToAdd,
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool apply chain updates: %w", err)
 	}
@@ -113,7 +118,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 	b.Logger.Infow("ApplyChainUpdates on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleasePackageId)
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.LockReleasePackageId,
 		Objects:   NoObjects{},
 	}, err
@@ -147,11 +152,15 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
 
-	method := contract.SetChainRateLimiterConfigs(
-		input.CoinObjectTypeArg,
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.SetChainRateLimiterConfigs(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
-		bind.Object{Id: sui.SuiObjectIdClock.String()},
+		bind.Object{Id: "0x6"}, // Clock object
 		input.RemoteChainSelectors,
 		input.OutboundIsEnableds,
 		input.OutboundCapacities,
@@ -160,7 +169,6 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		input.InboundCapacities,
 		input.InboundRates,
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool set configs rate limiter: %w", err)
 	}
@@ -168,7 +176,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	b.Logger.Infow("SetChainRateLimiter on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleasePackageId)
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.LockReleasePackageId,
 		Objects:   NoObjects{},
 	}, err
@@ -183,9 +191,10 @@ var LockReleaseTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 
 // LRTP -- provide_liquidity
 type LockReleaseTokenPoolProviderLiquidityInput struct {
-	CCIPPackageId string
-	StateObjectId string
-	Coin          string
+	CCIPPackageId     string
+	CoinObjectTypeArg string
+	StateObjectId     string
+	Coin              string
 }
 
 var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProviderLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
@@ -194,18 +203,21 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
 
-	method := contract.ProvideLiquidity(
-		"",
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.ProvideLiquidity(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.Coin},
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool set configs rate limiter: %w", err)
 	}
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   NoObjects{},
 	}, err

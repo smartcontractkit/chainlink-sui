@@ -7,17 +7,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindgen/parse"
 )
 
-func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, externalStructs []parse.ExternalStruct) (tmplType, error) {
-	aliasMap := map[string]string{
-		"dd::SourceTransferCap": "ccip::common::SourceTransferCap",
-		"dd::TokenParams":       "ccip::common::TokenParams",
-		"osh::DestTransferCap":  "ccip::common::DestTransferCap",
-		"osh::ReceiverParams":   "ccip::common::ReceiverParams",
-	}
-	if realParam, ok := aliasMap[s]; ok {
-		s = realParam
-	}
-
+func createGoTypeFromMove(s string, localStructs map[string]parse.Struct) (tmplType, error) {
 	switch s {
 	case "u8":
 		return tmplType{
@@ -46,7 +36,7 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 		}, nil
 	case "u256":
 		return tmplType{
-			GoType:   "uint256.Int",
+			GoType:   "*big.Int",
 			MoveType: s,
 		}, nil
 	case "bool":
@@ -59,26 +49,20 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 			GoType:   "string",
 			MoveType: s,
 		}, nil
-	case "String", "string::String", "std::string::String":
+	case "String", "string::String", "std::string::String", "0x1::string::String":
 		return tmplType{
 			GoType:   "string",
 			MoveType: "0x1::string::String",
 		}, nil
-	case "UID":
+	case "UID", "object::UID", "sui::object::UID":
 		return tmplType{
 			GoType:   "string",
 			MoveType: "sui::object::UID",
 		}, nil
 	default:
-		if isSuiObject(s) {
-			return tmplType{
-				GoType:   "bind.Object",
-				MoveType: s,
-			}, nil
-		}
 		if strings.HasPrefix(s, "vector<") && strings.HasSuffix(s, ">") {
 			innerTypeName := strings.TrimSuffix(strings.TrimPrefix(s, "vector<"), ">")
-			innerType, err := createGoTypeFromMove(innerTypeName, localStructs, externalStructs)
+			innerType, err := createGoTypeFromMove(innerTypeName, localStructs)
 			if err != nil {
 				return tmplType{}, err
 			}
@@ -88,55 +72,28 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 				MoveType: s,
 			}, nil
 		}
-		if strings.HasPrefix(s, "Option<") && strings.HasSuffix(s, ">") {
-			innerTypeName := strings.TrimSuffix(strings.TrimPrefix(s, "Option<"), ">")
-			innerType, err := createGoTypeFromMove(innerTypeName, localStructs, externalStructs)
-			if err != nil {
-				return tmplType{}, err
-			}
 
-			return tmplType{
-				GoType:   "*" + innerType.GoType,
-				MoveType: fmt.Sprintf("0x1::option::Option<%s>", innerType.MoveType),
-				Option: &tmplOption{
-					UnderlyingGoType: innerType.GoType,
-				},
-			}, nil
-		}
-		if strings.HasPrefix(s, "option::Option<") && strings.HasSuffix(s, ">") {
-			innerTypeName := strings.TrimSuffix(strings.TrimPrefix(s, "option::Option<"), ">")
-			innerType, err := createGoTypeFromMove(innerTypeName, localStructs, externalStructs)
-			if err != nil {
-				return tmplType{}, err
-			}
+		optionPrefixes := []string{"Option<", "option::Option<", "std::option::Option<", "0x1::option::Option<"}
+		for _, prefix := range optionPrefixes {
+			if strings.HasPrefix(s, prefix) && strings.HasSuffix(s, ">") {
+				innerTypeName := strings.TrimSuffix(strings.TrimPrefix(s, prefix), ">")
+				innerType, err := createGoTypeFromMove(innerTypeName, localStructs)
+				if err != nil {
+					return tmplType{}, err
+				}
 
-			return tmplType{
-				GoType:   "*" + innerType.GoType,
-				MoveType: fmt.Sprintf("0x1::option::Option<%s>", innerType.MoveType),
-				Option: &tmplOption{
-					UnderlyingGoType: innerType.GoType,
-				},
-			}, nil
-		}
-		if strings.HasPrefix(s, "std::option::Option<") && strings.HasSuffix(s, ">") {
-			innerTypeName := strings.TrimSuffix(strings.TrimPrefix(s, "std::option::Option<"), ">")
-			innerType, err := createGoTypeFromMove(innerTypeName, localStructs, externalStructs)
-			if err != nil {
-				return tmplType{}, err
+				return tmplType{
+					GoType:   "*" + innerType.GoType,
+					MoveType: fmt.Sprintf("0x1::option::Option<%s>", innerType.MoveType),
+					Option: &tmplOption{
+						UnderlyingGoType: innerType.GoType,
+					},
+				}, nil
 			}
-
-			return tmplType{
-				GoType:   "*" + innerType.GoType,
-				MoveType: fmt.Sprintf("0x1::option::Option<%s>", innerType.MoveType),
-				Option: &tmplOption{
-					UnderlyingGoType: innerType.GoType,
-				},
-			}, nil
 		}
-		// Check if local struct
+
 		baseType := stripGenericType(s)
 		if _, ok := localStructs[baseType]; ok {
-			// If it's an object, we only want the object ID (string)
 			if isSuiObjectStruct(localStructs[baseType]) {
 				return tmplType{
 					GoType:   "bind.Object",
@@ -144,60 +101,25 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct, extern
 				}, nil
 			}
 
+			// if generic struct, use the base type name without generic parameters
 			return tmplType{
-				GoType:   s,
+				GoType:   baseType,
 				MoveType: s,
 			}, nil
 		}
-		// Check if external struct
-		for _, externalStruct := range externalStructs {
-			// Type could be used as package::module::Struct, module::Struct or Struct directly, depending on the import
-			if s == fmt.Sprintf("%s::%s::%s", externalStruct.Package, externalStruct.Module, externalStruct.Name) ||
-				s == fmt.Sprintf("%s::%s", externalStruct.Module, externalStruct.Name) ||
-				s == externalStruct.Name {
-				return tmplType{
-					GoType:   fmt.Sprintf("module_%s.%s", externalStruct.Module, ToUpperCamelCase(externalStruct.Name)),
-					MoveType: s,
-					Import: &tmplImport{
-						Path:        externalStruct.ImportPath,
-						PackageName: fmt.Sprintf("module_%s", externalStruct.Module),
-					},
-				}, nil
-			}
-		}
+
+		return tmplType{
+			GoType:   "bind.Object",
+			MoveType: s,
+		}, nil
 	}
-
-	return tmplType{}, fmt.Errorf("unknown move type: %s", s)
-}
-
-// Add as needed
-var hardCodedObjectTypes = []string{
-	"TreasuryCap",
-	"CoinMetadata",
-	"Clock",
-	"Coin",
-	"MintCap",
-	"DenyCapV2",
-	"DenyList",
-	"TokenState",
-	"ID",
-	"OwnerCap<T>",
-}
-
-func isSuiObject(s string) bool {
-	for _, hardCodedType := range hardCodedObjectTypes {
-		if strings.Contains(s, hardCodedType) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func isSuiObjectStruct(s parse.Struct) bool {
 	if s.IsEvent {
 		return false
 	}
+
 	for _, field := range s.Fields {
 		if field.Name == "id" && field.Type == "UID" {
 			return true
@@ -213,4 +135,52 @@ func stripGenericType(s string) string {
 	}
 
 	return s
+}
+
+func containsGenericTypeParam(moveType string, typeParams []string) bool {
+	// check if the type itself is a type parameter
+	for _, param := range typeParams {
+		if moveType == param {
+			return true
+		}
+	}
+
+	// check for generic in vectors and structs
+	if idx := strings.Index(moveType, "<"); idx > 0 {
+		typeParamsStr := moveType[idx+1 : len(moveType)-1]
+		params := splitTypeParams(typeParamsStr)
+		for _, param := range params {
+			if containsGenericTypeParam(strings.TrimSpace(param), typeParams) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func splitTypeParams(params string) []string {
+	var result []string
+	var current strings.Builder
+	depth := 0
+
+	for _, ch := range params {
+		if ch == '<' {
+			depth++
+		} else if ch == '>' {
+			depth--
+		} else if ch == ',' && depth == 0 {
+			result = append(result, strings.TrimSpace(current.String()))
+			current.Reset()
+
+			continue
+		}
+		current.WriteRune(ch)
+	}
+
+	if current.Len() > 0 {
+		result = append(result, strings.TrimSpace(current.String()))
+	}
+
+	return result
 }

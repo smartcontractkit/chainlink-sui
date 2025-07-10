@@ -19,10 +19,11 @@ type DeployLinkObjects struct {
 }
 
 var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyInput) (output sui_ops.OpTxResult[DeployLinkObjects], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	mcmsPackage, tx, err := link.PublishLinkToken(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 	)
 	if err != nil {
@@ -30,16 +31,23 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 	}
 
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "coin", "CoinMetadata")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "coin", "TreasuryCap")
-	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
+	if err1 != nil {
+		return sui_ops.OpTxResult[DeployLinkObjects]{}, fmt.Errorf("failed to find CoinMetadata object ID in publish tx: %w", err1)
+	}
 
-	if err1 != nil || err2 != nil || err3 != nil {
-		return sui_ops.OpTxResult[DeployLinkObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
+	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "coin", "TreasuryCap")
+	if err2 != nil {
+		return sui_ops.OpTxResult[DeployLinkObjects]{}, fmt.Errorf("failed to find TreasuryCap object ID in publish tx: %w", err2)
+	}
+
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
+	if err3 != nil {
+		return sui_ops.OpTxResult[DeployLinkObjects]{}, fmt.Errorf("failed to find UpgradeCap object ID in publish tx: %w", err3)
 	}
 
 	return sui_ops.OpTxResult[DeployLinkObjects]{
-		Digest:    tx.Digest.String(),
-		PackageId: mcmsPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: mcmsPackage.Address(),
 		Objects: DeployLinkObjects{
 			CoinMetadataObjectId: obj1,
 			TreasuryCapObjectId:  obj2,

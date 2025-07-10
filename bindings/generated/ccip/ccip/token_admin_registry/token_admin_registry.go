@@ -8,84 +8,181 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/holiman/uint256"
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/sui/suiptb"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	module_common "github.com/smartcontractkit/chainlink-sui/bindings/common"
 )
 
-// Unused vars used for unused imports
 var (
 	_ = big.NewInt
-	_ = uint256.NewInt
 )
 
 type ITokenAdminRegistry interface {
-	TypeAndVersion() bind.IMethod
-	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod
-	GetPools(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod
-	GetPoolInfos(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod
-	GetPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
-	GetTokenConfig(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
-	GetAllConfiguredTokens(ref module_common.CCIPObjectRef, startKey string, maxCount uint64) bind.IMethod
-	UnregisterPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
-	TransferAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string, newAdmin string) bind.IMethod
-	AcceptAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod
-	IsAdministrator(ref module_common.CCIPObjectRef, coinMetadataAddress string, administrator string) bind.IMethod
-	// Connect adds/changes the client used in the contract
-	Connect(client suiclient.ClientImpl)
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetPools(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (*models.SuiTransactionBlockResponse, error)
+	GetPoolInfos(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (*models.SuiTransactionBlockResponse, error)
+	GetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
+	GetTokenConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
+	GetAllConfiguredTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object, startKey string, maxCount uint64) (*models.SuiTransactionBlockResponse, error)
+	RegisterPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterPoolByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	UnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
+	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	TransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, newAdmin string) (*models.SuiTransactionBlockResponse, error)
+	AcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
+	IsAdministrator(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, administrator string) (*models.SuiTransactionBlockResponse, error)
+	DevInspect() ITokenAdminRegistryDevInspect
+	Encoder() TokenAdminRegistryEncoder
+}
+
+type ITokenAdminRegistryDevInspect interface {
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
+	GetPools(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) ([]string, error)
+	GetPoolInfos(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (PoolInfos, error)
+	GetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (string, error)
+	GetTokenConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) ([]any, error)
+	GetAllConfiguredTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object, startKey string, maxCount uint64) ([]any, error)
+	IsAdministrator(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, administrator string) (bool, error)
+}
+
+type TokenAdminRegistryEncoder interface {
+	TypeAndVersion() (*bind.EncodedCall, error)
+	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
+	Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error)
+	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetPools(ref bind.Object, coinMetadataAddresses []string) (*bind.EncodedCall, error)
+	GetPoolsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetPoolInfos(ref bind.Object, coinMetadataAddresses []string) (*bind.EncodedCall, error)
+	GetPoolInfosWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
+	GetPoolWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenConfig(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
+	GetTokenConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetAllConfiguredTokens(ref bind.Object, startKey string, maxCount uint64) (*bind.EncodedCall, error)
+	GetAllConfiguredTokensWithArgs(args ...any) (*bind.EncodedCall, error)
+	RegisterPool(typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error)
+	RegisterPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	RegisterPoolByAdmin(ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error)
+	RegisterPoolByAdminWithArgs(args ...any) (*bind.EncodedCall, error)
+	UnregisterPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
+	UnregisterPoolWithArgs(args ...any) (*bind.EncodedCall, error)
+	SetPool(typeArgs []string, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, param bind.Object) (*bind.EncodedCall, error)
+	SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	TransferAdminRole(ref bind.Object, coinMetadataAddress string, newAdmin string) (*bind.EncodedCall, error)
+	TransferAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
+	AcceptAdminRole(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
+	AcceptAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
+	IsAdministrator(ref bind.Object, coinMetadataAddress string, administrator string) (*bind.EncodedCall, error)
+	IsAdministratorWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type TokenAdminRegistryContract struct {
-	packageID *sui.Address
-	client    suiclient.ClientImpl
+	*bind.BoundContract
+	tokenAdminRegistryEncoder
+	devInspect *TokenAdminRegistryDevInspect
+}
+
+type TokenAdminRegistryDevInspect struct {
+	contract *TokenAdminRegistryContract
 }
 
 var _ ITokenAdminRegistry = (*TokenAdminRegistryContract)(nil)
+var _ ITokenAdminRegistryDevInspect = (*TokenAdminRegistryDevInspect)(nil)
 
-func NewTokenAdminRegistry(packageID string, client suiclient.ClientImpl) (*TokenAdminRegistryContract, error) {
-	pkgObjectId, err := bind.ToSuiAddress(packageID)
+func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (*TokenAdminRegistryContract, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "token_admin_registry", client)
 	if err != nil {
-		return nil, fmt.Errorf("package ID is not a Sui address: %w", err)
+		return nil, err
 	}
 
-	return &TokenAdminRegistryContract{
-		packageID: pkgObjectId,
-		client:    client,
-	}, nil
+	c := &TokenAdminRegistryContract{
+		BoundContract:             contract,
+		tokenAdminRegistryEncoder: tokenAdminRegistryEncoder{BoundContract: contract},
+	}
+	c.devInspect = &TokenAdminRegistryDevInspect{contract: c}
+	return c, nil
 }
 
-func (c *TokenAdminRegistryContract) Connect(client suiclient.ClientImpl) {
-	c.client = client
+func (c *TokenAdminRegistryContract) Encoder() TokenAdminRegistryEncoder {
+	return c.tokenAdminRegistryEncoder
 }
 
-// Structs
+func (c *TokenAdminRegistryContract) DevInspect() ITokenAdminRegistryDevInspect {
+	return c.devInspect
+}
+
+func (c *TokenAdminRegistryContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
+	var callArgManager *bind.CallArgManager
+	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
+		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
+		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
+	} else {
+		callArgManager = bind.NewCallArgManager()
+	}
+
+	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
+	}
+
+	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
+
+	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
+	for i, tag := range encoded.TypeArgs {
+		if tag != nil {
+			typeTagValues[i] = *tag
+		}
+	}
+
+	argumentValues := make([]transaction.Argument, len(arguments))
+	for i, arg := range arguments {
+		if arg != nil {
+			argumentValues[i] = *arg
+		}
+	}
+
+	result := ptb.MoveCall(
+		models.SuiAddress(encoded.Module.PackageID),
+		encoded.Module.ModuleName,
+		encoded.Function,
+		typeTagValues,
+		argumentValues,
+	)
+
+	return &result, nil
+}
 
 type TokenAdminRegistryState struct {
-	Id string `move:"sui::object::UID"`
+	Id           string      `move:"sui::object::UID"`
+	TokenConfigs bind.Object `move:"LinkedTable<address, TokenConfig>"`
 }
 
 type TokenConfig struct {
-	TokenPoolPackageId    string `move:"address"`
-	TokenPoolStateAddress string `move:"address"`
-	TokenPoolModule       string `move:"0x1::string::String"`
-	Administrator         string `move:"address"`
-	PendingAdministrator  string `move:"address"`
+	TokenPoolPackageId    string      `move:"address"`
+	TokenPoolStateAddress string      `move:"address"`
+	TokenPoolModule       string      `move:"0x1::string::String"`
+	TokenType             bind.Object `move:"ascii::String"`
+	Administrator         string      `move:"address"`
+	PendingAdministrator  string      `move:"address"`
+	TypeProof             bind.Object `move:"ascii::String"`
 }
 
 type PoolSet struct {
-	CoinMetadataAddress   string `move:"address"`
-	PreviousPoolPackageId string `move:"address"`
-	NewPoolPackageId      string `move:"address"`
+	CoinMetadataAddress   string      `move:"address"`
+	PreviousPoolPackageId string      `move:"address"`
+	NewPoolPackageId      string      `move:"address"`
+	TypeProof             bind.Object `move:"ascii::String"`
 }
 
 type PoolRegistered struct {
-	CoinMetadataAddress string `move:"address"`
-	TokenPoolPackageId  string `move:"address"`
-	Administrator       string `move:"address"`
+	CoinMetadataAddress string      `move:"address"`
+	TokenPoolPackageId  string      `move:"address"`
+	Administrator       string      `move:"address"`
+	TypeProof           bind.Object `move:"ascii::String"`
 }
 
 type PoolUnregistered struct {
@@ -105,163 +202,1005 @@ type AdministratorTransferred struct {
 }
 
 type PoolInfos struct {
-	TokenPoolPackageIds     []string `move:"vector<address>"`
-	TokenPoolStateAddresses []string `move:"vector<address>"`
-	TokenPoolModules        []string `move:"vector<String>"`
+	TokenPoolPackageIds     []string      `move:"vector<address>"`
+	TokenPoolStateAddresses []string      `move:"vector<address>"`
+	TokenPoolModules        []string      `move:"vector<String>"`
+	TokenTypes              []bind.Object `move:"vector<ascii::String>"`
 }
 
-// Functions
-
-func (c *TokenAdminRegistryContract) TypeAndVersion() bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "type_and_version", false, "", "")
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "type_and_version", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsTokenConfig struct {
+	TokenPoolPackageId    [32]byte
+	TokenPoolStateAddress [32]byte
+	TokenPoolModule       string
+	TokenType             bind.Object
+	Administrator         [32]byte
+	PendingAdministrator  [32]byte
+	TypeProof             bind.Object
 }
 
-func (c *TokenAdminRegistryContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "initialize", false, "", "", ref, param)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "initialize", err)
-		}
-
-		return ptb, nil
+func convertTokenConfigFromBCS(bcs bcsTokenConfig) TokenConfig {
+	return TokenConfig{
+		TokenPoolPackageId:    fmt.Sprintf("0x%x", bcs.TokenPoolPackageId),
+		TokenPoolStateAddress: fmt.Sprintf("0x%x", bcs.TokenPoolStateAddress),
+		TokenPoolModule:       bcs.TokenPoolModule,
+		TokenType:             bcs.TokenType,
+		Administrator:         fmt.Sprintf("0x%x", bcs.Administrator),
+		PendingAdministrator:  fmt.Sprintf("0x%x", bcs.PendingAdministrator),
+		TypeProof:             bcs.TypeProof,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenAdminRegistryContract) GetPools(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pools", false, "", "", ref, coinMetadataAddresses)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pools", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsPoolSet struct {
+	CoinMetadataAddress   [32]byte
+	PreviousPoolPackageId [32]byte
+	NewPoolPackageId      [32]byte
+	TypeProof             bind.Object
 }
 
-func (c *TokenAdminRegistryContract) GetPoolInfos(ref module_common.CCIPObjectRef, coinMetadataAddresses []string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pool_infos", false, "", "", ref, coinMetadataAddresses)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pool_infos", err)
-		}
-
-		return ptb, nil
+func convertPoolSetFromBCS(bcs bcsPoolSet) PoolSet {
+	return PoolSet{
+		CoinMetadataAddress:   fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
+		PreviousPoolPackageId: fmt.Sprintf("0x%x", bcs.PreviousPoolPackageId),
+		NewPoolPackageId:      fmt.Sprintf("0x%x", bcs.NewPoolPackageId),
+		TypeProof:             bcs.TypeProof,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenAdminRegistryContract) GetPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_pool", false, "", "", ref, coinMetadataAddress)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_pool", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsPoolRegistered struct {
+	CoinMetadataAddress [32]byte
+	TokenPoolPackageId  [32]byte
+	Administrator       [32]byte
+	TypeProof           bind.Object
 }
 
-func (c *TokenAdminRegistryContract) GetTokenConfig(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_token_config", false, "", "", ref, coinMetadataAddress)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_token_config", err)
-		}
-
-		return ptb, nil
+func convertPoolRegisteredFromBCS(bcs bcsPoolRegistered) PoolRegistered {
+	return PoolRegistered{
+		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
+		TokenPoolPackageId:  fmt.Sprintf("0x%x", bcs.TokenPoolPackageId),
+		Administrator:       fmt.Sprintf("0x%x", bcs.Administrator),
+		TypeProof:           bcs.TypeProof,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenAdminRegistryContract) GetAllConfiguredTokens(ref module_common.CCIPObjectRef, startKey string, maxCount uint64) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "get_all_configured_tokens", false, "", "", ref, startKey, maxCount)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "get_all_configured_tokens", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsPoolUnregistered struct {
+	CoinMetadataAddress [32]byte
+	PreviousPoolAddress [32]byte
 }
 
-func (c *TokenAdminRegistryContract) UnregisterPool(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "unregister_pool", false, "", "", ref, coinMetadataAddress)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "unregister_pool", err)
-		}
-
-		return ptb, nil
+func convertPoolUnregisteredFromBCS(bcs bcsPoolUnregistered) PoolUnregistered {
+	return PoolUnregistered{
+		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
+		PreviousPoolAddress: fmt.Sprintf("0x%x", bcs.PreviousPoolAddress),
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenAdminRegistryContract) TransferAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string, newAdmin string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "transfer_admin_role", false, "", "", ref, coinMetadataAddress, newAdmin)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "transfer_admin_role", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsAdministratorTransferRequested struct {
+	CoinMetadataAddress [32]byte
+	CurrentAdmin        [32]byte
+	NewAdmin            [32]byte
 }
 
-func (c *TokenAdminRegistryContract) AcceptAdminRole(ref module_common.CCIPObjectRef, coinMetadataAddress string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "accept_admin_role", false, "", "", ref, coinMetadataAddress)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "accept_admin_role", err)
-		}
-
-		return ptb, nil
+func convertAdministratorTransferRequestedFromBCS(bcs bcsAdministratorTransferRequested) AdministratorTransferRequested {
+	return AdministratorTransferRequested{
+		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
+		CurrentAdmin:        fmt.Sprintf("0x%x", bcs.CurrentAdmin),
+		NewAdmin:            fmt.Sprintf("0x%x", bcs.NewAdmin),
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *TokenAdminRegistryContract) IsAdministrator(ref module_common.CCIPObjectRef, coinMetadataAddress string, administrator string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "token_admin_registry", "is_administrator", false, "", "", ref, coinMetadataAddress, administrator)
+type bcsAdministratorTransferred struct {
+	CoinMetadataAddress [32]byte
+	NewAdmin            [32]byte
+}
+
+func convertAdministratorTransferredFromBCS(bcs bcsAdministratorTransferred) AdministratorTransferred {
+	return AdministratorTransferred{
+		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
+		NewAdmin:            fmt.Sprintf("0x%x", bcs.NewAdmin),
+	}
+}
+
+type bcsPoolInfos struct {
+	TokenPoolPackageIds     [][32]byte
+	TokenPoolStateAddresses [][32]byte
+	TokenPoolModules        []string
+	TokenTypes              []bind.Object
+}
+
+func convertPoolInfosFromBCS(bcs bcsPoolInfos) PoolInfos {
+	return PoolInfos{
+		TokenPoolPackageIds: func() []string {
+			addrs := make([]string, len(bcs.TokenPoolPackageIds))
+			for i, addr := range bcs.TokenPoolPackageIds {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		TokenPoolStateAddresses: func() []string {
+			addrs := make([]string, len(bcs.TokenPoolStateAddresses))
+			for i, addr := range bcs.TokenPoolStateAddresses {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		TokenPoolModules: bcs.TokenPoolModules,
+		TokenTypes:       bcs.TokenTypes,
+	}
+}
+
+func init() {
+	bind.RegisterStructDecoder("ccip::token_admin_registry::TokenAdminRegistryState", func(data []byte) (interface{}, error) {
+		var result TokenAdminRegistryState
+		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "token_admin_registry", "is_administrator", err)
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::TokenConfig", func(data []byte) (interface{}, error) {
+		var temp bcsTokenConfig
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
 		}
 
-		return ptb, nil
+		result := convertTokenConfigFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolSet", func(data []byte) (interface{}, error) {
+		var temp bcsPoolSet
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertPoolSetFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolRegistered", func(data []byte) (interface{}, error) {
+		var temp bcsPoolRegistered
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertPoolRegisteredFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolUnregistered", func(data []byte) (interface{}, error) {
+		var temp bcsPoolUnregistered
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertPoolUnregisteredFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferRequested", func(data []byte) (interface{}, error) {
+		var temp bcsAdministratorTransferRequested
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertAdministratorTransferRequestedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferred", func(data []byte) (interface{}, error) {
+		var temp bcsAdministratorTransferred
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertAdministratorTransferredFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolInfos", func(data []byte) (interface{}, error) {
+		var temp bcsPoolInfos
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertPoolInfosFromBCS(temp)
+		return result, nil
+	})
+}
+
+// TypeAndVersion executes the type_and_version Move function.
+func (c *TokenAdminRegistryContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.TypeAndVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// Initialize executes the initialize Move function.
+func (c *TokenAdminRegistryContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.Initialize(ref, param)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetPools executes the get_pools Move function.
+func (c *TokenAdminRegistryContract) GetPools(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.GetPools(ref, coinMetadataAddresses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetPoolInfos executes the get_pool_infos Move function.
+func (c *TokenAdminRegistryContract) GetPoolInfos(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.GetPoolInfos(ref, coinMetadataAddresses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetPool executes the get_pool Move function.
+func (c *TokenAdminRegistryContract) GetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.GetPool(ref, coinMetadataAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetTokenConfig executes the get_token_config Move function.
+func (c *TokenAdminRegistryContract) GetTokenConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.GetTokenConfig(ref, coinMetadataAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetAllConfiguredTokens executes the get_all_configured_tokens Move function.
+func (c *TokenAdminRegistryContract) GetAllConfiguredTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object, startKey string, maxCount uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.GetAllConfiguredTokens(ref, startKey, maxCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// RegisterPool executes the register_pool Move function.
+func (c *TokenAdminRegistryContract) RegisterPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.RegisterPool(typeArgs, ref, param, coinMetadata, tokenPoolPackageId, tokenPoolStateAddress, tokenPoolModule, initialAdministrator, proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// RegisterPoolByAdmin executes the register_pool_by_admin Move function.
+func (c *TokenAdminRegistryContract) RegisterPoolByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.RegisterPoolByAdmin(ref, coinMetadataAddress, tokenPoolPackageId, tokenPoolStateAddress, tokenPoolModule, tokenType, initialAdministrator, proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// UnregisterPool executes the unregister_pool Move function.
+func (c *TokenAdminRegistryContract) UnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.UnregisterPool(ref, coinMetadataAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// SetPool executes the set_pool Move function.
+func (c *TokenAdminRegistryContract) SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.SetPool(typeArgs, ref, coinMetadataAddress, tokenPoolPackageId, tokenPoolStateAddress, tokenPoolModule, param)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// TransferAdminRole executes the transfer_admin_role Move function.
+func (c *TokenAdminRegistryContract) TransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, newAdmin string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.TransferAdminRole(ref, coinMetadataAddress, newAdmin)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AcceptAdminRole executes the accept_admin_role Move function.
+func (c *TokenAdminRegistryContract) AcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.AcceptAdminRole(ref, coinMetadataAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// IsAdministrator executes the is_administrator Move function.
+func (c *TokenAdminRegistryContract) IsAdministrator(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, administrator string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.IsAdministrator(ref, coinMetadataAddress, administrator)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
+//
+// Returns: 0x1::string::String
+func (d *TokenAdminRegistryDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.TypeAndVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetPools executes the get_pools Move function using DevInspect to get return values.
+//
+// Returns: vector<address>
+func (d *TokenAdminRegistryDevInspect) GetPools(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) ([]string, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.GetPools(ref, coinMetadataAddresses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetPoolInfos executes the get_pool_infos Move function using DevInspect to get return values.
+//
+// Returns: PoolInfos
+func (d *TokenAdminRegistryDevInspect) GetPoolInfos(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (PoolInfos, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.GetPoolInfos(ref, coinMetadataAddresses)
+	if err != nil {
+		return PoolInfos{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return PoolInfos{}, err
+	}
+	if len(results) == 0 {
+		return PoolInfos{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(PoolInfos)
+	if !ok {
+		return PoolInfos{}, fmt.Errorf("unexpected return type: expected PoolInfos, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetPool executes the get_pool Move function using DevInspect to get return values.
+//
+// Returns: address
+func (d *TokenAdminRegistryDevInspect) GetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (string, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.GetPool(ref, coinMetadataAddress)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenConfig executes the get_token_config Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: address
+//	[1]: address
+//	[2]: 0x1::string::String
+//	[3]: ascii::String
+//	[4]: address
+//	[5]: address
+//	[6]: ascii::String
+func (d *TokenAdminRegistryDevInspect) GetTokenConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) ([]any, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.GetTokenConfig(ref, coinMetadataAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+// GetAllConfiguredTokens executes the get_all_configured_tokens Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: vector<address>
+//	[1]: address
+//	[2]: bool
+func (d *TokenAdminRegistryDevInspect) GetAllConfiguredTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object, startKey string, maxCount uint64) ([]any, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.GetAllConfiguredTokens(ref, startKey, maxCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+// IsAdministrator executes the is_administrator Move function using DevInspect to get return values.
+//
+// Returns: bool
+func (d *TokenAdminRegistryDevInspect) IsAdministrator(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, administrator string) (bool, error) {
+	encoded, err := d.contract.tokenAdminRegistryEncoder.IsAdministrator(ref, coinMetadataAddress, administrator)
+	if err != nil {
+		return false, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return false, err
+	}
+	if len(results) == 0 {
+		return false, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bool)
+	if !ok {
+		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+type tokenAdminRegistryEncoder struct {
+	*bind.BoundContract
+}
+
+// TypeAndVersion encodes a call to the type_and_version Move function.
+func (c tokenAdminRegistryEncoder) TypeAndVersion() (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, []string{}, []any{}, []string{
+		"0x1::string::String",
+	})
+}
+
+// TypeAndVersionWithArgs encodes a call to the type_and_version Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::string::String",
+	})
+}
+
+// Initialize encodes a call to the initialize Move function.
+func (c tokenAdminRegistryEncoder) Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+	}, []any{
+		ref,
+		param,
+	}, nil)
+}
+
+// InitializeWithArgs encodes a call to the initialize Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetPools encodes a call to the get_pools Move function.
+func (c tokenAdminRegistryEncoder) GetPools(ref bind.Object, coinMetadataAddresses []string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_pools", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"vector<address>",
+	}, []any{
+		ref,
+		coinMetadataAddresses,
+	}, []string{
+		"vector<address>",
+	})
+}
+
+// GetPoolsWithArgs encodes a call to the get_pools Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) GetPoolsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"vector<address>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_pools", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<address>",
+	})
+}
+
+// GetPoolInfos encodes a call to the get_pool_infos Move function.
+func (c tokenAdminRegistryEncoder) GetPoolInfos(ref bind.Object, coinMetadataAddresses []string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_pool_infos", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"vector<address>",
+	}, []any{
+		ref,
+		coinMetadataAddresses,
+	}, []string{
+		"ccip::token_admin_registry::PoolInfos",
+	})
+}
+
+// GetPoolInfosWithArgs encodes a call to the get_pool_infos Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) GetPoolInfosWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"vector<address>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_pool_infos", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::token_admin_registry::PoolInfos",
+	})
+}
+
+// GetPool encodes a call to the get_pool Move function.
+func (c tokenAdminRegistryEncoder) GetPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_pool", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+	}, []string{
+		"address",
+	})
+}
+
+// GetPoolWithArgs encodes a call to the get_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) GetPoolWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_pool", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
+	})
+}
+
+// GetTokenConfig encodes a call to the get_token_config Move function.
+func (c tokenAdminRegistryEncoder) GetTokenConfig(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+	}, []string{
+		"address",
+		"address",
+		"0x1::string::String",
+		"ascii::String",
+		"address",
+		"address",
+		"ascii::String",
+	})
+}
+
+// GetTokenConfigWithArgs encodes a call to the get_token_config Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) GetTokenConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_config", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
+		"address",
+		"0x1::string::String",
+		"ascii::String",
+		"address",
+		"address",
+		"ascii::String",
+	})
+}
+
+// GetAllConfiguredTokens encodes a call to the get_all_configured_tokens Move function.
+func (c tokenAdminRegistryEncoder) GetAllConfiguredTokens(ref bind.Object, startKey string, maxCount uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_all_configured_tokens", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+		"u64",
+	}, []any{
+		ref,
+		startKey,
+		maxCount,
+	}, []string{
+		"vector<address>",
+		"address",
+		"bool",
+	})
+}
+
+// GetAllConfiguredTokensWithArgs encodes a call to the get_all_configured_tokens Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) GetAllConfiguredTokensWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_all_configured_tokens", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<address>",
+		"address",
+		"bool",
+	})
+}
+
+// RegisterPool encodes a call to the register_pool Move function.
+func (c tokenAdminRegistryEncoder) RegisterPool(typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+		"TypeProof",
+	}
+	return c.EncodeCallArgsWithGenerics("register_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&TreasuryCap<T>",
+		"&CoinMetadata<T>",
+		"address",
+		"address",
+		"String",
+		"address",
+		"TypeProof",
+	}, []any{
+		ref,
+		param,
+		coinMetadata,
+		tokenPoolPackageId,
+		tokenPoolStateAddress,
+		tokenPoolModule,
+		initialAdministrator,
+		proof,
+	}, nil)
+}
+
+// RegisterPoolWithArgs encodes a call to the register_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) RegisterPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&TreasuryCap<T>",
+		"&CoinMetadata<T>",
+		"address",
+		"address",
+		"String",
+		"address",
+		"TypeProof",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+		"TypeProof",
+	}
+	return c.EncodeCallArgsWithGenerics("register_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// RegisterPoolByAdmin encodes a call to the register_pool_by_admin Move function.
+func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_pool_by_admin", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+		"address",
+		"String",
+		"ascii::String",
+		"address",
+		"ascii::String",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+		tokenPoolPackageId,
+		tokenPoolStateAddress,
+		tokenPoolModule,
+		tokenType,
+		initialAdministrator,
+		proof,
+	}, nil)
+}
+
+// RegisterPoolByAdminWithArgs encodes a call to the register_pool_by_admin Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) RegisterPoolByAdminWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+		"address",
+		"String",
+		"ascii::String",
+		"address",
+		"ascii::String",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("register_pool_by_admin", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// UnregisterPool encodes a call to the unregister_pool Move function.
+func (c tokenAdminRegistryEncoder) UnregisterPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("unregister_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"address",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+	}, nil)
+}
+
+// UnregisterPoolWithArgs encodes a call to the unregister_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) UnregisterPoolWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("unregister_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// SetPool encodes a call to the set_pool Move function.
+func (c tokenAdminRegistryEncoder) SetPool(typeArgs []string, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, param bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"TypeProof",
+	}
+	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+		"address",
+		"String",
+		"TypeProof",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+		tokenPoolPackageId,
+		tokenPoolStateAddress,
+		tokenPoolModule,
+		param,
+	}, nil)
+}
+
+// SetPoolWithArgs encodes a call to the set_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+		"address",
+		"String",
+		"TypeProof",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"TypeProof",
+	}
+	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// TransferAdminRole encodes a call to the transfer_admin_role Move function.
+func (c tokenAdminRegistryEncoder) TransferAdminRole(ref bind.Object, coinMetadataAddress string, newAdmin string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("transfer_admin_role", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+		newAdmin,
+	}, nil)
+}
+
+// TransferAdminRoleWithArgs encodes a call to the transfer_admin_role Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) TransferAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"address",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("transfer_admin_role", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// AcceptAdminRole encodes a call to the accept_admin_role Move function.
+func (c tokenAdminRegistryEncoder) AcceptAdminRole(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_admin_role", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"address",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+	}, nil)
+}
+
+// AcceptAdminRoleWithArgs encodes a call to the accept_admin_role Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) AcceptAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_admin_role", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// IsAdministrator encodes a call to the is_administrator Move function.
+func (c tokenAdminRegistryEncoder) IsAdministrator(ref bind.Object, coinMetadataAddress string, administrator string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("is_administrator", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+		"address",
+	}, []any{
+		ref,
+		coinMetadataAddress,
+		administrator,
+	}, []string{
+		"bool",
+	})
+}
+
+// IsAdministratorWithArgs encodes a call to the is_administrator Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) IsAdministratorWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("is_administrator", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"bool",
+	})
 }

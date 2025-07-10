@@ -29,12 +29,15 @@ var initRMNRemoteHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input I
 		return sui_ops.OpTxResult[InitRMNRemoteObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	method := contract.Initialize(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Initialize(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.LocalChainSelector,
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitRMNRemoteObjects]{}, fmt.Errorf("failed to execute RMN Remote initialization: %w", err)
 	}
@@ -45,7 +48,7 @@ var initRMNRemoteHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input I
 	}
 
 	return sui_ops.OpTxResult[InitRMNRemoteObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects: InitRMNRemoteObjects{
 			RMNRemoteStateObjectId: obj1,
@@ -76,7 +79,11 @@ var handlerSetconfig = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRe
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
 
-	method := contract.SetConfig(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.SetConfig(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.RmnHomeContractConfigDigest,
@@ -84,13 +91,12 @@ var handlerSetconfig = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRe
 		input.NodeIndexes,
 		input.FSign,
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute set config in RMN Remote: %w", err)
 	}
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   NoObjects{},
 	}, err

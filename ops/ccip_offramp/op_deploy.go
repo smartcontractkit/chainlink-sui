@@ -25,10 +25,11 @@ type DeployCCIPOffRampInput struct {
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPOffRampInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	offRampPackage, tx, err := offramp.PublishOfframp(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 		input.CCIPPackageId,
 		input.MCMSPackageId,
@@ -46,8 +47,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	}
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
-		Digest:    tx.Digest.String(),
-		PackageId: offRampPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: offRampPackage.Address(),
 		Objects: DeployCCIPOffRampObjects{
 			OwnerCapObjectId:         obj1,
 			CCIPOffRampStateObjectId: obj2,
@@ -75,7 +76,11 @@ var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
 
-	call := offRampPackage.Initialize(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.Initialize(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.OffRampStateId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.FeeQuoterCapId},
@@ -87,14 +92,12 @@ var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 		input.SourceChainsIsRMNVerificationDisabled,
 		input.SourceChainsOnRamp,
 	)
-
-	tx, err := call.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute Offramp initialization: %w", err)
 	}
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.OffRampPackageId,
 		Objects:   DeployCCIPOffRampObjects{},
 	}, err
@@ -118,7 +121,11 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
 
-	call := offRampPackage.SetOcr3Config(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.SetOcr3Config(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.OffRampStateId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.ConfigDigest,
@@ -128,14 +135,12 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 		input.Signers,
 		input.Transmitters,
 	)
-
-	tx, err := call.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute set ocr3 config in offramp: %w", err)
 	}
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.OffRampPackageId,
 		Objects:   DeployCCIPOffRampObjects{},
 	}, err

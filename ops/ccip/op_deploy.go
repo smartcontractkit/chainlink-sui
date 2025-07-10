@@ -29,10 +29,11 @@ type DeployCCIPInput struct {
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPInput) (output sui_ops.OpTxResult[DeployCCIPObjects], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	ccipPackage, tx, err := ccip.PublishCCIP(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 		input.McmsPackageId,
 		input.McmsOwner,
@@ -55,8 +56,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	b.Logger.Infow("CCIP package deployed", "packageId", ccipPackage.Address())
 
 	return sui_ops.OpTxResult[DeployCCIPObjects]{
-		Digest:    tx.Digest.String(),
-		PackageId: ccipPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: ccipPackage.Address(),
 		Objects: DeployCCIPObjects{
 			OwnerCapObjectId:             obj1,
 			CCIPObjectRefPointerObjectId: obj2,

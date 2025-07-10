@@ -8,81 +8,206 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/holiman/uint256"
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/sui/suiptb"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	module_common "github.com/smartcontractkit/chainlink-sui/bindings/common"
 )
 
-// Unused vars used for unused imports
 var (
 	_ = big.NewInt
-	_ = uint256.NewInt
 )
 
 type IFeeQuoter interface {
-	TypeAndVersion() bind.IMethod
-	Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg uint256.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod
-	GetTokenPrice(ref module_common.CCIPObjectRef, token string) bind.IMethod
-	GetTimestampedPriceFields(tp TimestampedPrice) bind.IMethod
-	GetTokenPrices(ref module_common.CCIPObjectRef, tokens []string) bind.IMethod
-	GetDestChainGasPrice(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod
-	GetTokenAndGasPrices(ref module_common.CCIPObjectRef, clock bind.Object, token string, destChainSelector uint64) bind.IMethod
-	ConvertTokenAmount(ref module_common.CCIPObjectRef, fromToken string, fromTokenAmount uint64, toToken string) bind.IMethod
-	GetFeeTokens(ref module_common.CCIPObjectRef) bind.IMethod
-	ApplyFeeTokenUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, feeTokensToRemove []string, feeTokensToAdd []string) bind.IMethod
-	GetTokenTransferFeeConfig(ref module_common.CCIPObjectRef, destChainSelector uint64, token string) bind.IMethod
-	ApplyTokenTransferFeeConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) bind.IMethod
-	UpdatePrices(ref module_common.CCIPObjectRef, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []uint256.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []uint256.Int) bind.IMethod
-	GetValidatedFee(ref module_common.CCIPObjectRef, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) bind.IMethod
-	ApplyPremiumMultiplierWeiPerEthUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, tokens []string, premiumMultiplierWeiPerEth []uint64) bind.IMethod
-	GetPremiumMultiplierWeiPerEth(ref module_common.CCIPObjectRef, token string) bind.IMethod
-	GetTokenReceiver(ref module_common.CCIPObjectRef, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) bind.IMethod
-	ProcessMessageArgs(ref module_common.CCIPObjectRef, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) bind.IMethod
-	GetDestChainConfig(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod
-	GetDestChainConfigFields(destChainConfig DestChainConfig) bind.IMethod
-	ApplyDestChainConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) bind.IMethod
-	GetStaticConfig(ref module_common.CCIPObjectRef) bind.IMethod
-	GetStaticConfigFields(cfg StaticConfig) bind.IMethod
-	GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) bind.IMethod
-	// Connect adds/changes the client used in the contract
-	Connect(client suiclient.ClientImpl)
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
+	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
+	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error)
+	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error)
+	GetDestChainGasPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	GetTokenAndGasPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, token string, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	ConvertTokenAmount(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fromToken string, fromTokenAmount uint64, toToken string) (*models.SuiTransactionBlockResponse, error)
+	GetFeeTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error)
+	GetTokenTransferFeeConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error)
+	ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error)
+	UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error)
+	GetValidatedFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
+	ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error)
+	GetPremiumMultiplierWeiPerEth(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
+	GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) (*models.SuiTransactionBlockResponse, error)
+	ProcessMessageArgs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) (*models.SuiTransactionBlockResponse, error)
+	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error)
+	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error)
+	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
+	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error)
+	DevInspect() IFeeQuoterDevInspect
+	Encoder() FeeQuoterEncoder
+}
+
+type IFeeQuoterDevInspect interface {
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
+	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (TimestampedPrice, error)
+	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) ([]any, error)
+	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) ([]TimestampedPrice, error)
+	GetDestChainGasPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (TimestampedPrice, error)
+	GetTokenAndGasPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, token string, destChainSelector uint64) ([]any, error)
+	ConvertTokenAmount(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fromToken string, fromTokenAmount uint64, toToken string) (uint64, error)
+	GetFeeTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]string, error)
+	GetTokenTransferFeeConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, token string) (TokenTransferFeeConfig, error)
+	GetValidatedFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (uint64, error)
+	GetPremiumMultiplierWeiPerEth(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (uint64, error)
+	GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) ([]byte, error)
+	ProcessMessageArgs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) ([]any, error)
+	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (DestChainConfig, error)
+	GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) ([]any, error)
+	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (StaticConfig, error)
+	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) ([]any, error)
+	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) ([]any, error)
+}
+
+type FeeQuoterEncoder interface {
+	TypeAndVersion() (*bind.EncodedCall, error)
+	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
+	Initialize(ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error)
+	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error)
+	GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTimestampedPriceFields(tp TimestampedPrice) (*bind.EncodedCall, error)
+	GetTimestampedPriceFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenPrices(ref bind.Object, tokens []string) (*bind.EncodedCall, error)
+	GetTokenPricesWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetDestChainGasPrice(ref bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
+	GetDestChainGasPriceWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenAndGasPrices(ref bind.Object, clock bind.Object, token string, destChainSelector uint64) (*bind.EncodedCall, error)
+	GetTokenAndGasPricesWithArgs(args ...any) (*bind.EncodedCall, error)
+	ConvertTokenAmount(ref bind.Object, fromToken string, fromTokenAmount uint64, toToken string) (*bind.EncodedCall, error)
+	ConvertTokenAmountWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetFeeTokens(ref bind.Object) (*bind.EncodedCall, error)
+	GetFeeTokensWithArgs(args ...any) (*bind.EncodedCall, error)
+	ApplyFeeTokenUpdates(ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*bind.EncodedCall, error)
+	ApplyFeeTokenUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenTransferFeeConfig(ref bind.Object, destChainSelector uint64, token string) (*bind.EncodedCall, error)
+	GetTokenTransferFeeConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	ApplyTokenTransferFeeConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error)
+	ApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	UpdatePrices(ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error)
+	UpdatePricesWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetValidatedFee(ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*bind.EncodedCall, error)
+	GetValidatedFeeWithArgs(args ...any) (*bind.EncodedCall, error)
+	ApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*bind.EncodedCall, error)
+	ApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetPremiumMultiplierWeiPerEth(ref bind.Object, token string) (*bind.EncodedCall, error)
+	GetPremiumMultiplierWeiPerEthWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenReceiver(ref bind.Object, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) (*bind.EncodedCall, error)
+	GetTokenReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
+	ProcessMessageArgs(ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) (*bind.EncodedCall, error)
+	ProcessMessageArgsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetDestChainConfig(ref bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
+	GetDestChainConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetDestChainConfigFields(destChainConfig DestChainConfig) (*bind.EncodedCall, error)
+	GetDestChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
+	ApplyDestChainConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*bind.EncodedCall, error)
+	ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetStaticConfig(ref bind.Object) (*bind.EncodedCall, error)
+	GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCall, error)
+	GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) (*bind.EncodedCall, error)
+	GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type FeeQuoterContract struct {
-	packageID *sui.Address
-	client    suiclient.ClientImpl
+	*bind.BoundContract
+	feeQuoterEncoder
+	devInspect *FeeQuoterDevInspect
+}
+
+type FeeQuoterDevInspect struct {
+	contract *FeeQuoterContract
 }
 
 var _ IFeeQuoter = (*FeeQuoterContract)(nil)
+var _ IFeeQuoterDevInspect = (*FeeQuoterDevInspect)(nil)
 
-func NewFeeQuoter(packageID string, client suiclient.ClientImpl) (*FeeQuoterContract, error) {
-	pkgObjectId, err := bind.ToSuiAddress(packageID)
+func NewFeeQuoter(packageID string, client sui.ISuiAPI) (*FeeQuoterContract, error) {
+	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", client)
 	if err != nil {
-		return nil, fmt.Errorf("package ID is not a Sui address: %w", err)
+		return nil, err
 	}
 
-	return &FeeQuoterContract{
-		packageID: pkgObjectId,
-		client:    client,
-	}, nil
+	c := &FeeQuoterContract{
+		BoundContract:    contract,
+		feeQuoterEncoder: feeQuoterEncoder{BoundContract: contract},
+	}
+	c.devInspect = &FeeQuoterDevInspect{contract: c}
+	return c, nil
 }
 
-func (c *FeeQuoterContract) Connect(client suiclient.ClientImpl) {
-	c.client = client
+func (c *FeeQuoterContract) Encoder() FeeQuoterEncoder {
+	return c.feeQuoterEncoder
 }
 
-// Structs
+func (c *FeeQuoterContract) DevInspect() IFeeQuoterDevInspect {
+	return c.devInspect
+}
+
+func (c *FeeQuoterContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
+	var callArgManager *bind.CallArgManager
+	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
+		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
+		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
+	} else {
+		callArgManager = bind.NewCallArgManager()
+	}
+
+	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
+	}
+
+	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
+
+	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
+	for i, tag := range encoded.TypeArgs {
+		if tag != nil {
+			typeTagValues[i] = *tag
+		}
+	}
+
+	argumentValues := make([]transaction.Argument, len(arguments))
+	for i, arg := range arguments {
+		if arg != nil {
+			argumentValues[i] = *arg
+		}
+	}
+
+	result := ptb.MoveCall(
+		models.SuiAddress(encoded.Module.PackageID),
+		encoded.Module.ModuleName,
+		encoded.Function,
+		typeTagValues,
+		argumentValues,
+	)
+
+	return &result, nil
+}
 
 type FeeQuoterState struct {
 	Id                           string      `move:"sui::object::UID"`
-	MaxFeeJuelsPerMsg            uint256.Int `move:"u256"`
+	MaxFeeJuelsPerMsg            *big.Int    `move:"u256"`
 	LinkToken                    string      `move:"address"`
 	TokenPriceStalenessThreshold uint64      `move:"u64"`
 	FeeTokens                    []string    `move:"vector<address>"`
+	UsdPerUnitGasByDestChain     bind.Object `move:"table::Table<u64, TimestampedPrice>"`
+	UsdPerToken                  bind.Object `move:"table::Table<address, TimestampedPrice>"`
+	DestChainConfigs             bind.Object `move:"table::Table<u64, DestChainConfig>"`
+	TokenTransferFeeConfigs      bind.Object `move:"table::Table<u64, table::Table<address, TokenTransferFeeConfig>>"`
+	PremiumMultiplierWeiPerEth   bind.Object `move:"table::Table<address, u64>"`
 }
 
 type FeeQuoterCap struct {
@@ -90,9 +215,9 @@ type FeeQuoterCap struct {
 }
 
 type StaticConfig struct {
-	MaxFeeJuelsPerMsg            uint256.Int `move:"u256"`
-	LinkToken                    string      `move:"address"`
-	TokenPriceStalenessThreshold uint64      `move:"u64"`
+	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
+	LinkToken                    string   `move:"address"`
+	TokenPriceStalenessThreshold uint64   `move:"u64"`
 }
 
 type DestChainConfig struct {
@@ -127,8 +252,8 @@ type TokenTransferFeeConfig struct {
 }
 
 type TimestampedPrice struct {
-	Value     uint256.Int `move:"u256"`
-	Timestamp uint64      `move:"u64"`
+	Value     *big.Int `move:"u256"`
+	Timestamp uint64   `move:"u64"`
 }
 
 type FeeTokenAdded struct {
@@ -151,15 +276,15 @@ type TokenTransferFeeConfigRemoved struct {
 }
 
 type UsdPerTokenUpdated struct {
-	Token       string      `move:"address"`
-	UsdPerToken uint256.Int `move:"u256"`
-	Timestamp   uint64      `move:"u64"`
+	Token       string   `move:"address"`
+	UsdPerToken *big.Int `move:"u256"`
+	Timestamp   uint64   `move:"u64"`
 }
 
 type UsdPerUnitGasUpdated struct {
-	DestChainSelector uint64      `move:"u64"`
-	UsdPerUnitGas     uint256.Int `move:"u256"`
-	Timestamp         uint64      `move:"u64"`
+	DestChainSelector uint64   `move:"u64"`
+	UsdPerUnitGas     *big.Int `move:"u256"`
+	Timestamp         uint64   `move:"u64"`
 }
 
 type DestChainAdded struct {
@@ -177,340 +302,1864 @@ type PremiumMultiplierWeiPerEthUpdated struct {
 	PremiumMultiplierWeiPerEth uint64 `move:"u64"`
 }
 
-// Functions
-
-func (c *FeeQuoterContract) TypeAndVersion() bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "type_and_version", false, "", "")
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "type_and_version", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsFeeQuoterState struct {
+	Id                           string
+	MaxFeeJuelsPerMsg            *big.Int
+	LinkToken                    [32]byte
+	TokenPriceStalenessThreshold uint64
+	FeeTokens                    [][32]byte
+	UsdPerUnitGasByDestChain     bind.Object
+	UsdPerToken                  bind.Object
+	DestChainConfigs             bind.Object
+	TokenTransferFeeConfigs      bind.Object
+	PremiumMultiplierWeiPerEth   bind.Object
 }
 
-func (c *FeeQuoterContract) Initialize(ref module_common.CCIPObjectRef, param module_common.OwnerCap, maxFeeJuelsPerMsg uint256.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "initialize", false, "", "", ref, param, maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold, feeTokens)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "initialize", err)
-		}
-
-		return ptb, nil
+func convertFeeQuoterStateFromBCS(bcs bcsFeeQuoterState) FeeQuoterState {
+	return FeeQuoterState{
+		Id:                           bcs.Id,
+		MaxFeeJuelsPerMsg:            bcs.MaxFeeJuelsPerMsg,
+		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
+		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
+		FeeTokens: func() []string {
+			addrs := make([]string, len(bcs.FeeTokens))
+			for i, addr := range bcs.FeeTokens {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		UsdPerUnitGasByDestChain:   bcs.UsdPerUnitGasByDestChain,
+		UsdPerToken:                bcs.UsdPerToken,
+		DestChainConfigs:           bcs.DestChainConfigs,
+		TokenTransferFeeConfigs:    bcs.TokenTransferFeeConfigs,
+		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetTokenPrice(ref module_common.CCIPObjectRef, token string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_price", false, "", "", ref, token)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_price", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsStaticConfig struct {
+	MaxFeeJuelsPerMsg            *big.Int
+	LinkToken                    [32]byte
+	TokenPriceStalenessThreshold uint64
 }
 
-func (c *FeeQuoterContract) GetTimestampedPriceFields(tp TimestampedPrice) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_timestamped_price_fields", false, "", "", tp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_timestamped_price_fields", err)
-		}
-
-		return ptb, nil
+func convertStaticConfigFromBCS(bcs bcsStaticConfig) StaticConfig {
+	return StaticConfig{
+		MaxFeeJuelsPerMsg:            bcs.MaxFeeJuelsPerMsg,
+		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
+		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetTokenPrices(ref module_common.CCIPObjectRef, tokens []string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_prices", false, "", "", ref, tokens)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_prices", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsFeeTokenAdded struct {
+	FeeToken [32]byte
 }
 
-func (c *FeeQuoterContract) GetDestChainGasPrice(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_dest_chain_gas_price", false, "", "", ref, destChainSelector)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_dest_chain_gas_price", err)
-		}
-
-		return ptb, nil
+func convertFeeTokenAddedFromBCS(bcs bcsFeeTokenAdded) FeeTokenAdded {
+	return FeeTokenAdded{
+		FeeToken: fmt.Sprintf("0x%x", bcs.FeeToken),
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetTokenAndGasPrices(ref module_common.CCIPObjectRef, clock bind.Object, token string, destChainSelector uint64) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_and_gas_prices", false, "", "", ref, clock, token, destChainSelector)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_and_gas_prices", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsFeeTokenRemoved struct {
+	FeeToken [32]byte
 }
 
-func (c *FeeQuoterContract) ConvertTokenAmount(ref module_common.CCIPObjectRef, fromToken string, fromTokenAmount uint64, toToken string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "convert_token_amount", false, "", "", ref, fromToken, fromTokenAmount, toToken)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "convert_token_amount", err)
-		}
-
-		return ptb, nil
+func convertFeeTokenRemovedFromBCS(bcs bcsFeeTokenRemoved) FeeTokenRemoved {
+	return FeeTokenRemoved{
+		FeeToken: fmt.Sprintf("0x%x", bcs.FeeToken),
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetFeeTokens(ref module_common.CCIPObjectRef) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_fee_tokens", false, "", "", ref)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_fee_tokens", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsTokenTransferFeeConfigAdded struct {
+	DestChainSelector      uint64
+	Token                  [32]byte
+	TokenTransferFeeConfig TokenTransferFeeConfig
 }
 
-func (c *FeeQuoterContract) ApplyFeeTokenUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, feeTokensToRemove []string, feeTokensToAdd []string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "apply_fee_token_updates", false, "", "", ref, param, feeTokensToRemove, feeTokensToAdd)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "apply_fee_token_updates", err)
-		}
-
-		return ptb, nil
+func convertTokenTransferFeeConfigAddedFromBCS(bcs bcsTokenTransferFeeConfigAdded) TokenTransferFeeConfigAdded {
+	return TokenTransferFeeConfigAdded{
+		DestChainSelector:      bcs.DestChainSelector,
+		Token:                  fmt.Sprintf("0x%x", bcs.Token),
+		TokenTransferFeeConfig: bcs.TokenTransferFeeConfig,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetTokenTransferFeeConfig(ref module_common.CCIPObjectRef, destChainSelector uint64, token string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_transfer_fee_config", false, "", "", ref, destChainSelector, token)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_transfer_fee_config", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsTokenTransferFeeConfigRemoved struct {
+	DestChainSelector uint64
+	Token             [32]byte
 }
 
-func (c *FeeQuoterContract) ApplyTokenTransferFeeConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "apply_token_transfer_fee_config_updates", false, "", "", ref, param, destChainSelector, addTokens, addMinFeeUsdCents, addMaxFeeUsdCents, addDeciBps, addDestGasOverhead, addDestBytesOverhead, addIsEnabled, removeTokens)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "apply_token_transfer_fee_config_updates", err)
-		}
-
-		return ptb, nil
+func convertTokenTransferFeeConfigRemovedFromBCS(bcs bcsTokenTransferFeeConfigRemoved) TokenTransferFeeConfigRemoved {
+	return TokenTransferFeeConfigRemoved{
+		DestChainSelector: bcs.DestChainSelector,
+		Token:             fmt.Sprintf("0x%x", bcs.Token),
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) UpdatePrices(ref module_common.CCIPObjectRef, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []uint256.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []uint256.Int) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "update_prices", false, "", "", ref, param, clock, sourceTokens, sourceUsdPerToken, gasDestChainSelectors, gasUsdPerUnitGas)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "update_prices", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsUsdPerTokenUpdated struct {
+	Token       [32]byte
+	UsdPerToken *big.Int
+	Timestamp   uint64
 }
 
-func (c *FeeQuoterContract) GetValidatedFee(ref module_common.CCIPObjectRef, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_validated_fee", false, "", "", ref, clock, destChainSelector, receiver, data, localTokenAddresses, localTokenAmounts, feeToken, extraArgs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_validated_fee", err)
-		}
-
-		return ptb, nil
+func convertUsdPerTokenUpdatedFromBCS(bcs bcsUsdPerTokenUpdated) UsdPerTokenUpdated {
+	return UsdPerTokenUpdated{
+		Token:       fmt.Sprintf("0x%x", bcs.Token),
+		UsdPerToken: bcs.UsdPerToken,
+		Timestamp:   bcs.Timestamp,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) ApplyPremiumMultiplierWeiPerEthUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, tokens []string, premiumMultiplierWeiPerEth []uint64) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "apply_premium_multiplier_wei_per_eth_updates", false, "", "", ref, param, tokens, premiumMultiplierWeiPerEth)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "apply_premium_multiplier_wei_per_eth_updates", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsPremiumMultiplierWeiPerEthUpdated struct {
+	Token                      [32]byte
+	PremiumMultiplierWeiPerEth uint64
 }
 
-func (c *FeeQuoterContract) GetPremiumMultiplierWeiPerEth(ref module_common.CCIPObjectRef, token string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_premium_multiplier_wei_per_eth", false, "", "", ref, token)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_premium_multiplier_wei_per_eth", err)
-		}
-
-		return ptb, nil
+func convertPremiumMultiplierWeiPerEthUpdatedFromBCS(bcs bcsPremiumMultiplierWeiPerEthUpdated) PremiumMultiplierWeiPerEthUpdated {
+	return PremiumMultiplierWeiPerEthUpdated{
+		Token:                      fmt.Sprintf("0x%x", bcs.Token),
+		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *FeeQuoterContract) GetTokenReceiver(ref module_common.CCIPObjectRef, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_receiver", false, "", "", ref, destChainSelector, extraArgs, messageReceiver)
+func init() {
+	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterState", func(data []byte) (interface{}, error) {
+		var temp bcsFeeQuoterState
+		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_receiver", err)
+			return nil, err
 		}
 
-		return ptb, nil
-	}
+		result := convertFeeQuoterStateFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
+		var result FeeQuoterCap
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::StaticConfig", func(data []byte) (interface{}, error) {
+		var temp bcsStaticConfig
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+		result := convertStaticConfigFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfig", func(data []byte) (interface{}, error) {
+		var result DestChainConfig
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfig", func(data []byte) (interface{}, error) {
+		var result TokenTransferFeeConfig
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::TimestampedPrice", func(data []byte) (interface{}, error) {
+		var result TimestampedPrice
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenAdded", func(data []byte) (interface{}, error) {
+		var temp bcsFeeTokenAdded
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertFeeTokenAddedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenRemoved", func(data []byte) (interface{}, error) {
+		var temp bcsFeeTokenRemoved
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertFeeTokenRemovedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigAdded", func(data []byte) (interface{}, error) {
+		var temp bcsTokenTransferFeeConfigAdded
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertTokenTransferFeeConfigAddedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigRemoved", func(data []byte) (interface{}, error) {
+		var temp bcsTokenTransferFeeConfigRemoved
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertTokenTransferFeeConfigRemovedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerTokenUpdated", func(data []byte) (interface{}, error) {
+		var temp bcsUsdPerTokenUpdated
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertUsdPerTokenUpdatedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerUnitGasUpdated", func(data []byte) (interface{}, error) {
+		var result UsdPerUnitGasUpdated
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainAdded", func(data []byte) (interface{}, error) {
+		var result DestChainAdded
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfigUpdated", func(data []byte) (interface{}, error) {
+		var result DestChainConfigUpdated
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::PremiumMultiplierWeiPerEthUpdated", func(data []byte) (interface{}, error) {
+		var temp bcsPremiumMultiplierWeiPerEthUpdated
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertPremiumMultiplierWeiPerEthUpdatedFromBCS(temp)
+		return result, nil
+	})
 }
 
-func (c *FeeQuoterContract) ProcessMessageArgs(ref module_common.CCIPObjectRef, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "process_message_args", false, "", "", ref, destChainSelector, feeToken, feeTokenAmount, extraArgs, localTokenAddresses, destTokenAddresses, destPoolDatas)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "process_message_args", err)
-		}
-
-		return ptb, nil
+// TypeAndVersion executes the type_and_version Move function.
+func (c *FeeQuoterContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.TypeAndVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-func (c *FeeQuoterContract) GetDestChainConfig(ref module_common.CCIPObjectRef, destChainSelector uint64) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_dest_chain_config", false, "", "", ref, destChainSelector)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_dest_chain_config", err)
-		}
-
-		return ptb, nil
+// Initialize executes the initialize Move function.
+func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.Initialize(ref, param, maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold, feeTokens)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-func (c *FeeQuoterContract) GetDestChainConfigFields(destChainConfig DestChainConfig) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_dest_chain_config_fields", false, "", "", destChainConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_dest_chain_config_fields", err)
-		}
-
-		return ptb, nil
+// GetTokenPrice executes the get_token_price Move function.
+func (c *FeeQuoterContract) GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetTokenPrice(ref, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-func (c *FeeQuoterContract) ApplyDestChainConfigUpdates(ref module_common.CCIPObjectRef, param module_common.OwnerCap, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "apply_dest_chain_config_updates", false, "", "", ref, param, destChainSelector, isEnabled, maxNumberOfTokensPerMsg, maxDataBytes, maxPerMsgGasLimit, destGasOverhead, destGasPerPayloadByteBase, destGasPerPayloadByteHigh, destGasPerPayloadByteThreshold, destDataAvailabilityOverheadGas, destGasPerDataAvailabilityByte, destDataAvailabilityMultiplierBps, chainFamilySelector, enforceOutOfOrder, defaultTokenFeeUsdCents, defaultTokenDestGasOverhead, defaultTxGasLimit, gasMultiplierWeiPerEth, gasPriceStalenessThreshold, networkFeeUsdCents)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "apply_dest_chain_config_updates", err)
-		}
-
-		return ptb, nil
+// GetTimestampedPriceFields executes the get_timestamped_price_fields Move function.
+func (c *FeeQuoterContract) GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetTimestampedPriceFields(tp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-func (c *FeeQuoterContract) GetStaticConfig(ref module_common.CCIPObjectRef) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_static_config", false, "", "", ref)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_static_config", err)
-		}
-
-		return ptb, nil
+// GetTokenPrices executes the get_token_prices Move function.
+func (c *FeeQuoterContract) GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetTokenPrices(ref, tokens)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-func (c *FeeQuoterContract) GetStaticConfigFields(cfg StaticConfig) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_static_config_fields", false, "", "", cfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_static_config_fields", err)
-		}
-
-		return ptb, nil
+// GetDestChainGasPrice executes the get_dest_chain_gas_price Move function.
+func (c *FeeQuoterContract) GetDestChainGasPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetDestChainGasPrice(ref, destChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-func (c *FeeQuoterContract) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "fee_quoter", "get_token_transfer_fee_config_fields", false, "", "", cfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "fee_quoter", "get_token_transfer_fee_config_fields", err)
-		}
-
-		return ptb, nil
+// GetTokenAndGasPrices executes the get_token_and_gas_prices Move function.
+func (c *FeeQuoterContract) GetTokenAndGasPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, token string, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetTokenAndGasPrices(ref, clock, token, destChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ConvertTokenAmount executes the convert_token_amount Move function.
+func (c *FeeQuoterContract) ConvertTokenAmount(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fromToken string, fromTokenAmount uint64, toToken string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ConvertTokenAmount(ref, fromToken, fromTokenAmount, toToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetFeeTokens executes the get_fee_tokens Move function.
+func (c *FeeQuoterContract) GetFeeTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetFeeTokens(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ApplyFeeTokenUpdates executes the apply_fee_token_updates Move function.
+func (c *FeeQuoterContract) ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyFeeTokenUpdates(ref, param, feeTokensToRemove, feeTokensToAdd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetTokenTransferFeeConfig executes the get_token_transfer_fee_config Move function.
+func (c *FeeQuoterContract) GetTokenTransferFeeConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetTokenTransferFeeConfig(ref, destChainSelector, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ApplyTokenTransferFeeConfigUpdates executes the apply_token_transfer_fee_config_updates Move function.
+func (c *FeeQuoterContract) ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyTokenTransferFeeConfigUpdates(ref, param, destChainSelector, addTokens, addMinFeeUsdCents, addMaxFeeUsdCents, addDeciBps, addDestGasOverhead, addDestBytesOverhead, addIsEnabled, removeTokens)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// UpdatePrices executes the update_prices Move function.
+func (c *FeeQuoterContract) UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.UpdatePrices(ref, param, clock, sourceTokens, sourceUsdPerToken, gasDestChainSelectors, gasUsdPerUnitGas)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetValidatedFee executes the get_validated_fee Move function.
+func (c *FeeQuoterContract) GetValidatedFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetValidatedFee(ref, clock, destChainSelector, receiver, data, localTokenAddresses, localTokenAmounts, feeToken, extraArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ApplyPremiumMultiplierWeiPerEthUpdates executes the apply_premium_multiplier_wei_per_eth_updates Move function.
+func (c *FeeQuoterContract) ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyPremiumMultiplierWeiPerEthUpdates(ref, param, tokens, premiumMultiplierWeiPerEth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetPremiumMultiplierWeiPerEth executes the get_premium_multiplier_wei_per_eth Move function.
+func (c *FeeQuoterContract) GetPremiumMultiplierWeiPerEth(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetPremiumMultiplierWeiPerEth(ref, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetTokenReceiver executes the get_token_receiver Move function.
+func (c *FeeQuoterContract) GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetTokenReceiver(ref, destChainSelector, extraArgs, messageReceiver)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ProcessMessageArgs executes the process_message_args Move function.
+func (c *FeeQuoterContract) ProcessMessageArgs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ProcessMessageArgs(ref, destChainSelector, feeToken, feeTokenAmount, extraArgs, localTokenAddresses, destTokenAddresses, destPoolDatas)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetDestChainConfig executes the get_dest_chain_config Move function.
+func (c *FeeQuoterContract) GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetDestChainConfig(ref, destChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetDestChainConfigFields executes the get_dest_chain_config_fields Move function.
+func (c *FeeQuoterContract) GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetDestChainConfigFields(destChainConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ApplyDestChainConfigUpdates executes the apply_dest_chain_config_updates Move function.
+func (c *FeeQuoterContract) ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyDestChainConfigUpdates(ref, param, destChainSelector, isEnabled, maxNumberOfTokensPerMsg, maxDataBytes, maxPerMsgGasLimit, destGasOverhead, destGasPerPayloadByteBase, destGasPerPayloadByteHigh, destGasPerPayloadByteThreshold, destDataAvailabilityOverheadGas, destGasPerDataAvailabilityByte, destDataAvailabilityMultiplierBps, chainFamilySelector, enforceOutOfOrder, defaultTokenFeeUsdCents, defaultTokenDestGasOverhead, defaultTxGasLimit, gasMultiplierWeiPerEth, gasPriceStalenessThreshold, networkFeeUsdCents)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetStaticConfig executes the get_static_config Move function.
+func (c *FeeQuoterContract) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetStaticConfig(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetStaticConfigFields executes the get_static_config_fields Move function.
+func (c *FeeQuoterContract) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetStaticConfigFields(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetTokenTransferFeeConfigFields executes the get_token_transfer_fee_config_fields Move function.
+func (c *FeeQuoterContract) GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetTokenTransferFeeConfigFields(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
+//
+// Returns: 0x1::string::String
+func (d *FeeQuoterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
+	encoded, err := d.contract.feeQuoterEncoder.TypeAndVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenPrice executes the get_token_price Move function using DevInspect to get return values.
+//
+// Returns: TimestampedPrice
+func (d *FeeQuoterDevInspect) GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (TimestampedPrice, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetTokenPrice(ref, token)
+	if err != nil {
+		return TimestampedPrice{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return TimestampedPrice{}, err
+	}
+	if len(results) == 0 {
+		return TimestampedPrice{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(TimestampedPrice)
+	if !ok {
+		return TimestampedPrice{}, fmt.Errorf("unexpected return type: expected TimestampedPrice, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTimestampedPriceFields executes the get_timestamped_price_fields Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: u256
+//	[1]: u64
+func (d *FeeQuoterDevInspect) GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetTimestampedPriceFields(tp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+// GetTokenPrices executes the get_token_prices Move function using DevInspect to get return values.
+//
+// Returns: vector<TimestampedPrice>
+func (d *FeeQuoterDevInspect) GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) ([]TimestampedPrice, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetTokenPrices(ref, tokens)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]TimestampedPrice)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []TimestampedPrice, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetDestChainGasPrice executes the get_dest_chain_gas_price Move function using DevInspect to get return values.
+//
+// Returns: TimestampedPrice
+func (d *FeeQuoterDevInspect) GetDestChainGasPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (TimestampedPrice, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetDestChainGasPrice(ref, destChainSelector)
+	if err != nil {
+		return TimestampedPrice{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return TimestampedPrice{}, err
+	}
+	if len(results) == 0 {
+		return TimestampedPrice{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(TimestampedPrice)
+	if !ok {
+		return TimestampedPrice{}, fmt.Errorf("unexpected return type: expected TimestampedPrice, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenAndGasPrices executes the get_token_and_gas_prices Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: u256
+//	[1]: u256
+func (d *FeeQuoterDevInspect) GetTokenAndGasPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, token string, destChainSelector uint64) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetTokenAndGasPrices(ref, clock, token, destChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+// ConvertTokenAmount executes the convert_token_amount Move function using DevInspect to get return values.
+//
+// Returns: u64
+func (d *FeeQuoterDevInspect) ConvertTokenAmount(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fromToken string, fromTokenAmount uint64, toToken string) (uint64, error) {
+	encoded, err := d.contract.feeQuoterEncoder.ConvertTokenAmount(ref, fromToken, fromTokenAmount, toToken)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(uint64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetFeeTokens executes the get_fee_tokens Move function using DevInspect to get return values.
+//
+// Returns: vector<address>
+func (d *FeeQuoterDevInspect) GetFeeTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]string, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetFeeTokens(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenTransferFeeConfig executes the get_token_transfer_fee_config Move function using DevInspect to get return values.
+//
+// Returns: TokenTransferFeeConfig
+func (d *FeeQuoterDevInspect) GetTokenTransferFeeConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, token string) (TokenTransferFeeConfig, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetTokenTransferFeeConfig(ref, destChainSelector, token)
+	if err != nil {
+		return TokenTransferFeeConfig{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return TokenTransferFeeConfig{}, err
+	}
+	if len(results) == 0 {
+		return TokenTransferFeeConfig{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(TokenTransferFeeConfig)
+	if !ok {
+		return TokenTransferFeeConfig{}, fmt.Errorf("unexpected return type: expected TokenTransferFeeConfig, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetValidatedFee executes the get_validated_fee Move function using DevInspect to get return values.
+//
+// Returns: u64
+func (d *FeeQuoterDevInspect) GetValidatedFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (uint64, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetValidatedFee(ref, clock, destChainSelector, receiver, data, localTokenAddresses, localTokenAmounts, feeToken, extraArgs)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(uint64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetPremiumMultiplierWeiPerEth executes the get_premium_multiplier_wei_per_eth Move function using DevInspect to get return values.
+//
+// Returns: u64
+func (d *FeeQuoterDevInspect) GetPremiumMultiplierWeiPerEth(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (uint64, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetPremiumMultiplierWeiPerEth(ref, token)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(uint64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenReceiver executes the get_token_receiver Move function using DevInspect to get return values.
+//
+// Returns: vector<u8>
+func (d *FeeQuoterDevInspect) GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) ([]byte, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetTokenReceiver(ref, destChainSelector, extraArgs, messageReceiver)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	}
+	return result, nil
+}
+
+// ProcessMessageArgs executes the process_message_args Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: u256
+//	[1]: bool
+//	[2]: vector<u8>
+//	[3]: vector<vector<u8>>
+func (d *FeeQuoterDevInspect) ProcessMessageArgs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.ProcessMessageArgs(ref, destChainSelector, feeToken, feeTokenAmount, extraArgs, localTokenAddresses, destTokenAddresses, destPoolDatas)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+// GetDestChainConfig executes the get_dest_chain_config Move function using DevInspect to get return values.
+//
+// Returns: DestChainConfig
+func (d *FeeQuoterDevInspect) GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (DestChainConfig, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetDestChainConfig(ref, destChainSelector)
+	if err != nil {
+		return DestChainConfig{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return DestChainConfig{}, err
+	}
+	if len(results) == 0 {
+		return DestChainConfig{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(DestChainConfig)
+	if !ok {
+		return DestChainConfig{}, fmt.Errorf("unexpected return type: expected DestChainConfig, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetDestChainConfigFields executes the get_dest_chain_config_fields Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: bool
+//	[1]: u16
+//	[2]: u32
+//	[3]: u32
+//	[4]: u32
+//	[5]: u8
+//	[6]: u8
+//	[7]: u16
+//	[8]: u32
+//	[9]: u16
+//	[10]: u16
+//	[11]: vector<u8>
+//	[12]: bool
+//	[13]: u16
+//	[14]: u32
+//	[15]: u32
+//	[16]: u64
+//	[17]: u32
+//	[18]: u32
+func (d *FeeQuoterDevInspect) GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetDestChainConfigFields(destChainConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+// GetStaticConfig executes the get_static_config Move function using DevInspect to get return values.
+//
+// Returns: StaticConfig
+func (d *FeeQuoterDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (StaticConfig, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfig(ref)
+	if err != nil {
+		return StaticConfig{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return StaticConfig{}, err
+	}
+	if len(results) == 0 {
+		return StaticConfig{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(StaticConfig)
+	if !ok {
+		return StaticConfig{}, fmt.Errorf("unexpected return type: expected StaticConfig, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetStaticConfigFields executes the get_static_config_fields Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: u256
+//	[1]: address
+//	[2]: u64
+func (d *FeeQuoterDevInspect) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfigFields(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+// GetTokenTransferFeeConfigFields executes the get_token_transfer_fee_config_fields Move function using DevInspect to get return values.
+//
+// Returns:
+//
+//	[0]: u32
+//	[1]: u32
+//	[2]: u16
+//	[3]: u32
+//	[4]: u32
+//	[5]: bool
+func (d *FeeQuoterDevInspect) GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetTokenTransferFeeConfigFields(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	return d.contract.Call(ctx, opts, encoded)
+}
+
+type feeQuoterEncoder struct {
+	*bind.BoundContract
+}
+
+// TypeAndVersion encodes a call to the type_and_version Move function.
+func (c feeQuoterEncoder) TypeAndVersion() (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, []string{}, []any{}, []string{
+		"0x1::string::String",
+	})
+}
+
+// TypeAndVersionWithArgs encodes a call to the type_and_version Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::string::String",
+	})
+}
+
+// Initialize encodes a call to the initialize Move function.
+func (c feeQuoterEncoder) Initialize(ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"u256",
+		"address",
+		"u64",
+		"vector<address>",
+	}, []any{
+		ref,
+		param,
+		maxFeeJuelsPerMsg,
+		linkToken,
+		tokenPriceStalenessThreshold,
+		feeTokens,
+	}, nil)
+}
+
+// InitializeWithArgs encodes a call to the initialize Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"u256",
+		"address",
+		"u64",
+		"vector<address>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetTokenPrice encodes a call to the get_token_price Move function.
+func (c feeQuoterEncoder) GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_price", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+	}, []any{
+		ref,
+		token,
+	}, []string{
+		"ccip::fee_quoter::TimestampedPrice",
+	})
+}
+
+// GetTokenPriceWithArgs encodes a call to the get_token_price Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_price", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::fee_quoter::TimestampedPrice",
+	})
+}
+
+// GetTimestampedPriceFields encodes a call to the get_timestamped_price_fields Move function.
+func (c feeQuoterEncoder) GetTimestampedPriceFields(tp TimestampedPrice) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_timestamped_price_fields", typeArgsList, typeParamsList, []string{
+		"TimestampedPrice",
+	}, []any{
+		tp,
+	}, []string{
+		"u256",
+		"u64",
+	})
+}
+
+// GetTimestampedPriceFieldsWithArgs encodes a call to the get_timestamped_price_fields Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetTimestampedPriceFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"TimestampedPrice",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_timestamped_price_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u256",
+		"u64",
+	})
+}
+
+// GetTokenPrices encodes a call to the get_token_prices Move function.
+func (c feeQuoterEncoder) GetTokenPrices(ref bind.Object, tokens []string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_prices", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"vector<address>",
+	}, []any{
+		ref,
+		tokens,
+	}, []string{
+		"vector<TimestampedPrice>",
+	})
+}
+
+// GetTokenPricesWithArgs encodes a call to the get_token_prices Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetTokenPricesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"vector<address>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_prices", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<TimestampedPrice>",
+	})
+}
+
+// GetDestChainGasPrice encodes a call to the get_dest_chain_gas_price Move function.
+func (c feeQuoterEncoder) GetDestChainGasPrice(ref bind.Object, destChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chain_gas_price", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"u64",
+	}, []any{
+		ref,
+		destChainSelector,
+	}, []string{
+		"ccip::fee_quoter::TimestampedPrice",
+	})
+}
+
+// GetDestChainGasPriceWithArgs encodes a call to the get_dest_chain_gas_price Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetDestChainGasPriceWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chain_gas_price", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::fee_quoter::TimestampedPrice",
+	})
+}
+
+// GetTokenAndGasPrices encodes a call to the get_token_and_gas_prices Move function.
+func (c feeQuoterEncoder) GetTokenAndGasPrices(ref bind.Object, clock bind.Object, token string, destChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_and_gas_prices", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"&clock::Clock",
+		"address",
+		"u64",
+	}, []any{
+		ref,
+		clock,
+		token,
+		destChainSelector,
+	}, []string{
+		"u256",
+		"u256",
+	})
+}
+
+// GetTokenAndGasPricesWithArgs encodes a call to the get_token_and_gas_prices Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetTokenAndGasPricesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"&clock::Clock",
+		"address",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_and_gas_prices", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u256",
+		"u256",
+	})
+}
+
+// ConvertTokenAmount encodes a call to the convert_token_amount Move function.
+func (c feeQuoterEncoder) ConvertTokenAmount(ref bind.Object, fromToken string, fromTokenAmount uint64, toToken string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("convert_token_amount", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+		"u64",
+		"address",
+	}, []any{
+		ref,
+		fromToken,
+		fromTokenAmount,
+		toToken,
+	}, []string{
+		"u64",
+	})
+}
+
+// ConvertTokenAmountWithArgs encodes a call to the convert_token_amount Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) ConvertTokenAmountWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+		"u64",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("convert_token_amount", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
+	})
+}
+
+// GetFeeTokens encodes a call to the get_fee_tokens Move function.
+func (c feeQuoterEncoder) GetFeeTokens(ref bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_fee_tokens", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+	}, []any{
+		ref,
+	}, []string{
+		"vector<address>",
+	})
+}
+
+// GetFeeTokensWithArgs encodes a call to the get_fee_tokens Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetFeeTokensWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_fee_tokens", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<address>",
+	})
+}
+
+// ApplyFeeTokenUpdates encodes a call to the apply_fee_token_updates Move function.
+func (c feeQuoterEncoder) ApplyFeeTokenUpdates(ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_fee_token_updates", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<address>",
+		"vector<address>",
+	}, []any{
+		ref,
+		param,
+		feeTokensToRemove,
+		feeTokensToAdd,
+	}, nil)
+}
+
+// ApplyFeeTokenUpdatesWithArgs encodes a call to the apply_fee_token_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) ApplyFeeTokenUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<address>",
+		"vector<address>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_fee_token_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetTokenTransferFeeConfig encodes a call to the get_token_transfer_fee_config Move function.
+func (c feeQuoterEncoder) GetTokenTransferFeeConfig(ref bind.Object, destChainSelector uint64, token string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"u64",
+		"address",
+	}, []any{
+		ref,
+		destChainSelector,
+		token,
+	}, []string{
+		"ccip::fee_quoter::TokenTransferFeeConfig",
+	})
+}
+
+// GetTokenTransferFeeConfigWithArgs encodes a call to the get_token_transfer_fee_config Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetTokenTransferFeeConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"u64",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::fee_quoter::TokenTransferFeeConfig",
+	})
+}
+
+// ApplyTokenTransferFeeConfigUpdates encodes a call to the apply_token_transfer_fee_config_updates Move function.
+func (c feeQuoterEncoder) ApplyTokenTransferFeeConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"u64",
+		"vector<address>",
+		"vector<u32>",
+		"vector<u32>",
+		"vector<u16>",
+		"vector<u32>",
+		"vector<u32>",
+		"vector<bool>",
+		"vector<address>",
+	}, []any{
+		ref,
+		param,
+		destChainSelector,
+		addTokens,
+		addMinFeeUsdCents,
+		addMaxFeeUsdCents,
+		addDeciBps,
+		addDestGasOverhead,
+		addDestBytesOverhead,
+		addIsEnabled,
+		removeTokens,
+	}, nil)
+}
+
+// ApplyTokenTransferFeeConfigUpdatesWithArgs encodes a call to the apply_token_transfer_fee_config_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) ApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"u64",
+		"vector<address>",
+		"vector<u32>",
+		"vector<u32>",
+		"vector<u16>",
+		"vector<u32>",
+		"vector<u32>",
+		"vector<bool>",
+		"vector<address>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// UpdatePrices encodes a call to the update_prices Move function.
+func (c feeQuoterEncoder) UpdatePrices(ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("update_prices", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&FeeQuoterCap",
+		"&clock::Clock",
+		"vector<address>",
+		"vector<u256>",
+		"vector<u64>",
+		"vector<u256>",
+	}, []any{
+		ref,
+		param,
+		clock,
+		sourceTokens,
+		sourceUsdPerToken,
+		gasDestChainSelectors,
+		gasUsdPerUnitGas,
+	}, nil)
+}
+
+// UpdatePricesWithArgs encodes a call to the update_prices Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) UpdatePricesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&FeeQuoterCap",
+		"&clock::Clock",
+		"vector<address>",
+		"vector<u256>",
+		"vector<u64>",
+		"vector<u256>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("update_prices", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetValidatedFee encodes a call to the get_validated_fee Move function.
+func (c feeQuoterEncoder) GetValidatedFee(ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_validated_fee", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"&clock::Clock",
+		"u64",
+		"vector<u8>",
+		"vector<u8>",
+		"vector<address>",
+		"vector<u64>",
+		"address",
+		"vector<u8>",
+	}, []any{
+		ref,
+		clock,
+		destChainSelector,
+		receiver,
+		data,
+		localTokenAddresses,
+		localTokenAmounts,
+		feeToken,
+		extraArgs,
+	}, []string{
+		"u64",
+	})
+}
+
+// GetValidatedFeeWithArgs encodes a call to the get_validated_fee Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetValidatedFeeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"&clock::Clock",
+		"u64",
+		"vector<u8>",
+		"vector<u8>",
+		"vector<address>",
+		"vector<u64>",
+		"address",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_validated_fee", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
+	})
+}
+
+// ApplyPremiumMultiplierWeiPerEthUpdates encodes a call to the apply_premium_multiplier_wei_per_eth_updates Move function.
+func (c feeQuoterEncoder) ApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_premium_multiplier_wei_per_eth_updates", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<address>",
+		"vector<u64>",
+	}, []any{
+		ref,
+		param,
+		tokens,
+		premiumMultiplierWeiPerEth,
+	}, nil)
+}
+
+// ApplyPremiumMultiplierWeiPerEthUpdatesWithArgs encodes a call to the apply_premium_multiplier_wei_per_eth_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) ApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<address>",
+		"vector<u64>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_premium_multiplier_wei_per_eth_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetPremiumMultiplierWeiPerEth encodes a call to the get_premium_multiplier_wei_per_eth Move function.
+func (c feeQuoterEncoder) GetPremiumMultiplierWeiPerEth(ref bind.Object, token string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_premium_multiplier_wei_per_eth", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"address",
+	}, []any{
+		ref,
+		token,
+	}, []string{
+		"u64",
+	})
+}
+
+// GetPremiumMultiplierWeiPerEthWithArgs encodes a call to the get_premium_multiplier_wei_per_eth Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetPremiumMultiplierWeiPerEthWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_premium_multiplier_wei_per_eth", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
+	})
+}
+
+// GetTokenReceiver encodes a call to the get_token_receiver Move function.
+func (c feeQuoterEncoder) GetTokenReceiver(ref bind.Object, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_receiver", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"u64",
+		"vector<u8>",
+		"vector<u8>",
+	}, []any{
+		ref,
+		destChainSelector,
+		extraArgs,
+		messageReceiver,
+	}, []string{
+		"vector<u8>",
+	})
+}
+
+// GetTokenReceiverWithArgs encodes a call to the get_token_receiver Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetTokenReceiverWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"u64",
+		"vector<u8>",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_receiver", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<u8>",
+	})
+}
+
+// ProcessMessageArgs encodes a call to the process_message_args Move function.
+func (c feeQuoterEncoder) ProcessMessageArgs(ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("process_message_args", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"u64",
+		"address",
+		"u64",
+		"vector<u8>",
+		"vector<address>",
+		"vector<vector<u8>>",
+		"vector<vector<u8>>",
+	}, []any{
+		ref,
+		destChainSelector,
+		feeToken,
+		feeTokenAmount,
+		extraArgs,
+		localTokenAddresses,
+		destTokenAddresses,
+		destPoolDatas,
+	}, []string{
+		"u256",
+		"bool",
+		"vector<u8>",
+		"vector<vector<u8>>",
+	})
+}
+
+// ProcessMessageArgsWithArgs encodes a call to the process_message_args Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) ProcessMessageArgsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"u64",
+		"address",
+		"u64",
+		"vector<u8>",
+		"vector<address>",
+		"vector<vector<u8>>",
+		"vector<vector<u8>>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("process_message_args", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u256",
+		"bool",
+		"vector<u8>",
+		"vector<vector<u8>>",
+	})
+}
+
+// GetDestChainConfig encodes a call to the get_dest_chain_config Move function.
+func (c feeQuoterEncoder) GetDestChainConfig(ref bind.Object, destChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chain_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"u64",
+	}, []any{
+		ref,
+		destChainSelector,
+	}, []string{
+		"ccip::fee_quoter::DestChainConfig",
+	})
+}
+
+// GetDestChainConfigWithArgs encodes a call to the get_dest_chain_config Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetDestChainConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chain_config", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::fee_quoter::DestChainConfig",
+	})
+}
+
+// GetDestChainConfigFields encodes a call to the get_dest_chain_config_fields Move function.
+func (c feeQuoterEncoder) GetDestChainConfigFields(destChainConfig DestChainConfig) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chain_config_fields", typeArgsList, typeParamsList, []string{
+		"DestChainConfig",
+	}, []any{
+		destChainConfig,
+	}, []string{
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u32",
+		"u8",
+		"u8",
+		"u16",
+		"u32",
+		"u16",
+		"u16",
+		"vector<u8>",
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u64",
+		"u32",
+		"u32",
+	})
+}
+
+// GetDestChainConfigFieldsWithArgs encodes a call to the get_dest_chain_config_fields Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetDestChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"DestChainConfig",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_chain_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u32",
+		"u8",
+		"u8",
+		"u16",
+		"u32",
+		"u16",
+		"u16",
+		"vector<u8>",
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u64",
+		"u32",
+		"u32",
+	})
+}
+
+// ApplyDestChainConfigUpdates encodes a call to the apply_dest_chain_config_updates Move function.
+func (c feeQuoterEncoder) ApplyDestChainConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_dest_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"u64",
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u32",
+		"u8",
+		"u8",
+		"u16",
+		"u32",
+		"u16",
+		"u16",
+		"vector<u8>",
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u64",
+		"u32",
+		"u32",
+	}, []any{
+		ref,
+		param,
+		destChainSelector,
+		isEnabled,
+		maxNumberOfTokensPerMsg,
+		maxDataBytes,
+		maxPerMsgGasLimit,
+		destGasOverhead,
+		destGasPerPayloadByteBase,
+		destGasPerPayloadByteHigh,
+		destGasPerPayloadByteThreshold,
+		destDataAvailabilityOverheadGas,
+		destGasPerDataAvailabilityByte,
+		destDataAvailabilityMultiplierBps,
+		chainFamilySelector,
+		enforceOutOfOrder,
+		defaultTokenFeeUsdCents,
+		defaultTokenDestGasOverhead,
+		defaultTxGasLimit,
+		gasMultiplierWeiPerEth,
+		gasPriceStalenessThreshold,
+		networkFeeUsdCents,
+	}, nil)
+}
+
+// ApplyDestChainConfigUpdatesWithArgs encodes a call to the apply_dest_chain_config_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"u64",
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u32",
+		"u8",
+		"u8",
+		"u16",
+		"u32",
+		"u16",
+		"u16",
+		"vector<u8>",
+		"bool",
+		"u16",
+		"u32",
+		"u32",
+		"u64",
+		"u32",
+		"u32",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("apply_dest_chain_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetStaticConfig encodes a call to the get_static_config Move function.
+func (c feeQuoterEncoder) GetStaticConfig(ref bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_static_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+	}, []any{
+		ref,
+	}, []string{
+		"ccip::fee_quoter::StaticConfig",
+	})
+}
+
+// GetStaticConfigWithArgs encodes a call to the get_static_config Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_static_config", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::fee_quoter::StaticConfig",
+	})
+}
+
+// GetStaticConfigFields encodes a call to the get_static_config_fields Move function.
+func (c feeQuoterEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
+		"StaticConfig",
+	}, []any{
+		cfg,
+	}, []string{
+		"u256",
+		"address",
+		"u64",
+	})
+}
+
+// GetStaticConfigFieldsWithArgs encodes a call to the get_static_config_fields Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"StaticConfig",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u256",
+		"address",
+		"u64",
+	})
+}
+
+// GetTokenTransferFeeConfigFields encodes a call to the get_token_transfer_fee_config_fields Move function.
+func (c feeQuoterEncoder) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config_fields", typeArgsList, typeParamsList, []string{
+		"TokenTransferFeeConfig",
+	}, []any{
+		cfg,
+	}, []string{
+		"u32",
+		"u32",
+		"u16",
+		"u32",
+		"u32",
+		"bool",
+	})
+}
+
+// GetTokenTransferFeeConfigFieldsWithArgs encodes a call to the get_token_transfer_fee_config_fields Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"TokenTransferFeeConfig",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u32",
+		"u32",
+		"u16",
+		"u32",
+		"u32",
+		"bool",
+	})
 }

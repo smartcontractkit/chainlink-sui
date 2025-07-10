@@ -3,32 +3,31 @@ package burnminttokenpool
 import (
 	"context"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type BurnMintTokenPool interface {
-	Address() sui.Address
+	Address() string
 }
 
 var _ BurnMintTokenPool = CCIPBurnMintTokenPoolPackage{}
 
 type CCIPBurnMintTokenPoolPackage struct {
-	address sui.Address
+	address string
 
 	tokenPool module_burn_mint_token_pool.IBurnMintTokenPool
 }
 
-func (p CCIPBurnMintTokenPoolPackage) Address() sui.Address {
+func (p CCIPBurnMintTokenPoolPackage) Address() string {
 	return p.address
 }
 
-func NewCCIPBurnMintTokenPool(address string, client suiclient.ClientImpl) (BurnMintTokenPool, error) {
+func NewCCIPBurnMintTokenPool(address string, client sui.ISuiAPI) (BurnMintTokenPool, error) {
 	tokenPoolContract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(address, client)
 	if err != nil {
 		return nil, err
@@ -40,19 +39,18 @@ func NewCCIPBurnMintTokenPool(address string, client suiclient.ClientImpl) (Burn
 	}
 
 	return CCIPBurnMintTokenPoolPackage{
-		address:   *packageId,
+		address:   packageId,
 		tokenPool: tokenPoolContract,
 	}, nil
 }
 
 func PublishCCIPBurnMintTokenPool(
 	ctx context.Context,
-	opts bind.TxOpts,
-	signer rel.SuiSigner,
-	client suiclient.ClientImpl,
+	opts *bind.CallOpts,
+	client sui.ISuiAPI,
 	ccipAddress string,
-	ccipTokenPoolAddress string) (BurnMintTokenPool, *suiclient.SuiTransactionBlockResponse, error) {
-	artifact, err := bind.CompilePackage(contracts.CCIPTokenPools, map[string]string{
+	ccipTokenPoolAddress string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
+	artifact, err := bind.CompilePackage(contracts.CCIPTokenPool, map[string]string{
 		"ccip":                  ccipAddress,
 		"ccip_token_pool":       ccipTokenPoolAddress,
 		"burn_mint_token_pool":  "0x0",
@@ -62,7 +60,7 @@ func PublishCCIPBurnMintTokenPool(
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})

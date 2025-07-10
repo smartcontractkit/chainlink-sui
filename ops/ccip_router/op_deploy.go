@@ -22,10 +22,11 @@ type DeployCCIPRouterObjects struct {
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPRouterInput) (output sui_ops.OpTxResult[DeployCCIPRouterObjects], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	routerPackage, tx, err := router.PublishCCIPRouter(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 		input.McmsPackageId,
 		input.McmsOwner,
@@ -41,8 +42,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	}
 
 	return sui_ops.OpTxResult[DeployCCIPRouterObjects]{
-		Digest:    tx.Digest.String(),
-		PackageId: routerPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: routerPackage.Address(),
 		Objects: DeployCCIPRouterObjects{
 			OwnerCapObjectId:    obj1,
 			RouterStateObjectId: obj2,

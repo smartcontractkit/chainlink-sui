@@ -3,32 +3,31 @@ package router
 import (
 	"context"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type CCIPRouter interface {
-	Address() sui.Address
+	Address() string
 }
 
 var _ CCIPRouter = CCIPRouterPackage{}
 
 type CCIPRouterPackage struct {
-	address sui.Address
+	address string
 
 	router module_router.IRouter
 }
 
-func (p CCIPRouterPackage) Address() sui.Address {
+func (p CCIPRouterPackage) Address() string {
 	return p.address
 }
 
-func NewCCIPRouter(address string, client suiclient.ClientImpl) (CCIPRouter, error) {
+func NewCCIPRouter(address string, client sui.ISuiAPI) (CCIPRouter, error) {
 	routerContract, err := module_router.NewRouter(address, client)
 	if err != nil {
 		return nil, err
@@ -40,12 +39,12 @@ func NewCCIPRouter(address string, client suiclient.ClientImpl) (CCIPRouter, err
 	}
 
 	return CCIPRouterPackage{
-		address: *packageId,
+		address: packageId,
 		router:  routerContract,
 	}, nil
 }
 
-func PublishCCIPRouter(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, mcmsAddress string, mcmsOwner string) (CCIPRouter, *suiclient.SuiTransactionBlockResponse, error) {
+func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, mcmsAddress string, mcmsOwner string) (CCIPRouter, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.CCIPRouter, map[string]string{
 		"ccip_router": "0x0",
 		"mcms":        mcmsAddress,
@@ -55,7 +54,7 @@ func PublishCCIPRouter(ctx context.Context, opts bind.TxOpts, signer rel.SuiSign
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})

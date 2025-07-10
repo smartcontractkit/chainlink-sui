@@ -28,7 +28,7 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	}
 
 	// Create temp dir for isolated compilation
-	dstDir, err := os.MkdirTemp(".", "sui-temp-*")
+	dstDir, err := os.MkdirTemp("", "sui-temp-*")
 	if err != nil {
 		return PackageArtifact{}, fmt.Errorf("creating temp dir: %w", err)
 	}
@@ -65,7 +65,7 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	}
 
 	// Special-case: update published-at of CCIP & MCMS if this is the TokenPool package
-	if packageName == contracts.CCIPTokenPools {
+	if packageName == contracts.CCIPTokenPool {
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
@@ -80,7 +80,6 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
-
 		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
 		}
@@ -98,7 +97,7 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
 
-		if err = updatePublishedAt(dstRoot, contracts.CCIPTokenPools, namedAddresses["ccip_token_pool"]); err != nil {
+		if err = updatePublishedAt(dstRoot, contracts.CCIPTokenPool, namedAddresses["ccip_token_pool"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP Token Pool published-at: %w", err)
 		}
 

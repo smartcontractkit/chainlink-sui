@@ -8,57 +8,134 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/holiman/uint256"
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/sui/suiptb"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
-// Unused vars used for unused imports
 var (
 	_ = big.NewInt
-	_ = uint256.NewInt
 )
 
 type IMcmsAccount interface {
-	TransferOwnership(param bind.Object, state bind.Object, to string) bind.IMethod
-	TransferOwnershipToSelf(ownerCap bind.Object, state bind.Object) bind.IMethod
-	AcceptOwnership(state bind.Object) bind.IMethod
-	AcceptOwnershipAsTimelock(state bind.Object) bind.IMethod
-	AcceptOwnershipFromObject(state bind.Object, from string) bind.IMethod
-	PendingTransferFrom(state bind.Object) bind.IMethod
-	PendingTransferTo(state bind.Object) bind.IMethod
-	PendingTransferAccepted(state bind.Object) bind.IMethod
-	// Connect adds/changes the client used in the contract
-	Connect(client suiclient.ClientImpl)
+	TransferOwnership(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	TransferOwnershipToSelf(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipAsTimelock(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DevInspect() IMcmsAccountDevInspect
+	Encoder() McmsAccountEncoder
+}
+
+type IMcmsAccountDevInspect interface {
+	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
+	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
+	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*bool, error)
+}
+
+type McmsAccountEncoder interface {
+	TransferOwnership(param bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
+	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
+	TransferOwnershipToSelf(ownerCap bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	TransferOwnershipToSelfWithArgs(args ...any) (*bind.EncodedCall, error)
+	AcceptOwnership(state bind.Object) (*bind.EncodedCall, error)
+	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
+	AcceptOwnershipAsTimelock(state bind.Object) (*bind.EncodedCall, error)
+	AcceptOwnershipAsTimelockWithArgs(args ...any) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	PendingTransferFrom(state bind.Object) (*bind.EncodedCall, error)
+	PendingTransferFromWithArgs(args ...any) (*bind.EncodedCall, error)
+	PendingTransferTo(state bind.Object) (*bind.EncodedCall, error)
+	PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error)
+	PendingTransferAccepted(state bind.Object) (*bind.EncodedCall, error)
+	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type McmsAccountContract struct {
-	packageID *sui.Address
-	client    suiclient.ClientImpl
+	*bind.BoundContract
+	mcmsAccountEncoder
+	devInspect *McmsAccountDevInspect
+}
+
+type McmsAccountDevInspect struct {
+	contract *McmsAccountContract
 }
 
 var _ IMcmsAccount = (*McmsAccountContract)(nil)
+var _ IMcmsAccountDevInspect = (*McmsAccountDevInspect)(nil)
 
-func NewMcmsAccount(packageID string, client suiclient.ClientImpl) (*McmsAccountContract, error) {
-	pkgObjectId, err := bind.ToSuiAddress(packageID)
+func NewMcmsAccount(packageID string, client sui.ISuiAPI) (*McmsAccountContract, error) {
+	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_account", client)
 	if err != nil {
-		return nil, fmt.Errorf("package ID is not a Sui address: %w", err)
+		return nil, err
 	}
 
-	return &McmsAccountContract{
-		packageID: pkgObjectId,
-		client:    client,
-	}, nil
+	c := &McmsAccountContract{
+		BoundContract:      contract,
+		mcmsAccountEncoder: mcmsAccountEncoder{BoundContract: contract},
+	}
+	c.devInspect = &McmsAccountDevInspect{contract: c}
+	return c, nil
 }
 
-func (c *McmsAccountContract) Connect(client suiclient.ClientImpl) {
-	c.client = client
+func (c *McmsAccountContract) Encoder() McmsAccountEncoder {
+	return c.mcmsAccountEncoder
 }
 
-// Structs
+func (c *McmsAccountContract) DevInspect() IMcmsAccountDevInspect {
+	return c.devInspect
+}
+
+func (c *McmsAccountContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
+	var callArgManager *bind.CallArgManager
+	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
+		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
+		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
+	} else {
+		callArgManager = bind.NewCallArgManager()
+	}
+
+	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
+	}
+
+	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
+
+	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
+	for i, tag := range encoded.TypeArgs {
+		if tag != nil {
+			typeTagValues[i] = *tag
+		}
+	}
+
+	argumentValues := make([]transaction.Argument, len(arguments))
+	for i, arg := range arguments {
+		if arg != nil {
+			argumentValues[i] = *arg
+		}
+	}
+
+	result := ptb.MoveCall(
+		models.SuiAddress(encoded.Module.PackageID),
+		encoded.Module.ModuleName,
+		encoded.Function,
+		typeTagValues,
+		argumentValues,
+	)
+
+	return &result, nil
+}
 
 type OwnerCap struct {
 	Id string `move:"sui::object::UID"`
@@ -94,116 +171,562 @@ type OwnershipTransferred struct {
 type MCMS_ACCOUNT struct {
 }
 
-// Functions
-
-func (c *McmsAccountContract) TransferOwnership(param bind.Object, state bind.Object, to string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "transfer_ownership", false, "", "", param, state, to)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "transfer_ownership", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsAccountState struct {
+	Id              string
+	Owner           [32]byte
+	PendingTransfer *PendingTransfer
 }
 
-func (c *McmsAccountContract) TransferOwnershipToSelf(ownerCap bind.Object, state bind.Object) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "transfer_ownership_to_self", false, "", "", ownerCap, state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "transfer_ownership_to_self", err)
-		}
-
-		return ptb, nil
+func convertAccountStateFromBCS(bcs bcsAccountState) AccountState {
+	return AccountState{
+		Id:              bcs.Id,
+		Owner:           fmt.Sprintf("0x%x", bcs.Owner),
+		PendingTransfer: bcs.PendingTransfer,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsAccountContract) AcceptOwnership(state bind.Object) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "accept_ownership", false, "", "", state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "accept_ownership", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsPendingTransfer struct {
+	From     [32]byte
+	To       [32]byte
+	Accepted bool
 }
 
-func (c *McmsAccountContract) AcceptOwnershipAsTimelock(state bind.Object) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "accept_ownership_as_timelock", false, "", "", state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "accept_ownership_as_timelock", err)
-		}
-
-		return ptb, nil
+func convertPendingTransferFromBCS(bcs bcsPendingTransfer) PendingTransfer {
+	return PendingTransfer{
+		From:     fmt.Sprintf("0x%x", bcs.From),
+		To:       fmt.Sprintf("0x%x", bcs.To),
+		Accepted: bcs.Accepted,
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsAccountContract) AcceptOwnershipFromObject(state bind.Object, from string) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "accept_ownership_from_object", false, "", "", state, from)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "accept_ownership_from_object", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsOwnershipTransferRequested struct {
+	From [32]byte
+	To   [32]byte
 }
 
-func (c *McmsAccountContract) PendingTransferFrom(state bind.Object) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "pending_transfer_from", false, "", "", state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "pending_transfer_from", err)
-		}
-
-		return ptb, nil
+func convertOwnershipTransferRequestedFromBCS(bcs bcsOwnershipTransferRequested) OwnershipTransferRequested {
+	return OwnershipTransferRequested{
+		From: fmt.Sprintf("0x%x", bcs.From),
+		To:   fmt.Sprintf("0x%x", bcs.To),
 	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
 }
 
-func (c *McmsAccountContract) PendingTransferTo(state bind.Object) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "pending_transfer_to", false, "", "", state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "pending_transfer_to", err)
-		}
-
-		return ptb, nil
-	}
-
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+type bcsOwnershipTransferAccepted struct {
+	From [32]byte
+	To   [32]byte
 }
 
-func (c *McmsAccountContract) PendingTransferAccepted(state bind.Object) bind.IMethod {
-	build := func(ctx context.Context) (*suiptb.ProgrammableTransactionBuilder, error) {
-		// TODO: Object creation is always set to false. Contract analyzer should check if the function uses ::transfer
-		ptb, err := bind.BuildPTBFromArgs(ctx, c.client, c.packageID, "mcms_account", "pending_transfer_accepted", false, "", "", state)
+func convertOwnershipTransferAcceptedFromBCS(bcs bcsOwnershipTransferAccepted) OwnershipTransferAccepted {
+	return OwnershipTransferAccepted{
+		From: fmt.Sprintf("0x%x", bcs.From),
+		To:   fmt.Sprintf("0x%x", bcs.To),
+	}
+}
+
+type bcsOwnershipTransferred struct {
+	From [32]byte
+	To   [32]byte
+}
+
+func convertOwnershipTransferredFromBCS(bcs bcsOwnershipTransferred) OwnershipTransferred {
+	return OwnershipTransferred{
+		From: fmt.Sprintf("0x%x", bcs.From),
+		To:   fmt.Sprintf("0x%x", bcs.To),
+	}
+}
+
+func init() {
+	bind.RegisterStructDecoder("mcms::mcms_account::OwnerCap", func(data []byte) (interface{}, error) {
+		var result OwnerCap
+		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build PTB for moudule %v in function %v: %w", "mcms_account", "pending_transfer_accepted", err)
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_account::AccountState", func(data []byte) (interface{}, error) {
+		var temp bcsAccountState
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
 		}
 
-		return ptb, nil
+		result := convertAccountStateFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_account::PendingTransfer", func(data []byte) (interface{}, error) {
+		var temp bcsPendingTransfer
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertPendingTransferFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferRequested", func(data []byte) (interface{}, error) {
+		var temp bcsOwnershipTransferRequested
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertOwnershipTransferRequestedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferAccepted", func(data []byte) (interface{}, error) {
+		var temp bcsOwnershipTransferAccepted
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertOwnershipTransferAcceptedFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferred", func(data []byte) (interface{}, error) {
+		var temp bcsOwnershipTransferred
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertOwnershipTransferredFromBCS(temp)
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms_account::MCMS_ACCOUNT", func(data []byte) (interface{}, error) {
+		var result MCMS_ACCOUNT
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+}
+
+// TransferOwnership executes the transfer_ownership Move function.
+func (c *McmsAccountContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.TransferOwnership(param, state, to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 
-	return bind.NewMethod(build, bind.MakeExecute(build), bind.MakeInspect(build))
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// TransferOwnershipToSelf executes the transfer_ownership_to_self Move function.
+func (c *McmsAccountContract) TransferOwnershipToSelf(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.TransferOwnershipToSelf(ownerCap, state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AcceptOwnership executes the accept_ownership Move function.
+func (c *McmsAccountContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.AcceptOwnership(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AcceptOwnershipAsTimelock executes the accept_ownership_as_timelock Move function.
+func (c *McmsAccountContract) AcceptOwnershipAsTimelock(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.AcceptOwnershipAsTimelock(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AcceptOwnershipFromObject executes the accept_ownership_from_object Move function.
+func (c *McmsAccountContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.AcceptOwnershipFromObject(state, from)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
+func (c *McmsAccountContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.ExecuteOwnershipTransfer(ownerCap, state, registry, to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// PendingTransferFrom executes the pending_transfer_from Move function.
+func (c *McmsAccountContract) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.PendingTransferFrom(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// PendingTransferTo executes the pending_transfer_to Move function.
+func (c *McmsAccountContract) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.PendingTransferTo(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// PendingTransferAccepted executes the pending_transfer_accepted Move function.
+func (c *McmsAccountContract) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.PendingTransferAccepted(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// PendingTransferFrom executes the pending_transfer_from Move function using DevInspect to get return values.
+//
+// Returns: 0x1::option::Option<address>
+func (d *McmsAccountDevInspect) PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error) {
+	encoded, err := d.contract.mcmsAccountEncoder.PendingTransferFrom(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(*string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// PendingTransferTo executes the pending_transfer_to Move function using DevInspect to get return values.
+//
+// Returns: 0x1::option::Option<address>
+func (d *McmsAccountDevInspect) PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error) {
+	encoded, err := d.contract.mcmsAccountEncoder.PendingTransferTo(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(*string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected *string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// PendingTransferAccepted executes the pending_transfer_accepted Move function using DevInspect to get return values.
+//
+// Returns: 0x1::option::Option<bool>
+func (d *McmsAccountDevInspect) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*bool, error) {
+	encoded, err := d.contract.mcmsAccountEncoder.PendingTransferAccepted(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(*bool)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+type mcmsAccountEncoder struct {
+	*bind.BoundContract
+}
+
+// TransferOwnership encodes a call to the transfer_ownership Move function.
+func (c mcmsAccountEncoder) TransferOwnership(param bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
+		"&mut AccountState",
+		"address",
+	}, []any{
+		param,
+		state,
+		to,
+	}, nil)
+}
+
+// TransferOwnershipWithArgs encodes a call to the transfer_ownership Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OwnerCap",
+		"&mut AccountState",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("transfer_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// TransferOwnershipToSelf encodes a call to the transfer_ownership_to_self Move function.
+func (c mcmsAccountEncoder) TransferOwnershipToSelf(ownerCap bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("transfer_ownership_to_self", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
+		"&mut AccountState",
+	}, []any{
+		ownerCap,
+		state,
+	}, nil)
+}
+
+// TransferOwnershipToSelfWithArgs encodes a call to the transfer_ownership_to_self Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) TransferOwnershipToSelfWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OwnerCap",
+		"&mut AccountState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("transfer_ownership_to_self", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// AcceptOwnership encodes a call to the accept_ownership Move function.
+func (c mcmsAccountEncoder) AcceptOwnership(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership", typeArgsList, typeParamsList, []string{
+		"&mut AccountState",
+	}, []any{
+		state,
+	}, nil)
+}
+
+// AcceptOwnershipWithArgs encodes a call to the accept_ownership Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut AccountState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// AcceptOwnershipAsTimelock encodes a call to the accept_ownership_as_timelock Move function.
+func (c mcmsAccountEncoder) AcceptOwnershipAsTimelock(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_as_timelock", typeArgsList, typeParamsList, []string{
+		"&mut AccountState",
+	}, []any{
+		state,
+	}, nil)
+}
+
+// AcceptOwnershipAsTimelockWithArgs encodes a call to the accept_ownership_as_timelock Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) AcceptOwnershipAsTimelockWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut AccountState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_as_timelock", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// AcceptOwnershipFromObject encodes a call to the accept_ownership_from_object Move function.
+func (c mcmsAccountEncoder) AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, []string{
+		"&mut AccountState",
+		"&mut UID",
+	}, []any{
+		state,
+		from,
+	}, nil)
+}
+
+// AcceptOwnershipFromObjectWithArgs encodes a call to the accept_ownership_from_object Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut AccountState",
+		"&mut UID",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
+func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"OwnerCap",
+		"&mut AccountState",
+		"&mut Registry",
+		"address",
+	}, []any{
+		ownerCap,
+		state,
+		registry,
+		to,
+	}, nil)
+}
+
+// ExecuteOwnershipTransferWithArgs encodes a call to the execute_ownership_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"OwnerCap",
+		"&mut AccountState",
+		"&mut Registry",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// PendingTransferFrom encodes a call to the pending_transfer_from Move function.
+func (c mcmsAccountEncoder) PendingTransferFrom(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("pending_transfer_from", typeArgsList, typeParamsList, []string{
+		"&AccountState",
+	}, []any{
+		state,
+	}, []string{
+		"0x1::option::Option<address>",
+	})
+}
+
+// PendingTransferFromWithArgs encodes a call to the pending_transfer_from Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) PendingTransferFromWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&AccountState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("pending_transfer_from", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::option::Option<address>",
+	})
+}
+
+// PendingTransferTo encodes a call to the pending_transfer_to Move function.
+func (c mcmsAccountEncoder) PendingTransferTo(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("pending_transfer_to", typeArgsList, typeParamsList, []string{
+		"&AccountState",
+	}, []any{
+		state,
+	}, []string{
+		"0x1::option::Option<address>",
+	})
+}
+
+// PendingTransferToWithArgs encodes a call to the pending_transfer_to Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&AccountState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("pending_transfer_to", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::option::Option<address>",
+	})
+}
+
+// PendingTransferAccepted encodes a call to the pending_transfer_accepted Move function.
+func (c mcmsAccountEncoder) PendingTransferAccepted(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("pending_transfer_accepted", typeArgsList, typeParamsList, []string{
+		"&AccountState",
+	}, []any{
+		state,
+	}, []string{
+		"0x1::option::Option<bool>",
+	})
+}
+
+// PendingTransferAcceptedWithArgs encodes a call to the pending_transfer_accepted Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&AccountState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("pending_transfer_accepted", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::option::Option<bool>",
+	})
 }

@@ -2,9 +2,9 @@ package ccipops
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/holiman/uint256"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -35,20 +35,24 @@ var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQ
 		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	maxFeeJuels256, err := uint256.FromDecimal(input.MaxFeeJuelsPerMsg)
-	if err != nil {
-		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to convert big.Int to uint256: %s", input.MaxFeeJuelsPerMsg)
+	const decimalBase = 10
+	maxFeeJuels, ok := new(big.Int).SetString(input.MaxFeeJuelsPerMsg, decimalBase)
+	if !ok {
+		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to parse MaxFeeJuelsPerMsg: %s", input.MaxFeeJuelsPerMsg)
 	}
 
-	method := contract.Initialize(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Initialize(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
-		*maxFeeJuels256,
+		maxFeeJuels,
 		input.LinkTokenCoinMetadataObjectId,
 		input.TokenPriceStalenessThreshold,
 		input.FeeTokens,
 	)
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
@@ -61,7 +65,7 @@ var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQ
 	}
 
 	return sui_ops.OpTxResult[InitFeeQuoterObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects: InitFeeQuoterObjects{
 			FeeQuoterCapObjectId:   obj1,
@@ -94,20 +98,22 @@ var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Fe
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	method := contract.ApplyFeeTokenUpdates(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.ApplyFeeTokenUpdates(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.FeeTokensToRemove,
 		input.FeeTokensToAdd,
 	)
-
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_fee_token_updates: %w", err)
 	}
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 	}, err
 }
@@ -141,7 +147,11 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	method := contract.ApplyTokenTransferFeeConfigUpdates(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.ApplyTokenTransferFeeConfigUpdates(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -154,14 +164,12 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		input.AddIsEnabled,
 		input.RemoveTokens,
 	)
-
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_token_transfer_fee_config_updates: %w", err)
 	}
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 	}, err
 }
@@ -206,7 +214,11 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	method := contract.ApplyDestChainConfigUpdates(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.ApplyDestChainConfigUpdates(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -230,14 +242,12 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		input.GasPriceStalenessThreshold,
 		input.NetworkFeeUsdCents,
 	)
-
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_dest_chain_config_updates: %w", err)
 	}
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 	}, err
 }
@@ -264,20 +274,22 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	method := contract.ApplyPremiumMultiplierWeiPerEthUpdates(
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.ApplyPremiumMultiplierWeiPerEthUpdates(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.Tokens,
 		input.PremiumMultiplierWeiPerEth,
 	)
-
-	tx, err := method.Execute(b.GetContext(), deps.GetTxOpts(), deps.Signer, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_premium_multiplier_wei_per_eth_updates: %w", err)
 	}
 
 	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest.String(),
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 	}, err
 }

@@ -3,29 +3,28 @@ package onramp
 import (
 	"context"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type Onramp interface {
-	Address() sui.Address
+	Address() string
 	Onramp() module_onramp.IOnramp
 }
 
 var _ Onramp = OnrampPackage{}
 
 type OnrampPackage struct {
-	address sui.Address
+	address string
 
 	onramp module_onramp.IOnramp
 }
 
-func (p OnrampPackage) Address() sui.Address {
+func (p OnrampPackage) Address() string {
 	return p.address
 }
 
@@ -33,24 +32,19 @@ func (p OnrampPackage) Onramp() module_onramp.IOnramp {
 	return p.onramp
 }
 
-func NewOnramp(address string, client suiclient.ClientImpl) (Onramp, error) {
+func NewOnramp(address string, client sui.ISuiAPI) (Onramp, error) {
 	onrampContract, err := module_onramp.NewOnramp(address, client)
 	if err != nil {
 		return nil, err
 	}
 
-	packageId, err := bind.ToSuiAddress(address)
-	if err != nil {
-		return nil, err
-	}
-
 	return OnrampPackage{
-		address: *packageId,
+		address: address,
 		onramp:  onrampContract,
 	}, nil
 }
 
-func PublishOnramp(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl, ccipAddress, mcmsAddress, mcmsOwnerAddress string) (Onramp, *suiclient.SuiTransactionBlockResponse, error) {
+func PublishOnramp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, ccipAddress, mcmsAddress, mcmsOwnerAddress string) (Onramp, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.CCIPOnramp, map[string]string{
 		"ccip":        ccipAddress,
 		"ccip_onramp": "0x0",
@@ -61,7 +55,7 @@ func PublishOnramp(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, 
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})

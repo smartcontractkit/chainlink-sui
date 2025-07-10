@@ -16,7 +16,6 @@ type Param struct {
 }
 
 type Func struct {
-	IsView  bool `json:"is_view"`
 	IsEntry bool `json:"is_entry"`
 
 	Name          string   `json:"name"`
@@ -33,14 +32,6 @@ type Struct struct {
 	Fields []Param
 }
 
-type ExternalStruct struct {
-	ImportPath string
-
-	Package string
-	Module  string
-	Name    string
-}
-
 func ParseModule(module []byte) (pkg string, mod string, err error) {
 	lang := tree_sitter.NewLanguage(tree_sitter_move_on_aptos.Language())
 	n, err := tree_sitter.ParseCtx(context.Background(), module, lang)
@@ -50,8 +41,9 @@ func ParseModule(module []byte) (pkg string, mod string, err error) {
 
 	query, err := tree_sitter.NewQuery([]byte(`
 (module
-  path: (identifier) @package
-  name: (identifier) @module
+  (identifier) @package
+  "::"
+  (identifier) @module
 )
 	`), lang)
 
@@ -64,10 +56,6 @@ func ParseModule(module []byte) (pkg string, mod string, err error) {
 			break
 		}
 		for _, capture := range m.Captures {
-			// Ignore test modules
-			if strings.Contains(capture.Node.Content(module), "test") {
-				continue
-			}
 			switch capture.Index {
 			case 0:
 				// @package
@@ -148,9 +136,6 @@ func ParseFunctions(module []byte) ([]Func, error) {
 				if capture.Node.Content(module) == "test" || capture.Node.Content(module) == "test_only" {
 					testFunc = true
 				}
-				if capture.Node.Content(module) == "view" {
-					f.IsView = true
-				}
 			case 2:
 				// @modifier
 				if capture.Node.Content(module) == "entry" {
@@ -227,7 +212,6 @@ func ParseStructs(module []byte) ([]Struct, error) {
 		return nil, fmt.Errorf("parsing AST: %w", err)
 	}
 
-	// query to select all structs
 	queryStructs, err := tree_sitter.NewQuery([]byte(`
 (declaration
   (attributes

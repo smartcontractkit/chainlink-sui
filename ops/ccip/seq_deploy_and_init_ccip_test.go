@@ -4,68 +4,35 @@ package ccipops
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 
-	"github.com/holiman/uint256"
-	"github.com/pattonkan/sui-go/suiclient"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	linkops "github.com/smartcontractkit/chainlink-sui/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
-	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 
 	"github.com/stretchr/testify/require"
 )
 
-func setupSuiTest(t *testing.T) (rel.SuiSigner, *suiclient.ClientImpl) {
-	t.Helper()
-
-	log := logger.Test(t)
-
-	// Start the node.
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			if perr := cmd.Process.Kill(); perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
-	})
-
-	// Generate key pair and create a signer.
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t, log)
-	require.NoError(t, err)
-	signer := rel.NewPrivateKeySigner(pk)
-
-	// Create the client.
-	client := suiclient.NewClient("http://localhost:9000")
-
-	// Fund the account.
-	signerAddress, err := signer.GetAddress()
-	require.NoError(t, err)
-	err = testutils.FundWithFaucet(log, "localnet", signerAddress)
-	require.NoError(t, err)
-
-	return signer, client
-}
-
 func TestDeployAndInitCCIPSeq(t *testing.T) {
 	t.Parallel()
-	signer, client := setupSuiTest(t)
+
+	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
-		Client: *client,
+		Client: client,
 		Signer: signer,
-		GetTxOpts: func() bind.TxOpts {
+		GetCallOpts: func() *bind.CallOpts {
 			b := uint64(400_000_000)
-			return bind.TxOpts{
-				GasBudget: &b,
+			return &bind.CallOpts{
+				WaitForExecution: true,
+				GasBudget:        &b,
 			}
 		},
 	}
@@ -85,17 +52,25 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 	mcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy MCMS Contract")
 
-	configDigest, err := uint256.FromHex("0xe3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-	require.NoError(t, err, "failed to convert config digest to uint256")
+	configDigestHex := "e3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	configDigest, err := hex.DecodeString(configDigestHex)
+	require.NoError(t, err, "failed to decode config digest")
 
-	publicKey1, err := uint256.FromHex("0x8a1b2c3d4e5f60718293a4b5c6d7e8f901234567")
-	require.NoError(t, err, "failed to convert public keys to uint256")
-	publicKey2, err := uint256.FromHex("0x7b8c9dab0c1d2e3f405162738495a6b7c8d9e0f1")
-	require.NoError(t, err, "failed to convert public keys to uint256")
-	publicKey3, err := uint256.FromHex("0x1234567890abcdef1234567890abcdef12345678")
-	require.NoError(t, err, "failed to convert public keys to uint256")
-	publicKey4, err := uint256.FromHex("0x90abcdef1234567890abcdef1234567890abcdef")
-	require.NoError(t, err, "failed to convert public keys to uint256")
+	publicKey1Hex := "8a1b2c3d4e5f60718293a4b5c6d7e8f901234567"
+	publicKey1, err := hex.DecodeString(publicKey1Hex)
+	require.NoError(t, err, "failed to decode public key 1")
+
+	publicKey2Hex := "7b8c9dab0c1d2e3f405162738495a6b7c8d9e0f1"
+	publicKey2, err := hex.DecodeString(publicKey2Hex)
+	require.NoError(t, err, "failed to decode public key 2")
+
+	publicKey3Hex := "1234567890abcdef1234567890abcdef12345678"
+	publicKey3, err := hex.DecodeString(publicKey3Hex)
+	require.NoError(t, err, "failed to decode public key 3")
+
+	publicKey4Hex := "90abcdef1234567890abcdef1234567890abcdef"
+	publicKey4, err := hex.DecodeString(publicKey4Hex)
+	require.NoError(t, err, "failed to decode public key 4")
 
 	report, err := cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPSequence, deps, DeployAndInitCCIPSeqInput{
 		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
@@ -138,8 +113,8 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 		// Premium multiplier updates
 		PremiumMultiplierWeiPerEth: []uint64{10},
 
-		RmnHomeContractConfigDigest: configDigest.Bytes(),
-		SignerOnchainPublicKeys:     [][]byte{publicKey1.Bytes(), publicKey2.Bytes(), publicKey3.Bytes(), publicKey4.Bytes()},
+		RmnHomeContractConfigDigest: configDigest,
+		SignerOnchainPublicKeys:     [][]byte{publicKey1, publicKey2, publicKey3, publicKey4},
 		NodeIndexes:                 []uint64{0, 1, 2, 3},
 		FSign:                       uint64(1),
 	})

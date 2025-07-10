@@ -20,10 +20,11 @@ type LockReleaseTokenPoolDeployOutput struct {
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolDeployInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	tokenPoolPackage, tx, err := lockreleasetokenpool.PublishCCIPLockReleaseTokenPool(
 		b.GetContext(),
-		deps.GetTxOpts(),
-		deps.Signer,
+		opts,
 		deps.Client,
 		input.CCIPPackageId,
 		input.CCIPTokenPoolPackageId,
@@ -35,8 +36,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 	}
 
 	return sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput]{
-		Digest:    tx.Digest.String(),
-		PackageId: tokenPoolPackage.Address().String(),
+		Digest:    tx.Digest,
+		PackageId: tokenPoolPackage.Address(),
 	}, err
 }
 

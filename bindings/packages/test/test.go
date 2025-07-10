@@ -3,32 +3,35 @@ package test
 import (
 	"context"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	modulecomplex "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/complex"
 	modulecounter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
+	module_generics "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/generics"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type Test interface {
-	Address() sui.Address
+	Address() string
 	Counter() modulecounter.ICounter
 	Complex() modulecomplex.IComplex
+	Generics() module_generics.IGenerics
 }
 
 var _ Test = TestPackage{}
 
 type TestPackage struct {
-	address sui.Address
+	address string
 
-	counter modulecounter.ICounter
-	complex modulecomplex.IComplex
+	counter   modulecounter.ICounter
+	complex   modulecomplex.IComplex
+	generics  module_generics.IGenerics
+	PackageId string
 }
 
-func (p TestPackage) Address() sui.Address {
+func (p TestPackage) Address() string {
 	return p.address
 }
 
@@ -40,7 +43,11 @@ func (p TestPackage) Complex() modulecomplex.IComplex {
 	return p.complex
 }
 
-func NewTest(address string, client suiclient.ClientImpl) (Test, error) {
+func (p TestPackage) Generics() module_generics.IGenerics {
+	return p.generics
+}
+
+func NewTest(address string, client sui.ISuiAPI) (Test, error) {
 	counterContract, err := modulecounter.NewCounter(address, client)
 	if err != nil {
 		return nil, err
@@ -51,19 +58,21 @@ func NewTest(address string, client suiclient.ClientImpl) (Test, error) {
 		return nil, err
 	}
 
-	packageId, err := bind.ToSuiAddress(address)
+	genericsContract, err := module_generics.NewGenerics(address, client)
 	if err != nil {
 		return nil, err
 	}
 
 	return TestPackage{
-		address: *packageId,
-		counter: counterContract,
-		complex: complexContract,
+		address:   address,
+		counter:   counterContract,
+		complex:   complexContract,
+		generics:  genericsContract,
+		PackageId: address,
 	}, nil
 }
 
-func PublishTest(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl) (Test, *suiclient.SuiTransactionBlockResponse, error) {
+func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (Test, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.Test, map[string]string{
 		"test": "0x0",
 	})
@@ -75,7 +84,7 @@ func PublishTest(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, cl
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})

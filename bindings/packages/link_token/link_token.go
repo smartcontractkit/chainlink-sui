@@ -3,29 +3,28 @@ package link
 import (
 	"context"
 
-	"github.com/pattonkan/sui-go/sui"
-	"github.com/pattonkan/sui-go/suiclient"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_link_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/link_token/link_token"
 	"github.com/smartcontractkit/chainlink-sui/contracts"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 type LinkToken interface {
-	Address() sui.Address
+	Address() string
 	LinkToken() module_link_token.ILinkToken
 }
 
 var _ LinkToken = LinkTokenPackage{}
 
 type LinkTokenPackage struct {
-	address sui.Address
+	address string
 
 	linkToken module_link_token.ILinkToken
 }
 
-func (p LinkTokenPackage) Address() sui.Address {
+func (p LinkTokenPackage) Address() string {
 	return p.address
 }
 
@@ -33,7 +32,7 @@ func (p LinkTokenPackage) LinkToken() module_link_token.ILinkToken {
 	return p.linkToken
 }
 
-func NewLinkToken(address string, client suiclient.ClientImpl) (LinkToken, error) {
+func NewLinkToken(address string, client sui.ISuiAPI) (LinkToken, error) {
 	pkgObjectId, err := bind.ToSuiAddress(address)
 	if err != nil {
 		return nil, err
@@ -45,12 +44,12 @@ func NewLinkToken(address string, client suiclient.ClientImpl) (LinkToken, error
 	}
 
 	return LinkTokenPackage{
-		address:   *pkgObjectId,
+		address:   pkgObjectId,
 		linkToken: linkTokenContract,
 	}, nil
 }
 
-func PublishLinkToken(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigner, client suiclient.ClientImpl) (LinkToken, *suiclient.SuiTransactionBlockResponse, error) {
+func PublishLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (LinkToken, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.LINKToken, map[string]string{
 		"link_token": "0x0",
 	})
@@ -58,7 +57,7 @@ func PublishLinkToken(ctx context.Context, opts bind.TxOpts, signer rel.SuiSigne
 		return nil, nil, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(ctx, opts, signer, client, bind.PublishRequest{
+	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})

@@ -26,7 +26,7 @@ module test::counter {
         id: UID,
         value: u64
     }
-    
+
     // Pointer to reference both Counter and AdminCap objects
     public struct CounterPointer has key, store {
         id: UID,
@@ -80,15 +80,15 @@ module test::counter {
     }
 
     fun init(_witness: COUNTER, ctx: &mut TxContext) {
-        let counter = Counter { 
-            id: object::new(ctx), 
-            value: 0 
+        let counter = Counter {
+            id: object::new(ctx),
+            value: 0
         };
 
         let admin_cap = AdminCap {
             id: object::new(ctx)
         };
-        
+
         // Create the pointer that references both objects
         let pointer = CounterPointer {
             id: object::new(ctx),
@@ -114,8 +114,8 @@ module test::counter {
 
     /// Create and share a Counter object
     public entry fun initialize(ctx: &mut TxContext) {
-        let counter = Counter { 
-            id: object::new(ctx), 
+        let counter = Counter {
+            id: object::new(ctx),
             value: 0
         };
         transfer::share_object(counter);
@@ -124,7 +124,7 @@ module test::counter {
     /// Increment counter by 1
     public entry fun increment(counter: &mut Counter) {
         counter.value = counter.value + 1;
-        
+
         // Emit an event
         event::emit(CounterIncremented {
             counter_id: object::id(counter),
@@ -142,31 +142,31 @@ module test::counter {
 
     public fun increment_by_one(counter: &mut Counter, _ctx: &mut TxContext): u64 {
         counter.value = counter.value + 1;
-        
+
         // Emit an event
         event::emit(CounterIncremented {
             counter_id: object::id(counter),
             new_value: counter.value
         });
-        
+
         counter.value
     }
 
     public fun increment_by_one_no_context(counter: &mut Counter): u64 {
         counter.value = counter.value + 1;
-        
+
         // Emit an event
         event::emit(CounterIncremented {
             counter_id: object::id(counter),
             new_value: counter.value
         });
-        
+
         counter.value
     }
 
     public fun increment_by_two(_admin: &AdminCap, counter: &mut Counter, _ctx: &mut TxContext) {
         counter.value = counter.value + 2;
-        
+
         // Emit an event
         event::emit(CounterIncremented {
             counter_id: object::id(counter),
@@ -176,7 +176,7 @@ module test::counter {
 
     public entry fun increment_by_two_no_context(_admin: &AdminCap, counter: &mut Counter) {
         counter.value = counter.value + 2;
-        
+
         // Emit an event
         event::emit(CounterIncremented {
             counter_id: object::id(counter),
@@ -202,7 +202,7 @@ module test::counter {
         _ctx: &mut TxContext
     ) {
         counter.value = counter.value + (a * b);
-        
+
         // Emit an event
         event::emit(CounterIncremented {
             counter_id: object::id(counter),
@@ -215,6 +215,7 @@ module test::counter {
         counter.value
     }
 
+    // Used to test the pointer functionality in CR
     public entry fun get_count_using_pointer(counter: &Counter): u64 {
         counter.value
     }
@@ -222,7 +223,6 @@ module test::counter {
     public fun get_count_no_entry(counter: &Counter): u64 {
         counter.value
     }
-
     /// Get the value of a coin of generic type T
     public fun get_coin_value<T>(coin: &Coin<T>): u64 {
         coin::value(coin)
@@ -231,13 +231,13 @@ module test::counter {
     /// Returns a struct containing a list of addresses
     public fun get_address_list(): AddressList {
         let mut addresses = vector::empty<address>();
-        
+
         // Add some sample addresses
         vector::push_back(&mut addresses, @0x1);
         vector::push_back(&mut addresses, @0x2);
         vector::push_back(&mut addresses, @0x3);
         vector::push_back(&mut addresses, @0x4);
-        
+
         AddressList {
             addresses,
             count: vector::length(&addresses),
@@ -257,7 +257,7 @@ module test::counter {
         vector::push_back(&mut random_bytes, 2);
         vector::push_back(&mut random_bytes, 3);
         vector::push_back(&mut random_bytes, 4);
-        
+
         ComplexResult {
             count: 42,
             addr: @0x1,
@@ -273,7 +273,7 @@ module test::counter {
         vector::push_back(&mut random_bytes, 2);
         vector::push_back(&mut random_bytes, 3);
         vector::push_back(&mut random_bytes, 4);
-        
+
         NestedStruct {
             is_nested: true,
             double_count: 42,
@@ -310,7 +310,7 @@ module test::counter {
                 value: 42,
             },
         };
-        
+
         (42, @0x1, true, nested_result)
     }
 
