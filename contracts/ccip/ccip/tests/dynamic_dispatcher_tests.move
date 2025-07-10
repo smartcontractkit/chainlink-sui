@@ -64,12 +64,13 @@ public fun test_create_token_params() {
     let (scenario, owner_cap, ref, source_cap) = setup_test();
     
     // Test creating token params with valid destination chain selector
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     let destination = dynamic_dispatcher::get_destination_chain_selector(&token_params);
     assert!(destination == DESTINATION_CHAIN_SELECTOR);
     
     // Clean up token_params
-    let (_, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -80,9 +81,10 @@ public fun test_create_token_params_zero_chain_selector() {
     let (scenario, owner_cap, ref, source_cap) = setup_test();
     
     // Test creating token params with zero destination chain selector should fail
-    let token_params = dynamic_dispatcher::create_token_params(0);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(0, receiver);
 
-    let (_, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 
@@ -90,19 +92,20 @@ public fun test_create_token_params_zero_chain_selector() {
 public fun test_get_destination_chain_selector() {
     let (scenario, owner_cap, ref, source_cap) = setup_test();
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     let destination = dynamic_dispatcher::get_destination_chain_selector(&token_params);
     assert!(destination == DESTINATION_CHAIN_SELECTOR);
     
     // Test with different chain selector
     let different_chain = 2000;
-    let token_params2 = dynamic_dispatcher::create_token_params(different_chain);
+    let token_params2 = dynamic_dispatcher::create_token_params(different_chain, receiver);
     let destination2 = dynamic_dispatcher::get_destination_chain_selector(&token_params2);
     assert!(destination2 == different_chain);
     
     // Clean up
-    let (_, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
-    let (_, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params2);
+    let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params2);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -121,10 +124,13 @@ public fun test_add_source_token_transfer() {
         ascii::string(b"TestToken"),
         OWNER, // administrator
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add source token transfer
     let updated_params = dynamic_dispatcher::add_source_token_transfer(
@@ -142,8 +148,9 @@ public fun test_add_source_token_transfer() {
     assert!(destination == DESTINATION_CHAIN_SELECTOR);
     
     // Deconstruct and verify the source token transfer
-    let (dest_chain, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
+    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
     assert!(dest_chain == DESTINATION_CHAIN_SELECTOR);
+    assert!(returned_receiver == receiver);
     assert!(transfers.length() == 1);
     
     let transfer = &transfers[0];
@@ -174,10 +181,13 @@ public fun test_add_source_token_transfer_wrong_proof() {
         ascii::string(b"TestToken"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Try to add source token transfer with wrong proof type
     let updated_params = dynamic_dispatcher::add_source_token_transfer(
@@ -190,7 +200,7 @@ public fun test_add_source_token_transfer_wrong_proof() {
         TestTypeProof2 {} // Wrong proof type!
     );
 
-    let (_, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
+    let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 
@@ -208,6 +218,8 @@ public fun test_add_multiple_source_token_transfers() {
         ascii::string(b"TestToken1"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -220,10 +232,13 @@ public fun test_add_multiple_source_token_transfers() {
         ascii::string(b"TestToken2"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof2>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add first token transfer
     let updated_params1 = dynamic_dispatcher::add_source_token_transfer(
@@ -248,8 +263,9 @@ public fun test_add_multiple_source_token_transfers() {
     );
     
     // Verify both transfers were added
-    let (dest_chain, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params2);
+    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params2);
     assert!(dest_chain == DESTINATION_CHAIN_SELECTOR);
+    assert!(returned_receiver == receiver);
     assert!(transfers.length() == 2);
     
     // Verify first transfer
@@ -282,11 +298,13 @@ public fun test_deconstruct_token_params_empty() {
     let (scenario, owner_cap, ref, source_cap) = setup_test();
     
     // Create token params without any transfers
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Deconstruct should work with empty transfers
-    let (dest_chain, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
     assert!(dest_chain == DESTINATION_CHAIN_SELECTOR);
+    assert!(returned_receiver == receiver);
     assert!(transfers.length() == 0);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
@@ -306,10 +324,13 @@ public fun test_get_source_token_transfer_data() {
         ascii::string(b"TestToken"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add source token transfer with specific data
     let updated_params = dynamic_dispatcher::add_source_token_transfer(
@@ -323,7 +344,7 @@ public fun test_get_source_token_transfer_data() {
     );
     
     // Get the transfer and verify all data
-    let (_, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
     let transfer = &transfers[0];
     let (source_pool, amount, source_token_address, dest_token_address, extra_data) = 
         dynamic_dispatcher::get_source_token_transfer_data(*transfer);
@@ -351,10 +372,13 @@ public fun test_edge_case_large_amounts() {
         ascii::string(b"TestToken"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Test with maximum u64 value
     let max_amount = 18446744073709551615; // u64::MAX
@@ -368,7 +392,7 @@ public fun test_edge_case_large_amounts() {
         TestTypeProof {}
     );
     
-    let (_, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
     let transfer = &transfers[0];
     let (_, amount, _, _, _) = dynamic_dispatcher::get_source_token_transfer_data(*transfer);
     
@@ -391,10 +415,13 @@ public fun test_edge_case_empty_data() {
         ascii::string(b"TestToken"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Test with empty destination address and extra data
     let updated_params = dynamic_dispatcher::add_source_token_transfer(
@@ -407,7 +434,7 @@ public fun test_edge_case_empty_data() {
         TestTypeProof {}
     );
     
-    let (_, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
     let transfer = &transfers[0];
     let (_, _, _, dest_token_address, extra_data) = 
         dynamic_dispatcher::get_source_token_transfer_data(*transfer);
@@ -424,12 +451,13 @@ public fun test_different_destination_chains() {
     
     // Test creating token params for different destination chains
     let chains = vector[1, 100, 1000, 999999];
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
     let mut i = 0;
     let mut token_params_list = vector[];
     
     while (i < chains.length()) {
         let chain = chains[i];
-        let token_params = dynamic_dispatcher::create_token_params(chain);
+        let token_params = dynamic_dispatcher::create_token_params(chain, receiver);
         let destination = dynamic_dispatcher::get_destination_chain_selector(&token_params);
         assert!(destination == chain);
         token_params_list.push_back(token_params);
@@ -439,7 +467,7 @@ public fun test_different_destination_chains() {
     // Clean up all token params
     while (!token_params_list.is_empty()) {
         let token_params = token_params_list.pop_back();
-        let (_, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+        let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
     };
 
     token_params_list.destroy_empty();
@@ -460,10 +488,13 @@ public fun test_zero_amount_transfer() {
         ascii::string(b"TestToken"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Test with zero amount - should be allowed
     let updated_params = dynamic_dispatcher::add_source_token_transfer(
@@ -476,7 +507,7 @@ public fun test_zero_amount_transfer() {
         TestTypeProof {}
     );
     
-    let (_, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
     let transfer = &transfers[0];
     let (_, amount, _, _, _) = dynamic_dispatcher::get_source_token_transfer_data(*transfer);
     
@@ -499,10 +530,13 @@ public fun test_source_transfer_cap_permission() {
         ascii::string(b"TestToken"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
-    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR);
+    let receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add a source token transfer
     let updated_params = dynamic_dispatcher::add_source_token_transfer(
@@ -517,8 +551,9 @@ public fun test_source_transfer_cap_permission() {
     
     // Test that deconstruct_token_params requires the proper SourceTransferCap
     // This test verifies that only the holder of SourceTransferCap can deconstruct
-    let (dest_chain, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
+    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_params);
     assert!(dest_chain == DESTINATION_CHAIN_SELECTOR);
+    assert!(returned_receiver == receiver);
     assert!(transfers.length() == 1);
     
     // Verify the transfer data is correct

@@ -170,7 +170,7 @@ public fun execute_ownership_transfer(
     event::emit(OwnershipTransferred { from: caller, to })
 }
 
-public(package) fun get_current_owner(ref: &CCIPObjectRef): address {
+public fun get_current_owner(ref: &CCIPObjectRef): address {
     ref.current_owner
 }
 

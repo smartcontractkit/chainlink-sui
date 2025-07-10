@@ -247,6 +247,8 @@ public fun test_complete_token_transfer() {
         type_name::into_string(type_name::get<TestToken>()),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -291,6 +293,7 @@ public fun test_extract_any2sui_message() {
     receiver_registry::register_receiver(
         &mut ref,
         @0x123, // receiver_state_id
+        vector[], // receiver_state_params
         TestTypeProof {}
     );
     
