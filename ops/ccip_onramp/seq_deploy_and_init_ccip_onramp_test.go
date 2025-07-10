@@ -51,7 +51,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 
 	inputCCIP := ccip_ops.DeployCCIPInput{
 		McmsPackageId: reportMCMs.Output.PackageId,
-		McmsOwner:     "0x2",
+		McmsOwner:     signerAddress,
 	}
 
 	report, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
@@ -71,7 +71,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 		DeployCCIPOnRampInput: DeployCCIPOnRampInput{
 			CCIPPackageId:      report.Output.PackageId,
 			MCMSPackageId:      reportMCMs.Output.PackageId,
-			MCMSOwnerPackageId: "0x2",
+			MCMSOwnerPackageId: signerAddress,
 		},
 		OnRampInitializeInput: OnRampInitializeInput{
 			NonceManagerCapId:         reportNonceManagerInit.Output.Objects.NonceManagerCapObjectId, // this is from NonceManager init Op

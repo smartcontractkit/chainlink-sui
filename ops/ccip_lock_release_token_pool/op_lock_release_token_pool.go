@@ -87,15 +87,29 @@ type LockReleaseTokenPoolApplyChainUpdatesInput struct {
 	OwnerCap                     string
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
-	// TODO: Provide a more human readable type for these
-	RemotePoolAddressesToAdd  [][][]byte
-	RemoteTokenAddressesToAdd [][]byte
+	RemotePoolAddressesToAdd     [][]string
+	RemoteTokenAddressesToAdd    []string
 }
 
 var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolApplyChainUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
+	}
+
+	// Convert [][]string to [][][]byte for RemotePoolAddressesToAdd
+	remotePoolAddressesBytes := make([][][]byte, len(input.RemotePoolAddressesToAdd))
+	for i, addresses := range input.RemotePoolAddressesToAdd {
+		remotePoolAddressesBytes[i] = make([][]byte, len(addresses))
+		for j, address := range addresses {
+			remotePoolAddressesBytes[i][j] = []byte(address)
+		}
+	}
+
+	// Convert []string to [][]byte for RemoteTokenAddressesToAdd
+	remoteTokenAddressesBytes := make([][]byte, len(input.RemoteTokenAddressesToAdd))
+	for i, address := range input.RemoteTokenAddressesToAdd {
+		remoteTokenAddressesBytes[i] = []byte(address)
 	}
 
 	opts := deps.GetCallOpts()
@@ -108,8 +122,8 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelectorsToRemove,
 		input.RemoteChainSelectorsToAdd,
-		input.RemotePoolAddressesToAdd,
-		input.RemoteTokenAddressesToAdd,
+		remotePoolAddressesBytes,
+		remoteTokenAddressesBytes,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool apply chain updates: %w", err)

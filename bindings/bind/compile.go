@@ -91,8 +91,14 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 	}
 
-	// Special-case: update published-at of CCIP & MCMs if it's a LockReleaseTokenPool package
-	if packageName == contracts.LockReleaseTokenPool {
+	if packageName == contracts.ManagedToken {
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
+		}
+	}
+
+	// Special-case: update published-at of CCIP, CCIP Token Pool, & MCMs if it's a token pool package
+	if packageName == contracts.LockReleaseTokenPool || packageName == contracts.BurnMintTokenPool || packageName == contracts.ManagedTokenPool {
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
@@ -103,6 +109,13 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 
 		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
+		}
+	}
+
+	// Special-case: update published-at of Managed Token if it's a managed token pool package
+	if packageName == contracts.ManagedTokenPool {
+		if err = updatePublishedAt(dstRoot, contracts.ManagedToken, namedAddresses["managed_token"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating Managed Token published-at: %w", err)
 		}
 	}
 

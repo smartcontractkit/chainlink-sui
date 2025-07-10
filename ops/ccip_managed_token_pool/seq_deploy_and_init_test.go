@@ -1,12 +1,13 @@
 //go:build integration
 
-package lockreleasetokenpoolops
+package managedtokenpoolops
 
 import (
 	"context"
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/stretchr/testify/require"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -15,15 +16,12 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
 	ccip_tokenpoolops "github.com/smartcontractkit/chainlink-sui/ops/ccip_token_pool"
-	linkops "github.com/smartcontractkit/chainlink-sui/ops/link"
+	managedtokenops "github.com/smartcontractkit/chainlink-sui/ops/managed_token"
 	mcms_ops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
-
-	"github.com/stretchr/testify/require"
 )
 
-func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
+func TestDeployAndInitSeq(t *testing.T) {
 	t.Parallel()
-
 	signer, client := testenv.SetupEnvironment(t)
 
 	deps := sui_ops.OpTxDeps{
@@ -70,9 +68,12 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	reportCCIPTokenPool, err := cld_ops.ExecuteOperation(bundle, ccip_tokenpoolops.DeployCCIPTokenPoolOp, deps, inputTokenPool)
 	require.NoError(t, err, "failed to deploy CCIP TokenPool Package")
 
-	// Deploy LINK
-	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy LINK token")
+	// deploy managed token
+	reportManagedToken, err := cld_ops.ExecuteOperation(bundle, managedtokenops.DeployCCIPManagedTokenOp, deps, managedtokenops.ManagedTokenDeployInput{
+		MCMSAddress:      reportMCMs.Output.PackageId,
+		MCMSOwnerAddress: signerAddress,
+	})
+	require.NoError(t, err, "failed to deploy ManagedToken Package")
 
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
@@ -83,48 +84,17 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	}
 
 	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeOp, deps, inputTAR)
-	require.NoError(t, err, "failed to deploy LINK token")
+	require.NoError(t, err, "failed to initialize TokenAdminRegistry")
 
-	// Run BurnMintTokenPool deploy + configure sequence
-	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
-		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.PackageId,
-			CCIPTokenPoolPackageId: reportCCIPTokenPool.Output.PackageId,
-			MCMSAddress:            reportMCMs.Output.PackageId,
-			MCMSOwnerAddress:       signerAddress,
-		},
-
-		// initialize
-		CoinObjectTypeArg:      linkReport.Output.PackageId + "::link_token::LINK_TOKEN",
-		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
-		CoinMetadataObjectId:   linkReport.Output.Objects.CoinMetadataObjectId,
-		TreasuryCapObjectId:    linkReport.Output.Objects.TreasuryCapObjectId,
-		TokenPoolPackageId:     reportCCIPTokenPool.Output.PackageId,
-		TokenPoolAdministrator: signerAddress,
-		Rebalancer:             "0x0",
-
-		// apply dest chain updates
-		RemoteChainSelectorsToRemove: []uint64{},
-		RemoteChainSelectorsToAdd:    []uint64{10},
-		RemotePoolAddressesToAdd: [][]string{
-			{
-				"0x2554271fdba86ebee93eef17b7e676bdba722768",
-			},
-		},
-		RemoteTokenAddressesToAdd: []string{
-			"0x67966fc20296521b168ce1dc49ebec55dd02a1f3",
-		},
-
-		// set chain rate limiter configs
-		RemoteChainSelectors: []uint64{10},
-		OutboundIsEnableds:   []bool{true},
-		OutboundCapacities:   []uint64{10},
-		OutboundRates:        []uint64{10},
-		InboundIsEnableds:    []bool{true},
-		InboundCapacities:    []uint64{10},
-		InboundRates:         []uint64{10},
+	// Test just the package deployment for now
+	managedTokenPoolInput := ManagedTokenPoolDeployInput{
+		CCIPPackageId:          reportCCIP.Output.PackageId,
+		CCIPTokenPoolPackageId: reportCCIPTokenPool.Output.PackageId,
+		ManagedTokenPackageId:  reportManagedToken.Output.PackageId,
+		MCMSAddress:            reportMCMs.Output.PackageId,
+		MCMSOwnerAddress:       signerAddress,
 	}
 
-	_, err = cld_ops.ExecuteSequence(bundle, DeployAndInitLockReleaseTokenPoolSequence, deps, LRTokenPoolInput)
-	require.NoError(t, err, "failed to deploy CCIP LockRelease token pool Sequence")
+	_, err = cld_ops.ExecuteOperation(bundle, DeployCCIPManagedTokenPoolOp, deps, managedTokenPoolInput)
+	require.NoError(t, err, "failed to deploy CCIP ManagedTokenPool")
 }

@@ -1,4 +1,4 @@
-package lockreleasetokenpoolops
+package burnminttokenpoolops
 
 import (
 	"github.com/Masterminds/semver/v3"
@@ -8,18 +8,18 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 )
 
-type DeployLockReleaseTokenPoolObjects struct {
+type DeployBurnMintTokenPoolObjects struct {
 	OwnerCapObjectId string
 	StateObjectId    string
 }
 
-type DeployLockReleaseTokenPoolOutput struct {
+type DeployBurnMintTokenPoolOutput struct {
 	CCIPPackageId string
-	Objects       DeployLockReleaseTokenPoolObjects
+	Objects       DeployBurnMintTokenPoolObjects
 }
 
-type DeployAndInitLockReleaseTokenPoolInput struct {
-	LockReleaseTokenPoolDeployInput
+type DeployAndInitBurnMintTokenPoolInput struct {
+	BurnMintTokenPoolDeployInput
 	// init
 	CoinObjectTypeArg      string
 	CCIPObjectRefObjectId  string
@@ -27,7 +27,6 @@ type DeployAndInitLockReleaseTokenPoolInput struct {
 	TreasuryCapObjectId    string
 	TokenPoolPackageId     string
 	TokenPoolAdministrator string
-	Rebalancer             string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -43,41 +42,40 @@ type DeployAndInitLockReleaseTokenPoolInput struct {
 	InboundRates         []uint64
 }
 
-var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
-	"sui-deploy-lock-release-token-pool-seq",
+var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
+	"sui-deploy-burn-mint-token-pool-seq",
 	semver.MustParse("0.1.0"),
-	"Deploys and sets initial lock release token pool configuration",
-	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployAndInitLockReleaseTokenPoolInput) (DeployLockReleaseTokenPoolOutput, error) {
-		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPLockReleaseTokenPoolOp, deps, input.LockReleaseTokenPoolDeployInput)
+	"Deploys and sets initial burn mint token pool configuration",
+	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployAndInitBurnMintTokenPoolInput) (DeployBurnMintTokenPoolOutput, error) {
+		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPBurnMintTokenPoolOp, deps, input.BurnMintTokenPoolDeployInput)
 		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
+			return DeployBurnMintTokenPoolOutput{}, err
 		}
 
 		initReport, err := cld_ops.ExecuteOperation(
 			env,
-			LockReleaseTokenPoolInitializeOp,
+			BurnMintTokenPoolInitializeOp,
 			deps,
-			LockReleaseTokenPoolInitializeInput{
+			BurnMintTokenPoolInitializeInput{
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
-				LockReleasePackageId:   deployReport.Output.PackageId,
+				BurnMintPackageId:      deployReport.Output.PackageId,
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
-				Rebalancer:             input.Rebalancer,
 			},
 		)
 		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
+			return DeployBurnMintTokenPoolOutput{}, err
 		}
 
 		_, err = cld_ops.ExecuteOperation(
 			env,
-			LockReleaseTokenPoolApplyChainUpdatesOp,
+			BurnMintTokenPoolApplyChainUpdatesOp,
 			deps,
-			LockReleaseTokenPoolApplyChainUpdatesInput{
-				LockReleasePackageId:         deployReport.Output.PackageId,
+			BurnMintTokenPoolApplyChainUpdatesInput{
+				BurnMintPackageId:            deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectId:                initReport.Output.Objects.StateObjectId,
 				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
@@ -88,15 +86,15 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			},
 		)
 		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
+			return DeployBurnMintTokenPoolOutput{}, err
 		}
 
 		_, err = cld_ops.ExecuteOperation(
 			env,
-			LockReleaseTokenPoolSetChainRateLimiterOp,
+			BurnMintTokenPoolSetChainRateLimiterOp,
 			deps,
-			LockReleaseTokenPoolSetChainRateLimiterInput{
-				LockReleasePackageId: deployReport.Output.PackageId,
+			BurnMintTokenPoolSetChainRateLimiterInput{
+				BurnMintPackageId:    deployReport.Output.PackageId,
 				CoinObjectTypeArg:    input.CoinObjectTypeArg,
 				StateObjectId:        initReport.Output.Objects.StateObjectId,
 				OwnerCap:             initReport.Output.Objects.OwnerCapObjectId,
@@ -110,12 +108,12 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			},
 		)
 		if err != nil {
-			return DeployLockReleaseTokenPoolOutput{}, err
+			return DeployBurnMintTokenPoolOutput{}, err
 		}
 
-		return DeployLockReleaseTokenPoolOutput{
+		return DeployBurnMintTokenPoolOutput{
 			CCIPPackageId: deployReport.Output.PackageId,
-			Objects: DeployLockReleaseTokenPoolObjects{
+			Objects: DeployBurnMintTokenPoolObjects{
 				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
 			},

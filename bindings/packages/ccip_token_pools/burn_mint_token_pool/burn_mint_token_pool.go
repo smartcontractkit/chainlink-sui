@@ -48,13 +48,16 @@ func PublishCCIPBurnMintTokenPool(
 	ctx context.Context,
 	opts *bind.CallOpts,
 	client sui.ISuiAPI,
-	ccipAddress string,
-	ccipTokenPoolAddress string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
-	artifact, err := bind.CompilePackage(contracts.CCIPTokenPool, map[string]string{
-		"ccip":                  ccipAddress,
-		"ccip_token_pool":       ccipTokenPoolAddress,
-		"burn_mint_token_pool":  "0x0",
-		"burn_mint_local_token": "0x1",
+	ccipAddress,
+	ccipTokenPoolAddress,
+	mcmsAddress,
+	mcmsOwnerAddress string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
+	artifact, err := bind.CompilePackage(contracts.BurnMintTokenPool, map[string]string{
+		"ccip":                 ccipAddress,
+		"ccip_token_pool":      ccipTokenPoolAddress,
+		"burn_mint_token_pool": "0x0",
+		"mcms":                 mcmsAddress,
+		"mcms_owner":           mcmsOwnerAddress,
 	})
 	if err != nil {
 		return nil, nil, err

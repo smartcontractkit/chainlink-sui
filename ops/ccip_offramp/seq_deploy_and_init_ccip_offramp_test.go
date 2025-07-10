@@ -64,13 +64,16 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		reporter,
 	)
 
+	signerAddress, err := signer.GetAddress()
+	require.NoError(t, err, "failed to get signer address")
+
 	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcms_ops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy MCMS Package")
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
 		McmsPackageId: reportMCMs.Output.PackageId,
-		McmsOwner:     "0x2",
+		McmsOwner:     signerAddress,
 	}
 
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)

@@ -48,9 +48,12 @@ func TestDeployAndInitTokenPoolSeq(t *testing.T) {
 	mcmsReport, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy MCMS Contract")
 
+	signerAddress, err := signer.GetAddress()
+	require.NoError(t, err, "failed to get signer address")
+
 	inputCCIP := ccip_ops.DeployCCIPInput{
 		McmsPackageId: mcmsReport.Output.PackageId,
-		McmsOwner:     "0x2",
+		McmsOwner:     signerAddress,
 	}
 
 	// deploy CCIP package
@@ -61,7 +64,7 @@ func TestDeployAndInitTokenPoolSeq(t *testing.T) {
 	inputTokenPool := TokenPoolDeployInput{
 		CCIPPackageId:    reportCCIP.Output.PackageId,
 		MCMSAddress:      mcmsReport.Output.PackageId,
-		MCMSOwnerAddress: "0x2",
+		MCMSOwnerAddress: signerAddress,
 	}
 
 	_, err = cld_ops.ExecuteOperation(bundle, DeployCCIPTokenPoolOp, deps, inputTokenPool)

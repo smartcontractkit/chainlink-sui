@@ -72,13 +72,16 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 	publicKey4, err := hex.DecodeString(publicKey4Hex)
 	require.NoError(t, err, "failed to decode public key 4")
 
+	signerAddress, err := signer.GetAddress()
+	require.NoError(t, err, "failed to get signer address")
+
 	report, err := cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPSequence, deps, DeployAndInitCCIPSeqInput{
 		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput: DeployCCIPInput{
 			McmsPackageId: mcmsReport.Output.PackageId,
-			McmsOwner:     "0x2",
+			McmsOwner:     signerAddress,
 		},
 		MaxFeeJuelsPerMsg:            "100000000",
 		TokenPriceStalenessThreshold: 60,

@@ -31,7 +31,7 @@ tasks:
     desc: "Run operation tests"
     deps: [integration-setup]
     cmds:
-      - go test -v ./ops/... -tags="integration"
+      - go test -v ./ops/... -p=1 -tags="integration"
 
   integration:
     desc: "Run integration tests"
