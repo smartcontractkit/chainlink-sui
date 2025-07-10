@@ -820,7 +820,7 @@ module ccip_onramp::onramp_test {
         env.scenario.next_tx(@0x999); // Not in allowlist for DEST_CHAIN_SELECTOR_1
         
         // Create empty token params for testing
-        let token_params = dd::create_token_params(DEST_CHAIN_SELECTOR_1);
+        let token_params = dd::create_token_params(DEST_CHAIN_SELECTOR_1, EVM_RECEIVER_ADDRESS);
 
         // Test ccip_send function - this will fail on fee quoter validation first
         // before reaching the sender allowlist check
@@ -831,7 +831,6 @@ module ccip_onramp::onramp_test {
             ref,
             state,
             clock,
-            b"receiver",
             b"data",
             token_params,
             &coin_metadata,

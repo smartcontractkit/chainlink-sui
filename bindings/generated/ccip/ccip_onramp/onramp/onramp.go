@@ -38,7 +38,7 @@ type IOnramp interface {
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
 	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error)
-	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
+	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -68,7 +68,7 @@ type IOnrampDevInspect interface {
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (uint64, error)
 	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (DynamicConfig, error)
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) ([]any, error)
-	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error)
+	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (string, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
@@ -112,7 +112,7 @@ type OnrampEncoder interface {
 	GetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedCall, error)
 	GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
+	CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
 	CcipSendWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetCcipPackageId() (*bind.EncodedCall, error)
 	GetCcipPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -838,8 +838,8 @@ func (c *OnrampContract) GetDynamicConfigFields(ctx context.Context, opts *bind.
 }
 
 // CcipSend executes the ccip_send Move function.
-func (c *OnrampContract) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.CcipSend(typeArgs, ref, state, clock, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
+func (c *OnrampContract) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.CcipSend(typeArgs, ref, state, clock, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1200,8 +1200,8 @@ func (d *OnrampDevInspect) GetDynamicConfigFields(ctx context.Context, opts *bin
 // CcipSend executes the ccip_send Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
-func (d *OnrampDevInspect) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error) {
-	encoded, err := d.contract.onrampEncoder.CcipSend(typeArgs, ref, state, clock, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
+func (d *OnrampDevInspect) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error) {
+	encoded, err := d.contract.onrampEncoder.CcipSend(typeArgs, ref, state, clock, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1977,7 +1977,7 @@ func (c onrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.Encode
 }
 
 // CcipSend encodes a call to the ccip_send Move function.
-func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error) {
+func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1987,7 +1987,6 @@ func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.O
 		"&mut OnRampState",
 		"&Clock",
 		"vector<u8>",
-		"vector<u8>",
 		"dd::TokenParams",
 		"&CoinMetadata<T>",
 		"&mut Coin<T>",
@@ -1996,7 +1995,6 @@ func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.O
 		ref,
 		state,
 		clock,
-		receiver,
 		data,
 		tokenParams,
 		feeTokenMetadata,
@@ -2014,7 +2012,6 @@ func (c onrampEncoder) CcipSendWithArgs(typeArgs []string, args ...any) (*bind.E
 		"&mut CCIPObjectRef",
 		"&mut OnRampState",
 		"&Clock",
-		"vector<u8>",
 		"vector<u8>",
 		"dd::TokenParams",
 		"&CoinMetadata<T>",

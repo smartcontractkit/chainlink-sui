@@ -41,7 +41,7 @@ public struct ReceiverUnregistered has copy, drop {
     receiver_package_id: address,
 }
 
-const MAX_RECEIVER_STATE_PARAMS: u64 = 5;
+const MAX_RECEIVER_STATE_PARAMS: u64 = 6;
 
 const EAlreadyRegistered: u64 = 1;
 const EAlreadyInitialized: u64 = 2;
@@ -129,8 +129,6 @@ public fun unregister_receiver(
     });
 }
 
-// This function checks if a receiver is registered in the registry but not if the type proof matches.
-// this is not needed anymore?
 public fun is_registered_receiver(ref: &CCIPObjectRef, receiver_package_id: address): bool {
     let registry = state_object::borrow<ReceiverRegistry>(ref);
     registry.receiver_configs.contains(&receiver_package_id)
