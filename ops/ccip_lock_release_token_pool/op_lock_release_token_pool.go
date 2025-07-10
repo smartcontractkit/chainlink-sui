@@ -46,7 +46,7 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
-		input.TokenPoolPackageId,
+		input.LockReleasePackageId,
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
 		input.LockOrBurnParams,
@@ -209,14 +209,14 @@ var LockReleaseTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 
 // LRTP -- provide_liquidity
 type LockReleaseTokenPoolProviderLiquidityInput struct {
-	CCIPPackageId     string
-	CoinObjectTypeArg string
-	StateObjectId     string
-	Coin              string
+	LockReleaseTokenPoolPackageId string
+	StateObjectId                 string
+	Coin                          string
+	TokenType                     string
 }
 
 var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProviderLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.CCIPPackageId, deps.Client)
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleaseTokenPoolPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
@@ -226,7 +226,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	tx, err := contract.ProvideLiquidity(
 		b.GetContext(),
 		opts,
-		[]string{input.CoinObjectTypeArg},
+		[]string{input.TokenType},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.Coin},
 	)
@@ -236,7 +236,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.LockReleaseTokenPoolPackageId,
 		Objects:   NoObjects{},
 	}, err
 }
