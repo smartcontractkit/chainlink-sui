@@ -67,13 +67,13 @@ public fun get_receiver(token_params: &TokenParams): vector<u8> {
 /// signed by a CCIP user.
 public fun add_source_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
-    mut token_params: TokenParams,
+    token_params: &mut TokenParams,
     amount: u64,
     source_token_address: address,
     dest_token_address: vector<u8>,
     extra_data: vector<u8>,
     _: TypeProof,
-): TokenParams {
+ ) {
     let (token_pool_package_id, _, _, _, _, _, type_proof, _, _) = registry::get_token_config(ref, source_token_address);
     let proof_tn = type_name::get<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
@@ -87,7 +87,6 @@ public fun add_source_token_transfer<TypeProof: drop>(
             extra_data,
         }
     );
-    token_params
 }
 
 /// deconstruct the TokenParams object to get the destination chain selector, receiver, and the list of source token transfers.

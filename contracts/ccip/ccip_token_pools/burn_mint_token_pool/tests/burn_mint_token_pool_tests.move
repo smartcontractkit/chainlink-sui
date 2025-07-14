@@ -884,25 +884,25 @@ public fun test_lock_or_burn_comprehensive() {
         assert!(initial_coin_value == 1000);
         
         // Create token params for the operation
-        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
+        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Perform lock_or_burn operation (this burns the coin)
-        let updated_token_params = burn_mint_token_pool::lock_or_burn(
+        burn_mint_token_pool::lock_or_burn(
             &ccip_ref,
-            &clock,
-            &mut pool_state,
             test_coin, // This coin gets burned
-            token_params,
+            &mut token_params,
+            &mut pool_state,
+            &clock,
             &mut ctx
         );
         
         // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
+        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
         assert!(destination_chain == DefaultRemoteChain);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@burn_mint_token_pool);
-        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
         assert!(chain_selector == DefaultRemoteChain);
         assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);
@@ -1024,21 +1024,21 @@ public fun test_release_or_mint_comprehensive() {
         );
         
         // Perform release_or_mint operation
-        let updated_receiver_params = burn_mint_token_pool::release_or_mint(
+        burn_mint_token_pool::release_or_mint(
             &ccip_ref,
-            &clock,
-            &mut pool_state,
-            receiver_params,
+            &mut receiver_params,
             0, // index of the token transfer
+            &mut pool_state,
+            &clock,
             &mut ctx
         );
         
         // Verify the operation completed successfully
-        let source_chain = offramp_state_helper::get_source_chain_selector(&updated_receiver_params);
+        let source_chain = offramp_state_helper::get_source_chain_selector(&receiver_params);
         assert!(source_chain == DefaultRemoteChain);
         
         // Clean up receiver params
-        offramp_state_helper::deconstruct_receiver_params(&dest_transfer_cap, updated_receiver_params);
+        offramp_state_helper::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, @burn_mint_token_pool);

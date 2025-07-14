@@ -132,11 +132,11 @@ public fun get_token_param_data(
 /// and set the local amount.
 public fun complete_token_transfer<T, TypeProof: drop>(
     ref: &CCIPObjectRef,
-    mut receiver_params: ReceiverParams,
+    receiver_params: &mut ReceiverParams,
     index: u64,
     c: Coin<T>,
     _: TypeProof,
-): ReceiverParams {
+) {
     assert!(
         index < receiver_params.params.length(),
         EWrongIndexInReceiverParams,
@@ -162,8 +162,6 @@ public fun complete_token_transfer<T, TypeProof: drop>(
     transfer::public_transfer(c, token_transfer.receiver);
     receiver_params.params[index].completed = true;
     receiver_params.params[index].local_amount = local_amount;
-
-    receiver_params
 }
 
 /// called by ccip receiver directly, permissioned by the type proof of the receiver.
