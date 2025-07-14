@@ -78,6 +78,65 @@ var ManagedTokenPoolInitializeOp = cld_ops.NewOperation(
 	initMTPHandler,
 )
 
+// MTP -- INITIALIZE BY CCIP ADMIN
+type ManagedTokenPoolInitializeByCcipAdminInput struct {
+	ManagedTokenPoolPackageId string
+	CoinObjectTypeArg         string
+	CCIPObjectRefObjectId     string
+	OwnerCapObjectId          string
+	ManagedTokenStateObjectId string
+	ManagedTokenOwnerCapId    string
+	TokenPoolPackageId        string
+	TokenPoolAdministrator    string
+}
+
+var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.InitializeByCcipAdmin(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.CCIPObjectRefObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.ManagedTokenStateObjectId},
+		bind.Object{Id: input.ManagedTokenOwnerCapId},
+		input.TokenPoolPackageId,
+		input.TokenPoolAdministrator,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization by ccip admin: %w", err)
+	}
+
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
+	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "managed_token_pool", "ManagedTokenPoolState")
+
+	if err1 != nil || err2 != nil {
+		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
+	}
+
+	return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.ManagedTokenPoolPackageId,
+		Objects: ManagedTokenPoolInitializeObjects{
+			OwnerCapObjectId: obj1,
+			StateObjectId:    obj2,
+		},
+	}, err
+}
+
+var ManagedTokenPoolInitializeByCcipAdminOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "managed_token_pool", "initialize_by_ccip_admin"),
+	semver.MustParse("0.1.0"),
+	"Initializes the CCIP Managed Token Pool contract by CCIP admin",
+	initByCcipAdminManagedTokenPoolHandler,
+)
+
 // MTP -- apply_chain_updates
 type NoObjects struct {
 }

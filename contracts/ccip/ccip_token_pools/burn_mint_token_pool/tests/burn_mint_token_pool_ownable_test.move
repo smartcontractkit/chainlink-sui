@@ -37,9 +37,7 @@ module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
         token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
         rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
         
-        scenario.next_tx(OWNER);
-        
-        // Create token and initialize pool
+        // Create token and initialize pool in the same transaction
         let (treasury_cap, coin_metadata) = coin::create_currency(
             BURN_MINT_TOKEN_POOL_OWNABLE_TEST {},
             Decimals,
@@ -52,6 +50,7 @@ module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,

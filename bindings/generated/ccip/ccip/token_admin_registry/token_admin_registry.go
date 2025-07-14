@@ -29,7 +29,7 @@ type ITokenAdminRegistry interface {
 	GetTokenConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetAllConfiguredTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object, startKey string, maxCount uint64) (*models.SuiTransactionBlockResponse, error)
 	RegisterPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
-	RegisterPoolByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterPoolByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	UnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, newAdmin string) (*models.SuiTransactionBlockResponse, error)
@@ -66,7 +66,7 @@ type TokenAdminRegistryEncoder interface {
 	GetAllConfiguredTokensWithArgs(args ...any) (*bind.EncodedCall, error)
 	RegisterPool(typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error)
 	RegisterPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	RegisterPoolByAdmin(ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error)
+	RegisterPoolByAdmin(ref bind.Object, param bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error)
 	RegisterPoolByAdminWithArgs(args ...any) (*bind.EncodedCall, error)
 	UnregisterPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
 	UnregisterPoolWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -490,8 +490,8 @@ func (c *TokenAdminRegistryContract) RegisterPool(ctx context.Context, opts *bin
 }
 
 // RegisterPoolByAdmin executes the register_pool_by_admin Move function.
-func (c *TokenAdminRegistryContract) RegisterPoolByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.tokenAdminRegistryEncoder.RegisterPoolByAdmin(ref, coinMetadataAddress, tokenPoolPackageId, tokenPoolStateAddress, tokenPoolModule, tokenType, initialAdministrator, proof)
+func (c *TokenAdminRegistryContract) RegisterPoolByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.RegisterPoolByAdmin(ref, param, coinMetadataAddress, tokenPoolPackageId, tokenPoolStateAddress, tokenPoolModule, tokenType, initialAdministrator, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -988,11 +988,12 @@ func (c tokenAdminRegistryEncoder) RegisterPoolWithArgs(typeArgs []string, args 
 }
 
 // RegisterPoolByAdmin encodes a call to the register_pool_by_admin Move function.
-func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error) {
+func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, param bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolStateAddress string, tokenPoolModule string, tokenType bind.Object, initialAdministrator string, proof bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("register_pool_by_admin", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
+		"&state_object::OwnerCap",
 		"address",
 		"address",
 		"address",
@@ -1002,6 +1003,7 @@ func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, coinMeta
 		"ascii::String",
 	}, []any{
 		ref,
+		param,
 		coinMetadataAddress,
 		tokenPoolPackageId,
 		tokenPoolStateAddress,
@@ -1017,6 +1019,7 @@ func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, coinMeta
 func (c tokenAdminRegistryEncoder) RegisterPoolByAdminWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
+		"&state_object::OwnerCap",
 		"address",
 		"address",
 		"address",

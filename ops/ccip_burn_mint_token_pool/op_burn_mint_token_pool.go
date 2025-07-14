@@ -74,6 +74,65 @@ var BurnMintTokenPoolInitializeOp = cld_ops.NewOperation(
 	initBMTPHandler,
 )
 
+// BMTP -- INITIALIZE BY CCIP ADMIN
+type BurnMintTokenPoolInitializeByCcipAdminInput struct {
+	BurnMintPackageId      string
+	CoinObjectTypeArg      string
+	StateObjectId          string
+	CoinMetadataObjectId   string
+	OwnerCapObjectId       string
+	TreasuryCapObjectId    string
+	TokenPoolPackageId     string
+	TokenPoolAdministrator string
+}
+
+var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create burn mint contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.InitializeByCcipAdmin(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.CoinMetadataObjectId},
+		bind.Object{Id: input.TreasuryCapObjectId},
+		input.TokenPoolPackageId,
+		input.TokenPoolAdministrator,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization by ccip admin: %w", err)
+	}
+
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
+	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "burn_mint_token_pool", "BurnMintTokenPoolState")
+
+	if err1 != nil || err2 != nil {
+		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
+	}
+
+	return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.BurnMintPackageId,
+		Objects: BurnMintTokenPoolInitializeObjects{
+			OwnerCapObjectId: obj1,
+			StateObjectId:    obj2,
+		},
+	}, err
+}
+
+var BurnMintTokenPoolInitializeByCcipAdminOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "initialize_by_ccip_admin"),
+	semver.MustParse("0.1.0"),
+	"Initializes the CCIP Burn Mint Token Pool contract by CCIP admin",
+	initByCcipAdminBMTPHandler,
+)
+
 // BMTP -- apply_chain_updates
 type NoObjects struct {
 }
@@ -85,9 +144,8 @@ type BurnMintTokenPoolApplyChainUpdatesInput struct {
 	OwnerCap                     string
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
-	// TODO: Provide a more human readable type for these
-	RemotePoolAddressesToAdd  [][]string
-	RemoteTokenAddressesToAdd []string
+	RemotePoolAddressesToAdd     [][]string
+	RemoteTokenAddressesToAdd    []string
 }
 
 var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolApplyChainUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
