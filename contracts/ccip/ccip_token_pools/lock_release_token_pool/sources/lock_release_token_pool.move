@@ -258,15 +258,15 @@ public struct TypeProof has drop {}
 
 public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
-    clock: &Clock,
-    state: &mut LockReleaseTokenPoolState<T>,
     c: Coin<T>,
-    token_params: dd::TokenParams,
+    token_params: &mut dd::TokenParams,
+    state: &mut LockReleaseTokenPoolState<T>,
+    clock: &Clock,
     ctx: &mut TxContext
-): dd::TokenParams {
+) {
     let amount = c.value();
     let sender = ctx.sender();
-    let remote_chain_selector = dd::get_destination_chain_selector(&token_params);
+    let remote_chain_selector = dd::get_destination_chain_selector(token_params);
 
     // This metod validates various aspects of the lock or burn operation. If any of the
     // validations fail, the transaction will abort.
@@ -295,7 +295,7 @@ public fun lock_or_burn<T: drop>(
         dest_token_address,
         extra_data,
         TypeProof {},
-    )
+    );
 }
 
 /// after releasing the token, this function will mark this particular token transfer as complete
@@ -304,14 +304,14 @@ public fun lock_or_burn<T: drop>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    clock: &Clock,
-    pool: &mut LockReleaseTokenPoolState<T>,
-    receiver_params: osh::ReceiverParams,
+    receiver_params: &mut osh::ReceiverParams,
     index: u64,
+    pool: &mut LockReleaseTokenPoolState<T>,
+    clock: &Clock,
     ctx: &mut TxContext
-): osh::ReceiverParams {
-    let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(&receiver_params, index);
+) {
+    let remote_chain_selector = osh::get_source_chain_selector(receiver_params);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(receiver_params, index);
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &pool.token_pool_state,
         source_pool_data,
@@ -348,7 +348,7 @@ public fun release_or_mint<T>(
         index,
         c,
         TypeProof {},
-    )
+    );
 }
 
 // ================================================================
