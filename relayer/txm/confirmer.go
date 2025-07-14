@@ -30,7 +30,7 @@ const (
 // - The service is shut down
 //
 // Parameters:
-// - Uses the txm.configuration.ConfirmerPoolPeriodSeconds for the base ticker period
+// - Uses the txm.configuration.ConfirmPollSecs for the base ticker period
 // - Uses txm.stopChannel for shutdown signaling
 // - Uses txm.done WaitGroup for cleanup
 //
@@ -57,7 +57,7 @@ func (txm *SuiTxm) confirmerLoop() {
 	loopCtx, cancel := services.StopRChan(txm.stopChannel).NewCtx()
 	defer cancel()
 
-	basePeriod := txm.configuration.ConfirmerPoolPeriodSeconds
+	basePeriod := txm.configuration.ConfirmPollSecs
 	// Create initial ticker with jitter
 	ticker, jitteredDuration := GetTicker(basePeriod)
 

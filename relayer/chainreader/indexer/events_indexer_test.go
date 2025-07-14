@@ -214,12 +214,12 @@ func TestEventsIndexer(t *testing.T) {
 
 				// Verify event data
 				require.NotNil(t, event.Data)
-				newValue, ok := event.Data["new_value"]
-				require.True(t, ok, "Event should have new_value field")
+				newValue, ok := event.Data["newValue"]
+				require.True(t, ok, "Event should have newValue field")
 
-				// The new_value should be i+1 (counter starts from 0, so increment makes it 1, 2, 3)
+				// The newValue should be i+1 (counter starts from 0, so increment makes it 1, 2, 3)
 				expectedValue := strconv.Itoa(i + 1)
-				require.Equal(t, expectedValue, newValue, "Event %d should have new_value %d", i, expectedValue)
+				require.Equal(t, expectedValue, newValue, "Event %d should have newValue %d", i, expectedValue)
 			}
 
 			// Verify the cursor is set correctly
@@ -240,7 +240,7 @@ func TestEventsIndexer(t *testing.T) {
 			cursor, totalCount, err := dbStore.GetLatestOffset(ctx, packageId, eventHandle)
 			require.NoError(t, err)
 			require.NotNil(t, cursor)
-			require.Equal(t, uint64(3), totalCount, "Should have 5 events total")
+			require.Equal(t, uint64(3), totalCount, "Should have 3 events total")
 
 			log.Debugw("Latest offset details",
 				"cursor", cursor,
@@ -264,7 +264,7 @@ func TestEventsIndexer(t *testing.T) {
 			cursor, totalCount, err = dbStore.GetLatestOffset(ctx, packageId, eventHandle)
 			require.NoError(t, err)
 			require.NotNil(t, cursor)
-			require.Equal(t, uint64(5), totalCount, "Should have 5 events total")
+			require.Equal(t, uint64(6), totalCount, "Should have 6 events total")
 		})
 
 		// Test multiple sync operations

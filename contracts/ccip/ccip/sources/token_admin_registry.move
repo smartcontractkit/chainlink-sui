@@ -290,6 +290,7 @@ public fun register_pool<T, TypeProof: drop>(
 
 public fun register_pool_by_admin(
     ref: &mut CCIPObjectRef,
+    _: &state_object::OwnerCap,
     coin_metadata_address: address,
     token_pool_package_id: address,
     token_pool_state_address: address,
@@ -299,13 +300,8 @@ public fun register_pool_by_admin(
     proof: ascii::String,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
-    ctx: &mut TxContext,
+    _: &mut TxContext,
 ) {
-    assert!(
-        ctx.sender() == state_object::get_current_owner(ref),
-        ENotAdministrator,
-    );
-
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -376,10 +372,7 @@ public fun unregister_pool(
 
     let token_config = state.token_configs.remove(coin_metadata_address);
     
-    assert!(
-        token_config.administrator == ctx.sender() || ctx.sender() == state_object::get_current_owner(ref),
-        ENotAllowed
-    );
+    assert!(token_config.administrator == ctx.sender(), ENotAllowed);
 
     let previous_pool_address = token_config.token_pool_package_id;
 
@@ -402,7 +395,6 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
-    let current_owner = state_object::get_current_owner(ref);
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(
@@ -413,10 +405,7 @@ public fun set_pool<TypeProof: drop>(
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
     // the tx signer must be the administrator of the token pool.
-    assert!(
-        token_config.administrator == ctx.sender() || ctx.sender() == current_owner,
-        ENotAllowed
-    );
+    assert!(token_config.administrator == ctx.sender(), ENotAllowed);
 
     // TODO: sort out the UX here.
     // no need to update the token_type becuase it's the same for the same token

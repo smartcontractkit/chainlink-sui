@@ -238,11 +238,13 @@ public fun test_register_pool_by_admin() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ctx = scenario.ctx();
         
         // Register pool as admin (without treasury cap)
         registry::register_pool_by_admin(
             &mut ref,
+            &owner_cap,
             @0x123, // coin_metadata_address
             MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
             MOCK_TOKEN_POOL_STATE_ADDRESS_1, // token_pool_state_address
@@ -260,6 +262,7 @@ public fun test_register_pool_by_admin() {
         assert!(pool_address == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(registry::is_administrator(&ref, @0x123, TOKEN_ADMIN_ADDRESS));
         
+        scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
     };
 
@@ -956,39 +959,6 @@ public fun test_register_pool_already_registered() {
     };
 
     transfer::public_freeze_object(coin_metadata);
-    ts::end(scenario);
-}
-
-#[test]
-#[expected_failure(abort_code = registry::ENotAdministrator)]
-public fun test_register_pool_by_admin_not_owner() {
-    let mut scenario = create_test_scenario(CCIP_ADMIN);
-    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
-
-    // Try to register pool as non-owner - should fail
-    scenario.next_tx(RANDOM_USER);
-    {
-        let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let ctx = scenario.ctx();
-        
-        // This should fail because RANDOM_USER is not the owner
-        registry::register_pool_by_admin(
-            &mut ref,
-            @0x123, // coin_metadata_address
-            MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1, // token_pool_state_address
-            string::utf8(b"unauthorized_pool"), // token_pool_module
-            ascii::string(b"TestTokenType"), // token_type
-            TOKEN_ADMIN_ADDRESS, // initial_administrator
-            ascii::string(b"UnauthorizedProof"), // proof
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
-            ctx,
-        );
-        
-        ts::return_shared(ref);
-    };
-
     ts::end(scenario);
 }
 

@@ -43,6 +43,21 @@ type ChainReaderEvent struct {
 	// EventSelector specifies how the event is tagged within a package, and it includes
 	// the 3 fields of the tag `packageId::moduleId::eventId`
 	client.EventSelector
+
+	// Renames of event field names (optional). When not provided, the field names are used as-is.
+	EventFieldRenames map[string]RenamedField
+
+	// Renames provided filters to match the event field names (optional). When not provided, the filters are used as-is.
+	EventFilterRenames map[string]string
+}
+
+type RenamedField struct {
+	// The new field name (optional). This does not need to be provided if this field does not need
+	// to be renamed.
+	NewName string
+
+	// Rename sub-fields. This assumes that the event field value is a struct or a map with string keys.
+	SubFieldRenames map[string]RenamedField
 }
 
 type SequenceWithMetadata struct {

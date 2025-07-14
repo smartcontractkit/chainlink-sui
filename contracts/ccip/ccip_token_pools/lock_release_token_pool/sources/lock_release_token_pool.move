@@ -10,7 +10,7 @@ use sui::package::UpgradeCap;
 use ccip::dynamic_dispatcher as dd;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as osh;
-use ccip::state_object::CCIPObjectRef;
+use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 
 use ccip_token_pool::token_pool::{Self, TokenPoolState};
@@ -77,6 +77,7 @@ public fun initialize<T>(
 /// it does not require a treasury cap object
 public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
+    owner_cap: &state_object::OwnerCap,
     coin_metadata: &CoinMetadata<T>,
     token_pool_package_id: address,
     token_pool_administrator: address,
@@ -90,6 +91,7 @@ public fun initialize_by_ccip_admin<T>(
 
     token_admin_registry::register_pool_by_admin(
         ref,
+        owner_cap,
         coin_metadata_address,
         token_pool_package_id,
         token_pool_state_address,

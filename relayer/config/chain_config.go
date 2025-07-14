@@ -13,7 +13,7 @@ const (
 	DefaultRetryCount                 = int64(5)
 	DefaultMaxGasLimit                = int64(10000000)
 	DefaultTxTimeoutSeconds           = 10
-	DefaultConfirmerPoolPeriodSeconds = int64(1)
+	DefaultConfirmPollSecs            = int64(1)
 	DefaultBalancePollIntervalSeconds = int64(10)
 )
 

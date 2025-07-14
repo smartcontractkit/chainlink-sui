@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -176,7 +175,9 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 	// TODO: event offset is a string and should be stored in the DB as a string
 	return &models.EventId{
 		TxDigest: txDigest,
-		EventSeq: strconv.FormatUint(offset, 10),
+		// EventSeq is scoped per transaction, the first (and only) event in a tx always has eventSeq = "0".
+		// We use (txDigest, eventSeq) as the pagination cursor to resume fetching events reliably.
+		EventSeq: "0",
 	}, totalCount, nil
 }
 

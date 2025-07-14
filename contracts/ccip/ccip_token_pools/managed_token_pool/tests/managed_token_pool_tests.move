@@ -737,6 +737,7 @@ public fun test_initialize_by_ccip_admin() {
         // Test initialize_by_ccip_admin function (doesn't require treasury cap)
         managed_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             mint_cap,
             @managed_token_pool, // token_pool_package_id

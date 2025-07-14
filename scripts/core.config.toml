@@ -29,9 +29,9 @@ NetworkNameFull = "sui-localnet" # optional, CLL naming convention
 
 
 [[Sui.Nodes]]
-Name = 'primary'
-URL = "https://fullnode.devnet.sui.io:443"
-
+Name = 'sui-node-1'
+URL = 'http://localhost:9000'  # For local development
+SolidityURL = 'http://localhost:9000'
 
 [Sui.TransactionManager]
 BroadcastChanSize = 100

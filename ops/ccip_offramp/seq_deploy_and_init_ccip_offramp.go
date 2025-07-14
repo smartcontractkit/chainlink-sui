@@ -19,6 +19,7 @@ type DeployAndInitCCIPOffRampSeqInput struct {
 
 type DeployCCIPOffRampSeqObjects struct {
 	StateObjectId string
+	OwnerCapId    string
 }
 
 type DeployCCIPOffRampSeqOutput struct {
@@ -70,6 +71,7 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 			CCIPOffRampPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPOffRampSeqObjects{
 				StateObjectId: deployReport.Output.Objects.CCIPOffRampStateObjectId,
+				OwnerCapId:    deployReport.Output.Objects.OwnerCapObjectId,
 			},
 		}, nil
 	},
