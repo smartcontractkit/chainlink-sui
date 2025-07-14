@@ -68,7 +68,6 @@ public struct USDCTokenPoolState has key {
 
 const EInvalidCoinMetadata: u64 = 1;
 const EInvalidArguments: u64 = 2;
-const ENotAdministrator: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EZeroChainSelector: u64 = 5;
 const EEmptyAllowedCaller: u64 = 6;
@@ -92,6 +91,7 @@ public fun type_and_version(): String {
 #[allow(lint(self_transfer))]
 public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
+    owner_cap: &state_object::OwnerCap,
     coin_metadata: &CoinMetadata<T>,
     local_domain_identifier: u32,
     token_pool_package_id: address,
@@ -100,18 +100,13 @@ public fun initialize<T: drop>(
     release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        ctx.sender() == state_object::get_current_owner(ref),
-        ENotAdministrator,
-    );
-
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(
         coin_metadata_address == @usdc_local_token,
         EInvalidCoinMetadata
     );
 
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let (ownable_state, token_pool_owner_cap) = ownable::new(ctx);
 
     let usdc_token_pool = USDCTokenPoolState {
         id: object::new(ctx),
@@ -126,6 +121,7 @@ public fun initialize<T: drop>(
 
     token_admin_registry::register_pool_by_admin(
         ref,
+        owner_cap,
         coin_metadata_address,
         token_pool_package_id,
         object::id_to_address(&object::id(&usdc_token_pool)),
@@ -139,7 +135,7 @@ public fun initialize<T: drop>(
     );
 
     transfer::share_object(usdc_token_pool);
-    transfer::public_transfer(owner_cap, ctx.sender());
+    transfer::public_transfer(token_pool_owner_cap, ctx.sender());
 }
 
 // ================================================================
@@ -279,19 +275,19 @@ public fun get_package_auth_caller<TypeProof: drop>(): address {
 public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
     c: Coin<T>,
-    token_params: dd::TokenParams,
-    clock: &Clock,
+    token_params: &mut dd::TokenParams,
     pool: &mut USDCTokenPoolState,
+    clock: &Clock,
     state: &State,
     message_transmitter_state: &mut MessageTransmitterState,
     deny_list: &DenyList,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext
-): dd::TokenParams {
+) {
     let amount = c.value();
     let sender = ctx.sender();
-    let remote_chain_selector = dd::get_destination_chain_selector(&token_params);
-    let receiver = dd::get_receiver(&token_params);
+    let remote_chain_selector = dd::get_destination_chain_selector(token_params);
+    let receiver = dd::get_receiver(token_params);
     // this is to assume that the receiver in vector<u8> is the address of the mint recipient
     // if the destination is a non-Move chain, the receiver address should be converted to hex and passed in using the @0x123 address format.
     let mint_recipient = address::from_bytes(receiver);
@@ -346,23 +342,23 @@ public fun lock_or_burn<T: drop>(
         dest_token_address,
         source_pool_data,
         TypeProof {},
-    )
+    );
 }
 
 public fun release_or_mint<T: drop>(
     ref: &CCIPObjectRef,
-    receiver_params: osh::ReceiverParams,
+    receiver_params: &mut osh::ReceiverParams,
     index: u64,
-    clock: &Clock,
     pool: &mut USDCTokenPoolState,
+    clock: &Clock,
     state: &mut State,
     message_transmitter_state: &mut MessageTransmitterState,
     deny_list: &DenyList,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext,
-): osh::ReceiverParams {
-    let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
-    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = osh::get_token_param_data(&receiver_params, index);
+) {
+    let remote_chain_selector = osh::get_source_chain_selector(receiver_params);
+    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = osh::get_token_param_data(receiver_params, index);
     let (message_bytes, attestation) =
         parse_message_and_attestation(offchain_token_data);
 
@@ -424,7 +420,7 @@ public fun release_or_mint<T: drop>(
         index,
         coin::zero<T>(ctx),
         TypeProof {},
-    )
+    );
 }
 
 fun parse_message_and_attestation(payload: vector<u8>): (vector<u8>, vector<u8>) {

@@ -22,7 +22,7 @@ var (
 
 type IUsdcTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -38,8 +38,8 @@ type IUsdcTokenPool interface {
 	SetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, enabled bool) (*models.SuiTransactionBlockResponse, error)
 	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*models.SuiTransactionBlockResponse, error)
 	GetPackageAuthCaller(ctx context.Context, opts *bind.CallOpts, typeArgs []string) (*models.SuiTransactionBlockResponse, error)
-	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error)
+	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDomain(ctx context.Context, opts *bind.CallOpts, pool bind.Object, chainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	SetDomains(ctx context.Context, opts *bind.CallOpts, pool bind.Object, ownerCap bind.Object, remoteChainSelectors []uint64, remoteDomainIdentifiers []uint32, allowedRemoteCallers [][]byte, enableds []bool) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
@@ -73,8 +73,6 @@ type IUsdcTokenPoolDevInspect interface {
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error)
 	GetPackageAuthCaller(ctx context.Context, opts *bind.CallOpts, typeArgs []string) (string, error)
-	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (bind.Object, error)
-	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (bind.Object, error)
 	GetDomain(ctx context.Context, opts *bind.CallOpts, pool bind.Object, chainSelector uint64) (Domain, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
@@ -86,7 +84,7 @@ type IUsdcTokenPoolDevInspect interface {
 type UsdcTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetToken(state bind.Object) (*bind.EncodedCall, error)
 	GetTokenWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -118,9 +116,9 @@ type UsdcTokenPoolEncoder interface {
 	ApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetPackageAuthCaller(typeArgs []string) (*bind.EncodedCall, error)
 	GetPackageAuthCallerWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error)
+	LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error)
 	LockOrBurnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error)
+	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error)
 	ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetDomain(pool bind.Object, chainSelector uint64) (*bind.EncodedCall, error)
 	GetDomainWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -315,8 +313,8 @@ func (c *UsdcTokenPoolContract) TypeAndVersion(ctx context.Context, opts *bind.C
 }
 
 // Initialize executes the initialize Move function.
-func (c *UsdcTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, localDomainIdentifier, tokenPoolPackageId, tokenPoolAdministrator, lockOrBurnParams, releaseOrMintParams)
+func (c *UsdcTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.Initialize(typeArgs, ref, ownerCap, coinMetadata, localDomainIdentifier, tokenPoolPackageId, tokenPoolAdministrator, lockOrBurnParams, releaseOrMintParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -475,8 +473,8 @@ func (c *UsdcTokenPoolContract) GetPackageAuthCaller(ctx context.Context, opts *
 }
 
 // LockOrBurn executes the lock_or_burn Move function.
-func (c *UsdcTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, tokenParams, clock, pool, state, messageTransmitterState, denyList, treasury)
+func (c *UsdcTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, tokenParams, pool, clock, state, messageTransmitterState, denyList, treasury)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -485,8 +483,8 @@ func (c *UsdcTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallO
 }
 
 // ReleaseOrMint executes the release_or_mint Move function.
-func (c *UsdcTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, pool, state, messageTransmitterState, denyList, treasury)
+func (c *UsdcTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, pool, clock, state, messageTransmitterState, denyList, treasury)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -906,50 +904,6 @@ func (d *UsdcTokenPoolDevInspect) GetPackageAuthCaller(ctx context.Context, opts
 	return result, nil
 }
 
-// LockOrBurn executes the lock_or_burn Move function using DevInspect to get return values.
-//
-// Returns: dd::TokenParams
-func (d *UsdcTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.usdcTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, tokenParams, clock, pool, state, messageTransmitterState, denyList, treasury)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
-	}
-	return result, nil
-}
-
-// ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
-//
-// Returns: osh::ReceiverParams
-func (d *UsdcTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.usdcTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, pool, state, messageTransmitterState, denyList, treasury)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
-	}
-	return result, nil
-}
-
 // GetDomain executes the get_domain Move function using DevInspect to get return values.
 //
 // Returns: Domain
@@ -1111,13 +1065,14 @@ func (c usdcTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Encoded
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, localDomainIdentifier uint32, tokenPoolPackageId string, tokenPoolAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
+		"&state_object::OwnerCap",
 		"&CoinMetadata<T>",
 		"u32",
 		"address",
@@ -1126,6 +1081,7 @@ func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coi
 		"vector<address>",
 	}, []any{
 		ref,
+		ownerCap,
 		coinMetadata,
 		localDomainIdentifier,
 		tokenPoolPackageId,
@@ -1140,6 +1096,7 @@ func (c usdcTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coi
 func (c usdcTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
+		"&state_object::OwnerCap",
 		"&CoinMetadata<T>",
 		"u32",
 		"address",
@@ -1650,7 +1607,7 @@ func (c usdcTokenPoolEncoder) GetPackageAuthCallerWithArgs(typeArgs []string, ar
 }
 
 // LockOrBurn encodes a call to the lock_or_burn Move function.
-func (c usdcTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1658,9 +1615,9 @@ func (c usdcTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ 
 	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"Coin<T>",
-		"dd::TokenParams",
-		"&Clock",
+		"&mut dd::TokenParams",
 		"&mut USDCTokenPoolState",
+		"&Clock",
 		"&State",
 		"&mut MessageTransmitterState",
 		"&DenyList",
@@ -1669,15 +1626,13 @@ func (c usdcTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ 
 		ref,
 		c_,
 		tokenParams,
-		clock,
 		pool,
+		clock,
 		state,
 		messageTransmitterState,
 		denyList,
 		treasury,
-	}, []string{
-		"dd::TokenParams",
-	})
+	}, nil)
 }
 
 // LockOrBurnWithArgs encodes a call to the lock_or_burn Move function using arbitrary arguments.
@@ -1686,9 +1641,9 @@ func (c usdcTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...any)
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"Coin<T>",
-		"dd::TokenParams",
-		"&Clock",
+		"&mut dd::TokenParams",
 		"&mut USDCTokenPoolState",
+		"&Clock",
 		"&State",
 		"&mut MessageTransmitterState",
 		"&DenyList",
@@ -1702,23 +1657,21 @@ func (c usdcTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...any)
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"dd::TokenParams",
-	})
+	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // ReleaseOrMint encodes a call to the release_or_mint Move function.
-func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"&mut osh::ReceiverParams",
 		"u64",
-		"&Clock",
 		"&mut USDCTokenPoolState",
+		"&Clock",
 		"&mut State",
 		"&mut MessageTransmitterState",
 		"&DenyList",
@@ -1727,15 +1680,13 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 		ref,
 		receiverParams,
 		index,
-		clock,
 		pool,
+		clock,
 		state,
 		messageTransmitterState,
 		denyList,
 		treasury,
-	}, []string{
-		"osh::ReceiverParams",
-	})
+	}, nil)
 }
 
 // ReleaseOrMintWithArgs encodes a call to the release_or_mint Move function using arbitrary arguments.
@@ -1743,10 +1694,10 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 func (c usdcTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"&mut osh::ReceiverParams",
 		"u64",
-		"&Clock",
 		"&mut USDCTokenPoolState",
+		"&Clock",
 		"&mut State",
 		"&mut MessageTransmitterState",
 		"&DenyList",
@@ -1760,9 +1711,7 @@ func (c usdcTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...a
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"osh::ReceiverParams",
-	})
+	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetDomain encodes a call to the get_domain Move function.
