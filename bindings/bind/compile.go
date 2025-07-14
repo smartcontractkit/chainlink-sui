@@ -98,7 +98,7 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	}
 
 	// Special-case: update published-at of CCIP, CCIP Token Pool, & MCMs if it's a token pool package
-	if packageName == contracts.LockReleaseTokenPool || packageName == contracts.BurnMintTokenPool || packageName == contracts.ManagedTokenPool {
+	if packageName == contracts.LockReleaseTokenPool || packageName == contracts.BurnMintTokenPool || packageName == contracts.ManagedTokenPool || packageName == contracts.USDCTokenPool {
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}

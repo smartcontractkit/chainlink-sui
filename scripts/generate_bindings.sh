@@ -39,6 +39,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/burn_mint_
 # CCIP - Managed Token Pool
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/managed_token_pool --input ./contracts/ccip/ccip_token_pools/managed_token_pool/sources/managed_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/managed_token_pool
 
+# CCIP - USDCTokenPool
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/usdc_token_pool --input ./contracts/ccip/ccip_token_pools/usdc_token_pool/sources/usdc_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/usdc_token_pool
+
 # CCIP Router
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_router --input ./contracts/ccip/ccip_router/sources/router.move --output ./bindings/generated/ccip/ccip_router/
 
