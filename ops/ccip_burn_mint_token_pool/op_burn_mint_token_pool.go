@@ -88,6 +88,8 @@ type BurnMintTokenPoolInitializeByCcipAdminInput struct {
 	TreasuryCapObjectId    string
 	TokenPoolPackageId     string
 	TokenPoolAdministrator string
+	LockOrBurnParams       []string
+	ReleaseOrMintParams    []string
 }
 
 var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
@@ -108,6 +110,8 @@ var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
+		input.LockOrBurnParams,
+		input.ReleaseOrMintParams,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization by ccip admin: %w", err)

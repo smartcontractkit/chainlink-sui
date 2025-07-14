@@ -90,6 +90,8 @@ type LockReleaseTokenPoolInitializeByCcipAdminInput struct {
 	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 	Rebalancer             string
+	LockOrBurnParams       []string
+	ReleaseOrMintParams    []string
 }
 
 var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects], err error) {
@@ -110,6 +112,8 @@ var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		input.LockReleasePackageId,
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
+		input.LockOrBurnParams,
+		input.ReleaseOrMintParams,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute lock release token pool initialization by ccip admin: %w", err)

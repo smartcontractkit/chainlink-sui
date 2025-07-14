@@ -92,6 +92,8 @@ type ManagedTokenPoolInitializeByCcipAdminInput struct {
 	ManagedTokenOwnerCapId    string
 	TokenPoolPackageId        string
 	TokenPoolAdministrator    string
+	LockOrBurnParams          []string
+	ReleaseOrMintParams       []string
 }
 
 var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
@@ -112,6 +114,8 @@ var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 		bind.Object{Id: input.ManagedTokenOwnerCapId},
 		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
+		input.LockOrBurnParams,
+		input.ReleaseOrMintParams,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization by ccip admin: %w", err)
