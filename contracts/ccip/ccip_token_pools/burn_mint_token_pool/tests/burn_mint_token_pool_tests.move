@@ -78,6 +78,7 @@ public fun test_initialize_and_basic_functionality() {
         // Initialize burn mint token pool
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool, // token_pool_package_id
@@ -144,6 +145,7 @@ public fun test_chain_configuration_management() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -242,6 +244,7 @@ public fun test_allowlist_management() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -302,6 +305,7 @@ public fun test_rate_limiter_configuration() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -405,6 +409,7 @@ public fun test_invalid_arguments_rate_limiter_configs() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -469,6 +474,7 @@ public fun test_comprehensive_allowlist_operations() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -532,6 +538,7 @@ public fun test_destroy_token_pool() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -590,6 +597,7 @@ public fun test_comprehensive_rate_limiter_operations() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -692,6 +700,7 @@ public fun test_edge_cases_and_boundary_conditions() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -802,6 +811,7 @@ public fun test_lock_or_burn_comprehensive() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap, // treasury_cap is moved here
             @burn_mint_token_pool,
@@ -940,6 +950,7 @@ public fun test_release_or_mint_comprehensive() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -1079,6 +1090,7 @@ public fun test_set_allowlist_enabled() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -1143,6 +1155,7 @@ public fun test_apply_allowlist_updates() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,
@@ -1244,6 +1257,7 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
             @burn_mint_token_pool,

@@ -11,6 +11,8 @@ import (
 type DeployAndInitCCIPOnRampSeqInput struct {
 	DeployCCIPOnRampInput
 	OnRampInitializeInput
+	ApplyDestChainConfigureOnRampInput
+	ApplyAllowListUpdatesInput
 }
 
 type DeployCCIPOnRampSeqObjects struct {
@@ -38,6 +40,20 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		input.OnRampInitializeInput.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
 
 		_, err = cld_ops.ExecuteOperation(env, OnRampInitializeOP, deps, input.OnRampInitializeInput)
+		if err != nil {
+			return DeployCCIPOnRampSeqOutput{}, err
+		}
+
+		applyDestChainConfigUpdateInput := ApplyDestChainConfigureOnRampInput{
+			OnRampPackageId:           deployReport.Output.PackageId,
+			OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
+			StateObjectId:             deployReport.Output.Objects.CCIPOnrampStateObjectId,
+			DestChainSelector:         input.ApplyDestChainConfigureOnRampInput.DestChainSelector,
+			DestChainEnabled:          input.ApplyDestChainConfigureOnRampInput.DestChainEnabled,
+			DestChainAllowListEnabled: input.ApplyDestChainConfigureOnRampInput.DestChainAllowListEnabled,
+		}
+
+		_, err = cld_ops.ExecuteOperation(env, ApplyDestChainConfigUpdateOp, deps, applyDestChainConfigUpdateInput)
 		if err != nil {
 			return DeployCCIPOnRampSeqOutput{}, err
 		}

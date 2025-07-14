@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	config2 "github.com/smartcontractkit/chainlink-sui/relayer/config"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/pelletier/go-toml/v2"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
@@ -56,24 +54,13 @@ type pluginRelayer struct {
 
 var _ loop.PluginRelayer = &pluginRelayer{}
 
-func (c *pluginRelayer) NewRelayer(ctx context.Context, config string, keystore loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
-	d := toml.NewDecoder(strings.NewReader(config))
-	d.DisallowUnknownFields()
-
-	var cfg config2.TOMLConfig
-
-	if err := d.Decode(&cfg); err != nil {
-		return nil, fmt.Errorf("failed to decode config toml: %w:\n\t%s", err, config)
+func (c *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, keystore loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
+	cfg, err := config2.NewDecodedTOMLConfig(rawConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read configs: %w", err)
 	}
 
-	if err := cfg.ValidateConfig(); err != nil {
-		return nil, fmt.Errorf("invalid tron config: %w", err)
-	}
-	if !cfg.IsEnabled() {
-		return nil, fmt.Errorf("cannot create new chain with ID %s: chain is disabled", *cfg.ChainID)
-	}
-
-	relayer, err := suiplugin.NewRelayer(&cfg, c.Logger, keystore, c.db)
+	relayer, err := suiplugin.NewRelayer(cfg, c.Logger, keystore, c.db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create relayer: %w", err)
 	}

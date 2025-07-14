@@ -17,7 +17,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/pkg/errors v0.9.1
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
-	github.com/smartcontractkit/chainlink-aptos v0.0.0-20250612083123-6ad06411b489
+	github.com/smartcontractkit/chainlink-aptos v0.0.0-20250626122206-319db248496a
 	github.com/smartcontractkit/chainlink-ccip v0.0.0-20250530084609-8529b8c89093
 	github.com/smartcontractkit/chainlink-common v0.7.1-0.20250519161208-80bc8b13c0e7
 	github.com/smartcontractkit/chainlink-deployments-framework v0.5.1

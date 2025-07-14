@@ -24,7 +24,7 @@ type IReceiverRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
-	UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
+	UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	IsRegisteredReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) (*models.SuiTransactionBlockResponse, error)
@@ -48,7 +48,7 @@ type ReceiverRegistryEncoder interface {
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*bind.EncodedCall, error)
 	RegisterReceiverWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	UnregisterReceiver(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
+	UnregisterReceiver(ref bind.Object, param bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
 	UnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsRegisteredReceiver(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
 	IsRegisteredReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -291,8 +291,8 @@ func (c *ReceiverRegistryContract) RegisterReceiver(ctx context.Context, opts *b
 }
 
 // UnregisterReceiver executes the unregister_receiver Move function.
-func (c *ReceiverRegistryContract) UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.receiverRegistryEncoder.UnregisterReceiver(ref, receiverPackageId)
+func (c *ReceiverRegistryContract) UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.UnregisterReceiver(ref, param, receiverPackageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -535,14 +535,16 @@ func (c receiverRegistryEncoder) RegisterReceiverWithArgs(typeArgs []string, arg
 }
 
 // UnregisterReceiver encodes a call to the unregister_receiver Move function.
-func (c receiverRegistryEncoder) UnregisterReceiver(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error) {
+func (c receiverRegistryEncoder) UnregisterReceiver(ref bind.Object, param bind.Object, receiverPackageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("unregister_receiver", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
+		"&OwnerCap",
 		"address",
 	}, []any{
 		ref,
+		param,
 		receiverPackageId,
 	}, nil)
 }
@@ -552,6 +554,7 @@ func (c receiverRegistryEncoder) UnregisterReceiver(ref bind.Object, receiverPac
 func (c receiverRegistryEncoder) UnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
+		"&OwnerCap",
 		"address",
 	}
 

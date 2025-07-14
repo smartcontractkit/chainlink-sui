@@ -976,45 +976,44 @@ public fun test_lock_or_burn_functionality() {
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
     dynamic_dispatcher::test_init(scenario.ctx());
     
-    scenario.next_tx(TOKEN_ADMIN);
-    {
-        let ctx = scenario.ctx();
-        
-        // Create test token and initialize pool
-        let (mut treasury_cap, coin_metadata) = coin::create_currency(
-            LOCK_RELEASE_TOKEN_POOL_TESTS {},
-            Decimals,
-            b"TEST",
-            b"TestToken",
-            b"test_token",
-            option::none(),
-            ctx
-        );
-        
-        lock_release_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            &coin_metadata,
-            @0x1000, // token_pool_package_id
-            TOKEN_ADMIN,
-            REBALANCER,
-            vector[],
-            vector[],
-            ctx
-        );
-        
-        // Mint some tokens for testing
-        let test_coin = coin::mint(&mut treasury_cap, 5000, ctx);
-        transfer::public_transfer(test_coin, @0x456); // Transfer to test user
-        
-        transfer::public_freeze_object(coin_metadata);
-        transfer::public_transfer(treasury_cap, ctx.sender());
-    };
+    // Create test token and initialize pool in the same transaction
+    let ctx = scenario.ctx();
+    let (mut treasury_cap, coin_metadata) = coin::create_currency(
+        LOCK_RELEASE_TOKEN_POOL_TESTS {},
+        Decimals,
+        b"TEST",
+        b"TestToken",
+        b"test_token",
+        option::none(),
+        ctx
+    );
+    
+    lock_release_token_pool::initialize_by_ccip_admin(
+        &mut ccip_ref,
+        &ccip_owner_cap,
+        &coin_metadata,
+        @0x1000, // token_pool_package_id
+        TOKEN_ADMIN,
+        REBALANCER,
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
+        ctx
+    );
+    
+    // Mint some tokens for testing
+    let test_coin = coin::mint(&mut treasury_cap, 5000, ctx);
+    transfer::public_transfer(test_coin, @0x456); // Transfer to test user
+    
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(treasury_cap, ctx.sender());
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
     
     scenario.next_tx(TOKEN_ADMIN);
     {
         let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-        let source_transfer_cap = scenario.take_from_sender<dynamic_dispatcher::SourceTransferCap>();
+        let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(TOKEN_ADMIN);
         let mut ctx = tx_context::dummy();
         let clock = clock::create_for_testing(&mut ctx);
         
@@ -1050,6 +1049,7 @@ public fun test_lock_or_burn_functionality() {
     // Test actual lock_or_burn function call
     scenario.next_tx(@0x456); // Switch to test user
     {
+        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
         let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let test_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let mut ctx = tx_context::dummy();
@@ -1100,10 +1100,8 @@ public fun test_lock_or_burn_functionality() {
         clock.destroy_for_testing();
         transfer::public_transfer(source_transfer_cap, TOKEN_ADMIN);
         test_scenario::return_shared(pool_state);
+        test_scenario::return_shared(ccip_ref);
     };
-    
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
     
     test_scenario::end(scenario);
 }
@@ -1148,12 +1146,13 @@ public fun test_release_or_mint_functionality() {
         
         lock_release_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
+            &ccip_owner_cap,
             &coin_metadata,
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1165,19 +1164,12 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(treasury_cap, ctx.sender());
     };
     
-    // Provide liquidity to the pool
-    scenario.next_tx(REBALANCER);
-    {
-        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
-        
-        lock_release_token_pool::provide_liquidity(&mut pool_state, liquidity_coin, scenario.ctx());
-        
-        test_scenario::return_shared(pool_state);
-    };
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
     
     scenario.next_tx(TOKEN_ADMIN);
     {
+        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
         let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let dest_transfer_cap = scenario.take_from_sender<offramp_state_helper::DestTransferCap>();
@@ -1206,6 +1198,37 @@ public fun test_release_or_mint_functionality() {
             20000, // high capacity
             2000   // high rate
         );
+        
+        // Advance clock for rate limiter
+        clock.increment_for_testing(1000000000);
+        
+        clock.destroy_for_testing();
+        transfer::public_transfer(dest_transfer_cap, TOKEN_ADMIN);
+        transfer::public_transfer(owner_cap, TOKEN_ADMIN);
+        test_scenario::return_shared(pool_state);
+        test_scenario::return_shared(ccip_ref);
+    };
+    
+    // Provide liquidity to the pool
+    scenario.next_tx(REBALANCER);
+    {
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let liquidity_coin = scenario.take_from_sender<coin::Coin<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        
+        lock_release_token_pool::provide_liquidity(&mut pool_state, liquidity_coin, scenario.ctx());
+        
+        test_scenario::return_shared(pool_state);
+    };
+    
+    // Proceed with the release_or_mint test
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+        let mut pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_address<OwnerCap>(TOKEN_ADMIN);
+        let dest_transfer_cap = scenario.take_from_address<offramp_state_helper::DestTransferCap>(TOKEN_ADMIN);
+        let mut ctx = tx_context::dummy();
+        let mut clock = clock::create_for_testing(&mut ctx);
         
         // Advance clock for rate limiter
         clock.increment_for_testing(1000000000);
@@ -1261,6 +1284,7 @@ public fun test_release_or_mint_functionality() {
         transfer::public_transfer(dest_transfer_cap, TOKEN_ADMIN);
         transfer::public_transfer(owner_cap, TOKEN_ADMIN);
         test_scenario::return_shared(pool_state);
+        test_scenario::return_shared(ccip_ref);
     };
     
     // Verify the released coin was transferred to the receiver
@@ -1275,9 +1299,6 @@ public fun test_release_or_mint_functionality() {
         // Transfer the coin back to clean up
         transfer::public_transfer(released_coin, TOKEN_ADMIN);
     };
-    
-    transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
     
     test_scenario::end(scenario);
 } 

@@ -16,7 +16,6 @@ public struct TestReceiverProof has drop {}
 public struct TestReceiverProof2 has drop {}
 
 const OWNER: address = @0x1000;
-const OTHER_USER: address = @0x2000;
 const RECEIVER_STATE_ID_1: address = @0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270;
 const RECEIVER_STATE_ID_2: address = @0xd8908c165dee785924e7421a0fd0418a19d5daeec395fd505a92a0fd3117e428;
 
@@ -184,7 +183,7 @@ public fun test_unregister_receiver() {
     assert!(receiver_registry::is_registered_receiver(&ref, package_id_1));
     
     // Unregister the receiver
-    receiver_registry::unregister_receiver(&mut ref, package_id_1, ctx);
+    receiver_registry::unregister_receiver(&mut ref, &owner_cap, package_id_1, ctx);
     
     // Verify it's no longer registered
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
@@ -202,27 +201,7 @@ public fun test_unregister_receiver_unknown() {
     
     // Try to unregister a receiver that was never registered
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
-    receiver_registry::unregister_receiver(&mut ref, package_id_1, ctx);
-    
-    cleanup_test(scenario, ref, owner_cap);
-}
-
-#[test]
-#[expected_failure(abort_code = receiver_registry::ENotAllowed)]
-public fun test_unregister_receiver_not_allowed() {
-    let (mut scenario, mut ref, owner_cap) = setup_test();
-    let ctx = scenario.ctx();
-    
-    receiver_registry::initialize(&mut ref, &owner_cap, ctx);
-    
-    // Register a receiver as owner
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
-    
-    // Try to unregister as a different user
-    scenario.next_tx(OTHER_USER);
-    let ctx = scenario.ctx();
-    let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
-    receiver_registry::unregister_receiver(&mut ref, package_id_1, ctx);
+    receiver_registry::unregister_receiver(&mut ref, &owner_cap, package_id_1, ctx);
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -375,7 +354,7 @@ public fun test_complete_receiver_lifecycle() {
     assert!(lookup_params == vector[]);
     
     // 5. Unregister receiver
-    receiver_registry::unregister_receiver(&mut ref, package_id_1, ctx);
+    receiver_registry::unregister_receiver(&mut ref, &owner_cap, package_id_1, ctx);
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
     
     // 6. Verify lookup returns empty values after unregistration

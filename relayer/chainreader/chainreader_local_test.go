@@ -338,8 +338,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		// Query for counter increment events
 		type CounterEvent struct {
-			CounterID string `json:"counter_id"`
-			NewValue  uint64 `json:"new_value"`
+			CounterID string `json:"counterId"`
+			NewValue  uint64 `json:"newValue"`
 		}
 
 		// Create a filter for events

@@ -300,3 +300,50 @@ var FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp = cld_ops.NewOperation(
 	"Apply premium multiplier wei per eth updates in the CCIP Fee Quoter contract",
 	applyPremiumMultiplierHandler,
 )
+
+type FeeQuoterUpdateTokenPricesInput struct {
+	CCIPPackageId         string
+	CCIPObjectRef         string
+	FeeQuoterCapId        string
+	SourceTokens          []string
+	SourceUsdPerToken     []*big.Int
+	GasDestChainSelectors []uint64
+	GasUsdPerUnitGas      []*big.Int
+}
+
+var updateTokenPrices = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterUpdateTokenPricesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.UpdatePrices(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.CCIPObjectRef},
+		bind.Object{Id: input.FeeQuoterCapId},
+		bind.Object{Id: "0x6"}, // Clock object
+		input.SourceTokens,
+		input.SourceUsdPerToken,
+		input.GasDestChainSelectors,
+		input.GasUsdPerUnitGas,
+	)
+
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute updateTokenPrices on SUI: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+	}, err
+}
+
+var FeeQuoterUpdateTokenPricesOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "fee_quoter", "update_prices"),
+	semver.MustParse("0.1.0"),
+	"Apply update prices in CCIP Fee Quoter contract",
+	updateTokenPrices,
+)

@@ -75,9 +75,13 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	requestType := *cfg.TransactionManager.RequestType
 
 	txmConfig := txm.Config{
-		BroadcastChanSize:          uint(*cfg.TransactionManager.BroadcastChanSize),
-		RequestType:                requestType,
-		ConfirmerPoolPeriodSeconds: uint(*cfg.TransactionManager.ConfirmPollSecs),
+		BroadcastChanSize:     uint(*cfg.TransactionManager.BroadcastChanSize),
+		RequestType:           requestType,
+		ConfirmPollSecs:       uint(*cfg.TransactionManager.ConfirmPollSecs),
+		DefaultMaxGasAmount:   *cfg.TransactionManager.DefaultMaxGasAmount,
+		MaxTxRetryAttempts:    *cfg.TransactionManager.MaxTxRetryAttempts,
+		TransactionTimeout:    *cfg.TransactionManager.TransactionTimeout,
+		MaxConcurrentRequests: *cfg.TransactionManager.MaxConcurrentRequests,
 	}
 
 	// Use config values instead of constants
@@ -145,6 +149,14 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 
 func (r *SuiRelayer) Name() string {
 	return "SuiRelayer"
+}
+
+func (r *SuiRelayer) Config() *config.TOMLConfig {
+	return r.cfg
+}
+
+func (r *SuiRelayer) TxManager() *txm.SuiTxm {
+	return r.txm
 }
 
 func (r *SuiRelayer) Start(ctx context.Context) error {
@@ -226,7 +238,6 @@ func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig
 	}
 
 	// TODO: validate chainConfig
-
 	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)

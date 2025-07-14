@@ -46,8 +46,7 @@ const MAX_RECEIVER_STATE_PARAMS: u64 = 6;
 const EAlreadyRegistered: u64 = 1;
 const EAlreadyInitialized: u64 = 2;
 const EUnknownReceiver: u64 = 3;
-const ENotAllowed: u64 = 4;
-const EReceiverStateParamsTooLong: u64 = 5;
+const EReceiverStateParamsTooLong: u64 = 4;
 
 public fun type_and_version(): String {
     string::utf8(b"ReceiverRegistry 1.6.0")
@@ -109,18 +108,16 @@ public fun register_receiver<ProofType: drop>(
 
 public fun unregister_receiver(
     ref: &mut CCIPObjectRef,
+    _: &OwnerCap,
     receiver_package_id: address,
-    ctx: &TxContext,
+    _: &TxContext,
 ) {
-    let current_owner = state_object::get_current_owner(ref);
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
     
     assert!(
         registry.receiver_configs.contains(&receiver_package_id),
         EUnknownReceiver
     );
-
-    assert!(ctx.sender() == current_owner, ENotAllowed);
 
     registry.receiver_configs.remove(&receiver_package_id);
 

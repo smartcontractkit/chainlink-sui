@@ -18,7 +18,10 @@ func BuildSQLCondition(expr query.Expression, args *[]any, argCount *int) (strin
 		case *primitives.Comparator:
 			conditions := []string{}
 			for _, valueCmp := range v.ValueComparators {
-				jsonPath := aptosCRUtils.BuildJsonPathExpr("data", v.Name)
+				jsonPath, err := aptosCRUtils.BuildJsonPathExpr("data", v.Name)
+				if err != nil {
+					return "", fmt.Errorf("invalid field name %s: %w", v.Name, err)
+				}
 
 				var condition string
 				if aptosCRUtils.IsNumeric(valueCmp.Value) {

@@ -80,6 +80,65 @@ var LockReleaseTokenPoolInitializeOp = cld_ops.NewOperation(
 	initLRTPHandler,
 )
 
+// LRTP -- INITIALIZE BY CCIP ADMIN
+type LockReleaseTokenPoolInitializeByCcipAdminInput struct {
+	LockReleasePackageId   string
+	CoinObjectTypeArg      string
+	StateObjectId          string
+	CoinMetadataObjectId   string
+	OwnerCapObjectId       string
+	TokenPoolPackageId     string
+	TokenPoolAdministrator string
+	Rebalancer             string
+}
+
+var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects], err error) {
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.InitializeByCcipAdmin(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.CoinMetadataObjectId},
+		input.LockReleasePackageId,
+		input.TokenPoolAdministrator,
+		input.Rebalancer,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute lock release token pool initialization by ccip admin: %w", err)
+	}
+
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
+	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "LockReleaseTokenPoolState")
+
+	if err1 != nil || err2 != nil {
+		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
+	}
+
+	return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.LockReleasePackageId,
+		Objects: LockReleaseTokenPoolInitializeObjects{
+			OwnerCapObjectId: obj1,
+			StateObjectId:    obj2,
+		},
+	}, err
+}
+
+var LockReleaseTokenPoolInitializeByCcipAdminOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "lock_release_token_pool", "initialize_by_ccip_admin"),
+	semver.MustParse("0.1.0"),
+	"Initializes the CCIP Lock Release Token Pool contract by CCIP admin",
+	initByCcipAdminLRTPHandler,
+)
+
 // LRTP -- apply_chain_updates
 type NoObjects struct {
 }
