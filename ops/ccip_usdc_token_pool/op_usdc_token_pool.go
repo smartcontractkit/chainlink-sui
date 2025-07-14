@@ -22,6 +22,7 @@ type USDCTokenPoolInitializeInput struct {
 	USDCTokenPoolPackageId string
 	CoinObjectTypeArg      string
 	StateObjectId          string
+	OwnerCapObjectId       string
 	CoinMetadataObjectId   string
 	LocalDomainIdentifier  uint32
 	TokenPoolPackageId     string
@@ -43,6 +44,7 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		opts,
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		input.LocalDomainIdentifier,
 		input.TokenPoolPackageId,
