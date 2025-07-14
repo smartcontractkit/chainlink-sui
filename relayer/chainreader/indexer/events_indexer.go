@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -133,6 +134,55 @@ func (eIndexer *EventsIndexer) SyncAllEvents(ctx context.Context) error {
 	return nil
 }
 
+// Converts snake_case to camelCase
+func snakeToCamel(s string) string {
+	parts := strings.Split(s, "_")
+	for i := range parts {
+		if i > 0 && len(parts[i]) > 0 {
+			parts[i] = strings.ToUpper(string(parts[i][0])) + parts[i][1:]
+		}
+	}
+
+	return strings.Join(parts, "")
+}
+
+// Recursively convert all keys in the map to camelCase,
+// with a special case for message.header.sequence_number → seqNum
+func convertMapKeysToCamelCase(input any) any {
+	return convertMapKeysToCamelCaseWithPath(input, "")
+}
+
+func convertMapKeysToCamelCaseWithPath(input any, path string) any {
+	switch typed := input.(type) {
+	case map[string]any:
+		result := make(map[string]any)
+		for k, v := range typed {
+			camelKey := snakeToCamel(k)
+			fullPath := path
+			if fullPath != "" {
+				fullPath += "." + camelKey
+			} else {
+				fullPath = camelKey
+			}
+
+			if fullPath == "message.header.sequenceNumber" {
+				camelKey = "seqNum"
+			}
+
+			result[camelKey] = convertMapKeysToCamelCaseWithPath(v, fullPath)
+		}
+
+		return result
+
+	case []any:
+		for i, v := range typed {
+			typed[i] = convertMapKeysToCamelCaseWithPath(v, path)
+		}
+	}
+
+	return input
+}
+
 func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.EventSelector) error {
 	if selector == nil {
 		return fmt.Errorf("unspecified selector for SyncEvent call")
@@ -226,6 +276,9 @@ eventLoop:
 				//nolint:gosec
 				offset += uint64(i) + totalCount
 
+				// normalize the data, convert snake case to camel case
+				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
+
 				// Convert event to database record
 				record := database.EventRecord{
 					EventAccountAddress: selector.Package,
@@ -237,7 +290,7 @@ eventLoop:
 					BlockHeight:    fmt.Sprintf("%d", block.Height),
 					BlockHash:      []byte(block.TxDigest),
 					BlockTimestamp: block.Timestamp,
-					Data:           event.ParsedJson,
+					Data:           normalizedData.(map[string]any),
 				}
 				batchRecords = append(batchRecords, record)
 			}

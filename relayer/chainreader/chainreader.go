@@ -15,12 +15,14 @@ import (
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
 
+	"maps"
+
+	craptosutils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-
-	"maps"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -220,6 +222,36 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	if err != nil {
 		return err
 	}
+	_, contractName, method := parsed.address, parsed.contractName, parsed.readName
+
+	// this ensures we are using values from chain-reader config set in core
+	moduleConfig, ok := s.config.Modules[contractName]
+	if !ok {
+		return fmt.Errorf("no such contract: %s", contractName)
+	}
+
+	if moduleConfig.Functions == nil {
+		return fmt.Errorf("no functions for contract: %s", contractName)
+	}
+
+	functionConfig, ok := moduleConfig.Functions[method]
+	if !ok {
+		return fmt.Errorf("no such method: %s", method)
+	}
+
+	if moduleConfig.Name != "" {
+		parsed.contractName = moduleConfig.Name
+	}
+
+	if functionConfig.Name != "" {
+		parsed.readName = functionConfig.Name
+	}
+
+	s.logger.Debugw("calling function",
+		"address", parsed.address,
+		"contract", parsed.contractName,
+		"function", parsed.readName,
+	)
 
 	if err = s.validateBinding(parsed); err != nil {
 		return err
@@ -231,7 +263,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	}
 
 	// get function config to determine if transformations for tuples are needed
-	functionConfig := s.config.Modules[parsed.contractName].Functions[parsed.readName]
+	functionConfig = s.config.Modules[parsed.contractName].Functions[parsed.readName]
 	if functionConfig.ResultTupleToStruct != nil {
 		structResult := make(map[string]any)
 		for i, mapKey := range functionConfig.ResultTupleToStruct {
@@ -251,7 +283,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		return s.encodeLoopResult(results, returnVal)
 	}
 
-	s.logger.Debugw("results", "results", results, "returnVal", returnVal)
+	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
 
 	// handle multiple results for non-loop plugin mode
 	return codec.DecodeSuiJsonValue(results[0], returnVal)
@@ -283,6 +315,10 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 		return nil, err
 	}
 
+	if moduleConfig.Name != "" {
+		eventConfig.Name = moduleConfig.Name
+	}
+
 	// only write contract address, rest will be handled during chainreader config
 	eventConfig.EventSelector.Package = contract.Address
 
@@ -293,7 +329,7 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	}
 
 	// Query events from database
-	eventRecords, err := s.queryEvents(ctx, contract, eventConfig, filter.Expressions, limitAndSort)
+	eventRecords, err := s.queryEvents(ctx, eventConfig, filter.Expressions, limitAndSort)
 	if err != nil {
 		return nil, err
 	}
@@ -654,13 +690,13 @@ func (s *suiChainReader) getEventConfig(moduleConfig *ChainReaderModule, eventKe
 }
 
 // queryEvents queries events from the database instead of the Sui blockchain
-func (s *suiChainReader) queryEvents(ctx context.Context, contract pkgtypes.BoundContract, eventConfig *ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
+func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
-	eventHandle := fmt.Sprintf("%s::%s::%s", contract.Address, contract.Name, eventConfig.EventType)
+	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.EventSelector.Package, eventConfig.Name, eventConfig.EventType)
 
 	s.logger.Debugw("Querying events from database",
-		"address", contract.Address,
-		"module", contract.Name,
+		"address", eventConfig.EventSelector.Package,
+		"module", eventConfig.Name,
 		"eventType", eventConfig.EventType,
 		"eventHandle", eventHandle,
 		"limit", limitAndSort.Limit.Count,
@@ -674,13 +710,17 @@ func (s *suiChainReader) queryEvents(ctx context.Context, contract pkgtypes.Boun
 		expressions = deserializedExpressions
 	}
 
+	if eventConfig.EventFilterRenames != nil {
+		expressions = craptosutils.ApplyEventFilterRenames(expressions, eventConfig.EventFilterRenames)
+	}
+
 	// Query events from database
-	records, err := s.dbStore.QueryEvents(ctx, contract.Address, eventHandle, expressions, limitAndSort)
+	records, err := s.dbStore.QueryEvents(ctx, eventConfig.EventSelector.Package, eventHandle, expressions, limitAndSort)
 	if err != nil {
 		s.logger.Errorw("Failed to query events from database",
 			"error", err,
-			"address", contract.Address,
-			"module", contract.Name,
+			"address", eventConfig.EventSelector.Package,
+			"module", eventConfig.Name,
 			"eventType", eventConfig.EventType,
 			"eventHandle", eventHandle,
 		)

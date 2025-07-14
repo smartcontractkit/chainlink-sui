@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 	"golang.org/x/exp/slices"
@@ -15,6 +16,37 @@ import (
 )
 
 type TOMLConfigs []*TOMLConfig
+
+// decodeConfig decodes the rawConfig as (Aptos) TOML and sets default values
+func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
+	d := toml.NewDecoder(strings.NewReader(rawConfig))
+	d.DisallowUnknownFields()
+
+	var cfg TOMLConfig
+	if err := d.Decode(&cfg); err != nil {
+		return &TOMLConfig{}, fmt.Errorf("failed to decode config toml: %w:\n\t%s", err, rawConfig)
+	}
+
+	if err := cfg.ValidateConfig(); err != nil {
+		return &TOMLConfig{}, fmt.Errorf("invalid sui config: %w", err)
+	}
+
+	if !cfg.IsEnabled() {
+		return &TOMLConfig{}, fmt.Errorf("cannot create new chain with ID %v: config is disabled", cfg.ChainID)
+	}
+
+	if cfg.TransactionManager == nil {
+		cfg.TransactionManager = &TransactionManagerConfig{}
+	}
+	cfg.TransactionManager.setDefaults()
+
+	if cfg.BalanceMonitor == nil {
+		cfg.BalanceMonitor = &BalanceMonitorConfig{}
+	}
+	cfg.BalanceMonitor.setDefaults()
+
+	return &cfg, nil
+}
 
 func (cs TOMLConfigs) ValidateConfig() error {
 	return cs.validateKeys()
@@ -119,7 +151,6 @@ type TransactionManagerConfig struct {
 	MaxConcurrentRequests *uint64
 }
 
-//nolint:unused
 func (t *TransactionManagerConfig) setDefaults() {
 	if t.BroadcastChanSize == nil {
 		defaultVal := DefaultBroadcastChannelSize
@@ -146,7 +177,7 @@ func (t *TransactionManagerConfig) setDefaults() {
 		t.RequestType = &defaultVal
 	}
 	if t.ConfirmPollSecs == nil {
-		defaultVal := uint64(DefaultConfirmerPoolPeriodSeconds)
+		defaultVal := uint64(DefaultConfirmPollSecs)
 		t.ConfirmPollSecs = &defaultVal
 	}
 }

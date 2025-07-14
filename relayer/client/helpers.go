@@ -31,6 +31,34 @@ func (c *PTBClient) TransformTransactionArg(
 		}
 		var objectOwner models.ObjectOwner
 		var objectArg transaction.ObjectArg
+
+		// --- handle truly immutable objects -----------------------
+		if ownerStr, ok := objectDetails.Owner.(string); ok && ownerStr == "Immutable" {
+			var versionUint uint64
+			var digestBytes *models.ObjectDigestBytes
+			versionUint, err = strconv.ParseUint(objectDetails.Version, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse version: %w", err)
+			}
+			digestBytes, err = transaction.ConvertObjectDigestStringToBytes(
+				models.ObjectDigest(objectDetails.Digest),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert object digest: %w", err)
+			}
+
+			objectArg = transaction.ObjectArg{
+				ImmOrOwnedObject: &transaction.SuiObjectRef{
+					ObjectId: *objectIdBytes,
+					Version:  versionUint,
+					Digest:   *digestBytes,
+				},
+			}
+			callArg := tx.Object(transaction.CallArg{Object: &objectArg})
+
+			return &callArg, nil
+		}
+
 		// convert the response map into ObjectOwner type
 		ownerData, ok := objectDetails.Owner.(map[string]any)
 		if !ok {

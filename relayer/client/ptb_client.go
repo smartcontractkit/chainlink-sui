@@ -476,6 +476,13 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 			queryReq.Cursor = cursor
 		}
 
+		c.log.Infow("querying events",
+			"filter", queryReq.SuiEventFilter,
+			"limit", queryReq.Limit,
+			"descending", queryReq.DescendingOrder,
+			"cursor", cursor,
+		)
+
 		response, err := c.client.SuiXQueryEvents(ctx, queryReq)
 		if err != nil {
 			return fmt.Errorf("failed to query events: %w", err)

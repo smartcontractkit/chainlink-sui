@@ -14,9 +14,8 @@ type DeployLockReleaseTokenPoolObjects struct {
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
-	LockReleaseTokenPoolPackageId string
-	TokenType                     string
-	Objects                       DeployLockReleaseTokenPoolObjects
+	LockReleaseTPPackageID string
+	Objects                DeployLockReleaseTokenPoolObjects
 }
 
 type DeployAndInitLockReleaseTokenPoolInput struct {
@@ -115,7 +114,7 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 		}
 
 		return DeployLockReleaseTokenPoolOutput{
-			LockReleaseTokenPoolPackageId: deployReport.Output.PackageId,
+			LockReleaseTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{
 				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,

@@ -136,6 +136,18 @@ func TestDecodeSuiJsonValue_NumericTypes(t *testing.T) {
 			target:   new(uint64),
 			expected: uint64(255),
 		},
+		{
+			name:     "string to big.Int (value)",
+			data:     "12345678901234567890",
+			target:   new(big.Int),
+			expected: func() any { b, _ := new(big.Int).SetString("12345678901234567890", 10); return *b }(),
+		},
+		{
+			name:     "string to *big.Int (pointer)",
+			data:     "98765432109876543210",
+			target:   new(big.Int),
+			expected: func() any { b, _ := new(big.Int).SetString("98765432109876543210", 10); return *b }(),
+		},
 	}
 
 	for _, tt := range tests {

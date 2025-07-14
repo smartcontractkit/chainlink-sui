@@ -48,7 +48,16 @@ func DecodeSuiJsonValue(data any, target any) error {
 		return fmt.Errorf("target cannot be nil")
 	}
 
-	// Direct type match optimization
+	// unwrap raw JSON bytes / RawMessage
+	if raw, ok := data.(json.RawMessage); ok {
+		var intermediate any
+		if err := json.Unmarshal(raw, &intermediate); err != nil {
+			return fmt.Errorf("json unmarshal failed: %w", err)
+		}
+
+		return DecodeSuiJsonValue(intermediate, target)
+	}
+	// direct type‐match optimization
 	if reflect.TypeOf(data) == reflect.TypeOf(target).Elem() {
 		reflect.ValueOf(target).Elem().Set(reflect.ValueOf(data))
 		return nil
@@ -56,6 +65,30 @@ func DecodeSuiJsonValue(data any, target any) error {
 
 	targetValue := reflect.ValueOf(target).Elem()
 	targetType := targetValue.Type()
+
+	// handle both big.Int and *big.Int before falling into Struct logic
+	bigPtrT := reflect.TypeOf((*big.Int)(nil)) // *big.Int
+	bigValT := bigPtrT.Elem()                  // big.Int
+	if targetType == bigValT || targetType == bigPtrT {
+		// expect a JSON string
+		str, ok := data.(string)
+		if !ok {
+			return fmt.Errorf("big.Int decode: expected string, got %T", data)
+		}
+		bi, success := new(big.Int).SetString(str, 10)
+		if !success {
+			return fmt.Errorf("big.Int decode: invalid number %q", str)
+		}
+		if targetType == bigValT {
+			// value form: big.Int
+			targetValue.Set(reflect.ValueOf(*bi))
+		} else {
+			// pointer form: *big.Int
+			targetValue.Set(reflect.ValueOf(bi))
+		}
+
+		return nil
+	}
 
 	//nolint:exhaustive
 	switch targetType.Kind() {

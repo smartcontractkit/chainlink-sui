@@ -27,7 +27,7 @@ import (
 const (
 	DefaultNodeStartTimeout = 30 * time.Second
 	NodeReadyPollInterval   = 100 * time.Millisecond
-	FaucetMaxRetries        = 5
+	FaucetMaxRetries        = 10
 	FaucetRetryDelay        = time.Second
 	HTTPClientTimeout       = 30 * time.Second
 	SeedSize                = ed25519.SeedSize

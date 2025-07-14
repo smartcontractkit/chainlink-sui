@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
@@ -350,9 +351,21 @@ func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []models.CoinData)
 		return nil, fmt.Errorf("no coins available for gas budget")
 	}
 
+	// Filter only SUI coins for gas use
+	var suiCoins []models.CoinData
+	for _, coin := range availableCoins {
+		if strings.HasPrefix(coin.CoinType, "0x2::sui::SUI") {
+			suiCoins = append(suiCoins, coin)
+		}
+	}
+
+	if len(suiCoins) == 0 {
+		return nil, fmt.Errorf("no SUI coins available for gas budget")
+	}
+
 	// parse all balances once
-	balances := make([]uint64, len(availableCoins))
-	for i, coin := range availableCoins {
+	balances := make([]uint64, len(suiCoins))
+	for i, coin := range suiCoins {
 		var balance uint64
 		_, err := fmt.Sscanf(coin.Balance, "%d", &balance)
 		if err != nil {
@@ -362,7 +375,7 @@ func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []models.CoinData)
 	}
 
 	// create index slice and sort by balance (descending)
-	indices := make([]int, len(availableCoins))
+	indices := make([]int, len(suiCoins))
 	for i := range indices {
 		indices[i] = i
 	}
@@ -373,7 +386,7 @@ func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []models.CoinData)
 	// check if there's a single coin that covers the gas budget
 	for _, idx := range indices {
 		if balances[idx] >= gasBudget {
-			return []models.CoinData{availableCoins[idx]}, nil
+			return []models.CoinData{suiCoins[idx]}, nil
 		}
 	}
 
@@ -382,7 +395,7 @@ func SelectCoinsForGasBudget(gasBudget uint64, availableCoins []models.CoinData)
 	var totalBalance uint64
 
 	for _, idx := range indices {
-		selected = append(selected, availableCoins[idx])
+		selected = append(selected, suiCoins[idx])
 		totalBalance += balances[idx]
 
 		if totalBalance >= gasBudget {

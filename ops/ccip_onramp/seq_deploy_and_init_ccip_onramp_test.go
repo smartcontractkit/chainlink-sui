@@ -76,12 +76,23 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 		OnRampInitializeInput: OnRampInitializeInput{
 			NonceManagerCapId:         reportNonceManagerInit.Output.Objects.NonceManagerCapObjectId, // this is from NonceManager init Op
 			SourceTransferCapId:       report.Output.Objects.SourceTransferCapObjectId,               // this is from CCIP package publish
-			ChainSelector:             1,
+			ChainSelector:             909606746561742123,
 			FeeAggregator:             signerAddress,
 			AllowListAdmin:            signerAddress,
-			DestChainSelectors:        []uint64{2},
+			DestChainSelectors:        []uint64{909606746561742123},
 			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{true},
+		},
+		ApplyDestChainConfigureOnRampInput: ApplyDestChainConfigureOnRampInput{
+			DestChainSelector:         []uint64{909606746561742123},
+			DestChainEnabled:          []bool{true},
+			DestChainAllowListEnabled: []bool{false},
+		},
+		ApplyAllowListUpdatesInput: ApplyAllowListUpdatesInput{
+			DestChainSelector:             []uint64{909606746561742123},
+			DestChainAllowListEnabled:     []bool{false},
+			DestChainAddAllowedSenders:    [][]string{{}},
+			DestChainRemoveAllowedSenders: [][]string{{}},
 		},
 	}
 
@@ -93,7 +104,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 	isChainSupportedInput := IsChainSupportedInput{
 		OnRampPackageId:   reportOnRamp.Output.CCIPOnRampPackageId,
 		StateObjectId:     reportOnRamp.Output.Objects.StateObjectId,
-		DestChainSelector: 2,
+		DestChainSelector: 909606746561742123,
 	}
 
 	reportIsChainSupported, err := cld_ops.ExecuteOperation(bundle, IsChainSupportedOp, deps, isChainSupportedInput)

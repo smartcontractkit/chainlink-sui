@@ -381,8 +381,8 @@ github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82 h1:6C8qej6f
 github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82/go.mod h1:xe4pgH49k4SsmkQq5OT8abwhWmnzkhpgnXeekbx2efw=
 github.com/smartcontractkit/chain-selectors v1.0.59 h1:F+683QowSJA03BKylz5Kw/lgXuUGHhcuEBm3YNMhQjA=
 github.com/smartcontractkit/chain-selectors v1.0.59/go.mod h1:xsKM0aN3YGcQKTPRPDDtPx2l4mlTN1Djmg0VVXV40b8=
-github.com/smartcontractkit/chainlink-aptos v0.0.0-20250612083123-6ad06411b489 h1:Q6deq2oOvGXwkQx0U0WiER5etzupPGG6PMymgiEZf68=
-github.com/smartcontractkit/chainlink-aptos v0.0.0-20250612083123-6ad06411b489/go.mod h1:jPS9p770KnuAZLI2EPKQQMo6iiY8YNo/DtjD8Tn7CpI=
+github.com/smartcontractkit/chainlink-aptos v0.0.0-20250626122206-319db248496a h1:45A1juQPvLV4xDt35wPiNpdzQwg2uGqbLQtHXLhZjWw=
+github.com/smartcontractkit/chainlink-aptos v0.0.0-20250626122206-319db248496a/go.mod h1:+LMKso9gI5B78xdk3uP69/WrsJTcalbKFO63amJexsE=
 github.com/smartcontractkit/chainlink-ccip v0.0.0-20250530084609-8529b8c89093 h1:HQuWKWQwN3ZJoYEvld0E6+gsb2Yk7nFgg3IVH1rthV8=
 github.com/smartcontractkit/chainlink-ccip v0.0.0-20250530084609-8529b8c89093/go.mod h1:Pw1pSK/XqEKELzGbZ5ht/xzja1iXpODqMqISQNlaZ9w=
 github.com/smartcontractkit/chainlink-ccip/chains/solana v0.0.0-20250425163923-16aa375957b7 h1:j6Vo/NX2ABsPdGxETC5pfQLcz/h6iLJu/Yx+8AhPa34=
