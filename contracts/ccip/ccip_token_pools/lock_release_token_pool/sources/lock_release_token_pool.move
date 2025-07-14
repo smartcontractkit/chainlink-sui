@@ -254,7 +254,7 @@ public fun apply_allowlist_updates<T>(
 
 public struct TypeProof has drop {}
 
-public fun lock_or_burn<T>(
+public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
@@ -268,7 +268,7 @@ public fun lock_or_burn<T>(
 
     // This metod validates various aspects of the lock or burn operation. If any of the
     // validations fail, the transaction will abort.
-    let dest_token_address =
+    let dest_token_address = token_pool::get_remote_token(&state.token_pool_state, remote_chain_selector);
         token_pool::validate_lock_or_burn(
             ref,
             clock,

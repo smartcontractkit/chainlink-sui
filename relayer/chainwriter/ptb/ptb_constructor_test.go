@@ -1,6 +1,6 @@
 //go:build integration
 
-package chainwriter_test
+package ptb_test
 
 import (
 	"context"
@@ -16,7 +16,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
@@ -128,8 +129,8 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	}
 
 	log := logger.Test(t)
-	config := chainwriter.ChainWriterConfig{} // Empty config, not needed for this test
-	constructor := chainwriter.NewPTBConstructor(config, mockClient, log)
+	writerConfig := config.ChainWriterConfig{} // Empty config, not needed for this test
+	constructor := ptb.NewPTBConstructor(writerConfig, mockClient, log)
 
 	builder := transaction.NewTransaction()
 
@@ -137,7 +138,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	t.Run("Valid move call command", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := chainwriter.ChainWriterPTBCommand{
+		cmd := config.ChainWriterPTBCommand{
 			Type:      codec.SuiPTBCommandMoveCall,
 			PackageId: &packageID,
 			ModuleId:  &moduleID,
@@ -145,7 +146,7 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 			Params:    []codec.SuiFunctionParam{},
 		}
 
-		args := chainwriter.Arguments{Args: map[string]any{}}
+		args := config.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -155,14 +156,14 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	t.Run("Missing package ID", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := chainwriter.ChainWriterPTBCommand{
+		cmd := config.ChainWriterPTBCommand{
 			Type:     codec.SuiPTBCommandMoveCall,
 			ModuleId: &moduleID,
 			Function: &functionName,
 			Params:   []codec.SuiFunctionParam{},
 		}
 
-		args := chainwriter.Arguments{Args: map[string]any{}}
+		args := config.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -173,14 +174,14 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	t.Run("Missing module ID", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := chainwriter.ChainWriterPTBCommand{
+		cmd := config.ChainWriterPTBCommand{
 			Type:      codec.SuiPTBCommandMoveCall,
 			PackageId: &packageID,
 			Function:  &functionName,
 			Params:    []codec.SuiFunctionParam{},
 		}
 
-		args := chainwriter.Arguments{Args: map[string]any{}}
+		args := config.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -190,14 +191,14 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 	t.Run("Missing function name", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := chainwriter.ChainWriterPTBCommand{
+		cmd := config.ChainWriterPTBCommand{
 			Type:      codec.SuiPTBCommandMoveCall,
 			PackageId: &packageID,
 			ModuleId:  &moduleID,
 			Params:    []codec.SuiFunctionParam{},
 		}
 
-		args := chainwriter.Arguments{Args: map[string]any{}}
+		args := config.Arguments{Args: map[string]any{}}
 		cachedArgs := map[string]transaction.Argument{}
 
 		_, err := constructor.ProcessMoveCall(ctx, builder, cmd, &args, &cachedArgs)
@@ -226,16 +227,16 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 		Address: accountAddress,
 	}
 
-	config := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{
+	writerConfig := config.ChainWriterConfig{
+		Modules: map[string]*config.ChainWriterModule{
 			"counter": {
 				Name:     "counter",
 				ModuleID: packageId,
-				Functions: map[string]*chainwriter.ChainWriterFunction{
+				Functions: map[string]*config.ChainWriterFunction{
 					"get_count_with_object_id_prereq": {
 						Name:      "get_count_with_object_id_prereq",
 						PublicKey: publicKeyBytes,
-						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
+						PrerequisiteObjects: []config.PrerequisiteObject{
 							{
 								// we set the owner as the recently deployed counter contract
 								OwnerId: &accountAddress,
@@ -245,7 +246,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 								SetKeys: false,
 							},
 						},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -269,7 +270,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 					"get_count_with_object_keys_prereq": {
 						Name:      "get_count_with_object_id_prereq",
 						PublicKey: publicKeyBytes,
-						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
+						PrerequisiteObjects: []config.PrerequisiteObject{
 							{
 								OwnerId: &accountAddress,
 								// name doesn't matter here as we are setting the keys
@@ -279,7 +280,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 								SetKeys: true,
 							},
 						},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -304,14 +305,13 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 			},
 		},
 	}
-	constructor := chainwriter.NewPTBConstructor(config, ptbClient, log)
-
+	constructor := ptb.NewPTBConstructor(writerConfig, ptbClient, log)
 	_ = transaction.NewTransaction()
 
 	//nolint:paralleltest
 	t.Run("Should fill a valid prerequisite object ID in CW config", func(t *testing.T) {
 		// we only pass the counter ID as the other object ID (admin cap) is populated by the pre-requisites
-		args := chainwriter.Arguments{Args: map[string]any{
+		args := config.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
 		}}
 
@@ -330,7 +330,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("Should fill a valid prerequisite object keys in CW config", func(t *testing.T) {
 		// pass no args as it should be populated by the pre-requisites
-		args := chainwriter.Arguments{Args: map[string]any{}}
+		args := config.Arguments{Args: map[string]any{}}
 
 		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args, nil)
 		require.NoError(t, err)
@@ -368,12 +368,12 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	}
 
 	// Create PTB Constructor with config targeting the counter contract
-	config := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{
+	writerConfig := config.ChainWriterConfig{
+		Modules: map[string]*config.ChainWriterModule{
 			"counter": {
 				Name:     "counter",
 				ModuleID: packageId,
-				Functions: map[string]*chainwriter.ChainWriterFunction{
+				Functions: map[string]*config.ChainWriterFunction{
 					"get_count": {
 						Name:      "get_count",
 						PublicKey: publicKeyBytes,
@@ -400,7 +400,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						Name:      "incorrect_ptb",
 						PublicKey: publicKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -419,7 +419,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 					"single_op_ptb": {
 						Name:      "single_op_ptb",
 						PublicKey: publicKeyBytes,
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -438,7 +438,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 					"create_counter_manager": {
 						Name:      "create_counter_manager",
 						PublicKey: publicKeyBytes,
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -468,7 +468,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 					"manager_borrow_op_ptb": {
 						Name:      "manager_borrow_op_ptb",
 						PublicKey: publicKeyBytes,
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -552,7 +552,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 					"complex_operation": {
 						Name:      "complex_operation",
 						PublicKey: publicKeyBytes,
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -604,7 +604,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 						Name:      "get_coin_value_ptb",
 						PublicKey: publicKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -626,13 +626,13 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		},
 	}
 
-	constructor := chainwriter.NewPTBConstructor(config, ptbClient, log)
+	constructor := ptb.NewPTBConstructor(writerConfig, ptbClient, log)
 	ctx := context.Background()
 
 	// Test building and executing PTB commands
 	//nolint:paralleltest
 	t.Run("Single Operation PTB", func(t *testing.T) {
-		args := chainwriter.Arguments{Args: map[string]any{
+		args := config.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
 		}}
 
@@ -648,7 +648,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Missing Module Error", func(t *testing.T) {
-		args := chainwriter.Arguments{Args: map[string]any{
+		args := config.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
 		}}
 
@@ -659,7 +659,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Missing Function Error", func(t *testing.T) {
-		args := chainwriter.Arguments{Args: map[string]any{
+		args := config.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
 		}}
 
@@ -670,7 +670,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Missing Required Argument", func(t *testing.T) {
-		args := chainwriter.Arguments{Args: map[string]any{}}
+		args := config.Arguments{Args: map[string]any{}}
 
 		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, nil)
 		require.Error(t, cError)
@@ -680,7 +680,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("CounterManager Borrow Pattern", func(t *testing.T) {
 		// Start by creating a Counter and its counter manager
-		args := chainwriter.Arguments{Args: map[string]any{}}
+		args := config.Arguments{Args: map[string]any{}}
 
 		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, nil)
 		require.NoError(t, cError)
@@ -702,7 +702,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			}
 		}
 
-		args = chainwriter.Arguments{Args: map[string]any{
+		args = config.Arguments{Args: map[string]any{
 			"manager_object": managerObjectId,
 		}}
 
@@ -730,7 +730,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 
 	//nolint:paralleltest
 	t.Run("Complex Operation with Multiple Commands", func(t *testing.T) {
-		args := chainwriter.Arguments{Args: map[string]any{
+		args := config.Arguments{Args: map[string]any{
 			"counter_id": counterObjectId,
 		}}
 
@@ -764,7 +764,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		suiTypeTag := "0x2::sui::SUI"
 
 		// Prepare arguments for the PTB constructor
-		args := chainwriter.Arguments{
+		args := config.Arguments{
 			Args: map[string]any{
 				"coin": testCoin.CoinObjectId,
 			},

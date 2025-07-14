@@ -2,6 +2,7 @@ package lockreleasetokenpool
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -60,7 +61,7 @@ func PublishCCIPLockReleaseTokenPool(
 		"mcms_owner":              mcmsOwnerAddress,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to compile package: %w", err)
 	}
 
 	packageId, tx, err := bind.PublishPackage(ctx, opts, client, bind.PublishRequest{
@@ -68,7 +69,7 @@ func PublishCCIPLockReleaseTokenPool(
 		Dependencies:    artifact.Dependencies,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to publish package: %w", err)
 	}
 
 	contract, err := NewCCIPLockReleaseTokenPool(packageId, client)

@@ -1,6 +1,8 @@
 package offrampops
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -11,7 +13,8 @@ import (
 type DeployAndInitCCIPOffRampSeqInput struct {
 	DeployCCIPOffRampInput
 	InitializeOffRampInput
-	SetOCR3ConfigInput
+	CommitOCR3Config    SetOCR3ConfigInput
+	ExecutionOCR3Config SetOCR3ConfigInput
 }
 
 type DeployCCIPOffRampSeqObjects struct {
@@ -28,6 +31,9 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 	semver.MustParse("0.1.0"),
 	"Deploys and sets initial CCIP offRamp configuration",
 	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployAndInitCCIPOffRampSeqInput) (DeployCCIPOffRampSeqOutput, error) {
+
+		lggr := env.Logger
+
 		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPOffRampOp, deps, input.DeployCCIPOffRampInput)
 		if err != nil {
 			return DeployCCIPOffRampSeqOutput{}, err
@@ -40,6 +46,24 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 		_, err = cld_ops.ExecuteOperation(env, InitializeOffRampOp, deps, input.InitializeOffRampInput)
 		if err != nil {
 			return DeployCCIPOffRampSeqOutput{}, err
+		}
+
+		lggr.Infow("SetOCR3Config for COMMIT")
+		input.CommitOCR3Config.OffRampPackageId = deployReport.Output.PackageId
+		input.CommitOCR3Config.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
+		input.CommitOCR3Config.OffRampStateId = deployReport.Output.Objects.CCIPOffRampStateObjectId
+		_, err = cld_ops.ExecuteOperation(env, SetOCR3ConfigOp, deps, input.CommitOCR3Config)
+		if err != nil {
+			return DeployCCIPOffRampSeqOutput{}, fmt.Errorf("failed to set COMMIT OCR3 config: %w", err)
+		}
+
+		lggr.Infow("SetOCR3Config for EXECUTION")
+		input.ExecutionOCR3Config.OffRampPackageId = deployReport.Output.PackageId
+		input.ExecutionOCR3Config.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
+		input.ExecutionOCR3Config.OffRampStateId = deployReport.Output.Objects.CCIPOffRampStateObjectId
+		_, err = cld_ops.ExecuteOperation(env, SetOCR3ConfigOp, deps, input.ExecutionOCR3Config)
+		if err != nil {
+			return DeployCCIPOffRampSeqOutput{}, fmt.Errorf("failed to set EXECUTION OCR3 config: %w", err)
 		}
 
 		return DeployCCIPOffRampSeqOutput{

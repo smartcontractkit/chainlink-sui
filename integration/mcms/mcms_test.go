@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -17,12 +18,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
-	"github.com/pattonkan/sui-go/sui"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
@@ -162,7 +163,7 @@ func TestMCMS(t *testing.T) {
 	log.Debugw("Registry object created", "registryObjectId", registryObjId)
 
 	// Some PTB functions that will be re-used in the chainwriter config below
-	setConfigOnlyPTBFunc := chainwriter.ChainWriterPTBCommand{
+	setConfigOnlyPTBFunc := cwConfig.ChainWriterPTBCommand{
 		// set_config
 		Type:      codec.SuiPTBCommandMoveCall,
 		PackageId: &outputs.mcmsPackageId,
@@ -217,7 +218,7 @@ func TestMCMS(t *testing.T) {
 		},
 	}
 
-	setRootPTBFunc := chainwriter.ChainWriterPTBCommand{
+	setRootPTBFunc := cwConfig.ChainWriterPTBCommand{
 		// set_root
 		Type:      codec.SuiPTBCommandMoveCall,
 		PackageId: &outputs.mcmsPackageId,
@@ -289,7 +290,7 @@ func TestMCMS(t *testing.T) {
 		},
 	}
 
-	executePTBFunc := chainwriter.ChainWriterPTBCommand{
+	executePTBFunc := cwConfig.ChainWriterPTBCommand{
 		Type:      codec.SuiPTBCommandMoveCall,
 		PackageId: &outputs.mcmsPackageId,
 		ModuleId:  testutils.StringPointer("mcms"),
@@ -355,7 +356,7 @@ func TestMCMS(t *testing.T) {
 		},
 	}
 
-	timelockScheduleBatchPTBFunc := chainwriter.ChainWriterPTBCommand{
+	timelockScheduleBatchPTBFunc := cwConfig.ChainWriterPTBCommand{
 		Type:      codec.SuiPTBCommandMoveCall,
 		PackageId: &outputs.mcmsPackageId,
 		ModuleId:  testutils.StringPointer("mcms"),
@@ -385,28 +386,28 @@ func TestMCMS(t *testing.T) {
 	}
 
 	// Create PTB Constructor config
-	config := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{
+	config := cwConfig.ChainWriterConfig{
+		Modules: map[string]*cwConfig.ChainWriterModule{
 			"mcms_ptb_test": {
 				Name:     "mcms_ptb_test",
 				ModuleID: "0x123",
-				Functions: map[string]*chainwriter.ChainWriterFunction{
+				Functions: map[string]*cwConfig.ChainWriterFunction{
 					"set_config": {
 						Name: "set_config",
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []cwConfig.ChainWriterPTBCommand{
 							setConfigOnlyPTBFunc,
 						},
 					},
 					"set_config_and_root": {
 						Name: "set_config_and_root",
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []cwConfig.ChainWriterPTBCommand{
 							setConfigOnlyPTBFunc,
 							setRootPTBFunc,
 						},
 					},
 					"timelock_execute": {
 						Name: "timelock_execute",
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []cwConfig.ChainWriterPTBCommand{
 							// set_config
 							setConfigOnlyPTBFunc,
 							// set_root
@@ -422,7 +423,7 @@ func TestMCMS(t *testing.T) {
 		},
 	}
 
-	constructor := chainwriter.NewPTBConstructor(config, ptbClient, log)
+	constructor := ptb.NewPTBConstructor(config, ptbClient, log)
 	require.NotNil(t, constructor)
 
 	ctx := context.Background()
@@ -449,7 +450,7 @@ func TestMCMS(t *testing.T) {
 			{0x00, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03},
 		}
 
-		args := chainwriter.Arguments{
+		args := cwConfig.Arguments{
 			Args: map[string]any{
 				"owner_cap_id":      ownerCapObjId,
 				"multisig_state_id": multisigStateObjId,
@@ -496,7 +497,7 @@ func TestMCMS(t *testing.T) {
 			{0x00, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03},
 		}
 
-		args := chainwriter.Arguments{
+		args := cwConfig.Arguments{
 			Args: map[string]any{
 				"owner_cap_id":      ownerCapObjId,
 				"multisig_state_id": multisigStateObjId,
@@ -554,7 +555,7 @@ func TestMCMS(t *testing.T) {
 			parents[i] = 0
 		}
 
-		args := chainwriter.Arguments{
+		args := cwConfig.Arguments{
 			Args: map[string]any{
 				"owner_cap_id":           ownerCapObjId,
 				"multisig_state_id":      multisigStateObjId,
@@ -611,12 +612,9 @@ func TestMCMS(t *testing.T) {
 			return bytes.Compare(signers[i].Address, signers[j].Address) < 0
 		})
 
-		// Parse the package ID string into an address
-		packageAddr, err := sui.AddressFromHex(outputs.mcmsPackageId)
-		require.NoError(t, err)
-
 		// Convert to bytes in the correct format
-		packageBytes := packageAddr.Bytes()
+		packageBytes, err := hex.DecodeString(outputs.mcmsPackageId)
+		require.NoError(t, err)
 
 		// override package address bytes to zeros because the address that is used in [dev-addresses]
 		// in the mcms's TOML file is 0x00
@@ -724,7 +722,7 @@ func TestMCMS(t *testing.T) {
 
 		log.Debugw("rootBytes", "value", rootBytes, "length", len(rootBytes))
 
-		args := chainwriter.Arguments{
+		args := cwConfig.Arguments{
 			Args: map[string]any{
 				// Args for set_config
 				"owner_cap_id":      ownerCapObjId,

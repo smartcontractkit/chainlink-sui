@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -57,12 +58,12 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	packageId := countContract.ModuleID
 	objectID := countContract.Objects[0].ObjectID
 	// ChainWriter configuration
-	chainWriterConfig := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{
+	chainWriterConfig := config.ChainWriterConfig{
+		Modules: map[string]*config.ChainWriterModule{
 			"counter": {
 				Name:     "counter",
 				ModuleID: testState.Contracts[0].ModuleID,
-				Functions: map[string]*chainwriter.ChainWriterFunction{
+				Functions: map[string]*config.ChainWriterFunction{
 					"increment": {
 						Name:      "increment",
 						PublicKey: publicKeyBytes,
@@ -77,15 +78,15 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 					},
 				},
 			},
-			chainwriter.PTBChainWriterModuleName: {
-				Name:     chainwriter.PTBChainWriterModuleName,
+			config.PTBChainWriterModuleName: {
+				Name:     config.PTBChainWriterModuleName,
 				ModuleID: "0x2",
-				Functions: map[string]*chainwriter.ChainWriterFunction{
+				Functions: map[string]*config.ChainWriterFunction{
 					"ptb_call": {
 						Name:      "ptb_call",
 						PublicKey: publicKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -105,7 +106,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 						Name:      "increment_by_two_no_context",
 						PublicKey: publicKeyBytes,
 						// should be pre-fetched before PTB construction
-						PrerequisiteObjects: []chainwriter.PrerequisiteObject{
+						PrerequisiteObjects: []config.PrerequisiteObject{
 							{
 								// we set OwnerId to nil because we want to override it with sender (toAddress) in SendTransaction
 								OwnerId: nil,
@@ -133,7 +134,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 						Name:      "get_coin_value_ptb",
 						PublicKey: publicKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -206,7 +207,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		sender           string
 		contractName     string
 		functionName     string
-		args             chainwriter.Arguments
+		args             config.Arguments
 		expectError      error
 		expectedResult   string
 		status           commonTypes.TransactionStatus
@@ -220,7 +221,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:           testState.AccountAddress,
 			contractName:     "counter",
 			functionName:     "increment",
-			args:             chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
+			args:             config.Arguments{Args: map[string]any{"counter": objectID}},
 			expectError:      nil,
 			expectedResult:   "1",
 			status:           commonTypes.Finalized,
@@ -232,9 +233,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			txID:             "test-ptb-txID",
 			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:           testState.AccountAddress,
-			contractName:     chainwriter.PTBChainWriterModuleName,
+			contractName:     config.PTBChainWriterModuleName,
 			functionName:     "ptb_call",
-			args:             chainwriter.Arguments{Args: simpleArgs},
+			args:             config.Arguments{Args: simpleArgs},
 			expectError:      nil,
 			expectedResult:   "2",
 			status:           commonTypes.Finalized,
@@ -246,9 +247,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			txID:             "test-ptb-txID-missing-arg",
 			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:           testState.AccountAddress,
-			contractName:     chainwriter.PTBChainWriterModuleName,
+			contractName:     config.PTBChainWriterModuleName,
 			functionName:     "ptb_call",
-			args:             chainwriter.Arguments{Args: map[string]any{}},
+			args:             config.Arguments{Args: map[string]any{}},
 			expectError:      errors.New("required parameter counter has no value"),
 			expectedResult:   "",
 			status:           commonTypes.Failed,
@@ -260,9 +261,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			txID:             "test-ptb-simple-map",
 			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:           testState.AccountAddress,
-			contractName:     chainwriter.PTBChainWriterModuleName,
+			contractName:     config.PTBChainWriterModuleName,
 			functionName:     "ptb_call",
-			args:             chainwriter.Arguments{Args: simpleArgs},
+			args:             config.Arguments{Args: simpleArgs},
 			expectError:      nil,
 			expectedResult:   "3",
 			status:           commonTypes.Finalized,
@@ -276,7 +277,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:           testState.AccountAddress,
 			contractName:     "counter",
 			functionName:     "nonexistent_function",
-			args:             chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
+			args:             config.Arguments{Args: map[string]any{"counter": objectID}},
 			expectError:      commonTypes.ErrNotFound,
 			expectedResult:   "",
 			status:           commonTypes.Failed,
@@ -290,7 +291,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:           testState.AccountAddress,
 			contractName:     "nonexistent_contract",
 			functionName:     "increment",
-			args:             chainwriter.Arguments{Args: map[string]any{"counter": objectID}},
+			args:             config.Arguments{Args: map[string]any{"counter": objectID}},
 			expectError:      commonTypes.ErrNotFound,
 			expectedResult:   "",
 			status:           commonTypes.Failed,
@@ -304,7 +305,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:       testState.AccountAddress,
 			contractName: "counter",
 			functionName: "increment",
-			args: chainwriter.Arguments{Args: map[string]any{
+			args: config.Arguments{Args: map[string]any{
 				"counter":     objectID,
 				"invalid_arg": "invalid_value",
 				"extra_arg":   "extra_value",
@@ -323,7 +324,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			sender:       testState.AccountAddress,
 			contractName: "counter",
 			functionName: "increment",
-			args: chainwriter.Arguments{Args: map[string]any{
+			args: config.Arguments{Args: map[string]any{
 				"counter": objectID,
 			}},
 			expectError:      errors.New("txn already exists"),
@@ -337,9 +338,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			txID:             "prefetch_with_owner_override_txID",
 			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:           testState.AccountAddress,
-			contractName:     chainwriter.PTBChainWriterModuleName,
+			contractName:     config.PTBChainWriterModuleName,
 			functionName:     "increment_by_two_no_context",
-			args:             chainwriter.Arguments{Args: map[string]any{}},
+			args:             config.Arguments{Args: map[string]any{}},
 			expectError:      nil,
 			expectedResult:   "3",
 			status:           commonTypes.Finalized,
@@ -351,9 +352,9 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			txID:         "test-get-coin-value-txID",
 			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
 			sender:       testState.AccountAddress,
-			contractName: chainwriter.PTBChainWriterModuleName,
+			contractName: config.PTBChainWriterModuleName,
 			functionName: "get_coin_value_ptb",
-			args: chainwriter.Arguments{
+			args: config.Arguments{
 				Args: map[string]any{
 					"coin": testCoin.CoinObjectId,
 				},

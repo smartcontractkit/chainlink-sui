@@ -267,7 +267,19 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	// Get module and event configuration
 	moduleConfig := s.config.Modules[contract.Name]
 	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
-	if err != nil {
+	// No event config found, construct a config
+	if err == nil && eventConfig == nil {
+		// construct a new config ad-hoc
+		eventConfig = &ChainReaderEvent{
+			Name:      filter.Key,
+			EventType: filter.Key,
+			EventSelector: client.EventSelector{
+				Package: contract.Address,
+				Module:  contract.Name,
+				Event:   filter.Key,
+			},
+		}
+	} else if err != nil {
 		return nil, err
 	}
 

@@ -15,3 +15,6 @@ const (
 	SuiDevnet   = "devnet"
 	SuiLocalnet = "localnet"
 )
+
+const DefaultByteSize = 32
+const SignatureComponents = 2 // R and S components in ECDSA signature

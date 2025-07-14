@@ -1,6 +1,6 @@
 //go:build unit
 
-package chainwriter_test
+package ptb_test
 
 import (
 	"testing"
@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
@@ -20,8 +22,8 @@ func TestResolveGenericTypeTags(t *testing.T) {
 	t.Parallel()
 
 	// Create a dummy config for testing
-	config := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{},
+	writerConfig := cwConfig.ChainWriterConfig{
+		Modules: map[string]*cwConfig.ChainWriterModule{},
 	}
 
 	// Create a mock client
@@ -36,12 +38,12 @@ func TestResolveGenericTypeTags(t *testing.T) {
 	log := logger.Test(t)
 
 	// Create PTBConstructor using NewPTBConstructor
-	ptb := chainwriter.NewPTBConstructor(config, mockClient, log)
+	ptbService := ptb.NewPTBConstructor(writerConfig, mockClient, log)
 
 	tests := []struct {
 		name        string
 		params      []codec.SuiFunctionParam
-		arguments   chainwriter.Arguments
+		arguments   cwConfig.Arguments
 		expectError bool
 		errorMsg    string
 		expectedLen int
@@ -50,7 +52,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name:        "no parameters",
 			params:      []codec.SuiFunctionParam{},
-			arguments:   chainwriter.Arguments{},
+			arguments:   cwConfig.Arguments{},
 			expectError: false,
 			expectedLen: 0,
 		},
@@ -59,7 +61,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "value", Type: "u64", IsGeneric: false},
 			},
-			arguments:   chainwriter.Arguments{},
+			arguments:   cwConfig.Arguments{},
 			expectError: false,
 			expectedLen: 0,
 		},
@@ -68,7 +70,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"coin": "0x2::sui::SUI",
 				},
@@ -89,7 +91,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 				{Name: "coin1", Type: "Coin<T>", IsGeneric: true},
 				{Name: "coin2", Type: "Coin<T>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"coin1": "0x2::sui::SUI",
 					"coin2": "0x2::sui::SUI",
@@ -104,7 +106,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 				{Name: "coin1", Type: "Coin<T>", IsGeneric: true},
 				{Name: "coin2", Type: "Coin<U>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"coin1": "0x2::sui::SUI",
 					"coin2": "0x2::coin::Coin",
@@ -118,7 +120,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "", Type: "Coin<T>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{},
 			},
 			expectError: true,
@@ -129,7 +131,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{},
 			},
 			expectError: true,
@@ -140,7 +142,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"coin": "invalid_type",
 				},
@@ -153,7 +155,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "coins", Type: "vector<Coin<T>>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"coins": "vector<0x2::sui::SUI>",
 				},
@@ -176,7 +178,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
 				{Name: "amount", Type: "u64", IsGeneric: false},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"coin": "0x2::sui::SUI",
 				},
@@ -189,7 +191,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "items", Type: "vector<T>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: config.Arguments{
 				ArgTypes: map[string]string{
 					"items": "vector<>",
 				},
@@ -202,7 +204,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "nested_coins", Type: "vector<Coin<T>>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"nested_coins": "vector<0x2::coin::Coin>",
 				},
@@ -224,7 +226,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 				{Name: "link_coin", Type: "Coin<U>", IsGeneric: true},
 				{Name: "coin_vector", Type: "vector<Coin<V>>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"sui_coin":    "0x2::sui::SUI",
 					"link_coin":   "0x2::link::LINK",
@@ -258,7 +260,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 			params: []codec.SuiFunctionParam{
 				{Name: "token", Type: "Token<T>", IsGeneric: true},
 			},
-			arguments: chainwriter.Arguments{
+			arguments: cwConfig.Arguments{
 				ArgTypes: map[string]string{
 					"token": "0xZZZ::token::Token",
 				},
@@ -271,7 +273,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := ptb.ResolveGenericTypeTags(tt.params, tt.arguments)
+			result, err := ptbService.ResolveGenericTypeTags(tt.params, tt.arguments)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -292,8 +294,8 @@ func TestResolveGenericTypeTags_OrderingAndDeduplication(t *testing.T) {
 	t.Parallel()
 
 	// Create a dummy config for testing
-	config := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{},
+	writerConfig := cwConfig.ChainWriterConfig{
+		Modules: map[string]*cwConfig.ChainWriterModule{},
 	}
 
 	// Create a mock client
@@ -308,7 +310,7 @@ func TestResolveGenericTypeTags_OrderingAndDeduplication(t *testing.T) {
 	log := logger.Test(t)
 
 	// Create PTBConstructor using NewPTBConstructor
-	ptb := chainwriter.NewPTBConstructor(config, mockClient, log)
+	ptbService := ptb.NewPTBConstructor(writerConfig, mockClient, log)
 
 	// Test that type tags are deduplicated but order is preserved
 	params := []codec.SuiFunctionParam{
@@ -319,7 +321,7 @@ func TestResolveGenericTypeTags_OrderingAndDeduplication(t *testing.T) {
 		{Name: "coin5", Type: "Coin<U>", IsGeneric: true}, // Same as coin2
 	}
 
-	arguments := chainwriter.Arguments{
+	arguments := cwConfig.Arguments{
 		ArgTypes: map[string]string{
 			"coin1": "0x2::sui::SUI",
 			"coin2": "0x2::coin::Coin",
@@ -329,7 +331,7 @@ func TestResolveGenericTypeTags_OrderingAndDeduplication(t *testing.T) {
 		},
 	}
 
-	result, err := ptb.ResolveGenericTypeTags(params, arguments)
+	result, err := ptbService.ResolveGenericTypeTags(params, arguments)
 	require.NoError(t, err)
 
 	// Should have 3 unique types in the order they first appeared
@@ -355,8 +357,8 @@ func TestResolveGenericTypeTags_EmptyArgTypes(t *testing.T) {
 	t.Parallel()
 
 	// Create a dummy config for testing
-	config := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{},
+	writerConfig := cwConfig.ChainWriterConfig{
+		Modules: map[string]*cwConfig.ChainWriterModule{},
 	}
 
 	// Create a mock client
@@ -371,18 +373,18 @@ func TestResolveGenericTypeTags_EmptyArgTypes(t *testing.T) {
 	log := logger.Test(t)
 
 	// Create PTBConstructor using NewPTBConstructor
-	ptb := chainwriter.NewPTBConstructor(config, mockClient, log)
+	ptbService := ptb.NewPTBConstructor(writerConfig, mockClient, log)
 
 	params := []codec.SuiFunctionParam{
 		{Name: "coin", Type: "Coin<T>", IsGeneric: true},
 	}
 
 	// Test with nil ArgTypes
-	arguments := chainwriter.Arguments{
+	arguments := cwConfig.Arguments{
 		ArgTypes: nil,
 	}
 
-	result, err := ptb.ResolveGenericTypeTags(params, arguments)
+	result, err := ptbService.ResolveGenericTypeTags(params, arguments)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "generic parameter \"coin\" not found in ArgTypes")
 	assert.Nil(t, result)

@@ -1,4 +1,4 @@
-package chainwriter
+package ptb
 
 import (
 	"context"
@@ -11,22 +11,19 @@ import (
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/expander"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
-
-type Arguments struct {
-	Args     map[string]any
-	ArgTypes map[string]string // Maps argument name to its generic type
-}
 
 // PTBConstructor handles building programmable transactions based on configuration.
 // It provides methods to construct PTBs by mapping arguments to their respective commands
 // and handling dependencies between commands.
 type PTBConstructor struct {
-	config ChainWriterConfig   // Configuration for building PTBs
-	client client.SuiPTBClient // Client for interacting with Sui PTB functionality
-	log    logger.Logger       // Logger for debugging and error reporting
+	config cwConfig.ChainWriterConfig // Configuration for building PTBs
+	client client.SuiPTBClient        // Client for interacting with Sui PTB functionality
+	log    logger.Logger              // Logger for debugging and error reporting
 }
 
 // NewPTBConstructor creates a new PTB constructor with the given configuration.
@@ -39,7 +36,7 @@ type PTBConstructor struct {
 //
 // Returns:
 //   - *PTBConstructor: A new instance of PTBConstructor
-func NewPTBConstructor(config ChainWriterConfig, ptbClient client.SuiPTBClient, log logger.Logger) *PTBConstructor {
+func NewPTBConstructor(config cwConfig.ChainWriterConfig, ptbClient client.SuiPTBClient, log logger.Logger) *PTBConstructor {
 	return &PTBConstructor{
 		config: config,
 		client: ptbClient,
@@ -138,7 +135,7 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments Arguments, configOverrides *ConfigOverrides) (*transaction.Transaction, error) {
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments cwConfig.Arguments, configOverrides *cwConfig.ConfigOverrides) (*transaction.Transaction, error) {
 	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
 
 	// Look up the module
@@ -172,11 +169,95 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		return nil, err
 	}
 
+	ptbCommands := txnConfig.PTBCommands
+	updatedArgs := arguments
+
+	// If the function is CCIPExecuteReport, then we need to expand the PTB.
+	if function == cwConfig.CCIPExecuteReportFunctionName {
+		/* This is a CCIP Execute Report function, which is a special case that needs to be expanded manually without the use
+		 * the ChainWriter config. The methods below will fetch prerequisites and build the expander for the actual PTB commands
+		 * before calling the PTB constructor.
+		 *
+		 * 1. Use the `toAddress` (offramp package ID) from the config overrides to get the offramp pointer object
+		 * 2. Read the offramp state ID from the pointer object
+		 * 3. Call the getter on the offramp (ToAddress) to get the CCIP package ID
+		 * 4. Get the object pointer present in the CCIP package ID
+		 * 5. Place the values from object pointers into a map to build the expander
+		 * 6. Call the expander to get the expanded PTB commands and arguments
+		 * 7. Update the args map with the found values
+		 */
+
+		execArgs := arguments.Args["expanded_report"].(expander.SuiOffRampExecCallArgs)
+
+		addressMappings, err := expander.SetupAddressMappings(ctx, p.log, p.client, *overrideToAddress, txnConfig.PublicKey)
+		if err != nil {
+			p.log.Errorw("Error setting up address mappings", "error", err)
+			return nil, err
+		}
+
+		ptbExpander := expander.NewSuiPTBExpander(p.log, p.client, addressMappings)
+		result, err := ptbExpander.Expand(ctx, p.log, expander.OffRampPTBArgs{ExecArgs: execArgs, PTBConfigs: txnConfig}, txnConfig.PublicKey)
+		updatedPTBCommands := result.PTBCommands
+		updatedArgs := result.UpdatedArgs
+		typeArgs := result.TypeArgs
+		if err != nil {
+			p.log.Errorw("Error expanding PTB commands", "error", err)
+			return nil, err
+		}
+		if typeArgs != nil {
+			// if the arguments.ArgTypes is nil, then we need to create a new map
+			if arguments.ArgTypes == nil {
+				arguments.ArgTypes = make(map[string]string)
+			}
+
+			// merge the type args into the arguments
+			for key, value := range typeArgs {
+				arguments.ArgTypes[key] = value
+			}
+		}
+
+		configOverrides.Arguments = &cwConfig.Arguments{
+			Args:     updatedArgs,
+			ArgTypes: arguments.ArgTypes,
+		}
+		configOverrides.PTBCommands = &updatedPTBCommands
+	}
+
 	// Create a map for caching objects
 	cachedArgs := make(map[string]transaction.Argument)
 
+	if configOverrides != nil {
+		if configOverrides.PTBCommands != nil {
+			p.log.Debugw("Using PTB commands from config overrides", "ptbCommands", configOverrides.PTBCommands)
+			ptbCommands = *configOverrides.PTBCommands
+		}
+
+		if configOverrides.Arguments != nil {
+			p.log.Debugw("Using PTB args from config overrides", "ptbArgs", configOverrides.Arguments, "originalArgs", updatedArgs)
+			// Merge arguments to keep the original arguments
+			for key, value := range configOverrides.Arguments.Args {
+				updatedArgs.Args[key] = value
+			}
+
+			if configOverrides.Arguments.ArgTypes != nil {
+				// if the updatedArgs.ArgTypes is nil, then we need to create a new map
+				if updatedArgs.ArgTypes == nil {
+					updatedArgs.ArgTypes = make(map[string]string)
+				}
+
+				// merge the type args into the arguments
+				for key, value := range configOverrides.Arguments.ArgTypes {
+					updatedArgs.ArgTypes[key] = value
+				}
+			}
+		}
+	}
+
+	p.log.Debugw("Final PTB commands", "ptbCommands", ptbCommands)
+	p.log.Debugw("Final PTB args", "updatedArgs", updatedArgs)
+
 	// Process each command in order
-	for _, cmd := range txnConfig.PTBCommands {
+	for _, cmd := range ptbCommands {
 		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
@@ -201,8 +282,8 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 func (p *PTBConstructor) ProcessMoveCall(
 	ctx context.Context,
 	builder *transaction.Transaction,
-	cmd ChainWriterPTBCommand,
-	arguments *Arguments,
+	cmd cwConfig.ChainWriterPTBCommand,
+	arguments *cwConfig.Arguments,
 	cachedArgs *map[string]transaction.Argument,
 ) (*transaction.Argument, error) {
 	p.log.Debugw("Processing move call", "Command", cmd, "Args", arguments)
@@ -245,7 +326,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	ctx context.Context,
 	builder *transaction.Transaction,
 	params []codec.SuiFunctionParam,
-	arguments *Arguments,
+	arguments *cwConfig.Arguments,
 	cachedArgs *map[string]transaction.Argument,
 ) ([]transaction.Argument, error) {
 	processedArgs := make([]transaction.Argument, 0, len(params))
@@ -344,7 +425,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 }
 
 // FetchPrereqObjects fetches each pre-requisite object and its details, then populates the args map with its values
-func (p *PTBConstructor) FetchPrereqObjects(ctx context.Context, prereqObjects []PrerequisiteObject, args *map[string]any, ownerFallback *string) error {
+func (p *PTBConstructor) FetchPrereqObjects(ctx context.Context, prereqObjects []cwConfig.PrerequisiteObject, args *map[string]any, ownerFallback *string) error {
 	for _, prereq := range prereqObjects {
 		// set the owner fallback if the ownerId is not provided
 		if prereq.OwnerId == nil {

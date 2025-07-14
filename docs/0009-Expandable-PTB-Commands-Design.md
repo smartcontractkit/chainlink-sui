@@ -3,14 +3,15 @@
 - [Design Document: Enhancing ChainWriter for Expandable PTB Commands](#design-document-enhancing-chainwriter-for-expandable-ptb-commands)
     - [1. Introduction](#1-introduction)
     - [2. Goals](#2-goals)
-    - [3. Accepted Design: Specific hardcoded logic for each flow](#3-accepted-design-specific-hardcoded-logic-for-each-flow)
+    - [3. Implemented Design: Generic PTBExpander Interface](#3-implemented-design-generic-ptbexpander-interface)
         - [3.1 Core Idea](#31-core-idea)
-        - [3.2 Structure Modifications](#32-structure-modifications)
-        - [3.3 ChainWriter Instance Enhancements](#33-chainwriter-instance-enhancements)
-        - [3.4 PTB Generation Logic](#34-ptb-generation-logic)
-        - [3.5 Implementing/Handling Expansion Logic](#35-implementinghandling-expansion-logic)
-        - [3.6 Pros](#36-pros)
-        - [3.7 Cons](#37-cons)
+        - [3.2 Generic Interface Structure](#32-generic-interface-structure)
+        - [3.3 Concrete OffRamp Implementation](#33-concrete-offramp-implementation)
+        - [3.4 Address Mapping System](#34-address-mapping-system)
+        - [3.5 PTB Expansion Logic](#35-ptb-expansion-logic)
+        - [3.6 Token Pool and Receiver Handling](#36-token-pool-and-receiver-handling)
+        - [3.7 Pros](#37-pros)
+        - [3.8 Cons](#38-cons)
     - [4. Alternative Design: CommandExpander Interface Approach](#4-alternative-design-commandexpander-interface-approach)
         - [4.1 Core Idea](#41-core-idea)
         - [4.2 Structure Modifications](#42-structure-modifications)
@@ -25,7 +26,7 @@ The ChainWriter component is responsible for constructing Sui Programmable Trans
 
 A key use case is processing multiple instances of a similar operation, such as handling multiple token pool calls on the offRamp flow.
 
-This document outlines design options for achieving this functionality.
+This document outlines the implemented design for achieving this functionality.
 
 **2. Goals**
 
@@ -35,81 +36,169 @@ This document outlines design options for achieving this functionality.
 *   Allow dynamic provision of arguments for each instance of an expanded command, with clear sourcing.
 *   Maintain backward compatibility for existing non-expandable command configurations.
 
-**3. Accepted Design: Specific hardcoded logic for each flow**
+**3. Implemented Design: Generic PTBExpander Interface**
 
-This design makes the following assumptions:
-- The only expandable flow is the offRamp flow.
-- The expander function only needs the OCR report to be able to expand the PTB.
-- The signature of the `ccip_receive` function receives a hot potato and returns another hot potato.
-- The PTB will only add the receiver call command if the receiver is registered.
-- Sequential execution of token pool commands (even though they are independent and parallelizable in nature)
-  - Each token pool command mutates and passes the hot potato to the next command
-  - Same thing happens with the receiver call command
+This design was implemented to provide a balance between flexibility and simplicity. It uses Go generics to provide type-safe PTB expansion operations while maintaining specific implementations for known flows.
 
 **3.1 Core Idea**
 
-This option introduces specific hardcoded logic for each flow. It is inspired by a similar approach that was followed by the Solana team and it can be found [here](https://github.com/smartcontractkit/chainlink-solana/blob/3c6bdae1a2f72144becfd63a7332b5c982ed687b/pkg/solana/chainwriter/transform_registry.go#L30). This makes the implementation effort simpler by sacrificing the flexibility of the design. We will only use this approach for the offRamp flow since it is the only flow that is expandable.
+The implemented approach introduces a generic `PTBExpander` interface that can be specialized for different types of operations. This design provides:
 
-This option introduces an expander function for the OffRamp flow that will transform the input arguments to the expected format for the expander. Since we know the flow that the PTB is modeling, we also know which command(s) can be expandable and what data structure to use for the expansion logic.
+1. **Type Safety**: Uses Go generics to ensure compile-time type safety for different expansion operations
+2. **Flexibility**: Allows for different argument and result types for different expansion scenarios
+3. **Simplicity**: Maintains a single `Expand` method interface while supporting various operation types
+4. **Extensibility**: New expansion types can be added by implementing the generic interface
 
-The offRamp flow can be defined as follows;
-
-1. Call OffRamp `init` function to create a hot potato;
-2. If the Report contains token pool messages do:
-   2.1. Call `lock_or_burn` function for each token pool message. Ensure each token pool uses a refernece to the hot potato from the previous command;
-3. If the report contains a receiver, and if that the receiver is registered, do:
-   3.1. Call function to extract the Any2SuiMessage from the hot potato;
-   3.2  Call the receiver `ccip_receive` implementation with the Any2SuiMessage;
-4. Call OffRamp function, lets call it `offramp_finalize`, to finalise the flow and pass it the hot potato;
-
-**3.2 Structure Modifications**
-
-This solution does not require any new data structures but the following functions:
-
-1. `FindPTExpander` that will return the PTB expander for a given flow.
-2. Implement a `PTExpander` function that will have the following signature:
+The core interface is defined as:
 
 ```go
-func PTBExpander(args any, config chainwriter.ChainWriterConfig) (ptbCommand chainwriter.ChainWriterPTBCommand, updatedArgs any, err error)
-```
-
-**3.3 ChainWriter Instance Enhancements**
-
-No changes are needed to the ChainWriter struct. PTBs that model known flows will need to have a specific name that will be used to find the expander function.
-
-**3.4 PTB Generation Logic**
-
-The OffRamp ChainWriter config will only have two known PTB commands: the first one (let's call it `offramp_init` function) and the last one (let's call it `offramp_finalize` function). All the other commands will be derived from the OCR report. The `PTBExpander` function will receive the OCR report and the ChainWriter config and will generate the final PTB commands to that specific report execution.
-
-**3.5 Implementing/Handling Expansion Logic**
-
-```go
-
-type OffRampCCIPExecuteArgs struct {
-    ocrReportInfo ExecuteReportInfo
-    receiverAddress string
-    data []byte
-    destinationChainSelector uint64
-}
-
-func OffRampPTBExpander(args OffRampCCIPExecuteArgs, config chainwriter.ChainWriterConfig) (ptbCommands []chainwriter.ChainWriterPTBCommand, updatedArgs any, err error) {
-    for idx, tokenAmount := range args.ocrReportInfo.tokenAmounts {
-        // dynamically generate the ptb command to call the respective token pool
-    }
-
-    // update the args with the new values
-    // update the hot potato reference index of the last token pool command.
+type PTBExpander[T any, R any] interface {
+    Expand(
+        ctx context.Context,
+        lggr logger.Logger,
+        args T,
+        signerPublicKey []byte,
+    ) (R, error)
 }
 ```
 
-**3.6 Pros**
+**3.2 Generic Interface Structure**
 
-*   Simpler to implement when compared to the alternative design
-*   No need to create any new data structures or interfaces
+The generic interface allows for type-safe implementations:
 
-**3.7 Cons**
+```go
+// PTBExpander defines a generic interface for expanding PTB commands
+type PTBExpander[T any, R any] interface {
+    Expand(
+        ctx context.Context,
+        lggr logger.Logger,
+        args T,
+        signerPublicKey []byte,
+    ) (R, error)
+}
+```
 
-*   Less flexible than the alternative design
+This interface can be specialized for different operations:
+- `PTBExpander[OffRampPTBArgs, OffRampPTBResult]` for OffRamp operations
+- `PTBExpander[OnRampPTBArgs, OnRampPTBResult]` for potential OnRamp operations
+- Other specialized implementations as needed
+
+**3.3 Concrete OffRamp Implementation**
+
+The `SuiPTBExpander` implements the generic interface specifically for OffRamp operations:
+
+```go
+type SuiPTBExpander struct {
+    lggr            logger.Logger
+    ptbClient       client.SuiPTBClient
+    AddressMappings map[string]string
+}
+
+// Implements PTBExpander[OffRampPTBArgs, OffRampPTBResult]
+func (s *SuiPTBExpander) Expand(
+    ctx context.Context,
+    lggr logger.Logger,
+    args OffRampPTBArgs,
+    signerPublicKey []byte,
+) (OffRampPTBResult, error)
+```
+
+**Input and Output Types:**
+
+```go
+// OffRampPTBArgs represents arguments for OffRamp PTB expansion
+type OffRampPTBArgs struct {
+    ExecArgs   SuiOffRampExecCallArgs
+    PTBConfigs *config.ChainWriterFunction
+}
+
+// OffRampPTBResult represents the result of OffRamp PTB expansion
+type OffRampPTBResult struct {
+    PTBCommands []config.ChainWriterPTBCommand
+    UpdatedArgs map[string]any
+    TypeArgs    map[string]string
+}
+```
+
+**3.4 Address Mapping System**
+
+A critical component of the implementation is the address mapping system that discovers and maintains references to on-chain objects:
+
+```go
+func SetupAddressMappings(
+    ctx context.Context,
+    lggr logger.Logger,
+    ptbClient client.SuiPTBClient,
+    offRampPackageId string,
+    publicKey []byte,
+) (map[string]string, error)
+```
+
+This function performs a 4-step discovery process:
+1. Uses the OffRamp package ID to discover the CCIP package ID
+2. Reads owned objects to locate the OffRamp state pointer and extract the state address
+3. Reads CCIP package objects to find the CCIP object reference and owner capability addresses
+4. Assembles a complete address mapping required for PTB operations
+
+The resulting mappings include:
+- `ccipPackageId`: Main CCIP package identifier
+- `ccipObjectRef`: Reference to the main CCIP state object
+- `ccipOwnerCap`: Owner capability object for privileged operations
+- `clockObject`: Sui system clock object (fixed at 0x6)
+- `offRampPackageId`: The OffRamp package identifier
+- `offRampState`: The OffRamp state object address
+
+**3.5 PTB Expansion Logic**
+
+The PTB expansion process follows a structured approach:
+
+1. **Base Commands**: Start with predefined commands from configuration:
+   - `init_execute`: Initializes the OffRamp execution
+   - `finish_execute`: Finalizes the execution
+
+2. **Dynamic Token Pool Commands**: Generate commands for each token transfer:
+   - Extract token amounts from the execution report
+   - Look up token pool information for each token
+   - Generate PTB commands for token pool operations
+
+3. **Receiver Call Commands**: Generate commands for message receivers:
+   - Check if receivers are registered
+   - Generate receiver call commands for valid receivers
+   - Handle message data passing
+
+4. **Command Sequencing**: Ensure proper ordering and dependencies:
+   - Token pool commands are inserted between init and finish
+   - Receiver commands follow token pool commands
+   - PTB dependencies are updated to maintain proper references
+
+**3.6 Token Pool and Receiver Handling**
+
+**Token Pool Operations:**
+- Query token pool information using `get_pool_infos` function
+- Generate `release_or_mint` commands for each token pool
+- Handle token type arguments and state addresses
+- Maintain proper PTB dependency chains
+
+**Receiver Operations:**
+- Parse receiver addresses in `packageID::moduleID::functionName` format
+- Check receiver registration using `is_registered_receiver`
+- Generate receiver call commands with proper message data
+- Handle receiver parameters and dependencies
+
+**3.7 Pros**
+
+*   **Type Safety**: Go generics provide compile-time type safety
+*   **Flexibility**: Can support multiple expansion types through generic interface
+*   **Simplicity**: Single method interface is easy to understand and implement
+*   **Extensibility**: New expansion types can be added without changing existing code
+*   **Maintainability**: Clear separation between generic interface and concrete implementations
+*   **Performance**: Efficient address discovery and caching system
+
+**3.8 Cons**
+
+*   **Generic Complexity**: Requires understanding of Go generics
+*   **Single Implementation**: Currently only OffRamp expansion is implemented
+*   **Address Discovery Overhead**: Initial setup requires multiple on-chain reads
 
 **4. Alternative Design: CommandExpander Interface Approach**
 
@@ -375,19 +464,48 @@ The `chainWriterInputArgs` for `SubmitTransaction` would provide data like `toke
 
 **5. Key Requirements Addressed**
 
-Accepted Design
+**Implemented Design (Generic PTBExpander Interface)**
 
-*   **Function needs to be marked as repeatable:** Achieved by naming convention - functions that need expansion are identified by their name pattern and mapped to specific `PTBExpander` functions.
-*   **Check downstream PTB argument dependencies:** Dependencies are handled within the `PTBExpander` function itself, which has full control over the expanded commands and their argument mapping.
-*   **Dynamically provide values:** The `PTBExpander` function receives the original arguments and can transform them as needed, returning both the expanded commands and updated arguments.
-*   **ChainWriter needs expansion logic:** Achieved through the `FindPTExpander` function that maps function names to their corresponding expander implementations.
-*   **Struct for repeatability and expansion logic:** No additional structures needed - expansion logic is encapsulated in the `PTBExpander` function signature and implementation.
+*   **Function needs to be marked as repeatable:** Achieved through the generic `PTBExpander` interface. Functions requiring expansion are handled by specific implementations that determine expansion logic based on runtime data (e.g., token amounts in OffRamp reports).
 
-Alternative Design
+*   **Check downstream PTB argument dependencies:** Dependencies are resolved during PTB generation in the `getOffRampPTB` method. The implementation:
+    - Tracks command indices as PTB commands are generated
+    - Updates `PTBDependency.CommandIndex` values to maintain proper references
+    - Ensures the final `finish_execute` command references the last generated token pool or receiver command
 
-*   **Function needs to be marked as repeatable:** Achieved by `ChainWriterPTBCommand` having `ExpansionSetup` with a valid `HandlerKey` pointing to a registered `CommandExpander`.
-*   **Check downstream PTB argument dependencies:** The two-stage system with `commandMetadata` resolves dependencies to absolute PTB indices, targeting the last instance of an expanded block.
-*   **Dynamically provide values:** The `CommandExpander.ExpandCommands` method returns `ExpandedCommandArguments` containing values and type tags for parameters of the generated commands. These are sourced from global `chainWriterInputArgs`, `reportData`, or handler-internal logic.
-*   **ChainWriter needs expansion logic:** Achieved with the `CommandExpander` interface and a registry in `ChainWriter`.
-*   **Struct for repeatability and expansion logic:** `ChainWriterPTBCommand.ExpansionSetup` links to the expander.
+*   **Dynamically provide values:** The `Expand` method processes runtime data to generate:
+    - Token pool arguments from `getTokenPoolByTokenAddress` lookups
+    - Receiver arguments from message processing
+    - Type arguments for generic Move function calls
+    - Address mappings for on-chain object references
+
+*   **ChainWriter needs expansion logic:** Achieved through:
+    - The generic `PTBExpander[T, R]` interface that can be specialized for different operations
+    - Concrete implementations like `SuiPTBExpander` for OffRamp operations
+    - Address mapping discovery system in `SetupAddressMappings`
+    - Integration with existing ChainWriter PTB generation flow
+
+*   **Struct for repeatability and expansion logic:** Provided through:
+    - `OffRampPTBArgs` for input parameters including execution arguments and PTB configurations
+    - `OffRampPTBResult` for output including generated PTB commands, updated arguments, and type arguments
+    - `TokenPool` struct for token pool information and expansion logic
+    - Address mapping system for maintaining on-chain object references
+
+**Additional Benefits of Implemented Design:**
+
+*   **Address Discovery:** Automatic discovery and caching of critical on-chain addresses reduces manual configuration
+*   **Receiver Filtering:** Automatic filtering of registered receivers prevents failed transactions
+*   **Type Safety:** Go generics ensure compile-time type checking for different expansion scenarios
+*   **Extensibility:** New expansion types can be added by implementing the generic interface with different type parameters
+*   **Maintainability:** Clear separation of concerns between generic interface and specific implementations
+
+**Integration with ChainWriter:**
+
+The implemented design integrates with the existing ChainWriter by:
+1. Using the existing `ChainWriterFunction` configuration as input
+2. Generating compatible `ChainWriterPTBCommand` structures
+3. Providing argument and type argument mappings that work with existing PTB generation logic
+4. Maintaining backward compatibility with non-expandable commands
+
+This approach successfully addresses all original requirements while providing a clean, extensible architecture for future expansion types.
 

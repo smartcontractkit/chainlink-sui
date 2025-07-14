@@ -11,7 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
@@ -76,7 +77,7 @@ func TestEnqueueIntegration(t *testing.T) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, txManager, transactionRepository := testutils.SetupClients(t, testutils.LocalUrl, _keystore)
+	suiClient, txManager, transactionRepository := testutils.SetupClients(t, testutils.LocalUrl, _keystore, _logger)
 
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
@@ -277,17 +278,17 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 	packageId := countContract.ModuleID
 	objectId := countContract.Objects[0].ObjectID
 
-	chainWriterConfig := chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{
+	chainWriterConfig := config.ChainWriterConfig{
+		Modules: map[string]*config.ChainWriterModule{
 			"counter": {
 				Name:     countContract.Name,
 				ModuleID: packageId,
-				Functions: map[string]*chainwriter.ChainWriterFunction{
+				Functions: map[string]*config.ChainWriterFunction{
 					"ptb_call": {
 						Name:      "ptb_call",
 						PublicKey: pubKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
+						PTBCommands: []config.ChainWriterPTBCommand{
 							{
 								Type:      codec.SuiPTBCommandMoveCall,
 								PackageId: &packageId,
@@ -308,7 +309,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 		},
 	}
 
-	ptbConstructor := chainwriter.NewPTBConstructor(chainWriterConfig, testState.SuiGateway, _logger)
+	ptbConstructor := ptb.NewPTBConstructor(chainWriterConfig, testState.SuiGateway, _logger)
 
 	gasLimit := int64(200000000000)
 
@@ -333,7 +334,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
 			signerPublicKey: pubKeyBytes,
-			contractName:    chainwriter.PTBChainWriterModuleName,
+			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
 			expectError:     nil,
@@ -347,7 +348,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
 			signerPublicKey: pubKeyBytes,
-			contractName:    chainwriter.PTBChainWriterModuleName,
+			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
 			expectError:     nil,
@@ -361,7 +362,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
 			signerPublicKey: pubKeyBytes,
-			contractName:    chainwriter.PTBChainWriterModuleName,
+			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{}, // missing "counter"
 			expectError:     errors.New("missing required parameter counter for command increment"),
@@ -375,7 +376,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
 			signerPublicKey: pubKeyBytes,
-			contractName:    chainwriter.PTBChainWriterModuleName,
+			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
 			expectError:     nil,
@@ -393,7 +394,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 	//nolint:paralleltest
 	for _, tc := range testScenarios {
 		t.Run(tc.name, func(t *testing.T) {
-			arg := chainwriter.Arguments{
+			arg := config.Arguments{
 				Args: tc.args.(map[string]any),
 			}
 			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, arg, nil)

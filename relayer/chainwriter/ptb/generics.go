@@ -1,4 +1,4 @@
-package chainwriter
+package ptb
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
@@ -20,7 +21,7 @@ func NewTypeTagBuilder() *TypeTagBuilder {
 
 func (p *PTBConstructor) ResolveGenericTypeTags(
 	params []codec.SuiFunctionParam,
-	arguments Arguments,
+	arguments config.Arguments,
 ) ([]transaction.TypeTag, error) {
 	if len(params) == 0 {
 		return []transaction.TypeTag{}, nil

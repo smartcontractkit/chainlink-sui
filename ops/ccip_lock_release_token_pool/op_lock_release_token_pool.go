@@ -210,9 +210,9 @@ var LockReleaseTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 // LRTP -- provide_liquidity
 type LockReleaseTokenPoolProviderLiquidityInput struct {
 	LockReleaseTokenPoolPackageId string
+	CoinObjectTypeArg             string
 	StateObjectId                 string
 	Coin                          string
-	TokenType                     string
 }
 
 var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProviderLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
@@ -226,12 +226,12 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	tx, err := contract.ProvideLiquidity(
 		b.GetContext(),
 		opts,
-		[]string{input.TokenType},
+		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.Coin},
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool set configs rate limiter: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to provide liquidity to lock release token pool: %w", err)
 	}
 
 	return sui_ops.OpTxResult[NoObjects]{

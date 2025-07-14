@@ -758,8 +758,10 @@ module ccip_offramp::offramp {
             bcs_stream::deserialize_vector!(
                 &mut stream,
                 |stream| {
+                    let source_token = bcs_stream::deserialize_fixed_vector_u8(stream, 32);
+                    let source_token_address = address::from_bytes(source_token);
                     TokenPriceUpdate {
-                        source_token: bcs_stream::deserialize_address(stream),
+                        source_token: source_token_address,
                         usd_per_token: bcs_stream::deserialize_u256(stream)
                     }
                 }

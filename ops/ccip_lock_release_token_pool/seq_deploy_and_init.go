@@ -14,8 +14,9 @@ type DeployLockReleaseTokenPoolObjects struct {
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
-	CCIPPackageId string
-	Objects       DeployLockReleaseTokenPoolObjects
+	LockReleaseTokenPoolPackageId string
+	TokenType                     string
+	Objects                       DeployLockReleaseTokenPoolObjects
 }
 
 type DeployAndInitLockReleaseTokenPoolInput struct {
@@ -118,7 +119,7 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 		}
 
 		return DeployLockReleaseTokenPoolOutput{
-			CCIPPackageId: deployReport.Output.PackageId,
+			LockReleaseTokenPoolPackageId: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{
 				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
