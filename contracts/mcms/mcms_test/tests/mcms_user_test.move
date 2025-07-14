@@ -6,7 +6,7 @@ use mcms::mcms_registry::{Self, Registry};
 use mcms_test::mcms_user::{Self, UserData, OwnerCap};
 use std::string;
 use sui::bcs;
-use sui::package::{Self, UpgradeCap};
+use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 use sui::test_utils;
 
