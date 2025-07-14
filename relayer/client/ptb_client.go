@@ -350,11 +350,11 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			return fmt.Errorf("failed to read function: %w", err)
 		}
 
+		c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
+
 		if len(response.Results) == 0 {
 			return fmt.Errorf("no results from function call")
 		}
-
-		c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
 
 		resultsMarshalled, err := response.Results.MarshalJSON()
 		if err != nil {
@@ -392,6 +392,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			} else {
 				// otherwise, get the normalized struct and attempt turning the result into JSON
 				normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
+				c.log.Debugw("normalizedModule", "normalizedModule", normalizedModule)
 				if err != nil {
 					return fmt.Errorf("failed to get normalized struct: %w", err)
 				}

@@ -544,6 +544,7 @@ func ParseSuiResponseValue(rawResponse any) (any, error) {
 
 	responseValue := responseArray[0]
 	responseType, ok := responseArray[1].(string)
+
 	if !ok {
 		return nil, fmt.Errorf("expected second response element to be type string, got %T", responseArray[1])
 	}
@@ -569,6 +570,8 @@ func parseValueByType(responseValue any, responseType string) (any, error) {
 		return parseTupleValue(responseValue, responseType)
 	case isStructType(responseType):
 		return parseStructValue(responseValue)
+	case responseType == "address":
+		return parseAddressValue(responseValue)
 	default:
 		return responseValue, nil
 	}
@@ -694,6 +697,21 @@ func parseBigIntFromString(str string) (*big.Int, error) {
 func parseStringValue(responseValue any) (any, error) {
 	if byteArray, ok := responseValue.([]any); ok {
 		return convertBytesToString(byteArray)
+	}
+
+	return responseValue, nil
+}
+
+// parseAddressValue handles address type parsing
+func parseAddressValue(responseValue any) (any, error) {
+	if byteArray, ok := responseValue.([]any); ok {
+		bytes, err := AnySliceToBytes(byteArray)
+		if err != nil {
+			return nil, err
+		}
+		str := hex.EncodeToString(bytes)
+
+		return "0x" + str, nil
 	}
 
 	return responseValue, nil

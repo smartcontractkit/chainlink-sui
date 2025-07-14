@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 
@@ -20,7 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
@@ -201,7 +202,7 @@ func (r *SuiRelayer) Transact(ctx context.Context, from, to string, amount *big.
 
 // Relayer interface
 func (r *SuiRelayer) NewContractWriter(_ context.Context, configBytes []byte) (types.ContractWriter, error) {
-	chainConfig := chainwriter.ChainWriterConfig{}
+	chainConfig := cwConfig.ChainWriterConfig{}
 	err := json.Unmarshal(configBytes, &chainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractWriter: %w", err)

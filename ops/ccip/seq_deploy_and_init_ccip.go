@@ -19,6 +19,7 @@ type DeployCCIPSeqObjects struct {
 	RMNRemoteStateObjectId          string
 	TokenAdminRegistryStateObjectId string
 	SourceTransferCapObjectId       string
+	DestTransferCapObjectId         string
 }
 
 type DeployCCIPSeqOutput struct {
@@ -266,6 +267,7 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 				RMNRemoteStateObjectId:          initRMNRemoteReport.Output.Objects.RMNRemoteStateObjectId,
 				TokenAdminRegistryStateObjectId: initTARReport.Output.Objects.TARStateObjectId,
 				SourceTransferCapObjectId:       deployReport.Output.Objects.SourceTransferCapObjectId,
+				DestTransferCapObjectId:         deployReport.Output.Objects.DestTransferCapObjectId,
 			},
 		}, nil
 	},

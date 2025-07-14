@@ -47,13 +47,8 @@ type Contracts struct {
 }
 
 // setupClients initializes the Sui and relayer clients.
-func SetupClients(t *testing.T, rpcURL string, _keystore loop.Keystore) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
+func SetupClients(t *testing.T, rpcURL string, _keystore loop.Keystore, logg logger.Logger) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
 	t.Helper()
-
-	logg, err := logger.New()
-	if err != nil {
-		t.Fatalf("Failed to create logger: %v", err)
-	}
 
 	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, _keystore, maxConcurrentRequests, "WaitForEffectsCert")
 	if err != nil {
@@ -187,7 +182,7 @@ func BootstrapTestEnvironment(t *testing.T, nodeType NodeEnvType, contractsMetad
 		_logger.Debugw("Contract state", contractsState)
 	}
 
-	suiClient, txManager, txStore := SetupClients(t, LocalUrl, _keystore)
+	suiClient, txManager, txStore := SetupClients(t, LocalUrl, _keystore, _logger)
 
 	return &TestState{
 		AccountAddress:  accountAddress,

@@ -61,7 +61,7 @@ func fetchOwnedSuiCoins(ctx context.Context, client sui.ISuiAPI, address string)
 
 	coins, err := client.SuiXGetAllCoins(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get default Gas coins: %w", err)
+		return nil, fmt.Errorf("failed to get default Gas coins for address: %s: %w", address, err)
 	}
 
 	if len(coins.Data) == 0 {

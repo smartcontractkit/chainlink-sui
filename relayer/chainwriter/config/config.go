@@ -1,4 +1,4 @@
-package chainwriter
+package config
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 )
 
 var PTBChainWriterModuleName = "cll://component=cw/type=ptb_builder"
+var CCIPExecuteReportFunctionName = "CCIPExecuteReport"
 
 type ChainWriterConfig struct {
 	Modules map[string]*ChainWriterModule
@@ -27,6 +28,7 @@ type ChainWriterPTBCommand struct {
 	PackageId *string                  `json:"package_id,omitempty"`
 	ModuleId  *string                  `json:"module_id,omitempty"`
 	Function  *string                  `json:"function,omitempty"`
+	TypeArgs  []string                 `json:"type_args,omitempty"`
 	Params    []codec.SuiFunctionParam `json:"params,omitempty"`
 }
 
@@ -72,11 +74,25 @@ type ChainWriterFunction struct {
 	PTBCommands []ChainWriterPTBCommand
 }
 
+type Arguments struct {
+	Args     map[string]any
+	ArgTypes map[string]string // Maps argument name to its generic type
+
+}
+
 // ConfigOverrides contains fields with dynamic values to override the default configs
 type ConfigOverrides struct {
 	// ToAddress specifies an override for the owner address in PrerequisiteObject such that if it is
 	// empty in the config, the value can be passed in from the chainwriter.SendTransaction method
 	ToAddress string
+
+	// PTBCommands specifies an override for the PTB commands to be used in the PTB construction.
+	// This is used when the original PTB Command can be expanded into multiple PTB Commands.
+	PTBCommands *[]ChainWriterPTBCommand
+
+	// Arguments specifies an override for the arguments to be used in the PTB construction.
+	// This is used when the original arguments can be expanded into multiple arguments.
+	Arguments *Arguments
 }
 
 type ChainWriterSignal struct {

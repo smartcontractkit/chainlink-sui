@@ -53,7 +53,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		return sui_ops.OpTxResult[DeployCCIPObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
 	}
 
-	b.Logger.Infow("CCIP package deployed", "packageId", ccipPackage.Address())
+	b.Logger.Infow("CCIP package deployed", "packageId", ccipPackage.Address(), "CCIP Object Ref", obj3)
 
 	return sui_ops.OpTxResult[DeployCCIPObjects]{
 		Digest:    tx.Digest,

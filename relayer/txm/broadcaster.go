@@ -68,6 +68,7 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 				ShowEffects:        true,
 				ShowObjectChanges:  true,
 				ShowBalanceChanges: true,
+				ShowEvents:         true,
 			},
 			RequestType: tx.RequestType,
 		}
@@ -100,7 +101,8 @@ func broadcastTransactions(loopCtx context.Context, txm *SuiTxm, transactions []
 
 			continue
 		}
-		txm.lggr.Infow("Transaction broadcasted", resp)
+		txm.lggr.Infow("Transaction broadcasted", "response", resp, "txID", tx.TransactionID)
+
 		err = txm.transactionRepository.UpdateTransactionDigest(tx.TransactionID, resp.TxDigest)
 		if err != nil {
 			txm.lggr.Errorw("Failed to update transaction digest", "txID", tx.TransactionID, "error", err)

@@ -250,7 +250,7 @@ public(package) fun transmit(
     signatures: vector<vector<u8>>,
     _ctx: &TxContext
 ) {
-    let ocr_config = ocr3_state.ocr3_configs.borrow(ocr_plugin_type);
+    let ocr_config = latest_config_details(ocr3_state, ocr_plugin_type);
     let config_info = &ocr_config.config_info;
 
     assert!(

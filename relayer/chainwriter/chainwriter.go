@@ -11,30 +11,31 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commonTypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
 const ServiceName = "SuiChainWriter"
-const CCIPExecuteReportFunctionName = "CCIPExecuteReport"
 
 type SuiChainWriter struct {
 	lggr       logger.Logger
 	txm        txm.TxManager
-	config     ChainWriterConfig
+	config     cwConfig.ChainWriterConfig
 	simulate   bool
-	ptbFactory *PTBConstructor
+	ptbFactory *ptb.PTBConstructor
 	services.StateMachine
 }
 
-func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config ChainWriterConfig, simulate bool) (*SuiChainWriter, error) {
+func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config cwConfig.ChainWriterConfig, simulate bool) (*SuiChainWriter, error) {
 	suiClient := txManager.GetClient()
 	return &SuiChainWriter{
 		lggr:       logger.Named(lggr, ServiceName),
 		txm:        txManager,
 		config:     config,
 		simulate:   simulate,
-		ptbFactory: NewPTBConstructor(config, suiClient, lggr),
+		ptbFactory: ptb.NewPTBConstructor(config, suiClient, lggr),
 	}, nil
 }
 
@@ -86,7 +87,7 @@ func convertFunctionParams(argMap map[string]any, params []codec.SuiFunctionPara
 //   - error: An error if the configuration is missing, argument processing fails, or the underlying
 //     transaction enqueue operation in the TxManager fails.
 func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName string, method string, args any, transactionID string, toAddress string, meta *commonTypes.TxMeta, _ *big.Int) error {
-	if contractName == PTBChainWriterModuleName {
+	if contractName == cwConfig.PTBChainWriterModuleName {
 		return enqueuePTB(ctx, s, contractName, method, args, transactionID, toAddress, meta)
 	}
 
@@ -125,7 +126,7 @@ func enqueueSmartContractCall(ctx context.Context, s *SuiChainWriter, contractNa
 	// TODO: Add support for generic type args
 	typeArgs := []string{}
 
-	var arguments Arguments
+	var arguments cwConfig.Arguments
 	if err := mapstructure.Decode(args, &arguments); err != nil {
 		return fmt.Errorf("failed to decode args: %w", err)
 	}
@@ -184,46 +185,25 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return commonTypes.ErrNotFound
 	}
 
-	var arguments Arguments
+	var arguments cwConfig.Arguments
 	if err := mapstructure.Decode(args, &arguments); err != nil {
 		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
-	// TODO: Placeholder, this will be implemented in another PR
-	// Use the builder with the updated PTBConstructor
-	// optional pass the config overrides
-	// if method == CCIPExecuteReportFunctionName {
-	// 	var execArgs SuiOffRampExecCallArgs
-	// 	if err := mapstructure.Decode(args, &execArgs); err != nil {
-	// 		return fmt.Errorf("failed to decode args: %w", err)
-	// 	}
-
-	// 	ptbCommands, updatedArgs, err := s.ptbExpander.GetOffRampPTB(s.lggr, execArgs, functionConfig, functionConfig.PublicKey)
-	// 	if err != nil {
-	// 		s.lggr.Errorw("Error expanding PTB commands", "error", err)
-	// 		return err
-	// 	}
-	// 	args = updatedArgs
-	// 	fmt.Println("updatedArgs", updatedArgs)
-	// 	fmt.Println("ptbCommands", ptbCommands)
-	// } else {
-	// 	if err := mapstructure.Decode(args, &arguments); err != nil {
-	// 		return fmt.Errorf("failed to decode args: %w", err)
-	// 	}
-	// }
-
-	ptb, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, &ConfigOverrides{
+	configOverrides := &cwConfig.ConfigOverrides{
 		ToAddress: toAddress,
-	})
+	}
+
+	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, configOverrides)
 
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err
 	}
 
-	s.lggr.Infow("PTB commands", "ptb", ptb, "functionConfig", functionConfig)
+	s.lggr.Infow("PTB commands", "ptb", ptbService, "functionConfig", functionConfig)
 
-	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.PublicKey, ptb, s.simulate)
+	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.PublicKey, ptbService, s.simulate)
 	if err != nil {
 		s.lggr.Errorw("Error enqueuing PTB", "error", err)
 		return err

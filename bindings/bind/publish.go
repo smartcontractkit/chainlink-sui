@@ -156,3 +156,16 @@ func FindObjectIdFromPublishTx(tx models.SuiTransactionBlockResponse, module, ob
 
 	return "", fmt.Errorf("object ID (module %s, object %s) not found in transaction", module, object)
 }
+
+// FindCoinObjectIdFromTx finds a coin object ID from a transaction response by looking for created objects of type Coin<T>
+func FindCoinObjectIdFromTx(tx models.SuiTransactionBlockResponse, coinType string) (string, error) {
+	expectedType := fmt.Sprintf("0x2::coin::Coin<%s>", coinType)
+
+	for _, change := range tx.ObjectChanges {
+		if change.Type == "created" && change.ObjectType == expectedType {
+			return change.ObjectId, nil
+		}
+	}
+
+	return "", fmt.Errorf("coin object of type %s not found in transaction", coinType)
+}
