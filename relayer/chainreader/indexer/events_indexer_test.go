@@ -1,6 +1,6 @@
 //go:build integration
 
-package indexer
+package indexer_test
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	indexer2 "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 
 	"github.com/stretchr/testify/require"
 
@@ -35,7 +37,7 @@ func TestEventsIndexer(t *testing.T) {
 	db := sqltest.NewDB(t, datastoreUrl)
 
 	// Verify database connection
-	_, err := db.Connx(ctx)
+	dbConnection, err := db.Connx(ctx)
 	require.NoError(t, err)
 
 	dbStore := database.NewDBStore(db, log)
@@ -53,6 +55,7 @@ func TestEventsIndexer(t *testing.T) {
 				t.Logf("Failed to kill process: %v", perr)
 			}
 		}
+		dbConnection.Close()
 	})
 
 	log.Debugw("Started Sui node")
@@ -95,7 +98,7 @@ func TestEventsIndexer(t *testing.T) {
 	pollingInterval := time.Second
 	syncTimeout := 10 * time.Second
 
-	indexer := NewEventIndexer(
+	indexer := indexer2.NewEventIndexer(
 		dbStore,
 		log,
 		relayerClient,
@@ -303,7 +306,7 @@ func TestEventsIndexer(t *testing.T) {
 			Event:   "CounterIncremented",
 		}
 
-		freshIndexer := NewEventIndexer(
+		freshIndexer := indexer2.NewEventIndexer(
 			dbStore,
 			log,
 			relayerClient,

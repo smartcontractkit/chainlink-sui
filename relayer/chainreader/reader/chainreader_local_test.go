@@ -1,6 +1,6 @@
 //go:build integration
 
-package chainreader
+package reader
 
 import (
 	"context"
@@ -21,6 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -95,20 +96,20 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	pointerTag := "_::counter::CounterPointer::counter_id"
 
 	// Set up the ChainReader
-	chainReaderConfig := ChainReaderConfig{
+	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: false,
-		EventsIndexer: EventsIndexerConfig{
+		EventsIndexer: config.EventsIndexerConfig{
 			PollingInterval: 10 * time.Second,
 			SyncTimeout:     10 * time.Second,
 		},
-		TransactionsIndexer: TransactionsIndexerConfig{
+		TransactionsIndexer: config.TransactionsIndexerConfig{
 			PollingInterval: 10 * time.Second,
 			SyncTimeout:     10 * time.Second,
 		},
-		Modules: map[string]*ChainReaderModule{
+		Modules: map[string]*config.ChainReaderModule{
 			"counter": {
 				Name: "counter",
-				Functions: map[string]*ChainReaderFunction{
+				Functions: map[string]*config.ChainReaderFunction{
 					"get_count": {
 						Name:          "get_count",
 						SignerAddress: accountAddress,
@@ -150,7 +151,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						},
 					},
 				},
-				Events: map[string]*ChainReaderEvent{
+				Events: map[string]*config.ChainReaderEvent{
 					"counter_incremented": {
 						Name:      "counter_incremented",
 						EventType: "CounterIncremented",

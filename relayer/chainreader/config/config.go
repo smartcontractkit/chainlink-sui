@@ -1,4 +1,4 @@
-package chainreader
+package config
 
 import (
 	"time"

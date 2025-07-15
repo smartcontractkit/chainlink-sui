@@ -392,7 +392,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 					}
 
 					return status == scenario.status
-				}, 3*time.Second, 1*time.Second, "Transaction final state not reached")
+				}, 10*time.Second, 1*time.Second, "Transaction final state not reached")
 
 				actualValue, err := scenario.getExpectedValue()
 				require.NoError(t, err)

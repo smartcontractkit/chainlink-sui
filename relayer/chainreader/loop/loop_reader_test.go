@@ -19,7 +19,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader"
+	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
@@ -82,12 +83,12 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	log.Debugw("Publish output", "output", publishOutput)
 
 	// Set up the base ChainReader with echo function configurations
-	chainReaderConfig := chainreader.ChainReaderConfig{
+	chainReaderConfigs := chainreaderConfig.ChainReaderConfig{
 		IsLoopPlugin: true,
-		Modules: map[string]*chainreader.ChainReaderModule{
+		Modules: map[string]*chainreaderConfig.ChainReaderModule{
 			"echo": {
 				Name: "echo",
-				Functions: map[string]*chainreader.ChainReaderFunction{
+				Functions: map[string]*chainreaderConfig.ChainReaderFunction{
 					"echo_u64": {
 						Name:          "echo_u64",
 						SignerAddress: accountAddress,
@@ -172,7 +173,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 						},
 					},
 				},
-				Events: map[string]*chainreader.ChainReaderEvent{
+				Events: map[string]*chainreaderConfig.ChainReaderEvent{
 					"single_value_event": {
 						Name:      "single_value_event",
 						EventType: "SingleValueEvent",
@@ -194,7 +195,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			},
 			"counter": {
 				Name: "counter",
-				Functions: map[string]*chainreader.ChainReaderFunction{
+				Functions: map[string]*chainreaderConfig.ChainReaderFunction{
 					"get_tuple_struct": {
 						Name:                "get_tuple_struct",
 						SignerAddress:       accountAddress,
@@ -231,7 +232,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	db := sqltest.NewDB(t, datastoreUrl)
 
 	// Create the base chain reader
-	chainReader, err := chainreader.NewChainReader(ctx, log, relayerClient, chainReaderConfig, db)
+	chainReader, err := chainreader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db)
 	require.NoError(t, err)
 
 	// Wrap the base chain reader with loop chain reader

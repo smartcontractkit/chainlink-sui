@@ -1,4 +1,4 @@
-package chainreader
+package reader
 
 import (
 	"bytes"
@@ -19,6 +19,7 @@ import (
 
 	craptosutils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -40,7 +41,7 @@ type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
 	logger                    logger.Logger
-	config                    ChainReaderConfig
+	config                    config.ChainReaderConfig
 	starter                   services.StateMachine
 	packageAddresses          map[string]string
 	client                    *client.PTBClient
@@ -55,7 +56,7 @@ var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
 
 type ExtendedContractReader interface {
 	pkgtypes.ContractReader
-	QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]SequenceWithMetadata, error)
+	QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]config.SequenceWithMetadata, error)
 }
 
 // readIdentifier represents the parsed components of a read identifier
@@ -65,7 +66,7 @@ type readIdentifier struct {
 	readName     string
 }
 
-func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *client.PTBClient, config ChainReaderConfig, db sqlutil.DataSource) (pkgtypes.ContractReader, error) {
+func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *client.PTBClient, configs config.ChainReaderConfig, db sqlutil.DataSource) (pkgtypes.ContractReader, error) {
 	dbStore := database.NewDBStore(db, lgr)
 
 	err := dbStore.EnsureSchema(ctx)
@@ -73,12 +74,14 @@ func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *clie
 		return nil, fmt.Errorf("failed to ensure database schema: %w", err)
 	}
 
-	// Create a list of all event selectors to pass to indexer
+	// Create a list of all event selectors to pass to indexers
 	eventConfigurations := make([]*client.EventSelector, 0)
-	for _, moduleConfig := range config.Modules {
+	eventConfigurationsMap := make(map[string]*config.ChainReaderEvent)
+	for _, moduleConfig := range configs.Modules {
 		if moduleConfig.Events != nil {
 			for _, eventConfig := range moduleConfig.Events {
 				eventConfigurations = append(eventConfigurations, &eventConfig.EventSelector)
+				eventConfigurationsMap[fmt.Sprintf("%s::%s", eventConfig.Name, eventConfig.EventType)] = eventConfig
 			}
 		}
 	}
@@ -88,20 +91,23 @@ func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *clie
 		lgr,
 		abstractClient,
 		eventConfigurations,
-		config.EventsIndexer.PollingInterval,
-		config.EventsIndexer.SyncTimeout,
+		configs.EventsIndexer.PollingInterval,
+		configs.EventsIndexer.SyncTimeout,
 	)
 
 	transactionsIndexer := indexer.NewTransactionsIndexer(
 		dbStore,
-		config.TransactionsIndexer.PollingInterval,
-		config.TransactionsIndexer.SyncTimeout,
+		lgr,
+		abstractClient,
+		configs.TransactionsIndexer.PollingInterval,
+		configs.TransactionsIndexer.SyncTimeout,
+		eventConfigurationsMap,
 	)
 
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
 		client:           abstractClient,
-		config:           config,
+		config:           configs,
 		dbStore:          dbStore,
 		packageAddresses: map[string]string{},
 		// indexers
@@ -189,20 +195,7 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 
 	maps.Copy(s.packageAddresses, newBindings)
 
-	// Update the indexer's package addresses and event configurations
-	// This ensures the indexer knows about the newly bound contracts
-	s.updateIndexerConfiguration()
-
 	return nil
-}
-
-// updateIndexerConfiguration updates the indexer with current bindings and configurations
-func (s *suiChainReader) updateIndexerConfiguration() {
-	// Create event configurations for the indexer based on the chainreader config
-	// TODO: Update the indexer's configuration dynamically
-	// For now, the indexer will be created with empty configurations
-	// and will need to be recreated when bindings change
-	s.logger.Warnw("Updated indexer configuration")
 }
 
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
@@ -302,7 +295,7 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	// No event config found, construct a config
 	if err == nil && eventConfig == nil {
 		// construct a new config ad-hoc
-		eventConfig = &ChainReaderEvent{
+		eventConfig = &config.ChainReaderEvent{
 			Name:      filter.Key,
 			EventType: filter.Key,
 			EventSelector: client.EventSelector{
@@ -327,6 +320,9 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	if err != nil {
 		return nil, err
 	}
+
+	// update the event config in the transactions indexer to ensure that the package ID is known
+	s.transactionsIndexer.UpdateEventConfig(eventConfig)
 
 	// Query events from database
 	eventRecords, err := s.queryEvents(ctx, eventConfig, filter.Expressions, limitAndSort)
@@ -466,7 +462,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 }
 
 // parseParams parses input parameters based on whether we're running as a LOOP plugin
-func (s *suiChainReader) parseParams(params any, functionConfig *ChainReaderFunction) (map[string]any, error) {
+func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
 	argMap := make(map[string]any)
 
 	if s.config.IsLoopPlugin {
@@ -481,7 +477,7 @@ func (s *suiChainReader) parseParams(params any, functionConfig *ChainReaderFunc
 }
 
 // parseLoopParams handles parameter parsing for LOOP plugin mode
-func (s *suiChainReader) parseLoopParams(params any, functionConfig *ChainReaderFunction) (map[string]any, error) {
+func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
 	paramBytes, ok := params.(*[]byte)
 	if !ok {
 		return nil, fmt.Errorf("expected *[]byte for LOOP plugin params, got %T", params)
@@ -514,7 +510,7 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *ChainReader
 }
 
 // prepareArguments prepares function arguments and types for the call
-func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
+func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
 	if functionConfig.Params == nil {
 		return []any{}, []string{}, nil
 	}
@@ -611,7 +607,7 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 }
 
 // executeFunction executes the actual function call
-func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, moduleConfig *ChainReaderModule, functionConfig *ChainReaderFunction, args []any, argTypes []string) ([]any, error) {
+func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, moduleConfig *config.ChainReaderModule, functionConfig *config.ChainReaderFunction, args []any, argTypes []string) ([]any, error) {
 	s.logger.Debugw("Calling ReadFunction",
 		"address", parsed.address,
 		"module", moduleConfig.Name,
@@ -676,13 +672,14 @@ func (s *suiChainReader) encodeLoopResult(valueField any, returnVal any) error {
 }
 
 // getEventConfig retrieves event configuration for the given key
-func (s *suiChainReader) getEventConfig(moduleConfig *ChainReaderModule, eventKey string) (*ChainReaderEvent, error) {
+func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, eventKey string) (*config.ChainReaderEvent, error) {
 	if moduleConfig.Events == nil {
 		return nil, fmt.Errorf("no events configured for contract")
 	}
 
 	eventConfig, ok := moduleConfig.Events[eventKey]
 	if !ok {
+		s.logger.Errorw("No configuration for event", "eventKey", eventKey, "moduleConfig", moduleConfig)
 		return nil, fmt.Errorf("no configuration for event: %s", eventKey)
 	}
 
@@ -690,7 +687,7 @@ func (s *suiChainReader) getEventConfig(moduleConfig *ChainReaderModule, eventKe
 }
 
 // queryEvents queries events from the database instead of the Sui blockchain
-func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
+func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
 	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.EventSelector.Package, eventConfig.Name, eventConfig.EventType)
 
@@ -739,6 +736,8 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *ChainRead
 // transformEventsToSequences converts database event records to sequence format
 func (s *suiChainReader) transformEventsToSequences(eventRecords []database.EventRecord, sequenceDataType any) ([]pkgtypes.Sequence, error) {
 	sequences := make([]pkgtypes.Sequence, 0, len(eventRecords))
+
+	s.logger.Debugw("Transforming events to sequences", "eventRecords", eventRecords, "sequenceDataType", sequenceDataType)
 
 	for _, record := range eventRecords {
 		eventData := reflect.New(reflect.TypeOf(sequenceDataType).Elem()).Interface()
