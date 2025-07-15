@@ -1265,18 +1265,19 @@ module ccip_offramp::offramp {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public fun mcms_register_entrypoint(
-        registry: &mut Registry,
-        state: &mut OffRampState,
+    public fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
+        state: &mut OwnableState,
+        registry: &mut Registry,
+        to: address,
         ctx: &mut TxContext,
     ) {
-        ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
-
-        mcms_registry::register_entrypoint(
+        ownable::execute_ownership_transfer_to_mcms(
+            owner_cap,
+            state,
             registry,
-            McmsCallback{},
-            option::some(owner_cap),
+            to,
+            McmsCallback {},
             ctx,
         );
     }

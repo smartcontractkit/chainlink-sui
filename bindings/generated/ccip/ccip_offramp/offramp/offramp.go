@@ -52,7 +52,7 @@ type IOfframp interface {
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOfframpDevInspect
@@ -146,8 +146,8 @@ type OfframpEncoder interface {
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsRegisterEntrypoint(registry bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
-	McmsRegisterEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsEntrypoint(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -1039,9 +1039,9 @@ func (c *OfframpContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bi
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsRegisterEntrypoint executes the mcms_register_entrypoint Move function.
-func (c *OfframpContract) McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsRegisterEntrypoint(registry, state, ownerCap)
+// ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
+func (c *OfframpContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ExecuteOwnershipTransferToMcms(ownerCap, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2539,28 +2539,31 @@ func (c offrampEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.Enc
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsRegisterEntrypoint encodes a call to the mcms_register_entrypoint Move function.
-func (c offrampEncoder) McmsRegisterEntrypoint(registry bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+// ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
+func (c offrampEncoder) ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, []string{
-		"&mut Registry",
-		"&mut OffRampState",
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
 		"OwnerCap",
+		"&mut OwnableState",
+		"&mut Registry",
+		"address",
 	}, []any{
-		registry,
-		state,
 		ownerCap,
+		state,
+		registry,
+		to,
 	}, nil)
 }
 
-// McmsRegisterEntrypointWithArgs encodes a call to the mcms_register_entrypoint Move function using arbitrary arguments.
+// ExecuteOwnershipTransferToMcmsWithArgs encodes a call to the execute_ownership_transfer_to_mcms Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c offrampEncoder) McmsRegisterEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&mut Registry",
-		"&mut OffRampState",
 		"OwnerCap",
+		"&mut OwnableState",
+		"&mut Registry",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2568,7 +2571,7 @@ func (c offrampEncoder) McmsRegisterEntrypointWithArgs(args ...any) (*bind.Encod
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.
