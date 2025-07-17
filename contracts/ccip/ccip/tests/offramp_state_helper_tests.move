@@ -245,7 +245,7 @@ public fun test_complete_token_transfer() {
         TOKEN_POOL_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1, // state address
         string::utf8(b"test_pool"),
-        type_name::into_string(type_name::get<TestToken>()),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         scenario.ctx(),
@@ -268,15 +268,18 @@ public fun test_complete_token_transfer() {
     
     // Create a test coin to transfer
     let test_coin = coin::mint_for_testing<TestToken>(500, scenario.ctx());
-    
+
+    // let local_amount = coin::value(&test_coin);
     // Complete the token transfer
     let receiver_params = offramp_state_helper::complete_token_transfer(
         &ref,
         receiver_params,
         0, // index
-        test_coin,
         TestTypeProof {}
     );
+    
+    // Destroy the unused test_coin
+    coin::burn_for_testing(test_coin);
     
     // Clean up - the receiver_params should have completed transfers
     offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);

@@ -145,6 +145,7 @@ module ccip_onramp::onramp {
     const EUnknownFunction: u64 = 14;
     const ECannotSendZeroTokens: u64 = 15;
     const EZeroChainSelector: u64 = 16;
+    const ECalculateMessageHashInvalidArguments: u64 = 17;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -169,7 +170,7 @@ module ccip_onramp::onramp {
 
         let pointer = OnRampStatePointer {
             id: object::new(ctx),
-            on_ramp_state_id: object::id_to_address(object::borrow_id(&state)),
+            on_ramp_state_id: object::uid_to_address(&state.id),
             owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
         };
 
@@ -585,7 +586,74 @@ module ccip_onramp::onramp {
         (cfg.fee_aggregator, cfg.allowlist_admin)
     }
 
-    fun calculate_metadata_hash(
+    public fun calculate_message_hash(
+        on_ramp_address: address,
+        message_id: vector<u8>,
+        source_chain_selector: u64,
+        dest_chain_selector: u64,
+        sequence_number: u64,
+        nonce: u64,
+        sender: address,
+        receiver: vector<u8>,
+        data: vector<u8>,
+        fee_token: address,
+        fee_token_amount: u64,
+        source_pool_addresses: vector<address>,
+        dest_token_addresses: vector<vector<u8>>,
+        extra_datas: vector<vector<u8>>,
+        amounts: vector<u64>,
+        dest_exec_datas: vector<vector<u8>>,
+        extra_args: vector<u8>
+    ): vector<u8> {
+        let source_pool_addresses_len = source_pool_addresses.length();
+        assert!(
+            source_pool_addresses_len == dest_token_addresses.length()
+                && source_pool_addresses_len == extra_datas.length()
+                && source_pool_addresses_len == amounts.length()
+                && source_pool_addresses_len == dest_exec_datas.length(),
+            ECalculateMessageHashInvalidArguments
+        );
+
+        let metadata_hash =
+            calculate_metadata_hash(source_chain_selector, dest_chain_selector, on_ramp_address);
+
+        let mut token_amounts = vector[];
+        let mut i = 0;
+        while (i < source_pool_addresses_len) {
+            token_amounts.push_back(
+                Sui2AnyTokenTransfer {
+                    source_pool_address: source_pool_addresses[i],
+                    dest_token_address: dest_token_addresses[i],
+                    extra_data: extra_datas[i],
+                    amount: amounts[i],
+                    dest_exec_data: dest_exec_datas[i]
+                }
+            );
+            i = i + 1;
+        };
+
+        let message = Sui2AnyRampMessage {
+            header: RampMessageHeader {
+                message_id,
+                source_chain_selector,
+                dest_chain_selector,
+                sequence_number,
+                nonce
+            },
+            sender,
+            data,
+            receiver,
+            extra_args,
+            fee_token,
+            fee_token_amount,
+            fee_value_juels: 0, // Not used in hashing
+            token_amounts
+        };
+
+        calculate_message_hash_internal(&message, metadata_hash)
+    }
+
+    public fun calculate_metadata_hash(
         source_chain_selector: u64, dest_chain_selector: u64, on_ramp_address: address
     ): vector<u8> {
         let mut packed = vector[];
@@ -598,7 +666,7 @@ module ccip_onramp::onramp {
         hash::keccak256(&packed)
     }
 
-    fun calculate_message_hash(
+    fun calculate_message_hash_internal(
         message: &Sui2AnyRampMessage, metadata_hash: vector<u8>
     ): vector<u8> {
         let mut outer_hash = vector[];
@@ -845,8 +913,8 @@ module ccip_onramp::onramp {
         };
 
         // attach message id
-        let metadata_hash = calculate_metadata_hash(state.chain_selector, dest_chain_selector, object::id_to_address(&object::id(state)));
-        let message_id = calculate_message_hash(&message, metadata_hash);
+        let metadata_hash = calculate_metadata_hash(state.chain_selector, dest_chain_selector, object::uid_to_address(&state.id));
+        let message_id = calculate_message_hash_internal(&message, metadata_hash);
         message.header.message_id = message_id;
 
         message

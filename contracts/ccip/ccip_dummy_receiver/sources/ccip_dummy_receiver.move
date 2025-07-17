@@ -49,7 +49,7 @@ module ccip_dummy_receiver::dummy_receiver {
 
         let owner_cap = OwnerCap {
             id: object::new(ctx),
-            receiver_address: object::id_to_address(object::borrow_id(&state)),
+            receiver_address: object::uid_to_address(&state.id),
         };
 
         transfer::share_object(state);

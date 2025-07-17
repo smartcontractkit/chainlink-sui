@@ -264,15 +264,15 @@ public fun register_pool<T, TypeProof: drop>(
     _proof: TypeProof,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+    let token_type = type_name::get<T>().into_string();
     let proof_tn = type_name::get<TypeProof>();
-    let token_type_name = type_name::get<T>();
     register_pool_internal(
         ref,
         coin_metadata_address,
         token_pool_package_id,
         token_pool_state_address,
         token_pool_module,
-        token_type_name.into_string(),
+        token_type,
         initial_administrator,
         type_name::into_string(proof_tn),
     );
@@ -387,9 +387,8 @@ public fun set_pool<TypeProof: drop>(
     // the tx signer must be the administrator of the token pool.
     assert!(token_config.administrator == ctx.sender(), ENotAllowed);
 
-    // TODO: sort out the UX here.
-    // no need to update the token_type becuase it's the same for the same token
-    // but as the token pool changes, the package id, state address, module, and type proof will change.
+    // TODO: sort out the UX here
+    // the token pool changes, the package id, state address, module, and type proof will change.
     let previous_pool_package_id = token_config.token_pool_package_id;
     if (previous_pool_package_id != token_pool_package_id) {
         token_config.token_pool_package_id = token_pool_package_id;

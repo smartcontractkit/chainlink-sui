@@ -13,8 +13,8 @@ module ccip_onramp::onramp_test {
     use std::string;
 
     use mcms::mcms_registry::{Self, Registry};
-    use mcms::mcms_account::{Self};
-    use mcms::mcms_deployer::{Self};
+    use mcms::mcms_account;
+    use mcms::mcms_deployer;
 
     const DEST_CHAIN_SELECTOR_1: u64 = 1;
     const DEST_CHAIN_SELECTOR_2: u64 = 2;

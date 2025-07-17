@@ -2,8 +2,6 @@ module ccip::offramp_state_helper;
 
 use std::type_name;
 
-use sui::coin::{Self, Coin};
-
 use ccip::client;
 use ccip::receiver_registry;
 use ccip::state_object::CCIPObjectRef;
@@ -13,9 +11,8 @@ const EWrongIndexInReceiverParams: u64 = 1;
 const ETokenTransferAlreadyCompleted: u64 = 2;
 const ETokenPoolAddressMismatch: u64 = 3;
 const ETypeProofMismatch: u64 = 4;
-const ETokenTypeMismatch: u64 = 5;
-const ETokenTransferFailed: u64 = 6;
-const ECCIPReceiveFailed: u64 = 7;
+const ETokenTransferFailed: u64 = 5;
+const ECCIPReceiveFailed: u64 = 6;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -36,8 +33,6 @@ public struct DestTokenTransfer has copy, drop {
     receiver: address,
     // the amount of token to transfer, denoted from the source chain
     source_amount: u64,
-    // the amount of token to unlock/mint, denoted from the destination chain (SUI)
-    local_amount: u64,
     // the token's coin metadata object id on SUI
     dest_token_address: address,
     // the token pool state object id on SUI
@@ -87,7 +82,7 @@ public fun add_dest_token_transfer(
         DestTokenTransfer {
             receiver,
             source_amount,
-            local_amount: 0, // to be calculated by the destination token pool
+            // local_amount: 0, // to be calculated by the destination token pool
             dest_token_address,
             token_pool_address,
             source_pool_address,
@@ -130,11 +125,10 @@ public fun get_token_param_data(
 
 /// only the token pool with a proper type proof can mark the corresponding token transfer as completed
 /// and set the local amount.
-public fun complete_token_transfer<T, TypeProof: drop>(
+public fun complete_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut receiver_params: ReceiverParams,
     index: u64,
-    c: Coin<T>,
     _: TypeProof,
 ): ReceiverParams {
     assert!(
@@ -144,7 +138,7 @@ public fun complete_token_transfer<T, TypeProof: drop>(
 
     let token_transfer = receiver_params.params[index];
     assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
-    let (token_pool_package_id, _, _, coin_type, _,  _, type_proof) = registry::get_token_config(ref, token_transfer.dest_token_address);
+    let (token_pool_package_id, _, _, _, _, _, type_proof) = registry::get_token_config(ref, token_transfer.dest_token_address);
     assert!(
         token_transfer.token_pool_address == token_pool_package_id,
         ETokenPoolAddressMismatch,
@@ -153,15 +147,7 @@ public fun complete_token_transfer<T, TypeProof: drop>(
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
-    assert!(
-        coin_type == type_name::into_string(type_name::get<T>()),
-        ETokenTypeMismatch
-    );
-
-    let local_amount = coin::value(&c);
-    transfer::public_transfer(c, token_transfer.receiver);
     receiver_params.params[index].completed = true;
-    receiver_params.params[index].local_amount = local_amount;
 
     receiver_params
 }

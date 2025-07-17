@@ -76,7 +76,7 @@ public fun initialize_by_ccip_admin<T>(
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, token_type_name, type_proof_type_name, burn_mint_token_pool) =
+    let (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool) =
         initialize_internal(coin_metadata, treasury_cap, ctx);
 
     token_admin_registry::register_pool_by_admin(
@@ -86,7 +86,7 @@ public fun initialize_by_ccip_admin<T>(
         token_pool_package_id,
         object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
-        token_type_name.into_string(),
+        token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
         ctx,
@@ -110,12 +110,12 @@ fun initialize_internal<T>(
         treasury_cap,
         ownable_state,
     };
-    let token_type_name = type_name::get<T>();
     let type_proof_type_name = type_name::get<TypeProof>();
+    let token_type = type_name::get<T>();
 
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, token_type_name, type_proof_type_name, burn_mint_token_pool)
+    (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool)
 }
 
 // ================================================================
@@ -322,12 +322,12 @@ public fun release_or_mint<T>(
         local_amount,
         remote_chain_selector,
     );
+    transfer::public_transfer(c, receiver);
 
     osh::complete_token_transfer(
         ref,
         receiver_params,
         index,
-        c,
         TypeProof {},
     )
 }

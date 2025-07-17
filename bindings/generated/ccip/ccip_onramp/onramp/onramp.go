@@ -38,6 +38,8 @@ type IOnramp interface {
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
 	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error)
+	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
+	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*models.SuiTransactionBlockResponse, error)
 	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -68,6 +70,8 @@ type IOnrampDevInspect interface {
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (uint64, error)
 	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (DynamicConfig, error)
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) ([]any, error)
+	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) ([]byte, error)
+	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) ([]byte, error)
 	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (string, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
@@ -112,6 +116,10 @@ type OnrampEncoder interface {
 	GetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedCall, error)
 	GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
+	CalculateMessageHash(onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) (*bind.EncodedCall, error)
+	CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error)
+	CalculateMetadataHash(sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*bind.EncodedCall, error)
+	CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error)
 	CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
 	CcipSendWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetCcipPackageId() (*bind.EncodedCall, error)
@@ -837,6 +845,26 @@ func (c *OnrampContract) GetDynamicConfigFields(ctx context.Context, opts *bind.
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// CalculateMessageHash executes the calculate_message_hash Move function.
+func (c *OnrampContract) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.CalculateMessageHash(onRampAddress, messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, data, feeToken, feeTokenAmount, sourcePoolAddresses, destTokenAddresses, extraDatas, amounts, destExecDatas, extraArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CalculateMetadataHash executes the calculate_metadata_hash Move function.
+func (c *OnrampContract) CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.CalculateMetadataHash(sourceChainSelector, destChainSelector, onRampAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // CcipSend executes the ccip_send Move function.
 func (c *OnrampContract) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.onrampEncoder.CcipSend(typeArgs, ref, state, clock, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
@@ -1195,6 +1223,50 @@ func (d *OnrampDevInspect) GetDynamicConfigFields(ctx context.Context, opts *bin
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	return d.contract.Call(ctx, opts, encoded)
+}
+
+// CalculateMessageHash executes the calculate_message_hash Move function using DevInspect to get return values.
+//
+// Returns: vector<u8>
+func (d *OnrampDevInspect) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) ([]byte, error) {
+	encoded, err := d.contract.onrampEncoder.CalculateMessageHash(onRampAddress, messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, data, feeToken, feeTokenAmount, sourcePoolAddresses, destTokenAddresses, extraDatas, amounts, destExecDatas, extraArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	}
+	return result, nil
+}
+
+// CalculateMetadataHash executes the calculate_metadata_hash Move function using DevInspect to get return values.
+//
+// Returns: vector<u8>
+func (d *OnrampDevInspect) CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) ([]byte, error) {
+	encoded, err := d.contract.onrampEncoder.CalculateMetadataHash(sourceChainSelector, destChainSelector, onRampAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	}
+	return result, nil
 }
 
 // CcipSend executes the ccip_send Move function using DevInspect to get return values.
@@ -1973,6 +2045,120 @@ func (c onrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.Encode
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"address",
 		"address",
+	})
+}
+
+// CalculateMessageHash encodes a call to the calculate_message_hash Move function.
+func (c onrampEncoder) CalculateMessageHash(onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("calculate_message_hash", typeArgsList, typeParamsList, []string{
+		"address",
+		"vector<u8>",
+		"u64",
+		"u64",
+		"u64",
+		"u64",
+		"address",
+		"vector<u8>",
+		"vector<u8>",
+		"address",
+		"u64",
+		"vector<address>",
+		"vector<vector<u8>>",
+		"vector<vector<u8>>",
+		"vector<u64>",
+		"vector<vector<u8>>",
+		"vector<u8>",
+	}, []any{
+		onRampAddress,
+		messageId,
+		sourceChainSelector,
+		destChainSelector,
+		sequenceNumber,
+		nonce,
+		sender,
+		receiver,
+		data,
+		feeToken,
+		feeTokenAmount,
+		sourcePoolAddresses,
+		destTokenAddresses,
+		extraDatas,
+		amounts,
+		destExecDatas,
+		extraArgs,
+	}, []string{
+		"vector<u8>",
+	})
+}
+
+// CalculateMessageHashWithArgs encodes a call to the calculate_message_hash Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"address",
+		"vector<u8>",
+		"u64",
+		"u64",
+		"u64",
+		"u64",
+		"address",
+		"vector<u8>",
+		"vector<u8>",
+		"address",
+		"u64",
+		"vector<address>",
+		"vector<vector<u8>>",
+		"vector<vector<u8>>",
+		"vector<u64>",
+		"vector<vector<u8>>",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("calculate_message_hash", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<u8>",
+	})
+}
+
+// CalculateMetadataHash encodes a call to the calculate_metadata_hash Move function.
+func (c onrampEncoder) CalculateMetadataHash(sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("calculate_metadata_hash", typeArgsList, typeParamsList, []string{
+		"u64",
+		"u64",
+		"address",
+	}, []any{
+		sourceChainSelector,
+		destChainSelector,
+		onRampAddress,
+	}, []string{
+		"vector<u8>",
+	})
+}
+
+// CalculateMetadataHashWithArgs encodes a call to the calculate_metadata_hash Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"u64",
+		"u64",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("calculate_metadata_hash", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<u8>",
 	})
 }
 

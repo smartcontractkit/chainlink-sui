@@ -218,6 +218,17 @@ public fun test_apply_token_transfer_fee_config_updates() {
 }
 
 #[test]
+public fun test_gas_price_mask_112_bits() {
+    let gas_price_bits = 112;
+    let twenty_eight_fs: u256 = 0xffffffffffffffffffffffffffff;
+    let max_u256 =
+        115792089237316195423570985008687907853269984665640564039457584007913129639935;
+    let gas_price_mask_112_bits = (max_u256 >> (255 - gas_price_bits + 1)); // 2^112 - 1
+
+    assert!(gas_price_mask_112_bits == twenty_eight_fs);
+}
+
+#[test]
 public fun test_apply_token_transfer_fee_config_updates_remove_token() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();

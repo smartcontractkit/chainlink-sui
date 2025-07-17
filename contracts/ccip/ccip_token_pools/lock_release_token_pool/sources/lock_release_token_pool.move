@@ -80,7 +80,7 @@ public fun initialize_by_ccip_admin<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, token_pool_state_address, token_type_name, type_proof_type_name) =
+    let (coin_metadata_address, token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     token_admin_registry::register_pool_by_admin(
@@ -90,7 +90,7 @@ public fun initialize_by_ccip_admin<T>(
         token_pool_package_id,
         token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
-        token_type_name.into_string(),
+        token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
         ctx,
@@ -114,14 +114,14 @@ fun initialize_internal<T>(
         ownable_state,
     };
     set_rebalancer_internal(&mut lock_release_token_pool, rebalancer);
-    let token_type_name = type_name::get<T>();
     let type_proof_type_name = type_name::get<TypeProof>();
+    let token_type = type_name::get<T>();
     let token_pool_state_address = object::uid_to_address(&lock_release_token_pool.id);
 
     transfer::share_object(lock_release_token_pool);
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, token_pool_state_address, token_type_name, type_proof_type_name)
+    (coin_metadata_address, token_pool_state_address, token_type, type_proof_type_name)
 }
 
 // ================================================================
@@ -333,12 +333,12 @@ public fun release_or_mint<T>(
         local_amount,
         remote_chain_selector,
     );
+    transfer::public_transfer(c, receiver);
 
     osh::complete_token_transfer(
         ref,
         receiver_params,
         index,
-        c,
         TypeProof {},
     )
 }

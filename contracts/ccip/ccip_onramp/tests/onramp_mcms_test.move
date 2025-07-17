@@ -1,19 +1,18 @@
 #[test_only]
 module ccip_onramp::onramp_mcms_test {
     use sui::test_scenario::{Self as ts, Scenario};
-    use sui::package;
     use std::string;
     use sui::bcs;
 
     use ccip_onramp::onramp::{Self, OnRampState};
-    use ccip_onramp::ownable::{OwnerCap};
+    use ccip_onramp::ownable::OwnerCap;
     use ccip::state_object::{Self, CCIPObjectRef};
     use ccip::dynamic_dispatcher as dd;
     use ccip::nonce_manager::{Self, NonceManagerCap};
 
     use mcms::mcms_registry::{Self, Registry};
-    use mcms::mcms_account::{Self};
-    use mcms::mcms_deployer::{Self, DeployerState};
+    use mcms::mcms_account;
+    use mcms::mcms_deployer;
 
     const DEST_CHAIN_SELECTOR_1: u64 = 1;
     const DEST_CHAIN_SELECTOR_2: u64 = 2;
@@ -21,7 +20,6 @@ module ccip_onramp::onramp_mcms_test {
     const ALLOWED_SENDER_2: address = @0x22;
     const ALLOWED_SENDER_3: address = @0x33;
     const OWNER: address = @0x123;
-    const SENDER: address = @0x456;
 
     const MODULE_NAME: vector<u8> = b"onramp";
 
@@ -119,22 +117,6 @@ module ccip_onramp::onramp_mcms_test {
             @mcms,
             ctx,
         );
-
-        env.scenario.next_tx(OWNER);
-    }
-
-    fun mcms_register_upgrade_cap(env: &mut Env) {
-        let mut registry = ts::take_shared<Registry>(&env.scenario);
-        let mut deployer_state = ts::take_shared<DeployerState>(&env.scenario);
-
-        let upgrade_cap = package::test_publish(@ccip_onramp.to_id(), env.scenario.ctx());
-
-        // Initialize the user data with mcms_registry
-        // This creates a owner_cap and mcms_registry owns this cap
-        onramp::mcms_register_upgrade_cap(upgrade_cap, &mut registry, &mut deployer_state, env.scenario.ctx());
-
-        ts::return_shared(registry);
-        ts::return_shared(deployer_state);
 
         env.scenario.next_tx(OWNER);
     }

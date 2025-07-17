@@ -72,8 +72,8 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
 
     let pointer = CCIPObjectRefPointer {
         id: object::new(ctx),
-        object_ref_id: object::id_to_address(object::borrow_id(&ref)),
-        owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
+        object_ref_id: object::uid_to_address(&ref.id),
+        owner_cap_id: object::uid_to_address(&owner_cap.id),
     };
 
     let tn = type_name::get_with_original_ids<STATE_OBJECT>();
