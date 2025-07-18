@@ -29,7 +29,7 @@ type IOfframp interface {
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
-	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
+	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
 	SetOcr3Config(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error)
 	ConfigSigners(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ConfigTransmitters(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -68,7 +68,7 @@ type IOfframpDevInspect interface {
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (byte, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error)
-	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error)
+	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error)
 	ConfigSigners(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([][]byte, error)
 	ConfigTransmitters(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error)
 	GetMerkleRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, root []byte) (uint64, error)
@@ -104,7 +104,7 @@ type OfframpEncoder interface {
 	GetExecutionStateWithArgs(args ...any) (*bind.EncodedCall, error)
 	CalculateMetadataHash(sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*bind.EncodedCall, error)
 	CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error)
-	CalculateMessageHash(messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error)
+	CalculateMessageHash(messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error)
 	CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error)
 	SetOcr3Config(state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error)
 	SetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -818,8 +818,8 @@ func (c *OfframpContract) CalculateMetadataHash(ctx context.Context, opts *bind.
 }
 
 // CalculateMessageHash executes the calculate_message_hash Move function.
-func (c *OfframpContract) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.CalculateMessageHash(messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
+func (c *OfframpContract) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.CalculateMessageHash(messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, onRamp, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1232,8 +1232,8 @@ func (d *OfframpDevInspect) CalculateMetadataHash(ctx context.Context, opts *bin
 // CalculateMessageHash executes the calculate_message_hash Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
-func (d *OfframpDevInspect) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error) {
-	encoded, err := d.contract.offrampEncoder.CalculateMessageHash(messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
+func (d *OfframpDevInspect) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error) {
+	encoded, err := d.contract.offrampEncoder.CalculateMessageHash(messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, onRamp, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1870,7 +1870,7 @@ func (c offrampEncoder) CalculateMetadataHashWithArgs(args ...any) (*bind.Encode
 }
 
 // CalculateMessageHash encodes a call to the calculate_message_hash Move function.
-func (c offrampEncoder) CalculateMessageHash(messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error) {
+func (c offrampEncoder) CalculateMessageHash(messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("calculate_message_hash", typeArgsList, typeParamsList, []string{
@@ -1881,6 +1881,7 @@ func (c offrampEncoder) CalculateMessageHash(messageId []byte, sourceChainSelect
 		"u64",
 		"vector<u8>",
 		"address",
+		"vector<u8>",
 		"vector<u8>",
 		"u256",
 		"vector<vector<u8>>",
@@ -1896,6 +1897,7 @@ func (c offrampEncoder) CalculateMessageHash(messageId []byte, sourceChainSelect
 		nonce,
 		sender,
 		receiver,
+		onRamp,
 		data,
 		gasLimit,
 		sourcePoolAddresses,
@@ -1919,6 +1921,7 @@ func (c offrampEncoder) CalculateMessageHashWithArgs(args ...any) (*bind.Encoded
 		"u64",
 		"vector<u8>",
 		"address",
+		"vector<u8>",
 		"vector<u8>",
 		"u256",
 		"vector<vector<u8>>",

@@ -720,6 +720,7 @@ module ccip_offramp::offramp {
         nonce: u64,
         sender: vector<u8>,
         receiver: address,
+        on_ramp: vector<u8>,
         data: vector<u8>,
         gas_limit: u256,
         source_pool_addresses: vector<vector<u8>>,
@@ -739,7 +740,7 @@ module ccip_offramp::offramp {
 
         let metadata_hash =
             calculate_metadata_hash(
-                source_chain_selector, dest_chain_selector, sender
+                source_chain_selector, dest_chain_selector, on_ramp
             );
 
         let mut token_amounts = vector[];
