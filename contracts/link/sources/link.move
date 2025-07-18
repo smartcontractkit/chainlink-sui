@@ -5,7 +5,6 @@ use sui::url;
 
 public struct LINK has drop {}
 
-// TODO: determine some of these values
 fun init(witness: LINK, ctx: &mut TxContext) {
     let (treasury, metadata) = coin::create_currency(
         witness,
@@ -13,9 +12,13 @@ fun init(witness: LINK, ctx: &mut TxContext) {
         b"LINK",
         b"ChainLink Token",
         b"Fill in the Chainlink Token Description",
-        option::some(url::new_unsafe_from_bytes(b"https://chainlink.com/")),
+        option::some(url::new_unsafe_from_bytes(b"https://d2f70xi62kby8n.cloudfront.net/tokens/link.webp?auto=compress%2Cformat")),
         ctx,
     );
+
+    // TODO: do we want to public share or simply freeze?
+    // difference being that we can still update coin metadata after public share
+    // but it's impossible to do that after freezing
     transfer::public_freeze_object(metadata);
     transfer::public_transfer(treasury, ctx.sender());
 }
