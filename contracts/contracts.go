@@ -22,6 +22,7 @@ const (
 	BurnMintTokenPool    = Package("burn_mint_token_pool")
 	ManagedTokenPool     = Package("managed_token_pool")
 	ManagedToken         = Package("managed_token")
+	ManagedTokenFaucet   = Package("managed_token_faucet")
 	MockLinkToken        = Package("mock_link_token")
 	// LINK
 	LINK = Package("link")
@@ -44,6 +45,7 @@ var Contracts map[Package]string = map[Package]string{
 	BurnMintTokenPool:    filepath.Join("ccip", "ccip_token_pools", "burn_mint_token_pool"),
 	ManagedTokenPool:     filepath.Join("ccip", "ccip_token_pools", "managed_token_pool"),
 	ManagedToken:         filepath.Join("ccip", "managed_token"),
+	ManagedTokenFaucet:   filepath.Join("ccip", "managed_token_faucet"),
 	MockLinkToken:        filepath.Join("ccip", "mock_link_token"),
 	// LINK
 	LINK: filepath.Join("link"),
