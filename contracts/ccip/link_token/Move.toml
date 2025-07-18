@@ -1,9 +1,0 @@
-[package]
-name = "LINKToken"
-edition = "2024.beta"
-
-[addresses]
-link_token = "_"
-
-[dev-addresses]
-link_token = "0x1111"

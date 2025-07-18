@@ -22,7 +22,7 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contr
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./contracts/ccip/ccip_offramp/sources/offramp.move --output ./bindings/generated/ccip/ccip_offramp/offramp
 
 # CCIP - LINK
-go run bindgen/main.go --moveConfig ./contracts/ccip/link_token --input ./contracts/ccip/link_token/sources/link_token.move --output ./bindings/generated/ccip/link_token/link_token
+go run bindgen/main.go --moveConfig ./contracts/ccip/mock_link_token --input ./contracts/ccip/mock_link_token/sources/mock_link_token.move --output ./bindings/generated/ccip/mock_link_token/mock_link_token
 
 # CCIP - Managed Token
 go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./contracts/ccip/managed_token/sources/managed_token.move --output ./bindings/generated/ccip/managed_token/managed_token
@@ -41,6 +41,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/managed_to
 
 # CCIP Router
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_router --input ./contracts/ccip/ccip_router/sources/router.move --output ./bindings/generated/ccip/ccip_router/
+
+# LINK TOKEN
+go run bindgen/main.go --moveConfig ./contracts/link --input ./contracts/link/sources/link.move --output ./bindings/generated/link/link
 
 # MCMS
 go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mcms/mcms/sources/mcms.move --output ./bindings/generated/mcms/mcms

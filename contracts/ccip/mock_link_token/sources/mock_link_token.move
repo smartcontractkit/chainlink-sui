@@ -1,14 +1,14 @@
-module link_token::link_token;
+module mock_link_token::mock_link_token;
 
 use sui::coin::{Self, TreasuryCap};
 
-public struct LINK_TOKEN has drop {}
+public struct MOCK_LINK_TOKEN has drop {}
 
-fun init(witness: LINK_TOKEN, ctx: &mut TxContext) {
+fun init(witness: MOCK_LINK_TOKEN, ctx: &mut TxContext) {
     let (treasury, metadata) = coin::create_currency(
         witness,
         9,                  // decimals
-        b"LINK_TOKEN",         // symbol
+        b"MOCK_LINK_TOKEN",         // symbol
         b"",                // name
         b"",                // description
         option::none(),     // icon_url
@@ -19,7 +19,7 @@ fun init(witness: LINK_TOKEN, ctx: &mut TxContext) {
 }
 
 public fun mint_and_transfer(
-    treasury_cap: &mut TreasuryCap<LINK_TOKEN>,
+    treasury_cap: &mut TreasuryCap<MOCK_LINK_TOKEN>,
     amount: u64,
     recipient: address,
     ctx: &mut TxContext,
@@ -30,7 +30,7 @@ public fun mint_and_transfer(
 
 #[allow(lint(self_transfer))]
 public fun mint(
-    treasury_cap: &mut TreasuryCap<LINK_TOKEN>,
+    treasury_cap: &mut TreasuryCap<MOCK_LINK_TOKEN>,
     amount: u64,
     ctx: &mut TxContext,
 ) {

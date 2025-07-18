@@ -57,7 +57,7 @@ func TestDeployAndInitManagedToken(t *testing.T) {
 			MCMSAddress:      reportMCMs.Output.PackageId,
 			MCMSOwnerAddress: signerAddress,
 		},
-		CoinObjectTypeArg:   reportLinkToken.Output.PackageId + "::link_token::LINK_TOKEN",
+		CoinObjectTypeArg:   reportLinkToken.Output.PackageId + "::link::LINK",
 		TreasuryCapObjectId: reportLinkToken.Output.Objects.TreasuryCapObjectId,
 		DenyCapObjectId:     "", // Empty for basic initialization
 		MinterAddress:       signerAddress,

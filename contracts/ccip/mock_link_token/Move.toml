@@ -1,0 +1,9 @@
+[package]
+name = "MockLINKToken"
+edition = "2024.beta"
+
+[addresses]
+mock_link_token = "_"
+
+[dev-addresses]
+mock_link_token = "0x1111"

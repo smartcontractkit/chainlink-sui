@@ -21,14 +21,14 @@ import (
 	commonTypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	link "github.com/smartcontractkit/chainlink-sui/bindings/packages/link_token"
+	mocklinktoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_link_token"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
 	lockreleaseops "github.com/smartcontractkit/chainlink-sui/ops/ccip_lock_release_token_pool"
 	offrampops "github.com/smartcontractkit/chainlink-sui/ops/ccip_offramp"
 	cciptokenpoolop "github.com/smartcontractkit/chainlink-sui/ops/ccip_token_pool"
-	linkops "github.com/smartcontractkit/chainlink-sui/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
+	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
 	chainwriter "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/expander"
@@ -57,7 +57,7 @@ func AnyPointer[T any](v T) *T {
 
 type EnvironmentSettings struct {
 	// Deployment reports
-	LinkReport      cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[linkops.DeployLinkObjects]]
+	MockLinkReport  cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[mocklinktokenops.DeployMockLinkTokenObjects]]
 	CCIPReport      cld_ops.SequenceReport[ccipops.DeployAndInitCCIPSeqInput, ccipops.DeployCCIPSeqOutput]
 	OffRampReport   cld_ops.SequenceReport[offrampops.DeployAndInitCCIPOffRampSeqInput, offrampops.DeployCCIPOffRampSeqOutput]
 	TokenPoolReport cld_ops.SequenceReport[lockreleaseops.DeployAndInitLockReleaseTokenPoolInput, lockreleaseops.DeployLockReleaseTokenPoolOutput]
@@ -111,7 +111,7 @@ func createTestMessage(envSettings *EnvironmentSettings) *TestMessage {
 	onRampAddress[31] = 20 // Same as used elsewhere
 
 	// Process link token address
-	linkTokenAddress := envSettings.LinkReport.Output.Objects.CoinMetadataObjectId
+	linkTokenAddress := envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId
 	linkMetadataAddressBytes := make([]byte, 32)
 	if len(linkTokenAddress) > 2 && linkTokenAddress[:2] == "0x" {
 		if decoded, err := hex.DecodeString(linkTokenAddress[2:]); err == nil {
@@ -266,7 +266,7 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	)
 
 	// Deploy LINK
-	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
+	mockLinkReport, err := cld_ops.ExecuteOperation(bundle, mocklinktokenops.DeployMockLinkTokenOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
 
 	configDigest, err := uint256.FromHex("0xe3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
@@ -280,10 +280,10 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	signerAddr, err := signer.GetAddress()
 	require.NoError(t, err)
 
-	lggr.Debugw("LINK report", "output", linkReport.Output)
+	lggr.Debugw("LINK report", "output", mockLinkReport.Output)
 
 	report, err := cld_ops.ExecuteSequence(bundle, ccipops.DeployAndInitCCIPSequence, deps, ccipops.DeployAndInitCCIPSeqInput{
-		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
+		LinkTokenCoinMetadataObjectId: mockLinkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput: ccipops.DeployCCIPInput{
@@ -394,8 +394,7 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 
 	lggr.Debugw("CCIP Token Pool deployment report", "output", ccipTokenPoolReport.Output)
 
-	linkTokenAddress := linkReport.Output.PackageId
-	linkTokenType := fmt.Sprintf("%s::link_token::LINK_TOKEN", linkTokenAddress)
+	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", mockLinkReport.Output.PackageId)
 
 	ethereumPoolAddress := []byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20}
 	ethereumPoolAddressString := hex.EncodeToString(ethereumPoolAddress)
@@ -413,8 +412,8 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 		// Initialization parameters
 		CoinObjectTypeArg:      linkTokenType,
 		CCIPObjectRefObjectId:  report.Output.Objects.CCIPObjectRefObjectId,
-		CoinMetadataObjectId:   linkReport.Output.Objects.CoinMetadataObjectId,
-		TreasuryCapObjectId:    linkReport.Output.Objects.TreasuryCapObjectId,
+		CoinMetadataObjectId:   mockLinkReport.Output.Objects.CoinMetadataObjectId,
+		TreasuryCapObjectId:    mockLinkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolPackageId:     ccipTokenPoolReport.Output.PackageId,
 		TokenPoolAdministrator: accountAddress,
 		Rebalancer:             signerAddr,
@@ -444,14 +443,14 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	liquidityAmount := uint64(1000000) // 1M tokens for liquidity
 
 	// Create LINK token contract instance
-	linkContract, err := link.NewLinkToken(linkReport.Output.PackageId, client)
+	linkContract, err := mocklinktoken.NewMockLinkToken(mockLinkReport.Output.PackageId, client)
 	require.NoError(t, err, "failed to create LINK token contract")
 
 	// Mint LINK tokens to the signer's address
-	mintTx, err := linkContract.LinkToken().Mint(
+	mintTx, err := linkContract.MockLinkToken().Mint(
 		ctx,
 		deps.GetCallOpts(),
-		bind.Object{Id: linkReport.Output.Objects.TreasuryCapObjectId},
+		bind.Object{Id: mockLinkReport.Output.Objects.TreasuryCapObjectId},
 		liquidityAmount,
 	)
 	require.NoError(t, err, "failed to mint LINK tokens for liquidity")
@@ -466,7 +465,7 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 
 	// Provide the minted tokens as liquidity to the pool
 	provideLiquidityInput := lockreleaseops.LockReleaseTokenPoolProviderLiquidityInput{
-		LockReleaseTokenPoolPackageId: tokenPoolLockReleaseReport.Output.LockReleaseTokenPoolPackageId,
+		LockReleaseTokenPoolPackageId: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
 		StateObjectId:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectId,
 		Coin:                          mintedCoinId,
 		CoinObjectTypeArg:             linkTokenType,
@@ -478,7 +477,7 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	lggr.Debugw("Provided liquidity to Lock Release Token Pool", "amount", liquidityAmount)
 
 	return &EnvironmentSettings{
-		LinkReport:          linkReport,
+		MockLinkReport:      mockLinkReport,
 		CCIPReport:          report,
 		OffRampReport:       offrampReport,
 		TokenPoolReport:     tokenPoolLockReleaseReport,
@@ -606,7 +605,7 @@ func createCommitReport(t *testing.T, envSettings *EnvironmentSettings) ([]byte,
 	}
 	reportContext[1][0] = 0x022
 
-	linkTokenAddress := envSettings.LinkReport.Output.Objects.CoinMetadataObjectId
+	linkTokenAddress := envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId
 	chainSelector := testMessage.SourceChainSelector // Use from test message
 	seqNumStart := testMessage.SequenceNumber        // Use from test message
 	seqNumEnd := uint64(10)
@@ -740,7 +739,7 @@ func TestCCIPOffRamp(t *testing.T) {
 
 	envSettings := SetupTestEnvironment(t)
 
-	lggr.Infow("Link token address", "linkTokenAddress", envSettings.LinkReport.Output.Objects.CoinMetadataObjectId)
+	lggr.Infow("Link token address", "linkTokenAddress", envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId)
 
 	c := context.Background()
 	ctx, cancel := context.WithCancel(c)
@@ -758,7 +757,7 @@ func TestCCIPOffRamp(t *testing.T) {
 	require.NotEmpty(t, ccipObjectRef, "CCIP object reference should not be empty")
 	offrampStateObjectId := envSettings.OffRampReport.Output.Objects.StateObjectId
 	require.NotEmpty(t, offrampStateObjectId, "Offramp state object ID should not be empty")
-	linkTokenAddress := envSettings.LinkReport.Output.Objects.CoinMetadataObjectId
+	linkTokenAddress := envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId
 
 	// Add debugging: print the serialized bytes and the report structure
 	lggr.Debugf("=== DEBUG INFO ===")
