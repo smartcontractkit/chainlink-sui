@@ -48,20 +48,20 @@ public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: &TreasuryCap<T>,
-    token_pool_package_id: address,
+    lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (_, token_pool_state_address, _, _) =
+    let (_, lock_release_token_pool_state_address, _, _) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     token_admin_registry::register_pool(
         ref,
         treasury_cap,
         coin_metadata,
-        token_pool_package_id,
-        token_pool_state_address,
+        lock_release_token_pool_package_id,
+        lock_release_token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
         TypeProof {},
@@ -75,20 +75,20 @@ public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
     owner_cap: &state_object::OwnerCap,
     coin_metadata: &CoinMetadata<T>,
-    token_pool_package_id: address,
+    lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, token_pool_state_address, token_type, type_proof_type_name) =
+    let (coin_metadata_address, lock_release_token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     token_admin_registry::register_pool_by_admin(
         ref,
         owner_cap,
         coin_metadata_address,
-        token_pool_package_id,
-        token_pool_state_address,
+        lock_release_token_pool_package_id,
+        lock_release_token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
         token_type.into_string(),
         token_pool_administrator,

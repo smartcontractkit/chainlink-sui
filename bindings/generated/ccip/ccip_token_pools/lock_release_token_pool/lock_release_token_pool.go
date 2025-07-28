@@ -22,8 +22,8 @@ var (
 
 type ILockReleaseTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
-	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
+	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -91,9 +91,9 @@ type ILockReleaseTokenPoolDevInspect interface {
 type LockReleaseTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error)
+	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error)
 	InitializeByCcipAdminWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -317,8 +317,8 @@ func (c *LockReleaseTokenPoolContract) TypeAndVersion(ctx context.Context, opts 
 }
 
 // Initialize executes the initialize Move function.
-func (c *LockReleaseTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, tokenPoolPackageId, tokenPoolAdministrator, rebalancer)
+func (c *LockReleaseTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, lockReleaseTokenPoolPackageId, tokenPoolAdministrator, rebalancer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -327,8 +327,8 @@ func (c *LockReleaseTokenPoolContract) Initialize(ctx context.Context, opts *bin
 }
 
 // InitializeByCcipAdmin executes the initialize_by_ccip_admin Move function.
-func (c *LockReleaseTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, ownerCap, coinMetadata, tokenPoolPackageId, tokenPoolAdministrator, rebalancer)
+func (c *LockReleaseTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, ownerCap, coinMetadata, lockReleaseTokenPoolPackageId, tokenPoolAdministrator, rebalancer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1179,7 +1179,7 @@ func (c lockReleaseTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c lockReleaseTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1195,7 +1195,7 @@ func (c lockReleaseTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Obje
 		ref,
 		coinMetadata,
 		treasuryCap,
-		tokenPoolPackageId,
+		lockReleaseTokenPoolPackageId,
 		tokenPoolAdministrator,
 		rebalancer,
 	}, nil)
@@ -1224,7 +1224,7 @@ func (c lockReleaseTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args 
 }
 
 // InitializeByCcipAdmin encodes a call to the initialize_by_ccip_admin Move function.
-func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, tokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1240,7 +1240,7 @@ func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, re
 		ref,
 		ownerCap,
 		coinMetadata,
-		tokenPoolPackageId,
+		lockReleaseTokenPoolPackageId,
 		tokenPoolAdministrator,
 		rebalancer,
 	}, nil)
