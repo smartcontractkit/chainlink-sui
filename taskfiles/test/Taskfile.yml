@@ -23,13 +23,11 @@ tasks:
 
   bindings:
     desc: "Run bindings tests"
-    deps: [integration-setup]
     cmds:
       - go test -v ./bindings/... -tags="integration"
 
   operations:
     desc: "Run operation tests"
-    deps: [integration-setup]
     cmds:
       - go test -v ./ops/... -count=1 -p=1 -tags="integration"
 
@@ -44,7 +42,6 @@ tasks:
 
   integration-testnet:
     desc: "Run integration tests in testnet"
-    deps: [integration-setup]
     cmds:
       - for:
           matrix:
