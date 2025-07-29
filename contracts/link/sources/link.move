@@ -11,7 +11,7 @@ fun init(witness: LINK, ctx: &mut TxContext) {
         9,
         b"LINK",
         b"ChainLink Token",
-        b"Fill in the Chainlink Token Description",
+        b"The native token of the Chainlink Network",
         option::some(url::new_unsafe_from_bytes(b"https://d2f70xi62kby8n.cloudfront.net/tokens/link.webp?auto=compress%2Cformat")),
         ctx,
     );
