@@ -163,6 +163,29 @@ public fun test_get_report_digest_header() {
     assert!(header != vector<u8>[]);
 }
 
+#[test]
+public fun test_get_arm_with_deployed_package() {
+    use std::type_name;
+    use sui::address;
+    
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+
+    let tn = type_name::get<CCIPObjectRef>();
+    let addr_string = tn.get_address();
+    let expected_package_address = address::from_ascii_bytes(&addr_string.into_bytes());
+
+    // Get the arm address using our function
+    let arm_address = rmn_remote::get_arm();
+
+    assert!(arm_address != @0x0);
+    assert!(arm_address == expected_package_address);
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
 // === Configuration Management Tests ===
 
 #[test]
