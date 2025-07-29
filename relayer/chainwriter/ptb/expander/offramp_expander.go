@@ -212,9 +212,9 @@ func SetupAddressMappings(
 	}
 	for _, ccipOwnedObject := range offrampOwnedObjects {
 		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, "offramp::OffRampStatePointer") {
-			lggr.Debugw("Found offramp state object pointer", "fields", ccipOwnedObject.Data.Content.SuiMoveObject.Fields)
+			lggr.Debugw("Found offramp state object pointer", "fields", ccipOwnedObject.Data.Content.Fields)
 			// parse the object into a map
-			parsedObject := ccipOwnedObject.Data.Content.SuiMoveObject.Fields
+			parsedObject := ccipOwnedObject.Data.Content.Fields
 			lggr.Debugw("offRampStatePointer Parsed", "offRampStatePointer", parsedObject)
 			addressMappings["offRampState"] = parsedObject["off_ramp_state_id"].(string)
 
@@ -235,7 +235,7 @@ func SetupAddressMappings(
 	for _, ccipOwnedObject := range ccipOwnedObjects {
 		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, "state_object::CCIPObjectRefPointer") {
 			// parse the object into a map
-			parsedObject := ccipOwnedObject.Data.Content.SuiMoveObject.Fields
+			parsedObject := ccipOwnedObject.Data.Content.Fields
 			if err != nil {
 				lggr.Errorw("Error parsing ccip object ref", "error", err)
 				return nil, err
@@ -554,19 +554,15 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 			}
 
 			receiverPackageId := receiverParts[0]
-			receiverModuleId := receiverParts[1]
-			receiverFunctionName := receiverParts[2]
-
-			receiverAddress := fmt.Sprintf("%s::%s::%s", receiverPackageId, receiverModuleId, receiverFunctionName)
 
 			signerAddress, err := client.GetAddressFromPublicKey(signerPublicKey)
 			if err != nil {
 				return nil, err
 			}
 
-			lggr.Debugw("Getting receiver config", "receiverAddress", receiverAddress)
+			lggr.Debugw("Getting receiver config", "receiverPackageId", receiverPackageId, "receiverFunctionName", receiverParts[2])
 
-			poolInfos, err := s.ptbClient.ReadFunction(
+			result, err := s.ptbClient.ReadFunction(
 				ctx,
 				signerAddress,
 				s.AddressMappings["ccipPackageId"],
@@ -574,7 +570,7 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 				"is_registered_receiver",
 				[]any{
 					s.AddressMappings["ccipObjectRef"],
-					receiverAddress,
+					receiverPackageId,
 				},
 				[]string{
 					"object_id",
@@ -588,8 +584,8 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 			}
 
 			var isRegistered bool
-			lggr.Debugw("isRegistered", "isRegistered", poolInfos[0])
-			err = codec.DecodeSuiJsonValue(poolInfos[0], &isRegistered)
+			lggr.Debugw("isRegistered", "isRegistered", result[0])
+			err = codec.DecodeSuiJsonValue(result[0], &isRegistered)
 			if err != nil {
 				return nil, err
 			}
@@ -619,6 +615,7 @@ func GenerateReceiverCallArguments(
 
 	for _, message := range messages {
 		if len(message.Receiver) > 0 && len(message.Data) > 0 {
+			lggr.Debugw("receiverParts", "receiverParts", message.Receiver)
 			receiverParts := strings.Split(string(message.Receiver), "::")
 			if len(receiverParts) != SUI_PATH_COMPONENTS_COUNT {
 				return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
@@ -661,19 +658,6 @@ func GeneratePTBCommandsForTokenPools(
 					IsMutable: AnyPointer(false),
 				},
 				{
-					Name:      "clock",
-					Type:      "object_id",
-					Required:  true,
-					IsMutable: AnyPointer(false),
-				},
-				{
-					Name:      fmt.Sprintf("pool_%d", cmdIndex),
-					Type:      "object_id",
-					Required:  true,
-					IsMutable: AnyPointer(true),
-					IsGeneric: true,
-				},
-				{
 					Name:     "receiver_params",
 					Type:     "ptb_dependency",
 					Required: true,
@@ -686,6 +670,19 @@ func GeneratePTBCommandsForTokenPools(
 					Name:     fmt.Sprintf("index_%d", cmdIndex),
 					Type:     "u64",
 					Required: true,
+				},
+				{
+					Name:      fmt.Sprintf("pool_%d", cmdIndex),
+					Type:      "object_id",
+					Required:  true,
+					IsMutable: AnyPointer(true),
+					IsGeneric: true,
+				},
+				{
+					Name:      "clock",
+					Type:      "object_id",
+					Required:  true,
+					IsMutable: AnyPointer(false),
 				},
 			},
 		}

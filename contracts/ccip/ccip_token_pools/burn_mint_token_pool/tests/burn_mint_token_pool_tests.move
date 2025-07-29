@@ -20,6 +20,7 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
+const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
 const NewRemoteChain: u64 = 3000;
 const NewRemotePool: vector<u8> = b"new_remote_pool";
 const NewRemoteToken: vector<u8> = b"new_remote_token";
@@ -82,6 +83,8 @@ public fun test_initialize_and_basic_functionality() {
             treasury_cap,
             @burn_mint_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -147,6 +150,8 @@ public fun test_chain_configuration_management() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -244,6 +249,8 @@ public fun test_allowlist_management() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -303,6 +310,8 @@ public fun test_rate_limiter_configuration() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -405,6 +414,8 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -468,6 +479,8 @@ public fun test_comprehensive_allowlist_operations() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -530,6 +543,8 @@ public fun test_destroy_token_pool() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -587,6 +602,8 @@ public fun test_comprehensive_rate_limiter_operations() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -688,6 +705,8 @@ public fun test_edge_cases_and_boundary_conditions() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -797,6 +816,8 @@ public fun test_lock_or_burn_comprehensive() {
             treasury_cap, // treasury_cap is moved here
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -863,26 +884,27 @@ public fun test_lock_or_burn_comprehensive() {
         assert!(initial_coin_value == 1000);
         
         // Create token params for the operation
-        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain);
+        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Perform lock_or_burn operation (this burns the coin)
-        let updated_token_params = burn_mint_token_pool::lock_or_burn(
+        burn_mint_token_pool::lock_or_burn(
             &ccip_ref,
-            &clock,
-            &mut pool_state,
             test_coin, // This coin gets burned
-            token_params,
+            &mut token_params,
+            &mut pool_state,
+            &clock,
             &mut ctx
         );
         
         // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
+        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
         assert!(destination_chain == DefaultRemoteChain);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@burn_mint_token_pool);
-        let (chain_selector, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
         assert!(chain_selector == DefaultRemoteChain);
+        assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);
         
         // Verify transfer data
@@ -933,6 +955,8 @@ public fun test_release_or_mint_comprehensive() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1002,10 +1026,10 @@ public fun test_release_or_mint_comprehensive() {
         // Perform release_or_mint operation
         let updated_receiver_params = burn_mint_token_pool::release_or_mint(
             &ccip_ref,
-            &clock,
-            &mut pool_state,
             receiver_params,
             0, // index of the token transfer
+            &mut pool_state,
+            &clock,
             &mut ctx
         );
         
@@ -1071,6 +1095,8 @@ public fun test_set_allowlist_enabled() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1134,6 +1160,8 @@ public fun test_apply_allowlist_updates() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1234,6 +1262,8 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             ctx
         );
         

@@ -109,7 +109,7 @@ func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
 
 // UpdateEventConfig method either edits or inserts the event config into the map of configs
 func (tIndexer *TransactionsIndexer) UpdateEventConfig(eventConfig *config.ChainReaderEvent) {
-	key := fmt.Sprintf("%s::%s", eventConfig.EventSelector.Module, eventConfig.Name)
+	key := fmt.Sprintf("%s::%s", eventConfig.Module, eventConfig.Name)
 	tIndexer.eventConfigs[key] = eventConfig
 }
 
@@ -537,11 +537,11 @@ func (tIndexer *TransactionsIndexer) getEventPackageIdFromConfig(moduleKey, even
 	key := fmt.Sprintf("%s::%s", moduleKey, eventKey)
 
 	if eventConfig, ok := tIndexer.eventConfigs[key]; ok {
-		if eventConfig.EventSelector.Package == "" {
+		if eventConfig.Package == "" {
 			return "", fmt.Errorf("event package ID not found for %s", key)
 		}
 
-		return eventConfig.EventSelector.Package, nil
+		return eventConfig.Package, nil
 	}
 
 	return "", fmt.Errorf("event config not found for %s", key)

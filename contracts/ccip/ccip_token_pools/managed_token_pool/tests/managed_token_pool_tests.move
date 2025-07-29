@@ -25,6 +25,7 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
+const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
 
 const CCIP_ADMIN: address = @0x400;
 
@@ -117,6 +118,8 @@ public fun test_initialize_and_basic_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         scenario.return_to_sender(token_owner_cap);
@@ -371,6 +374,8 @@ public fun test_lock_or_burn_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -445,28 +450,29 @@ public fun test_lock_or_burn_functionality() {
         assert!(initial_coin_value == 1000);
         
         // Create token params for the lock_or_burn operation
-        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain);
+        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Actually call lock_or_burn function
-        let updated_token_params = managed_token_pool::lock_or_burn(
-            &ccip_ref,
-            &clock,
-            &mut pool_state,
-            &deny_list,
-            &mut token_state,
-            test_coin, // This coin gets burned
-            token_params,
-            &mut ctx
+        managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
+            &ccip_ref,        // ref parameter
+            test_coin,        // c parameter (coin)
+            &mut token_params, // token_params parameter (modified in place)
+            &mut pool_state,  // state parameter
+            &clock,           // clock parameter
+            &deny_list,       // deny_list parameter
+            &mut token_state, // token_state parameter
+            &mut ctx          // context parameter
         );
         
         // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
+        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
         assert!(destination_chain == DefaultRemoteChain);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@managed_token_pool);
-        let (chain_selector, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
         assert!(chain_selector == DefaultRemoteChain);
+        assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);
         
         // Verify transfer data
@@ -552,6 +558,8 @@ public fun test_release_or_mint_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in add_dest_token_transfer
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -637,12 +645,12 @@ public fun test_release_or_mint_functionality() {
         // Actually call release_or_mint function
         let updated_receiver_params = managed_token_pool::release_or_mint(
             &ccip_ref,
-            &clock,
-            &mut pool_state,
-            &mut token_state,
-            &deny_list,
             receiver_params,
             0, // index of the token transfer
+            &mut pool_state,
+            &clock,
+            &mut token_state,
+            &deny_list,
             &mut ctx
         );
         
@@ -737,6 +745,8 @@ public fun test_initialize_by_ccip_admin() {
             mint_cap,
             @managed_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
     };
@@ -824,6 +834,8 @@ public fun test_invalid_owner_cap_error() {
             mint_cap2,
             @0x2000, // Different package ID
             @0x999,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -1082,6 +1094,8 @@ public fun test_initialize_with_managed_token_function() {
             mint_cap,
             @0x1000, // token pool package id
             @managed_token_pool, // token pool administrator
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -1123,7 +1137,7 @@ public fun test_initialize_with_managed_token_function() {
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
         assert!(pool_address == @0x1000); // Should match the package id we passed
         
-        let (pool_package_id, pool_state_address, pool_module, token_type, admin, pending_admin, type_proof) = 
+        let (pool_package_id, pool_state_address, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
             token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
         
         assert!(pool_package_id == @0x1000);
@@ -1201,6 +1215,8 @@ fun setup_basic_pool(scenario: &mut test_scenario::Scenario): (CCIPOwnerCap, CCI
             mint_cap,
             @0x1000,
             @managed_token_pool,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
             scenario.ctx()
         );
         

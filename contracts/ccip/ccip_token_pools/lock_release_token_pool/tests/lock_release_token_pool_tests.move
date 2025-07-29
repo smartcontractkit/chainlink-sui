@@ -22,6 +22,7 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
+const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
 const REBALANCER: address = @0x100;
 const TOKEN_ADMIN: address = @0x200;
 
@@ -92,6 +93,8 @@ public fun test_initialize_and_basic_functionality() {
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -151,6 +154,8 @@ public fun test_chain_configuration_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -242,6 +247,8 @@ public fun test_liquidity_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -330,6 +337,8 @@ public fun test_rebalancer_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -394,6 +403,8 @@ public fun test_rate_limiter_configuration() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -499,6 +510,8 @@ public fun test_allowlist_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -586,6 +599,8 @@ public fun test_unauthorized_liquidity_provision() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -644,6 +659,8 @@ public fun test_withdraw_exceeds_balance() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -717,6 +734,8 @@ public fun test_unauthorized_withdrawal() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -791,6 +810,8 @@ public fun test_destroy_token_pool() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -871,6 +892,8 @@ public fun test_edge_cases_and_getters() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
+            vector[],
+            vector[],
             ctx
         );
         
@@ -972,6 +995,8 @@ public fun test_lock_or_burn_functionality() {
         @0x1000, // token_pool_package_id
         TOKEN_ADMIN,
         REBALANCER,
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         ctx
     );
     
@@ -1037,15 +1062,15 @@ public fun test_lock_or_burn_functionality() {
         let initial_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         
         // Create token params for the operation
-        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain);
+        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Call the actual lock_or_burn function
-        let updated_token_params = lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
+        lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
-            &clock,
-            &mut pool_state,
             test_coin, // This coin gets locked in the pool
-            token_params,
+            &mut token_params,
+            &mut pool_state,
+            &clock,
             &mut ctx
         );
         
@@ -1054,13 +1079,14 @@ public fun test_lock_or_burn_functionality() {
         assert!(new_pool_balance == initial_pool_balance + initial_coin_value);
         
         // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
+        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
         assert!(destination_chain == DefaultRemoteChain);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(TOKEN_ADMIN);
-        let (chain_selector, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
         assert!(chain_selector == DefaultRemoteChain);
+        assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);
         
         // Verify transfer data
@@ -1101,36 +1127,43 @@ public fun test_release_or_mint_functionality() {
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
     offramp_state_helper::test_init(scenario.ctx());
     
-    // Create test token and initialize pool in the same transaction
-    let ctx = scenario.ctx();
-    let (mut treasury_cap, coin_metadata) = coin::create_currency(
-        LOCK_RELEASE_TOKEN_POOL_TESTS {},
-        Decimals,
-        b"TEST",
-        b"TestToken",
-        b"test_token",
-        option::none(),
-        ctx
-    );
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        
+        // Create test token and initialize pool
+        let (mut treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx
+        );
+        
+        let _coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
+        
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            &ccip_owner_cap,
+            &coin_metadata,
+            @0x1000, // token_pool_package_id
+            TOKEN_ADMIN,
+            REBALANCER,
+            vector[], // lock_or_burn_params
+            vector[], // release_or_mint_params
+            ctx
+        );
+        
+        // Mint tokens and provide liquidity to the pool for release operations
+        let liquidity_coin = coin::mint(&mut treasury_cap, 20000, ctx);
+        transfer::public_transfer(liquidity_coin, REBALANCER);
+        
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
     
-    let _coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
-    
-    lock_release_token_pool::initialize_by_ccip_admin(
-        &mut ccip_ref,
-        &ccip_owner_cap,
-        &coin_metadata,
-        @0x1000, // token_pool_package_id
-        TOKEN_ADMIN,
-        REBALANCER,
-        ctx
-    );
-    
-    // Mint tokens and provide liquidity to the pool for release operations
-    let liquidity_coin = coin::mint(&mut treasury_cap, 20000, ctx);
-    transfer::public_transfer(liquidity_coin, REBALANCER);
-    
-    transfer::public_freeze_object(coin_metadata);
-    transfer::public_transfer(treasury_cap, ctx.sender());
     transfer::public_transfer(ccip_owner_cap, @0x0);
     test_scenario::return_shared(ccip_ref);
     
@@ -1229,10 +1262,10 @@ public fun test_release_or_mint_functionality() {
         // Call the actual release_or_mint function
         let updated_receiver_params = lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
-            &clock,
-            &mut pool_state,
             receiver_params,
             0, // index of the token transfer
+            &mut pool_state,
+            &clock,
             &mut ctx
         );
         

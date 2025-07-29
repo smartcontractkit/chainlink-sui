@@ -138,7 +138,7 @@ public fun complete_token_transfer<TypeProof: drop>(
 
     let token_transfer = receiver_params.params[index];
     assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
-    let (token_pool_package_id, _, _, _, _, _, type_proof) = registry::get_token_config(ref, token_transfer.dest_token_address);
+    let (token_pool_package_id, _, _, _, _, _, type_proof, _, _) = registry::get_token_config(ref, token_transfer.dest_token_address);
     assert!(
         token_transfer.token_pool_address == token_pool_package_id,
         ETokenPoolAddressMismatch,
@@ -148,7 +148,6 @@ public fun complete_token_transfer<TypeProof: drop>(
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
     receiver_params.params[index].completed = true;
-
     receiver_params
 }
 
@@ -161,7 +160,7 @@ public fun extract_any2sui_message<TypeProof: drop>(
 ): (Option<client::Any2SuiMessage>, ReceiverParams) {
     let receiver_config = receiver_registry::get_receiver_config(ref, package_id);
     let proof_tn = type_name::get<TypeProof>();
-    let (_, _, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
+    let (_, _, _, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
     assert!(
         proof_typename == proof_tn,
         ETypeProofMismatch

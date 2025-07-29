@@ -713,7 +713,6 @@ module ccip_onramp::onramp {
         ref: &mut CCIPObjectRef,
         state: &mut OnRampState,
         clock: &Clock,
-        receiver: vector<u8>,
         data: vector<u8>,
         token_params: dd::TokenParams,
         fee_token_metadata: &CoinMetadata<T>,
@@ -725,7 +724,7 @@ module ccip_onramp::onramp {
         let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
 
         // the hot potato is returned and consumed
-        let (dest_chain_selector, params) = dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
+        let (dest_chain_selector, receiver, params) = dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
 
         let mut token_amounts = vector[];
         let mut source_tokens = vector[];

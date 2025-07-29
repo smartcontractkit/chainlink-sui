@@ -50,3 +50,6 @@ go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mc
 go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mcms/mcms/sources/mcms_account.move --output ./bindings/generated/mcms/mcms_account
 go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mcms/mcms/sources/mcms_deployer.move --output ./bindings/generated/mcms/mcms_deployer
 go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mcms/mcms/sources/mcms_registry.move --output ./bindings/generated/mcms/mcms_registry
+
+# CCIP - Dummy Receiver
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_dummy_receiver --input ./contracts/ccip/ccip_dummy_receiver/sources/ccip_dummy_receiver.move --output ./bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver

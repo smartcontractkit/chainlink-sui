@@ -248,6 +248,8 @@ public fun test_complete_token_transfer() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector[], // lock_or_burn_params
+        vector[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -271,7 +273,7 @@ public fun test_complete_token_transfer() {
 
     // let local_amount = coin::value(&test_coin);
     // Complete the token transfer
-    let receiver_params = offramp_state_helper::complete_token_transfer(
+    let updated_receiver_params =offramp_state_helper::complete_token_transfer(
         &ref,
         receiver_params,
         0, // index
@@ -282,7 +284,7 @@ public fun test_complete_token_transfer() {
     coin::burn_for_testing(test_coin);
     
     // Clean up - the receiver_params should have completed transfers
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, updated_receiver_params);
     
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
@@ -295,6 +297,7 @@ public fun test_extract_any2sui_message() {
     receiver_registry::register_receiver(
         &mut ref,
         @0x123, // receiver_state_id
+        vector[], // receiver_state_params
         TestTypeProof {}
     );
     

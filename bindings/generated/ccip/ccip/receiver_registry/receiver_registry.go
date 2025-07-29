@@ -23,12 +23,12 @@ var (
 type IReceiverRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
-	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateId string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	IsRegisteredReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) (*models.SuiTransactionBlockResponse, error)
-	GetReceiverModuleAndState(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
+	GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IReceiverRegistryDevInspect
 	Encoder() ReceiverRegistryEncoder
 }
@@ -38,7 +38,7 @@ type IReceiverRegistryDevInspect interface {
 	IsRegisteredReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (bool, error)
 	GetReceiverConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (ReceiverConfig, error)
 	GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) ([]any, error)
-	GetReceiverModuleAndState(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) ([]any, error)
+	GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) ([]any, error)
 }
 
 type ReceiverRegistryEncoder interface {
@@ -46,7 +46,7 @@ type ReceiverRegistryEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateId string, proof bind.Object) (*bind.EncodedCall, error)
+	RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*bind.EncodedCall, error)
 	RegisterReceiverWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	UnregisterReceiver(ref bind.Object, param bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
 	UnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -56,8 +56,8 @@ type ReceiverRegistryEncoder interface {
 	GetReceiverConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetReceiverConfigFields(rc ReceiverConfig) (*bind.EncodedCall, error)
 	GetReceiverConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetReceiverModuleAndState(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
-	GetReceiverModuleAndStateWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetReceiverInfo(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
+	GetReceiverInfoWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type ReceiverRegistryContract struct {
@@ -137,10 +137,11 @@ func (c *ReceiverRegistryContract) BuildPTB(ctx context.Context, ptb *transactio
 }
 
 type ReceiverConfig struct {
-	ModuleName      string      `move:"0x1::string::String"`
-	FunctionName    string      `move:"0x1::string::String"`
-	ReceiverStateId string      `move:"address"`
-	ProofTypename   bind.Object `move:"TypeName"`
+	ModuleName          string      `move:"0x1::string::String"`
+	FunctionName        string      `move:"0x1::string::String"`
+	ReceiverStateId     string      `move:"address"`
+	ReceiverStateParams []string    `move:"vector<address>"`
+	ProofTypename       bind.Object `move:"TypeName"`
 }
 
 type ReceiverRegistry struct {
@@ -149,10 +150,11 @@ type ReceiverRegistry struct {
 }
 
 type ReceiverRegistered struct {
-	ReceiverPackageId  string      `move:"address"`
-	ReceiverStateId    string      `move:"address"`
-	ReceiverModuleName string      `move:"0x1::string::String"`
-	ProofTypename      bind.Object `move:"TypeName"`
+	ReceiverPackageId   string      `move:"address"`
+	ReceiverStateId     string      `move:"address"`
+	ReceiverModuleName  string      `move:"0x1::string::String"`
+	ReceiverStateParams []string    `move:"vector<address>"`
+	ProofTypename       bind.Object `move:"TypeName"`
 }
 
 type ReceiverUnregistered struct {
@@ -160,10 +162,11 @@ type ReceiverUnregistered struct {
 }
 
 type bcsReceiverConfig struct {
-	ModuleName      string
-	FunctionName    string
-	ReceiverStateId [32]byte
-	ProofTypename   bind.Object
+	ModuleName          string
+	FunctionName        string
+	ReceiverStateId     [32]byte
+	ReceiverStateParams [][32]byte
+	ProofTypename       bind.Object
 }
 
 func convertReceiverConfigFromBCS(bcs bcsReceiverConfig) ReceiverConfig {
@@ -171,15 +174,23 @@ func convertReceiverConfigFromBCS(bcs bcsReceiverConfig) ReceiverConfig {
 		ModuleName:      bcs.ModuleName,
 		FunctionName:    bcs.FunctionName,
 		ReceiverStateId: fmt.Sprintf("0x%x", bcs.ReceiverStateId),
-		ProofTypename:   bcs.ProofTypename,
+		ReceiverStateParams: func() []string {
+			addrs := make([]string, len(bcs.ReceiverStateParams))
+			for i, addr := range bcs.ReceiverStateParams {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		ProofTypename: bcs.ProofTypename,
 	}
 }
 
 type bcsReceiverRegistered struct {
-	ReceiverPackageId  [32]byte
-	ReceiverStateId    [32]byte
-	ReceiverModuleName string
-	ProofTypename      bind.Object
+	ReceiverPackageId   [32]byte
+	ReceiverStateId     [32]byte
+	ReceiverModuleName  string
+	ReceiverStateParams [][32]byte
+	ProofTypename       bind.Object
 }
 
 func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) ReceiverRegistered {
@@ -187,7 +198,14 @@ func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) ReceiverRegiste
 		ReceiverPackageId:  fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
 		ReceiverStateId:    fmt.Sprintf("0x%x", bcs.ReceiverStateId),
 		ReceiverModuleName: bcs.ReceiverModuleName,
-		ProofTypename:      bcs.ProofTypename,
+		ReceiverStateParams: func() []string {
+			addrs := make([]string, len(bcs.ReceiverStateParams))
+			for i, addr := range bcs.ReceiverStateParams {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		ProofTypename: bcs.ProofTypename,
 	}
 }
 
@@ -263,8 +281,8 @@ func (c *ReceiverRegistryContract) Initialize(ctx context.Context, opts *bind.Ca
 }
 
 // RegisterReceiver executes the register_receiver Move function.
-func (c *ReceiverRegistryContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateId string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.receiverRegistryEncoder.RegisterReceiver(typeArgs, ref, receiverStateId, proof)
+func (c *ReceiverRegistryContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.RegisterReceiver(typeArgs, ref, receiverStateId, receiverStateParams, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -312,9 +330,9 @@ func (c *ReceiverRegistryContract) GetReceiverConfigFields(ctx context.Context, 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetReceiverModuleAndState executes the get_receiver_module_and_state Move function.
-func (c *ReceiverRegistryContract) GetReceiverModuleAndState(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.receiverRegistryEncoder.GetReceiverModuleAndState(ref, receiverPackageId)
+// GetReceiverInfo executes the get_receiver_info Move function.
+func (c *ReceiverRegistryContract) GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.GetReceiverInfo(ref, receiverPackageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -395,7 +413,8 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfig(ctx context.Context, opts
 //	[0]: 0x1::string::String
 //	[1]: 0x1::string::String
 //	[2]: address
-//	[3]: TypeName
+//	[3]: vector<address>
+//	[4]: TypeName
 func (d *ReceiverRegistryDevInspect) GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) ([]any, error) {
 	encoded, err := d.contract.receiverRegistryEncoder.GetReceiverConfigFields(rc)
 	if err != nil {
@@ -404,14 +423,15 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfigFields(ctx context.Context
 	return d.contract.Call(ctx, opts, encoded)
 }
 
-// GetReceiverModuleAndState executes the get_receiver_module_and_state Move function using DevInspect to get return values.
+// GetReceiverInfo executes the get_receiver_info Move function using DevInspect to get return values.
 //
 // Returns:
 //
 //	[0]: 0x1::string::String
 //	[1]: address
-func (d *ReceiverRegistryDevInspect) GetReceiverModuleAndState(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) ([]any, error) {
-	encoded, err := d.contract.receiverRegistryEncoder.GetReceiverModuleAndState(ref, receiverPackageId)
+//	[2]: vector<address>
+func (d *ReceiverRegistryDevInspect) GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) ([]any, error) {
+	encoded, err := d.contract.receiverRegistryEncoder.GetReceiverInfo(ref, receiverPackageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -476,7 +496,7 @@ func (c receiverRegistryEncoder) InitializeWithArgs(args ...any) (*bind.EncodedC
 }
 
 // RegisterReceiver encodes a call to the register_receiver Move function.
-func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateId string, proof bind.Object) (*bind.EncodedCall, error) {
+func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"ProofType",
@@ -484,10 +504,12 @@ func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Ob
 	return c.EncodeCallArgsWithGenerics("register_receiver", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"address",
+		"vector<address>",
 		"ProofType",
 	}, []any{
 		ref,
 		receiverStateId,
+		receiverStateParams,
 		proof,
 	}, nil)
 }
@@ -498,6 +520,7 @@ func (c receiverRegistryEncoder) RegisterReceiverWithArgs(typeArgs []string, arg
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"address",
+		"vector<address>",
 		"ProofType",
 	}
 
@@ -621,6 +644,7 @@ func (c receiverRegistryEncoder) GetReceiverConfigFields(rc ReceiverConfig) (*bi
 		"0x1::string::String",
 		"0x1::string::String",
 		"address",
+		"vector<address>",
 		"TypeName",
 	})
 }
@@ -641,15 +665,16 @@ func (c receiverRegistryEncoder) GetReceiverConfigFieldsWithArgs(args ...any) (*
 		"0x1::string::String",
 		"0x1::string::String",
 		"address",
+		"vector<address>",
 		"TypeName",
 	})
 }
 
-// GetReceiverModuleAndState encodes a call to the get_receiver_module_and_state Move function.
-func (c receiverRegistryEncoder) GetReceiverModuleAndState(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error) {
+// GetReceiverInfo encodes a call to the get_receiver_info Move function.
+func (c receiverRegistryEncoder) GetReceiverInfo(ref bind.Object, receiverPackageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_receiver_module_and_state", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("get_receiver_info", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"address",
 	}, []any{
@@ -658,12 +683,13 @@ func (c receiverRegistryEncoder) GetReceiverModuleAndState(ref bind.Object, rece
 	}, []string{
 		"0x1::string::String",
 		"address",
+		"vector<address>",
 	})
 }
 
-// GetReceiverModuleAndStateWithArgs encodes a call to the get_receiver_module_and_state Move function using arbitrary arguments.
+// GetReceiverInfoWithArgs encodes a call to the get_receiver_info Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c receiverRegistryEncoder) GetReceiverModuleAndStateWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c receiverRegistryEncoder) GetReceiverInfoWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"address",
@@ -674,8 +700,9 @@ func (c receiverRegistryEncoder) GetReceiverModuleAndStateWithArgs(args ...any) 
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_receiver_module_and_state", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("get_receiver_info", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::string::String",
 		"address",
+		"vector<address>",
 	})
 }

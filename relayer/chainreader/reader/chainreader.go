@@ -313,7 +313,7 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	}
 
 	// only write contract address, rest will be handled during chainreader config
-	eventConfig.EventSelector.Package = contract.Address
+	eventConfig.Package = contract.Address
 
 	// Sync the event in case it's not already in the database
 	err = s.eventsIndexer.SyncEvent(ctx, &eventConfig.EventSelector)
@@ -689,10 +689,10 @@ func (s *suiChainReader) getEventConfig(moduleConfig *config.ChainReaderModule, 
 // queryEvents queries events from the database instead of the Sui blockchain
 func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.ChainReaderEvent, expressions []query.Expression, limitAndSort query.LimitAndSort) ([]database.EventRecord, error) {
 	// Create the event handle for database lookup
-	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.EventSelector.Package, eventConfig.Name, eventConfig.EventType)
+	eventHandle := fmt.Sprintf("%s::%s::%s", eventConfig.Package, eventConfig.Name, eventConfig.EventType)
 
 	s.logger.Debugw("Querying events from database",
-		"address", eventConfig.EventSelector.Package,
+		"address", eventConfig.Package,
 		"module", eventConfig.Name,
 		"eventType", eventConfig.EventType,
 		"eventHandle", eventHandle,
@@ -712,11 +712,11 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 	}
 
 	// Query events from database
-	records, err := s.dbStore.QueryEvents(ctx, eventConfig.EventSelector.Package, eventHandle, expressions, limitAndSort)
+	records, err := s.dbStore.QueryEvents(ctx, eventConfig.Package, eventHandle, expressions, limitAndSort)
 	if err != nil {
 		s.logger.Errorw("Failed to query events from database",
 			"error", err,
-			"address", eventConfig.EventSelector.Package,
+			"address", eventConfig.Package,
 			"module", eventConfig.Name,
 			"eventType", eventConfig.EventType,
 			"eventHandle", eventHandle,

@@ -51,6 +51,8 @@ public fun initialize<T>(
     lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     let (_, lock_release_token_pool_state_address, _, _) =
@@ -64,6 +66,8 @@ public fun initialize<T>(
         lock_release_token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
+        lock_or_burn_params,
+        release_or_mint_params,
         TypeProof {},
     );
 }
@@ -78,6 +82,8 @@ public fun initialize_by_ccip_admin<T>(
     lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     let (coin_metadata_address, lock_release_token_pool_state_address, token_type, type_proof_type_name) =
@@ -93,6 +99,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
+        lock_or_burn_params,
+        release_or_mint_params,
         ctx,
     );
 }
@@ -250,15 +258,15 @@ public struct TypeProof has drop {}
 
 public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
-    clock: &Clock,
-    state: &mut LockReleaseTokenPoolState<T>,
     c: Coin<T>,
-    token_params: dd::TokenParams,
+    token_params: &mut dd::TokenParams,
+    state: &mut LockReleaseTokenPoolState<T>,
+    clock: &Clock,
     ctx: &mut TxContext
-): dd::TokenParams {
+) {
     let amount = c.value();
     let sender = ctx.sender();
-    let remote_chain_selector = dd::get_destination_chain_selector(&token_params);
+    let remote_chain_selector = dd::get_destination_chain_selector(token_params);
 
     // This metod validates various aspects of the lock or burn operation. If any of the
     // validations fail, the transaction will abort.
@@ -287,7 +295,7 @@ public fun lock_or_burn<T: drop>(
         dest_token_address,
         extra_data,
         TypeProof {},
-    )
+    );
 }
 
 /// after releasing the token, this function will mark this particular token transfer as complete
@@ -296,10 +304,10 @@ public fun lock_or_burn<T: drop>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    clock: &Clock,
-    pool: &mut LockReleaseTokenPoolState<T>,
-    receiver_params: osh::ReceiverParams,
+    mut receiver_params: osh::ReceiverParams,
     index: u64,
+    pool: &mut LockReleaseTokenPoolState<T>,
+    clock: &Clock,
     ctx: &mut TxContext
 ): osh::ReceiverParams {
     let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);

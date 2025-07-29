@@ -87,7 +87,7 @@ public fun test_register_receiver() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
     
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Verify the receiver is registered
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -95,7 +95,7 @@ public fun test_register_receiver() {
     
     // Get receiver config and verify fields
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (module_name, function_name, receiver_state_id, proof_typename) = 
+    let (module_name, function_name, receiver_state_id, _receiver_state_params, proof_typename) = 
         receiver_registry::get_receiver_config_fields(config);
     
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
@@ -115,10 +115,10 @@ public fun test_register_receiver_already_registered() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
     
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Try to register the same receiver again - should fail
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_2, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_2, vector[], TestReceiverProof {});
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -132,10 +132,10 @@ public fun test_register_receiver_same_package_different_proof() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
     
     // Register a receiver with TestReceiverProof
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Try to register with TestReceiverProof2 (same package ID) - should fail
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_2, TestReceiverProof2 {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_2, vector[], TestReceiverProof2 {});
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -148,7 +148,7 @@ public fun test_register_multiple_receivers_same_package() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
     
     // Register first receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Verify both proof types have the same package ID (they're in the same module)
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -160,7 +160,7 @@ public fun test_register_multiple_receivers_same_package() {
     
     // Verify the config contains the first proof type
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (_, _, state_id, proof_type) = receiver_registry::get_receiver_config_fields(config);
+    let (_, _, state_id, _state_params, proof_type) = receiver_registry::get_receiver_config_fields(config);
     
     assert!(state_id == RECEIVER_STATE_ID_1);
     assert!(proof_type == type_name::get<TestReceiverProof>());
@@ -176,7 +176,7 @@ public fun test_unregister_receiver() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
     
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Verify it's registered
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
@@ -218,7 +218,7 @@ public fun test_is_registered_receiver() {
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
     
     // Register receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Check registered receiver
     assert!(receiver_registry::is_registered_receiver(&ref, package_id_1));
@@ -254,12 +254,12 @@ public fun test_get_receiver_config() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
     
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Get the config
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (module_name, function_name, receiver_state_id, proof_typename) = 
+    let (module_name, function_name, receiver_state_id, _receiver_state_params, proof_typename) = 
         receiver_registry::get_receiver_config_fields(config);
     
     // Verify all fields
@@ -280,17 +280,19 @@ public fun test_get_receiver_module_and_state() {
     
     // Test unregistered receiver - should return empty values
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
-    let (module_name, state_id) = receiver_registry::get_receiver_module_and_state(&ref, package_id_1);
+    let (module_name, state_id, state_params) = receiver_registry::get_receiver_info(&ref, package_id_1);
     assert!(module_name == string::utf8(b""));
     assert!(state_id == @0x0);
+    assert!(state_params == vector[]);
     
     // Register a receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     
     // Test registered receiver - should return actual values
-    let (module_name, state_id) = receiver_registry::get_receiver_module_and_state(&ref, package_id_1);
+    let (module_name, state_id, state_params) = receiver_registry::get_receiver_info(&ref, package_id_1);
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(state_id == RECEIVER_STATE_ID_1);
+    assert!(state_params == vector[]);
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -303,18 +305,19 @@ public fun test_register_receiver_with_zero_state_id() {
     receiver_registry::initialize(&mut ref, &owner_cap, ctx);
     
     // Register a receiver with zero state ID (stateless receiver)
-    receiver_registry::register_receiver(&mut ref, @0x0, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, @0x0, vector[], TestReceiverProof {});
     
     // Verify the receiver is registered with zero state ID
     let package_id_1 = get_package_id_from_proof<TestReceiverProof>();
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (_, _, receiver_state_id, _) = receiver_registry::get_receiver_config_fields(config);
+    let (_, _, receiver_state_id, _, _) = receiver_registry::get_receiver_config_fields(config);
     assert!(receiver_state_id == @0x0);
     
-    // Verify get_receiver_module_and_state returns zero state ID
-    let (module_name, state_id) = receiver_registry::get_receiver_module_and_state(&ref, package_id_1);
+    // Verify get_receiver_info returns zero state ID
+    let (module_name, state_id, state_params) = receiver_registry::get_receiver_info(&ref, package_id_1);
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
     assert!(state_id == @0x0);
+    assert!(state_params == vector[]);
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -331,12 +334,12 @@ public fun test_complete_receiver_lifecycle() {
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
     
     // 2. Register receiver
-    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, TestReceiverProof {});
+    receiver_registry::register_receiver(&mut ref, RECEIVER_STATE_ID_1, vector[], TestReceiverProof {});
     assert!(receiver_registry::is_registered_receiver(&ref, package_id_1));
     
     // 3. Verify config is correct
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
-    let (module_name, function_name, receiver_state_id, proof_typename) = 
+    let (module_name, function_name, receiver_state_id, _receiver_state_params, proof_typename) = 
         receiver_registry::get_receiver_config_fields(config);
     
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
@@ -345,18 +348,20 @@ public fun test_complete_receiver_lifecycle() {
     assert!(proof_typename == type_name::get<TestReceiverProof>());
     
     // 4. Verify module and state lookup
-    let (lookup_module, lookup_state) = receiver_registry::get_receiver_module_and_state(&ref, package_id_1);
+    let (lookup_module, lookup_state, lookup_params) = receiver_registry::get_receiver_info(&ref, package_id_1);
     assert!(lookup_module == module_name);
     assert!(lookup_state == receiver_state_id);
+    assert!(lookup_params == vector[]);
     
     // 5. Unregister receiver
     receiver_registry::unregister_receiver(&mut ref, &owner_cap, package_id_1, ctx);
     assert!(!receiver_registry::is_registered_receiver(&ref, package_id_1));
     
     // 6. Verify lookup returns empty values after unregistration
-    let (empty_module, empty_state) = receiver_registry::get_receiver_module_and_state(&ref, package_id_1);
+    let (empty_module, empty_state, empty_params) = receiver_registry::get_receiver_info(&ref, package_id_1);
     assert!(empty_module == string::utf8(b""));
     assert!(empty_state == @0x0);
+    assert!(empty_params == vector[]);
     
     cleanup_test(scenario, ref, owner_cap);
 }
