@@ -42,6 +42,7 @@ tasks:
 
   integration-testnet:
     desc: "Run integration tests in testnet"
+    deps: [integration-setup]
     cmds:
       - for:
           matrix:
