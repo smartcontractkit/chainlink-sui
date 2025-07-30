@@ -60,15 +60,13 @@ public fun initialize_with_managed_token<T>(
     mint_cap: MintCap<T>,
     managed_token_pool_package_id: address,
     token_pool_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     // Get treasury cap reference for registration
     let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
     
     // Initialize the token pool
-    let (_, _, _, _) =
+    let (_, managed_token_state_address, _, _) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     // Register the pool with the token admin registry
@@ -80,8 +78,8 @@ public fun initialize_with_managed_token<T>(
         // managed_token_pool_state_address,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[@0x6, managed_token_state_address],
+        vector[@0x6, managed_token_state_address],
         TypeProof {},
     );
 }
@@ -93,11 +91,9 @@ public fun initialize_by_ccip_admin<T>(
     mint_cap: MintCap<T>,
     managed_token_pool_package_id: address,
     token_pool_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, _, token_type, type_proof_type_name) =
+    let (coin_metadata_address, managed_token_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     token_admin_registry::register_pool_by_admin(
@@ -110,8 +106,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[@0x6, managed_token_state_address],
+        vector[@0x6, managed_token_state_address],
         ctx,
     );
 }
@@ -269,8 +265,8 @@ public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
     c: Coin<T>,
     token_params: &mut dd::TokenParams,
-    state: &mut ManagedTokenPoolState<T>,
     clock: &Clock,
+    state: &mut ManagedTokenPoolState<T>,
     deny_list: &DenyList,
     token_state: &mut TokenState<T>,
     ctx: &mut TxContext
@@ -324,8 +320,8 @@ public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     receiver_params: osh::ReceiverParams,
     index: u64,
-    pool: &mut ManagedTokenPoolState<T>,
     clock: &Clock,
+    pool: &mut ManagedTokenPoolState<T>,
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
     ctx: &mut TxContext,

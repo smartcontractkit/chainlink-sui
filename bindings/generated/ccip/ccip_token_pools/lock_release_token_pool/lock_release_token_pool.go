@@ -22,8 +22,8 @@ var (
 
 type ILockReleaseTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
-	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
+	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -38,8 +38,8 @@ type ILockReleaseTokenPool interface {
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, enabled bool) (*models.SuiTransactionBlockResponse, error)
 	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*models.SuiTransactionBlockResponse, error)
-	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, state bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
+	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error)
 	ProvideLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, c_ bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -75,7 +75,7 @@ type ILockReleaseTokenPoolDevInspect interface {
 	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
-	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object) (bind.Object, error)
+	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (bind.Object, error)
 	WithdrawLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, amount uint64) (any, error)
 	GetRebalancer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	GetBalance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (uint64, error)
@@ -90,9 +90,9 @@ type ILockReleaseTokenPoolDevInspect interface {
 type LockReleaseTokenPoolEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
+	Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error)
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error)
+	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error)
 	InitializeByCcipAdminWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -122,9 +122,9 @@ type LockReleaseTokenPoolEncoder interface {
 	SetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdates(typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, state bind.Object, clock bind.Object) (*bind.EncodedCall, error)
+	LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	LockOrBurnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object) (*bind.EncodedCall, error)
+	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigs(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -316,8 +316,8 @@ func (c *LockReleaseTokenPoolContract) TypeAndVersion(ctx context.Context, opts 
 }
 
 // Initialize executes the initialize Move function.
-func (c *LockReleaseTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, lockReleaseTokenPoolPackageId, tokenPoolAdministrator, rebalancer, lockOrBurnParams, releaseOrMintParams)
+func (c *LockReleaseTokenPoolContract) Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.Initialize(typeArgs, ref, coinMetadata, treasuryCap, lockReleaseTokenPoolPackageId, tokenPoolAdministrator, rebalancer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -326,8 +326,8 @@ func (c *LockReleaseTokenPoolContract) Initialize(ctx context.Context, opts *bin
 }
 
 // InitializeByCcipAdmin executes the initialize_by_ccip_admin Move function.
-func (c *LockReleaseTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, ownerCap, coinMetadata, lockReleaseTokenPoolPackageId, tokenPoolAdministrator, rebalancer, lockOrBurnParams, releaseOrMintParams)
+func (c *LockReleaseTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, ownerCap, coinMetadata, lockReleaseTokenPoolPackageId, tokenPoolAdministrator, rebalancer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -476,8 +476,8 @@ func (c *LockReleaseTokenPoolContract) ApplyAllowlistUpdates(ctx context.Context
 }
 
 // LockOrBurn executes the lock_or_burn Move function.
-func (c *LockReleaseTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, state bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, tokenParams, state, clock)
+func (c *LockReleaseTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, tokenParams, clock, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -486,8 +486,8 @@ func (c *LockReleaseTokenPoolContract) LockOrBurn(ctx context.Context, opts *bin
 }
 
 // ReleaseOrMint executes the release_or_mint Move function.
-func (c *LockReleaseTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, pool, clock)
+func (c *LockReleaseTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -918,8 +918,8 @@ func (d *LockReleaseTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts 
 // ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *LockReleaseTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, pool, clock)
+func (d *LockReleaseTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, state)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1156,7 +1156,7 @@ func (c lockReleaseTokenPoolEncoder) TypeAndVersionWithArgs(args ...any) (*bind.
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c lockReleaseTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1168,8 +1168,6 @@ func (c lockReleaseTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Obje
 		"address",
 		"address",
 		"address",
-		"vector<address>",
-		"vector<address>",
 	}, []any{
 		ref,
 		coinMetadata,
@@ -1177,8 +1175,6 @@ func (c lockReleaseTokenPoolEncoder) Initialize(typeArgs []string, ref bind.Obje
 		lockReleaseTokenPoolPackageId,
 		tokenPoolAdministrator,
 		rebalancer,
-		lockOrBurnParams,
-		releaseOrMintParams,
 	}, nil)
 }
 
@@ -1192,8 +1188,6 @@ func (c lockReleaseTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args 
 		"address",
 		"address",
 		"address",
-		"vector<address>",
-		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1207,7 +1201,7 @@ func (c lockReleaseTokenPoolEncoder) InitializeWithArgs(typeArgs []string, args 
 }
 
 // InitializeByCcipAdmin encodes a call to the initialize_by_ccip_admin Move function.
-func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string, lockOrBurnParams []string, releaseOrMintParams []string) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ownerCap bind.Object, coinMetadata bind.Object, lockReleaseTokenPoolPackageId string, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1219,8 +1213,6 @@ func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, re
 		"address",
 		"address",
 		"address",
-		"vector<address>",
-		"vector<address>",
 	}, []any{
 		ref,
 		ownerCap,
@@ -1228,8 +1220,6 @@ func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdmin(typeArgs []string, re
 		lockReleaseTokenPoolPackageId,
 		tokenPoolAdministrator,
 		rebalancer,
-		lockOrBurnParams,
-		releaseOrMintParams,
 	}, nil)
 }
 
@@ -1243,8 +1233,6 @@ func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdminWithArgs(typeArgs []st
 		"address",
 		"address",
 		"address",
-		"vector<address>",
-		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1777,7 +1765,7 @@ func (c lockReleaseTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []st
 }
 
 // LockOrBurn encodes a call to the lock_or_burn Move function.
-func (c lockReleaseTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, state bind.Object, clock bind.Object) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1786,14 +1774,14 @@ func (c lockReleaseTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Obje
 		"&CCIPObjectRef",
 		"Coin<T>",
 		"&mut dd::TokenParams",
-		"&mut LockReleaseTokenPoolState<T>",
 		"&Clock",
+		"&mut LockReleaseTokenPoolState<T>",
 	}, []any{
 		ref,
 		c_,
 		tokenParams,
-		state,
 		clock,
+		state,
 	}, nil)
 }
 
@@ -1804,8 +1792,8 @@ func (c lockReleaseTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args 
 		"&CCIPObjectRef",
 		"Coin<T>",
 		"&mut dd::TokenParams",
-		"&mut LockReleaseTokenPoolState<T>",
 		"&Clock",
+		"&mut LockReleaseTokenPoolState<T>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1819,7 +1807,7 @@ func (c lockReleaseTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args 
 }
 
 // ReleaseOrMint encodes a call to the release_or_mint Move function.
-func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1828,14 +1816,14 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 		"&CCIPObjectRef",
 		"osh::ReceiverParams",
 		"u64",
-		"&mut LockReleaseTokenPoolState<T>",
 		"&Clock",
+		"&mut LockReleaseTokenPoolState<T>",
 	}, []any{
 		ref,
 		receiverParams,
 		index,
-		pool,
 		clock,
+		state,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -1848,8 +1836,8 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, ar
 		"&CCIPObjectRef",
 		"osh::ReceiverParams",
 		"u64",
-		"&mut LockReleaseTokenPoolState<T>",
 		"&Clock",
+		"&mut LockReleaseTokenPoolState<T>",
 	}
 
 	if len(args) != len(expectedParams) {

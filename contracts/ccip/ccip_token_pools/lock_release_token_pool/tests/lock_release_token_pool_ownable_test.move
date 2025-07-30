@@ -65,8 +65,6 @@ module lock_release_token_pool::lock_release_token_pool_ownable_test {
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
 

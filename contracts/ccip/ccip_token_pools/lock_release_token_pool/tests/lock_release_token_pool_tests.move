@@ -93,8 +93,6 @@ public fun test_initialize_and_basic_functionality() {
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -154,8 +152,6 @@ public fun test_chain_configuration_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -247,8 +243,6 @@ public fun test_liquidity_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -337,8 +331,6 @@ public fun test_rebalancer_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -403,8 +395,6 @@ public fun test_rate_limiter_configuration() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -510,8 +500,6 @@ public fun test_allowlist_management() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -599,8 +587,6 @@ public fun test_unauthorized_liquidity_provision() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -659,8 +645,6 @@ public fun test_withdraw_exceeds_balance() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -734,8 +718,6 @@ public fun test_unauthorized_withdrawal() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -810,8 +792,6 @@ public fun test_destroy_token_pool() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -892,8 +872,6 @@ public fun test_edge_cases_and_getters() {
             @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
-            vector[],
-            vector[],
             ctx
         );
         
@@ -995,8 +973,6 @@ public fun test_lock_or_burn_functionality() {
         @0x1000, // token_pool_package_id
         TOKEN_ADMIN,
         REBALANCER,
-        vector[], // lock_or_burn_params
-        vector[], // release_or_mint_params
         ctx
     );
     
@@ -1069,8 +1045,8 @@ public fun test_lock_or_burn_functionality() {
             &ccip_ref,
             test_coin, // This coin gets locked in the pool
             &mut token_params,
-            &mut pool_state,
             &clock,
+            &mut pool_state,
             &mut ctx
         );
         
@@ -1151,8 +1127,6 @@ public fun test_release_or_mint_functionality() {
             @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1264,8 +1238,8 @@ public fun test_release_or_mint_functionality() {
             &ccip_ref,
             receiver_params,
             0, // index of the token transfer
-            &mut pool_state,
             &clock,
+            &mut pool_state,
             &mut ctx
         );
         

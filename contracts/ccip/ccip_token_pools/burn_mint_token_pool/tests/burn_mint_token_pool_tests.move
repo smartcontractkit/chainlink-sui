@@ -83,8 +83,6 @@ public fun test_initialize_and_basic_functionality() {
             treasury_cap,
             @burn_mint_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -150,8 +148,6 @@ public fun test_chain_configuration_management() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -249,8 +245,6 @@ public fun test_allowlist_management() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -310,8 +304,6 @@ public fun test_rate_limiter_configuration() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -414,8 +406,6 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -479,8 +469,6 @@ public fun test_comprehensive_allowlist_operations() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -543,8 +531,6 @@ public fun test_destroy_token_pool() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -602,8 +588,6 @@ public fun test_comprehensive_rate_limiter_operations() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -705,8 +689,6 @@ public fun test_edge_cases_and_boundary_conditions() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -816,8 +798,6 @@ public fun test_lock_or_burn_comprehensive() {
             treasury_cap, // treasury_cap is moved here
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -891,8 +871,8 @@ public fun test_lock_or_burn_comprehensive() {
             &ccip_ref,
             test_coin, // This coin gets burned
             &mut token_params,
-            &mut pool_state,
             &clock,
+            &mut pool_state,
             &mut ctx
         );
         
@@ -955,8 +935,6 @@ public fun test_release_or_mint_comprehensive() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1028,8 +1006,8 @@ public fun test_release_or_mint_comprehensive() {
             &ccip_ref,
             receiver_params,
             0, // index of the token transfer
-            &mut pool_state,
             &clock,
+            &mut pool_state,
             &mut ctx
         );
         
@@ -1095,8 +1073,6 @@ public fun test_set_allowlist_enabled() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1160,8 +1136,6 @@ public fun test_apply_allowlist_updates() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
@@ -1262,8 +1236,6 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             treasury_cap,
             @burn_mint_token_pool,
             @0x123,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx
         );
         
