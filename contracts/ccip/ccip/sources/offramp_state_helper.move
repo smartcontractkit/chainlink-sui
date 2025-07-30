@@ -138,7 +138,7 @@ public fun complete_token_transfer<TypeProof: drop>(
 
     let token_transfer = receiver_params.params[index];
     assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
-    let (token_pool_package_id, _, _, _, _, _, type_proof, _, _) = registry::get_token_config(ref, token_transfer.dest_token_address);
+    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config(ref, token_transfer.dest_token_address);
     assert!(
         token_transfer.token_pool_address == token_pool_package_id,
         ETokenPoolAddressMismatch,

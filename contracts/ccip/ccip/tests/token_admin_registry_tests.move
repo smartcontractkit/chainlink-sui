@@ -93,7 +93,7 @@ fun register_test_pool<T>(
     treasury_cap: &coin::TreasuryCap<T>,
     coin_metadata: &coin::CoinMetadata<T>,
     pool_package_id: address,
-    pool_state_address: address,
+    // pool_state_address: address,
     pool_module: vector<u8>,
     admin: address
 ) {
@@ -102,7 +102,7 @@ fun register_test_pool<T>(
         treasury_cap,
         coin_metadata,
         pool_package_id,
-        pool_state_address,
+        // pool_state_address,
         string::utf8(pool_module),
         admin,
         vector[], // lock_or_burn_params
@@ -117,7 +117,7 @@ fun assert_empty_token_config(
 ) {
     let (
         token_pool_package_id,
-        token_pool_state_address,
+        // token_pool_state_address,
         token_pool_module,
         token_type,
         administrator,
@@ -128,7 +128,7 @@ fun assert_empty_token_config(
     ) = registry::get_token_config(ref, token_address);
 
     assert!(token_pool_package_id == @0x0);
-    assert!(token_pool_state_address == @0x0);
+    // assert!(token_pool_state_address == @0x0);
     assert!(token_pool_module == string::utf8(b""));
     assert!(token_type == ascii::string(b""));
     assert!(administrator == @0x0);
@@ -140,7 +140,7 @@ fun assert_token_config(
     ref: &CCIPObjectRef,
     token_address: address,
     expected_package_id: address,
-    expected_state_address: address,
+    // expected_state_address: address,
     expected_module: vector<u8>,
     expected_type: ascii::String,
     expected_admin: address,
@@ -148,7 +148,7 @@ fun assert_token_config(
 ) {
     let (
         token_pool_package_id,
-        token_pool_state_address,
+        // token_pool_state_address,
         token_pool_module,
         token_type,
         administrator,
@@ -159,7 +159,7 @@ fun assert_token_config(
     ) = registry::get_token_config(ref, token_address);
 
     assert!(token_pool_package_id == expected_package_id);
-    assert!(token_pool_state_address == expected_state_address);
+    // assert!(token_pool_state_address == expected_state_address);
     assert!(token_pool_module == string::utf8(expected_module));
     assert!(token_type == expected_type);
     assert!(administrator == expected_admin);
@@ -214,7 +214,7 @@ public fun test_get_pool() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -249,7 +249,7 @@ public fun test_register_pool_by_admin() {
             &owner_cap,
             @0x123, // coin_metadata_address
             MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1, // token_pool_state_address
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1, // token_pool_state_address
             string::utf8(b"admin_registered_pool"), // token_pool_module
             ascii::string(b"TestType"),
             TOKEN_ADMIN_ADDRESS, // initial_administrator
@@ -290,7 +290,7 @@ public fun test_register_and_unregister() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS_2
         );
@@ -338,7 +338,7 @@ public fun test_register_and_set_pool() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -354,14 +354,14 @@ public fun test_register_and_set_pool() {
             &ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool",
             type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );
 
-        let (_, _, _, token_type, _, _, type_proof, _, _) = registry::get_token_config(&ref, local_token);
+        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config(&ref, local_token);
         assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
 
@@ -372,7 +372,7 @@ public fun test_register_and_set_pool() {
             &mut ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             string::utf8(b"mock_token_pool_2"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -396,14 +396,14 @@ public fun test_register_and_set_pool() {
             &ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             b"mock_token_pool_2",
             type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             TOKEN_ADMIN_ADDRESS_2
         );
 
-        let (_, _, _, token_type, _, _, type_proof, _, _) = registry::get_token_config(&ref, local_token);
+        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config(&ref, local_token);
         assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof2>()));
 
@@ -443,7 +443,7 @@ public fun test_get_pool_infos() {
             &treasury_cap_1,
             &coin_metadata_1,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool_1",
             TOKEN_ADMIN_ADDRESS
         );
@@ -453,7 +453,7 @@ public fun test_get_pool_infos() {
             &treasury_cap_2,
             &coin_metadata_2,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             string::utf8(b"mock_token_pool_2"),
             TOKEN_ADMIN_ADDRESS,
             vector[], // lock_or_burn_params
@@ -644,7 +644,7 @@ public fun test_set_pool_comprehensive() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"initial_token_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -654,14 +654,14 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"initial_token_pool",
             type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );
 
-        let (_, _, _, _, _, _, type_proof, _, _) = registry::get_token_config(&ref, local_token);
+        let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config(&ref, local_token);
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
 
         let ctx = scenario.ctx();
@@ -671,7 +671,7 @@ public fun test_set_pool_comprehensive() {
             &mut ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             string::utf8(b"updated_token_pool"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -684,14 +684,14 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             b"updated_token_pool",
             type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );
 
-        let (_, _, _, _, _, _, updated_type_proof, _, _) = registry::get_token_config(&ref, local_token);
+        let (_, _, _, _, _, updated_type_proof, _, _) = registry::get_token_config(&ref, local_token);
         assert!(updated_type_proof == type_name::into_string(type_name::get<TypeProof2>()));
 
         // Test set_pool with same package ID (should not trigger update)
@@ -699,7 +699,7 @@ public fun test_set_pool_comprehensive() {
             &mut ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2, // same package ID
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1, // different state address
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1, // different state address
             string::utf8(b"should_not_update"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -712,14 +712,14 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2, // unchanged
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2, // unchanged
             b"updated_token_pool", // unchanged
             type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );
 
-        let (_, _, _, _, _, _, final_type_proof, _, _) = registry::get_token_config(&ref, local_token);
+        let (_, _, _, _, _, final_type_proof, _, _) = registry::get_token_config(&ref, local_token);
         assert!(final_type_proof == type_name::into_string(type_name::get<TypeProof2>())); // unchanged
         
         transfer::public_transfer(treasury_cap, ctx.sender());
@@ -768,7 +768,7 @@ public fun test_register_and_unregister_as_non_admin() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS_2
         );
@@ -834,7 +834,7 @@ public fun test_set_pool_unregistered_token() {
             &mut ref,
             @0x999, // unregistered token
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             string::utf8(b"test_pool"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -867,7 +867,7 @@ public fun test_set_pool_unauthorized() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS_2
         );
@@ -888,7 +888,7 @@ public fun test_set_pool_unauthorized() {
             &mut ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             string::utf8(b"unauthorized_update"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -944,7 +944,7 @@ public fun test_register_pool_already_registered() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"first_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -955,7 +955,7 @@ public fun test_register_pool_already_registered() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_2,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             b"second_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -988,7 +988,7 @@ public fun test_transfer_admin_role_not_administrator() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -1032,7 +1032,7 @@ public fun test_accept_admin_role_not_pending() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -1080,7 +1080,7 @@ public fun test_accept_admin_role_no_pending_transfer() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            MOCK_TOKEN_POOL_STATE_ADDRESS_1,
+            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS
         );
