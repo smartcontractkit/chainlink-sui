@@ -73,6 +73,8 @@ public struct PoolInfos has copy, drop {
     // token_pool_state_addresses: vector<address>,
     token_pool_modules: vector<String>,
     token_types: vector<ascii::String>,
+    lock_or_burn_params: vector<vector<address>>,
+    release_or_mint_params: vector<vector<address>>,
 }
 
 const ENotPendingAdministrator: u64 = 1;
@@ -127,7 +129,6 @@ public fun get_pools(
     token_pool_addresses
 }
 
-// return params
 public fun get_pool_infos(
     ref: &CCIPObjectRef,
     coin_metadata_addresses: vector<address>
@@ -138,6 +139,8 @@ public fun get_pool_infos(
     // let mut token_pool_state_addresses: vector<address> = vector[];
     let mut token_pool_modules: vector<String> = vector[];
     let mut token_types: vector<ascii::String> = vector[];
+    let mut lock_or_burn_params: vector<vector<address>> = vector[];
+    let mut release_or_mint_params: vector<vector<address>> = vector[];
     coin_metadata_addresses.do_ref!(
         |metadata_address| {
             let metadata_address: address = *metadata_address;
@@ -147,6 +150,8 @@ public fun get_pool_infos(
                 // token_pool_state_addresses.push_back(token_config.token_pool_state_address);
                 token_pool_modules.push_back(token_config.token_pool_module);
                 token_types.push_back(token_config.token_type);
+                lock_or_burn_params.push_back(token_config.lock_or_burn_params);
+                release_or_mint_params.push_back(token_config.release_or_mint_params);
             } else {
                 // returns @0x0 for assets without token pools.
                 token_pool_package_ids.push_back(@0x0);
@@ -162,6 +167,8 @@ public fun get_pool_infos(
         // token_pool_state_addresses,
         token_pool_modules,
         token_types,
+        lock_or_burn_params,
+        release_or_mint_params,
     }
 }
 
@@ -188,7 +195,6 @@ public fun get_token_config(
         let token_config = state.token_configs.borrow(coin_metadata_address);
         (
             token_config.token_pool_package_id,
-            // token_config.token_pool_state_address,
             token_config.token_pool_module,
             token_config.token_type,
             token_config.administrator,
@@ -200,6 +206,45 @@ public fun get_token_config(
     } else {
         (@0x0, string::utf8(b""), ascii::string(b""), @0x0, @0x0, ascii::string(b""), vector[], vector[])
     }
+}
+
+public fun get_token_configs(
+    ref: &CCIPObjectRef, coin_metadata_addresses: vector<address>
+): (vector<address>, vector<String>, vector<ascii::String>, vector<address>, vector<address>, vector<ascii::String>, vector<vector<address>>, vector<vector<address>>) {
+    let mut token_pool_package_ids: vector<address> = vector[];
+    let mut token_pool_modules: vector<String> = vector[];
+    let mut token_types: vector<ascii::String> = vector[];
+    let mut administrators: vector<address> = vector[];
+    let mut pending_administrators: vector<address> = vector[];
+    let mut type_proofs: vector<ascii::String> = vector[];
+    let mut lock_or_burn_params: vector<vector<address>> = vector[];
+    let mut release_or_mint_params: vector<vector<address>> = vector[];
+
+    coin_metadata_addresses.do_ref!(
+        |coin_metadata_address| {
+            let coin_metadata_address: address = *coin_metadata_address;
+            let (token_pool_package_id, token_pool_module, token_type, administrator, pending_administrator, type_proof, lock_or_burn_params_vec, release_or_mint_params_vec) = get_token_config(ref, coin_metadata_address);
+            token_pool_package_ids.push_back(token_pool_package_id);
+            token_pool_modules.push_back(token_pool_module);
+            token_types.push_back(token_type);
+            administrators.push_back(administrator);
+            pending_administrators.push_back(pending_administrator);
+            type_proofs.push_back(type_proof);
+            lock_or_burn_params.push_back(lock_or_burn_params_vec);
+            release_or_mint_params.push_back(release_or_mint_params_vec);
+        }
+    );
+
+    (
+        token_pool_package_ids,
+        token_pool_modules,
+        token_types,
+        administrators,
+        pending_administrators,
+        type_proofs,
+        lock_or_burn_params,
+        release_or_mint_params,
+    )
 }
 
 /// Get configured tokens paginated using a start key and limit.
