@@ -11,6 +11,7 @@ module ccip_onramp::onramp {
     use sui::event;
     use sui::hash;
     use sui::package::UpgradeCap;
+    use sui::vec_set;
     use sui::table::{Self, Table};
 
     use ccip::onramp_state_helper as osh;
@@ -147,6 +148,7 @@ module ccip_onramp::onramp {
     const EZeroChainSelector: u64 = 16;
     const ECalculateMessageHashInvalidArguments: u64 = 17;
     const EInvalidRemoteChainSelector: u64 = 18;
+    const DuplicateSourceTokenCoinMetadataAddress: u64 = 19;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -733,11 +735,14 @@ module ccip_onramp::onramp {
         let mut token_transfers = vector[];
         let mut i = 0;
         let tokens_len = token_params.length();
+        let mut coin_metadata_addresses = vec_set::empty<address>();
 
         while (i < tokens_len) {
             let (remote_chain_selector, source_pool_package_id, amount, source_token_coin_metadata_address, dest_token_address, extra_data) = osh::get_source_token_transfer_data(&token_params, i);
             assert!(remote_chain_selector == dest_chain_selector, EInvalidRemoteChainSelector);
             assert!(amount > 0, ECannotSendZeroTokens);
+            assert!(!coin_metadata_addresses.contains(&source_token_coin_metadata_address), DuplicateSourceTokenCoinMetadataAddress);
+            coin_metadata_addresses.insert(source_token_coin_metadata_address);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
                     source_pool_address: source_pool_package_id,
