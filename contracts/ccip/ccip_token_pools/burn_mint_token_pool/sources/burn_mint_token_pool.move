@@ -34,6 +34,8 @@ public struct BurnMintTokenPoolState<phantom T> has key {
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 
+const CLOCK_ADDRESS: address = @0x6;
+
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -60,8 +62,8 @@ public fun initialize<T>(
         burn_mint_token_pool_package_id,
         string::utf8(b"burn_mint_token_pool"),
         token_pool_administrator,
-        vector[@0x6, object::uid_to_address(&burn_mint_token_pool.id)],
-        vector[@0x6, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         TypeProof {},
     );
 
@@ -89,8 +91,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        vector[@0x6, object::uid_to_address(&burn_mint_token_pool.id)],
-        vector[@0x6, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         ctx,
     );
 

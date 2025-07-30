@@ -38,6 +38,9 @@ const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
 
+const CLOCK_ADDRESS: address = @0x6;
+const DENY_LIST_ADDRESS: address = @0x403;
+
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -77,8 +80,8 @@ public fun initialize_with_managed_token<T>(
         managed_token_pool_package_id,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
-        vector[@0x6, @0x403, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
-        vector[@0x6, @0x403, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
         TypeProof {},
     );  
 }
@@ -105,8 +108,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        vector[@0x6, @0x403, managed_token_state, managed_token_pool_state_address],
-        vector[@0x6, @0x403, managed_token_state, managed_token_pool_state_address],
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, managed_token_state, managed_token_pool_state_address],
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, managed_token_state, managed_token_pool_state_address],
         ctx,
     );
 }

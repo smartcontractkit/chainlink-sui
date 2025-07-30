@@ -36,6 +36,8 @@ const EUnauthorized: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
 
+const CLOCK_ADDRESS: address = @0x6;
+
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -63,8 +65,8 @@ public fun initialize<T>(
         lock_release_token_pool_package_id,
         string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
-        vector[@0x6, token_pool_state_address],
-        vector[@0x6, token_pool_state_address],
+        vector[CLOCK_ADDRESS, token_pool_state_address],
+        vector[CLOCK_ADDRESS, token_pool_state_address],
         TypeProof {},
     );
 }
@@ -93,8 +95,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        vector[@0x6, token_pool_state_address],
-        vector[@0x6, token_pool_state_address],
+        vector[CLOCK_ADDRESS, token_pool_state_address],
+        vector[CLOCK_ADDRESS, token_pool_state_address],
         ctx,
     );
 }
