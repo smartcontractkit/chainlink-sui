@@ -1,4 +1,4 @@
-module ccip::dynamic_dispatcher;
+module ccip::onramp_state_helper;
 
 use std::type_name;
 
@@ -7,7 +7,7 @@ use ccip::token_admin_registry as registry;
 
 const ETypeProofMismatch: u64 = 1;
 
-public struct DYNAMIC_DISPATCHER has drop {}
+public struct ONRAMP_STATE_HELPER has drop {}
 
 /// the cap to be stored in the onramp state to control the source token transfer
 public struct SourceTransferCap has key, store {
@@ -23,7 +23,7 @@ public struct TokenTransferParams {
     extra_data: vector<u8>,
 }
 
-fun init(_witness: DYNAMIC_DISPATCHER, ctx: &mut TxContext) {
+fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
     let source_cap = SourceTransferCap {
         id: object::new(ctx),
     };
@@ -83,5 +83,5 @@ public fun get_source_token_transfer_data(token_transfer_params: &vector<TokenTr
 
 #[test_only]
 public fun test_init(ctx: &mut TxContext) {
-    init(DYNAMIC_DISPATCHER {}, ctx);
+    init(ONRAMP_STATE_HELPER {}, ctx);
 }

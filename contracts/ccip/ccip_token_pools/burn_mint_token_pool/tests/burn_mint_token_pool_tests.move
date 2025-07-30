@@ -5,8 +5,8 @@ use std::string;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario;
-use ccip::dynamic_dispatcher;
-use ccip::offramp_state_helper;
+use ccip::onramp_state_helper as onramp_sh;
+use ccip::offramp_state_helper as offramp_sh;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::rmn_remote;
@@ -771,7 +771,7 @@ public fun test_lock_or_burn_comprehensive() {
 
     // Setup CCIP environment
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
-    dynamic_dispatcher::test_init(scenario.ctx());
+    onramp_sh::test_init(scenario.ctx());
     
     // Create token and initialize pool
     scenario.next_tx(@burn_mint_token_pool);
@@ -812,7 +812,7 @@ public fun test_lock_or_burn_comprehensive() {
         let mut pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ccip_ref = scenario.take_shared<CCIPObjectRef>();
-        let source_transfer_cap = scenario.take_from_sender<dynamic_dispatcher::SourceTransferCap>();
+        let source_transfer_cap = scenario.take_from_sender<onramp_sh::SourceTransferCap>();
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
         
@@ -877,9 +877,9 @@ public fun test_lock_or_burn_comprehensive() {
         token_transfer_params.push_back(token_transfer_param);
 
         // Clean up token params
-        let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@burn_mint_token_pool);
+        let source_transfer_cap = scenario.take_from_address<onramp_sh::SourceTransferCap>(@burn_mint_token_pool);
 
-        let (remote_chain, source_pool, amount, source_token_address, dest_token_address, extra_data) = dynamic_dispatcher::get_source_token_transfer_data(&token_transfer_params, 0);
+        let (remote_chain, source_pool, amount, source_token_address, dest_token_address, extra_data) = onramp_sh::get_source_token_transfer_data(&token_transfer_params, 0);
         assert!(remote_chain == DefaultRemoteChain);
         assert!(source_pool == @burn_mint_token_pool);
         assert!(amount == initial_coin_value);
@@ -887,7 +887,7 @@ public fun test_lock_or_burn_comprehensive() {
         assert!(dest_token_address == DefaultRemoteToken);
         assert!(extra_data.length() > 0); // Should contain encoded decimals
 
-        dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_transfer_params);
+        onramp_sh::deconstruct_token_params(&source_transfer_cap, token_transfer_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(source_transfer_cap, @burn_mint_token_pool);
@@ -904,7 +904,7 @@ public fun test_release_or_mint_comprehensive() {
 
     // Setup CCIP environment
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
-    offramp_state_helper::test_init(scenario.ctx());
+    offramp_sh::test_init(scenario.ctx());
     
     // Create token and initialize pool
     scenario.next_tx(@burn_mint_token_pool);
@@ -944,7 +944,7 @@ public fun test_release_or_mint_comprehensive() {
         let mut pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ccip_ref = scenario.take_shared<CCIPObjectRef>();
-        let dest_transfer_cap = scenario.take_from_sender<offramp_state_helper::DestTransferCap>();
+        let dest_transfer_cap = scenario.take_from_sender<offramp_sh::DestTransferCap>();
         let mut ctx = tx_context::dummy();
         let mut clock = clock::create_for_testing(&mut ctx);
         
@@ -975,7 +975,7 @@ public fun test_release_or_mint_comprehensive() {
         clock.increment_for_testing(1000000);
         
         // Create receiver params for release_or_mint
-        let mut receiver_params = offramp_state_helper::create_receiver_params(&dest_transfer_cap, DefaultRemoteChain);
+        let mut receiver_params = offramp_sh::create_receiver_params(&dest_transfer_cap, DefaultRemoteChain);
         
         // Add token transfer to receiver params
         let receiver_address = @0x789;
@@ -983,7 +983,7 @@ public fun test_release_or_mint_comprehensive() {
         let source_pool_data = x"0000000000000000000000000000000000000000000000000000000000000008"; // 8 decimals encoded
         let offchain_data = vector[];
         
-        offramp_state_helper::add_dest_token_transfer(
+        offramp_sh::add_dest_token_transfer(
             &dest_transfer_cap,
             &mut receiver_params,
             receiver_address,
@@ -1006,11 +1006,11 @@ public fun test_release_or_mint_comprehensive() {
         );
         
         // Verify the operation completed successfully
-        let source_chain = offramp_state_helper::get_source_chain_selector(&updated_receiver_params);
+        let source_chain = offramp_sh::get_source_chain_selector(&updated_receiver_params);
         assert!(source_chain == DefaultRemoteChain);
         
         // Clean up receiver params
-        offramp_state_helper::deconstruct_receiver_params(&dest_transfer_cap, updated_receiver_params);
+        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, updated_receiver_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, @burn_mint_token_pool);

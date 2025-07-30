@@ -7,9 +7,9 @@ use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::UpgradeCap;
 
-use ccip::dynamic_dispatcher as dd;
 use ccip::eth_abi;
-use ccip::offramp_state_helper as osh;
+use ccip::onramp_state_helper as onramp_sh;
+use ccip::offramp_state_helper as offramp_sh;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 
@@ -259,7 +259,7 @@ public fun lock_or_burn<T: drop>(
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
-): dd::TokenTransferParams {
+): onramp_sh::TokenTransferParams {
     let amount = c.value();
     let sender = ctx.sender();
 
@@ -280,7 +280,7 @@ public fun lock_or_burn<T: drop>(
 
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
 
-    dd::create_token_transfer_params(
+    onramp_sh::create_token_transfer_params(
         ref,
         remote_chain_selector,
         amount,
@@ -297,14 +297,14 @@ public fun lock_or_burn<T: drop>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    receiver_params: osh::ReceiverParams,
+    receiver_params: offramp_sh::ReceiverParams,
     index: u64,
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
-): osh::ReceiverParams {
-    let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(&receiver_params, index);
+): offramp_sh::ReceiverParams {
+    let remote_chain_selector = offramp_sh::get_source_chain_selector(&receiver_params);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(&receiver_params, index);
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &state.token_pool_state,
         source_pool_data,
@@ -336,7 +336,7 @@ public fun release_or_mint<T>(
     );
     transfer::public_transfer(c, receiver);
 
-    osh::complete_token_transfer(
+    offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
         index,

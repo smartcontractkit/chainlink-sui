@@ -829,7 +829,7 @@ func (d *ManagedTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *b
 
 // LockOrBurn executes the lock_or_burn Move function using DevInspect to get return values.
 //
-// Returns: dd::TokenTransferParams
+// Returns: onramp_sh::TokenTransferParams
 func (d *ManagedTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.managedTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, remoteChainSelector, clock, denyList, tokenState, state)
 	if err != nil {
@@ -851,7 +851,7 @@ func (d *ManagedTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.
 
 // ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
 //
-// Returns: osh::ReceiverParams
+// Returns: offramp_sh::ReceiverParams
 func (d *ManagedTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.managedTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, denyList, tokenState, state)
 	if err != nil {
@@ -1665,7 +1665,7 @@ func (c managedTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, 
 		tokenState,
 		state,
 	}, []string{
-		"dd::TokenTransferParams",
+		"onramp_sh::TokenTransferParams",
 	})
 }
 
@@ -1690,7 +1690,7 @@ func (c managedTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...a
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"dd::TokenTransferParams",
+		"onramp_sh::TokenTransferParams",
 	})
 }
 
@@ -1702,7 +1702,7 @@ func (c managedTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Objec
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&DenyList",
@@ -1717,7 +1717,7 @@ func (c managedTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Objec
 		tokenState,
 		state,
 	}, []string{
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 	})
 }
 
@@ -1726,7 +1726,7 @@ func (c managedTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Objec
 func (c managedTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&DenyList",
@@ -1742,7 +1742,7 @@ func (c managedTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args .
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 	})
 }
 

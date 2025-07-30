@@ -13,7 +13,7 @@ module ccip_onramp::onramp {
     use sui::package::UpgradeCap;
     use sui::table::{Self, Table};
 
-    use ccip::dynamic_dispatcher as dd;
+    use ccip::onramp_state_helper as osh;
     use ccip::eth_abi;
     use ccip::fee_quoter;
     use ccip::merkle_proof;
@@ -37,7 +37,7 @@ module ccip_onramp::onramp {
         // coin metadata address -> Coin
         fee_tokens: Bag,
         nonce_manager_cap: Option<NonceManagerCap>,
-        source_transfer_cap: Option<dd::SourceTransferCap>,
+        source_transfer_cap: Option<osh::SourceTransferCap>,
         ownable_state: OwnableState,
     }
 
@@ -187,7 +187,7 @@ module ccip_onramp::onramp {
         state: &mut OnRampState,
         _: &OwnerCap,
         nonce_manager_cap: NonceManagerCap,
-        source_transfer_cap: dd::SourceTransferCap,
+        source_transfer_cap: osh::SourceTransferCap,
         chain_selector: u64,
         fee_aggregator: address,
         allowlist_admin: address,
@@ -716,7 +716,7 @@ module ccip_onramp::onramp {
         dest_chain_selector: u64,
         receiver: vector<u8>,
         data: vector<u8>,
-        token_params: vector<dd::TokenTransferParams>,
+        token_params: vector<osh::TokenTransferParams>,
         fee_token_metadata: &CoinMetadata<T>,
         fee_token: &mut Coin<T>,
         extra_args: vector<u8>,
@@ -734,7 +734,7 @@ module ccip_onramp::onramp {
         let tokens_len = token_params.length();
 
         while (i < tokens_len) {
-            let (_, source_pool, amount, source_token_address, dest_token_address, extra_data) = dd::get_source_token_transfer_data(&token_params, i);
+            let (_, source_pool, amount, source_token_address, dest_token_address, extra_data) = osh::get_source_token_transfer_data(&token_params, i);
             assert!(amount > 0, ECannotSendZeroTokens);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
@@ -754,7 +754,7 @@ module ccip_onramp::onramp {
         };
 
         // Clean up the token params
-        dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
+        osh::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
 
         let fee_token_amount =
             get_fee_internal(

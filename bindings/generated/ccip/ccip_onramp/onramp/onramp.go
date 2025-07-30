@@ -234,7 +234,7 @@ type OnRampState struct {
 	DestChainConfigs  bind.Object  `move:"Table<u64, DestChainConfig>"`
 	FeeTokens         bind.Object  `move:"Bag"`
 	NonceManagerCap   *bind.Object `move:"0x1::option::Option<NonceManagerCap>"`
-	SourceTransferCap *bind.Object `move:"0x1::option::Option<dd::SourceTransferCap>"`
+	SourceTransferCap *bind.Object `move:"0x1::option::Option<osh::SourceTransferCap>"`
 	OwnableState      bind.Object  `move:"OwnableState"`
 }
 
@@ -1459,7 +1459,7 @@ func (c onrampEncoder) Initialize(state bind.Object, param bind.Object, nonceMan
 		"&mut OnRampState",
 		"&OwnerCap",
 		"NonceManagerCap",
-		"dd::SourceTransferCap",
+		"osh::SourceTransferCap",
 		"u64",
 		"address",
 		"address",
@@ -1487,7 +1487,7 @@ func (c onrampEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, error
 		"&mut OnRampState",
 		"&OwnerCap",
 		"NonceManagerCap",
-		"dd::SourceTransferCap",
+		"osh::SourceTransferCap",
 		"u64",
 		"address",
 		"address",
@@ -2175,7 +2175,7 @@ func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.O
 		"u64",
 		"vector<u8>",
 		"vector<u8>",
-		"vector<dd::TokenTransferParams>",
+		"vector<osh::TokenTransferParams>",
 		"&CoinMetadata<T>",
 		"&mut Coin<T>",
 		"vector<u8>",
@@ -2205,7 +2205,7 @@ func (c onrampEncoder) CcipSendWithArgs(typeArgs []string, args ...any) (*bind.E
 		"u64",
 		"vector<u8>",
 		"vector<u8>",
-		"vector<dd::TokenTransferParams>",
+		"vector<osh::TokenTransferParams>",
 		"&CoinMetadata<T>",
 		"&mut Coin<T>",
 		"vector<u8>",

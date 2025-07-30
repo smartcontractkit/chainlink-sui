@@ -918,7 +918,7 @@ func (d *LockReleaseTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts 
 
 // LockOrBurn executes the lock_or_burn Move function using DevInspect to get return values.
 //
-// Returns: dd::TokenTransferParams
+// Returns: onramp_sh::TokenTransferParams
 func (d *LockReleaseTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.lockReleaseTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, remoteChainSelector, clock, state)
 	if err != nil {
@@ -940,7 +940,7 @@ func (d *LockReleaseTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *b
 
 // ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
 //
-// Returns: osh::ReceiverParams
+// Returns: offramp_sh::ReceiverParams
 func (d *LockReleaseTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, state)
 	if err != nil {
@@ -1806,7 +1806,7 @@ func (c lockReleaseTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Obje
 		clock,
 		state,
 	}, []string{
-		"dd::TokenTransferParams",
+		"onramp_sh::TokenTransferParams",
 	})
 }
 
@@ -1829,7 +1829,7 @@ func (c lockReleaseTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args 
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"dd::TokenTransferParams",
+		"onramp_sh::TokenTransferParams",
 	})
 }
 
@@ -1841,7 +1841,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&mut LockReleaseTokenPoolState<T>",
@@ -1852,7 +1852,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 		clock,
 		state,
 	}, []string{
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 	})
 }
 
@@ -1861,7 +1861,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 func (c lockReleaseTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&mut LockReleaseTokenPoolState<T>",
@@ -1875,7 +1875,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, ar
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"osh::ReceiverParams",
+		"offramp_sh::ReceiverParams",
 	})
 }
 

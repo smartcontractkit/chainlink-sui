@@ -1,5 +1,5 @@
 #[test_only]
-module ccip::dynamic_dispatcher_tests;
+module ccip::onramp_state_helper_tests;
 
 use std::ascii;
 use std::string;
@@ -7,11 +7,11 @@ use std::type_name;
 
 use sui::test_scenario::{Self as ts, Scenario};
 
-use ccip::dynamic_dispatcher::{Self, SourceTransferCap};
+use ccip::onramp_state_helper::{Self, SourceTransferCap};
 use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 
-public struct DYNAMIC_DISPATCHER_TESTS has drop {}
+public struct ONRAMP_STATE_HELPER_TESTS has drop {}
 
 public struct TestTypeProof has drop {}
 public struct TestTypeProof2 has drop {}
@@ -41,8 +41,8 @@ fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, SourceTransferCap) {
     // Initialize token admin registry
     registry::initialize(&mut ref, &owner_cap, scenario.ctx());
     
-    // Create dynamic dispatcher and get source transfer cap
-    dynamic_dispatcher::test_init(scenario.ctx());
+    // Create onramp state helper and get source transfer cap
+    onramp_state_helper::test_init(scenario.ctx());
     
     scenario.next_tx(OWNER);
     let source_cap = scenario.take_from_sender<SourceTransferCap>();
@@ -79,7 +79,7 @@ public fun test_create_token_transfer_params() {
     );
     
     // Test creating token transfer params with valid data
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         1000, // amount
@@ -92,7 +92,7 @@ public fun test_create_token_transfer_params() {
     // Test the token params by putting it in a vector and getting data
     let token_params_vec = vector[token_params];
     let (remote_chain, source_pool, amount, source_token, dest_token, extra_data) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(source_pool == TOKEN_POOL_PACKAGE_ID_1);
@@ -102,13 +102,13 @@ public fun test_create_token_transfer_params() {
     assert!(extra_data == b"extra_data");
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 
 #[test]
-#[expected_failure(abort_code = dynamic_dispatcher::ETypeProofMismatch)]
+#[expected_failure(abort_code = onramp_state_helper::ETypeProofMismatch)]
 public fun test_create_token_transfer_params_wrong_proof() {
     let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
     
@@ -128,7 +128,7 @@ public fun test_create_token_transfer_params_wrong_proof() {
     );
     
     // Try to create token transfer params with wrong proof type - should fail
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         1000,
@@ -139,7 +139,7 @@ public fun test_create_token_transfer_params_wrong_proof() {
     );
 
     let token_params_vec = vector[token_params];
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 
@@ -163,7 +163,7 @@ public fun test_get_remote_chain_selector() {
     );
     
     // Test creating token transfer params with different chain selectors
-    let token_params1 = dynamic_dispatcher::create_token_transfer_params(
+    let token_params1 = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         1000,
@@ -174,7 +174,7 @@ public fun test_get_remote_chain_selector() {
     );
     
     let different_chain = 2000;
-    let token_params2 = dynamic_dispatcher::create_token_transfer_params(
+    let token_params2 = onramp_state_helper::create_token_transfer_params(
         &ref,
         different_chain,
         1000,
@@ -187,17 +187,17 @@ public fun test_get_remote_chain_selector() {
     // Test retrieving the remote chain selectors
     let token_params_vec1 = vector[token_params1];
     let (remote_chain1, _, _, _, _, _) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec1, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec1, 0);
     assert!(remote_chain1 == DESTINATION_CHAIN_SELECTOR);
     
     let token_params_vec2 = vector[token_params2];
     let (remote_chain2, _, _, _, _, _) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec2, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec2, 0);
     assert!(remote_chain2 == different_chain);
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec1);
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec2);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec1);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec2);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -222,7 +222,7 @@ public fun test_create_and_verify_token_transfer() {
     );
     
     // Create source token transfer
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         1000, // amount
@@ -235,7 +235,7 @@ public fun test_create_and_verify_token_transfer() {
     // Verify the token transfer data
     let token_params_vec = vector[token_params];
     let (remote_chain, source_pool, amount, source_token_address, dest_token_address, extra_data) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(source_pool == TOKEN_POOL_PACKAGE_ID_1);
@@ -245,7 +245,7 @@ public fun test_create_and_verify_token_transfer() {
     assert!(extra_data == b"extra_data");
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -284,7 +284,7 @@ public fun test_multiple_token_transfers() {
     );
     
     // Create first token transfer
-    let token_params1 = dynamic_dispatcher::create_token_transfer_params(
+    let token_params1 = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         1000,
@@ -295,7 +295,7 @@ public fun test_multiple_token_transfers() {
     );
     
     // Create second token transfer  
-    let token_params2 = dynamic_dispatcher::create_token_transfer_params(
+    let token_params2 = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         2000,
@@ -310,7 +310,7 @@ public fun test_multiple_token_transfers() {
     
     // Verify first transfer
     let (remote_chain1, source_pool1, amount1, source_token_address1, dest_token_address1, extra_data1) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(remote_chain1 == DESTINATION_CHAIN_SELECTOR);
     assert!(source_pool1 == TOKEN_POOL_PACKAGE_ID_1);
@@ -321,7 +321,7 @@ public fun test_multiple_token_transfers() {
     
     // Verify second transfer
     let (remote_chain2, source_pool2, amount2, source_token_address2, dest_token_address2, extra_data2) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 1);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 1);
     
     assert!(remote_chain2 == DESTINATION_CHAIN_SELECTOR);
     assert!(source_pool2 == TOKEN_POOL_PACKAGE_ID_2);
@@ -331,7 +331,7 @@ public fun test_multiple_token_transfers() {
     assert!(extra_data2 == b"extra_data_2");
 
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 
@@ -343,7 +343,7 @@ public fun test_deconstruct_empty_params_vector() {
     let empty_params_vec = vector[];
     
     // Deconstruct should work with empty vector
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, empty_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, empty_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -368,7 +368,7 @@ public fun test_get_source_token_transfer_data() {
     );
     
     // Create token transfer with specific data
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         12345, // specific amount
@@ -381,7 +381,7 @@ public fun test_get_source_token_transfer_data() {
     // Get the transfer and verify all data
     let token_params_vec = vector[token_params];
     let (remote_chain, source_pool, amount, source_token_address, dest_token_address, extra_data) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(source_pool == TOKEN_POOL_PACKAGE_ID_1);
@@ -391,7 +391,7 @@ public fun test_get_source_token_transfer_data() {
     assert!(extra_data == x"cafebabe");
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -417,7 +417,7 @@ public fun test_edge_case_large_amounts() {
     
     // Test with maximum u64 value
     let max_amount = 18446744073709551615; // u64::MAX
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         max_amount,
@@ -428,12 +428,12 @@ public fun test_edge_case_large_amounts() {
     );
     
     let token_params_vec = vector[token_params];
-    let (_, _, amount, _, _, _) = dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+    let (_, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(amount == max_amount);
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -458,7 +458,7 @@ public fun test_edge_case_empty_data() {
     );
     
     // Test with empty destination address and extra data
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         100,
@@ -470,13 +470,13 @@ public fun test_edge_case_empty_data() {
     
     let token_params_vec = vector[token_params];
     let (_, _, _, _, dest_token_address, extra_data) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(dest_token_address == vector<u8>[]);
     assert!(extra_data == vector<u8>[]);
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -507,7 +507,7 @@ public fun test_different_destination_chains() {
     
     while (i < chains.length()) {
         let chain = chains[i];
-        let token_params = dynamic_dispatcher::create_token_transfer_params(
+        let token_params = onramp_state_helper::create_token_transfer_params(
             &ref,
             chain,
             1000,
@@ -518,7 +518,7 @@ public fun test_different_destination_chains() {
         );
         
         let mut temp_vec = vector[token_params];
-        let (remote_chain, _, _, _, _, _) = dynamic_dispatcher::get_source_token_transfer_data(&temp_vec, 0);
+        let (remote_chain, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(&temp_vec, 0);
         assert!(remote_chain == chain);
         
         token_params_list.push_back(temp_vec.pop_back());
@@ -527,7 +527,7 @@ public fun test_different_destination_chains() {
     };
     
     // Clean up all token params
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_list);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_list);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -552,7 +552,7 @@ public fun test_zero_amount_transfer() {
     );
     
     // Test with zero amount - should be allowed
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         0, // zero amount
@@ -563,12 +563,12 @@ public fun test_zero_amount_transfer() {
     );
     
     let token_params_vec = vector[token_params];
-    let (_, _, amount, _, _, _) = dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+    let (_, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(amount == 0);
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -593,7 +593,7 @@ public fun test_source_transfer_cap_permission() {
     );
     
     // Create a source token transfer
-    let token_params = dynamic_dispatcher::create_token_transfer_params(
+    let token_params = onramp_state_helper::create_token_transfer_params(
         &ref,
         DESTINATION_CHAIN_SELECTOR,
         1000,
@@ -607,7 +607,7 @@ public fun test_source_transfer_cap_permission() {
     // This test verifies that only the holder of SourceTransferCap can deconstruct
     let token_params_vec = vector[token_params];
     let (remote_chain, source_pool, amount, source_token_address, dest_token_address, extra_data) = 
-        dynamic_dispatcher::get_source_token_transfer_data(&token_params_vec, 0);
+        onramp_state_helper::get_source_token_transfer_data(&token_params_vec, 0);
     
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(source_pool == TOKEN_POOL_PACKAGE_ID_1);
@@ -617,7 +617,7 @@ public fun test_source_transfer_cap_permission() {
     assert!(extra_data == b"extra_data");
     
     // Clean up
-    dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params_vec);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params_vec);
     
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
