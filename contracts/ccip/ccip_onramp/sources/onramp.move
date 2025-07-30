@@ -146,6 +146,7 @@ module ccip_onramp::onramp {
     const ECannotSendZeroTokens: u64 = 15;
     const EZeroChainSelector: u64 = 16;
     const ECalculateMessageHashInvalidArguments: u64 = 17;
+    const EInvalidRemoteChainSelector: u64 = 18;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -734,11 +735,12 @@ module ccip_onramp::onramp {
         let tokens_len = token_params.length();
 
         while (i < tokens_len) {
-            let (_, source_pool, amount, source_token_address, dest_token_address, extra_data) = osh::get_source_token_transfer_data(&token_params, i);
+            let (remote_chain_selector, source_pool_package_id, amount, source_token_coin_metadata_address, dest_token_address, extra_data) = osh::get_source_token_transfer_data(&token_params, i);
+            assert!(remote_chain_selector == dest_chain_selector, EInvalidRemoteChainSelector);
             assert!(amount > 0, ECannotSendZeroTokens);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
-                    source_pool_address: source_pool,
+                    source_pool_address: source_pool_package_id,
                     amount,
                     dest_token_address,
                     extra_data: extra_data, // encoded decimals
@@ -746,7 +748,7 @@ module ccip_onramp::onramp {
                 }
             );
             token_amounts.push_back(amount);
-            source_tokens.push_back(source_token_address);
+            source_tokens.push_back(source_token_coin_metadata_address);
             dest_tokens.push_back(dest_token_address);
             dest_pool_datas.push_back(extra_data);
 
