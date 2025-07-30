@@ -454,9 +454,9 @@ public fun test_lock_or_burn_functionality() {
             test_coin,        // c parameter (coin)
             &mut token_params, // token_params parameter (modified in place)
             &clock,           // clock parameter
-            &mut pool_state,  // state parameter
             &deny_list,       // deny_list parameter
             &mut token_state, // token_state parameter
+            &mut pool_state,  // state parameter
             &mut ctx          // context parameter
         );
         
@@ -642,9 +642,9 @@ public fun test_release_or_mint_functionality() {
             receiver_params,
             0, // index of the token transfer
             &clock,
-            &mut pool_state,
-            &mut token_state,
             &deny_list,
+            &mut token_state,
+            &mut pool_state,
             &mut ctx
         );
         
@@ -705,6 +705,7 @@ public fun test_initialize_by_ccip_admin() {
         coin_metadata
     };
     
+    let mut managed_token_state_address = @0x0;
     scenario.next_tx(@managed_token_pool);
     {
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
@@ -720,6 +721,7 @@ public fun test_initialize_by_ccip_admin() {
             scenario.ctx()
         );
         
+        managed_token_state_address = object::id_to_address(&object::id(&token_state));
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
     };
@@ -737,6 +739,7 @@ public fun test_initialize_by_ccip_admin() {
             &ccip_owner_cap,
             &coin_metadata,
             mint_cap,
+            managed_token_state_address,
             @managed_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
             scenario.ctx()
