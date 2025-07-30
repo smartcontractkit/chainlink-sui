@@ -47,6 +47,9 @@ module ccip_onramp::onramp_test {
     // Test token for fee testing - using proper one-time witness pattern
     public struct ONRAMP_TEST has drop {}
 
+    // Type proof for token transfers in tests
+    public struct TypeProof has drop {}
+
     // Helper function to create test token with proper one-time witness
     #[test_only]
     public fun create_test_token(ctx: &mut TxContext): (coin::TreasuryCap<ONRAMP_TEST>, CoinMetadata<ONRAMP_TEST>) {
@@ -819,8 +822,8 @@ module ccip_onramp::onramp_test {
         // Switch to unauthorized sender
         env.scenario.next_tx(@0x999); // Not in allowlist for DEST_CHAIN_SELECTOR_1
         
-        // Create empty token params for testing
-        let token_params = dd::create_token_params(DEST_CHAIN_SELECTOR_1, EVM_RECEIVER_ADDRESS);
+        // Create empty token params for testing (this test is about sender authorization, not token handling)
+        let token_params = vector[];
 
         // Test ccip_send function - this will fail on fee quoter validation first
         // before reaching the sender allowlist check
@@ -831,6 +834,8 @@ module ccip_onramp::onramp_test {
             ref,
             state,
             clock,
+            DEST_CHAIN_SELECTOR_1,
+            EVM_RECEIVER_ADDRESS,
             b"data",
             token_params,
             &coin_metadata,

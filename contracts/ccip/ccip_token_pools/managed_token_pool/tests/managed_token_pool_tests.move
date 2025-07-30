@@ -25,7 +25,7 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
-const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
+
 
 const CCIP_ADMIN: address = @0x400;
 
@@ -445,40 +445,35 @@ public fun test_lock_or_burn_functionality() {
         let initial_coin_value = test_coin.value();
         assert!(initial_coin_value == 1000);
         
-        // Create token params for the lock_or_burn operation
-        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
+        let mut token_transfer_params = vector[];
         
         // Actually call lock_or_burn function
-        managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
+        let token_transfer_param = managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
             &ccip_ref,        // ref parameter
             test_coin,        // c parameter (coin)
-            &mut token_params, // token_params parameter (modified in place)
+            DefaultRemoteChain, // remote_chain_selector parameter
             &clock,           // clock parameter
             &deny_list,       // deny_list parameter
             &mut token_state, // token_state parameter
             &mut pool_state,  // state parameter
             &mut ctx          // context parameter
         );
-        
-        // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
-        assert!(destination_chain == DefaultRemoteChain);
+        token_transfer_params.push_back(token_transfer_param);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@managed_token_pool);
-        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
-        assert!(chain_selector == DefaultRemoteChain);
-        assert!(receiver == DefaultRemoteReceiver);
-        assert!(transfers.length() == 1);
         
         // Verify transfer data
-        let (_source_pool, amount, _source_token_address, dest_token_address, extra_data) = 
-            dynamic_dispatcher::get_source_token_transfer_data(transfers[0]);
+        let (chain_selector, _source_pool_package_id, amount, _source_token_address, dest_token_address, extra_data) = 
+            dynamic_dispatcher::get_source_token_transfer_data(&token_transfer_params, 0);
+        assert!(chain_selector == DefaultRemoteChain);
         assert!(amount == initial_coin_value);
         // Note: source_pool should be the token address (coin metadata address), not the package address
         // This is different from the burn mint token pool due to different implementation
         assert!(dest_token_address == DefaultRemoteToken);
         assert!(extra_data.length() > 0); // Should contain encoded decimals
+        
+        dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_transfer_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(source_transfer_cap, @managed_token_pool);

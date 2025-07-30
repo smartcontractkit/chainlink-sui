@@ -38,7 +38,7 @@ type IBurnMintTokenPool interface {
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, enabled bool) (*models.SuiTransactionBlockResponse, error)
 	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*models.SuiTransactionBlockResponse, error)
-	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error)
@@ -70,6 +70,7 @@ type IBurnMintTokenPoolDevInspect interface {
 	GetSupportedChains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]uint64, error)
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
+	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (bind.Object, error)
 	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object) (bind.Object, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (any, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
@@ -114,7 +115,7 @@ type BurnMintTokenPoolEncoder interface {
 	SetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdates(typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	LockOrBurnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, pool bind.Object) (*bind.EncodedCall, error)
 	ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -437,8 +438,8 @@ func (c *BurnMintTokenPoolContract) ApplyAllowlistUpdates(ctx context.Context, o
 }
 
 // LockOrBurn executes the lock_or_burn Move function.
-func (c *BurnMintTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, tokenParams, clock, state)
+func (c *BurnMintTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, remoteChainSelector, clock, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -822,6 +823,28 @@ func (d *BurnMintTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts *bi
 	result, ok := results[0].([]string)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// LockOrBurn executes the lock_or_burn Move function using DevInspect to get return values.
+//
+// Returns: dd::TokenTransferParams
+func (d *BurnMintTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.burnMintTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, remoteChainSelector, clock, state)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -1611,7 +1634,7 @@ func (c burnMintTokenPoolEncoder) ApplyAllowlistUpdatesWithArgs(typeArgs []strin
 }
 
 // LockOrBurn encodes a call to the lock_or_burn Move function.
-func (c burnMintTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1619,16 +1642,18 @@ func (c burnMintTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object,
 	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"Coin<T>",
-		"&mut dd::TokenParams",
+		"u64",
 		"&Clock",
 		"&mut BurnMintTokenPoolState<T>",
 	}, []any{
 		ref,
 		c_,
-		tokenParams,
+		remoteChainSelector,
 		clock,
 		state,
-	}, nil)
+	}, []string{
+		"dd::TokenTransferParams",
+	})
 }
 
 // LockOrBurnWithArgs encodes a call to the lock_or_burn Move function using arbitrary arguments.
@@ -1637,7 +1662,7 @@ func (c burnMintTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"Coin<T>",
-		"&mut dd::TokenParams",
+		"u64",
 		"&Clock",
 		"&mut BurnMintTokenPoolState<T>",
 	}
@@ -1649,7 +1674,9 @@ func (c burnMintTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"dd::TokenTransferParams",
+	})
 }
 
 // ReleaseOrMint encodes a call to the release_or_mint Move function.

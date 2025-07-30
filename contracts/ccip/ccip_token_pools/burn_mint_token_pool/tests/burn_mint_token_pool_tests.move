@@ -20,7 +20,7 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
-const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
+
 const NewRemoteChain: u64 = 3000;
 const NewRemotePool: vector<u8> = b"new_remote_pool";
 const NewRemoteToken: vector<u8> = b"new_remote_token";
@@ -863,37 +863,31 @@ public fun test_lock_or_burn_comprehensive() {
         let initial_coin_value = coin::value(&test_coin);
         assert!(initial_coin_value == 1000);
         
-        // Create token params for the operation
-        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
-        
+        let mut token_transfer_params = vector[];
+
         // Perform lock_or_burn operation (this burns the coin)
-        burn_mint_token_pool::lock_or_burn(
+        let token_transfer_param = burn_mint_token_pool::lock_or_burn(
             &ccip_ref,
             test_coin, // This coin gets burned
-            &mut token_params,
+            DefaultRemoteChain,
             &clock,
             &mut pool_state,
             &mut ctx
         );
-        
-        // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
-        assert!(destination_chain == DefaultRemoteChain);
-        
+        token_transfer_params.push_back(token_transfer_param);
+
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@burn_mint_token_pool);
-        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
-        assert!(chain_selector == DefaultRemoteChain);
-        assert!(receiver == DefaultRemoteReceiver);
-        assert!(transfers.length() == 1);
-        
-        // Verify transfer data
-        let (source_pool, amount, _source_token_address, dest_token_address, extra_data) = 
-            dynamic_dispatcher::get_source_token_transfer_data(transfers[0]);
-        assert!(amount == initial_coin_value);
+
+        let (remote_chain, source_pool, amount, source_token_address, dest_token_address, extra_data) = dynamic_dispatcher::get_source_token_transfer_data(&token_transfer_params, 0);
+        assert!(remote_chain == DefaultRemoteChain);
         assert!(source_pool == @burn_mint_token_pool);
+        assert!(amount == initial_coin_value);
+        assert!(source_token_address == burn_mint_token_pool::get_token(&pool_state));
         assert!(dest_token_address == DefaultRemoteToken);
         assert!(extra_data.length() > 0); // Should contain encoded decimals
+
+        dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_transfer_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(source_transfer_cap, @burn_mint_token_pool);

@@ -713,8 +713,10 @@ module ccip_onramp::onramp {
         ref: &mut CCIPObjectRef,
         state: &mut OnRampState,
         clock: &Clock,
+        dest_chain_selector: u64,
+        receiver: vector<u8>,
         data: vector<u8>,
-        token_params: dd::TokenParams,
+        token_params: vector<dd::TokenTransferParams>,
         fee_token_metadata: &CoinMetadata<T>,
         fee_token: &mut Coin<T>,
         extra_args: vector<u8>,
@@ -723,19 +725,16 @@ module ccip_onramp::onramp {
         // get_fee_internal will check curse status
         let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
 
-        // the hot potato is returned and consumed
-        let (dest_chain_selector, receiver, params) = dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
-
         let mut token_amounts = vector[];
         let mut source_tokens = vector[];
         let mut dest_tokens = vector[];
         let mut dest_pool_datas = vector[];
         let mut token_transfers = vector[];
         let mut i = 0;
-        let tokens_len = params.length();
+        let tokens_len = token_params.length();
 
         while (i < tokens_len) {
-            let (source_pool, amount, source_token_address, dest_token_address, extra_data) = dd::get_source_token_transfer_data(params[i]);
+            let (_, source_pool, amount, source_token_address, dest_token_address, extra_data) = dd::get_source_token_transfer_data(&token_params, i);
             assert!(amount > 0, ECannotSendZeroTokens);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
@@ -753,6 +752,9 @@ module ccip_onramp::onramp {
 
             i = i + 1;
         };
+
+        // Clean up the token params
+        dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
 
         let fee_token_amount =
             get_fee_internal(

@@ -22,10 +22,9 @@ const Decimals: u8 = 8;
 const DefaultRemoteChain: u64 = 2000;
 const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
-const DefaultRemoteReceiver: vector<u8> = b"01234567890123456789012345678901"; // 32 bytes
+
 const REBALANCER: address = @0x100;
 const TOKEN_ADMIN: address = @0x200;
-
 const CCIP_ADMIN: address = @0x400;
 
 fun create_test_scenario(addr: address): Scenario {
@@ -1036,42 +1035,35 @@ public fun test_lock_or_burn_functionality() {
         assert!(initial_coin_value == 5000);
         
         let initial_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
-        
-        // Create token params for the operation
-        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
-        
+
+        let mut token_transfer_params = vector[];
+
         // Call the actual lock_or_burn function
-        lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
+        let token_transfer_param = lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
             test_coin, // This coin gets locked in the pool
-            &mut token_params,
+            DefaultRemoteChain,
             &clock,
             &mut pool_state,
             &mut ctx
         );
-        
+        token_transfer_params.push_back(token_transfer_param);
+
         // Verify pool balance increased by the locked amount
         let new_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         assert!(new_pool_balance == initial_pool_balance + initial_coin_value);
-        
-        // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
-        assert!(destination_chain == DefaultRemoteChain);
-        
+
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(TOKEN_ADMIN);
-        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
+
+        let (chain_selector, source_pool_package_id, amount, source_token_address, dest_token_address, extra_data) = dynamic_dispatcher::get_source_token_transfer_data(&token_transfer_params, 0);
         assert!(chain_selector == DefaultRemoteChain);
-        assert!(receiver == DefaultRemoteReceiver);
-        assert!(transfers.length() == 1);
-        
-        // Verify transfer data
-        let (source_pool, amount, _source_token_address, dest_token_address, extra_data) = 
-            dynamic_dispatcher::get_source_token_transfer_data(transfers[0]);
+        assert!(source_pool_package_id == @0x1000);
         assert!(amount == initial_coin_value);
-        assert!(source_pool == @0x1000); // token_pool_package_id
+        assert!(source_token_address == lock_release_token_pool::get_token(&pool_state));
         assert!(dest_token_address == DefaultRemoteToken);
         assert!(extra_data.length() > 0); // Should contain encoded decimals
+        dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_transfer_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(source_transfer_cap, TOKEN_ADMIN);
