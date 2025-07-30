@@ -294,7 +294,7 @@ public fun lock_or_burn<T>(
 
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    mut receiver_params: osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
     pool: &mut BurnMintTokenPoolState<T>,
     clock: &Clock,

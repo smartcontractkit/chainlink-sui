@@ -73,6 +73,7 @@ type IUsdcTokenPoolDevInspect interface {
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error)
 	GetPackageAuthCaller(ctx context.Context, opts *bind.CallOpts, typeArgs []string) (string, error)
+	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (bind.Object, error)
 	GetDomain(ctx context.Context, opts *bind.CallOpts, pool bind.Object, chainSelector uint64) (Domain, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
@@ -904,6 +905,28 @@ func (d *UsdcTokenPoolDevInspect) GetPackageAuthCaller(ctx context.Context, opts
 	return result, nil
 }
 
+// ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
+//
+// Returns: osh::ReceiverParams
+func (d *UsdcTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, pool bind.Object, clock bind.Object, state bind.Object, messageTransmitterState bind.Object, denyList bind.Object, treasury bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.usdcTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, pool, clock, state, messageTransmitterState, denyList, treasury)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
 // GetDomain executes the get_domain Move function using DevInspect to get return values.
 //
 // Returns: Domain
@@ -1668,7 +1691,7 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"&mut osh::ReceiverParams",
+		"osh::ReceiverParams",
 		"u64",
 		"&mut USDCTokenPoolState",
 		"&Clock",
@@ -1686,7 +1709,9 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 		messageTransmitterState,
 		denyList,
 		treasury,
-	}, nil)
+	}, []string{
+		"osh::ReceiverParams",
+	})
 }
 
 // ReleaseOrMintWithArgs encodes a call to the release_or_mint Move function using arbitrary arguments.
@@ -1694,7 +1719,7 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 func (c usdcTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"&mut osh::ReceiverParams",
+		"osh::ReceiverParams",
 		"u64",
 		"&mut USDCTokenPoolState",
 		"&Clock",
@@ -1711,7 +1736,9 @@ func (c usdcTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...a
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"osh::ReceiverParams",
+	})
 }
 
 // GetDomain encodes a call to the get_domain Move function.

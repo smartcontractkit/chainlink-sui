@@ -5,7 +5,7 @@ use std::type_name;
 
 use sui::address;
 use sui::clock::Clock;
-use sui::coin::{Self, Coin, CoinMetadata};
+use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::{DenyList};
 use sui::event;
 use sui::package::UpgradeCap;
@@ -347,7 +347,7 @@ public fun lock_or_burn<T: drop>(
 
 public fun release_or_mint<T: drop>(
     ref: &CCIPObjectRef,
-    receiver_params: &mut osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
     pool: &mut USDCTokenPoolState,
     clock: &Clock,
@@ -356,9 +356,9 @@ public fun release_or_mint<T: drop>(
     deny_list: &DenyList,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext,
-) {
-    let remote_chain_selector = osh::get_source_chain_selector(receiver_params);
-    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = osh::get_token_param_data(receiver_params, index);
+): osh::ReceiverParams {
+    let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
+    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = osh::get_token_param_data(&receiver_params, index);
     let (message_bytes, attestation) =
         parse_message_and_attestation(offchain_token_data);
 
@@ -413,14 +413,12 @@ public fun release_or_mint<T: drop>(
         remote_chain_selector,
     );
 
-    // TODO: fix this. currently we send a coin with zero balance bc the minting and sending is handled by the TokenMessengerMinter
     osh::complete_token_transfer(
         ref,
         receiver_params,
         index,
-        coin::zero<T>(ctx),
         TypeProof {},
-    );
+    )
 }
 
 fun parse_message_and_attestation(payload: vector<u8>): (vector<u8>, vector<u8>) {

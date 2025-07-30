@@ -60,7 +60,7 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "usdc_token_pool", "USDCTokenPoolState")
 
 	if err1 != nil || err2 != nil {
-		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
+		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: err1=%v, err2=%v", err1, err2)
 	}
 
 	return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{
@@ -70,7 +70,7 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 			OwnerCapObjectId: obj1,
 			StateObjectId:    obj2,
 		},
-	}, err
+	}, nil
 }
 
 var USDCTokenPoolInitializeOp = cld_ops.NewOperation(
@@ -120,7 +120,7 @@ var setDomainsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDC
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.USDCTokenPoolPackageId,
-	}, err
+	}, nil
 }
 
 var USDCTokenPoolSetDomainsOp = cld_ops.NewOperation(
@@ -182,7 +182,7 @@ var applyChainUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.USDCTokenPoolPackageId,
-	}, err
+	}, nil
 }
 
 var USDCTokenPoolApplyChainUpdatesOp = cld_ops.NewOperation(
@@ -237,7 +237,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.USDCTokenPoolPackageId,
-	}, err
+	}, nil
 }
 
 var USDCTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(

@@ -322,7 +322,7 @@ public fun lock_or_burn<T>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    mut receiver_params: osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
     pool: &mut ManagedTokenPoolState<T>,
     clock: &Clock,
