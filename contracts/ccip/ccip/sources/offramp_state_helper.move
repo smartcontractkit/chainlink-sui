@@ -35,8 +35,8 @@ public struct DestTokenTransfer has copy, drop {
     source_amount: u64,
     // the token's coin metadata object id on SUI
     dest_token_address: address,
-    // the token pool state object id on SUI
-    token_pool_address: address,
+    // the destination token pool package id on SUI
+    dest_token_pool_package_id: address,
     // the source pool address on the source chain
     source_pool_address: vector<u8>,
     source_pool_data: vector<u8>,
@@ -73,7 +73,7 @@ public fun add_dest_token_transfer(
     receiver: address,
     source_amount: u64,
     dest_token_address: address,
-    token_pool_address: address,
+    dest_token_pool_package_id: address,
     source_pool_address: vector<u8>,
     source_pool_data: vector<u8>,
     offchain_data: vector<u8>,
@@ -84,7 +84,7 @@ public fun add_dest_token_transfer(
             source_amount,
             // local_amount: 0, // to be calculated by the destination token pool
             dest_token_address,
-            token_pool_address,
+            dest_token_pool_package_id,
             source_pool_address,
             source_pool_data,
             offchain_token_data: offchain_data,
@@ -140,7 +140,7 @@ public fun complete_token_transfer<TypeProof: drop>(
     assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
     let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config(ref, token_transfer.dest_token_address);
     assert!(
-        token_transfer.token_pool_address == token_pool_package_id,
+        token_transfer.dest_token_pool_package_id == token_pool_package_id,
         ETokenPoolAddressMismatch,
     );
     let proof_tn = type_name::get<TypeProof>();
