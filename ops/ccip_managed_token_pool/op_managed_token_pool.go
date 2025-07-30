@@ -83,8 +83,9 @@ type ManagedTokenPoolInitializeByCcipAdminInput struct {
 	CoinObjectTypeArg         string
 	CCIPObjectRefObjectId     string
 	OwnerCapObjectId          string
+	CoinMetadataObjectId      string
+	MintCapObjectId           string
 	ManagedTokenStateObjectId string
-	ManagedTokenOwnerCapId    string
 	TokenPoolPackageId        string
 	TokenPoolAdministrator    string
 }
@@ -103,8 +104,9 @@ var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.CCIPObjectRefObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.ManagedTokenStateObjectId},
-		bind.Object{Id: input.ManagedTokenOwnerCapId},
+		bind.Object{Id: input.CoinMetadataObjectId},
+		bind.Object{Id: input.MintCapObjectId},
+		input.ManagedTokenStateObjectId,
 		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
 	)
@@ -203,6 +205,100 @@ var ManagedTokenPoolApplyChainUpdatesOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Applies chain updates in the CCIP Managed Token Pool contract",
 	applyChainUpdates,
+)
+
+// MTP -- add_remote_pool
+type ManagedTokenPoolAddRemotePoolInput struct {
+	ManagedTokenPoolPackageId string
+	CoinObjectTypeArg         string
+	StateObjectId             string
+	OwnerCap                  string
+	RemoteChainSelector       uint64
+	RemotePoolAddress         string
+}
+
+var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolAddRemotePoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.AddRemotePool(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.RemoteChainSelector,
+		[]byte(input.RemotePoolAddress),
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool add remote pool: %w", err)
+	}
+
+	b.Logger.Infow("AddRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId, "Chain:", input.RemoteChainSelector)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.ManagedTokenPoolPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var ManagedTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "managed_token_pool", "add_remote_pool"),
+	semver.MustParse("0.1.0"),
+	"Adds a remote pool in the CCIP Managed Token Pool contract",
+	addRemotePoolHandler,
+)
+
+// MTP -- remove_remote_pool
+type ManagedTokenPoolRemoveRemotePoolInput struct {
+	ManagedTokenPoolPackageId string
+	CoinObjectTypeArg         string
+	StateObjectId             string
+	OwnerCap                  string
+	RemoteChainSelector       uint64
+	RemotePoolAddress         string
+}
+
+var removeRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolRemoveRemotePoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.RemoveRemotePool(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.RemoteChainSelector,
+		[]byte(input.RemotePoolAddress),
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool remove remote pool: %w", err)
+	}
+
+	b.Logger.Infow("RemoveRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId, "Chain:", input.RemoteChainSelector)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.ManagedTokenPoolPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var ManagedTokenPoolRemoveRemotePoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "managed_token_pool", "remove_remote_pool"),
+	semver.MustParse("0.1.0"),
+	"Removes a remote pool in the CCIP Managed Token Pool contract",
+	removeRemotePoolHandler,
 )
 
 // MTP -- set_chain_rate_limiter_configs
