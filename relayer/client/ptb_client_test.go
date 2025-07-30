@@ -411,6 +411,57 @@ func TestPTBClient(t *testing.T) {
 		require.NoError(t, err)
 		utils.PrettyPrint(values)
 	})
+
+	t.Run("QueryTransactions", func(t *testing.T) {
+		values, err := relayerClient.QueryTransactions(
+			context.Background(),
+			accountAddress,
+			nil,
+			nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, values)
+		require.True(t, len(values.Data) > 0)
+
+		utils.PrettyPrint(values)
+	})
+
+	t.Run("QueryFailedTransactions", func(t *testing.T) {
+		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+
+		values, err := relayerClient.QueryTransactions(
+			context.Background(),
+			accountAddress,
+			nil,
+			nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, values)
+		require.True(t, len(values.Data) > 0)
+
+		failuresCount := 0
+		for _, tx := range values.Data {
+			if tx.Effects.Status.Status == "failure" {
+				failuresCount++
+			}
+		}
+
+		// expect to find the failed transaction in the list
+		require.True(t, failuresCount > 0, "Expected at least one failure")
+
+		// create another failed transaction and use the cursor to ignore the previously fetched ones
+		CreateFailedTransaction(t, relayerClient, packageId, counterObjectId, accountAddress, publicKeyBytes)
+		cursor := &values.NextCursor
+		values, err = relayerClient.QueryTransactions(
+			context.Background(),
+			accountAddress,
+			cursor,
+			nil,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, values)
+		require.Equal(t, 1, len(values.Data))
+	})
 }
 
 func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) string {
@@ -441,4 +492,31 @@ func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient,
 	require.Equal(t, "success", resp.Status.Status, "Expected move call to succeed")
 
 	return resp.TxDigest
+}
+
+func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) {
+	t.Helper()
+	// Prepare arguments for a move call
+	moveCallReq := client.MoveCallRequest{
+		Signer:          accountAddress,
+		PackageObjectId: packageId,
+		Module:          "counter",
+		Function:        "increment_by",
+		Arguments:       []any{counterObjectId, "1000"},
+		GasBudget:       1000000000,
+	}
+
+	// Call MoveCall to prepare the transaction
+	txnMetadata, err := relayerClient.MoveCall(context.Background(), moveCallReq)
+	require.NoError(t, err)
+	require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
+
+	// Verify we can execute the transaction
+	resp, _ := relayerClient.SignAndSendTransaction(
+		context.Background(),
+		txnMetadata.TxBytes,
+		signerPublicKey,
+		"WaitForLocalExecution",
+	)
+	require.Equal(t, "failure", resp.Status.Status, "Expected move call to fail")
 }

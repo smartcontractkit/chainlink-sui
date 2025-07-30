@@ -1,10 +1,13 @@
 #[test_only]
 module managed_token_pool::managed_token_pool_tests;
 
+use std::type_name;
+
 use std::string;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
+
 use ccip::dynamic_dispatcher;
 use ccip::offramp_state_helper;
 use ccip::state_object::{Self, OwnerCap as CCIPOwnerCap, CCIPObjectRef};
@@ -640,9 +643,9 @@ public fun test_release_or_mint_functionality() {
         );
         
         // Actually call release_or_mint function
-        managed_token_pool::release_or_mint(
+        let updated_receiver_params = managed_token_pool::release_or_mint(
             &ccip_ref,
-            &mut receiver_params,
+            receiver_params,
             0, // index of the token transfer
             &mut pool_state,
             &clock,
@@ -652,11 +655,11 @@ public fun test_release_or_mint_functionality() {
         );
         
         // Verify the operation completed successfully
-        let source_chain = offramp_state_helper::get_source_chain_selector(&receiver_params);
+        let source_chain = offramp_state_helper::get_source_chain_selector(&updated_receiver_params);
         assert!(source_chain == DefaultRemoteChain);
         
         // Clean up receiver params
-        offramp_state_helper::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
+        offramp_state_helper::deconstruct_receiver_params(&dest_transfer_cap, updated_receiver_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
@@ -1133,13 +1136,14 @@ public fun test_initialize_with_managed_token_function() {
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
         assert!(pool_address == @0x1000); // Should match the package id we passed
-        
-        let (pool_package_id, pool_state_address, pool_module, _token_type, admin, pending_admin, type_proof, _lock_or_burn_params, _release_or_mint_params) = 
+
+        let (pool_package_id, pool_state_address, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
             token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
-        
+
         assert!(pool_package_id == @0x1000);
         assert!(pool_state_address != @0x0);
         assert!(pool_module == string::utf8(b"managed_token_pool"));
+        assert!(token_type == type_name::get<MANAGED_TOKEN_POOL_TESTS>().into_string());
         assert!(admin == @managed_token_pool);
         assert!(pending_admin == @0x0);
         // type_proof should be the TypeProof type name - we just check it's not empty

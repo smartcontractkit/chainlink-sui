@@ -1,0 +1,9 @@
+[package]
+name = "MockETHToken"
+edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
+
+[addresses]
+mock_eth_token = "_"
+
+[dev-addresses]
+mock_eth_token = "0x1112"

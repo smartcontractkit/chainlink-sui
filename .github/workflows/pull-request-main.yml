@@ -1,14 +1,19 @@
 name: pull-request-main
 
+permissions:
+  contents: read
+  pull-requests: write
+
 on:
   pull_request:
     branches:
       - main
 
 jobs:
-  ci-lint:
-    name: Go Lint
+  fast-tests:
+    name: Unit Tests and Bindings Check
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -16,61 +21,11 @@ jobs:
       - name: Setup Nix
         uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
 
-      - name: Run GolangCI Lint
+      - name: Run Unit Tests
         run: |
-          nix develop --command task lint
+          nix develop --command task test:unit
 
-  ci-lint-misc:
-    name: Lint GH Actions and scripts
-    runs-on: ubuntu-latest
-    steps:
-      - name: Lint Misc (yaml + sh files)
-        uses: smartcontractkit/.github/actions/ci-lint-misc@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # ci-lint-misc@0.1.4
-
-  ci-test:
-    name: Go Test - Unit and Integration
-    runs-on: ubuntu-latest
-    
-    # Add PostgreSQL service
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: chainlink_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
-
-      - name: Run Tests
-        env:
-          TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
-        run: |
-          nix develop --command task test
-
-  bindings-diff-check:
-    name: Check generated bindings
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Nix
-        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
-
-      - name: Run Bindings generate
+      - name: Check Generated Bindings
         run: |
           nix develop --command task bindings:generate
 
@@ -101,3 +56,104 @@ jobs:
         with:
           script: |
             core.setFailed('Contract bindings are outdated. Please run `nix develop -c task bindings:generate` and commit the changes.')
+
+  integration-tests:
+    name: Integration Tests (Bindings + Operations + Relayer)
+    runs-on: ubuntu-latest
+
+    # Add PostgreSQL service for tests that need database
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chainlink_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+
+      - name: Setup Sui Environment
+        run: |
+          nix develop --command sui genesis --force --with-faucet
+
+      - name: Run Bindings Integration Tests
+        env:
+          TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
+        run: |
+          nix develop --command go test -v ./bindings/... -tags="integration"
+
+      - name: Run Operations Tests
+        env:
+          TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
+        run: |
+          nix develop --command go test -v ./ops/... -count=1 -p=1 -tags="integration"
+
+      - name: Run Relayer Integration Tests
+        env:
+          TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
+        run: |
+          cd relayer && nix develop --command go test -count=1 -p=1 -tags="integration" ./...
+
+  system-integration-tests:
+    name: System Integration Tests (Full E2E Scenarios)
+    runs-on: ubuntu-latest
+
+    # Add PostgreSQL service for tests that need database
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chainlink_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+
+      - name: Setup Sui Environment
+        run: |
+          nix develop --command sui genesis --force --with-faucet
+
+      - name: Run System Integration Tests
+        env:
+          TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
+        run: |
+          nix develop --command go test -count=1 -p=1 -tags="integration" ./integration-tests/...
+
+  testnet-integration-tests:
+    name: Testnet Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+
+      - name: Run Integration Tests (Testnet)
+        run: |
+          nix develop --command task test:integration-testnet

@@ -30,6 +30,7 @@ type ICounter interface {
 	IncrementByTwoNoContext(ctx context.Context, opts *bind.CallOpts, admin bind.Object, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IncrementBy(ctx context.Context, opts *bind.CallOpts, counter bind.Object, by uint64) (*models.SuiTransactionBlockResponse, error)
 	IncrementMult(ctx context.Context, opts *bind.CallOpts, counter bind.Object, a uint64, b uint64) (*models.SuiTransactionBlockResponse, error)
+	IncrementByBytesLength(ctx context.Context, opts *bind.CallOpts, counter bind.Object, bytes []byte) (*models.SuiTransactionBlockResponse, error)
 	GetCount(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCountUsingPointer(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCountNoEntry(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -87,6 +88,8 @@ type CounterEncoder interface {
 	IncrementByWithArgs(args ...any) (*bind.EncodedCall, error)
 	IncrementMult(counter bind.Object, a uint64, b uint64) (*bind.EncodedCall, error)
 	IncrementMultWithArgs(args ...any) (*bind.EncodedCall, error)
+	IncrementByBytesLength(counter bind.Object, bytes []byte) (*bind.EncodedCall, error)
+	IncrementByBytesLengthWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCount(counter bind.Object) (*bind.EncodedCall, error)
 	GetCountWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCountUsingPointer(counter bind.Object) (*bind.EncodedCall, error)
@@ -553,6 +556,16 @@ func (c *CounterContract) IncrementBy(ctx context.Context, opts *bind.CallOpts, 
 // IncrementMult executes the increment_mult Move function.
 func (c *CounterContract) IncrementMult(ctx context.Context, opts *bind.CallOpts, counter bind.Object, a uint64, b uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.counterEncoder.IncrementMult(counter, a, b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// IncrementByBytesLength executes the increment_by_bytes_length Move function.
+func (c *CounterContract) IncrementByBytesLength(ctx context.Context, opts *bind.CallOpts, counter bind.Object, bytes []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.counterEncoder.IncrementByBytesLength(counter, bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1319,6 +1332,35 @@ func (c counterEncoder) IncrementMultWithArgs(args ...any) (*bind.EncodedCall, e
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("increment_mult", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// IncrementByBytesLength encodes a call to the increment_by_bytes_length Move function.
+func (c counterEncoder) IncrementByBytesLength(counter bind.Object, bytes []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("increment_by_bytes_length", typeArgsList, typeParamsList, []string{
+		"&mut Counter",
+		"vector<u8>",
+	}, []any{
+		counter,
+		bytes,
+	}, nil)
+}
+
+// IncrementByBytesLengthWithArgs encodes a call to the increment_by_bytes_length Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c counterEncoder) IncrementByBytesLengthWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Counter",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("increment_by_bytes_length", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetCount encodes a call to the get_count Move function.

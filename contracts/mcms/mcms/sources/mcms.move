@@ -151,46 +151,44 @@ module mcms::mcms {
     }
 
     const EInvalidRole: u64 = 1;
-    const EInvalidSignatureLen: u64 = 2;
-    const EInvalidVSignature: u64 = 3;
-    const EInvalidRootLen: u64 = 4;
-    const EMissingConfig: u64 = 5;
-    const EWrongPreOpCount: u64 = 6;
-    const EWrongPostOpCount: u64 = 7;
-    const EProofCannotBeVerified: u64 = 8;
-    const EAlreadySeenHash: u64 = 9;
-    const EValidUntilExpired: u64 = 10;
-    const EWrongMultisig: u64 = 11;
-    const EInvalidSigner: u64 = 12;
-    const ESignerInDisabledGroup: u64 = 13;
-    const EInsufficientSigners: u64 = 14;
-    const EInvalidGroupQuorumLen: u64 = 15;
-    const EInvalidGroupParentsLen: u64 = 16;
-    const EOutOfBoundsGroup: u64 = 17;
-    const EOutOfBoundsGroupQuorum: u64 = 18;
-    const ESignerAddrMustBeIncreasing: u64 = 19;
-    const EPendingOps: u64 = 20;
-    const EInvalidNumSigners: u64 = 21;
-    const ESignerGroupsLenMismatch: u64 = 22;
-    const EGroupTreeNotWellFormed: u64 = 23;
-    const EInvalidSignerAddrLen: u64 = 24;
-    const EPostOpCountReached: u64 = 25;
-    const EWrongNonce: u64 = 26;
-    const EInvalidModuleName: u64 = 27;
-    const EInvalidFunctionName: u64 = 28;
-    const ENotAuthorizedRole: u64 = 29;
-    const EInsufficientDelay: u64 = 30;
-    const EOperationAlreadyScheduled: u64 = 31;
-    const EOperationNotReady: u64 = 32;
-    const EMissingDependency: u64 = 33;
-    const ENotTimeLockRole: u64 = 34;
-    const EInvalidIndex: u64 = 35;
-    const EFunctionBlocked: u64 = 36;
-    const EInvalidParameters: u64 = 37;
-    const EOperationCannotBeCancelled: u64 = 38;
-    const EUnknownMCMSAccountModuleFunction: u64 = 39;
-    const EUnknownMCMSModule: u64 = 40;
-    const EUnknownMCMSDeployerModuleFunction: u64 = 41;
+    const EInvalidRootLen: u64 = 2;
+    const EMissingConfig: u64 = 3;
+    const EWrongPreOpCount: u64 = 4;
+    const EWrongPostOpCount: u64 = 5;
+    const EProofCannotBeVerified: u64 = 6;
+    const EAlreadySeenHash: u64 = 7;
+    const EValidUntilExpired: u64 = 8;
+    const EWrongMultisig: u64 = 9;
+    const EInvalidSigner: u64 = 10;
+    const ESignerInDisabledGroup: u64 = 11;
+    const EInsufficientSigners: u64 = 12;
+    const EInvalidGroupQuorumLen: u64 = 13;
+    const EInvalidGroupParentsLen: u64 = 14;
+    const EOutOfBoundsGroup: u64 = 15;
+    const EOutOfBoundsGroupQuorum: u64 = 16;
+    const ESignerAddrMustBeIncreasing: u64 = 17;
+    const EPendingOps: u64 = 18;
+    const EInvalidNumSigners: u64 = 19;
+    const ESignerGroupsLenMismatch: u64 = 20;
+    const EGroupTreeNotWellFormed: u64 = 21;
+    const EInvalidSignerAddrLen: u64 = 22;
+    const EPostOpCountReached: u64 = 23;
+    const EWrongNonce: u64 = 24;
+    const EInvalidModuleName: u64 = 25;
+    const EInvalidFunctionName: u64 = 26;
+    const ENotAuthorizedRole: u64 = 27;
+    const EInsufficientDelay: u64 = 28;
+    const EOperationAlreadyScheduled: u64 = 29;
+    const EOperationNotReady: u64 = 30;
+    const EMissingDependency: u64 = 31;
+    const ENotTimeLockRole: u64 = 32;
+    const EInvalidIndex: u64 = 33;
+    const EFunctionBlocked: u64 = 34;
+    const EInvalidParameters: u64 = 35;
+    const EOperationCannotBeCancelled: u64 = 36;
+    const EUnknownMCMSAccountModuleFunction: u64 = 37;
+    const EUnknownMCMSModule: u64 = 38;
+    const EUnknownMCMSDeployerModuleFunction: u64 = 39;
 
     public struct MCMS has drop {}
 
@@ -328,7 +326,7 @@ module mcms::mcms {
         let signatures_len = signatures.length();
         let mut i = 0;
         while (i < signatures_len) {
-            let mut signature = signatures[i];
+            let signature = signatures[i];
             let signer_addr = ecdsa_recover_evm_addr(signed_hash, signature);
             // the off-chain system is required to sort the signatures by the
             // signer address in an increasing order

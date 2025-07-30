@@ -10,6 +10,9 @@ module test::counter {
     use std::ascii;
     use std::type_name;
 
+    const EInvalidCounterValue: u64 = 1;
+    const EInvalidBytesLength: u64 = 2;
+
     public struct COUNTER has drop {}
 
     // Event emitted when counter is incremented
@@ -185,6 +188,9 @@ module test::counter {
     }
 
     public entry fun increment_by(counter: &mut Counter, by: u64) {
+        // This is a test to ensure that the failed transaction is findable by the indexer
+        assert!(by <= 999, EInvalidCounterValue);
+        
         counter.value = counter.value + by;
 
         // Emit an event
@@ -202,6 +208,21 @@ module test::counter {
         _ctx: &mut TxContext
     ) {
         counter.value = counter.value + (a * b);
+
+        // Emit an event
+        event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
+    }
+
+    /// receive byte array
+    public entry fun increment_by_bytes_length(
+        counter: &mut Counter,
+        bytes: vector<u8>,
+    ) {
+        assert!(bytes.length() <= 4, EInvalidBytesLength);
+        counter.value = counter.value + (bytes.length());
 
         // Emit an event
         event::emit(CounterIncremented {

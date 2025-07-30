@@ -41,11 +41,14 @@ type SuiPTBClient interface {
 	ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error)
 	SignAndSendTransaction(ctx context.Context, txBytesRaw string, signerPublicKey []byte, executionRequestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error)
+	QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error)
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
+	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
+	GetNormalizedModule(ctx context.Context, moduleKey string, eventKey string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
 	GetClient() *sui.ISuiAPI
 }
@@ -522,6 +525,50 @@ func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (Tr
 	return result, err
 }
 
+func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
+	var result models.SuiXQueryTransactionBlocksResponse
+
+	limitVal := uint64(maxPageSize)
+	if limit != nil {
+		limitVal = *limit
+	}
+
+	// if the cursor is empty, set it to nil to avoid RPC errors
+	if cursor != nil && *cursor == "" {
+		cursor = nil
+	}
+
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		c.log.Debugw("Querying transactions", "fromAddress", fromAddress, "cursor", cursor, "limit", limitVal)
+
+		txns, err := c.client.SuiXQueryTransactionBlocks(ctx, models.SuiXQueryTransactionBlocksRequest{
+			SuiTransactionBlockResponseQuery: models.SuiTransactionBlockResponseQuery{
+				TransactionFilter: map[string]any{
+					"FromAddress": fromAddress,
+				},
+				Options: models.SuiTransactionBlockOptions{
+					ShowInput:          true,
+					ShowEffects:        true,
+					ShowEvents:         false,
+					ShowObjectChanges:  false,
+					ShowBalanceChanges: false,
+				},
+			},
+			Limit:  limitVal,
+			Cursor: cursor,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get account transactions: %w", err)
+		}
+
+		result = txns
+
+		return nil
+	})
+
+	return result, err
+}
+
 func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
 	var result []models.CoinData
 	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
@@ -609,6 +656,25 @@ func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTra
 
 		converted := c.convertBlockvisionResponse(&response)
 		result = &converted
+
+		return nil
+	})
+
+	return result, err
+}
+
+// GetBlockById (i.e. get checkpoint by id) returns the checkpoint details given its ID
+func (c *PTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
+	var result models.CheckpointResponse
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		response, err := c.client.SuiGetCheckpoint(ctx, models.SuiGetCheckpointRequest{
+			CheckpointID: checkpointId,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get checkpoint: %w", err)
+		}
+
+		result = response
 
 		return nil
 	})

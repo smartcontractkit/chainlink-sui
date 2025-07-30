@@ -2,6 +2,7 @@ module ccip::dynamic_dispatcher;
 
 use std::type_name;
 
+use ccip::address;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
 
@@ -47,6 +48,7 @@ fun init(_witness: DYNAMIC_DISPATCHER, ctx: &mut TxContext) {
 public fun create_token_params(destination_chain_selector: u64, receiver: vector<u8>): TokenParams {
     assert!(destination_chain_selector != 0, EInvalidDestinationChainSelector);
     assert!(receiver.length() == 32, EInvalidReceiver);
+    address::assert_non_zero_address_vector(&receiver);
     TokenParams {
         destination_chain_selector,
         receiver,

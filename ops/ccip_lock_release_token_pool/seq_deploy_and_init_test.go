@@ -15,8 +15,8 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
 	ccip_tokenpoolops "github.com/smartcontractkit/chainlink-sui/ops/ccip_token_pool"
-	linkops "github.com/smartcontractkit/chainlink-sui/ops/link"
 	mcms_ops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
+	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
 
 	"github.com/stretchr/testify/require"
 )
@@ -71,8 +71,8 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	require.NoError(t, err, "failed to deploy CCIP TokenPool Package")
 
 	// Deploy LINK
-	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
-	require.NoError(t, err, "failed to deploy LINK token")
+	linkReport, err := cld_ops.ExecuteOperation(bundle, mocklinktokenops.DeployMockLinkTokenOp, deps, cld_ops.EmptyInput{})
+	require.NoError(t, err, "failed to deploy Mock LINK token")
 
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
@@ -83,7 +83,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	}
 
 	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeOp, deps, inputTAR)
-	require.NoError(t, err, "failed to deploy LINK token")
+	require.NoError(t, err, "failed to deploy Mock LINK token")
 
 	// Run BurnMintTokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
@@ -95,11 +95,10 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 		},
 
 		// initialize
-		CoinObjectTypeArg:      linkReport.Output.PackageId + "::link_token::LINK_TOKEN",
+		CoinObjectTypeArg:      linkReport.Output.PackageId + "::mock_link_token::MOCK_LINK_TOKEN",
 		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
 		CoinMetadataObjectId:   linkReport.Output.Objects.CoinMetadataObjectId,
 		TreasuryCapObjectId:    linkReport.Output.Objects.TreasuryCapObjectId,
-		TokenPoolPackageId:     reportCCIPTokenPool.Output.PackageId,
 		TokenPoolAdministrator: signerAddress,
 		Rebalancer:             "0x0",
 

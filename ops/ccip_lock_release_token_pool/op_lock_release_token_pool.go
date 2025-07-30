@@ -24,7 +24,6 @@ type LockReleaseTokenPoolInitializeInput struct {
 	StateObjectId          string
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
-	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 	Rebalancer             string
 	LockOrBurnParams       []string
@@ -87,7 +86,6 @@ type LockReleaseTokenPoolInitializeByCcipAdminInput struct {
 	StateObjectId          string
 	CoinMetadataObjectId   string
 	OwnerCapObjectId       string
-	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 	Rebalancer             string
 	LockOrBurnParams       []string

@@ -225,6 +225,7 @@ module ccip_offramp::offramp {
     const EUnsupportedToken: u64 = 23;
     const EInvalidOnRampUpdate: u64 = 24;
     const EDestTransferCapNotSet: u64 = 25;
+    const ECalculateMessageHashInvalidArguments: u64 = 26;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -251,7 +252,7 @@ module ccip_offramp::offramp {
 
         let pointer = OffRampStatePointer {
             id: object::new(ctx),
-            off_ramp_state_id: object::id_to_address(object::borrow_id(&state)),
+            off_ramp_state_id: object::uid_to_address(&state.id),
             owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
         };
 
@@ -573,7 +574,7 @@ module ccip_offramp::offramp {
                 source_chain_config.on_ramp
             );
 
-        let hashed_leaf = calculate_message_hash(
+        let hashed_leaf = calculate_message_hash_internal(
             &execution_report.message, metadata_hash
         );
 
@@ -698,7 +699,7 @@ module ccip_offramp::offramp {
     // |                        Metadata hash                         |
     // ================================================================
 
-    fun calculate_metadata_hash(
+    public fun calculate_metadata_hash(
         source_chain_selector: u64, dest_chain_selector: u64, on_ramp: vector<u8>
     ): vector<u8> {
         let mut packed = vector[];
@@ -711,7 +712,71 @@ module ccip_offramp::offramp {
         hash::keccak256(&packed)
     }
 
-    fun calculate_message_hash(
+    public fun calculate_message_hash(
+        message_id: vector<u8>,
+        source_chain_selector: u64,
+        dest_chain_selector: u64,
+        sequence_number: u64,
+        nonce: u64,
+        sender: vector<u8>,
+        receiver: address,
+        on_ramp: vector<u8>,
+        data: vector<u8>,
+        gas_limit: u256,
+        source_pool_addresses: vector<vector<u8>>,
+        dest_token_addresses: vector<address>,
+        dest_gas_amounts: vector<u32>,
+        extra_datas: vector<vector<u8>>,
+        amounts: vector<u256>
+    ): vector<u8> {
+        let source_pool_addresses_len = source_pool_addresses.length();
+        assert!(
+            source_pool_addresses_len == dest_token_addresses.length()
+                && source_pool_addresses_len == dest_gas_amounts.length()
+                && source_pool_addresses_len == extra_datas.length()
+                && source_pool_addresses_len == amounts.length(),
+            ECalculateMessageHashInvalidArguments
+        );
+
+        let metadata_hash =
+            calculate_metadata_hash(
+                source_chain_selector, dest_chain_selector, on_ramp
+            );
+
+        let mut token_amounts = vector[];
+        let mut i = 0;
+        while (i < source_pool_addresses_len) {
+            token_amounts.push_back(
+                Any2SuiTokenTransfer {
+                    source_pool_address: source_pool_addresses[i],
+                    dest_token_address: dest_token_addresses[i],
+                    dest_gas_amount: dest_gas_amounts[i],
+                    extra_data: extra_datas[i],
+                    amount: amounts[i]
+                }
+            );
+            i = i + 1;
+        };
+
+        let message = Any2SuiRampMessage {
+            header: RampMessageHeader {
+                message_id,
+                source_chain_selector,
+                dest_chain_selector,
+                sequence_number,
+                nonce
+            },
+            sender,
+            data,
+            receiver,
+            gas_limit,
+            token_amounts
+        };
+
+        calculate_message_hash_internal(&message, metadata_hash)
+    }
+
+    fun calculate_message_hash_internal(
         message: &Any2SuiRampMessage, metadata_hash: vector<u8>
     ): vector<u8> {
         let mut outer_hash = vector[];
@@ -895,7 +960,7 @@ module ccip_offramp::offramp {
         if (commit_report.blessed_merkle_roots.length() > 0) {
             verify_blessed_roots(
                 ref,
-                object::id_to_address(&object::id(state)),
+                object::uid_to_address(&state.id),
                 &commit_report.blessed_merkle_roots,
                 commit_report.rmn_signatures,
             );
@@ -1265,18 +1330,19 @@ module ccip_offramp::offramp {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public fun mcms_register_entrypoint(
-        registry: &mut Registry,
-        state: &mut OffRampState,
+    public fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
+        state: &mut OwnableState,
+        registry: &mut Registry,
+        to: address,
         ctx: &mut TxContext,
     ) {
-        ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
-
-        mcms_registry::register_entrypoint(
+        ownable::execute_ownership_transfer_to_mcms(
+            owner_cap,
+            state,
             registry,
-            McmsCallback{},
-            option::some(owner_cap),
+            to,
+            McmsCallback {},
             ctx,
         );
     }

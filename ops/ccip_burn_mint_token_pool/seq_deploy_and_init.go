@@ -25,7 +25,6 @@ type DeployAndInitBurnMintTokenPoolInput struct {
 	CCIPObjectRefObjectId  string
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
-	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 	LockOrBurnParams       []string
 	ReleaseOrMintParams    []string
@@ -64,7 +63,6 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
-				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				LockOrBurnParams:       input.LockOrBurnParams,
 				ReleaseOrMintParams:    input.ReleaseOrMintParams,

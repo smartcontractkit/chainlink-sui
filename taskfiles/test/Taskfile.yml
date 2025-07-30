@@ -23,15 +23,13 @@ tasks:
 
   bindings:
     desc: "Run bindings tests"
-    deps: [integration-setup]
     cmds:
       - go test -v ./bindings/... -tags="integration"
 
   operations:
     desc: "Run operation tests"
-    deps: [integration-setup]
     cmds:
-      - go test -v ./ops/... -p=1 -tags="integration"
+      - go test -v ./ops/... -count=1 -p=1 -tags="integration"
 
   integration:
     desc: "Run integration tests"
@@ -40,7 +38,7 @@ tasks:
       - for:
           matrix:
             MODULE: [".", "./relayer"]
-        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -tags="integration" ./...
+        cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -count=1 -tags="integration" ./...
 
   integration-testnet:
     desc: "Run integration tests in testnet"
@@ -59,4 +57,4 @@ tasks:
       - for:
           matrix:
             MODULE: [".", "./relayer"]
-        cmd: cd {{ .ITEM.MODULE }} && TEST_DB_URL={{.TEST_DB_URL}} go test {{.CLI_ARGS}} -p=1 -tags="integration" ./...
+        cmd: cd {{ .ITEM.MODULE }} && TEST_DB_URL={{.TEST_DB_URL}} go test {{.CLI_ARGS}} -count=1 -p=1 -tags="integration" ./...

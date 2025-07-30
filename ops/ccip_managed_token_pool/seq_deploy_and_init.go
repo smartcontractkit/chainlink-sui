@@ -22,7 +22,6 @@ type SeqDeployAndInitManagedTokenPoolInput struct {
 	ManagedTokenOwnerCapId    string
 	CoinMetadataObjectId      string
 	MintCapObjectId           string
-	TokenPoolPackageId        string
 	TokenPoolAdministrator    string
 	LockOrBurnParams          []string
 	ReleaseOrMintParams       []string
@@ -79,7 +78,6 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				ManagedTokenOwnerCapId:    input.ManagedTokenOwnerCapId,
 				CoinMetadataObjectId:      input.CoinMetadataObjectId,
 				MintCapObjectId:           input.MintCapObjectId,
-				TokenPoolPackageId:        input.TokenPoolPackageId,
 				TokenPoolAdministrator:    input.TokenPoolAdministrator,
 				LockOrBurnParams:          input.LockOrBurnParams,
 				ReleaseOrMintParams:       input.ReleaseOrMintParams,

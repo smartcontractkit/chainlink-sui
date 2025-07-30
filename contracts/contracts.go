@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-//go:embed ccip mcms test
+//go:embed ccip mcms test link
 var Embed embed.FS
 
 type Package string
@@ -18,12 +18,15 @@ const (
 	CCIPOnramp           = Package("ccip_onramp")
 	CCIPRouter           = Package("ccip_router")
 	CCIPTokenPool        = Package("ccip_token_pool")
-	LINKToken            = Package("link_token")
 	LockReleaseTokenPool = Package("lock_release_token_pool")
 	BurnMintTokenPool    = Package("burn_mint_token_pool")
 	ManagedTokenPool     = Package("managed_token_pool")
 	USDCTokenPool        = Package("usdc_token_pool")
 	ManagedToken         = Package("managed_token")
+	ManagedTokenFaucet   = Package("managed_token_faucet")
+	MockLinkToken        = Package("mock_link_token")
+	// LINK
+	LINK = Package("link")
 	// MCMS
 	MCMS = Package("mcms")
 	// Other
@@ -43,8 +46,11 @@ var Contracts map[Package]string = map[Package]string{
 	BurnMintTokenPool:    filepath.Join("ccip", "ccip_token_pools", "burn_mint_token_pool"),
 	ManagedTokenPool:     filepath.Join("ccip", "ccip_token_pools", "managed_token_pool"),
 	USDCTokenPool:        filepath.Join("ccip", "ccip_token_pools", "usdc_token_pool"),
-	LINKToken:            filepath.Join("ccip", "link_token"),
 	ManagedToken:         filepath.Join("ccip", "managed_token"),
+	ManagedTokenFaucet:   filepath.Join("ccip", "managed_token_faucet"),
+	MockLinkToken:        filepath.Join("ccip", "mock_link_token"),
+	// LINK
+	LINK: filepath.Join("link"),
 	// MCMS
 	MCMS: filepath.Join("mcms", "mcms"),
 	// Other

@@ -264,3 +264,48 @@ func (mr *MockSuiPTBClientMockRecorder) SignAndSendTransaction(ctx, txBytesRaw, 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignAndSendTransaction", reflect.TypeOf((*MockSuiPTBClient)(nil).SignAndSendTransaction), ctx, txBytesRaw, signerPublicKey, executionRequestType)
 }
+
+// GetBlockById mocks base method.
+func (m *MockSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlockById", ctx, checkpointId)
+	ret0, _ := ret[0].(models.CheckpointResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlockById indicates an expected call of GetBlockById.
+func (mr *MockSuiPTBClientMockRecorder) GetBlockById(ctx, checkpointId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockById", reflect.TypeOf((*MockSuiPTBClient)(nil).GetBlockById), ctx, checkpointId)
+}
+
+// GetNormalizedModule mocks base method.
+func (m *MockSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId, module string) (models.GetNormalizedMoveModuleResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNormalizedModule", ctx, packageId, module)
+	ret0, _ := ret[0].(models.GetNormalizedMoveModuleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNormalizedModule indicates an expected call of GetNormalizedModule.
+func (mr *MockSuiPTBClientMockRecorder) GetNormalizedModule(ctx, packageId, module interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNormalizedModule", reflect.TypeOf((*MockSuiPTBClient)(nil).GetNormalizedModule), ctx, packageId, module)
+}
+
+// QueryTransactions mocks base method.
+func (m *MockSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryTransactions", ctx, fromAddress, cursor, limit)
+	ret0, _ := ret[0].(models.SuiXQueryTransactionBlocksResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryTransactions indicates an expected call of QueryTransactions.
+func (mr *MockSuiPTBClientMockRecorder) QueryTransactions(ctx, fromAddress, cursor, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryTransactions", reflect.TypeOf((*MockSuiPTBClient)(nil).QueryTransactions), ctx, fromAddress, cursor, limit)
+}

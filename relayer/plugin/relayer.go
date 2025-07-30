@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 
@@ -20,7 +19,9 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader"
+	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
@@ -231,7 +232,7 @@ func (r *SuiRelayer) NewContractWriter(_ context.Context, configBytes []byte) (t
 }
 
 func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig []byte) (types.ContractReader, error) {
-	chainConfig := chainreader.ChainReaderConfig{}
+	chainConfig := chainreaderConfig.ChainReaderConfig{}
 	err := json.Unmarshal(contractReaderConfig, &chainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)

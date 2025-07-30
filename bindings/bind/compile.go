@@ -125,6 +125,16 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 	}
 
+	// Special-case: update published-at of CCIP & MCMS if it's a dummy receiver package
+	if packageName == contracts.CCIPDummyReceiver {
+		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMS published-at: %w", err)
+		}
+	}
+
 	// Compile the Move package
 	cmd := exec.Command("sui", "move", "build", "--dump-bytecode-as-base64", "--ignore-chain")
 	cmd.Dir = packageRoot

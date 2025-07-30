@@ -142,6 +142,7 @@ fun assert_token_config(
     expected_package_id: address,
     expected_state_address: address,
     expected_module: vector<u8>,
+    expected_type: ascii::String,
     expected_admin: address,
     expected_pending_admin: address
 ) {
@@ -149,7 +150,7 @@ fun assert_token_config(
         token_pool_package_id,
         token_pool_state_address,
         token_pool_module,
-        _token_type,
+        token_type,
         administrator,
         pending_administrator,
         _proof,
@@ -160,6 +161,7 @@ fun assert_token_config(
     assert!(token_pool_package_id == expected_package_id);
     assert!(token_pool_state_address == expected_state_address);
     assert!(token_pool_module == string::utf8(expected_module));
+    assert!(token_type == expected_type);
     assert!(administrator == expected_admin);
     assert!(pending_administrator == expected_pending_admin);
 }
@@ -249,7 +251,7 @@ public fun test_register_pool_by_admin() {
             MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
             MOCK_TOKEN_POOL_STATE_ADDRESS_1, // token_pool_state_address
             string::utf8(b"admin_registered_pool"), // token_pool_module
-            ascii::string(b"TestTokenType"), // token_type
+            ascii::string(b"TestType"),
             TOKEN_ADMIN_ADDRESS, // initial_administrator
             ascii::string(b"AdminProof"), // proof
             vector[], // lock_or_burn_params
@@ -354,6 +356,7 @@ public fun test_register_and_set_pool() {
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool",
+            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );
@@ -395,6 +398,7 @@ public fun test_register_and_set_pool() {
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             b"mock_token_pool_2",
+            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             TOKEN_ADMIN_ADDRESS_2
         );
@@ -652,6 +656,7 @@ public fun test_set_pool_comprehensive() {
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"initial_token_pool",
+            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );
@@ -681,6 +686,7 @@ public fun test_set_pool_comprehensive() {
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             b"updated_token_pool",
+            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );
@@ -708,6 +714,7 @@ public fun test_set_pool_comprehensive() {
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             MOCK_TOKEN_POOL_STATE_ADDRESS_2, // unchanged
             b"updated_token_pool", // unchanged
+            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0
         );

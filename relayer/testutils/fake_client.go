@@ -92,3 +92,11 @@ func (c *FakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId st
 func (c *FakeSuiPTBClient) GetClient() *sui.ISuiAPI {
 	return nil
 }
+
+func (c *FakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
+	return models.CheckpointResponse{}, nil
+}
+
+func (c *FakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
+	return models.SuiXQueryTransactionBlocksResponse{}, nil
+}

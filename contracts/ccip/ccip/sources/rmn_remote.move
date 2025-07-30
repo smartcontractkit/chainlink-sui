@@ -2,7 +2,9 @@ module ccip::rmn_remote;
 
 use std::bcs;
 use std::string::{Self, String};
+use std::type_name;
 
+use sui::address;
 use sui::ecdsa_k1;
 use sui::event;
 use sui::hash;
@@ -87,6 +89,15 @@ const EInvalidPublicKeyLength: u64 = 17;
 
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
+}
+
+public fun get_arm(): address {
+    let tn = type_name::get<RMNRemoteState>();
+    let addr_string = tn.get_address();
+    
+    // Convert the hex string to an address
+    // The address string is already in the correct format for address parsing
+    address::from_ascii_bytes(&addr_string.into_bytes())
 }
 
 public fun initialize(

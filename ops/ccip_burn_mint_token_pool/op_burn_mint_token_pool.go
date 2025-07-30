@@ -24,7 +24,6 @@ type BurnMintTokenPoolInitializeInput struct {
 	StateObjectId          string
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
-	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 	LockOrBurnParams       []string
 	ReleaseOrMintParams    []string
@@ -45,7 +44,7 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
-		input.TokenPoolPackageId,
+		input.BurnMintPackageId,
 		input.TokenPoolAdministrator,
 		input.LockOrBurnParams,
 		input.ReleaseOrMintParams,

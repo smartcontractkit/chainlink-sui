@@ -26,7 +26,6 @@ type ManagedTokenPoolInitializeInput struct {
 	ManagedTokenOwnerCapId    string
 	CoinMetadataObjectId      string
 	MintCapObjectId           string
-	TokenPoolPackageId        string
 	TokenPoolAdministrator    string
 	LockOrBurnParams          []string
 	ReleaseOrMintParams       []string
@@ -49,7 +48,7 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		bind.Object{Id: input.ManagedTokenOwnerCapId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.MintCapObjectId},
-		input.TokenPoolPackageId,
+		input.ManagedTokenPoolPackageId,
 		input.TokenPoolAdministrator,
 		input.LockOrBurnParams,
 		input.ReleaseOrMintParams,

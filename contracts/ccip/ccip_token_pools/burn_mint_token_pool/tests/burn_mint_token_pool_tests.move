@@ -1024,9 +1024,9 @@ public fun test_release_or_mint_comprehensive() {
         );
         
         // Perform release_or_mint operation
-        burn_mint_token_pool::release_or_mint(
+        let updated_receiver_params = burn_mint_token_pool::release_or_mint(
             &ccip_ref,
-            &mut receiver_params,
+            receiver_params,
             0, // index of the token transfer
             &mut pool_state,
             &clock,
@@ -1034,11 +1034,11 @@ public fun test_release_or_mint_comprehensive() {
         );
         
         // Verify the operation completed successfully
-        let source_chain = offramp_state_helper::get_source_chain_selector(&receiver_params);
+        let source_chain = offramp_state_helper::get_source_chain_selector(&updated_receiver_params);
         assert!(source_chain == DefaultRemoteChain);
         
         // Clean up receiver params
-        offramp_state_helper::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
+        offramp_state_helper::deconstruct_receiver_params(&dest_transfer_cap, updated_receiver_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, @burn_mint_token_pool);

@@ -25,7 +25,6 @@ type DeployAndInitLockReleaseTokenPoolInput struct {
 	CCIPObjectRefObjectId  string
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
-	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 	Rebalancer             string
 	LockOrBurnParams       []string
@@ -65,7 +64,6 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
-				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				Rebalancer:             input.Rebalancer,
 				LockOrBurnParams:       input.LockOrBurnParams,
@@ -135,7 +133,6 @@ type DeployAndInitLockReleaseTokenPoolByCcipAdminInput struct {
 	CCIPObjectRefObjectId  string
 	CoinMetadataObjectId   string
 	OwnerCapObjectId       string
-	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 	Rebalancer             string
 	// apply chain updates
@@ -173,7 +170,6 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				OwnerCapObjectId:       input.OwnerCapObjectId,
-				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				Rebalancer:             input.Rebalancer,
 			},

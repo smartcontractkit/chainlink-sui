@@ -122,7 +122,7 @@ public fun test_add_source_token_transfer() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1, // state address
         string::utf8(b"test_pool"),
-        ascii::string(b"TestToken"),
+        ascii::string(b"TestType"),
         OWNER, // administrator
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params
@@ -180,7 +180,7 @@ public fun test_add_source_token_transfer_wrong_proof() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1,
         string::utf8(b"test_pool"),
-        ascii::string(b"TestToken"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params
@@ -218,7 +218,7 @@ public fun test_add_multiple_source_token_transfers() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1,
         string::utf8(b"test_pool_1"),
-        ascii::string(b"TestToken1"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params
@@ -233,7 +233,7 @@ public fun test_add_multiple_source_token_transfers() {
         TOKEN_POOL_PACKAGE_ID_2,
         TOKEN_ADDRESS_2,
         string::utf8(b"test_pool_2"),
-        ascii::string(b"TestToken2"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof2>()),
         vector[], // lock_or_burn_params
@@ -326,7 +326,7 @@ public fun test_get_source_token_transfer_data() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1,
         string::utf8(b"test_pool"),
-        ascii::string(b"TestToken"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params
@@ -375,7 +375,7 @@ public fun test_edge_case_large_amounts() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1,
         string::utf8(b"test_pool"),
-        ascii::string(b"TestToken"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params
@@ -419,7 +419,7 @@ public fun test_edge_case_empty_data() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1,
         string::utf8(b"test_pool"),
-        ascii::string(b"TestToken"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params
@@ -493,7 +493,7 @@ public fun test_zero_amount_transfer() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1,
         string::utf8(b"test_pool"),
-        ascii::string(b"TestToken"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params
@@ -536,7 +536,7 @@ public fun test_source_transfer_cap_permission() {
         TOKEN_POOL_PACKAGE_ID_1,
         TOKEN_ADDRESS_1,
         string::utf8(b"test_pool"),
-        ascii::string(b"TestToken"),
+        ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
         vector[], // lock_or_burn_params

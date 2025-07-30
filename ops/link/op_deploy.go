@@ -8,8 +8,8 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	module_link_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/link_token/link_token"
-	link "github.com/smartcontractkit/chainlink-sui/bindings/packages/link_token"
+	linktoken "github.com/smartcontractkit/chainlink-sui/bindings/generated/link/link"
+	"github.com/smartcontractkit/chainlink-sui/contracts"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 )
 
@@ -22,11 +22,18 @@ type DeployLinkObjects struct {
 var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyInput) (output sui_ops.OpTxResult[DeployLinkObjects], err error) {
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	mcmsPackage, tx, err := link.PublishLinkToken(
-		b.GetContext(),
-		opts,
-		deps.Client,
-	)
+
+	artifact, err := bind.CompilePackage(contracts.LINK, map[string]string{
+		"link": "0x0",
+	})
+	if err != nil {
+		return sui_ops.OpTxResult[DeployLinkObjects]{}, err
+	}
+
+	packageId, tx, err := bind.PublishPackage(b.GetContext(), opts, deps.Client, bind.PublishRequest{
+		CompiledModules: artifact.Modules,
+		Dependencies:    artifact.Dependencies,
+	})
 	if err != nil {
 		return sui_ops.OpTxResult[DeployLinkObjects]{}, err
 	}
@@ -48,7 +55,7 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 
 	return sui_ops.OpTxResult[DeployLinkObjects]{
 		Digest:    tx.Digest,
-		PackageId: mcmsPackage.Address(),
+		PackageId: packageId,
 		Objects: DeployLinkObjects{
 			CoinMetadataObjectId: obj1,
 			TreasuryCapObjectId:  obj2,
@@ -68,21 +75,31 @@ type MintLinkTokenOutput struct {
 }
 
 var handlerMint = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MintLinkTokenInput) (output sui_ops.OpTxResult[MintLinkTokenOutput], err error) {
-	linkToken, err := module_link_token.NewLinkToken(input.LinkTokenPackageId, deps.Client)
+	linkToken, err := linktoken.NewLink(input.LinkTokenPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[MintLinkTokenOutput]{}, err
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := linkToken.Mint(b.GetContext(), opts, bind.Object{Id: input.TreasuryCapId}, input.Amount)
+
+	// Get the signer address to transfer the minted coin to
+	signerAddress, err := opts.Signer.GetAddress()
 	if err != nil {
-		return sui_ops.OpTxResult[MintLinkTokenOutput]{}, fmt.Errorf("failed to execute Mint on LinkToken: %w", err)
+		return sui_ops.OpTxResult[MintLinkTokenOutput]{}, fmt.Errorf("failed to get signer address: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "coin", "Coin")
+	// Use MintAndTransfer instead of Mint to ensure the coin is transferred and visible
+	tx, err := linkToken.MintAndTransfer(b.GetContext(), opts, bind.Object{Id: input.TreasuryCapId}, input.Amount, signerAddress)
+	if err != nil {
+		return sui_ops.OpTxResult[MintLinkTokenOutput]{}, fmt.Errorf("failed to execute MintAndTransfer on LinkToken: %w", err)
+	}
+
+	// Use the correct function for finding coin objects and provide the coin type
+	coinType := fmt.Sprintf("%s::link::LINK", input.LinkTokenPackageId)
+	obj1, err1 := bind.FindCoinObjectIdFromTx(*tx, coinType)
 	if err1 != nil {
-		return sui_ops.OpTxResult[MintLinkTokenOutput]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err1)
+		return sui_ops.OpTxResult[MintLinkTokenOutput]{}, fmt.Errorf("failed to find minted coin object: %w", err1)
 	}
 
 	return sui_ops.OpTxResult[MintLinkTokenOutput]{

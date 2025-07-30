@@ -1,9 +1,0 @@
-[package]
-name = "ETHToken"
-edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
-
-[addresses]
-eth_token = "_"
-
-[dev-addresses]
-eth_token = "0x1112"
