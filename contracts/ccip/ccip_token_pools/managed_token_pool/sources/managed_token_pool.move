@@ -68,7 +68,7 @@ public fun initialize_with_managed_token<T>(
     let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
     
     // Initialize the token pool
-    let (_, managed_token_pool_state_address, _, _) =
+    let (_, _, _, _) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     // Register the pool with the token admin registry
@@ -77,7 +77,7 @@ public fun initialize_with_managed_token<T>(
         treasury_cap_ref,
         coin_metadata,
         managed_token_pool_package_id,
-        managed_token_pool_state_address,
+        // managed_token_pool_state_address,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
         lock_or_burn_params,
@@ -97,7 +97,7 @@ public fun initialize_by_ccip_admin<T>(
     release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, managed_token_state_address, token_type, type_proof_type_name) =
+    let (coin_metadata_address, _, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     token_admin_registry::register_pool_by_admin(
@@ -105,7 +105,7 @@ public fun initialize_by_ccip_admin<T>(
         owner_cap,
         coin_metadata_address,
         managed_token_pool_package_id,
-        managed_token_state_address,
+        // managed_token_state_address,
         string::utf8(b"managed_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
@@ -322,7 +322,7 @@ public fun lock_or_burn<T>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    mut receiver_params: osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
     pool: &mut ManagedTokenPoolState<T>,
     clock: &Clock,

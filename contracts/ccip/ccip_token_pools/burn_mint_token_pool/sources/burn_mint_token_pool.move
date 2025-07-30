@@ -60,7 +60,7 @@ public fun initialize<T>(
         &burn_mint_token_pool.treasury_cap,
         coin_metadata,
         burn_mint_token_pool_package_id,
-        object::uid_to_address(&burn_mint_token_pool.id),
+        // object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
         token_pool_administrator,
         lock_or_burn_params,
@@ -90,7 +90,7 @@ public fun initialize_by_ccip_admin<T>(
         owner_cap,
         coin_metadata_address,
         burn_mint_token_pool_package_id,
-        object::uid_to_address(&burn_mint_token_pool.id),
+        // object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
@@ -294,7 +294,7 @@ public fun lock_or_burn<T>(
 
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    mut receiver_params: osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
     pool: &mut BurnMintTokenPoolState<T>,
     clock: &Clock,

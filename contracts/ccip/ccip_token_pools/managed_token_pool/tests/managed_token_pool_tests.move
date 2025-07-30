@@ -1137,7 +1137,7 @@ public fun test_initialize_with_managed_token_function() {
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
         assert!(pool_address == @0x1000); // Should match the package id we passed
         
-        let (pool_package_id, pool_state_address, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
+        let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
             token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
         
         assert!(pool_package_id == @0x1000);

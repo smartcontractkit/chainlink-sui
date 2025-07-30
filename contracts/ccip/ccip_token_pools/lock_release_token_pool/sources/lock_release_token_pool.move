@@ -55,7 +55,7 @@ public fun initialize<T>(
     release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    let (_, lock_release_token_pool_state_address, _, _) =
+    let (_, _, _, _) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     token_admin_registry::register_pool(
@@ -63,7 +63,7 @@ public fun initialize<T>(
         treasury_cap,
         coin_metadata,
         lock_release_token_pool_package_id,
-        lock_release_token_pool_state_address,
+        // lock_release_token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
         lock_or_burn_params,
@@ -86,7 +86,7 @@ public fun initialize_by_ccip_admin<T>(
     release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, lock_release_token_pool_state_address, token_type, type_proof_type_name) =
+    let (coin_metadata_address, _, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     token_admin_registry::register_pool_by_admin(
@@ -94,7 +94,7 @@ public fun initialize_by_ccip_admin<T>(
         owner_cap,
         coin_metadata_address,
         lock_release_token_pool_package_id,
-        lock_release_token_pool_state_address,
+        // lock_release_token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
@@ -304,7 +304,7 @@ public fun lock_or_burn<T: drop>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    mut receiver_params: osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
     pool: &mut LockReleaseTokenPoolState<T>,
     clock: &Clock,
