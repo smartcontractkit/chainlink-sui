@@ -7,6 +7,7 @@ module burn_mint_token_pool::burn_mint_token_pool;
 use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
 
+use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::UpgradeCap;
@@ -44,16 +45,19 @@ public fun type_and_version(): String {
     string::utf8(b"BurnMintTokenPool 1.6.0")
 }
 
+// coin metadata and decimals can be provided in Move.toml
 public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
-    burn_mint_token_pool_package_id: address,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (_, _ , _, burn_mint_token_pool) =
+    let (_, type_proof_type_name, _, burn_mint_token_pool) =
         initialize_internal(coin_metadata, treasury_cap, ctx);
+
+    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let burn_mint_token_pool_package_id = address::from_ascii_bytes(&type_proof_type_name_address.into_bytes());
 
     token_admin_registry::register_pool(
         ref,
@@ -75,12 +79,14 @@ public fun initialize_by_ccip_admin<T>(
     owner_cap: &state_object::OwnerCap,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
-    burn_mint_token_pool_package_id: address,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
     let (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool) =
         initialize_internal(coin_metadata, treasury_cap, ctx);
+
+    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let burn_mint_token_pool_package_id = address::from_ascii_bytes(&type_proof_type_name_address.into_bytes());
 
     token_admin_registry::register_pool_by_admin(
         ref,

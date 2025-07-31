@@ -81,7 +81,6 @@ public fun test_initialize_and_basic_functionality() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
             ctx
         );
@@ -146,7 +145,6 @@ public fun test_chain_configuration_management() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -243,7 +241,6 @@ public fun test_allowlist_management() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -302,7 +299,6 @@ public fun test_rate_limiter_configuration() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -404,7 +400,6 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -467,7 +462,6 @@ public fun test_comprehensive_allowlist_operations() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -529,7 +523,6 @@ public fun test_destroy_token_pool() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -586,7 +579,6 @@ public fun test_comprehensive_rate_limiter_operations() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -687,7 +679,6 @@ public fun test_edge_cases_and_boundary_conditions() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -796,7 +787,6 @@ public fun test_lock_or_burn_comprehensive() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap, // treasury_cap is moved here
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -933,7 +923,6 @@ public fun test_release_or_mint_comprehensive() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -1071,7 +1060,6 @@ public fun test_set_allowlist_enabled() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -1134,7 +1122,6 @@ public fun test_apply_allowlist_updates() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );
@@ -1234,7 +1221,6 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             ctx
         );

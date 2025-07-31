@@ -46,7 +46,6 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		bind.Object{Id: input.ManagedTokenOwnerCapId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.MintCapObjectId},
-		input.ManagedTokenPoolPackageId,
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {
@@ -86,7 +85,6 @@ type ManagedTokenPoolInitializeByCcipAdminInput struct {
 	CoinMetadataObjectId      string
 	MintCapObjectId           string
 	ManagedTokenStateObjectId string
-	TokenPoolPackageId        string
 	TokenPoolAdministrator    string
 }
 
@@ -107,7 +105,6 @@ var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.MintCapObjectId},
 		input.ManagedTokenStateObjectId,
-		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {

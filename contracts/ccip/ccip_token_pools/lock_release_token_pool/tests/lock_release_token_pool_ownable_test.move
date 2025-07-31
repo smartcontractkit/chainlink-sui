@@ -62,7 +62,6 @@ module lock_release_token_pool::lock_release_token_pool_ownable_test {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
             ctx

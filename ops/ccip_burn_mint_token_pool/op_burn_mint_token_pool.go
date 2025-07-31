@@ -42,7 +42,6 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
-		input.BurnMintPackageId,
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {
@@ -81,7 +80,6 @@ type BurnMintTokenPoolInitializeByCcipAdminInput struct {
 	CoinMetadataObjectId   string
 	OwnerCapObjectId       string
 	TreasuryCapObjectId    string
-	TokenPoolPackageId     string
 	TokenPoolAdministrator string
 }
 
@@ -101,7 +99,6 @@ var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
-		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {

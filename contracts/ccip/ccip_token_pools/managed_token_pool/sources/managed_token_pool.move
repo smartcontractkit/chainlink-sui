@@ -6,6 +6,7 @@ module managed_token_pool::managed_token_pool;
 use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
 
+use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::{DenyList};
@@ -61,7 +62,6 @@ public fun initialize_with_managed_token<T>(
     owner_cap: &ManagedTokenOwnerCap<T>,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
-    managed_token_pool_package_id: address,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
@@ -69,8 +69,11 @@ public fun initialize_with_managed_token<T>(
     let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
     
     // Initialize the token pool
-    let (_, managed_token_pool_state_address, _, _) =
+    let (_, managed_token_pool_state_address, _, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
+
+    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let managed_token_pool_package_id = address::from_ascii_bytes(&type_proof_type_name_address.into_bytes());
 
     // Register the pool with the token admin registry
     token_admin_registry::register_pool(
@@ -92,12 +95,14 @@ public fun initialize_by_ccip_admin<T>(
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
     managed_token_state: address,
-    managed_token_pool_package_id: address,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
     let (coin_metadata_address, managed_token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
+
+    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let managed_token_pool_package_id = address::from_ascii_bytes(&type_proof_type_name_address.into_bytes());
 
     token_admin_registry::register_pool_by_admin(
         ref,

@@ -3,6 +3,7 @@ module lock_release_token_pool::lock_release_token_pool;
 use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
 
+use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
 use sui::package::UpgradeCap;
@@ -50,13 +51,15 @@ public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: &TreasuryCap<T>,
-    lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (_, token_pool_state_address, _, _) =
+    let (_, token_pool_state_address, _, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
+
+    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let lock_release_token_pool_package_id = address::from_ascii_bytes(&type_proof_type_name_address.into_bytes());
 
     token_admin_registry::register_pool(
         ref,
@@ -78,13 +81,15 @@ public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
     owner_cap: &state_object::OwnerCap,
     coin_metadata: &CoinMetadata<T>,
-    lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
     let (coin_metadata_address, token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
+
+    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let lock_release_token_pool_package_id = address::from_ascii_bytes(&type_proof_type_name_address.into_bytes());
 
     token_admin_registry::register_pool_by_admin(
         ref,

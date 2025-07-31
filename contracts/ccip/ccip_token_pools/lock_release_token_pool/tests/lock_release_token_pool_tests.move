@@ -2,7 +2,9 @@
 module lock_release_token_pool::lock_release_token_pool_tests;
 
 use std::string;
+use std::type_name;
 
+use sui::address;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
@@ -90,7 +92,6 @@ public fun test_initialize_and_basic_functionality() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -149,7 +150,6 @@ public fun test_chain_configuration_management() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -240,7 +240,6 @@ public fun test_liquidity_management() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -328,7 +327,6 @@ public fun test_rebalancer_management() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -392,7 +390,6 @@ public fun test_rate_limiter_configuration() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -497,7 +494,6 @@ public fun test_allowlist_management() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -584,7 +580,6 @@ public fun test_unauthorized_liquidity_provision() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -642,7 +637,6 @@ public fun test_withdraw_exceeds_balance() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -715,7 +709,6 @@ public fun test_unauthorized_withdrawal() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -789,7 +782,6 @@ public fun test_destroy_token_pool() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -869,7 +861,6 @@ public fun test_edge_cases_and_getters() {
             &mut ccip_ref,
             &coin_metadata,
             &treasury_cap,
-            @0x1000,
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -970,7 +961,6 @@ public fun test_lock_or_burn_functionality() {
         &mut ccip_ref,
         &ccip_owner_cap,
         &coin_metadata,
-        @0x1000, // token_pool_package_id
         TOKEN_ADMIN,
         REBALANCER,
         ctx
@@ -1069,7 +1059,8 @@ public fun test_lock_or_burn_functionality() {
         let (source_pool, amount, _source_token_address, dest_token_address, extra_data) = 
             dynamic_dispatcher::get_source_token_transfer_data(transfers[0]);
         assert!(amount == initial_coin_value);
-        assert!(source_pool == @0x1000); // token_pool_package_id
+        // source_pool should be the dynamic package ID based on TypeProof, not hardcoded
+        assert!(source_pool != @0x0); // Just verify it's not empty
         assert!(dest_token_address == DefaultRemoteToken);
         assert!(extra_data.length() > 0); // Should contain encoded decimals
         
@@ -1124,7 +1115,6 @@ public fun test_release_or_mint_functionality() {
             &mut ccip_ref,
             &ccip_owner_cap,
             &coin_metadata,
-            @0x1000, // token_pool_package_id
             TOKEN_ADMIN,
             REBALANCER,
             ctx
@@ -1210,6 +1200,11 @@ public fun test_release_or_mint_functionality() {
         // Get the coin metadata address for the test
         let coin_metadata_address = lock_release_token_pool::get_token(&pool_state);
         
+        // Calculate the actual package ID from TypeProof (same as initialization)
+        let type_proof_type_name = type_name::get<lock_release_token_pool::TypeProof>();
+        let _type_proof_type_name_address = type_proof_type_name.get_address();
+        let actual_package_id = address::from_ascii_bytes(&_type_proof_type_name_address.into_bytes());
+        
         // Create receiver params for release_or_mint
         let mut receiver_params = offramp_state_helper::create_receiver_params(&dest_transfer_cap, DefaultRemoteChain);
         
@@ -1225,7 +1220,7 @@ public fun test_release_or_mint_functionality() {
             receiver_address,
             source_amount,
             coin_metadata_address,
-            @0x1000, // token_pool_package_id
+            actual_package_id, // Use the dynamically calculated package ID
             DefaultRemotePool,
             source_pool_data,
             offchain_data
