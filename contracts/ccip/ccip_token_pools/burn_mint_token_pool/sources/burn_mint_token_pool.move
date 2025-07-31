@@ -34,6 +34,8 @@ public struct BurnMintTokenPoolState<phantom T> has key {
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 
+const CLOCK_ADDRESS: address = @0x6;
+
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -48,11 +50,9 @@ public fun initialize<T>(
     treasury_cap: TreasuryCap<T>,
     burn_mint_token_pool_package_id: address,
     token_pool_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,    
     ctx: &mut TxContext,
 ) {
-    let (_, _, _, burn_mint_token_pool) =
+    let (_, _ , _, burn_mint_token_pool) =
         initialize_internal(coin_metadata, treasury_cap, ctx);
 
     token_admin_registry::register_pool(
@@ -60,11 +60,10 @@ public fun initialize<T>(
         &burn_mint_token_pool.treasury_cap,
         coin_metadata,
         burn_mint_token_pool_package_id,
-        object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
         token_pool_administrator,
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         TypeProof {},
     );
 
@@ -78,8 +77,6 @@ public fun initialize_by_ccip_admin<T>(
     treasury_cap: TreasuryCap<T>,
     burn_mint_token_pool_package_id: address,
     token_pool_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     let (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool) =
@@ -90,13 +87,12 @@ public fun initialize_by_ccip_admin<T>(
         owner_cap,
         coin_metadata_address,
         burn_mint_token_pool_package_id,
-        object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         ctx,
     );
 
@@ -254,8 +250,8 @@ public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
     c: Coin<T>,
     token_params: &mut dd::TokenParams,
-    state: &mut BurnMintTokenPoolState<T>,
     clock: &Clock,
+    state: &mut BurnMintTokenPoolState<T>,
     ctx: &mut TxContext
 ) {
     let amount = c.value();
@@ -294,10 +290,10 @@ public fun lock_or_burn<T>(
 
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    mut receiver_params: osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
-    pool: &mut BurnMintTokenPoolState<T>,
     clock: &Clock,
+    pool: &mut BurnMintTokenPoolState<T>,
     ctx: &mut TxContext
 ): osh::ReceiverParams {
     let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);

@@ -243,7 +243,6 @@ public fun test_complete_token_transfer() {
         &owner_cap,
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
-        TOKEN_POOL_ADDRESS_1, // state address
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,

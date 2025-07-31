@@ -36,6 +36,8 @@ const EUnauthorized: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
 
+const CLOCK_ADDRESS: address = @0x6;
+
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -51,11 +53,9 @@ public fun initialize<T>(
     lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    let (_, lock_release_token_pool_state_address, _, _) =
+    let (_, token_pool_state_address, _, _) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     token_admin_registry::register_pool(
@@ -63,11 +63,10 @@ public fun initialize<T>(
         treasury_cap,
         coin_metadata,
         lock_release_token_pool_package_id,
-        lock_release_token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[CLOCK_ADDRESS, token_pool_state_address],
+        vector[CLOCK_ADDRESS, token_pool_state_address],
         TypeProof {},
     );
 }
@@ -82,11 +81,9 @@ public fun initialize_by_ccip_admin<T>(
     lock_release_token_pool_package_id: address,
     token_pool_administrator: address,
     rebalancer: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, lock_release_token_pool_state_address, token_type, type_proof_type_name) =
+    let (coin_metadata_address, token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     token_admin_registry::register_pool_by_admin(
@@ -94,13 +91,12 @@ public fun initialize_by_ccip_admin<T>(
         owner_cap,
         coin_metadata_address,
         lock_release_token_pool_package_id,
-        lock_release_token_pool_state_address,
         string::utf8(b"lock_release_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[CLOCK_ADDRESS, token_pool_state_address],
+        vector[CLOCK_ADDRESS, token_pool_state_address],
         ctx,
     );
 }
@@ -260,8 +256,8 @@ public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
     c: Coin<T>,
     token_params: &mut dd::TokenParams,
-    state: &mut LockReleaseTokenPoolState<T>,
     clock: &Clock,
+    state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
 ) {
     let amount = c.value();
@@ -304,16 +300,16 @@ public fun lock_or_burn<T: drop>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    mut receiver_params: osh::ReceiverParams,
+    receiver_params: osh::ReceiverParams,
     index: u64,
-    pool: &mut LockReleaseTokenPoolState<T>,
     clock: &Clock,
+    state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
 ): osh::ReceiverParams {
     let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
     let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(&receiver_params, index);
     let local_amount = token_pool::calculate_release_or_mint_amount(
-        &pool.token_pool_state,
+        &state.token_pool_state,
         source_pool_data,
         source_amount
     );
@@ -321,7 +317,7 @@ public fun release_or_mint<T>(
     token_pool::validate_release_or_mint(
         ref,
         clock,
-        &mut pool.token_pool_state,
+        &mut state.token_pool_state,
         remote_chain_selector,
         dest_token_address,
         source_pool_address,
@@ -330,13 +326,13 @@ public fun release_or_mint<T>(
 
     // split the coin to be released
     assert!(
-        pool.reserve.value() >= local_amount,
+        state.reserve.value() >= local_amount,
         ETokenPoolBalanceTooLow
     );
-    let c: Coin<T> = coin::split(&mut pool.reserve, local_amount, ctx);
+    let c: Coin<T> = coin::split(&mut state.reserve, local_amount, ctx);
 
     token_pool::emit_released_or_minted(
-        &mut pool.token_pool_state,
+        &mut state.token_pool_state,
         receiver,
         local_amount,
         remote_chain_selector,

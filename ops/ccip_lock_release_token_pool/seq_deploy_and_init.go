@@ -27,8 +27,6 @@ type DeployAndInitLockReleaseTokenPoolInput struct {
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
 	Rebalancer             string
-	LockOrBurnParams       []string
-	ReleaseOrMintParams    []string
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -66,8 +64,6 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 				TreasuryCapObjectId:    input.TreasuryCapObjectId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				Rebalancer:             input.Rebalancer,
-				LockOrBurnParams:       input.LockOrBurnParams,
-				ReleaseOrMintParams:    input.ReleaseOrMintParams,
 			},
 		)
 		if err != nil {

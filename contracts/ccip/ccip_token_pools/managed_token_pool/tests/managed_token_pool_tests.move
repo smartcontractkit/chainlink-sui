@@ -118,8 +118,6 @@ public fun test_initialize_and_basic_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             scenario.ctx()
         );
         scenario.return_to_sender(token_owner_cap);
@@ -374,8 +372,6 @@ public fun test_lock_or_burn_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -457,10 +453,10 @@ public fun test_lock_or_burn_functionality() {
             &ccip_ref,        // ref parameter
             test_coin,        // c parameter (coin)
             &mut token_params, // token_params parameter (modified in place)
-            &mut pool_state,  // state parameter
             &clock,           // clock parameter
             &deny_list,       // deny_list parameter
             &mut token_state, // token_state parameter
+            &mut pool_state,  // state parameter
             &mut ctx          // context parameter
         );
         
@@ -558,8 +554,6 @@ public fun test_release_or_mint_functionality() {
             mint_cap,
             @managed_token_pool, // Should match what we use in add_dest_token_transfer
             @managed_token_pool,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -647,10 +641,10 @@ public fun test_release_or_mint_functionality() {
             &ccip_ref,
             receiver_params,
             0, // index of the token transfer
-            &mut pool_state,
             &clock,
-            &mut token_state,
             &deny_list,
+            &mut token_state,
+            &mut pool_state,
             &mut ctx
         );
         
@@ -711,6 +705,7 @@ public fun test_initialize_by_ccip_admin() {
         coin_metadata
     };
     
+    let mut managed_token_state_address = @0x0;
     scenario.next_tx(@managed_token_pool);
     {
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
@@ -726,6 +721,7 @@ public fun test_initialize_by_ccip_admin() {
             scenario.ctx()
         );
         
+        managed_token_state_address = object::id_to_address(&object::id(&token_state));
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
     };
@@ -743,10 +739,9 @@ public fun test_initialize_by_ccip_admin() {
             &ccip_owner_cap,
             &coin_metadata,
             mint_cap,
+            managed_token_state_address,
             @managed_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             scenario.ctx()
         );
     };
@@ -834,8 +829,6 @@ public fun test_invalid_owner_cap_error() {
             mint_cap2,
             @0x2000, // Different package ID
             @0x999,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -1094,8 +1087,6 @@ public fun test_initialize_with_managed_token_function() {
             mint_cap,
             @0x1000, // token pool package id
             @managed_token_pool, // token pool administrator
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
@@ -1137,11 +1128,11 @@ public fun test_initialize_with_managed_token_function() {
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
         assert!(pool_address == @0x1000); // Should match the package id we passed
         
-        let (pool_package_id, pool_state_address, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
-            token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
+        let token_config = token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
+        let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
+            token_admin_registry::get_token_config_data(token_config);
         
         assert!(pool_package_id == @0x1000);
-        assert!(pool_state_address != @0x0);
         assert!(pool_module == string::utf8(b"managed_token_pool"));
         assert!(token_type == type_name::get<MANAGED_TOKEN_POOL_TESTS>().into_string());
         assert!(admin == @managed_token_pool);
@@ -1215,8 +1206,6 @@ fun setup_basic_pool(scenario: &mut test_scenario::Scenario): (CCIPOwnerCap, CCI
             mint_cap,
             @0x1000,
             @managed_token_pool,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             scenario.ctx()
         );
         
