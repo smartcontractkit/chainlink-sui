@@ -313,14 +313,9 @@ public fun test_extract_any2sui_message() {
     offramp_state_helper::populate_message(&dest_cap, &mut receiver_params, test_message);
     
     // Extract the message
-    let proof_tn = type_name::get<TestTypeProof>();
-    let address_str = type_name::get_address(&proof_tn);
-    let package_id = sui::address::from_ascii_bytes(&ascii::into_bytes(address_str));
-    
     let (extracted_message, receiver_params) = offramp_state_helper::extract_any2sui_message(
         &ref,
         receiver_params,
-        package_id,
         TestTypeProof {}
     );
     

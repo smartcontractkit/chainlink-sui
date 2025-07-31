@@ -40,7 +40,8 @@ public fun create_token_transfer_params<TypeProof: drop>(
     extra_data: vector<u8>,
     _: TypeProof,
  ): TokenTransferParams {
-    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config(ref, source_token_coin_metadata_address);
+    let token_config = registry::get_token_config(ref, source_token_coin_metadata_address);
+    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
     let proof_tn = type_name::get<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);

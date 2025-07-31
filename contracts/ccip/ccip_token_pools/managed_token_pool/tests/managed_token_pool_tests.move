@@ -1123,8 +1123,9 @@ public fun test_initialize_with_managed_token_function() {
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
         assert!(pool_address == @0x1000); // Should match the package id we passed
         
+        let token_config = token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
         let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
-            token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
+            token_admin_registry::get_token_config_data(token_config);
         
         assert!(pool_package_id == @0x1000);
         assert!(pool_module == string::utf8(b"managed_token_pool"));
@@ -1138,7 +1139,7 @@ public fun test_initialize_with_managed_token_function() {
     cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata);
 }
 
-// Helper functions
+// Helper functionss
 fun setup_basic_pool(scenario: &mut test_scenario::Scenario): (CCIPOwnerCap, CCIPObjectRef, coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>) {
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(scenario);
     
