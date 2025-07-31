@@ -103,7 +103,7 @@ public fun initialize<T: drop>(
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(
-        coin_metadata_address == @usdc_local_token,
+        coin_metadata_address == @usdc_coin_metadata_object_id,
         EInvalidCoinMetadata
     );
 
