@@ -1139,7 +1139,7 @@ public fun test_initialize_with_managed_token_function() {
     cleanup_test(scenario, ccip_owner_cap, ccip_ref, coin_metadata);
 }
 
-// Helper functionss
+// Helper functions
 fun setup_basic_pool(scenario: &mut test_scenario::Scenario): (CCIPOwnerCap, CCIPObjectRef, coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>) {
     let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(scenario);
     

@@ -263,7 +263,7 @@ public fun lock_or_burn<T: drop>(
     let amount = c.value();
     let sender = ctx.sender();
 
-    // This method validates various aspects of the lock or burn operation. If any of the validations fail, the transaction will abort.
+    // This function validates various aspects of the lock or burn operation. If any of the validations fail, the transaction will abort.
     let dest_token_address = token_pool::get_remote_token(&state.token_pool_state, remote_chain_selector);
         token_pool::validate_lock_or_burn(
             ref,
