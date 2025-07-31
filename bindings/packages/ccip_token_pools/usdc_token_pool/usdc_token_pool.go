@@ -49,20 +49,26 @@ func PublishCCIPUSDCTokenPool(
 	ccipAddress,
 	ccipTokenPoolAddress,
 	usdcLocalTokenAddress,
-	messageTransmitterAddress,
 	tokenMessengerMinterAddress,
+	tokenMessengerMinterStateAddress,
+	messageTransmitterAddress,
+	messageTransmitterStateAddress,
+	treasuryAddress,
 	mcmsAddress,
 	mcmsOwnerAddress string) (USDCTokenPool, *models.SuiTransactionBlockResponse, error) {
 
 	artifact, err := bind.CompilePackage(contracts.USDCTokenPool, map[string]string{
-		"ccip":                   ccipAddress,
-		"ccip_token_pool":        ccipTokenPoolAddress,
-		"usdc_token_pool":        "0x0",
-		"usdc_local_token":       usdcLocalTokenAddress,
-		"token_messenger_minter": tokenMessengerMinterAddress,
-		"message_transmitter":    messageTransmitterAddress,
-		"mcms":                   mcmsAddress,
-		"mcms_owner":             mcmsOwnerAddress,
+		"ccip":                         ccipAddress,
+		"ccip_token_pool":              ccipTokenPoolAddress,
+		"usdc_token_pool":              "0x0",
+		"usdc_local_token":             usdcLocalTokenAddress,
+		"token_messenger_minter":       tokenMessengerMinterAddress,
+		"token_messenger_minter_state": tokenMessengerMinterStateAddress,
+		"message_transmitter":          messageTransmitterAddress,
+		"message_transmitter_state":    messageTransmitterStateAddress,
+		"treasury":                     treasuryAddress,
+		"mcms":                         mcmsAddress,
+		"mcms_owner":                   mcmsOwnerAddress,
 	})
 	if err != nil {
 		return nil, nil, err

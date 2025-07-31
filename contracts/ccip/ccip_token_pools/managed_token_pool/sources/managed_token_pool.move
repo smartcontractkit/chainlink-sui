@@ -11,9 +11,9 @@ use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::{DenyList};
 use sui::package::UpgradeCap;
 
-use ccip::dynamic_dispatcher as dd;
+use ccip::onramp_state_helper as onramp_sh;
 use ccip::eth_abi;
-use ccip::offramp_state_helper as osh;
+use ccip::offramp_state_helper as offramp_sh;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 
@@ -38,6 +38,9 @@ const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
 
+const CLOCK_ADDRESS: address = @0x6;
+const DENY_LIST_ADDRESS: address = @0x403;
+
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -60,8 +63,6 @@ public fun initialize_with_managed_token<T>(
     mint_cap: MintCap<T>,
     managed_token_pool_package_id: address,
     token_pool_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     // Get treasury cap reference for registration
@@ -77,13 +78,12 @@ public fun initialize_with_managed_token<T>(
         treasury_cap_ref,
         coin_metadata,
         managed_token_pool_package_id,
-        managed_token_pool_state_address,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
         TypeProof {},
-    );
+    );  
 }
 
 public fun initialize_by_ccip_admin<T>(
@@ -91,13 +91,12 @@ public fun initialize_by_ccip_admin<T>(
     owner_cap: &state_object::OwnerCap,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
+    managed_token_state: address,
     managed_token_pool_package_id: address,
     token_pool_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, managed_token_state_address, token_type, type_proof_type_name) =
+    let (coin_metadata_address, managed_token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     token_admin_registry::register_pool_by_admin(
@@ -105,13 +104,12 @@ public fun initialize_by_ccip_admin<T>(
         owner_cap,
         coin_metadata_address,
         managed_token_pool_package_id,
-        managed_token_state_address,
         string::utf8(b"managed_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, managed_token_state, managed_token_pool_state_address],
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, managed_token_state, managed_token_pool_state_address],
         ctx,
     );
 }
@@ -133,12 +131,12 @@ fun initialize_internal<T>(
     };
     let type_proof_type_name = type_name::get<TypeProof>();
     let token_type = type_name::get<T>();
-    let managed_token_state_address = object::uid_to_address(&managed_token_pool.id);
+    let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
 
     transfer::share_object(managed_token_pool);
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, managed_token_state_address, token_type, type_proof_type_name)
+    (coin_metadata_address, managed_token_pool_state_address, token_type, type_proof_type_name)
 }
 
 public fun add_remote_pool<T>(
@@ -268,20 +266,18 @@ public struct TypeProof has drop {}
 public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
     c: Coin<T>,
-    token_params: &mut dd::TokenParams,
-    state: &mut ManagedTokenPoolState<T>,
+    remote_chain_selector: u64,
     clock: &Clock,
     deny_list: &DenyList,
     token_state: &mut TokenState<T>,
+    state: &mut ManagedTokenPoolState<T>,
     ctx: &mut TxContext
-) {
+): onramp_sh::TokenTransferParams {
     let amount = c.value();
     let sender = ctx.sender();
-    let remote_chain_selector = dd::get_destination_chain_selector(token_params);
 
-    // This metod validates various aspects of the lock or burn operation. If any of the
-    // validations fail, the transaction will abort.
-    let dest_token_address =
+    // This function validates various aspects of the lock or burn operation. If any of the validations fail, the transaction will abort.
+    let dest_token_address = token_pool::get_remote_token(&state.token_pool_state, remote_chain_selector);
         token_pool::validate_lock_or_burn(
             ref,
             clock,
@@ -305,15 +301,15 @@ public fun lock_or_burn<T>(
 
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
 
-    dd::add_source_token_transfer(
+    onramp_sh::create_token_transfer_params(
         ref,
-        token_params,
+        remote_chain_selector,
         amount,
         state.token_pool_state.get_token(),
         dest_token_address,
         extra_data,
         TypeProof {},
-    );
+    )
 }
 
 /// after releasing the token, this function will mark this particular token transfer as complete
@@ -322,18 +318,18 @@ public fun lock_or_burn<T>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    receiver_params: osh::ReceiverParams,
+    receiver_params: offramp_sh::ReceiverParams,
     index: u64,
-    pool: &mut ManagedTokenPoolState<T>,
     clock: &Clock,
-    token_state: &mut TokenState<T>,
     deny_list: &DenyList,
+    token_state: &mut TokenState<T>,
+    state: &mut ManagedTokenPoolState<T>,
     ctx: &mut TxContext,
-): osh::ReceiverParams {
-    let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = osh::get_token_param_data(&receiver_params, index);
+): offramp_sh::ReceiverParams {
+    let remote_chain_selector = offramp_sh::get_source_chain_selector(&receiver_params);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(&receiver_params, index);
     let local_amount = token_pool::calculate_release_or_mint_amount(
-        &pool.token_pool_state,
+        &state.token_pool_state,
         source_pool_data,
         source_amount
     );
@@ -341,7 +337,7 @@ public fun release_or_mint<T>(
     token_pool::validate_release_or_mint(
         ref,
         clock,
-        &mut pool.token_pool_state,
+        &mut state.token_pool_state,
         remote_chain_selector,
         dest_token_address,
         source_pool_address,
@@ -350,7 +346,7 @@ public fun release_or_mint<T>(
 
     let c: Coin<T> = managed_token::mint(
         token_state,
-        &pool.mint_cap,
+        &state.mint_cap,
         deny_list,
         local_amount,
         receiver,
@@ -358,14 +354,14 @@ public fun release_or_mint<T>(
     );
 
     token_pool::emit_released_or_minted(
-        &mut pool.token_pool_state,
+        &mut state.token_pool_state,
         receiver,
         local_amount,
         remote_chain_selector,
     );
     transfer::public_transfer(c, receiver);
 
-    osh::complete_token_transfer(
+    offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
         index,

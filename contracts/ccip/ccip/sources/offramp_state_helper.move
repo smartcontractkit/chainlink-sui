@@ -1,6 +1,9 @@
 module ccip::offramp_state_helper;
 
+use std::ascii;
 use std::type_name;
+
+use sui::address;
 
 use ccip::client;
 use ccip::receiver_registry;
@@ -35,8 +38,8 @@ public struct DestTokenTransfer has copy, drop {
     source_amount: u64,
     // the token's coin metadata object id on SUI
     dest_token_address: address,
-    // the token pool state object id on SUI
-    token_pool_address: address,
+    // the destination token pool package id on SUI
+    dest_token_pool_package_id: address,
     // the source pool address on the source chain
     source_pool_address: vector<u8>,
     source_pool_data: vector<u8>,
@@ -73,7 +76,7 @@ public fun add_dest_token_transfer(
     receiver: address,
     source_amount: u64,
     dest_token_address: address,
-    token_pool_address: address,
+    dest_token_pool_package_id: address,
     source_pool_address: vector<u8>,
     source_pool_data: vector<u8>,
     offchain_data: vector<u8>,
@@ -84,7 +87,7 @@ public fun add_dest_token_transfer(
             source_amount,
             // local_amount: 0, // to be calculated by the destination token pool
             dest_token_address,
-            token_pool_address,
+            dest_token_pool_package_id,
             source_pool_address,
             source_pool_data,
             offchain_token_data: offchain_data,
@@ -138,9 +141,10 @@ public fun complete_token_transfer<TypeProof: drop>(
 
     let token_transfer = receiver_params.params[index];
     assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
-    let (token_pool_package_id, _, _, _, _, _, type_proof, _, _) = registry::get_token_config(ref, token_transfer.dest_token_address);
+    let token_config = registry::get_token_config(ref, token_transfer.dest_token_address);
+    let (token_pool_package_id,  _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
     assert!(
-        token_transfer.token_pool_address == token_pool_package_id,
+        token_transfer.dest_token_pool_package_id == token_pool_package_id,
         ETokenPoolAddressMismatch,
     );
     let proof_tn = type_name::get<TypeProof>();
@@ -155,11 +159,13 @@ public fun complete_token_transfer<TypeProof: drop>(
 public fun extract_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     mut receiver_params: ReceiverParams,
-    package_id: address,
     _: TypeProof,
 ): (Option<client::Any2SuiMessage>, ReceiverParams) {
-    let receiver_config = receiver_registry::get_receiver_config(ref, package_id);
     let proof_tn = type_name::get<TypeProof>();
+    let address_str = type_name::get_address(&proof_tn);
+    let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
+
+    let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);
     let (_, _, _, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
     assert!(
         proof_typename == proof_tn,

@@ -24,9 +24,7 @@ type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverStateId string, receiverStateParams []string) (*models.SuiTransactionBlockResponse, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	CcipReceive1(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	CcipReceive2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
 }
@@ -34,9 +32,7 @@ type IDummyReceiver interface {
 type IDummyReceiverDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (uint64, error)
-	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object) (bind.Object, error)
-	CcipReceive1(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object) (bind.Object, error)
-	CcipReceive2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object, param bind.Object) (bind.Object, error)
+	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (bind.Object, error)
 }
 
 type DummyReceiverEncoder interface {
@@ -46,12 +42,8 @@ type DummyReceiverEncoder interface {
 	RegisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCounter(state bind.Object) (*bind.EncodedCall, error)
 	GetCounterWithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipReceive(ref bind.Object, packageId string, receiverParams bind.Object) (*bind.EncodedCall, error)
+	CcipReceive(ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipReceive1(ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object) (*bind.EncodedCall, error)
-	CcipReceive1WithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipReceive2(ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object, param bind.Object) (*bind.EncodedCall, error)
-	CcipReceive2WithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type DummyReceiverContract struct {
@@ -236,28 +228,8 @@ func (c *DummyReceiverContract) GetCounter(ctx context.Context, opts *bind.CallO
 }
 
 // CcipReceive executes the ccip_receive Move function.
-func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.CcipReceive(ref, packageId, receiverParams)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// CcipReceive1 executes the ccip_receive_1 Move function.
-func (c *DummyReceiverContract) CcipReceive1(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.CcipReceive1(ref, packageId, receiverParams, state)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// CcipReceive2 executes the ccip_receive_2 Move function.
-func (c *DummyReceiverContract) CcipReceive2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.CcipReceive2(ref, packageId, receiverParams, state, param)
+func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.CcipReceive(ref, receiverParams, state, param)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -312,52 +284,8 @@ func (d *DummyReceiverDevInspect) GetCounter(ctx context.Context, opts *bind.Cal
 // CcipReceive executes the ccip_receive Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *DummyReceiverDevInspect) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.dummyReceiverEncoder.CcipReceive(ref, packageId, receiverParams)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
-	}
-	return result, nil
-}
-
-// CcipReceive1 executes the ccip_receive_1 Move function using DevInspect to get return values.
-//
-// Returns: osh::ReceiverParams
-func (d *DummyReceiverDevInspect) CcipReceive1(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.dummyReceiverEncoder.CcipReceive1(ref, packageId, receiverParams, state)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
-	}
-	return result, nil
-}
-
-// CcipReceive2 executes the ccip_receive_2 Move function using DevInspect to get return values.
-//
-// Returns: osh::ReceiverParams
-func (d *DummyReceiverDevInspect) CcipReceive2(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object, param bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.dummyReceiverEncoder.CcipReceive2(ref, packageId, receiverParams, state, param)
+func (d *DummyReceiverDevInspect) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.CcipReceive(ref, receiverParams, state, param)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -466,17 +394,19 @@ func (c dummyReceiverEncoder) GetCounterWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // CcipReceive encodes a call to the ccip_receive Move function.
-func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, packageId string, receiverParams bind.Object) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"address",
 		"osh::ReceiverParams",
+		"&mut CCIPReceiverState",
+		"&Clock",
 	}, []any{
 		ref,
-		packageId,
 		receiverParams,
+		state,
+		param,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -487,8 +417,9 @@ func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, packageId string, rec
 func (c dummyReceiverEncoder) CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"address",
 		"osh::ReceiverParams",
+		"&mut CCIPReceiverState",
+		"&Clock",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -497,87 +428,6 @@ func (c dummyReceiverEncoder) CcipReceiveWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"osh::ReceiverParams",
-	})
-}
-
-// CcipReceive1 encodes a call to the ccip_receive_1 Move function.
-func (c dummyReceiverEncoder) CcipReceive1(ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("ccip_receive_1", typeArgsList, typeParamsList, []string{
-		"&CCIPObjectRef",
-		"address",
-		"osh::ReceiverParams",
-		"&mut CCIPReceiverState",
-	}, []any{
-		ref,
-		packageId,
-		receiverParams,
-		state,
-	}, []string{
-		"osh::ReceiverParams",
-	})
-}
-
-// CcipReceive1WithArgs encodes a call to the ccip_receive_1 Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c dummyReceiverEncoder) CcipReceive1WithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&CCIPObjectRef",
-		"address",
-		"osh::ReceiverParams",
-		"&mut CCIPReceiverState",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("ccip_receive_1", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"osh::ReceiverParams",
-	})
-}
-
-// CcipReceive2 encodes a call to the ccip_receive_2 Move function.
-func (c dummyReceiverEncoder) CcipReceive2(ref bind.Object, packageId string, receiverParams bind.Object, state bind.Object, param bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("ccip_receive_2", typeArgsList, typeParamsList, []string{
-		"&CCIPObjectRef",
-		"address",
-		"osh::ReceiverParams",
-		"&mut CCIPReceiverState",
-		"&Clock",
-	}, []any{
-		ref,
-		packageId,
-		receiverParams,
-		state,
-		param,
-	}, []string{
-		"osh::ReceiverParams",
-	})
-}
-
-// CcipReceive2WithArgs encodes a call to the ccip_receive_2 Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c dummyReceiverEncoder) CcipReceive2WithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&CCIPObjectRef",
-		"address",
-		"osh::ReceiverParams",
-		"&mut CCIPReceiverState",
-		"&Clock",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("ccip_receive_2", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"osh::ReceiverParams",
 	})
 }

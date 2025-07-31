@@ -27,8 +27,6 @@ type USDCTokenPoolInitializeInput struct {
 	LocalDomainIdentifier  uint32
 	TokenPoolPackageId     string
 	TokenPoolAdministrator string
-	LockOrBurnParams       []string
-	ReleaseOrMintParams    []string
 }
 
 var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCTokenPoolInitializeInput) (output sui_ops.OpTxResult[USDCTokenPoolInitializeObjects], err error) {
@@ -49,8 +47,6 @@ var initUSDCTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		input.LocalDomainIdentifier,
 		input.TokenPoolPackageId,
 		input.TokenPoolAdministrator,
-		input.LockOrBurnParams,
-		input.ReleaseOrMintParams,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[USDCTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute USDC token pool initialization: %w", err)
@@ -245,4 +241,86 @@ var USDCTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Sets chain rate limiter configurations for the USDC Token Pool",
 	setChainRateLimiterHandler,
+)
+
+// USDC Token Pool -- SET_ALLOWLIST_ENABLED
+type USDCTokenPoolSetAllowlistEnabledInput struct {
+	USDCTokenPoolPackageId string
+	StateObjectId          string
+	OwnerCap               string
+	Enabled                bool
+}
+
+var setAllowlistEnabledHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCTokenPoolSetAllowlistEnabledInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_usdc_token_pool.NewUsdcTokenPool(input.USDCTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create USDC token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.SetAllowlistEnabled(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.Enabled,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute set allowlist enabled: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.USDCTokenPoolPackageId,
+	}, nil
+}
+
+var USDCTokenPoolSetAllowlistEnabledOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "usdc_token_pool", "set_allowlist_enabled"),
+	semver.MustParse("0.1.0"),
+	"Sets allowlist enabled for the USDC Token Pool",
+	setAllowlistEnabledHandler,
+)
+
+// USDC Token Pool -- APPLY_ALLOWLIST_UPDATES
+type USDCTokenPoolApplyAllowlistUpdatesInput struct {
+	USDCTokenPoolPackageId string
+	StateObjectId          string
+	OwnerCap               string
+	Removes                []string
+	Adds                   []string
+}
+
+var applyAllowlistUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCTokenPoolApplyAllowlistUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_usdc_token_pool.NewUsdcTokenPool(input.USDCTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create USDC token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.ApplyAllowlistUpdates(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.Removes,
+		input.Adds,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute apply allowlist updates: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.USDCTokenPoolPackageId,
+	}, nil
+}
+
+var USDCTokenPoolApplyAllowlistUpdatesOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "usdc_token_pool", "apply_allowlist_updates"),
+	semver.MustParse("0.1.0"),
+	"Applies allowlist updates to the USDC Token Pool",
+	applyAllowlistUpdatesHandler,
 )

@@ -28,8 +28,6 @@ type DeployAndInitUSDCTokenPoolInput struct {
 	LocalDomainIdentifier  uint32
 	TokenPoolPackageId     string
 	TokenPoolAdministrator string
-	LockOrBurnParams       []string
-	ReleaseOrMintParams    []string
 	// set domains
 	RemoteChainSelectors    []uint64
 	RemoteDomainIdentifiers []uint32
@@ -74,8 +72,6 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 				LocalDomainIdentifier:  input.LocalDomainIdentifier,
 				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
-				LockOrBurnParams:       input.LockOrBurnParams,
-				ReleaseOrMintParams:    input.ReleaseOrMintParams,
 			},
 		)
 		if err != nil {

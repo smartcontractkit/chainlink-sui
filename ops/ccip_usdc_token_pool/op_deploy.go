@@ -10,13 +10,16 @@ import (
 )
 
 type USDCTokenPoolDeployInput struct {
-	CCIPPackageId               string
-	CCIPTokenPoolPackageId      string
-	USDCLocalTokenAddress       string
-	MessageTransmitterAddress   string
-	TokenMessengerMinterAddress string
-	MCMSAddress                 string
-	MCMSOwnerAddress            string
+	CCIPPackageId                     string
+	CCIPTokenPoolPackageId            string
+	USDCLocalTokenAddress             string
+	TokenMessengerMinterPackageId     string
+	TokenMessengerMinterStateObjectId string
+	MessageTransmitterPackageId       string
+	MessageTransmitterStateObjectId   string
+	TreasuryObjectId                  string
+	MCMSAddress                       string
+	MCMSOwnerAddress                  string
 }
 
 type USDCTokenPoolDeployOutput struct {
@@ -32,8 +35,11 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCToke
 		input.CCIPPackageId,
 		input.CCIPTokenPoolPackageId,
 		input.USDCLocalTokenAddress,
-		input.MessageTransmitterAddress,
-		input.TokenMessengerMinterAddress,
+		input.TokenMessengerMinterPackageId,
+		input.TokenMessengerMinterStateObjectId,
+		input.MessageTransmitterPackageId,
+		input.MessageTransmitterStateObjectId,
+		input.TreasuryObjectId,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,
 	)

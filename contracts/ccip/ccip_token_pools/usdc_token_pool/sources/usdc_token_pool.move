@@ -11,9 +11,9 @@ use sui::event;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
 
-use ccip::dynamic_dispatcher as dd;
 use ccip::eth_abi;
-use ccip::offramp_state_helper as osh;
+use ccip::onramp_state_helper as onramp_sh;
+use ccip::offramp_state_helper as offramp_sh;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 
@@ -30,7 +30,7 @@ use message_transmitter::auth::auth_caller_identifier;
 use token_messenger_minter::burn_message;
 use token_messenger_minter::deposit_for_burn::{Self, DepositForBurnWithCallerTicket};
 use token_messenger_minter::handle_receive_message;
-use token_messenger_minter::state::State;
+use token_messenger_minter::state::State as MinterState;
 
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -38,6 +38,9 @@ use mcms::mcms_deployer::{Self, DeployerState};
 
 // We restrict to the first version. New pool may be required for subsequent versions.
 const SUPPORTED_USDC_VERSION_U64: u64 = 0;
+
+const CLOCK_ADDRESS: address = @0x6;
+const DENY_LIST_ADDRESS: address = @0x403;
 
 /// A domain is a USDC representation of a destination chain.
 /// @dev Zero is a valid domain identifier.
@@ -92,12 +95,10 @@ public fun type_and_version(): String {
 public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
     owner_cap: &state_object::OwnerCap,
-    coin_metadata: &CoinMetadata<T>,
+    coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
     local_domain_identifier: u32,
     token_pool_package_id: address,
     token_pool_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     ctx: &mut TxContext,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
@@ -116,21 +117,22 @@ public fun initialize<T: drop>(
         ownable_state,
     };
 
-    let token_type = type_name::into_string(type_name::get<T>());
-    let proof_type = type_name::into_string(type_name::get<TypeProof>());
+    let token_type = type_name::get<T>();
+    let proof_type = type_name::get<TypeProof>();
+    let token_pool_state_address = object::id_to_address(&object::id(&usdc_token_pool));
 
     token_admin_registry::register_pool_by_admin(
         ref,
         owner_cap,
         coin_metadata_address,
         token_pool_package_id,
-        object::id_to_address(&object::id(&usdc_token_pool)),
         string::utf8(b"usdc_token_pool"),
-        token_type,
+        token_type.into_string(),
         token_pool_administrator,
-        proof_type,
-        lock_or_burn_params,
-        release_or_mint_params,
+        proof_type.into_string(),
+        // these addresses match the lock_or_burn and release_or_mint functions' last 6 arguments, excluding the ctx
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, token_pool_state_address, @token_messenger_minter_state, @message_transmitter_state, @treasury],
+        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, token_pool_state_address, @token_messenger_minter_state, @message_transmitter_state, @treasury],
         ctx,
     );
 
@@ -275,22 +277,19 @@ public fun get_package_auth_caller<TypeProof: drop>(): address {
 public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
     c: Coin<T>,
-    token_params: &mut dd::TokenParams,
-    pool: &mut USDCTokenPoolState,
+    remote_chain_selector: u64,
+    receiver: address, // TODO: verify this is possible
     clock: &Clock,
-    state: &State,
-    message_transmitter_state: &mut MessageTransmitterState,
     deny_list: &DenyList,
+    pool: &mut USDCTokenPoolState,
+    state: &MinterState,
+    message_transmitter_state: &mut MessageTransmitterState,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext
-) {
+): onramp_sh::TokenTransferParams {
     let amount = c.value();
     let sender = ctx.sender();
-    let remote_chain_selector = dd::get_destination_chain_selector(token_params);
-    let receiver = dd::get_receiver(token_params);
-    // this is to assume that the receiver in vector<u8> is the address of the mint recipient
-    // if the destination is a non-Move chain, the receiver address should be converted to hex and passed in using the @0x123 address format.
-    let mint_recipient = address::from_bytes(receiver);
+    let mint_recipient = receiver;
 
     assert!(
         pool.chain_to_domain.contains(remote_chain_selector),
@@ -333,32 +332,31 @@ public fun lock_or_burn<T: drop>(
 
     token_pool::emit_locked_or_burned(&mut pool.token_pool_state, amount, remote_chain_selector);
 
-    // update hot potato token params
-    dd::add_source_token_transfer(
+    onramp_sh::create_token_transfer_params(
         ref,
-        token_params,
+        remote_chain_selector,
         amount,
         pool.token_pool_state.get_token(),
         dest_token_address,
         source_pool_data,
         TypeProof {},
-    );
+    )
 }
 
 public fun release_or_mint<T: drop>(
     ref: &CCIPObjectRef,
-    receiver_params: osh::ReceiverParams,
+    receiver_params: offramp_sh::ReceiverParams,
     index: u64,
-    pool: &mut USDCTokenPoolState,
     clock: &Clock,
-    state: &mut State,
-    message_transmitter_state: &mut MessageTransmitterState,
     deny_list: &DenyList,
+    pool: &mut USDCTokenPoolState,
+    state: &mut MinterState,
+    message_transmitter_state: &mut MessageTransmitterState,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext,
-): osh::ReceiverParams {
-    let remote_chain_selector = osh::get_source_chain_selector(&receiver_params);
-    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = osh::get_token_param_data(&receiver_params, index);
+): offramp_sh::ReceiverParams {
+    let remote_chain_selector = offramp_sh::get_source_chain_selector(&receiver_params);
+    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = offramp_sh::get_token_param_data(&receiver_params, index);
     let (message_bytes, attestation) =
         parse_message_and_attestation(offchain_token_data);
 
@@ -393,7 +391,7 @@ public fun release_or_mint<T: drop>(
 
     let local_amount = burn_message::amount(&burn_message);
     let mut amount_op = local_amount.try_as_u64();
-    assert!(amount_op.is_none(), ETokenAmountOverflow);
+    assert!(amount_op.is_some(), ETokenAmountOverflow);
     let amount = amount_op.extract();
 
     token_pool::validate_release_or_mint(
@@ -413,7 +411,7 @@ public fun release_or_mint<T: drop>(
         remote_chain_selector,
     );
 
-    osh::complete_token_transfer(
+    offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
         index,

@@ -11,9 +11,10 @@ module ccip_onramp::onramp {
     use sui::event;
     use sui::hash;
     use sui::package::UpgradeCap;
+    use sui::vec_set;
     use sui::table::{Self, Table};
 
-    use ccip::dynamic_dispatcher as dd;
+    use ccip::onramp_state_helper as osh;
     use ccip::eth_abi;
     use ccip::fee_quoter;
     use ccip::merkle_proof;
@@ -37,7 +38,7 @@ module ccip_onramp::onramp {
         // coin metadata address -> Coin
         fee_tokens: Bag,
         nonce_manager_cap: Option<NonceManagerCap>,
-        source_transfer_cap: Option<dd::SourceTransferCap>,
+        source_transfer_cap: Option<osh::SourceTransferCap>,
         ownable_state: OwnableState,
     }
 
@@ -146,6 +147,8 @@ module ccip_onramp::onramp {
     const ECannotSendZeroTokens: u64 = 15;
     const EZeroChainSelector: u64 = 16;
     const ECalculateMessageHashInvalidArguments: u64 = 17;
+    const EInvalidRemoteChainSelector: u64 = 18;
+    const DuplicateSourceTokenCoinMetadataAddress: u64 = 19;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -187,7 +190,7 @@ module ccip_onramp::onramp {
         state: &mut OnRampState,
         _: &OwnerCap,
         nonce_manager_cap: NonceManagerCap,
-        source_transfer_cap: dd::SourceTransferCap,
+        source_transfer_cap: osh::SourceTransferCap,
         chain_selector: u64,
         fee_aggregator: address,
         allowlist_admin: address,
@@ -713,8 +716,10 @@ module ccip_onramp::onramp {
         ref: &mut CCIPObjectRef,
         state: &mut OnRampState,
         clock: &Clock,
+        dest_chain_selector: u64,
+        receiver: vector<u8>,
         data: vector<u8>,
-        token_params: dd::TokenParams,
+        token_params: vector<osh::TokenTransferParams>,
         fee_token_metadata: &CoinMetadata<T>,
         fee_token: &mut Coin<T>,
         extra_args: vector<u8>,
@@ -723,23 +728,24 @@ module ccip_onramp::onramp {
         // get_fee_internal will check curse status
         let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
 
-        // the hot potato is returned and consumed
-        let (dest_chain_selector, receiver, params) = dd::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
-
         let mut token_amounts = vector[];
         let mut source_tokens = vector[];
         let mut dest_tokens = vector[];
         let mut dest_pool_datas = vector[];
         let mut token_transfers = vector[];
         let mut i = 0;
-        let tokens_len = params.length();
+        let tokens_len = token_params.length();
+        let mut coin_metadata_addresses = vec_set::empty<address>();
 
         while (i < tokens_len) {
-            let (source_pool, amount, source_token_address, dest_token_address, extra_data) = dd::get_source_token_transfer_data(params[i]);
+            let (remote_chain_selector, source_pool_package_id, amount, source_token_coin_metadata_address, dest_token_address, extra_data) = osh::get_source_token_transfer_data(&token_params, i);
+            assert!(remote_chain_selector == dest_chain_selector, EInvalidRemoteChainSelector);
             assert!(amount > 0, ECannotSendZeroTokens);
+            assert!(!coin_metadata_addresses.contains(&source_token_coin_metadata_address), DuplicateSourceTokenCoinMetadataAddress);
+            coin_metadata_addresses.insert(source_token_coin_metadata_address);
             token_transfers.push_back(
                 Sui2AnyTokenTransfer {
-                    source_pool_address: source_pool,
+                    source_pool_address: source_pool_package_id,
                     amount,
                     dest_token_address,
                     extra_data: extra_data, // encoded decimals
@@ -747,12 +753,15 @@ module ccip_onramp::onramp {
                 }
             );
             token_amounts.push_back(amount);
-            source_tokens.push_back(source_token_address);
+            source_tokens.push_back(source_token_coin_metadata_address);
             dest_tokens.push_back(dest_token_address);
             dest_pool_datas.push_back(extra_data);
 
             i = i + 1;
         };
+
+        // Clean up the token params
+        osh::deconstruct_token_params(state.source_transfer_cap.borrow(), token_params);
 
         let fee_token_amount =
             get_fee_internal(
