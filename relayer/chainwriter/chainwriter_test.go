@@ -4,7 +4,6 @@ package chainwriter_test
 
 import (
 	"context"
-	"crypto/ed25519"
 	"errors"
 	"math/big"
 	"testing"
@@ -50,10 +49,8 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	}
 
 	testState := testutils.BootstrapTestEnvironment(t, testutils.CLI, metadata)
-	privateKey, err := testState.KeystoreGateway.GetPrivateKeyByAddress(testState.AccountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
+	publicKeyBytes := testState.PublicKeyBytes
+
 	countContract := testState.Contracts[0]
 	packageId := countContract.ModuleID
 	objectID := countContract.Objects[0].ObjectID

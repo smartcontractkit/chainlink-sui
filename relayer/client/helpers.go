@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/crypto/blake2b"
 	"strconv"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -32,7 +33,7 @@ func (c *PTBClient) TransformTransactionArg(
 		var objectOwner models.ObjectOwner
 		var objectArg transaction.ObjectArg
 
-		// --- handle truly immutable objects -----------------------
+		// handle truly immutable objects
 		if ownerStr, ok := objectDetails.Owner.(string); ok && ownerStr == "Immutable" {
 			var versionUint uint64
 			var digestBytes *models.ObjectDigestBytes
@@ -223,4 +224,11 @@ func (c *PTBClient) PayAllSui(ctx context.Context, toAddress string, coinObjectR
 	}
 
 	return nil
+}
+
+// HashTxBytes is a helper method to hash (Blake2) the transaction bytes before signing
+func (c *PTBClient) HashTxBytes(txBytes []byte) []byte {
+	intentMessage := append([]byte{0, 0, 0}, txBytes...)
+	digest := blake2b.Sum256(intentMessage)
+	return digest[:]
 }

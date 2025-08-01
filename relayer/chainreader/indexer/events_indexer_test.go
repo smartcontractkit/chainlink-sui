@@ -4,7 +4,6 @@ package indexer_test
 
 import (
 	"context"
-	"crypto/ed25519"
 	"os"
 	"strconv"
 	"testing"
@@ -20,7 +19,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
@@ -44,7 +42,6 @@ func TestEventsIndexer(t *testing.T) {
 	require.NoError(t, dbStore.EnsureSchema(ctx))
 
 	// Setup Sui node and account
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
@@ -60,22 +57,20 @@ func TestEventsIndexer(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
-	require.NoError(t, err)
+	// Create keystore for PTB client and add the generated key
+	keystoreInstance := testutils.NewTestKeystore(t)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	// Setup keystore and client
-	keystoreInstance, err := keystore.NewSuiKeystore(log, "")
-	require.NoError(t, err)
-
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
+	// Fund the account multiple times to ensure sufficient balance
+	for i := 0; i < 3; i++ {
+		err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+		require.NoError(t, err)
+	}
 
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
-	// Deploy contract
+	// Deploy contract with proper account consistency
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	testutils.BuildContract(t, contractPath)
 

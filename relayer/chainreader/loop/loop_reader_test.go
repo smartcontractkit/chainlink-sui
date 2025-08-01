@@ -4,7 +4,6 @@ package loop
 
 import (
 	"context"
-	"crypto/ed25519"
 	"fmt"
 	"math/big"
 	"os"
@@ -23,7 +22,6 @@ import (
 	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
@@ -31,8 +29,6 @@ import (
 func TestLoopChainReaderLocal(t *testing.T) {
 	log := logger.Test(t)
 
-	var err error
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
@@ -48,9 +44,6 @@ func TestLoopChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
-	require.NoError(t, err)
-
 	runLoopChainReaderEchoTest(t, log, testutils.LocalUrl)
 }
 
@@ -58,14 +51,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	t.Helper()
 	ctx := context.Background()
 
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
-	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "")
-	require.NoError(t, keystoreErr)
-
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
+	keystoreInstance := testutils.NewTestKeystore(t)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
 	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, clientErr)

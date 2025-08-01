@@ -377,7 +377,7 @@ func TestSuiPTBExpander_FilterRegisteredReceivers(t *testing.T) {
 
 	ptbExpander := expander.NewSuiPTBExpander(lggr, mockSuiPTBClient, addressMappings)
 	ctx := context.Background()
-	_, publicKey, _, err := testutils.GenerateAccountKeyPair(t, lggr)
+	_, publicKey, _, err := testutils.GenerateAccountKeyPair(t)
 	require.NoError(t, err)
 
 	tests := []struct {
