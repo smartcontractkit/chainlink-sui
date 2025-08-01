@@ -152,9 +152,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 
 	// Create a new transaction builder
 	ptb := transaction.NewTransaction()
-	clientInstance := *p.client.GetClient()
-
-	ptb.SetSuiClient(clientInstance.(*sui.Client))
+	ptb.SetSuiClient(p.client.GetClient().(*sui.Client))
 
 	var overrideToAddress *string
 	if configOverrides == nil {

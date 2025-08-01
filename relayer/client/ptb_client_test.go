@@ -4,7 +4,6 @@ package client_test
 
 import (
 	"context"
-	"crypto/ed25519"
 	"fmt"
 	"testing"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/test-go/testify/require"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
@@ -36,12 +34,9 @@ func TestPTBClient(t *testing.T) {
 		}
 	})
 
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, log)
-	keystoreInstance, err := keystore.NewSuiKeystore(log, "")
-	require.NoError(t, err)
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKeyBytes := []byte(privateKey.Public().(ed25519.PublicKey))
+	keystoreInstance := testutils.NewTestKeystore(t)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+
 	maxConcurrent := int64(3)
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, keystoreInstance, maxConcurrent, "WaitForLocalExecution")
 	require.NoError(t, err)
@@ -512,11 +507,12 @@ func CreateFailedTransaction(t *testing.T, relayerClient *client.PTBClient, pack
 	require.NotEmpty(t, txnMetadata.TxBytes, "Expected non-empty transaction bytes")
 
 	// Verify we can execute the transaction
-	resp, _ := relayerClient.SignAndSendTransaction(
+	resp, err := relayerClient.SignAndSendTransaction(
 		context.Background(),
 		txnMetadata.TxBytes,
 		signerPublicKey,
 		"WaitForLocalExecution",
 	)
+	require.NoError(t, err)
 	require.Equal(t, "failure", resp.Status.Status, "Expected move call to fail")
 }

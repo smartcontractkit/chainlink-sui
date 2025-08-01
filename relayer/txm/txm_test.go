@@ -4,7 +4,6 @@ package txm_test
 
 import (
 	"context"
-	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"math/big"
@@ -21,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
@@ -57,14 +55,9 @@ func TestEnqueueIntegration(t *testing.T) {
 	// since they both depend on the Sui node running on the same port
 	time.Sleep(WAIT_TIME_NEXT_TEST)
 
-	_keystore, err := keystore.NewSuiKeystore(_logger, "")
-	require.NoError(t, err)
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, _logger)
+	testKeystore := testutils.NewTestKeystore(t)
 
-	privateKey, err := _keystore.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-
-	publicKey := privateKey.Public().(ed25519.PublicKey)
+	accountAddress, publicKey := testutils.GetAccountAndKeyFromSui(testKeystore)
 
 	err = testutils.FundWithFaucet(_logger, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
@@ -77,7 +70,7 @@ func TestEnqueueIntegration(t *testing.T) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	suiClient, txManager, transactionRepository := testutils.SetupClients(t, testutils.LocalUrl, _keystore, _logger)
+	suiClient, txManager, transactionRepository := testutils.SetupClients(t, testutils.LocalUrl, testKeystore, _logger)
 
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
@@ -178,7 +171,7 @@ func TestEnqueueIntegration(t *testing.T) {
 				coins, err := suiClient.GetCoinsByAddress(ctx, addr)
 				require.NoError(t, err, "Failed to get coin objects")
 				burnAddress := "0x000000000000000000000000000000000000dead"
-				err = testutils.DrainAccountCoins(ctx, _logger, addr, _keystore, suiClient, coins, burnAddress)
+				err = testutils.DrainAccountCoins(t, ctx, _logger, addr, testKeystore, suiClient, coins, burnAddress)
 				require.NoError(t, err, "Failed to drain account coins")
 
 				// Wait a moment for transactions to be confirmed
@@ -266,12 +259,6 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	privateKey, err := testState.KeystoreGateway.GetPrivateKeyByAddress(testState.AccountAddress)
-	require.NoError(t, err)
-
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	pubKeyBytes := []byte(publicKey)
-
 	_logger.Infow("Test environment bootstrapped")
 
 	countContract := testState.Contracts[0]
@@ -286,7 +273,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 				Functions: map[string]*config.ChainWriterFunction{
 					"ptb_call": {
 						Name:      "ptb_call",
-						PublicKey: pubKeyBytes,
+						PublicKey: testState.PublicKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
 						PTBCommands: []config.ChainWriterPTBCommand{
 							{
@@ -333,7 +320,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txID:            "test-txID",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
-			signerPublicKey: pubKeyBytes,
+			signerPublicKey: testState.PublicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
@@ -347,7 +334,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txID:            "test-ptb-txID",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
-			signerPublicKey: pubKeyBytes,
+			signerPublicKey: testState.PublicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
@@ -361,7 +348,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txID:            "test-ptb-txID-missing-arg",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
-			signerPublicKey: pubKeyBytes,
+			signerPublicKey: testState.PublicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{}, // missing "counter"
@@ -375,7 +362,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			txID:            "test-ptb-simple-map",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
 			sender:          testState.AccountAddress,
-			signerPublicKey: pubKeyBytes,
+			signerPublicKey: testState.PublicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
@@ -399,10 +386,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			}
 			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, arg, nil)
 			if tc.expectError != nil {
-				if err != nil {
-					// Expected error occurred during PTB command building
-					return
-				}
+				require.Error(t, err, "Expected an error but BuildPTBCommands succeeded")
 			} else {
 				require.NoError(t, err, "Failed to build PTB commands")
 				tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.signerPublicKey, ptb, false)

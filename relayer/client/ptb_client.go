@@ -24,10 +24,12 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
-const maxCoinsPageSize uint = 50
-const Base10 = 10
-const DefaultGasPrice = 10_000
-const DefaultGasBudget = 1_000_000_000
+const (
+	maxCoinsPageSize uint   = 50
+	Base10           int    = 10
+	DefaultGasPrice  uint64 = 10_000
+	DefaultGasBudget uint64 = 1_000_000_000
+)
 
 // var since it's passed via pointer
 var maxPageSize uint = 50
@@ -50,7 +52,8 @@ type SuiPTBClient interface {
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
 	GetNormalizedModule(ctx context.Context, moduleKey string, eventKey string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
-	GetClient() *sui.ISuiAPI
+	GetClient() sui.ISuiAPI
+	HashTxBytes(txBytes []byte) []byte
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -421,22 +424,21 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 	ctx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
-	signerAddress, err := GetAddressFromPublicKey(signerPublicKey)
-	if err != nil {
-		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get signer address: %w", err)
-	}
+	signerId := fmt.Sprintf("%064x", signerPublicKey)
 
 	txBytes, err := shared.DecodeBase64(txBytesRaw)
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to decode tx bytes: %w", err)
 	}
 
-	signatures, err := c.keystoreService.Sign(ctx, signerAddress, txBytes)
+	// Hash the transaction bytes to include intent messages for Sui signing protocol
+	txBytesToSign := c.HashTxBytes(txBytes)
+	signature, err := c.keystoreService.Sign(ctx, signerId, txBytesToSign)
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to sign tx: %w", err)
 	}
 
-	signaturesString := SerializeSuiSignature(signatures, signerPublicKey)
+	signaturesString := SerializeSuiSignature(signature, signerPublicKey)
 
 	return c.SendTransaction(ctx, TransactionBlockRequest{
 		TxBytes:     txBytesRaw,
@@ -627,7 +629,6 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 		ShowObjectChanges:  true,
 		ShowBalanceChanges: true,
 	}, string(requestType))
-
 	if err != nil {
 		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to execute transaction: %w", err)
 	}
@@ -732,6 +733,6 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 	return normalizedModule, nil
 }
 
-func (c *PTBClient) GetClient() *sui.ISuiAPI {
-	return &c.client
+func (c *PTBClient) GetClient() sui.ISuiAPI {
+	return c.client
 }

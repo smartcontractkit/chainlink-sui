@@ -89,7 +89,7 @@ func (c *FakeSuiPTBClient) GetNormalizedModule(ctx context.Context, packageId st
 	return models.GetNormalizedMoveModuleResponse{}, nil
 }
 
-func (c *FakeSuiPTBClient) GetClient() *sui.ISuiAPI {
+func (c *FakeSuiPTBClient) GetClient() sui.ISuiAPI {
 	return nil
 }
 
@@ -99,4 +99,8 @@ func (c *FakeSuiPTBClient) GetBlockById(ctx context.Context, checkpointId string
 
 func (c *FakeSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress string, cursor *string, limit *uint64) (models.SuiXQueryTransactionBlocksResponse, error) {
 	return models.SuiXQueryTransactionBlocksResponse{}, nil
+}
+
+func (c *FakeSuiPTBClient) HashTxBytes(txBytes []byte) []byte {
+	return []byte{}
 }

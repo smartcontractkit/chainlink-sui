@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -26,7 +25,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
@@ -56,23 +54,17 @@ func setupTestEnvironment(t *testing.T) (
 	signer *sdkSigner.Signer,
 ) {
 	t.Helper()
-
+	ctx := context.Background()
 	log = logger.Test(t)
-	accountAddress = testutils.GetAccountAndKeyFromSui(t, log)
-
-	// setup keystore instance
-	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(log, "")
-	require.NoError(t, keystoreErr)
-
-	// get the private key from keystore
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes = []byte(publicKey)
 
 	// Start local Sui node
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
+	log.Debugw("Started Sui node")
+
+	// setup keystore instance
+	keystoreInstance := testutils.NewTestKeystore(t)
+	accountAddress, publicKeyBytes = testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
 	// Ensure the process is killed when the test completes
 	t.Cleanup(func() {
@@ -83,8 +75,6 @@ func setupTestEnvironment(t *testing.T) (
 			}
 		}
 	})
-
-	log.Debugw("Started Sui node")
 
 	// Fund the account
 	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
@@ -124,13 +114,10 @@ func setupTestEnvironment(t *testing.T) (
 		mcmsTestPublishOutput: mcmsTestPublishOutput,
 	}
 
-	signer = &sdkSigner.Signer{
-		PriKey:  privateKey,
-		Address: accountAddress,
-		PubKey:  publicKey,
-	}
+	signerId := fmt.Sprintf("%064x", publicKeyBytes)
+	sgnr := keystoreInstance.GetSuiSigner(ctx, signerId)
 
-	return log, accountAddress, ptbClient, outputs, publicKeyBytes, signer
+	return log, accountAddress, ptbClient, outputs, publicKeyBytes, sgnr
 }
 
 // ------------------------------------------------

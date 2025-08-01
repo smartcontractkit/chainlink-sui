@@ -6,111 +6,63 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"os"
-	"os/exec"
-	"regexp"
 	"testing"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 )
-
-// LoadAccountFromEnv loads a test account from environment variables
-func LoadAccountFromEnv(t *testing.T, log logger.Logger) (ed25519.PrivateKey, ed25519.PublicKey, string) {
-	t.Helper()
-	// First try to load from private key
-	privateKeyHex := os.Getenv("PRIVATE_KEY")
-	if privateKeyHex != "" {
-		privateKey, err := hex.DecodeString(privateKeyHex)
-		if err != nil {
-			t.Fatal(fmt.Errorf("invalid PRIVATE_KEY format: %w", err))
-		}
-
-		if len(privateKey) != ed25519.PrivateKeySize {
-			t.Fatal(fmt.Errorf("invalid PRIVATE_KEY length, expected %d got %d", ed25519.PrivateKeySize, len(privateKey)))
-		}
-
-		publicKey := privateKey[32:]
-		address := DeriveAddressFromPublicKey(publicKey)
-
-		log.Debugw("Loaded account from PRIVATE_KEY", "address", address)
-
-		return privateKey, publicKey, address
-	}
-
-	// Then try to load from address
-	address := os.Getenv("ADDRESS")
-	if address != "" {
-		log.Debugw("Only ADDRESS provided, can't use for signing", "address", address)
-		return nil, nil, address
-	}
-
-	return nil, nil, ""
-}
-
-func GetAccountAndKeyFromSui(t *testing.T, lgr logger.Logger) string {
-	t.Helper()
-	cmd := exec.Command("sui", "client", "active-address")
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err, "Failed to get active address: %s", string(output))
-
-	// Extract the account address using regex to handle any potential formatting
-	re := regexp.MustCompile(`0x[a-fA-F0-9]+`)
-	matches := re.FindString(string(output))
-	if matches == "" {
-		require.Fail(t, "Failed to extract account address from output: %s", string(output))
-	}
-	accountAddress := matches
-	lgr.Info("Active address: ", accountAddress)
-
-	return accountAddress
-}
 
 // GenerateAccountKeyPair Generates a public/private keypair with the ed25519 signature algorithm, then derives the address from the public key.
 // Returns (private key, public key, address, error).
-func GenerateAccountKeyPair(t *testing.T, log logger.Logger) (ed25519.PrivateKey, ed25519.PublicKey, string, error) {
+func GenerateAccountKeyPair(t *testing.T) (ed25519.PrivateKey, ed25519.PublicKey, string, error) {
 	t.Helper()
 
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err, "Failed to generate new account")
 
-	// Generate Sui address from public key
-	accountAddress := DeriveAddressFromPublicKey(publicKey)
+	accountAddress, err := client.GetAddressFromPublicKey([]byte(publicKey))
+	require.NoError(t, err, "Failed to get address from public key")
 
-	log.Debugw("Created account", "publicKey", hex.EncodeToString([]byte(publicKey)), "accountAddress", accountAddress)
+	t.Logf("Created account, publicKey: %s, accountAddress: %s", hex.EncodeToString([]byte(publicKey)), accountAddress)
 
 	return privateKey, publicKey, accountAddress, nil
 }
 
-// DeriveAddressFromPublicKey derives a Sui address from an ed25519 public key
-func DeriveAddressFromPublicKey(publicKey ed25519.PublicKey) string {
-	return "0x" + hex.EncodeToString(publicKey)
-}
-
-func DrainAccountCoins(ctx context.Context, lgr logger.Logger, accountAddress string, suiKeystore keystore.SuiKeystore, cli *client.PTBClient, suiCoins []models.CoinData, receiver string) error {
+func DrainAccountCoins(t *testing.T, ctx context.Context, lgr logger.Logger, accountAddress string, suiKeystore loop.Keystore, cli *client.PTBClient, suiCoins []models.CoinData, receiver string) error {
+	// TODO: this should reuse transaction.go's GeneratePTBTransaction
 	lgr.Infow("Draining account coins from account address", "accountAddress", accountAddress)
 
-	// Get private key from keystore
-	privateKey, err := suiKeystore.GetPrivateKeyByAddress(accountAddress)
-	if err != nil {
-		return fmt.Errorf("failed to get private key: %w", err)
+	accounts, err := suiKeystore.Accounts(ctx)
+	require.NoError(t, err, "Failed to get accounts")
+	if len(accounts) != 1 {
+		return fmt.Errorf("expected 1 account, got %d", len(accounts))
 	}
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	accountAddress = DeriveAddressFromPublicKey(publicKey)
 
-	// Create signer from private key
-	txnSigner := signer.Signer{
-		PriKey:  privateKey,
-		PubKey:  publicKey,
-		Address: accountAddress,
+	publicKeyStr := accounts[0]
+	publicKeyBytes, err := hex.DecodeString(publicKeyStr)
+	if err != nil {
+		return fmt.Errorf("failed to decode public key: %w", err)
 	}
+
+	expectedAddress, err := client.GetAddressFromPublicKey(publicKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to get address from public key: %w", err)
+	}
+
+	if expectedAddress != accountAddress {
+		return fmt.Errorf("expected account address %s, got %s", expectedAddress, accountAddress)
+	}
+
+	testKeystore, ok := suiKeystore.(*TestKeystore)
+	require.True(t, ok, "Expected TestKeystore")
+
+	txnSigner := testKeystore.GetSuiSigner(context.Background(), publicKeyStr)
 
 	// Create new transaction
 	tx := transaction.NewTransaction()
@@ -128,7 +80,7 @@ func DrainAccountCoins(ctx context.Context, lgr logger.Logger, accountAddress st
 	}
 
 	// Execute the transaction using the PTB client
-	response, err := cli.FinishPTBAndSend(ctx, &txnSigner, tx, client.WaitForLocalExecution)
+	response, err := cli.FinishPTBAndSend(ctx, txnSigner, tx, client.WaitForLocalExecution)
 	if err != nil {
 		return fmt.Errorf("failed to execute drain transaction: %w", err)
 	}
@@ -140,30 +92,4 @@ func DrainAccountCoins(ctx context.Context, lgr logger.Logger, accountAddress st
 	)
 
 	return nil
-}
-
-// NewTestKeystore creates a new test keystore
-func NewTestKeystore(t *testing.T) *TestKeystore {
-	t.Helper()
-	return &TestKeystore{t: t, keys: map[string]ed25519.PrivateKey{}}
-}
-
-// TestKeystore is a simple keystore for testing
-type TestKeystore struct {
-	t    *testing.T
-	keys map[string]ed25519.PrivateKey
-}
-
-// AddKey adds a private key to the keystore
-func (k *TestKeystore) AddKey(key ed25519.PrivateKey) {
-	// Derive address from private key (in Sui, address is derived from public key)
-	publicKey := key.Public().(ed25519.PublicKey)
-	address := DeriveAddressFromPublicKey(publicKey)
-	k.keys[address] = key
-}
-
-// Get returns a private key by address
-func (k *TestKeystore) Get(address string) (ed25519.PrivateKey, bool) {
-	key, ok := k.keys[address]
-	return key, ok
 }
