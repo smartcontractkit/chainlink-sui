@@ -53,7 +53,6 @@ module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
             &ccip_owner_cap,
             &coin_metadata,
             treasury_cap,
-            @burn_mint_token_pool,
             @0x123,
             scenario.ctx()
         );

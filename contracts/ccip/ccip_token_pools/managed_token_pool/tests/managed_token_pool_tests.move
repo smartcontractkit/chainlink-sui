@@ -4,6 +4,7 @@ module managed_token_pool::managed_token_pool_tests;
 use std::type_name;
 
 use std::string;
+use sui::address;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
@@ -116,7 +117,6 @@ public fun test_initialize_and_basic_functionality() {
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
-            @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
             scenario.ctx()
         );
@@ -313,7 +313,7 @@ public fun test_lock_or_burn_functionality() {
     
     // Create managed token and pool
     scenario.next_tx(@managed_token_pool);
-    onramp_sh::test_init(scenario.ctx()); // Initialize dynamic dispatcher
+    onramp_sh::test_init(scenario.ctx()); // Initialize onramp state helper
     let coin_metadata = {
         let ctx = scenario.ctx();
         let (treasury_cap, coin_metadata) = coin::create_currency(
@@ -370,7 +370,6 @@ public fun test_lock_or_burn_functionality() {
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
-            @managed_token_pool, // Should match what we use in tests
             @managed_token_pool,
             scenario.ctx()
         );
@@ -547,7 +546,6 @@ public fun test_release_or_mint_functionality() {
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
-            @managed_token_pool, // Should match what we use in add_dest_token_transfer
             @managed_token_pool,
             scenario.ctx()
         );
@@ -700,7 +698,7 @@ public fun test_initialize_by_ccip_admin() {
         coin_metadata
     };
     
-    let mut managed_token_state_address = @0x0;
+    let managed_token_state_address;
     scenario.next_tx(@managed_token_pool);
     {
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
@@ -735,7 +733,6 @@ public fun test_initialize_by_ccip_admin() {
             &coin_metadata,
             mint_cap,
             managed_token_state_address,
-            @managed_token_pool, // token_pool_package_id
             @0x123, // token_pool_administrator
             scenario.ctx()
         );
@@ -822,7 +819,6 @@ public fun test_invalid_owner_cap_error() {
             &token_owner_cap2,
             &coin_metadata2,
             mint_cap2,
-            @0x2000, // Different package ID
             @0x999,
             scenario.ctx()
         );
@@ -1080,7 +1076,6 @@ public fun test_initialize_with_managed_token_function() {
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
-            @0x1000, // token pool package id
             @managed_token_pool, // token pool administrator
             scenario.ctx()
         );
@@ -1119,15 +1114,20 @@ public fun test_initialize_with_managed_token_function() {
     // Verify the token pool is registered in token admin registry
     scenario.next_tx(@managed_token_pool);
     {
+        // Calculate the actual package ID from TypeProof (same as initialization)
+        let type_proof_type_name = type_name::get<managed_token_pool::TypeProof>();
+        let type_proof_type_name_address = type_proof_type_name.get_address();
+        let actual_package_id = address::from_ascii_bytes(&type_proof_type_name_address.into_bytes());
+        
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
-        assert!(pool_address == @0x1000); // Should match the package id we passed
-
+        assert!(pool_address == actual_package_id); // Should match the dynamically calculated package id
+        
         let token_config = token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
         let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
             token_admin_registry::get_token_config_data(token_config);
         
-        assert!(pool_package_id == @0x1000);
+        assert!(pool_package_id == actual_package_id);
         assert!(pool_module == string::utf8(b"managed_token_pool"));
         assert!(token_type == type_name::get<MANAGED_TOKEN_POOL_TESTS>().into_string());
         assert!(admin == @managed_token_pool);
@@ -1199,7 +1199,6 @@ fun setup_basic_pool(scenario: &mut test_scenario::Scenario): (CCIPOwnerCap, CCI
             &token_owner_cap,
             &coin_metadata,
             mint_cap,
-            @0x1000,
             @managed_token_pool,
             scenario.ctx()
         );
