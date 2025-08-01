@@ -43,7 +43,6 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
 		bind.Object{Id: input.TreasuryCapObjectId},
-		input.LockReleasePackageId,
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
 	)
@@ -101,7 +100,6 @@ var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.CoinMetadataObjectId},
-		input.LockReleasePackageId,
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
 	)
