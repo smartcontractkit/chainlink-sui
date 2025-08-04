@@ -1224,10 +1224,14 @@ public fun test_release_or_mint_functionality() {
         
         let initial_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         
+        // Verify the operation setup
+        let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
+        assert!(source_chain == DefaultRemoteChain);
+        
         // Call the actual release_or_mint function
-        let updated_receiver_params = lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
+        let completed_transfer = lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
-            receiver_params,
+            &mut receiver_params,
             0, // index of the token transfer
             &clock,
             &mut pool_state,
@@ -1238,12 +1242,9 @@ public fun test_release_or_mint_functionality() {
         let new_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         assert!(new_pool_balance == initial_pool_balance - source_amount);
         
-        // Verify the operation completed successfully
-        let source_chain = offramp_sh::get_source_chain_selector(&updated_receiver_params);
-        assert!(source_chain == DefaultRemoteChain);
-        
-        // Clean up receiver params
-        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, updated_receiver_params);
+        // Clean up receiver params with completed transfers
+        let completed_transfers = vector[completed_transfer];
+        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params, completed_transfers);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, TOKEN_ADMIN);

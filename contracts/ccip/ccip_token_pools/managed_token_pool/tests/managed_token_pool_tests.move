@@ -629,10 +629,14 @@ public fun test_release_or_mint_functionality() {
             offchain_data
         );
         
+        // Verify the operation setup
+        let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
+        assert!(source_chain == DefaultRemoteChain);
+        
         // Actually call release_or_mint function
-        let updated_receiver_params = managed_token_pool::release_or_mint(
+        let completed_transfer = managed_token_pool::release_or_mint(
             &ccip_ref,
-            receiver_params,
+            &mut receiver_params,
             0, // index of the token transfer
             &clock,
             &deny_list,
@@ -641,12 +645,9 @@ public fun test_release_or_mint_functionality() {
             &mut ctx
         );
         
-        // Verify the operation completed successfully
-        let source_chain = offramp_sh::get_source_chain_selector(&updated_receiver_params);
-        assert!(source_chain == DefaultRemoteChain);
-        
-        // Clean up receiver params
-        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, updated_receiver_params);
+        // Clean up receiver params with completed transfers
+        let completed_transfers = vector[completed_transfer];
+        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params, completed_transfers);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
