@@ -440,9 +440,10 @@ module ccip_offramp::offramp {
     public fun finish_execute(
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
+        completed_transfers: vector<osh::CompletedDestTokenTransfer>,
     ) {
         assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
-        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params);
+        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, completed_transfers);
     }
 
     // this function does not involve ocr3 transmit & it sets manual_execution to true

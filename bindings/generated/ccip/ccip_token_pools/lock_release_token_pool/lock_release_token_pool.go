@@ -940,7 +940,7 @@ func (d *LockReleaseTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *b
 
 // ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
 //
-// Returns: offramp_sh::ReceiverParams
+// Returns: offramp_sh::CompletedDestTokenTransfer
 func (d *LockReleaseTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, state bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, state)
 	if err != nil {
@@ -1835,7 +1835,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"offramp_sh::ReceiverParams",
+		"&mut offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&mut LockReleaseTokenPoolState<T>",
@@ -1846,7 +1846,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 		clock,
 		state,
 	}, []string{
-		"offramp_sh::ReceiverParams",
+		"offramp_sh::CompletedDestTokenTransfer",
 	})
 }
 
@@ -1855,7 +1855,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 func (c lockReleaseTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"offramp_sh::ReceiverParams",
+		"&mut offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&mut LockReleaseTokenPoolState<T>",
@@ -1869,7 +1869,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, ar
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"offramp_sh::ReceiverParams",
+		"offramp_sh::CompletedDestTokenTransfer",
 	})
 }
 

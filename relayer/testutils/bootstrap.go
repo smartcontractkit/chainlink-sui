@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
@@ -25,8 +24,9 @@ const (
 
 type TestState struct {
 	AccountAddress  string
+	PublicKeyBytes  []byte
 	SuiGateway      *client.PTBClient
-	KeystoreGateway *keystore.SuiKeystore
+	KeystoreGateway loop.Keystore
 	TxManager       *txm.SuiTxm
 	TxStore         *txm.InMemoryStore
 	Contracts       []Contracts
@@ -47,10 +47,10 @@ type Contracts struct {
 }
 
 // setupClients initializes the Sui and relayer clients.
-func SetupClients(t *testing.T, rpcURL string, _keystore loop.Keystore, logg logger.Logger) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
+func SetupClients(t *testing.T, rpcURL string, keystore loop.Keystore, logg logger.Logger) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
 	t.Helper()
 
-	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, _keystore, maxConcurrentRequests, "WaitForEffectsCert")
+	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, keystore, maxConcurrentRequests, "WaitForEffectsCert")
 	if err != nil {
 		t.Fatalf("Failed to create relayer client: %v", err)
 	}
@@ -64,7 +64,7 @@ func SetupClients(t *testing.T, rpcURL string, _keystore loop.Keystore, logg log
 	gasLimit := big.NewInt(defaultGasLimit)
 	gasManager := txm.NewSuiGasManager(logg, relayerClient, *gasLimit, 0)
 
-	txManager, err := txm.NewSuiTxm(logg, relayerClient, _keystore, conf, store, retryManager, gasManager)
+	txManager, err := txm.NewSuiTxm(logg, relayerClient, keystore, conf, store, retryManager, gasManager)
 	if err != nil {
 		t.Fatalf("Failed to create SuiTxm: %v", err)
 	}
@@ -93,7 +93,7 @@ func SetupClients(t *testing.T, rpcURL string, _keystore loop.Keystore, logg log
 //   - *TestState: a pointer to the fully bootstrapped test environment containing:
 //   - AccountAddress (string)
 //   - SuiGateway (*client.PTBClient)
-//   - KeystoreGateway (keystore.Keystore)
+//   - KeystoreGateway (loop.Keystore)
 //   - TxManager (*txm.SuiTxm)
 //   - TxStore (*txm.InMemoryStore)
 //   - Signer (signer.SuiSigner)
@@ -143,9 +143,9 @@ func BootstrapTestEnvironment(t *testing.T, nodeType NodeEnvType, contractsMetad
 		}
 	})
 
-	_keystore, err := keystore.NewSuiKeystore(_logger, "")
+	testKeystore := NewTestKeystore(t)
 	require.NoError(t, err)
-	accountAddress := GetAccountAndKeyFromSui(t, _logger)
+	accountAddress, pubkeyBytes := GetAccountAndKeyFromSui(testKeystore)
 
 	err = FundWithFaucet(_logger, constant.SuiLocalnet, accountAddress)
 	require.NoError(t, err)
@@ -182,12 +182,13 @@ func BootstrapTestEnvironment(t *testing.T, nodeType NodeEnvType, contractsMetad
 		_logger.Debugw("Contract state", contractsState)
 	}
 
-	suiClient, txManager, txStore := SetupClients(t, LocalUrl, _keystore, _logger)
+	suiClient, txManager, txStore := SetupClients(t, LocalUrl, testKeystore, _logger)
 
 	return &TestState{
 		AccountAddress:  accountAddress,
+		PublicKeyBytes:  pubkeyBytes,
 		SuiGateway:      suiClient,
-		KeystoreGateway: &_keystore,
+		KeystoreGateway: testKeystore,
 		TxManager:       txManager,
 		TxStore:         txStore,
 		Contracts:       contractsState,

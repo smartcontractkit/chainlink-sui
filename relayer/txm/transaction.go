@@ -152,7 +152,6 @@ func GenerateTransaction(
 		Arguments:     paramValues,
 		GasBudget:     txMetadata.GasLimit.Uint64(),
 	})
-
 	if err != nil {
 		msg := fmt.Sprintf("failed to move call: %v", err)
 		lggr.Error(msg)
@@ -168,7 +167,11 @@ func GenerateTransaction(
 		return nil, errors.New(msg)
 	}
 
-	signatures, err := keystoreService.Sign(ctx, signerAddress, txBytes)
+	// Get the ID (in keystore) of the public key
+	// TODO: check if this is also the way signers are keyed in chainlink core
+	signerId := fmt.Sprintf("%064x", pubKey)
+
+	signatures, err := keystoreService.Sign(ctx, signerId, suiClient.HashTxBytes(txBytes))
 	if err != nil {
 		lggr.Errorf("Error signing transaction: %v", err)
 		return nil, err
@@ -305,8 +308,11 @@ func GeneratePTBTransaction(
 		return nil, err
 	}
 
-	// Sign using keystore (similar to working examples)
-	signature, err := keystoreService.Sign(ctx, signerAddress, bytesTx)
+	// Get the signer ID (in keystore) of the public key
+	signerId := fmt.Sprintf("%064x", pubKey)
+
+	// Sign using keystore
+	signature, err := keystoreService.Sign(ctx, signerId, suiClient.HashTxBytes(bytesTx))
 	if err != nil {
 		lggr.Errorf("Error signing transaction: %v", err)
 		return nil, err

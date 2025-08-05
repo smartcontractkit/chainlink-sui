@@ -14,7 +14,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
@@ -45,8 +44,8 @@ func TestConfirmerRoutine_GasBump(t *testing.T) {
 	gasManager := txm.NewSuiGasManager(lggr, fakeClient, *maxGasBudget, 0)
 
 	// For the confirmer, the keystore is not used; create a dummy signer.
-	keystoreInstance, keystoreErr := keystore.NewSuiKeystore(lggr, "")
-	require.NoError(t, keystoreErr)
+	keystoreInstance := testutils.NewTestKeystore(t)
+
 	// Use the default configuration.
 	conf := txm.DefaultConfigSet
 

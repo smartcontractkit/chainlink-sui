@@ -87,10 +87,10 @@ func (mr *MockSuiPTBClientMockRecorder) FinishPTBAndSend(ctx, txnSigner, tx, req
 }
 
 // GetClient mocks base method.
-func (m *MockSuiPTBClient) GetClient() *sui.ISuiAPI {
+func (m *MockSuiPTBClient) GetClient() sui.ISuiAPI {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetClient")
-	ret0, _ := ret[0].(*sui.ISuiAPI)
+	ret0, _ := ret[0].(sui.ISuiAPI)
 	return ret0
 }
 
@@ -308,4 +308,18 @@ func (m *MockSuiPTBClient) QueryTransactions(ctx context.Context, fromAddress st
 func (mr *MockSuiPTBClientMockRecorder) QueryTransactions(ctx, fromAddress, cursor, limit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryTransactions", reflect.TypeOf((*MockSuiPTBClient)(nil).QueryTransactions), ctx, fromAddress, cursor, limit)
+}
+
+// HashTxBytes mocks base method.
+func (m *MockSuiPTBClient) HashTxBytes(txBytes []byte) []byte {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HashTxBytes", txBytes)
+	ret0, _ := ret[0].([]byte)
+	return ret0
+}
+
+// HashTxBytes indicates an expected call of HashTxBytes.
+func (mr *MockSuiPTBClientMockRecorder) HashTxBytes(txBytes interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashTxBytes", reflect.TypeOf((*MockSuiPTBClient)(nil).HashTxBytes), txBytes)
 }

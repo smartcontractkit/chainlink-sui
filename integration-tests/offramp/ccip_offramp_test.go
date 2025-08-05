@@ -36,7 +36,6 @@ import (
 	offramp "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"golang.org/x/crypto/blake2b"
@@ -183,7 +182,7 @@ func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 	client := sui.NewSuiClient(testutils.LocalUrl)
 
 	// Generate key pair and create a signer.
-	pk, _, _, err := testutils.GenerateAccountKeyPair(t, lggr)
+	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
 	require.NoError(t, err)
 	signer := rel.NewPrivateKeySigner(pk)
 
@@ -206,9 +205,6 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, lggr)
-	accountAddressBytes := []byte(accountAddress)
-
 	signer, client := setupClients(t, lggr)
 
 	// Declare all arrays
@@ -218,16 +214,12 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	signerPrivateKeys := make([]ed25519.PrivateKey, 0, 4)
 
 	// Get the main account's public key first
-	keystoreInstance, err := keystore.NewSuiKeystore(lggr, "")
-	require.NoError(t, err)
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
+	keystoreInstance := keystore.NewTestKeystore(t)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
 	// add 3 generated signers
 	for range 3 {
-		pk, _, _, err := testutils.GenerateAccountKeyPair(t, logger.Test(t))
+		pk, _, _, err := testutils.GenerateAccountKeyPair(t)
 		require.NoError(t, err)
 
 		_signer := rel.NewPrivateKeySigner(pk)
@@ -526,20 +518,12 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 func setupChainWriter(t *testing.T, envSettings *EnvironmentSettings) (*chainwriter.SuiChainWriter, string) {
 	lggr := logger.Test(t)
 
-	keystoreInstance, err := keystore.NewSuiKeystore(lggr, "")
-	require.NoError(t, err)
+	keystoreInstance := testutils.NewTestKeystore(t)
 
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, lggr)
-	lggr.Infow("Using account", "address", accountAddress)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
 	err = testutils.FundWithFaucet(lggr, "localnet", accountAddress)
 	require.NoError(t, err)
-
-	// Get private key for signing
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
 
 	offRampPackageId := envSettings.OffRampReport.Output.CCIPOffRampPackageId
 

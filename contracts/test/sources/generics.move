@@ -63,7 +63,7 @@ module test::generics {
             id: object::new(ctx),
             balance: 0,
         };
-        transfer::public_transfer(token, tx_context::sender(ctx));
+        transfer::transfer(token, ctx.sender());
     }
 
     // Generic function that creates and transfers a token of any type
@@ -72,7 +72,7 @@ module test::generics {
             id: object::new(ctx),
             balance: 0,
         };
-        transfer::public_transfer(token, tx_context::sender(ctx));
+        transfer::transfer(token, ctx.sender());
     }
     
     // Test function with non-phantom generic that creates and transfers a box
@@ -81,6 +81,6 @@ module test::generics {
             id: object::new(ctx),
             value
         };
-        transfer::public_transfer(box, tx_context::sender(ctx));
+        transfer::transfer(box, ctx.sender());
     }
 }

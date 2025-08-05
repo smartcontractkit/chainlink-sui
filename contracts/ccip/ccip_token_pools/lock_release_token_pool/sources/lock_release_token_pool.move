@@ -302,14 +302,14 @@ public fun lock_or_burn<T: drop>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    receiver_params: offramp_sh::ReceiverParams,
+    receiver_params: &mut offramp_sh::ReceiverParams,
     index: u64,
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
-): offramp_sh::ReceiverParams {
-    let remote_chain_selector = offramp_sh::get_source_chain_selector(&receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(&receiver_params, index);
+): offramp_sh::CompletedDestTokenTransfer {
+    let remote_chain_selector = offramp_sh::get_source_chain_selector(receiver_params);
+    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(receiver_params, index);
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &state.token_pool_state,
         source_pool_data,

@@ -14,7 +14,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 
 	commonTypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -109,17 +108,11 @@ func TestCCIPOnrampSend(t *testing.T) {
 	addresses := SetupContractAddresses()
 
 	// Create keystore and get account
-	keystoreInstance, err := keystore.NewSuiKeystore(lggr, "")
+	keystoreInstance, err := keystore.NewTestKeystore(t)
 	require.NoError(t, err)
 
-	accountAddress := testutils.GetAccountAndKeyFromSui(t, lggr)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(testKeystore)
 	lggr.Infow("Using account", "address", accountAddress)
-
-	// Get private key for signing
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
 
 	_, txManager, _ := testutils.SetupClients(t, testutils.TestnetUrl, keystoreInstance)
 

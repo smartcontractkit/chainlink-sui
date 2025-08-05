@@ -4,13 +4,12 @@ package ptb_test
 
 import (
 	"context"
-	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/keystore"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
@@ -33,15 +31,15 @@ import (
 func setupTestEnvironment(t *testing.T) (
 	log logger.Logger,
 	accountAddress string,
+	publicKeyBytes []byte,
 	relayerClient *client.PTBClient,
-	keystoreInstance keystore.SuiKeystore,
+	keystoreInstance *testutils.TestKeystore,
 	packageId string,
 	counterObjectId string,
 ) {
 	t.Helper()
 
 	log = logger.Test(t)
-	accountAddress = testutils.GetAccountAndKeyFromSui(t, log)
 
 	// Start local Sui node
 	cmd, err := testutils.StartSuiNode(testutils.CLI)
@@ -59,13 +57,17 @@ func setupTestEnvironment(t *testing.T) (
 
 	log.Debugw("Started Sui node")
 
-	// Fund the account
-	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
-	require.NoError(t, err)
-
 	// Set up keystore and signer
-	keystoreInstance, err = keystore.NewSuiKeystore(log, "")
-	require.NoError(t, err)
+	keystoreInstance = testutils.NewTestKeystore(t)
+	accountAddress, publicKeyBytes = testutils.GetAccountAndKeyFromSui(keystoreInstance)
+
+	// Use eventually to wait for the faucet to start up again in case it's being terminated from
+	// a previous test and hasn't had a chance to spin up yet
+	require.Eventually(t, func() bool {
+		// Fund the account
+		err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+		return err == nil
+	}, time.Second*10, time.Second)
 
 	relayerClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
@@ -85,7 +87,7 @@ func setupTestEnvironment(t *testing.T) (
 
 	log.Debugw("Counter object created", "counterObjectId", counterObjectId)
 
-	return log, accountAddress, relayerClient, keystoreInstance, packageId, counterObjectId
+	return log, accountAddress, publicKeyBytes, relayerClient, keystoreInstance, packageId, counterObjectId
 }
 
 func stringPointer(s string) *string {
@@ -215,17 +217,10 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 //nolint:paralleltest
 func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 	ctx := context.Background()
-	log, accountAddress, ptbClient, keystoreInstance, packageId, counterObjectId := setupTestEnvironment(t)
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
+	log, accountAddress, publicKeyBytes, ptbClient, keystoreInstance, packageId, counterObjectId := setupTestEnvironment(t)
 
-	txnSigner := signer.Signer{
-		PriKey:  privateKey,
-		PubKey:  publicKey,
-		Address: accountAddress,
-	}
+	signerId := fmt.Sprintf("%064x", publicKeyBytes)
+	txnSigner := keystoreInstance.GetSuiSigner(ctx, signerId)
 
 	writerConfig := config.ChainWriterConfig{
 		Modules: map[string]*config.ChainWriterModule{
@@ -320,7 +315,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		prettyPrintDebug(log, ptbResult)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
@@ -337,7 +332,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		prettyPrintDebug(log, ptbResult)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
@@ -353,19 +348,12 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 //
 //nolint:paralleltest
 func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
+	ctx := context.Background()
 	// Set up the test environment
-	log, accountAddress, ptbClient, keystoreInstance, packageId, counterObjectId := setupTestEnvironment(t)
+	log, accountAddress, publicKeyBytes, ptbClient, keystoreInstance, packageId, counterObjectId := setupTestEnvironment(t)
 
-	privateKey, err := keystoreInstance.GetPrivateKeyByAddress(accountAddress)
-	require.NoError(t, err)
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	publicKeyBytes := []byte(publicKey)
-
-	txnSigner := signer.Signer{
-		PriKey:  privateKey,
-		PubKey:  publicKey,
-		Address: accountAddress,
-	}
+	signerId := fmt.Sprintf("%064x", publicKeyBytes)
+	txnSigner := keystoreInstance.GetSuiSigner(ctx, signerId)
 
 	// Create PTB Constructor with config targeting the counter contract
 	writerConfig := config.ChainWriterConfig{
@@ -627,7 +615,6 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	}
 
 	constructor := ptb.NewPTBConstructor(writerConfig, ptbClient, log)
-	ctx := context.Background()
 
 	// Test building and executing PTB commands
 	//nolint:paralleltest
@@ -687,7 +674,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		require.Equal(t, "success", ptbResult.Status.Status)
@@ -711,7 +698,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
+		ptbResult, err = ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		require.Equal(t, "success", ptbResult.Status.Status)
@@ -739,7 +726,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		require.NotNil(t, ptb)
 
 		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		prettyPrintDebug(log, ptbResult)
@@ -781,7 +768,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		log.Debugw("Executing generic function via PTB constructor", "ptb", ptb)
 
 		// Execute the PTB command using the PTB client
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, &txnSigner, ptb, client.WaitForLocalExecution)
+		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
 		require.NoError(t, err)
 		require.NotEmpty(t, ptbResult)
 		require.Equal(t, "success", ptbResult.Status.Status)
