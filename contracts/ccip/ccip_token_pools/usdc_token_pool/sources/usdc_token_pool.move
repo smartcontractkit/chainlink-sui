@@ -345,7 +345,7 @@ public fun lock_or_burn<T: drop>(
 
 public fun release_or_mint<T: drop>(
     ref: &CCIPObjectRef,
-    receiver_params: offramp_sh::ReceiverParams,
+    receiver_params: &mut offramp_sh::ReceiverParams,
     index: u64,
     clock: &Clock,
     deny_list: &DenyList,
@@ -354,9 +354,9 @@ public fun release_or_mint<T: drop>(
     message_transmitter_state: &mut MessageTransmitterState,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext,
-): offramp_sh::ReceiverParams {
-    let remote_chain_selector = offramp_sh::get_source_chain_selector(&receiver_params);
-    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = offramp_sh::get_token_param_data(&receiver_params, index);
+): offramp_sh::CompletedDestTokenTransfer {
+    let remote_chain_selector = offramp_sh::get_source_chain_selector(receiver_params);
+    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = offramp_sh::get_token_param_data(receiver_params, index);
     let (message_bytes, attestation) =
         parse_message_and_attestation(offchain_token_data);
 

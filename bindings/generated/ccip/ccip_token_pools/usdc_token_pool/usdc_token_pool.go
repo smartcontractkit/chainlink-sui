@@ -930,7 +930,7 @@ func (d *UsdcTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.Cal
 
 // ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
 //
-// Returns: offramp_sh::ReceiverParams
+// Returns: offramp_sh::CompletedDestTokenTransfer
 func (d *UsdcTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, denyList bind.Object, pool bind.Object, state bind.Object, messageTransmitterState bind.Object, treasury bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.usdcTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, index, clock, denyList, pool, state, messageTransmitterState, treasury)
 	if err != nil {
@@ -1715,7 +1715,7 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"offramp_sh::ReceiverParams",
+		"&mut offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&DenyList",
@@ -1734,7 +1734,7 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 		messageTransmitterState,
 		treasury,
 	}, []string{
-		"offramp_sh::ReceiverParams",
+		"offramp_sh::CompletedDestTokenTransfer",
 	})
 }
 
@@ -1743,7 +1743,7 @@ func (c usdcTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, 
 func (c usdcTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"offramp_sh::ReceiverParams",
+		"&mut offramp_sh::ReceiverParams",
 		"u64",
 		"&Clock",
 		"&DenyList",
@@ -1761,7 +1761,7 @@ func (c usdcTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...a
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"offramp_sh::ReceiverParams",
+		"offramp_sh::CompletedDestTokenTransfer",
 	})
 }
 
