@@ -42,6 +42,14 @@ RequestType = 'WaitForEffectsCert'
 TransactionTimeout = '10s'
 MaxConcurrentRequests = 5
 
+[Sui.TransactionsIndexer]
+PollingIntervalSecs = 3
+SyncTimeoutSecs = 3
+
+[Sui.EventsIndexer]
+PollingIntervalSecs = 3
+SyncTimeoutSecs = 3
+
 
 # [Tracing]
 # # Enabled turns trace collection on or off. On requires an OTEL Tracing Collector.

@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -169,7 +170,33 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	_, err = db.Connx(ctx)
 	require.NoError(t, err)
 
-	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db)
+	// Create the indexers
+	txnIndexer := indexer.NewTransactionsIndexer(
+		db,
+		log,
+		relayerClient,
+		chainReaderConfig.TransactionsIndexer.PollingInterval,
+		chainReaderConfig.TransactionsIndexer.SyncTimeout,
+		// start without any configs, they will be set when ChainReader is initialized and gets a reference
+		// to the transaction indexer to avoid having to reading ChainReader configs here as well
+		map[string]*config.ChainReaderEvent{},
+	)
+	evIndexer := indexer.NewEventIndexer(
+		db,
+		log,
+		relayerClient,
+		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		[]*client.EventSelector{},
+		chainReaderConfig.EventsIndexer.PollingInterval,
+		chainReaderConfig.EventsIndexer.SyncTimeout,
+	)
+	indexerInstance := indexer.NewIndexer(
+		log,
+		evIndexer,
+		txnIndexer,
+	)
+
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding})

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -14,8 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
-
-	"maps"
 
 	craptosutils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
@@ -40,16 +39,13 @@ const (
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
-	logger                    logger.Logger
-	config                    config.ChainReaderConfig
-	starter                   services.StateMachine
-	packageAddresses          map[string]string
-	client                    *client.PTBClient
-	dbStore                   *database.DBStore
-	eventsIndexer             indexer.EventsIndexerApi
-	eventsIndexerCancel       *context.CancelFunc
-	transactionsIndexer       indexer.TransactionsIndexerApi
-	transactionsIndexerCancel *context.CancelFunc
+	logger           logger.Logger
+	config           config.ChainReaderConfig
+	starter          services.StateMachine
+	packageAddresses map[string]string
+	client           *client.PTBClient
+	dbStore          *database.DBStore
+	indexer          indexer.IndexerApi
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
@@ -66,7 +62,14 @@ type readIdentifier struct {
 	readName     string
 }
 
-func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *client.PTBClient, configs config.ChainReaderConfig, db sqlutil.DataSource) (pkgtypes.ContractReader, error) {
+func NewChainReader(
+	ctx context.Context,
+	lgr logger.Logger,
+	abstractClient *client.PTBClient,
+	configs config.ChainReaderConfig,
+	db sqlutil.DataSource,
+	indexer indexer.IndexerApi,
+) (pkgtypes.ContractReader, error) {
 	dbStore := database.NewDBStore(db, lgr)
 
 	err := dbStore.EnsureSchema(ctx)
@@ -74,35 +77,35 @@ func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *clie
 		return nil, fmt.Errorf("failed to ensure database schema: %w", err)
 	}
 
-	// Create a list of all event selectors to pass to indexers
-	eventConfigurations := make([]*client.EventSelector, 0)
-	eventConfigurationsMap := make(map[string]*config.ChainReaderEvent)
-	for _, moduleConfig := range configs.Modules {
-		if moduleConfig.Events != nil {
-			for _, eventConfig := range moduleConfig.Events {
-				eventConfigurations = append(eventConfigurations, &eventConfig.EventSelector)
-				eventConfigurationsMap[fmt.Sprintf("%s::%s", eventConfig.Name, eventConfig.EventType)] = eventConfig
-			}
-		}
-	}
-
-	eventsIndexer := indexer.NewEventIndexer(
-		dbStore,
-		lgr,
-		abstractClient,
-		eventConfigurations,
-		configs.EventsIndexer.PollingInterval,
-		configs.EventsIndexer.SyncTimeout,
-	)
-
-	transactionsIndexer := indexer.NewTransactionsIndexer(
-		dbStore,
-		lgr,
-		abstractClient,
-		configs.TransactionsIndexer.PollingInterval,
-		configs.TransactionsIndexer.SyncTimeout,
-		eventConfigurationsMap,
-	)
+	//// Create a list of all event selectors to pass to indexers
+	//eventConfigurations := make([]*client.EventSelector, 0)
+	//eventConfigurationsMap := make(map[string]*config.ChainReaderEvent)
+	//for _, moduleConfig := range configs.Modules {
+	//	if moduleConfig.Events != nil {
+	//		for _, eventConfig := range moduleConfig.Events {
+	//			eventConfigurations = append(eventConfigurations, &eventConfig.EventSelector)
+	//			eventConfigurationsMap[fmt.Sprintf("%s::%s", eventConfig.Name, eventConfig.EventType)] = eventConfig
+	//		}
+	//	}
+	//}
+	//
+	//eventsIndexer := indexer.NewEventIndexer(
+	//	dbStore,
+	//	lgr,
+	//	abstractClient,
+	//	eventConfigurations,
+	//	configs.EventsIndexer.PollingInterval,
+	//	configs.EventsIndexer.SyncTimeout,
+	//)
+	//
+	//transactionsIndexer := indexer.NewTransactionsIndexer(
+	//	dbStore,
+	//	lgr,
+	//	abstractClient,
+	//	configs.TransactionsIndexer.PollingInterval,
+	//	configs.TransactionsIndexer.SyncTimeout,
+	//	eventConfigurationsMap,
+	//)
 
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
@@ -111,10 +114,7 @@ func NewChainReader(ctx context.Context, lgr logger.Logger, abstractClient *clie
 		dbStore:          dbStore,
 		packageAddresses: map[string]string{},
 		// indexers
-		eventsIndexer:             eventsIndexer,
-		transactionsIndexer:       transactionsIndexer,
-		eventsIndexerCancel:       nil,
-		transactionsIndexerCancel: nil,
+		indexer: indexer,
 	}, nil
 }
 
@@ -132,54 +132,12 @@ func (s *suiChainReader) HealthReport() map[string]error {
 
 func (s *suiChainReader) Start(ctx context.Context) error {
 	return s.starter.StartOnce(s.Name(), func() error {
-		// start events indexer
-		eventsIndexerCtx, cancelEventsIndexerCtx := context.WithCancel(ctx)
-		go func() {
-			err := s.eventsIndexer.Start(eventsIndexerCtx)
-			if err != nil {
-				s.logger.Error("Indexer failed to start", "error", err)
-				if s.eventsIndexerCancel != nil {
-					(*s.eventsIndexerCancel)()
-				}
-			}
-			s.logger.Info("Events indexer started")
-			// set the cancel function
-			s.eventsIndexerCancel = &cancelEventsIndexerCtx
-		}()
-
-		// start transactions indexer
-		transactionsIndexerCtx, cancelTransactionsIndexerCtx := context.WithCancel(ctx)
-		go func() {
-			err := s.transactionsIndexer.Start(transactionsIndexerCtx)
-			if err != nil {
-				s.logger.Error("Indexer failed to start", "error", err)
-				if s.transactionsIndexerCancel != nil {
-					(*s.transactionsIndexerCancel)()
-				}
-			}
-			s.logger.Info("Transactions indexer started")
-			// set the cancel function
-			s.transactionsIndexerCancel = &cancelTransactionsIndexerCtx
-		}()
-
 		return nil
 	})
 }
 
 func (s *suiChainReader) Close() error {
 	return s.starter.StopOnce(s.Name(), func() error {
-		// stop events indexer
-		if s.eventsIndexerCancel != nil {
-			(*s.eventsIndexerCancel)()
-		}
-		s.logger.Info("Events indexer stopped")
-
-		// stop transactions indexer
-		if s.transactionsIndexerCancel != nil {
-			(*s.transactionsIndexerCancel)()
-		}
-		s.logger.Info("Transactions indexer stopped")
-
 		return nil
 	})
 }
@@ -316,13 +274,14 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	eventConfig.Package = contract.Address
 
 	// Sync the event in case it's not already in the database
-	err = s.eventsIndexer.SyncEvent(ctx, &eventConfig.EventSelector)
+	err = s.indexer.GetEventIndexer().SyncEvent(ctx, &eventConfig.EventSelector)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: move this to the bind call
 	// update the event config in the transactions indexer to ensure that the package ID is known
-	s.transactionsIndexer.UpdateEventConfig(eventConfig)
+	s.indexer.GetTransactionIndexer().UpdateEventConfig(eventConfig)
 
 	// Query events from database
 	eventRecords, err := s.queryEvents(ctx, eventConfig, filter.Expressions, limitAndSort)
@@ -584,7 +543,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 // fetchPointers gets all the specified pointers from a specific contract.
 // Returns a map of { pointerTag: { ... } }
 func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, packageId string) (map[string]map[string]any, error) {
-	var pointersValuesMap = make(map[string]map[string]any)
+	pointersValuesMap := make(map[string]map[string]any)
 
 	// fetch owned objects
 	ownedObjects, err := s.client.ReadOwnedObjects(ctx, packageId, nil)

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	cwPTB "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
@@ -290,6 +291,32 @@ func TestTransactionsIndexer(t *testing.T) {
 		},
 	}
 
+	// Create the indexers
+	txnIndexer := indexer.NewTransactionsIndexer(
+		db,
+		log,
+		relayerClient,
+		readerConfig.TransactionsIndexer.PollingInterval,
+		readerConfig.TransactionsIndexer.SyncTimeout,
+		// start without any configs, they will be set when ChainReader is initialized and gets a reference
+		// to the transaction indexer to avoid having to reading ChainReader configs here as well
+		map[string]*config.ChainReaderEvent{},
+	)
+	evIndexer := indexer.NewEventIndexer(
+		db,
+		log,
+		relayerClient,
+		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		[]*client.EventSelector{},
+		readerConfig.EventsIndexer.PollingInterval,
+		readerConfig.EventsIndexer.SyncTimeout,
+	)
+	indexerInstance := indexer.NewIndexer(
+		log,
+		evIndexer,
+		txnIndexer,
+	)
+
 	// Create ChainReader (remove the schema creation comment since it's already done)
 	cReader, err := reader.NewChainReader(
 		ctx,
@@ -297,6 +324,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		relayerClient,
 		readerConfig,
 		db,
+		indexerInstance,
 	)
 	require.NoError(t, err)
 

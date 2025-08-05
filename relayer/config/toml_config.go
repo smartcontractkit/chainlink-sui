@@ -151,6 +151,11 @@ type TransactionManagerConfig struct {
 	MaxConcurrentRequests *uint64
 }
 
+type IndexerConfig struct {
+	PollingIntervalSecs *uint64
+	SyncTimeoutSecs     *uint64
+}
+
 func (t *TransactionManagerConfig) setDefaults() {
 	if t.BroadcastChanSize == nil {
 		defaultVal := DefaultBroadcastChannelSize
@@ -240,6 +245,12 @@ type TOMLConfig struct {
 
 	// Balance monitor config
 	BalanceMonitor *BalanceMonitorConfig
+
+	// Transactions indexer configs (without any transmitter specs, transmitters are attached later)
+	TransactionsIndexer *IndexerConfig
+
+	// Events indexer configs (without any event selectors, those are attached later)
+	EventsIndexer *IndexerConfig
 
 	// Nodes is a collection of node configurations for this chain
 	Nodes NodeConfigs

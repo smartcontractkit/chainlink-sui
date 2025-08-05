@@ -12,6 +12,7 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
@@ -43,18 +44,22 @@ type TransactionsIndexer struct {
 type TransactionsIndexerApi interface {
 	Start(ctx context.Context) error
 	UpdateEventConfig(eventConfig *config.ChainReaderEvent)
+	Ready() error
+	Close() error
 }
 
 func NewTransactionsIndexer(
-	db *database.DBStore,
+	db sqlutil.DataSource,
 	lggr logger.Logger,
 	sdkClient client.SuiPTBClient,
 	pollingInterval time.Duration,
 	syncTimeout time.Duration,
 	eventConfigs map[string]*config.ChainReaderEvent,
 ) TransactionsIndexerApi {
+	dataStore := database.NewDBStore(db, lggr)
+
 	return &TransactionsIndexer{
-		db:                      db,
+		db:                      dataStore,
 		client:                  sdkClient,
 		logger:                  lggr,
 		pollingInterval:         pollingInterval,
@@ -446,7 +451,6 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]mod
 			},
 		},
 	)
-
 	if err != nil {
 		tIndexer.logger.Errorw("Failed to query OCRConfigSet events", "error", err)
 		return nil, err
@@ -512,7 +516,6 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 			},
 		},
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to query SourceChainConfigSet event: %w", err)
 	}
@@ -674,4 +677,14 @@ func (tIndexer *TransactionsIndexer) extractCommandCallArgs(transactionRecord *m
 	}
 
 	return commandArgs, nil
+}
+
+func (tIndexer *TransactionsIndexer) Ready() error {
+	// TODO: implement
+	return nil
+}
+
+func (tIndexer *TransactionsIndexer) Close() error {
+	// TODO: implement
+	return nil
 }

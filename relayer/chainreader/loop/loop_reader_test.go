@@ -5,6 +5,7 @@ package loop
 import (
 	"context"
 	"fmt"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"math/big"
 	"os"
 	"strings"
@@ -18,8 +19,9 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	chainreaderConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
-	chainreader "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
@@ -218,8 +220,33 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	}
 	db := sqltest.NewDB(t, datastoreUrl)
 
-	// Create the base chain reader
-	chainReader, err := chainreader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db)
+	// Create the indexers
+	txnIndexer := indexer.NewTransactionsIndexer(
+		db,
+		log,
+		relayerClient,
+		chainReaderConfigs.TransactionsIndexer.PollingInterval,
+		chainReaderConfigs.TransactionsIndexer.SyncTimeout,
+		// start without any configs, they will be set when ChainReader is initialized and gets a reference
+		// to the transaction indexer to avoid having to reading ChainReader configs here as well
+		map[string]*config.ChainReaderEvent{},
+	)
+	evIndexer := indexer.NewEventIndexer(
+		db,
+		log,
+		relayerClient,
+		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		[]*client.EventSelector{},
+		chainReaderConfigs.EventsIndexer.PollingInterval,
+		chainReaderConfigs.EventsIndexer.SyncTimeout,
+	)
+	indexerInstance := indexer.NewIndexer(
+		log,
+		evIndexer,
+		txnIndexer,
+	)
+
+	chainReader, err := reader.NewChainReader(ctx, log, relayerClient, chainReaderConfigs, db, indexerInstance)
 	require.NoError(t, err)
 
 	// Wrap the base chain reader with loop chain reader
@@ -436,7 +463,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 					},
 					singleValueEvent,
 				)
-
 				if err != nil {
 					log.Errorw("Error querying for SingleValueEvent", "err", err)
 				}
