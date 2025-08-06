@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -76,36 +77,6 @@ func NewChainReader(
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure database schema: %w", err)
 	}
-
-	//// Create a list of all event selectors to pass to indexers
-	//eventConfigurations := make([]*client.EventSelector, 0)
-	//eventConfigurationsMap := make(map[string]*config.ChainReaderEvent)
-	//for _, moduleConfig := range configs.Modules {
-	//	if moduleConfig.Events != nil {
-	//		for _, eventConfig := range moduleConfig.Events {
-	//			eventConfigurations = append(eventConfigurations, &eventConfig.EventSelector)
-	//			eventConfigurationsMap[fmt.Sprintf("%s::%s", eventConfig.Name, eventConfig.EventType)] = eventConfig
-	//		}
-	//	}
-	//}
-	//
-	//eventsIndexer := indexer.NewEventIndexer(
-	//	dbStore,
-	//	lgr,
-	//	abstractClient,
-	//	eventConfigurations,
-	//	configs.EventsIndexer.PollingInterval,
-	//	configs.EventsIndexer.SyncTimeout,
-	//)
-	//
-	//transactionsIndexer := indexer.NewTransactionsIndexer(
-	//	dbStore,
-	//	lgr,
-	//	abstractClient,
-	//	configs.TransactionsIndexer.PollingInterval,
-	//	configs.TransactionsIndexer.SyncTimeout,
-	//	eventConfigurationsMap,
-	//)
 
 	return &suiChainReader{
 		logger:           logger.Named(lgr, "SuiChainReader"),
@@ -291,6 +262,34 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 
 	// Transform events to sequences
 	return s.transformEventsToSequences(eventRecords, sequenceDataType)
+}
+
+func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]config.SequenceWithMetadata, error) {
+	seqs, err := s.QueryKey(ctx, contract, filter, limitAndSort, sequenceDataType)
+	if err != nil {
+		return nil, err
+	}
+
+	var enriched []config.SequenceWithMetadata
+	for _, seq := range seqs {
+		eventID, err := strconv.ParseUint(seq.Cursor, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid event id in cursor %q: %w", seq.Cursor, err)
+		}
+
+		txDigest, err := s.dbStore.GetTxDigestByEventId(ctx, eventID)
+		if err != nil {
+			return nil, err
+		}
+
+		enriched = append(enriched, config.SequenceWithMetadata{
+			Sequence:  seq,
+			TxVersion: 0,
+			TxHash:    txDigest,
+		})
+	}
+
+	return enriched, nil
 }
 
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgtypes.BatchGetLatestValuesRequest) (pkgtypes.BatchGetLatestValuesResult, error) {

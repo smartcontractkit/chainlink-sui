@@ -77,7 +77,6 @@ func (store *DBStore) InsertEvents(ctx context.Context, records []EventRecord) e
 			record.BlockTimestamp,
 			data,
 		)
-
 		if err != nil {
 			return fmt.Errorf("failed to insert event (handle: %s, offset: %d): %w", record.EventHandle, record.EventOffset, err)
 		}
@@ -134,7 +133,7 @@ func (store *DBStore) QueryEvents(ctx context.Context, eventAccountAddress, even
 	for rows.Next() {
 		var record EventRecord
 		var dataBytes []byte
-		err := rows.Scan(&record.EventAccountAddress, &record.EventHandle, &record.EventOffset, &record.BlockVersion, &record.BlockHeight, &record.BlockHash, &record.BlockTimestamp, &dataBytes)
+		err := rows.Scan(&record.EventAccountAddress, &record.EventHandle, &record.EventOffset, &record.BlockVersion, &record.BlockHeight, &record.BlockHash, &record.BlockTimestamp, &record.TxDigest, &dataBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan event record: %w", err)
 		}
@@ -181,14 +180,16 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 	}, totalCount, nil
 }
 
-func (store *DBStore) GetTxVersionByID(ctx context.Context, id uint64) (uint64, error) {
-	var txVersion uint64
-	err := store.ds.QueryRowxContext(ctx, QueryTransactionVersionByID, id).Scan(&txVersion)
+func (store *DBStore) GetTxDigestByEventId(ctx context.Context, eventID uint64) (string, error) {
+	var txDigest string
+	err := store.ds.QueryRowxContext(ctx, GetTxDigestById, eventID).Scan(&txDigest)
 	if err != nil {
-		return 0, fmt.Errorf("failed to fetch tx_version for id %d: %w", id, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("no transaction found for event ID %d: %w", eventID, err)
+		}
+		return "", fmt.Errorf("failed to get transaction digest by event ID %d: %w", eventID, err)
 	}
-
-	return txVersion, nil
+	return txDigest, nil
 }
 
 func operatorSQL(op primitives.ComparisonOperator) string {

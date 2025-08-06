@@ -387,6 +387,16 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			}
 			bcsDecoder := bcs.NewDeserializer(bcsBytes)
 
+			// This is a special case for Sui strings as they are represented as a struct with tag "0x1::string::String"
+			// Since we use the tag to fetch the normalized module, it causes a failure since a module "string" does not exist.
+			// We parse the value separately here. The BCS decoder is not actually needed for this case but we are already initializing it for the complex structs
+			// so we can use it to read the string value.
+			if structTag == "0x1::string::String" {
+				strValue := bcsDecoder.ReadString()
+				results[i] = strValue
+				continue
+			}
+
 			// if the response type is not a struct (primitive type), skip the result (keep it as is)
 			structPartsLen := 3
 			if len(structParts) != structPartsLen {

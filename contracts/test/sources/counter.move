@@ -9,6 +9,7 @@ module test::counter {
     use std::vector;
     use std::ascii;
     use std::type_name;
+    use std::string;
 
     const EInvalidCounterValue: u64 = 1;
     const EInvalidBytesLength: u64 = 2;
@@ -17,6 +18,12 @@ module test::counter {
 
     // Event emitted when counter is incremented
     public struct CounterIncremented has copy, drop {
+        counter_id: ID,
+        new_value: u64
+    }
+
+    public struct CounterDecremented has copy, drop {
+        event_type: std::string::String,
         counter_id: ID,
         new_value: u64
     }
@@ -124,12 +131,28 @@ module test::counter {
         transfer::share_object(counter);
     }
 
+    public fun type_and_version(): std::string::String {
+        std::string::utf8(b"Counter 1.6.0")
+    }
+
     /// Increment counter by 1
     public entry fun increment(counter: &mut Counter) {
         counter.value = counter.value + 1;
 
         // Emit an event
         event::emit(CounterIncremented {
+            counter_id: object::id(counter),
+            new_value: counter.value
+        });
+    }
+
+    /// Decrement counter by 1
+    public entry fun decrement(counter: &mut Counter) {
+        counter.value = counter.value - 1;
+
+        // Emit an event
+        event::emit(CounterDecremented {
+            event_type: string::utf8(b"CounterDecremented"),
             counter_id: object::id(counter),
             new_value: counter.value
         });

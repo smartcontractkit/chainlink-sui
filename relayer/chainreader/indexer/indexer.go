@@ -52,7 +52,7 @@ func (i *Indexer) Start(ctx context.Context) error {
 
 		go func() {
 			if err := i.transactionIndexer.Start(txnIndexerCtx); err != nil {
-				i.log.Error("Transaction indexer failed to start", "error", err)
+				i.log.Errorw("Transaction indexer failed to start", "error", err)
 				txnIndexerCancel()
 				return
 			}
@@ -66,7 +66,7 @@ func (i *Indexer) Start(ctx context.Context) error {
 
 		go func() {
 			if err := i.eventsIndexer.Start(eventsIndexerCtx); err != nil {
-				i.log.Error("Events indexer failed to start", "error", err)
+				i.log.Errorw("Events indexer failed to start", "error", err)
 				eventsIndexerCancel()
 				return
 			}

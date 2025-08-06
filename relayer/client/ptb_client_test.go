@@ -323,6 +323,20 @@ func TestPTBClient(t *testing.T) {
 		utils.PrettyPrint(response)
 	})
 
+	t.Run("ReadFunction_StringAsStruct", func(t *testing.T) {
+		response, err := relayerClient.ReadFunction(
+			context.Background(),
+			accountAddress,
+			packageId,
+			"counter",
+			"type_and_version",
+			[]any{},
+			[]string{},
+		)
+		require.NoError(t, err)
+		require.Equal(t, "Counter 1.6.0", response[0], "Expected type and version to match 'Counter 1.6.0'")
+	})
+
 	t.Run("ReadFunction_NestedStruct", func(t *testing.T) {
 		response, err := relayerClient.ReadFunction(
 			context.Background(),

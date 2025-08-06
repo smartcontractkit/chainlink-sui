@@ -22,7 +22,9 @@ var (
 
 type ICounter interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Increment(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Decrement(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Create(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	IncrementByOne(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IncrementByOneNoContext(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -50,6 +52,7 @@ type ICounter interface {
 }
 
 type ICounterDevInspect interface {
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	Create(ctx context.Context, opts *bind.CallOpts) (bind.Object, error)
 	IncrementByOne(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (uint64, error)
 	IncrementByOneNoContext(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (uint64, error)
@@ -72,8 +75,12 @@ type ICounterDevInspect interface {
 type CounterEncoder interface {
 	Initialize() (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	TypeAndVersion() (*bind.EncodedCall, error)
+	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Increment(counter bind.Object) (*bind.EncodedCall, error)
 	IncrementWithArgs(args ...any) (*bind.EncodedCall, error)
+	Decrement(counter bind.Object) (*bind.EncodedCall, error)
+	DecrementWithArgs(args ...any) (*bind.EncodedCall, error)
 	Create() (*bind.EncodedCall, error)
 	CreateWithArgs(args ...any) (*bind.EncodedCall, error)
 	IncrementByOne(counter bind.Object) (*bind.EncodedCall, error)
@@ -200,6 +207,12 @@ type COUNTER struct {
 }
 
 type CounterIncremented struct {
+	CounterId bind.Object `move:"ID"`
+	NewValue  uint64      `move:"u64"`
+}
+
+type CounterDecremented struct {
+	EventType string      `move:"0x1::string::String"`
 	CounterId bind.Object `move:"ID"`
 	NewValue  uint64      `move:"u64"`
 }
@@ -379,6 +392,14 @@ func init() {
 		}
 		return result, nil
 	})
+	bind.RegisterStructDecoder("test::counter::CounterDecremented", func(data []byte) (interface{}, error) {
+		var result CounterDecremented
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
 	bind.RegisterStructDecoder("test::counter::AdminCap", func(data []byte) (interface{}, error) {
 		var result AdminCap
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -483,9 +504,29 @@ func (c *CounterContract) Initialize(ctx context.Context, opts *bind.CallOpts) (
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// TypeAndVersion executes the type_and_version Move function.
+func (c *CounterContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.counterEncoder.TypeAndVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // Increment executes the increment Move function.
 func (c *CounterContract) Increment(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.counterEncoder.Increment(counter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// Decrement executes the decrement Move function.
+func (c *CounterContract) Decrement(ctx context.Context, opts *bind.CallOpts, counter bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.counterEncoder.Decrement(counter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -711,6 +752,28 @@ func (c *CounterContract) GetVectorOfVectorsOfU8(ctx context.Context, opts *bind
 	}
 
 	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
+//
+// Returns: 0x1::string::String
+func (d *CounterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
+	encoded, err := d.contract.counterEncoder.TypeAndVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
 }
 
 // Create executes the create Move function using DevInspect to get return values.
@@ -1105,6 +1168,30 @@ func (c counterEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, erro
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// TypeAndVersion encodes a call to the type_and_version Move function.
+func (c counterEncoder) TypeAndVersion() (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, []string{}, []any{}, []string{
+		"0x1::string::String",
+	})
+}
+
+// TypeAndVersionWithArgs encodes a call to the type_and_version Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c counterEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::string::String",
+	})
+}
+
 // Increment encodes a call to the increment Move function.
 func (c counterEncoder) Increment(counter bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1129,6 +1216,32 @@ func (c counterEncoder) IncrementWithArgs(args ...any) (*bind.EncodedCall, error
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("increment", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// Decrement encodes a call to the decrement Move function.
+func (c counterEncoder) Decrement(counter bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("decrement", typeArgsList, typeParamsList, []string{
+		"&mut Counter",
+	}, []any{
+		counter,
+	}, nil)
+}
+
+// DecrementWithArgs encodes a call to the decrement Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c counterEncoder) DecrementWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Counter",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("decrement", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // Create encodes a call to the create Move function.
