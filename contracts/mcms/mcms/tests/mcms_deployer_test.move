@@ -17,7 +17,7 @@ fun create_test_scenario(): Scenario {
 }
 
 fun generate_upgrade_cap(ctx: &mut TxContext): UpgradeCap {
-    package::test_publish(@mcms.to_id(), ctx)
+    package::test_publish(mcms_registry::get_multisig_address().to_id(), ctx)
 }
 
 #[test]
@@ -42,7 +42,7 @@ fun test_register_upgrade_cap() {
         mcms_registry::register_entrypoint<MCMS_DEPLOYER_TEST, TestOwnerCap>(
             &mut registry,
             MCMS_DEPLOYER_TEST {},
-            option::some(TestOwnerCap { id: object::new(ctx) }),
+            TestOwnerCap { id: object::new(ctx) },
             ctx,
         );
 

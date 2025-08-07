@@ -4,6 +4,7 @@ package parse
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	tree_sitter_move_on_aptos "github.com/aptos-labs/tree-sitter-move-on-aptos/bindings/go"
@@ -33,6 +34,20 @@ type Struct struct {
 }
 
 func ParseModule(module []byte) (pkg string, mod string, err error) {
+	// Try regex first since it's more reliable for this simple case
+	moduleContent := string(module)
+
+	// Look for "module package::module;" pattern anywhere in the file
+	// but prioritize early occurrences (likely to be the actual module declaration)
+	re := regexp.MustCompile(`(?m)^\s*module\s+(\w+)::(\w+)\s*;`)
+	matches := re.FindStringSubmatch(moduleContent)
+	if len(matches) == 3 {
+		pkg = matches[1]
+		mod = matches[2]
+		return pkg, mod, nil
+	}
+
+	// Fallback to tree-sitter if regex didn't work
 	lang := tree_sitter.NewLanguage(tree_sitter_move_on_aptos.Language())
 	n, err := tree_sitter.ParseCtx(context.Background(), module, lang)
 	if err != nil {
@@ -47,14 +62,21 @@ func ParseModule(module []byte) (pkg string, mod string, err error) {
 )
 	`), lang)
 
+	if err != nil {
+		return "", "", fmt.Errorf("creating query: %w", err)
+	}
+
 	queryCursor := tree_sitter.NewQueryCursor()
 	queryCursor.Exec(query, n)
 
+	// Take the first match - this should be the module declaration
+	// since it appears before use statements in the file
 	for {
 		m, ok := queryCursor.NextMatch()
 		if !ok {
 			break
 		}
+
 		for _, capture := range m.Captures {
 			switch capture.Index {
 			case 0:
@@ -64,6 +86,11 @@ func ParseModule(module []byte) (pkg string, mod string, err error) {
 				// @module
 				mod = capture.Node.Content(module)
 			}
+		}
+
+		// Take the first match only
+		if pkg != "" && mod != "" {
+			break
 		}
 	}
 

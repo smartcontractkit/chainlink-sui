@@ -36,8 +36,9 @@ type IRouter interface {
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipAsMcms(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRouterDevInspect
@@ -89,10 +90,12 @@ type RouterEncoder interface {
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
+	AcceptOwnershipAsMcms(state bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	AcceptOwnershipAsMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsRegisterEntrypoint(registry bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
-	McmsRegisterEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsEntrypoint(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -418,6 +421,16 @@ func (c *RouterContract) AcceptOwnershipFromObject(ctx context.Context, opts *bi
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// AcceptOwnershipAsMcms executes the accept_ownership_as_mcms Move function.
+func (c *RouterContract) AcceptOwnershipAsMcms(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.AcceptOwnershipAsMcms(state, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
 func (c *RouterContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.routerEncoder.ExecuteOwnershipTransfer(ownerCap, ownableState, to)
@@ -428,9 +441,9 @@ func (c *RouterContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bin
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsRegisterEntrypoint executes the mcms_register_entrypoint Move function.
-func (c *RouterContract) McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.McmsRegisterEntrypoint(registry, state, ownerCap)
+// ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
+func (c *RouterContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.ExecuteOwnershipTransferToMcms(ownerCap, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1156,6 +1169,35 @@ func (c routerEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.Enc
 	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// AcceptOwnershipAsMcms encodes a call to the accept_ownership_as_mcms Move function.
+func (c routerEncoder) AcceptOwnershipAsMcms(state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_as_mcms", typeArgsList, typeParamsList, []string{
+		"&mut RouterState",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		params,
+	}, nil)
+}
+
+// AcceptOwnershipAsMcmsWithArgs encodes a call to the accept_ownership_as_mcms Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c routerEncoder) AcceptOwnershipAsMcmsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut RouterState",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_as_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
 func (c routerEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1188,28 +1230,31 @@ func (c routerEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.Enco
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsRegisterEntrypoint encodes a call to the mcms_register_entrypoint Move function.
-func (c routerEncoder) McmsRegisterEntrypoint(registry bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+// ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
+func (c routerEncoder) ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, []string{
-		"&mut Registry",
-		"&mut RouterState",
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
 		"OwnerCap",
+		"&mut RouterState",
+		"&mut Registry",
+		"address",
 	}, []any{
-		registry,
-		state,
 		ownerCap,
+		state,
+		registry,
+		to,
 	}, nil)
 }
 
-// McmsRegisterEntrypointWithArgs encodes a call to the mcms_register_entrypoint Move function using arbitrary arguments.
+// ExecuteOwnershipTransferToMcmsWithArgs encodes a call to the execute_ownership_transfer_to_mcms Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c routerEncoder) McmsRegisterEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c routerEncoder) ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&mut Registry",
-		"&mut RouterState",
 		"OwnerCap",
+		"&mut RouterState",
+		"&mut Registry",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1217,7 +1262,7 @@ func (c routerEncoder) McmsRegisterEntrypointWithArgs(args ...any) (*bind.Encode
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.

@@ -64,7 +64,7 @@ public struct SetRootArgs has drop {
     root: vector<u8>,
     valid_until: u64,
     chain_id: u256,
-    multisig: vector<u8>,
+    multisig: address,
     pre_op_count: u64,
     post_op_count: u64,
     override_previous_root: bool,
@@ -150,7 +150,7 @@ fun default_set_root_args(override_previous_root: bool): SetRootArgs {
         root: ROOT,
         valid_until: VALID_UNTIL,
         chain_id: CHAIN_ID,
-        multisig: @mcms.to_bytes(),
+        multisig: mcms_registry::get_multisig_address(),
         pre_op_count: PRE_OP_COUNT,
         post_op_count: POST_OP_COUNT,
         override_previous_root,
@@ -271,7 +271,7 @@ fun test_set_root__invalid_root_len() {
 fun test_set_root__invalid_multisig_addr() {
     let mut env = setup();
     let mut set_root_args = default_set_root_args(false);
-    set_root_args.multisig = @0x999.to_bytes();
+    set_root_args.multisig = @0x999;
     call_set_root(&mut env, set_root_args);
 
     env.destroy()
@@ -287,7 +287,7 @@ public fun test_set_root__pending_ops() {
         &mut env.state,
         role,
         CHAIN_ID,
-        @mcms.to_bytes(),
+        mcms_registry::get_multisig_address(),
         0,
         2, // 1 more than the current op_count
         false,
@@ -344,7 +344,7 @@ public fun test_set_root__wrong_post_op_count() {
         &mut env.state,
         role,
         CHAIN_ID,
-        @mcms.to_bytes(),
+        mcms_registry::get_multisig_address(),
         0,
         1,
         false,
@@ -826,7 +826,7 @@ fun test_set_config__success() {
         &mut env.state,
         role,
         CHAIN_ID,
-        @mcms.to_bytes(),
+        mcms_registry::get_multisig_address(),
         new_op_count,
         new_op_count,
         false

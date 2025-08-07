@@ -42,7 +42,7 @@ module ccip_offramp::offramp_test {
         let mut ref = ts::take_shared<CCIPObjectRef>(&scenario);
         let state = ts::take_shared<OffRampState>(&scenario);
 
-        let ccip_owner_cap = ts::take_from_sender<state_object::OwnerCap>(&scenario);
+        let ccip_owner_cap = ts::take_from_sender<ccip::ownable::OwnerCap>(&scenario);
         let owner_cap = ts::take_from_sender<OwnerCap>(&scenario);
         let dest_transfer_cap = ts::take_from_sender<DestTransferCap>(&scenario);
 

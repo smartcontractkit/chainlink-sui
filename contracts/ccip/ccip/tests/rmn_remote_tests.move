@@ -2,7 +2,8 @@
 #[allow(implicit_const_copy)]
 module ccip::rmn_remote_test;
 
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 use ccip::rmn_remote::{Self, RMNRemoteState};
 use sui::test_scenario::{Self, Scenario};
 

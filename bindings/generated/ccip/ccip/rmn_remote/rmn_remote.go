@@ -23,7 +23,7 @@ var (
 type IRmnRemote interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetArm(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	Verify(ctx context.Context, opts *bind.CallOpts, ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
 	SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -59,7 +59,7 @@ type RmnRemoteEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetArm() (*bind.EncodedCall, error)
 	GetArmWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(ref bind.Object, param bind.Object, localChainSelector uint64) (*bind.EncodedCall, error)
+	Initialize(ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	Verify(ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (*bind.EncodedCall, error)
 	VerifyWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -322,8 +322,8 @@ func (c *RmnRemoteContract) GetArm(ctx context.Context, opts *bind.CallOpts) (*m
 }
 
 // Initialize executes the initialize Move function.
-func (c *RmnRemoteContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.Initialize(ref, param, localChainSelector)
+func (c *RmnRemoteContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.Initialize(ref, ownerCap, localChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -726,7 +726,7 @@ func (c rmnRemoteEncoder) GetArmWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c rmnRemoteEncoder) Initialize(ref bind.Object, param bind.Object, localChainSelector uint64) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) Initialize(ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
@@ -735,7 +735,7 @@ func (c rmnRemoteEncoder) Initialize(ref bind.Object, param bind.Object, localCh
 		"u64",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		localChainSelector,
 	}, nil)
 }

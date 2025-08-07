@@ -204,6 +204,22 @@ module ccip_router::router {
         ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
     }
 
+    /// Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
+    public fun accept_ownership_as_mcms(
+        state: &mut RouterState,
+        params: ExecutingCallbackParams,
+        ctx: &mut TxContext,
+    ) {
+        let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(params, McmsCallback {});
+        assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+
+        let mut stream = bcs_stream::new(data);
+        let mcms = bcs_stream::deserialize_address(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+
+        ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    }
+
     public fun execute_ownership_transfer(
         owner_cap: OwnerCap,
         ownable_state: &mut OwnableState,
@@ -213,18 +229,19 @@ module ccip_router::router {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public fun mcms_register_entrypoint(
-        registry: &mut Registry,
-        state: &mut RouterState,
+    public entry fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
+        state: &mut RouterState,
+        registry: &mut Registry,
+        to: address,
         ctx: &mut TxContext,
     ) {
-        ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
-
-        mcms_registry::register_entrypoint(
+        ownable::execute_ownership_transfer_to_mcms(
+            owner_cap,
+            &mut state.ownable_state,
             registry,
-            McmsCallback{},
-            option::some(owner_cap),
+            to,
+            McmsCallback {},
             ctx,
         );
     }
@@ -295,10 +312,6 @@ module ccip_router::router {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);
             transfer_ownership(state, owner_cap, to, ctx);
-        } else if (function_bytes == b"accept_ownership_as_mcms") {
-            let mcms = bcs_stream::deserialize_address(&mut stream);
-            bcs_stream::assert_is_consumed(&stream);
-            ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
         } else if (function_bytes == b"execute_ownership_transfer") {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);

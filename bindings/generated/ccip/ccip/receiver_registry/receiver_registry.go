@@ -22,7 +22,7 @@ var (
 
 type IReceiverRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	IsRegisteredReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
@@ -44,7 +44,7 @@ type IReceiverRegistryDevInspect interface {
 type ReceiverRegistryEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error)
+	Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateId string, receiverStateParams []string, proof bind.Object) (*bind.EncodedCall, error)
 	RegisterReceiverWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -271,8 +271,8 @@ func (c *ReceiverRegistryContract) TypeAndVersion(ctx context.Context, opts *bin
 }
 
 // Initialize executes the initialize Move function.
-func (c *ReceiverRegistryContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.receiverRegistryEncoder.Initialize(ref, param)
+func (c *ReceiverRegistryContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.Initialize(ref, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -467,7 +467,7 @@ func (c receiverRegistryEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Enco
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c receiverRegistryEncoder) Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error) {
+func (c receiverRegistryEncoder) Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
@@ -475,7 +475,7 @@ func (c receiverRegistryEncoder) Initialize(ref bind.Object, param bind.Object) 
 		"&OwnerCap",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 	}, nil)
 }
 

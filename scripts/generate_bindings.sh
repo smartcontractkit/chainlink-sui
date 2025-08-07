@@ -10,6 +10,7 @@ go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/s
 
 # CCIP
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/fee_quoter.move --output ./bindings/generated/ccip/ccip/fee_quoter
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/state_object.move --output ./bindings/generated/ccip/ccip/state_object
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/nonce_manager.move --output ./bindings/generated/ccip/ccip/nonce_manager
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/receiver_registry.move --output ./bindings/generated/ccip/ccip/receiver_registry
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/rmn_remote.move --output ./bindings/generated/ccip/ccip/rmn_remote
@@ -53,3 +54,6 @@ go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mc
 
 # CCIP - Dummy Receiver
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_dummy_receiver --input ./contracts/ccip/ccip_dummy_receiver/sources/ccip_dummy_receiver.move --output ./bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver
+
+# MCMS User for testing
+go run bindgen/main.go --moveConfig ./contracts/mcms/mcms_test --input ./contracts/mcms/mcms_test/sources/mcms_user.move --output ./bindings/generated/mcms/mcms_user

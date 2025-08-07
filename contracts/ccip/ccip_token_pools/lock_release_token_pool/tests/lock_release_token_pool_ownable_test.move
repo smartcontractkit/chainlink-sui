@@ -3,7 +3,8 @@ module lock_release_token_pool::lock_release_token_pool_ownable_test {
     use sui::coin;
     use sui::test_scenario::{Self as ts, Scenario};
 
-    use ccip::state_object::{Self, OwnerCap as CCIPOwnerCap, CCIPObjectRef};
+    use ccip::state_object::{Self, CCIPObjectRef};
+    use ccip::ownable::OwnerCap as CCIPOwnerCap;
     use ccip::dynamic_dispatcher;
     use ccip::offramp_state_helper;
     use ccip::rmn_remote;
@@ -157,20 +158,22 @@ module lock_release_token_pool::lock_release_token_pool_ownable_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = ownable::EUnauthorizedOwnershipTransfer)]
+    #[expected_failure(abort_code = ownable::EInvalidOwnerCap)]
     public fun test_transfer_ownership_unauthorized() {
         let (mut env, owner_cap) = setup();
 
         // Try to transfer ownership from unauthorized user
         env.scenario.next_tx(OTHER_USER);
-        lock_release_token_pool::transfer_ownership(&mut env.state, &owner_cap, NEW_OWNER, env.scenario.ctx());
+        let other_user_owner_cap = ownable::create_test_owner_cap(env.scenario.ctx());
+        lock_release_token_pool::transfer_ownership(&mut env.state, &other_user_owner_cap, NEW_OWNER, env.scenario.ctx());
+        ownable::destroy_owner_cap(other_user_owner_cap, env.scenario.ctx());
 
         tear_down(env);
         ts::return_to_address(OWNER, owner_cap);
     }
 
     #[test]
-    #[expected_failure(abort_code = ownable::EUnauthorizedAcceptance)]
+    #[expected_failure(abort_code = ownable::EMustBeProposedOwner)]
     public fun test_accept_ownership_unauthorized() {
         let (mut env, owner_cap) = setup();
 

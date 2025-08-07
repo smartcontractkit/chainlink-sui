@@ -1,7 +1,8 @@
 #[test_only]
 module ccip::state_object_test;
 
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -45,7 +46,7 @@ public fun test_add() {
     let (mut scenario, owner_cap,  mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, obj, ctx);
+    state_object::add(&mut ref, &owner_cap, obj, ctx);
     assert!(state_object::contains<TestObject>(&ref));
 
     tear_down_test(scenario, owner_cap, ref);
@@ -56,10 +57,10 @@ public fun test_remove() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, obj, ctx);
+    state_object::add(&mut ref, &owner_cap, obj, ctx);
     assert!(state_object::contains<TestObject>(&ref));
 
-    let obj2: TestObject = state_object::remove<TestObject>(&mut ref, ctx);
+    let obj2: TestObject = state_object::remove<TestObject>(&mut ref, &owner_cap, ctx);
     assert!(!state_object::contains<TestObject>(&ref));
 
     let TestObject { id } = obj2;
@@ -73,7 +74,7 @@ public fun test_borrow() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, obj, ctx);
+    state_object::add(&mut ref, &owner_cap, obj, ctx);
     assert!(state_object::contains<TestObject>(&ref));
 
     let _obj2: &TestObject = state_object::borrow<TestObject>(&ref);
@@ -87,7 +88,7 @@ public fun test_borrow_mut() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, obj, ctx);
+    state_object::add(&mut ref, &owner_cap, obj, ctx);
     assert!(state_object::contains<TestObject>(&ref));
 
     let _obj2: &mut TestObject = state_object::borrow_mut<TestObject>(&mut ref);
@@ -101,11 +102,11 @@ public fun test_transfer_ownership() {
     let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
-    state_object::add(&mut ref, obj, ctx);
+    state_object::add(&mut ref, &owner_cap, obj, ctx);
 
     let ctx = scenario.ctx();
     let new_owner = SENDER_2;
-    state_object::transfer_ownership(&mut ref, new_owner, ctx);
+    state_object::transfer_ownership(&mut ref, &owner_cap, new_owner, ctx);
 
     let (from, to, accepted) = state_object::pending_transfer(&ref);
     assert!(from == SENDER_1);
@@ -113,7 +114,7 @@ public fun test_transfer_ownership() {
     assert!(!accepted);
 
     // after transfer, the owner is still the original owner
-    let owner = state_object::get_current_owner(&ref);
+    let owner = state_object::owner(&ref);
     assert!(owner == SENDER_1);
 
     tear_down_test(scenario, owner_cap, ref);
@@ -123,12 +124,12 @@ public fun test_transfer_ownership() {
 public fun test_accept_and_execute_ownership() {
     let (mut scenario_1, owner_cap, mut ref, obj) = set_up_test();
     let ctx_1 = scenario_1.ctx();
-    state_object::add(&mut ref, obj, ctx_1);
+    state_object::add(&mut ref, &owner_cap, obj, ctx_1);
 
     // tx 1: SENDER_1 transfer ownership to SENDER_2
     // let ctx_1 = scenario_1.ctx();
     let new_owner = SENDER_2;
-    state_object::transfer_ownership(&mut ref, new_owner, ctx_1);
+    state_object::transfer_ownership(&mut ref, &owner_cap, new_owner, ctx_1);
     let (from, to, accepted) = state_object::pending_transfer(&ref);
     assert!(from == SENDER_1);
     assert!(to == new_owner);
@@ -147,7 +148,7 @@ public fun test_accept_and_execute_ownership() {
     assert!(to == new_owner);
     assert!(accepted);
     // after accept, the owner is still the original owner
-    let owner_1 = state_object::get_current_owner(&ref);
+    let owner_1 = state_object::owner(&ref);
     assert!(owner_1 == SENDER_1);
 
     test_scenario::end(scenario_2);
@@ -155,7 +156,7 @@ public fun test_accept_and_execute_ownership() {
     // tx 3: SENDER_1 executes the ownership transfer
     let mut scenario_3 = test_scenario::begin(SENDER_1);
     let ctx_3 = scenario_3.ctx();
-    state_object::execute_ownership_transfer(&mut ref, new_owner, ctx_3);
+    state_object::execute_ownership_transfer(&mut ref, owner_cap, new_owner, ctx_3);
     test_scenario::end(scenario_3);
 
     let (from, to, accepted) = state_object::pending_transfer(&ref);
@@ -163,19 +164,20 @@ public fun test_accept_and_execute_ownership() {
     assert!(to == @0x0);
     assert!(!accepted);
     // after execute, the owner is the new owner
-    let owner_2 = state_object::get_current_owner(&ref);
+    let owner_2 = state_object::owner(&ref);
     assert!(owner_2 == SENDER_2);
 
     // tx 4: SENDER_2 can now update the state object
     let mut scenario_4 = test_scenario::begin(SENDER_2);
+    let owner_cap_2 = scenario_4.take_from_sender<OwnerCap>();
 
-    let obj2: TestObject = state_object::remove<TestObject>(&mut ref, scenario_4.ctx());
+    let obj2: TestObject = state_object::remove<TestObject>(&mut ref, &owner_cap_2, scenario_4.ctx());
     assert!(!state_object::contains<TestObject>(&ref));
     let TestObject { id } = obj2;
     object::delete(id);
 
-    // Special cleanup for this test - ownership was transferred, so we transfer owner_cap to dummy address
-    transfer::public_transfer(owner_cap, @0x0);
+    // Special cleanup for this test - ownership was transferred, so we transfer owner_cap_2 to dummy address
+    transfer::public_transfer(owner_cap_2, @0x0);
     test_scenario::return_shared(ref);
     test_scenario::end(scenario_4);
 }

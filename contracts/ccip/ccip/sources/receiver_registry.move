@@ -8,7 +8,8 @@ use sui::address;
 use sui::event;
 use sui::vec_map::{Self, VecMap};
 
-use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 
 public struct ReceiverConfig has store, copy, drop {
     module_name: String,
@@ -54,7 +55,7 @@ public fun type_and_version(): String {
 
 public fun initialize(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     ctx: &mut TxContext
 ) {
     assert!(
@@ -66,7 +67,7 @@ public fun initialize(
         receiver_configs: vec_map::empty()
     };
 
-    state_object::add(ref, state, ctx);
+    state_object::add(ref, owner_cap, state, ctx);
 }
 
 public fun register_receiver<ProofType: drop>(

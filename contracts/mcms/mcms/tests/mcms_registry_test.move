@@ -64,13 +64,11 @@ fun test_register_entrypoint() {
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
             TestModuleWitness {},
-            option::some(module_cap),
+            module_cap,
             ctx,
         );
 
-        let module_name = string::utf8(MODULE_NAME);
-        assert!(mcms_registry::is_package_registered(&registry, @mcms));
-        assert!(mcms_registry::is_module_registered(&registry, module_name));
+        assert!(mcms_registry::is_package_registered(&registry, mcms_registry::get_multisig_address()));
 
         ts::return_shared(registry);
     };
@@ -102,7 +100,7 @@ fun test_get_callback_params() {
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
             TestModuleWitness {},
-            option::some(module_cap),
+            module_cap,
             ctx,
         );
 
@@ -117,7 +115,7 @@ fun test_get_callback_params() {
 
         // Create callback params
         let params = mcms_registry::test_create_executing_callback_params(
-            @mcms,
+            mcms_registry::get_multisig_address(),
             string::utf8(MODULE_NAME),
             string::utf8(b"test_function"),
             vector::empty(),
@@ -141,8 +139,8 @@ fun test_get_callback_params() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EModuleNameMismatch)]
-fun test_get_callback_params_with_unregistered_module_name() {
+#[expected_failure(abort_code = mcms_registry::EPackageCapNotRegistered)]
+fun test_get_callback_params_with_unregistered_package_cap() {
     let mut scenario = create_test_scenario();
 
     // Transaction 1: Initialize registry
@@ -159,13 +157,13 @@ fun test_get_callback_params_with_unregistered_module_name() {
 
         // Create callback params
         let params = mcms_registry::test_create_executing_callback_params(
-            @mcms,
-            string::utf8(b"mcms_registry_tests"),
+            mcms_registry::get_multisig_address(),
+            string::utf8(b"mcms_registry_test"),
             string::utf8(b"test_function"),
             vector::empty(),
         );
 
-        // This should fail because module is not registered
+        // This should fail because package is not registered
         let (cap, _function_name, _data) = mcms_registry::get_callback_params<
             TestModuleWitness,
             TestModuleCap,
@@ -184,8 +182,8 @@ fun test_get_callback_params_with_unregistered_module_name() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EModuleNameMismatch)]
-fun test_get_callback_params_with_wrong_module_name() {
+#[expected_failure(abort_code = mcms_registry::EPackageIdMismatch)]
+fun test_get_callback_params_with_wrong_package_name() {
     let mut scenario = create_test_scenario();
 
     // Transaction 1: Initialize registry
@@ -208,19 +206,19 @@ fun test_get_callback_params_with_wrong_module_name() {
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
             TestModuleWitness {},
-            option::some(module_cap),
+            module_cap,
             ctx,
         );
 
-        // Create callback params with wrong module name
+        // Create callback params with wrong target/package ID
         let params = mcms_registry::test_create_executing_callback_params(
-            @mcms,
-            string::utf8(b"wrong_module_name"),
+            @0x001,
+            string::utf8(b"mcms_registry_test"),
             string::utf8(b"test_function"),
             vector::empty(),
         );
 
-        // This should fail because module name doesn't match
+        // This should fail because package ID doesn't match
         let (_cap, _function_name, _data) = mcms_registry::get_callback_params<
             TestModuleWitness,
             TestModuleCap,

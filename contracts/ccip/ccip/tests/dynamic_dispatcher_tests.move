@@ -8,7 +8,8 @@ use std::type_name;
 use sui::test_scenario::{Self as ts, Scenario};
 
 use ccip::dynamic_dispatcher::{Self, SourceTransferCap};
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 use ccip::token_admin_registry as registry;
 
 public struct DYNAMIC_DISPATCHER_TESTS has drop {}
@@ -117,7 +118,7 @@ public fun test_add_source_token_transfer() {
     // Register a token in the token admin registry first
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1, // state address
@@ -175,7 +176,7 @@ public fun test_add_source_token_transfer_wrong_proof() {
     // Register a token with TestTypeProof
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1,
@@ -213,7 +214,7 @@ public fun test_add_multiple_source_token_transfers() {
     // Register two tokens
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1,
@@ -228,7 +229,7 @@ public fun test_add_multiple_source_token_transfers() {
     
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_2,
         TOKEN_POOL_PACKAGE_ID_2,
         // TOKEN_ADDRESS_2,
@@ -321,7 +322,7 @@ public fun test_get_source_token_transfer_data() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1,
@@ -370,7 +371,7 @@ public fun test_edge_case_large_amounts() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1,
@@ -414,7 +415,7 @@ public fun test_edge_case_empty_data() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1,
@@ -488,7 +489,7 @@ public fun test_zero_amount_transfer() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1,
@@ -531,7 +532,7 @@ public fun test_source_transfer_cap_permission() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         // TOKEN_ADDRESS_1,

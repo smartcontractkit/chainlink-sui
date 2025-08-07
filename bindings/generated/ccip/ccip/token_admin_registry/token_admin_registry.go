@@ -22,7 +22,7 @@ var (
 
 type ITokenAdminRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetPools(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddresses []string) (*models.SuiTransactionBlockResponse, error)
 	GetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
@@ -54,7 +54,7 @@ type ITokenAdminRegistryDevInspect interface {
 type TokenAdminRegistryEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error)
+	Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetPools(ref bind.Object, coinMetadataAddresses []string) (*bind.EncodedCall, error)
 	GetPoolsWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -412,8 +412,8 @@ func (c *TokenAdminRegistryContract) TypeAndVersion(ctx context.Context, opts *b
 }
 
 // Initialize executes the initialize Move function.
-func (c *TokenAdminRegistryContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.tokenAdminRegistryEncoder.Initialize(ref, param)
+func (c *TokenAdminRegistryContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.Initialize(ref, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -747,7 +747,7 @@ func (c tokenAdminRegistryEncoder) TypeAndVersionWithArgs(args ...any) (*bind.En
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c tokenAdminRegistryEncoder) Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error) {
+func (c tokenAdminRegistryEncoder) Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
@@ -755,7 +755,7 @@ func (c tokenAdminRegistryEncoder) Initialize(ref bind.Object, param bind.Object
 		"&OwnerCap",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 	}, nil)
 }
 
@@ -1053,7 +1053,7 @@ func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, param bi
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("register_pool_by_admin", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&state_object::OwnerCap",
+		"state_object::CCIPAdminProof",
 		"address",
 		"address",
 		"String",
@@ -1081,7 +1081,7 @@ func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, param bi
 func (c tokenAdminRegistryEncoder) RegisterPoolByAdminWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&state_object::OwnerCap",
+		"state_object::CCIPAdminProof",
 		"address",
 		"address",
 		"String",

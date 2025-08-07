@@ -4,7 +4,8 @@ use std::string::{Self, String};
 
 use sui::table::{Self, Table};
 
-use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 
 // store this cap to onramp
 public struct NonceManagerCap has key, store {
@@ -24,7 +25,7 @@ public fun type_and_version(): String {
 }
 
 #[allow(lint(self_transfer))]
-public fun initialize(ref: &mut CCIPObjectRef, _: &OwnerCap, ctx: &mut TxContext) {
+public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
     assert!(!state_object::contains<NonceManagerState>(ref), EAlreadyInitialized);
 
     let state = NonceManagerState {
@@ -34,7 +35,7 @@ public fun initialize(ref: &mut CCIPObjectRef, _: &OwnerCap, ctx: &mut TxContext
     let cap = NonceManagerCap {
         id: object::new(ctx),
     };
-    state_object::add(ref, state, ctx);
+    state_object::add(ref, owner_cap, state, ctx);
     transfer::transfer(cap, ctx.sender());
 }
 

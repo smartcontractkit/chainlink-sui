@@ -64,24 +64,24 @@ fun init(_witness: MCMS_USER, ctx: &mut TxContext) {
     transfer::transfer(owner_cap, ctx.sender());
 }
 
-public fun initialize(
+public fun register_mcms_entrypoint(
     owner_cap: OwnerCap,
-    upgrade_cap: UpgradeCap,
-    user_data: &UserData,
     registry: &mut Registry,
-    state: &mut DeployerState,
+    user_data: &UserData,
     ctx: &mut TxContext,
 ) {
     assert_valid_owner_cap(user_data, &owner_cap);
 
     // Transfer owner_cap to MCMS
-    mcms_registry::register_entrypoint(
-        registry,
-        SampleMcmsCallback {},
-        option::some(owner_cap),
-        ctx,
-    );
+    mcms_registry::register_entrypoint(registry, SampleMcmsCallback {}, owner_cap, ctx);
+}
 
+public fun register_upgrade_cap(
+    state: &mut DeployerState,
+    upgrade_cap: UpgradeCap,
+    registry: &mut Registry,
+    ctx: &mut TxContext,
+) {
     // Transfer upgrade permissions to MCMS
     mcms_deployer::register_upgrade_cap(
         state,
@@ -98,8 +98,8 @@ fun assert_valid_owner_cap(user_data: &UserData, owner_cap: &OwnerCap) {
 public struct SampleMcmsCallback has drop {}
 
 public fun mcms_entrypoint(
-    registry: &mut Registry,
     user_data: &mut UserData,
+    registry: &mut Registry,
     params: ExecutingCallbackParams, // hot potato
     _ctx: &mut TxContext,
 ) {

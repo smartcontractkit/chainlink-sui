@@ -165,12 +165,14 @@ public fun is_authorized_mint_cap<T>(state: &TokenState<T>, id: ID): bool {
 /// - Only callable by the token owner.
 public fun configure_new_minter<T>(
     state: &mut TokenState<T>,
-    _: &OwnerCap<T>,
+    owner_cap: &OwnerCap<T>,
     minter: address,
     allowance: u64,
     is_unlimited: bool,
     ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+    
     let mint_cap = MintCap<T> { id: object::new(ctx) };
     event::emit(MintCapCreated<T> {
         mint_cap: object::id(&mint_cap)
@@ -195,12 +197,13 @@ public fun configure_new_minter<T>(
 /// - Only callable when not paused.
 public fun increment_mint_allowance<T>(
     state: &mut TokenState<T>,
-    _: &OwnerCap<T>,
+    owner_cap: &OwnerCap<T>,
     mint_cap_id: ID,
     deny_list: &DenyList,
     allowance_increment: u64,
     _ctx: &TxContext,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(!is_paused<T>(deny_list), EPaused);
     assert!(allowance_increment > 0, EZeroAmount);
     assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
@@ -515,27 +518,43 @@ public fun accept_ownership_from_object<T>(
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
+public fun accept_ownership_as_mcms<T>(
+    state: &mut TokenState<T>,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(params, McmsCallback {});
+    assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    let mcms = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+}
+
 public fun execute_ownership_transfer<T>(
     owner_cap: OwnerCap<T>,
-    ownable_state: &mut OwnableState<T>,
+    state: &mut TokenState<T>,
     to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
+    ownable::execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
-public fun mcms_register_entrypoint<T>(
-    registry: &mut Registry,
-    state: &mut TokenState<T>,
+public entry fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap<T>,
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
-
-    mcms_registry::register_entrypoint(
+    ownable::execute_ownership_transfer_to_mcms(
+        owner_cap,
+        &mut state.ownable_state,
         registry,
-        McmsCallback{},
-        option::some(owner_cap),
+        to,
+        McmsCallback {},
         ctx,
     );
 }
@@ -579,7 +598,23 @@ public fun mcms_entrypoint<T>(
     let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
 
-    if (function_bytes == b"blocklist") {
+    if (function_bytes == b"configure_new_minter") {
+        let minter = bcs_stream::deserialize_address(&mut stream);
+        let allowance = bcs_stream::deserialize_u64(&mut stream);
+        let is_unlimited = bcs_stream::deserialize_bool(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+        configure_new_minter(state, owner_cap, minter, allowance, is_unlimited, ctx);
+    } else if (function_bytes == b"increment_mint_allowance") {
+        let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
+        let allowance_increment = bcs_stream::deserialize_u64(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+        increment_mint_allowance(state, owner_cap, mint_cap_address.to_id(), deny_list, allowance_increment, ctx);
+    } else if (function_bytes == b"set_unlimited_mint_allowances") {
+        let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
+        let is_unlimited = bcs_stream::deserialize_bool(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+        set_unlimited_mint_allowances(state, owner_cap, mint_cap_address.to_id(), deny_list, is_unlimited, ctx);
+    } else if (function_bytes == b"blocklist") {
         let addr = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
         blocklist(state, owner_cap, deny_list, addr, ctx);
