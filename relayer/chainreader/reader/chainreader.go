@@ -17,6 +17,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
 
+	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	craptosutils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
@@ -50,11 +51,6 @@ type suiChainReader struct {
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
-
-type ExtendedContractReader interface {
-	pkgtypes.ContractReader
-	QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]config.SequenceWithMetadata, error)
-}
 
 // readIdentifier represents the parsed components of a read identifier
 type readIdentifier struct {
@@ -264,13 +260,13 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	return s.transformEventsToSequences(eventRecords, sequenceDataType)
 }
 
-func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]config.SequenceWithMetadata, error) {
+func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]aptosCRConfig.SequenceWithMetadata, error) {
 	seqs, err := s.QueryKey(ctx, contract, filter, limitAndSort, sequenceDataType)
 	if err != nil {
 		return nil, err
 	}
 
-	var enriched []config.SequenceWithMetadata
+	var enriched []aptosCRConfig.SequenceWithMetadata
 	for _, seq := range seqs {
 		eventID, err := strconv.ParseUint(seq.Cursor, 10, 64)
 		if err != nil {
@@ -282,7 +278,7 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 			return nil, err
 		}
 
-		enriched = append(enriched, config.SequenceWithMetadata{
+		enriched = append(enriched, aptosCRConfig.SequenceWithMetadata{
 			Sequence:  seq,
 			TxVersion: 0,
 			TxHash:    txDigest,
