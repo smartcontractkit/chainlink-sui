@@ -1466,8 +1466,8 @@ fun validate_dest_family_address(
 }
 
 fun validate_evm_address(encoded_address: vector<u8>) {
-    let encoded_address_len = encoded_address.length();
-    assert!(encoded_address_len == 32, EInvalidEvmAddress);
+   let encoded_address_len = encoded_address.length();
+   assert!(encoded_address_len == 32, EInvalid32BytesAddress);
 
     let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
 

@@ -854,25 +854,25 @@ public fun test_lock_or_burn_comprehensive() {
         assert!(initial_coin_value == 1000);
         
         // Create token params for the operation
-        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
+        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Perform lock_or_burn operation (this burns the coin)
-        burn_mint_token_pool::lock_or_burn(
+        let updated_token_params = burn_mint_token_pool::lock_or_burn(
             &ccip_ref,
             test_coin, // This coin gets burned
-            &mut token_params,
+            token_params,
             &clock,
             &mut pool_state,
             &mut ctx
         );
         
         // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
+        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
         assert!(destination_chain == DefaultRemoteChain);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@burn_mint_token_pool);
-        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
         assert!(chain_selector == DefaultRemoteChain);
         assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);

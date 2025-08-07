@@ -1,143 +1,520 @@
-//go:build testnet_integration
+//go:build integration
 
 package ccip_test
 
 import (
 	"context"
-	"crypto/ed25519"
+	"encoding/hex"
+	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/holiman/uint256"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/stretchr/testify/require"
-
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
-
 	commonTypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	mocklinktoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_link_token"
+	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
+	ccipops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
+	lockreleaseops "github.com/smartcontractkit/chainlink-sui/ops/ccip_lock_release_token_pool"
+	onrampops "github.com/smartcontractkit/chainlink-sui/ops/ccip_onramp"
+	cciptokenpoolop "github.com/smartcontractkit/chainlink-sui/ops/ccip_token_pool"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
+	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+	"github.com/stretchr/testify/require"
 )
 
-// helpers
-// ContractAddresses holds the addresses of all deployed CCIP contracts
 type ContractAddresses struct {
-	// SUI contract addresses
-	LinkTokenPackageID    string
-	LinkTokenCoinMetadata string
-	LinkTokenTreasuryCap  string
-
-	// CCIP
-	CCIPPackageID string
-	CCIPStateRef  string
-
-	// Clock object
-	ClockObject string
-
-	// Token Pools
-	LinkLockReleaseTokenPool         string
-	LinkLockReleaseTokenPoolState    string
-	LinkLockReleaseTokenPoolOwnerCap string
-
-	// ETH Mint Burn Token Pools
-	ETHMintBurnTokenPool         string
-	ETHMintBurnTokenPoolState    string
-	ETHMintBurnTokenPoolOwnerCap string
-
-	// CCIP Onramp
-	CCIPOnrampPackageID string
-	CCIPOnrampState     string
-	CCIPOnrampOwnerCap  string
-
-	// Coin Objects
-	LinkCoinObjects []string
-	ETHCoinObjects  []string
+	CCIPPackageID              string
+	CCIPOnrampPackageID        string
+	LinkLockReleaseTokenPool   string
+	CCIPTokenPoolPackageID     string
+	CCIPTokenPoolStateObjectId string
 }
 
-// setupContractAddresses sets up the addresses of all deployed CCIP contracts
-func SetupContractAddresses() ContractAddresses {
-	return ContractAddresses{
-		// SUI contracts
-		LinkTokenPackageID:    "0xe3c005c4195ec60a3468ce01238df650e4fedbd36e517bf75b9d2ee90cce8a8b",
-		LinkTokenCoinMetadata: "0x2b7aee90f1ce4d6a34bed21d954fcdab04fdf391dd3a012b65641a0a8a2c5f7a",
-		LinkTokenTreasuryCap:  "0x0bcba9548545dd8b5563580b3466102ce1267e0ec8a80c26f259b820ff366c02",
+const (
+	evmReceiverAddress = "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"
+)
 
-		// ETH Token
+func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI) {
+	t.Helper()
 
-		// Clock object
-		ClockObject: "0x6",
+	// Start the node.
+	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			if perr := cmd.Process.Kill(); perr != nil {
+				t.Logf("Failed to kill process: %v", perr)
+			}
+		}
+	})
 
-		CCIPPackageID: "0x1245ccd9b14d187b00f12f37906271f18c334fb9fc1d83aa1261acda571e8746",
+	// Create the client.
+	client := sui.NewSuiClient(testutils.LocalUrl)
 
-		// CCIP contracts
-		CCIPStateRef: "0x9e390b3af3d8047a54c69f587915a2705c6c5988a70744e36c241ef592d03ae5",
+	// Generate key pair and create a signer.
+	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
+	require.NoError(t, err)
+	signer := rel.NewPrivateKeySigner(pk)
 
-		// Token Pools
-		LinkLockReleaseTokenPool:         "0xc94c375d9f6f279837e3efe0edb176868b0c82dc85100652f0b27bd4d1333eae",
-		LinkLockReleaseTokenPoolState:    "0x1ce09f2b2b236f96cadda63be3bd327faef9359af3ce2a838a19af617cafe136",
-		LinkLockReleaseTokenPoolOwnerCap: "0xe016e6773d518b8aef268c0a16ee78eda4a9da98e1f9004132358fcb7a15358c",
+	// Fund the account.
+	signerAddress, err := signer.GetAddress()
+	require.NoError(t, err)
+	for range 10 {
+		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
+		require.NoError(t, err)
+	}
 
-		// Mint Burn Token Pools
-		ETHMintBurnTokenPool:         "0xd630d8ff05bab63de7052ac2fdc83add042a85b6101cc2d2dacd9e93b3641b31",
-		ETHMintBurnTokenPoolState:    "0xd5d4c474825d3b01cd67da90012d6ddb4727d8893748f88b9536904c4564ef85",
-		ETHMintBurnTokenPoolOwnerCap: "0x9d4a840ccb14ecbc2fdff6e302493d4ca2af884c07d996faa8eb63f5f0d902dc",
+	return signer, client
+}
 
-		// CCIP Onramp
-		CCIPOnrampPackageID: "0xc35e20e484c080e6751463e8338dc549ad6b8ef8e730622f22a5a7d793acd544",
-		CCIPOnrampState:     "0x4c4e4b73dce27d6e97eff438a55ae9167d56f89bf807015ef71a17ab95b09791",
-		CCIPOnrampOwnerCap:  "0xd3cdaae719b15e5281df754e8e28ff88ff0c685f45a93c47abbe3333a7e64ddc",
+type EnvironmentSettings struct {
+	AccountAddress string
+	// Deployment reports
+	MockLinkReport  cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[mocklinktokenops.DeployMockLinkTokenObjects]]
+	CCIPReport      cld_ops.SequenceReport[ccipops.DeployAndInitCCIPSeqInput, ccipops.DeployCCIPSeqOutput]
+	OnnRampReport   cld_ops.SequenceReport[onrampops.DeployAndInitCCIPOnRampSeqInput, onrampops.DeployCCIPOnRampSeqOutput]
+	TokenPoolReport cld_ops.SequenceReport[lockreleaseops.DeployAndInitLockReleaseTokenPoolInput, lockreleaseops.DeployLockReleaseTokenPoolOutput]
 
-		// Coin Objects (available LINK and ETH)
-		LinkCoinObjects: []string{
-			"0xafc6373c8d6878fa165bf878bc9b28eddaa1fde2d9e9abbfc00f2233454c5096",
-			"0x21e87d51607bd019038a67ce72e51069568d541352c50b88f7e58605c34c1f92",
+	EthereumPoolAddress []byte
+
+	// Signers
+	Signer rel.SuiSigner
+
+	// Client
+	Client sui.ISuiAPI
+}
+
+func SetupTokenPool(t *testing.T,
+	report cld_ops.SequenceReport[ccipops.DeployAndInitCCIPSeqInput, ccipops.DeployCCIPSeqOutput],
+	deps sui_ops.OpTxDeps,
+	reportMCMs cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[mcmsops.DeployMCMSObjects]],
+	mockLinkReport cld_ops.Report[cld_ops.EmptyInput, sui_ops.OpTxResult[mocklinktokenops.DeployMockLinkTokenObjects]],
+	signerAddr string,
+	accountAddress string,
+	linkTokenType string,
+	ethereumPoolAddressString string,
+	remoteTokenAddressString string,
+	destChainSelector uint64,
+	bundle cld_ops.Bundle,
+	lggr logger.Logger,
+	client sui.ISuiAPI,
+) cld_ops.SequenceReport[lockreleaseops.DeployAndInitLockReleaseTokenPoolInput, lockreleaseops.DeployLockReleaseTokenPoolOutput] {
+	t.Helper()
+
+	lggr.Debugw("Setting up token pool")
+	// Create a context for the operation
+	c := context.Background()
+	ctx, cancel := context.WithCancel(c)
+	defer cancel()
+
+	// Deploy CCIP token pool
+	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
+		CCIPPackageId:    report.Output.CCIPPackageId,
+		MCMSAddress:      reportMCMs.Output.PackageId,
+		MCMSOwnerAddress: accountAddress,
+	})
+	require.NoError(t, err, "failed to deploy CCIP Token Pool")
+
+	// Deploy and initialize the lock release token pool
+	seqLockReleaseDeployInput := lockreleaseops.DeployAndInitLockReleaseTokenPoolInput{
+		LockReleaseTokenPoolDeployInput: lockreleaseops.LockReleaseTokenPoolDeployInput{
+			CCIPPackageId:          report.Output.CCIPPackageId,
+			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
+			MCMSAddress:            reportMCMs.Output.PackageId,
+			MCMSOwnerAddress:       accountAddress,
 		},
-		ETHCoinObjects: []string{
-			"0x00c1b6dca46a7bbd260f931b5e6dc9b6a48fa4057ca784dc667d032768adf01e",
-			"0xb567558579df9108412a0df9ce82997cec98f55e0e32ad902eb70843f737c5e3",
-			"0x6b5588a48b94f8e99b8b5ded7df3c09c9aa6045d45266073722261c922643c20",
+		// Initialization parameters
+		CoinObjectTypeArg:      linkTokenType,
+		CCIPObjectRefObjectId:  report.Output.Objects.CCIPObjectRefObjectId,
+		CoinMetadataObjectId:   mockLinkReport.Output.Objects.CoinMetadataObjectId,
+		TreasuryCapObjectId:    mockLinkReport.Output.Objects.TreasuryCapObjectId,
+		TokenPoolAdministrator: accountAddress,
+		Rebalancer:             signerAddr,
+
+		// Chain updates - adding the destination chain
+		RemoteChainSelectorsToRemove: []uint64{},
+		RemoteChainSelectorsToAdd:    []uint64{destChainSelector},             // Destination chain selector
+		RemotePoolAddressesToAdd:     [][]string{{ethereumPoolAddressString}}, // 32-byte remote pool address
+		RemoteTokenAddressesToAdd:    []string{remoteTokenAddressString},      // 32-byte remote token address
+		// Rate limiter configurations
+		RemoteChainSelectors: []uint64{destChainSelector}, // Destination chain selector
+		OutboundIsEnableds:   []bool{false},
+		OutboundCapacities:   []uint64{1000000}, // 1M tokens capacity
+		OutboundRates:        []uint64{100000},  // 100K tokens per time window
+		InboundIsEnableds:    []bool{false},
+		InboundCapacities:    []uint64{1000000}, // 1M tokens capacity
+		InboundRates:         []uint64{100000},  // 100K tokens per time window
+	}
+
+	tokenPoolLockReleaseReport, err := cld_ops.ExecuteSequence(bundle, lockreleaseops.DeployAndInitLockReleaseTokenPoolSequence, deps, seqLockReleaseDeployInput)
+	require.NoError(t, err, "failed to deploy and initialize Lock Release Token Pool")
+
+	lggr.Debugw("Token Pool Lock Release deployment report", "output", tokenPoolLockReleaseReport.Output)
+
+	// Provide liquidity to the lock release token pool
+	// First, mint some LINK tokens using the LINK token contract
+	liquidityAmount := uint64(1000000) // 1M tokens for liquidity
+
+	// Create LINK token contract instance
+	linkContract, err := mocklinktoken.NewMockLinkToken(mockLinkReport.Output.PackageId, client)
+	require.NoError(t, err, "failed to create LINK token contract")
+
+	// Mint LINK tokens to the signer's address
+	mintTx, err := linkContract.MockLinkToken().Mint(
+		ctx,
+		deps.GetCallOpts(),
+		bind.Object{Id: mockLinkReport.Output.Objects.TreasuryCapObjectId},
+		liquidityAmount,
+	)
+	require.NoError(t, err, "failed to mint LINK tokens for liquidity")
+
+	lggr.Debugw("Minted LINK tokens for liquidity", "amount", liquidityAmount, "txDigest", mintTx.Digest)
+
+	// Find the minted coin object ID from the transaction
+	mintedCoinId, err := bind.FindCoinObjectIdFromTx(*mintTx, linkTokenType)
+	require.NoError(t, err, "failed to find minted coin object ID")
+
+	lggr.Debugw("Minted coin ID", "mintedCoinId", mintedCoinId)
+
+	// Provide the minted tokens as liquidity to the pool
+	provideLiquidityInput := lockreleaseops.LockReleaseTokenPoolProviderLiquidityInput{
+		LockReleaseTokenPoolPackageId: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
+		StateObjectId:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectId,
+		Coin:                          mintedCoinId,
+		CoinObjectTypeArg:             linkTokenType,
+	}
+
+	_, err = cld_ops.ExecuteOperation(bundle, lockreleaseops.LockReleaseTokenPoolProviderLiquidityOp, deps, provideLiquidityInput)
+	require.NoError(t, err, "failed to provide liquidity to Lock Release Token Pool")
+
+	lggr.Debugw("Provided liquidity to Lock Release Token Pool", "amount", liquidityAmount)
+
+	return tokenPoolLockReleaseReport
+}
+
+func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSelector uint64, keystoreInstance *testutils.TestKeystore) *EnvironmentSettings {
+	t.Helper()
+
+	lggr := logger.Test(t)
+	lggr.Debugw("Starting Sui node")
+
+	accountAddress, _ := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+
+	signer, client := setupClients(t, lggr)
+
+	// Create 20-byte Ethereum addresses for RMN Remote signers
+	ethAddr1, err := hex.DecodeString("8a1b2c3d4e5f60718293a4b5c6d7e8f901234567")
+	require.NoError(t, err, "failed to decode eth address 1")
+	ethAddr2, err := hex.DecodeString("7b8c9dab0c1d2e3f405162738495a6b7c8d9e0f1")
+	require.NoError(t, err, "failed to decode eth address 2")
+	ethAddr3, err := hex.DecodeString("1234567890abcdef1234567890abcdef12345678")
+	require.NoError(t, err, "failed to decode eth address 3")
+
+	deps := sui_ops.OpTxDeps{
+		Client: client,
+		Signer: signer,
+		GetCallOpts: func() *bind.CallOpts {
+			b := uint64(500_000_000)
+			return &bind.CallOpts{
+				Signer:           signer,
+				WaitForExecution: true,
+				GasBudget:        &b,
+			}
 		},
+	}
+
+	reporter := cld_ops.NewMemoryReporter()
+	bundle := cld_ops.NewBundle(
+		context.Background,
+		logger.Test(t),
+		reporter,
+	)
+
+	// Deploy LINK
+	mockLinkReport, err := cld_ops.ExecuteOperation(bundle, mocklinktokenops.DeployMockLinkTokenOp, deps, cld_ops.EmptyInput{})
+	require.NoError(t, err, "failed to deploy LINK token")
+
+	configDigest, err := uint256.FromHex("0xe3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+	require.NoError(t, err, "failed to convert config digest to uint256")
+
+	// Deploy MCMs
+	reportMCMs, err := cld_ops.ExecuteOperation(bundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
+	require.NoError(t, err, "failed to deploy MCMS Package")
+	lggr.Debugw("MCMS deployment report", "output", reportMCMs.Output)
+
+	signerAddr, err := signer.GetAddress()
+	require.NoError(t, err)
+
+	lggr.Debugw("LINK report", "output", mockLinkReport.Output)
+
+	report, err := cld_ops.ExecuteSequence(bundle, ccipops.DeployAndInitCCIPSequence, deps, ccipops.DeployAndInitCCIPSeqInput{
+		LinkTokenCoinMetadataObjectId: mockLinkReport.Output.Objects.CoinMetadataObjectId,
+		LocalChainSelector:            localChainSelector,
+		DestChainSelector:             destChainSelector,
+		DeployCCIPInput: ccipops.DeployCCIPInput{
+			McmsPackageId: reportMCMs.Output.PackageId,
+			McmsOwner:     signerAddr,
+		},
+		MaxFeeJuelsPerMsg:            "100000000",
+		TokenPriceStalenessThreshold: 60,
+		// Fee Quoter configuration
+		AddMinFeeUsdCents:    []uint32{3000},
+		AddMaxFeeUsdCents:    []uint32{30000},
+		AddDeciBps:           []uint16{1000},
+		AddDestGasOverhead:   []uint32{1000000},
+		AddDestBytesOverhead: []uint32{1000},
+		AddIsEnabled:         []bool{true},
+		RemoveTokens:         []string{},
+		// Fee Quoter destination chain configuration
+		IsEnabled:                         true,
+		MaxNumberOfTokensPerMsg:           2,
+		MaxDataBytes:                      2000,
+		MaxPerMsgGasLimit:                 5000000,
+		DestGasOverhead:                   1000000,
+		DestGasPerPayloadByteBase:         byte(2),
+		DestGasPerPayloadByteHigh:         byte(5),
+		DestGasPerPayloadByteThreshold:    uint16(10),
+		DestDataAvailabilityOverheadGas:   300000,
+		DestGasPerDataAvailabilityByte:    4,
+		DestDataAvailabilityMultiplierBps: 1,
+		ChainFamilySelector:               []byte{0x28, 0x12, 0xd5, 0x2c},
+		EnforceOutOfOrder:                 false,
+		DefaultTokenFeeUsdCents:           3,
+		DefaultTokenDestGasOverhead:       100000,
+		DefaultTxGasLimit:                 500000,
+		GasMultiplierWeiPerEth:            100,
+		GasPriceStalenessThreshold:        1000000000,
+		NetworkFeeUsdCents:                10,
+		// Premium multiplier updates
+		PremiumMultiplierWeiPerEth: []uint64{10},
+
+		RmnHomeContractConfigDigest: configDigest.Bytes(),
+		SignerOnchainPublicKeys:     [][]byte{ethAddr1, ethAddr2, ethAddr3},
+		NodeIndexes:                 []uint64{0, 1, 2},
+		FSign:                       uint64(1),
+	})
+	require.NoError(t, err, "failed to execute CCIP deploy sequence")
+	require.NotEmpty(t, report.Output.CCIPPackageId, "CCIP package ID should not be empty")
+
+	seqOnrampInput := onrampops.DeployAndInitCCIPOnRampSeqInput{
+		DeployCCIPOnRampInput: onrampops.DeployCCIPOnRampInput{
+			CCIPPackageId:      report.Output.CCIPPackageId,
+			MCMSPackageId:      reportMCMs.Output.PackageId,
+			MCMSOwnerPackageId: signerAddr,
+		},
+		OnRampInitializeInput: onrampops.OnRampInitializeInput{
+			NonceManagerCapId:         report.Output.Objects.NonceManagerCapObjectId,   // this is from NonceManager init Op
+			SourceTransferCapId:       report.Output.Objects.SourceTransferCapObjectId, // this is from CCIP package publish
+			ChainSelector:             destChainSelector,
+			FeeAggregator:             signerAddr,
+			AllowListAdmin:            signerAddr,
+			DestChainSelectors:        []uint64{destChainSelector},
+			DestChainEnabled:          []bool{true},
+			DestChainAllowListEnabled: []bool{true},
+		},
+		ApplyDestChainConfigureOnRampInput: onrampops.ApplyDestChainConfigureOnRampInput{
+			DestChainSelector:         []uint64{destChainSelector},
+			DestChainEnabled:          []bool{true},
+			DestChainAllowListEnabled: []bool{false},
+		},
+		ApplyAllowListUpdatesInput: onrampops.ApplyAllowListUpdatesInput{
+			DestChainSelector:             []uint64{destChainSelector},
+			DestChainAllowListEnabled:     []bool{false},
+			DestChainAddAllowedSenders:    [][]string{{}},
+			DestChainRemoveAllowedSenders: [][]string{{}},
+		},
+	}
+	// Run onRamp deploy & Apply dest chain update sequence
+	reportOnRamp, err := cld_ops.ExecuteSequence(bundle, onrampops.DeployAndInitCCIPOnRampSequence, deps, seqOnrampInput)
+	require.NoError(t, err, "failed to execute CCIP OnRamp deploy sequence")
+
+	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", mockLinkReport.Output.PackageId)
+
+	ethereumPoolAddressString := string(normalizeTo32Bytes(evmReceiverAddress))
+	remoteTokenAddressString := string(normalizeTo32Bytes(evmReceiverAddress))
+
+	tokenPoolReport := SetupTokenPool(t, report, deps, reportMCMs, mockLinkReport,
+		signerAddr, accountAddress, linkTokenType, ethereumPoolAddressString, remoteTokenAddressString,
+		destChainSelector, bundle, lggr, client,
+	)
+
+	// **CRITICAL**: Set token prices in the fee quoter
+	// The fee quoter needs to know USD prices to calculate fees
+	// Set LINK token price to $5.00 USD (5 * 1e18 = 5e18)
+	linkTokenPrice := big.NewInt(0)
+	linkTokenPrice.SetString("5000000000000000000", 10) // $5.00 in 1e18 format
+
+	// Set gas price for destination chain to 20 gwei (20 * 1e9 = 2e10)
+	gasPrice := big.NewInt(20000000000) // 20 gwei in wei
+
+	updatePricesInput := ccipops.FeeQuoterUpdateTokenPricesInput{
+		CCIPPackageId:         report.Output.CCIPPackageId,
+		CCIPObjectRef:         report.Output.Objects.CCIPObjectRefObjectId,
+		FeeQuoterCapId:        report.Output.Objects.FeeQuoterCapObjectId,
+		SourceTokens:          []string{mockLinkReport.Output.Objects.CoinMetadataObjectId},
+		SourceUsdPerToken:     []*big.Int{linkTokenPrice},
+		GasDestChainSelectors: []uint64{destChainSelector},
+		GasUsdPerUnitGas:      []*big.Int{gasPrice},
+	}
+
+	_, err = cld_ops.ExecuteOperation(bundle, ccipops.FeeQuoterUpdateTokenPricesOp, deps, updatePricesInput)
+	require.NoError(t, err, "failed to update token prices in fee quoter")
+
+	lggr.Debugw("Updated token prices in fee quoter", "linkPrice", linkTokenPrice.String(), "gasPrice", gasPrice.String())
+
+	return &EnvironmentSettings{
+		AccountAddress:  accountAddress,
+		MockLinkReport:  mockLinkReport,
+		CCIPReport:      report,
+		OnnRampReport:   reportOnRamp,
+		TokenPoolReport: tokenPoolReport,
+		Signer:          signer,
+		Client:          client,
 	}
 }
 
-// TestCCIPOnrampSend tests the CCIP onramp send functionality
-func TestCCIPOnrampSend(t *testing.T) {
+func getLinkCoins(t *testing.T, envSettings *EnvironmentSettings, linkTokenType string, accountAddress string, lggr logger.Logger, tokenAmount uint64, feeAmount uint64) (string, string) {
+	// Mint LINK tokens for the CCIP send operation
+	// We need two separate coins: one for the token transfer and one for the fee payment
+
+	// Use the setup account to mint tokens (since it owns the TreasuryCapObjectId)
+	// but then transfer them to the transaction account
+	deps := sui_ops.OpTxDeps{
+		Client: envSettings.Client,
+		Signer: envSettings.Signer,
+		GetCallOpts: func() *bind.CallOpts {
+			b := uint64(500_000_000)
+			return &bind.CallOpts{
+				Signer:           envSettings.Signer,
+				WaitForExecution: true,
+				GasBudget:        &b,
+			}
+		},
+	}
+
+	// Create LINK token contract instance
+	linkContract, err := mocklinktoken.NewMockLinkToken(envSettings.MockLinkReport.Output.PackageId, envSettings.Client)
+	require.NoError(t, err, "failed to create LINK token contract")
+
+	// Use MintAndTransfer to mint directly to the transaction account
+	// This avoids the ownership issue by minting directly to the account that will use the coins
+
+	// Mint first coin for token transfer directly to transaction account
+	mintTx1, err := linkContract.MockLinkToken().MintAndTransfer(
+		context.Background(),
+		deps.GetCallOpts(),
+		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectId},
+		tokenAmount,
+		accountAddress, // Mint directly to transaction account
+	)
+	require.NoError(t, err, "failed to mint and transfer LINK tokens for transfer")
+
+	lggr.Debugw("Minted and transferred LINK tokens for transfer", "amount", tokenAmount, "txDigest", mintTx1.Digest, "recipient", accountAddress)
+
+	// Find the first minted coin object ID from the transaction
+	mintedCoinId1, err := bind.FindCoinObjectIdFromTx(*mintTx1, linkTokenType)
+	require.NoError(t, err, "failed to find first minted coin object ID")
+	lggr.Infow("First mintedCoinId", "coin", mintedCoinId1)
+
+	// Mint second coin for fee payment directly to transaction account
+	mintTx2, err := linkContract.MockLinkToken().MintAndTransfer(
+		context.Background(),
+		deps.GetCallOpts(),
+		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectId},
+		feeAmount,
+		accountAddress, // Mint directly to transaction account
+	)
+	require.NoError(t, err, "failed to mint and transfer LINK tokens for fee")
+
+	lggr.Debugw("Minted and transferred LINK tokens for fee", "amount", feeAmount, "txDigest", mintTx2.Digest, "recipient", accountAddress)
+
+	// Find the second minted coin object ID from the transaction
+	mintedCoinId2, err := bind.FindCoinObjectIdFromTx(*mintTx2, linkTokenType)
+	require.NoError(t, err, "failed to find second minted coin object ID")
+	lggr.Infow("Second mintedCoinId", "coin", mintedCoinId2)
+
+	return mintedCoinId1, mintedCoinId2
+}
+
+// TestCCIPSuiOnRamp tests the CCIP onramp send functionality
+func TestCCIPSuiOnRamp(t *testing.T) {
 	lggr := logger.Test(t)
 
-	// Setup addresses for the test
-	addresses := SetupContractAddresses()
+	localChainSelector := uint64(1)
+	destChainSelector := uint64(2)
 
 	// Create keystore and get account
-	keystoreInstance, err := keystore.NewTestKeystore(t)
-	require.NoError(t, err)
+	keystoreInstance := testutils.NewTestKeystore(t)
 
-	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(testKeystore)
+	envSettings := SetupTestEnvironment(t, localChainSelector, destChainSelector, keystoreInstance)
+
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 	lggr.Infow("Using account", "address", accountAddress)
 
-	_, txManager, _ := testutils.SetupClients(t, testutils.TestnetUrl, keystoreInstance)
+	// Fund the account for gas payments
+	for range 10 {
+		err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
+		require.NoError(t, err)
+	}
 
-	t.Run("CCIP Send two tokens to lock release token pool", func(t *testing.T) {
-		//t.Skip("Skipping test")
+	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
+
+	_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr)
+
+	tokenPoolDetails := testutils.TokenToolDetails{
+		TokenPoolPackageId: envSettings.TokenPoolReport.Output.LockReleaseTPPackageID,
+		TokenPoolType:      testutils.TokenPoolTypeLockRelease,
+	}
+
+	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(envSettings.CCIPReport.Output.CCIPPackageId, envSettings.OnnRampReport.Output.CCIPOnRampPackageId, []testutils.TokenToolDetails{tokenPoolDetails}, publicKeyBytes)
+	require.NoError(t, err)
+	lggr.Infow("chainWriterConfig", "chainWriterConfig", chainWriterConfig)
+	chainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, chainWriterConfig, false)
+	require.NoError(t, err)
+
+	c := context.Background()
+	ctx, cancel := context.WithCancel(c)
+	defer cancel()
+
+	err = chainWriter.Start(ctx)
+	require.NoError(t, err)
+
+	ethereumAddress := "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"
+
+	t.Run("CCIP SUI messaging", func(t *testing.T) {
+		tokenAmount := uint64(500000) // 500K tokens for transfer
+		feeAmount := uint64(100000)   // 100K tokens for fee payment
+
+		mintedCoinId1, mintedCoinId2 := getLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
+
+		// Create array with both coins for the PTB arguments
+		linkCoins := []string{mintedCoinId1, mintedCoinId2}
 
 		// Set up arguments for the PTB
-		ptbArgs := createCCIPSendPForTwoTokensTBArgs(addresses)
-		txID := "ccip_send_test_two_tokens"
-
-		chainWriterConfig := configureChainWriterForMultipleTokens(addresses, publicKeyBytes)
-		chainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, chainWriterConfig, false)
-
-		c := context.Background()
-		ctx, cancel := context.WithCancel(c)
-		defer cancel()
-
-		err = chainWriter.Start(ctx)
-		require.NoError(t, err)
-
-		lggr.Infow("ptbArgs", ptbArgs)
-		lggr.Infow("addresses", addresses)
-		lggr.Infow("publicKeyBytes", publicKeyBytes)
-		lggr.Infow("chainWriter", chainWriter)
-		lggr.Infow("chainWriterConfig", chainWriterConfig)
+		ptbArgs := createCCIPSendPForTwoTokensTBArgs(
+			lggr,
+			destChainSelector,
+			linkTokenType,
+			envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId,
+			linkCoins,
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			"0x6",
+			envSettings.OnnRampReport.Output.Objects.StateObjectId,
+			envSettings.TokenPoolReport.Output.Objects.StateObjectId,
+			ethereumAddress,
+		)
+		txID := "ccip_send_test_message"
 
 		lggr.Infow("Submitting transaction",
 			"txID", txID,
@@ -146,8 +523,8 @@ func TestCCIPOnrampSend(t *testing.T) {
 			"chainWriterConfig", chainWriterConfig)
 
 		err = chainWriter.SubmitTransaction(ctx,
-			chainwriter.PTBChainWriterModuleName,
-			"ccip_send",
+			cwConfig.PTBChainWriterModuleName,
+			"message_passing",
 			&ptbArgs,
 			txID,
 			accountAddress,
@@ -165,170 +542,113 @@ func TestCCIPOnrampSend(t *testing.T) {
 			return status == commonTypes.Finalized
 		}, 5*time.Second, 1*time.Second, "Transaction final state not reached")
 
-		chainWriter.Close()
-	})
-}
+		// Create a PTB client to query events (the basic sui.ISuiAPI doesn't have QueryEvents)
+		ptbClient, err := client.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 5, "WaitForLocalExecution")
+		require.NoError(t, err, "Failed to create PTB client for event querying")
 
-func configureChainWriterForMultipleTokens(addresses ContractAddresses, publicKeyBytes []byte) chainwriter.ChainWriterConfig {
-	return chainwriter.ChainWriterConfig{
-		Modules: map[string]*chainwriter.ChainWriterModule{
-			chainwriter.PTBChainWriterModuleName: {
-				Name:     chainwriter.PTBChainWriterModuleName,
-				ModuleID: "0x123",
-				Functions: map[string]*chainwriter.ChainWriterFunction{
-					"ccip_send": {
-						Name:      "ccip_send",
-						PublicKey: publicKeyBytes,
-						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []chainwriter.ChainWriterPTBCommand{
-							// First command: create token params
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: strPtr(addresses.CCIPPackageID),
-								ModuleId:  strPtr("dynamic_dispatcher"),
-								Function:  strPtr("create_token_params"),
-								Params:    []codec.SuiFunctionParam{},
-							},
-							// Second command: lock tokens in the token pool
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: strPtr(addresses.LinkLockReleaseTokenPool),
-								ModuleId:  strPtr("lock_release_token_pool"),
-								Function:  strPtr("lock_or_burn"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "ref",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:      "clock",
-										Type:      "object_id",
-										Required:  true,
-										IsMutable: testutils.BoolPointer(false),
-									},
-									{
-										Name:     "state",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:      "c",
-										Type:      "object_id",
-										Required:  true,
-										IsGeneric: true,
-									},
-									{
-										Name:     "remote_chain_selector",
-										Type:     "u64",
-										Required: true,
-									},
-									{
-										Name:     "token_params",
-										Type:     "ptb_dependency",
-										Required: true,
-										PTBDependency: &codec.PTBCommandDependency{
-											CommandIndex: 0,
-										},
-									},
-								},
-							},
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: strPtr(addresses.CCIPOnrampPackageID),
-								ModuleId:  strPtr("onramp"),
-								Function:  strPtr("ccip_send"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "ref",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "onramp_state",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:      "clock",
-										Type:      "object_id",
-										Required:  true,
-										IsMutable: testutils.BoolPointer(false),
-									},
-									{
-										Name:     "dest_chain_selector",
-										Type:     "u64",
-										Required: true,
-									},
-									{
-										Name:     "receiver",
-										Type:     "vector<u8>",
-										Required: true,
-									},
-									{
-										Name:     "data",
-										Type:     "vector<u8>",
-										Required: true,
-									},
-									{
-										Name:     "token_params",
-										Type:     "ptb_dependency",
-										Required: true,
-										PTBDependency: &codec.PTBCommandDependency{
-											CommandIndex: 1,
-										},
-									},
-									{
-										Name:      "fee_token_metadata",
-										Type:      "object_id",
-										Required:  true,
-										IsMutable: testutils.BoolPointer(false),
-									},
-									{
-										Name:      "fee_token",
-										Type:      "object_id",
-										Required:  true,
-										IsGeneric: true,
-									},
-									{
-										Name:     "extra_args",
-										Type:     "vector<u8>",
-										Required: true,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+		// Query for ReceivedMessage events emitted by the dummy receiver
+		eventFilter := client.EventFilterByMoveEventModule{
+			Package: envSettings.OnnRampReport.Output.CCIPOnRampPackageId,
+			Module:  "onramp",
+			Event:   "CCIPMessageSent",
+		}
+
+		// Query events with a small limit since we expect only one event
+		limit := uint(10)
+		eventsResponse, err := ptbClient.QueryEvents(ctx, eventFilter, &limit, nil, nil)
+		lggr.Debugw("eventsResponse", "eventsResponse", eventsResponse)
+		require.NoError(t, err, "Failed to query events")
+		require.NotEmpty(t, eventsResponse.Data, "Expected at least one ReceivedMessage event")
+		lggr.Infow("mostRecentEvent", "mostRecentEvent", eventsResponse.Data)
+	})
+
+	t.Run("CCIP SUI messaging with token pool", func(t *testing.T) {
+		tokenAmount := uint64(500000) // 500K tokens for transfer
+		feeAmount := uint64(100000)   // 100K tokens for fee payment
+
+		mintedCoinId1, mintedCoinId2 := getLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
+
+		// Create array with both coins for the PTB arguments
+		linkCoins := []string{mintedCoinId1, mintedCoinId2}
+
+		// Set up arguments for the PTB
+		ptbArgs := createCCIPSendPForTwoTokensTBArgs(
+			lggr,
+			destChainSelector,
+			linkTokenType,
+			envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId,
+			linkCoins,
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			"0x6",
+			envSettings.OnnRampReport.Output.Objects.StateObjectId,
+			envSettings.TokenPoolReport.Output.Objects.StateObjectId,
+			ethereumAddress,
+		)
+		txID := "ccip_send_test_token"
+
+		err = chainWriter.SubmitTransaction(ctx,
+			cwConfig.PTBChainWriterModuleName,
+			"token_transfer_with_messaging",
+			&ptbArgs,
+			txID,
+			accountAddress,
+			&commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			nil,
+		)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			status, statusErr := chainWriter.GetTransactionStatus(ctx, txID)
+			if statusErr != nil {
+				return false
+			}
+
+			return status == commonTypes.Finalized
+		}, 5*time.Second, 1*time.Second, "Transaction final state not reached")
+	})
+
+	chainWriter.Close()
 }
 
 // createCCIPSendPTBArgs creates PTBArgMapping for a CCIP send operation
-func createCCIPSendPForTwoTokensTBArgs(addresses ContractAddresses) chainwriter.Arguments {
-	// Define a destination chain selector (e.g., Ethereum Sepolia)
-	destChainSelector := uint64(2)
-	linkTokenTypeTag := "0xe3c005c4195ec60a3468ce01238df650e4fedbd36e517bf75b9d2ee90cce8a8b::link_token::LINK_TOKEN"
+func createCCIPSendPForTwoTokensTBArgs(
+	lggr logger.Logger,
+	destChainSelector uint64,
+	linkTokenType string,
+	linkTokenMetadata string,
+	linkTokenCoinObjects []string,
+	ccipObjectRef string,
+	clockObject string,
+	ccipOnrampState string,
+	tokenPoolState string,
+	ethereumAddress string,
+) cwConfig.Arguments {
 
-	return chainwriter.Arguments{
+	lggr.Infow("createCCIPSendPForTwoTokensTBArgs", "destChainSelector", destChainSelector, "linkTokenType", linkTokenType, "linkTokenMetadata", linkTokenMetadata, "linkTokenCoinObjects", linkTokenCoinObjects, "ccipObjectRef", ccipObjectRef, "clockObject", clockObject, "ccipOnrampState", ccipOnrampState, "tokenPoolState", tokenPoolState)
+
+	// Remove 0x prefix if present
+	evmAddressBytes := normalizeTo32Bytes(ethereumAddress)
+
+	lggr.Infow("evmAddressBytes", "evmAddressBytes", evmAddressBytes)
+
+	return cwConfig.Arguments{
 		Args: map[string]any{
-			"ref":                   addresses.CCIPStateRef,
-			"clock":                 addresses.ClockObject,
-			"remote_chain_selector": destChainSelector,
-			"dest_chain_selector":   destChainSelector,
-			"state":                 addresses.LinkLockReleaseTokenPoolState,
-			"c":                     addresses.LinkCoinObjects[0],
-			"onramp_state":          addresses.CCIPOnrampState,
-			"receiver":              []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			"data":                  []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			"fee_token_metadata":    addresses.LinkTokenCoinMetadata,
-			"fee_token":             addresses.LinkCoinObjects[1],
-			"extra_args":            []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			"ccip_object_ref":            ccipObjectRef,
+			"ccip_object_ref_mutable":    ccipObjectRef, // Same object, different parameter name
+			"clock":                      clockObject,
+			"destination_chain_selector": destChainSelector,
+			"token_pool_state":           tokenPoolState,
+			"c":                          linkTokenCoinObjects[0],
+			"onramp_state":               ccipOnrampState,
+			"receiver":                   evmAddressBytes,
+			"data":                       []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			"fee_token_metadata":         linkTokenMetadata,
+			"fee_token":                  linkTokenCoinObjects[1],
+			"extra_args":                 []byte{}, // Empty array to use default gas limit
 		},
 		ArgTypes: map[string]string{
-			"c":         linkTokenTypeTag,
-			"fee_token": linkTokenTypeTag,
+			"c":         linkTokenType,
+			"fee_token": linkTokenType,
 		},
 	}
 }
@@ -336,4 +656,21 @@ func createCCIPSendPForTwoTokensTBArgs(addresses ContractAddresses) chainwriter.
 // Helper function to convert a string to a string pointer
 func strPtr(s string) *string {
 	return &s
+}
+
+func normalizeTo32Bytes(address string) []byte {
+	addressHex := address
+	if strings.HasPrefix(address, "0x") {
+		addressHex = address[2:]
+	}
+	addressBytesFull, _ := hex.DecodeString(addressHex)
+	addressBytes := addressBytesFull
+	if len(addressBytesFull) > 32 {
+		addressBytes = addressBytesFull[len(addressBytesFull)-32:]
+	} else if len(addressBytesFull) < 32 {
+		// pad left with zeros
+		padding := make([]byte, 32-len(addressBytesFull))
+		addressBytes = append(padding, addressBytesFull...)
+	}
+	return addressBytes
 }

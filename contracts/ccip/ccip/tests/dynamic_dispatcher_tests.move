@@ -134,9 +134,9 @@ public fun test_add_source_token_transfer() {
     let mut token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add source token transfer
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         1000, // amount
         TOKEN_ADDRESS_1,
         b"dest_token_address",
@@ -145,11 +145,11 @@ public fun test_add_source_token_transfer() {
     );
     
     // Verify the token params were updated
-    let destination = dynamic_dispatcher::get_destination_chain_selector(&token_params);
+    let destination = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
     assert!(destination == DESTINATION_CHAIN_SELECTOR);
     
     // Deconstruct and verify the source token transfer
-    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_token_params);
     assert!(dest_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(returned_receiver == receiver);
     assert!(transfers.length() == 1);
@@ -192,9 +192,9 @@ public fun test_add_source_token_transfer_wrong_proof() {
     let mut token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Try to add source token transfer with wrong proof type
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         1000,
         TOKEN_ADDRESS_1,
         b"dest_token_address",
@@ -202,7 +202,7 @@ public fun test_add_source_token_transfer_wrong_proof() {
         TestTypeProof2 {} // Wrong proof type!
     );
 
-    let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, _) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_token_params);
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 
@@ -245,9 +245,9 @@ public fun test_add_multiple_source_token_transfers() {
     let mut token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add first token transfer
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         1000,
         TOKEN_ADDRESS_1,
         b"dest_token_address_1",
@@ -256,9 +256,9 @@ public fun test_add_multiple_source_token_transfers() {
     );
     
     // Add second token transfer
-    dynamic_dispatcher::add_source_token_transfer(
+    let second_update_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        updated_token_params,
         2000,
         TOKEN_ADDRESS_2,
         b"dest_token_address_2",
@@ -267,7 +267,7 @@ public fun test_add_multiple_source_token_transfers() {
     );
     
     // Verify both transfers were added
-    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, second_update_token_params);
     assert!(dest_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(returned_receiver == receiver);
     assert!(transfers.length() == 2);
@@ -338,9 +338,9 @@ public fun test_get_source_token_transfer_data() {
     let mut token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add source token transfer with specific data
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         12345, // specific amount
         TOKEN_ADDRESS_1,
         x"deadbeef", // hex dest address
@@ -349,7 +349,7 @@ public fun test_get_source_token_transfer_data() {
     );
     
     // Get the transfer and verify all data
-    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_token_params);
     let transfer = &transfers[0];
     let (source_pool, amount, source_token_address, dest_token_address, extra_data) = 
         dynamic_dispatcher::get_source_token_transfer_data(*transfer);
@@ -388,9 +388,9 @@ public fun test_edge_case_large_amounts() {
     
     // Test with maximum u64 value
     let max_amount = 18446744073709551615; // u64::MAX
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         max_amount,
         TOKEN_ADDRESS_1,
         b"dest_address",
@@ -398,7 +398,7 @@ public fun test_edge_case_large_amounts() {
         TestTypeProof {}
     );
     
-    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_token_params);
     let transfer = &transfers[0];
     let (_, amount, _, _, _) = dynamic_dispatcher::get_source_token_transfer_data(*transfer);
     
@@ -431,9 +431,9 @@ public fun test_edge_case_empty_data() {
     let mut token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Test with empty destination address and extra data
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         100,
         TOKEN_ADDRESS_1,
         vector[], // empty dest address
@@ -441,7 +441,7 @@ public fun test_edge_case_empty_data() {
         TestTypeProof {}
     );
     
-    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_token_params);
     let transfer = &transfers[0];
     let (_, _, _, dest_token_address, extra_data) = 
         dynamic_dispatcher::get_source_token_transfer_data(*transfer);
@@ -505,9 +505,9 @@ public fun test_zero_amount_transfer() {
     let mut token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Test with zero amount - should be allowed
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         0, // zero amount
         TOKEN_ADDRESS_1,
         b"dest_token_address",
@@ -515,7 +515,7 @@ public fun test_zero_amount_transfer() {
         TestTypeProof {}
     );
     
-    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (_, _, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_token_params);
     let transfer = &transfers[0];
     let (_, amount, _, _, _) = dynamic_dispatcher::get_source_token_transfer_data(*transfer);
     
@@ -548,9 +548,9 @@ public fun test_source_transfer_cap_permission() {
     let mut token_params = dynamic_dispatcher::create_token_params(DESTINATION_CHAIN_SELECTOR, receiver);
     
     // Add a source token transfer
-    dynamic_dispatcher::add_source_token_transfer(
+    let updated_token_params = dynamic_dispatcher::add_source_token_transfer(
         &ref,
-        &mut token_params,
+        token_params,
         1000,
         TOKEN_ADDRESS_1,
         b"dest_token_address",
@@ -560,7 +560,7 @@ public fun test_source_transfer_cap_permission() {
     
     // Test that deconstruct_token_params requires the proper SourceTransferCap
     // This test verifies that only the holder of SourceTransferCap can deconstruct
-    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, token_params);
+    let (dest_chain, returned_receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_cap, updated_token_params);
     assert!(dest_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(returned_receiver == receiver);
     assert!(transfers.length() == 1);

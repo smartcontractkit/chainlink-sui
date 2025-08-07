@@ -197,6 +197,8 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.S
 			return fmt.Errorf("failed to read object: %w", err)
 		}
 
+		c.log.Infow("ReadObjectId response", "response", response)
+
 		if response.Data == nil || response.Data.Content == nil {
 			return fmt.Errorf("object has no content")
 		}

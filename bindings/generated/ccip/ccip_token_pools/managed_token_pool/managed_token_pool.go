@@ -70,6 +70,7 @@ type IManagedTokenPoolDevInspect interface {
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([][]byte, error)
 	IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (bool, error)
 	GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) ([]byte, error)
+	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (bind.Object, error)
 	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, index uint64, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (bind.Object, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
@@ -822,6 +823,28 @@ func (d *ManagedTokenPoolDevInspect) GetRemoteToken(ctx context.Context, opts *b
 	result, ok := results[0].([]byte)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	}
+	return result, nil
+}
+
+// LockOrBurn executes the lock_or_burn Move function using DevInspect to get return values.
+//
+// Returns: dd::TokenParams
+func (d *ManagedTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, tokenParams bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.managedTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, tokenParams, clock, denyList, tokenState, state)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -1622,7 +1645,7 @@ func (c managedTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, 
 	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"Coin<T>",
-		"&mut dd::TokenParams",
+		"dd::TokenParams",
 		"&Clock",
 		"&DenyList",
 		"&mut TokenState<T>",
@@ -1635,7 +1658,9 @@ func (c managedTokenPoolEncoder) LockOrBurn(typeArgs []string, ref bind.Object, 
 		denyList,
 		tokenState,
 		state,
-	}, nil)
+	}, []string{
+		"dd::TokenParams",
+	})
 }
 
 // LockOrBurnWithArgs encodes a call to the lock_or_burn Move function using arbitrary arguments.
@@ -1644,7 +1669,7 @@ func (c managedTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...a
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"Coin<T>",
-		"&mut dd::TokenParams",
+		"dd::TokenParams",
 		"&Clock",
 		"&DenyList",
 		"&mut TokenState<T>",
@@ -1658,7 +1683,9 @@ func (c managedTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...a
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("lock_or_burn", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"dd::TokenParams",
+	})
 }
 
 // ReleaseOrMint encodes a call to the release_or_mint Move function.

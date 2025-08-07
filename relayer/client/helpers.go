@@ -28,7 +28,7 @@ func (c *PTBClient) TransformTransactionArg(
 		// get object's details
 		objectDetails, err := c.ReadObjectId(ctx, arg.(string))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read object %s: %w", arg.(string), err)
 		}
 		var objectOwner models.ObjectOwner
 		var objectArg transaction.ObjectArg

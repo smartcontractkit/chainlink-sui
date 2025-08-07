@@ -379,7 +379,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 			// append to the array of args
 			processedArgValue, err := p.client.(*client.PTBClient).TransformTransactionArg(ctx, builder, argRawValue, param.Type, isMutable)
 			if err != nil {
-				return nil, fmt.Errorf("failed to build argument for %s: %w", param.Name, err)
+				return nil, fmt.Errorf("failed to build argument for %s: %w, %s", param.Name, err, argRawValue)
 			}
 			processedArgs = append(processedArgs, *processedArgValue)
 			// add the processed arg to the cache

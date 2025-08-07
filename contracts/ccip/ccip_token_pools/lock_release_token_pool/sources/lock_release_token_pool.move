@@ -260,14 +260,14 @@ public struct TypeProof has drop {}
 public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
     c: Coin<T>,
-    token_params: &mut dd::TokenParams,
+    token_params: dd::TokenParams,
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
-) {
+): dd::TokenParams {
     let amount = c.value();
     let sender = ctx.sender();
-    let remote_chain_selector = dd::get_destination_chain_selector(token_params);
+    let remote_chain_selector = dd::get_destination_chain_selector(&token_params);
 
     // This metod validates various aspects of the lock or burn operation. If any of the
     // validations fail, the transaction will abort.
@@ -288,7 +288,7 @@ public fun lock_or_burn<T: drop>(
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
 
     // update hot potato token params
-    dd::add_source_token_transfer(
+    let updated_token_params = dd::add_source_token_transfer(
         ref,
         token_params,
         amount,
@@ -297,6 +297,8 @@ public fun lock_or_burn<T: drop>(
         extra_data,
         TypeProof {},
     );
+
+    updated_token_params
 }
 
 /// after releasing the token, this function will mark this particular token transfer as complete

@@ -1028,13 +1028,13 @@ public fun test_lock_or_burn_functionality() {
         let initial_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         
         // Create token params for the operation
-        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
+        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Call the actual lock_or_burn function
-        lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
+        let updated_token_params = lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
             test_coin, // This coin gets locked in the pool
-            &mut token_params,
+            token_params,
             &clock,
             &mut pool_state,
             &mut ctx
@@ -1045,12 +1045,12 @@ public fun test_lock_or_burn_functionality() {
         assert!(new_pool_balance == initial_pool_balance + initial_coin_value);
         
         // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
+        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
         assert!(destination_chain == DefaultRemoteChain);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(TOKEN_ADMIN);
-        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
         assert!(chain_selector == DefaultRemoteChain);
         assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);

@@ -445,13 +445,13 @@ public fun test_lock_or_burn_functionality() {
         assert!(initial_coin_value == 1000);
         
         // Create token params for the lock_or_burn operation
-        let mut token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
+        let token_params = dynamic_dispatcher::create_token_params(DefaultRemoteChain, DefaultRemoteReceiver);
         
         // Actually call lock_or_burn function
-        managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
+        let updated_token_params = managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
             &ccip_ref,        // ref parameter
             test_coin,        // c parameter (coin)
-            &mut token_params, // token_params parameter (modified in place)
+            token_params, // token_params parameter (modified in place)
             &clock,           // clock parameter
             &deny_list,       // deny_list parameter
             &mut token_state, // token_state parameter
@@ -460,12 +460,12 @@ public fun test_lock_or_burn_functionality() {
         );
         
         // Verify token params were updated correctly
-        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&token_params);
+        let destination_chain = dynamic_dispatcher::get_destination_chain_selector(&updated_token_params);
         assert!(destination_chain == DefaultRemoteChain);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<dynamic_dispatcher::SourceTransferCap>(@managed_token_pool);
-        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, token_params);
+        let (chain_selector, receiver, transfers) = dynamic_dispatcher::deconstruct_token_params(&source_transfer_cap, updated_token_params);
         assert!(chain_selector == DefaultRemoteChain);
         assert!(receiver == DefaultRemoteReceiver);
         assert!(transfers.length() == 1);
