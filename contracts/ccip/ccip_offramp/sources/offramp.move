@@ -226,6 +226,7 @@ module ccip_offramp::offramp {
     const EInvalidOnRampUpdate: u64 = 24;
     const EDestTransferCapNotSet: u64 = 25;
     const ECalculateMessageHashInvalidArguments: u64 = 26;
+    const EInvalidFunction: u64 = 27;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -1008,6 +1009,7 @@ module ccip_offramp::offramp {
                     source_usd_per_token,
                     gas_dest_chain_selectors,
                     gas_usd_per_unit_gas,
+                    ctx
                 );
             } else {
                 // If no non-stale valid price updates are present and the report contains no merkle roots,
@@ -1321,6 +1323,22 @@ module ccip_offramp::offramp {
         ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
     }
 
+    /// Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
+    public fun accept_ownership_as_mcms(
+        state: &mut OffRampState,
+        params: ExecutingCallbackParams,
+        ctx: &mut TxContext,
+    ) {
+        let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(params, McmsCallback {});
+        assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+
+        let mut stream = bcs_stream::new(data);
+        let mcms = bcs_stream::deserialize_address(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+
+        ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    }
+
     public fun execute_ownership_transfer(
         owner_cap: OwnerCap,
         ownable_state: &mut OwnableState,
@@ -1330,16 +1348,16 @@ module ccip_offramp::offramp {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public fun execute_ownership_transfer_to_mcms(
+    public entry fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
-        state: &mut OwnableState,
+        state: &mut OffRampState,
         registry: &mut Registry,
         to: address,
         ctx: &mut TxContext,
     ) {
         ownable::execute_ownership_transfer_to_mcms(
             owner_cap,
-            state,
+            &mut state.ownable_state,
             registry,
             to,
             McmsCallback {},
@@ -1444,10 +1462,6 @@ module ccip_offramp::offramp {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);
             transfer_ownership(state, owner_cap, to, ctx);
-        } else if (function_bytes == b"accept_ownership_as_mcms") {
-            let mcms = bcs_stream::deserialize_address(&mut stream);
-            bcs_stream::assert_is_consumed(&stream);
-            ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
         } else if (function_bytes == b"execute_ownership_transfer") {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);
@@ -1457,8 +1471,6 @@ module ccip_offramp::offramp {
             abort EInvalidFunction
         };
     }
-
-    const EInvalidFunction: u64 = 26;
 
     // ============================== Test Functions ============================== //
 

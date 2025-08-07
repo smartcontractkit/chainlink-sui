@@ -34,6 +34,8 @@ public struct BurnMintTokenPoolState<phantom T> has key {
 
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
+const EInvalidFunction: u64 = 3;
+const EUnknownFunction: u64 = 4;
 
 const CLOCK_ADDRESS: address = @0x6;
 
@@ -76,7 +78,7 @@ public fun initialize<T>(
 
 public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
-    owner_cap: &state_object::OwnerCap,
+    ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
     token_pool_administrator: address,
@@ -90,7 +92,7 @@ public fun initialize_by_ccip_admin<T>(
 
     token_admin_registry::register_pool_by_admin(
         ref,
-        owner_cap,
+        ccip_admin_proof,
         coin_metadata_address,
         burn_mint_token_pool_package_id,
         string::utf8(b"burn_mint_token_pool"),
@@ -421,7 +423,7 @@ public fun set_chain_rate_limiter_config<T>(
 public fun destroy_token_pool<T>(
     state: BurnMintTokenPoolState<T>,
     owner_cap: OwnerCap,
-    _ctx: &mut TxContext,
+    ctx: &mut TxContext,
 ): TreasuryCap<T> {
     assert!(object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
@@ -434,8 +436,8 @@ public fun destroy_token_pool<T>(
     token_pool::destroy_token_pool(token_pool_state);
     object::delete(state_id);
 
-    ownable::destroy_ownable_state(ownable_state);
-    ownable::destroy_owner_cap(owner_cap);
+    ownable::destroy_ownable_state(ownable_state, ctx);
+    ownable::destroy_owner_cap(owner_cap, ctx);
 
     treasury_cap
 }
@@ -488,6 +490,22 @@ public fun accept_ownership_from_object<T>(
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
+/// Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
+public fun accept_ownership_as_mcms<T>(
+    state: &mut BurnMintTokenPoolState<T>,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(params, McmsCallback<T>{});
+    assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    let mcms = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+}
+
 public fun execute_ownership_transfer(
     owner_cap: OwnerCap,
     ownable_state: &mut OwnableState,
@@ -497,18 +515,19 @@ public fun execute_ownership_transfer(
     ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
 
-public fun mcms_register_entrypoint<T>(
-    registry: &mut Registry,
-    state: &mut BurnMintTokenPoolState<T>,
+public entry fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap,
+    state: &mut BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
+    to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
-
-    mcms_registry::register_entrypoint(
+    ownable::execute_ownership_transfer_to_mcms(
+        owner_cap,
+        &mut state.ownable_state,
         registry,
+        to,
         McmsCallback<T>{},
-        option::some(owner_cap),
         ctx,
     );
 }
@@ -599,10 +618,6 @@ public fun mcms_entrypoint<T>(
         let to = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
         transfer_ownership(state, owner_cap, to, ctx);
-    } else if (function_bytes == b"accept_ownership_as_mcms") {
-        let mcms = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
     } else if (function_bytes == b"execute_ownership_transfer") {
         let to = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
@@ -612,5 +627,3 @@ public fun mcms_entrypoint<T>(
         abort EUnknownFunction
     };
 }
-
-const EUnknownFunction: u64 = 3;

@@ -17,8 +17,8 @@ module managed_token_pool::managed_token_pool_ownable_test {
         let _pending_accepted = ownable::pending_transfer_accepted(&ownable_state);
 
         // Clean up
-        ownable::destroy_ownable_state(ownable_state);
-        ownable::destroy_owner_cap(owner_cap);
+        ownable::destroy_ownable_state(ownable_state, scenario.ctx());
+        ownable::destroy_owner_cap(owner_cap, scenario.ctx());
         scenario.end();
     }
 } 

@@ -30,7 +30,7 @@ module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
         state_object::test_init(ctx);
         
         scenario.next_tx(OWNER);
-        let ccip_owner_cap = scenario.take_from_sender<state_object::OwnerCap>();
+        let ccip_owner_cap = scenario.take_from_sender<ccip::ownable::OwnerCap>();
         let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
         
         // Initialize required CCIP modules
@@ -50,7 +50,7 @@ module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
         
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            &ccip_owner_cap,
+            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
             @0x123,
@@ -143,20 +143,22 @@ module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = ownable::EUnauthorizedOwnershipTransfer)]
+    #[expected_failure(abort_code = ownable::EInvalidOwnerCap)]
     public fun test_transfer_ownership_unauthorized() {
         let (mut env, owner_cap) = setup();
 
         // Try to transfer ownership from unauthorized user
         env.scenario.next_tx(OTHER_USER);
-        burn_mint_token_pool::transfer_ownership(&mut env.state, &owner_cap, NEW_OWNER, env.scenario.ctx());
+        let other_user_owner_cap = ownable::create_test_owner_cap(env.scenario.ctx());
+        burn_mint_token_pool::transfer_ownership(&mut env.state, &other_user_owner_cap, NEW_OWNER, env.scenario.ctx());
 
+        ownable::destroy_owner_cap(other_user_owner_cap, env.scenario.ctx());
         tear_down(env);
         ts::return_to_address(OWNER, owner_cap);
     }
 
     #[test]
-    #[expected_failure(abort_code = ownable::EUnauthorizedAcceptance)]
+    #[expected_failure(abort_code = ownable::EMustBeProposedOwner)]
     public fun test_accept_ownership_unauthorized() {
         let (mut env, owner_cap) = setup();
 

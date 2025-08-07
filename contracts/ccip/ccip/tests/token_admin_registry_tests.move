@@ -9,7 +9,8 @@ use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
 
 use ccip::token_admin_registry as registry;
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 
 // === Test Witness Types ===
 
@@ -232,13 +233,12 @@ public fun test_register_pool_by_admin() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let mut ref = scenario.take_shared<CCIPObjectRef>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ctx = scenario.ctx();
         
         // Register pool as admin (without treasury cap)
         registry::register_pool_by_admin(
             &mut ref,
-            &owner_cap,
+            state_object::create_ccip_admin_proof_for_test(),
             @0x123, // coin_metadata_address
             MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
             string::utf8(b"admin_registered_pool"), // token_pool_module
@@ -255,7 +255,6 @@ public fun test_register_pool_by_admin() {
         assert!(pool_address == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(registry::is_administrator(&ref, @0x123, TOKEN_ADMIN_ADDRESS));
         
-        scenario.return_to_sender(owner_cap);
         ts::return_shared(ref);
     };
 

@@ -1,6 +1,4 @@
-/// Ownable functionality for the CCIP Token Pool module
-/// Provides ownership management with two-step ownership transfer process
-module ccip_token_pool::ownable {
+module ccip::ownable {
     use sui::event;
 
     use mcms::mcms_registry::{Self, Registry};
@@ -131,7 +129,7 @@ module ccip_token_pool::ownable {
         accept_ownership_internal(state, from.to_address());
     }
 
-    public fun accept_ownership_as_mcms(state: &mut OwnableState, mcms: address, _ctx: &mut TxContext) {
+    public(package) fun accept_ownership_as_mcms(state: &mut OwnableState, mcms: address, _ctx: &mut TxContext) {
         accept_ownership_internal(state, mcms);
     }
 
@@ -177,7 +175,7 @@ module ccip_token_pool::ownable {
 
         state.owner = to;
         state.pending_transfer = option::none();
-
+    
         transfer::transfer(owner_cap, to);
 
         event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
@@ -233,12 +231,5 @@ module ccip_token_pool::ownable {
     public fun destroy_owner_cap(owner_cap: OwnerCap, _ctx: &mut TxContext) {
         let OwnerCap { id } = owner_cap;
         object::delete(id);
-    }
-
-    #[test_only]
-    public fun create_test_owner_cap(ctx: &mut TxContext): OwnerCap {
-        OwnerCap {
-            id: object::new(ctx),
-        }
-    }
+    } 
 }

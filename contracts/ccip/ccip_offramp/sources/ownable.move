@@ -171,7 +171,7 @@ module ccip_offramp::ownable {
         assert!(pending_transfer.accepted, ETransferNotAccepted);
 
         // Must call `execute_ownership_transfer_to_mcms` instead
-        assert!(new_owner != @mcms, ECannotTransferToMcms);
+        assert!(new_owner != mcms_registry::get_multisig_address(), ECannotTransferToMcms);
 
         state.owner = to;
         state.pending_transfer = option::none();
@@ -202,7 +202,7 @@ module ccip_offramp::ownable {
         assert!(pending_transfer.from == current_owner, EOwnerChanged);
         assert!(new_owner == to, EProposedOwnerMismatch);
         assert!(pending_transfer.accepted, ETransferNotAccepted);
-        assert!(to == @mcms, EMustTransferToMcms);
+        assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
 
         state.owner = to;
         state.pending_transfer = option::none();
@@ -210,7 +210,7 @@ module ccip_offramp::ownable {
         mcms_registry::register_entrypoint(
             registry,
             proof,
-            option::some(owner_cap),
+            owner_cap,
             ctx,
         );
 

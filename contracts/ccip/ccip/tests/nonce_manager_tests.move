@@ -2,7 +2,8 @@
 module ccip::nonce_manager_test;
 
 use ccip::nonce_manager::{Self, NonceManagerState};
-use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER: address = @0x1;

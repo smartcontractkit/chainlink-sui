@@ -3,6 +3,8 @@
 module ccip_router::ownable {
     use sui::event;
 
+    use mcms::mcms_registry::{Self, Registry};
+
     public struct OwnerCap has key, store {
         id: UID,
     }
@@ -51,6 +53,8 @@ module ccip_router::ownable {
     const EOwnerChanged: u64 = 6;
     const EProposedOwnerMismatch: u64 = 7;
     const ETransferNotAccepted: u64 = 8;
+    const ECannotTransferToMcms: u64 = 9;
+    const EMustTransferToMcms: u64 = 10;
 
     public fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
         let owner = ctx.sender();
@@ -97,16 +101,6 @@ module ccip_router::ownable {
 
     public fun pending_transfer_accepted(state: &OwnableState): Option<bool> {
         state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
-    }
-
-    public fun set_owner(
-        owner_cap: &OwnerCap,
-        state: &mut OwnableState,
-        owner: address,
-        _ctx: &mut TxContext,
-    ) {
-        assert!(object::id(owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
-        state.owner = owner;
     }
 
     public fun transfer_ownership(
@@ -178,10 +172,49 @@ module ccip_router::ownable {
         assert!(new_owner == to, EProposedOwnerMismatch);
         assert!(pending_transfer.accepted, ETransferNotAccepted);
 
-        transfer::transfer(owner_cap, new_owner);
+        // Must call `execute_ownership_transfer_to_mcms` instead
+        assert!(new_owner != mcms_registry::get_multisig_address(), ECannotTransferToMcms);
 
-        state.owner = new_owner;
+        state.owner = to;
         state.pending_transfer = option::none();
+    
+        transfer::transfer(owner_cap, to);
+
+        event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
+    }
+
+    #[allow(lint(custom_state_change))]
+    public fun execute_ownership_transfer_to_mcms<T: drop>(
+        owner_cap: OwnerCap,
+        state: &mut OwnableState,
+        registry: &mut Registry,
+        to: address,
+        proof: T,
+        ctx: &mut TxContext,
+    ) {
+        assert!(object::id(&owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
+        assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
+
+        let pending_transfer = state.pending_transfer.extract();
+        let current_owner = state.owner;
+        let new_owner = pending_transfer.to;
+
+        // check that the owner has not changed from a direct call to 0x1::transfer::public_transfer,
+        // in which case the transfer flow should be restarted.
+        assert!(pending_transfer.from == current_owner, EOwnerChanged);
+        assert!(new_owner == to, EProposedOwnerMismatch);
+        assert!(pending_transfer.accepted, ETransferNotAccepted);
+        assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
+
+        state.owner = to;
+        state.pending_transfer = option::none();
+
+        mcms_registry::register_entrypoint(
+            registry,
+            proof,
+            owner_cap,
+            ctx,
+        );
 
         event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
     }
@@ -200,5 +233,5 @@ module ccip_router::ownable {
     public fun destroy_owner_cap(owner_cap: OwnerCap, _ctx: &mut TxContext) {
         let OwnerCap { id } = owner_cap;
         object::delete(id);
-    }
-} 
+    } 
+}

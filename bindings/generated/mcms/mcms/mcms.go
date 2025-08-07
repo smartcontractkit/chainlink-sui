@@ -21,8 +21,8 @@ var (
 )
 
 type IMcms interface {
-	SetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
-	Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) (*models.SuiTransactionBlockResponse, error)
+	SetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr string, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
+	Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockScheduleBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
@@ -90,7 +90,7 @@ type IMcms interface {
 }
 
 type IMcmsDevInspect interface {
-	Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) (TimelockCallbackParams, error)
+	Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (TimelockCallbackParams, error)
 	DispatchTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) ([]bind.Object, error)
 	DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams) ([]bind.Object, error)
 	ExecuteDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (bind.Object, error)
@@ -116,7 +116,7 @@ type IMcmsDevInspect interface {
 	ZeroHash(ctx context.Context, opts *bind.CallOpts) ([]byte, error)
 	Role(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) (byte, error)
 	ChainId(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) (*big.Int, error)
-	RootMetadataMultisig(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) ([]byte, error)
+	RootMetadataMultisig(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) (string, error)
 	PreOpCount(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) (uint64, error)
 	PostOpCount(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) (uint64, error)
 	OverridePreviousRoot(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) (bool, error)
@@ -143,9 +143,9 @@ type IMcmsDevInspect interface {
 }
 
 type McmsEncoder interface {
-	SetRoot(state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*bind.EncodedCall, error)
+	SetRoot(state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr string, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*bind.EncodedCall, error)
 	SetRootWithArgs(args ...any) (*bind.EncodedCall, error)
-	Execute(state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) (*bind.EncodedCall, error)
+	Execute(state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (*bind.EncodedCall, error)
 	ExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	DispatchTimelockScheduleBatch(timelock bind.Object, clock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
 	DispatchTimelockScheduleBatchWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -386,9 +386,9 @@ type ExpiringRootAndOpCount struct {
 type Op struct {
 	Role         byte     `move:"u8"`
 	ChainId      *big.Int `move:"u256"`
-	Multisig     []byte   `move:"vector<u8>"`
+	Multisig     string   `move:"address"`
 	Nonce        uint64   `move:"u64"`
-	To           []byte   `move:"vector<u8>"`
+	To           string   `move:"address"`
 	ModuleName   string   `move:"0x1::string::String"`
 	FunctionName string   `move:"0x1::string::String"`
 	Data         []byte   `move:"vector<u8>"`
@@ -397,7 +397,7 @@ type Op struct {
 type RootMetadata struct {
 	Role                 byte     `move:"u8"`
 	ChainId              *big.Int `move:"u256"`
-	Multisig             []byte   `move:"vector<u8>"`
+	Multisig             string   `move:"address"`
 	PreOpCount           uint64   `move:"u64"`
 	PostOpCount          uint64   `move:"u64"`
 	OverridePreviousRoot bool     `move:"bool"`
@@ -432,15 +432,18 @@ type NewRoot struct {
 type OpExecuted struct {
 	Role         byte     `move:"u8"`
 	ChainId      *big.Int `move:"u256"`
-	Multisig     []byte   `move:"vector<u8>"`
+	Multisig     string   `move:"address"`
 	Nonce        uint64   `move:"u64"`
-	To           []byte   `move:"vector<u8>"`
+	To           string   `move:"address"`
 	ModuleName   string   `move:"0x1::string::String"`
 	FunctionName string   `move:"0x1::string::String"`
 	Data         []byte   `move:"vector<u8>"`
 }
 
 type MCMS struct {
+}
+
+type McmsCallback struct {
 }
 
 type Timelock struct {
@@ -513,6 +516,126 @@ type FunctionUnblocked struct {
 	Target       string `move:"address"`
 	ModuleName   string `move:"0x1::string::String"`
 	FunctionName string `move:"0x1::string::String"`
+}
+
+type bcsMultisigState struct {
+	Id        string
+	Bypasser  bcsMultisig
+	Canceller bcsMultisig
+	Proposer  bcsMultisig
+}
+
+func convertMultisigStateFromBCS(bcs bcsMultisigState) MultisigState {
+	return MultisigState{
+		Id:        bcs.Id,
+		Bypasser:  convertMultisigFromBCS(bcs.Bypasser),
+		Canceller: convertMultisigFromBCS(bcs.Canceller),
+		Proposer:  convertMultisigFromBCS(bcs.Proposer),
+	}
+}
+
+type bcsMultisig struct {
+	Role                   byte
+	Signers                bind.Object
+	Config                 Config
+	SeenSignedHashes       bind.Object
+	ExpiringRootAndOpCount ExpiringRootAndOpCount
+	RootMetadata           bcsRootMetadata
+}
+
+func convertMultisigFromBCS(bcs bcsMultisig) Multisig {
+	return Multisig{
+		Role:                   bcs.Role,
+		Signers:                bcs.Signers,
+		Config:                 bcs.Config,
+		SeenSignedHashes:       bcs.SeenSignedHashes,
+		ExpiringRootAndOpCount: bcs.ExpiringRootAndOpCount,
+		RootMetadata:           convertRootMetadataFromBCS(bcs.RootMetadata),
+	}
+}
+
+type bcsOp struct {
+	Role         byte
+	ChainId      *big.Int
+	Multisig     [32]byte
+	Nonce        uint64
+	To           [32]byte
+	ModuleName   string
+	FunctionName string
+	Data         []byte
+}
+
+func convertOpFromBCS(bcs bcsOp) Op {
+	return Op{
+		Role:         bcs.Role,
+		ChainId:      bcs.ChainId,
+		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
+		Nonce:        bcs.Nonce,
+		To:           fmt.Sprintf("0x%x", bcs.To),
+		ModuleName:   bcs.ModuleName,
+		FunctionName: bcs.FunctionName,
+		Data:         bcs.Data,
+	}
+}
+
+type bcsRootMetadata struct {
+	Role                 byte
+	ChainId              *big.Int
+	Multisig             [32]byte
+	PreOpCount           uint64
+	PostOpCount          uint64
+	OverridePreviousRoot bool
+}
+
+func convertRootMetadataFromBCS(bcs bcsRootMetadata) RootMetadata {
+	return RootMetadata{
+		Role:                 bcs.Role,
+		ChainId:              bcs.ChainId,
+		Multisig:             fmt.Sprintf("0x%x", bcs.Multisig),
+		PreOpCount:           bcs.PreOpCount,
+		PostOpCount:          bcs.PostOpCount,
+		OverridePreviousRoot: bcs.OverridePreviousRoot,
+	}
+}
+
+type bcsNewRoot struct {
+	Role       byte
+	Root       []byte
+	ValidUntil uint64
+	Metadata   bcsRootMetadata
+}
+
+func convertNewRootFromBCS(bcs bcsNewRoot) NewRoot {
+	return NewRoot{
+		Role:       bcs.Role,
+		Root:       bcs.Root,
+		ValidUntil: bcs.ValidUntil,
+		Metadata:   convertRootMetadataFromBCS(bcs.Metadata),
+	}
+}
+
+type bcsOpExecuted struct {
+	Role         byte
+	ChainId      *big.Int
+	Multisig     [32]byte
+	Nonce        uint64
+	To           [32]byte
+	ModuleName   string
+	FunctionName string
+	Data         []byte
+}
+
+func convertOpExecutedFromBCS(bcs bcsOpExecuted) OpExecuted {
+	return OpExecuted{
+		Role:         bcs.Role,
+		ChainId:      bcs.ChainId,
+		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
+		Nonce:        bcs.Nonce,
+		To:           fmt.Sprintf("0x%x", bcs.To),
+		ModuleName:   bcs.ModuleName,
+		FunctionName: bcs.FunctionName,
+		Data:         bcs.Data,
+	}
 }
 
 type bcsCall struct {
@@ -635,19 +758,23 @@ func convertFunctionUnblockedFromBCS(bcs bcsFunctionUnblocked) FunctionUnblocked
 
 func init() {
 	bind.RegisterStructDecoder("mcms::mcms::MultisigState", func(data []byte) (interface{}, error) {
-		var result MultisigState
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsMultisigState
+		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
 			return nil, err
 		}
+
+		result := convertMultisigStateFromBCS(temp)
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Multisig", func(data []byte) (interface{}, error) {
-		var result Multisig
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsMultisig
+		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
 			return nil, err
 		}
+
+		result := convertMultisigFromBCS(temp)
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Signer", func(data []byte) (interface{}, error) {
@@ -675,19 +802,23 @@ func init() {
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Op", func(data []byte) (interface{}, error) {
-		var result Op
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsOp
+		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
 			return nil, err
 		}
+
+		result := convertOpFromBCS(temp)
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::RootMetadata", func(data []byte) (interface{}, error) {
-		var result RootMetadata
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsRootMetadata
+		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
 			return nil, err
 		}
+
+		result := convertRootMetadataFromBCS(temp)
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::TimelockCallbackParams", func(data []byte) (interface{}, error) {
@@ -715,23 +846,35 @@ func init() {
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::NewRoot", func(data []byte) (interface{}, error) {
-		var result NewRoot
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsNewRoot
+		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
 			return nil, err
 		}
+
+		result := convertNewRootFromBCS(temp)
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::OpExecuted", func(data []byte) (interface{}, error) {
-		var result OpExecuted
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsOpExecuted
+		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
 			return nil, err
 		}
+
+		result := convertOpExecutedFromBCS(temp)
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::MCMS", func(data []byte) (interface{}, error) {
 		var result MCMS
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("mcms::mcms::McmsCallback", func(data []byte) (interface{}, error) {
+		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
@@ -843,7 +986,7 @@ func init() {
 }
 
 // SetRoot executes the set_root Move function.
-func (c *McmsContract) SetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error) {
+func (c *McmsContract) SetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr string, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsEncoder.SetRoot(state, clock, role, root, validUntil, chainId, multisigAddr, preOpCount, postOpCount, overridePreviousRoot, metadataProof, signatures)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -853,7 +996,7 @@ func (c *McmsContract) SetRoot(ctx context.Context, opts *bind.CallOpts, state b
 }
 
 // Execute executes the execute Move function.
-func (c *McmsContract) Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) (*models.SuiTransactionBlockResponse, error) {
+func (c *McmsContract) Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsEncoder.Execute(state, clock, role, chainId, multisigAddr, nonce, to, moduleName, functionName, data, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -1485,7 +1628,7 @@ func (c *McmsContract) Data(ctx context.Context, opts *bind.CallOpts, call Call)
 // Execute executes the execute Move function using DevInspect to get return values.
 //
 // Returns: TimelockCallbackParams
-func (d *McmsDevInspect) Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) (TimelockCallbackParams, error) {
+func (d *McmsDevInspect) Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (TimelockCallbackParams, error) {
 	encoded, err := d.contract.mcmsEncoder.Execute(state, clock, role, chainId, multisigAddr, nonce, to, moduleName, functionName, data, proof)
 	if err != nil {
 		return TimelockCallbackParams{}, fmt.Errorf("failed to encode function call: %w", err)
@@ -2041,22 +2184,22 @@ func (d *McmsDevInspect) ChainId(ctx context.Context, opts *bind.CallOpts, rootM
 
 // RootMetadataMultisig executes the root_metadata_multisig Move function using DevInspect to get return values.
 //
-// Returns: vector<u8>
-func (d *McmsDevInspect) RootMetadataMultisig(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) ([]byte, error) {
+// Returns: address
+func (d *McmsDevInspect) RootMetadataMultisig(ctx context.Context, opts *bind.CallOpts, rootMetadata RootMetadata) (string, error) {
 	encoded, err := d.contract.mcmsEncoder.RootMetadataMultisig(rootMetadata)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
+		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if len(results) == 0 {
-		return nil, fmt.Errorf("no return value")
+		return "", fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
+	result, ok := results[0].(string)
 	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
 	}
 	return result, nil
 }
@@ -2565,7 +2708,7 @@ type mcmsEncoder struct {
 }
 
 // SetRoot encodes a call to the set_root Move function.
-func (c mcmsEncoder) SetRoot(state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr []byte, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) SetRoot(state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr string, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_root", typeArgsList, typeParamsList, []string{
@@ -2575,7 +2718,7 @@ func (c mcmsEncoder) SetRoot(state bind.Object, clock bind.Object, role byte, ro
 		"vector<u8>",
 		"u64",
 		"u256",
-		"vector<u8>",
+		"address",
 		"u64",
 		"u64",
 		"bool",
@@ -2607,7 +2750,7 @@ func (c mcmsEncoder) SetRootWithArgs(args ...any) (*bind.EncodedCall, error) {
 		"vector<u8>",
 		"u64",
 		"u256",
-		"vector<u8>",
+		"address",
 		"u64",
 		"u64",
 		"bool",
@@ -2624,7 +2767,7 @@ func (c mcmsEncoder) SetRootWithArgs(args ...any) (*bind.EncodedCall, error) {
 }
 
 // Execute encodes a call to the execute Move function.
-func (c mcmsEncoder) Execute(state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr []byte, nonce uint64, to []byte, moduleName string, functionName string, data []byte, proof [][]byte) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) Execute(state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute", typeArgsList, typeParamsList, []string{
@@ -2632,9 +2775,9 @@ func (c mcmsEncoder) Execute(state bind.Object, clock bind.Object, role byte, ch
 		"&Clock",
 		"u8",
 		"u256",
-		"vector<u8>",
+		"address",
 		"u64",
-		"vector<u8>",
+		"address",
 		"String",
 		"String",
 		"vector<u8>",
@@ -2664,9 +2807,9 @@ func (c mcmsEncoder) ExecuteWithArgs(args ...any) (*bind.EncodedCall, error) {
 		"&Clock",
 		"u8",
 		"u256",
-		"vector<u8>",
+		"address",
 		"u64",
-		"vector<u8>",
+		"address",
 		"String",
 		"String",
 		"vector<u8>",
@@ -3864,7 +4007,7 @@ func (c mcmsEncoder) RootMetadataMultisig(rootMetadata RootMetadata) (*bind.Enco
 	}, []any{
 		rootMetadata,
 	}, []string{
-		"vector<u8>",
+		"address",
 	})
 }
 
@@ -3881,7 +4024,7 @@ func (c mcmsEncoder) RootMetadataMultisigWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("root_metadata_multisig", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<u8>",
+		"address",
 	})
 }
 

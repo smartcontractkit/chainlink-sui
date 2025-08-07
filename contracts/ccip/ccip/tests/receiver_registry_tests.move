@@ -8,7 +8,8 @@ use sui::address;
 use sui::test_scenario::{Self as ts, Scenario};
 
 use ccip::receiver_registry::{Self, ReceiverRegistry};
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 
 public struct RECEIVER_REGISTRY_TESTS has drop {}
 

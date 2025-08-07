@@ -12,7 +12,8 @@ use sui::vec_map::{Self, VecMap};
 
 use ccip::eth_abi;
 use ccip::merkle_proof;
-use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 
 const SIGNATURE_NUM_BYTES: u64 = 64;
 const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
@@ -102,7 +103,7 @@ public fun get_arm(): address {
 
 public fun initialize(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     local_chain_selector: u64,
     ctx: &mut TxContext
 ) {
@@ -128,7 +129,7 @@ public fun initialize(
         cursed_subjects: vec_map::empty<vector<u8>, bool>()
     };
 
-    state_object::add(ref, state, ctx);
+    state_object::add(ref, owner_cap, state, ctx);
 }
 
 fun calculate_report(report: &Report): vector<u8> {

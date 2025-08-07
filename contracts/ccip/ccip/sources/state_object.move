@@ -1,49 +1,21 @@
 module ccip::state_object;
 
+use ccip::ownable::{Self, OwnerCap, OwnableState};
+use mcms::bcs_stream;
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::type_name;
-
 use sui::address;
 use sui::dynamic_object_field as dof;
-use sui::event;
 
 const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
-const ECannotTransferToSelf: u64 = 3;
-const EOwnerChanged: u64 = 4;
-const ENoPendingTransfer: u64 = 5;
-const ETransferNotAccepted: u64 = 6;
-const ETransferAlreadyAccepted: u64 = 7;
-const EMustBeProposedOwner: u64 = 8;
-const EProposedOwnerMismatch: u64 = 9;
-const EUnauthorized: u64 = 10;
-
-public struct OwnershipTransferRequested has copy, drop {
-    from: address,
-    to: address,
-}
-
-public struct OwnershipTransferAccepted has copy, drop {
-    from: address,
-    to: address,
-}
-
-public struct OwnershipTransferred has copy, drop {
-    from: address,
-    to: address,
-}
-
-public struct OwnerCap has key, store {
-    id: UID,
-}
+const EInvalidFunction: u64 = 3;
+const EInvalidOwnerCap: u64 = 4;
 
 public struct CCIPObjectRef has key, store {
     id: UID,
-    // this is not the owner of the CCIP object ref in SUI's concept
-    // this object is a shared object and cannot be transferred and has no owner according to SUI
-    // the owner here refers to the address which has the power to manage this ref
-    current_owner: address,
-    pending_transfer: Option<PendingTransfer>,
+    ownable_state: OwnableState,
 }
 
 public struct CCIPObjectRefPointer has key, store {
@@ -52,28 +24,22 @@ public struct CCIPObjectRefPointer has key, store {
     owner_cap_id: address,
 }
 
-public struct PendingTransfer has copy, drop, store {
-    from: address,
-    to: address,
-    accepted: bool,
-}
-
 public struct STATE_OBJECT has drop {}
 
 fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
+    let (ownable_state, owner_cap) = ownable::new(ctx);
+
     let ref = CCIPObjectRef {
         id: object::new(ctx),
-        current_owner: ctx.sender(),
-        pending_transfer: option::none(),
+        ownable_state,
     };
-    let owner_cap = OwnerCap {
-        id: object::new(ctx),
-    };
+
+    let owner_cap_id = object::id(&owner_cap);
 
     let pointer = CCIPObjectRefPointer {
         id: object::new(ctx),
         object_ref_id: object::uid_to_address(&ref.id),
-        owner_cap_id: object::uid_to_address(&owner_cap.id),
+        owner_cap_id: object::id_to_address(&owner_cap_id),
     };
 
     let tn = type_name::get_with_original_ids<STATE_OBJECT>();
@@ -81,16 +47,22 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(ref);
-    transfer::transfer(owner_cap, ctx.sender());
+    transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
+}
+
+public fun owner_cap_id(ref: &CCIPObjectRef): ID {
+    ref.ownable_state.owner_cap_id()
 }
 
 public(package) fun add<T: key + store>(
     ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
     obj: T,
-    ctx: &TxContext,
+    _ctx: &TxContext,
 ) {
-    assert!(ctx.sender() == ref.current_owner, EUnauthorized);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
+
     let tn = type_name::get<T>();
     assert!(!dof::exists_(&ref.id, tn), EModuleAlreadyExists);
     dof::add(&mut ref.id, tn, obj);
@@ -103,9 +75,10 @@ public(package) fun contains<T>(ref: &CCIPObjectRef): bool {
 
 public(package) fun remove<T: key + store>(
     ref: &mut CCIPObjectRef,
-    ctx: &TxContext,
+    owner_cap: &OwnerCap,
+    _ctx: &TxContext,
 ): T {
-    assert!(ctx.sender() == ref.current_owner, EUnauthorized);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
     let tn = type_name::get<T>();
     assert!(dof::exists_(&ref.id, tn), EModuleDoesNotExist);
     dof::remove(&mut ref.id, tn)
@@ -121,58 +94,124 @@ public(package) fun borrow_mut<T: key + store>(ref: &mut CCIPObjectRef): &mut T 
     dof::borrow_mut(&mut ref.id, tn)
 }
 
-public fun transfer_ownership(ref: &mut CCIPObjectRef, to: address, ctx: &mut TxContext) {
-    let caller = ctx.sender();
-    assert!(caller != to, ECannotTransferToSelf);
-    assert!(ref.current_owner == caller, EUnauthorized);
-
-    ref.pending_transfer = option::some(PendingTransfer { from: caller, to, accepted: false });
-
-    event::emit(OwnershipTransferRequested { from: caller, to });
+public fun transfer_ownership(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    to: address,
+    ctx: &mut TxContext,
+) {
+    ownable::transfer_ownership(owner_cap, &mut ref.ownable_state, to, ctx);
 }
 
 public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
-    assert!(ref.pending_transfer.is_some(), ENoPendingTransfer);
-
-    let caller = ctx.sender();
-    let pending_transfer = ref.pending_transfer.borrow_mut();
-
-    assert!(pending_transfer.from == ref.current_owner, EOwnerChanged);
-    assert!(pending_transfer.to == caller, EMustBeProposedOwner);
-    assert!(!pending_transfer.accepted, ETransferAlreadyAccepted);
-
-    pending_transfer.accepted = true;
-
-    event::emit(OwnershipTransferAccepted { from: pending_transfer.from, to: caller });
+    ownable::accept_ownership(&mut ref.ownable_state, ctx);
 }
 
 public fun execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
+    owner_cap: OwnerCap,
     to: address,
     ctx: &mut TxContext,
 ) {
-    let caller = ctx.sender();
-    assert!(caller == ref.current_owner, EUnauthorized);
-
-    let pending_transfer = ref.pending_transfer.extract();
-
-    // since ref is a shared object now, it's impossible to transfer its ownership
-    assert!(pending_transfer.from == ref.current_owner, EOwnerChanged);
-    assert!(pending_transfer.to == to, EProposedOwnerMismatch);
-    assert!(pending_transfer.accepted, ETransferNotAccepted);
-
-    // transfer the owner cap to the new owner
-    // cannot transfer the shared object anymore
-    ref.current_owner = pending_transfer.to;
-    // the extract will remove the object within option wrapper
-    // state.pending_transfer = option::none();
-
-    event::emit(OwnershipTransferred { from: caller, to })
+    ownable::execute_ownership_transfer(owner_cap, &mut ref.ownable_state, to, ctx);
 }
 
-public(package) fun get_current_owner(ref: &CCIPObjectRef): address {
-    ref.current_owner
+public fun execute_ownership_transfer_to_mcms(
+    ref: &mut CCIPObjectRef,
+    owner_cap: OwnerCap,
+    registry: &mut Registry,
+    to: address,
+    ctx: &mut TxContext,
+) {
+    ownable::execute_ownership_transfer_to_mcms(
+        owner_cap,
+        &mut ref.ownable_state,
+        registry,
+        to,
+        McmsCallback {},
+        ctx,
+    );
 }
+
+public fun owner(ref: &CCIPObjectRef): address {
+    ref.ownable_state.owner()
+}
+
+public fun has_pending_transfer(ref: &CCIPObjectRef): bool {
+    ref.ownable_state.has_pending_transfer()
+}
+
+public fun pending_transfer_from(ref: &CCIPObjectRef): Option<address> {
+    ref.ownable_state.pending_transfer_from()
+}
+
+public fun pending_transfer_to(ref: &CCIPObjectRef): Option<address> {
+    ref.ownable_state.pending_transfer_to()
+}
+
+public fun pending_transfer_accepted(ref: &CCIPObjectRef): Option<bool> {
+    ref.ownable_state.pending_transfer_accepted()
+}
+
+// ================================================================
+// |                      MCMS Entrypoint                         |
+// ================================================================
+
+/// Proof for CCIP admin
+public struct CCIPAdminProof has drop {}
+
+public struct McmsCallback has drop {}
+
+public fun mcms_entrypoint(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+
+    let function_bytes = *function.as_bytes();
+    let mut stream = bcs_stream::new(data);
+
+    if (function_bytes == b"transfer_ownership") {
+        let to = bcs_stream::deserialize_address(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+        transfer_ownership(ref, owner_cap, to, ctx);
+    } else if (function_bytes == b"execute_ownership_transfer") {
+        let to = bcs_stream::deserialize_address(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+        let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+        execute_ownership_transfer(ref, owner_cap, to, ctx);
+    } else {
+        abort EInvalidFunction
+    };
+}
+
+public fun mcms_proof_entrypoint(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    _ctx: &mut TxContext,
+): CCIPAdminProof {
+    let (_owner_cap, function, _data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+
+    // We validate that the owner cap is registered
+    // So we can safely provide a proof that CCIP admin is calling
+    assert!(*function.as_bytes() == b"initialize_by_ccip_admin", EInvalidFunction);
+
+    CCIPAdminProof {}
+}
+
+// ================================================================
+// |                      Test Functions                          |
+// ================================================================
 
 #[test_only]
 public fun test_init(ctx: &mut TxContext) {
@@ -181,11 +220,14 @@ public fun test_init(ctx: &mut TxContext) {
 
 #[test_only]
 public fun pending_transfer(ref: &CCIPObjectRef): (address, address, bool) {
-    let pt = ref.pending_transfer;
-    if (pt.is_none()) {
-        return (@0x0, @0x0, false)
-    };
-    let pt = option::borrow(&ref.pending_transfer);
+    let from = ownable::pending_transfer_from(&ref.ownable_state);
+    let to = ownable::pending_transfer_to(&ref.ownable_state);
+    let accepted = ownable::pending_transfer_accepted(&ref.ownable_state);
 
-    (pt.from, pt.to, pt.accepted)
+    (from.get_with_default(@0x0), to.get_with_default(@0x0), accepted.get_with_default(false))
+}
+
+#[test_only]
+public fun create_ccip_admin_proof_for_test(): CCIPAdminProof {
+    CCIPAdminProof {}
 }
