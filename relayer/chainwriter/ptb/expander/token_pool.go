@@ -11,7 +11,7 @@ import (
 )
 
 type TypeParameter struct {
-	TypeParameter int `json:"TypeParameter"`
+	TypeParameter float64 `json:"TypeParameter"`
 }
 
 type SuiArgumentMetadata struct {
@@ -20,7 +20,20 @@ type SuiArgumentMetadata struct {
 	Name          string          `json:"name"`
 	TypeArguments []TypeParameter `json:"typeArguments"`
 	Reference     string          `json:"reference"`
+	Type          string          `json:"type"`
 }
+
+// func (m SuiArgumentMetadata) GetType() (string, error) {
+// 	if m.Address != "0x2" {
+// 		return "object_id", nil
+// 	}
+
+// }
+
+const (
+	LockOrBurn    = "lock_or_burn"
+	ReleaseOrMint = "release_or_mint"
+)
 
 func GetTokenPoolPTBConfig(
 	ctx context.Context,
@@ -43,7 +56,7 @@ func GetTokenPoolPTBConfig(
 		return nil, fmt.Errorf("function not found: %s", tokenPoolInfo.Function)
 	} else {
 		function := functions[tokenPoolInfo.Function]
-		isValid, decodedParameters := isFunctionValid(lggr, function.(map[string]any))
+		isValid, decodedParameters := isFunctionValid(lggr, function.(map[string]any), tokenPoolInfo.Function)
 		if !isValid {
 			// So the decoded parameters are not available for use in the PTB command. They are not needed.
 			// Just log and return the error.
@@ -51,12 +64,15 @@ func GetTokenPoolPTBConfig(
 			return nil, fmt.Errorf("function is not valid: %s", tokenPoolInfo.Function)
 		}
 
+		lggr.Debugw("decodedParameters", "decodedParameters", decodedParameters)
+
 		ptbParams := []codec.SuiFunctionParam{}
 		for _, param := range decodedParameters {
 			if param.Name == "TokenParams" && param.Module == "dynamic_dispatcher" {
 				lggr.Debugw("Skipping out hot potato TokenParams", "param", param)
 				continue
 			}
+
 			isMutable := param.Reference == "MutableReference"
 			ptbParams = append(ptbParams, codec.SuiFunctionParam{
 				Name:      buildParameterName(param, tokenPoolInfo.Index),
@@ -86,32 +102,91 @@ func buildParameterName(param SuiArgumentMetadata, tokenPoolIndex int) string {
 func decodeParam(param any) SuiArgumentMetadata {
 	m := param.(map[string]any)
 	for k, v := range m {
+
 		if k == "Struct" {
 			// Direct struct
 			s := v.(map[string]any)
+			typeArguments := []TypeParameter{}
+			for _, ta := range s["typeArguments"].([]any) {
+				typeArgument := ta.(map[string]any)
+				typeArguments = append(typeArguments, TypeParameter{TypeParameter: typeArgument["TypeParameter"].(float64)})
+			}
 			return SuiArgumentMetadata{
-				Address:   s["address"].(string),
-				Module:    s["module"].(string),
-				Name:      s["name"].(string),
-				Reference: "",
+				Address:       s["address"].(string),
+				Module:        s["module"].(string),
+				Name:          s["name"].(string),
+				Reference:     "",
+				TypeArguments: typeArguments,
+				Type:          ParseParamType(v),
 			}
 		} else {
 			// Note, we do not support Vector, so this logic holds
 			// Adding support for Vectors
 			// Wrapped (Reference/MutableReference/etc) - unwrap once
 			inner := v.(map[string]any)["Struct"].(map[string]any)
+			typeArguments := []TypeParameter{}
+			for _, ta := range inner["typeArguments"].([]any) {
+				typeArgument := ta.(map[string]any)
+				typeArguments = append(typeArguments, TypeParameter{TypeParameter: typeArgument["TypeParameter"].(float64)})
+			}
 			return SuiArgumentMetadata{
-				Address:   inner["address"].(string),
-				Module:    inner["module"].(string),
-				Name:      inner["name"].(string),
-				Reference: k,
+				Address:       inner["address"].(string),
+				Module:        inner["module"].(string),
+				Name:          inner["name"].(string),
+				Reference:     k,
+				TypeArguments: typeArguments,
 			}
 		}
 	}
 	return SuiArgumentMetadata{}
 }
 
-func isFunctionValid(lggr logger.Logger, function map[string]any) (bool, []SuiArgumentMetadata) {
+func ParseParamType(param interface{}) string {
+	// Case 1: string primitive
+	if str, ok := param.(string); ok {
+		switch str {
+		case "U8":
+			return "int8"
+		case "U16":
+			return "int16"
+		case "U32":
+			return "int32"
+		case "U64":
+			return "int64"
+		case "U128":
+			return "int128"
+		case "U256":
+			return "int256"
+		case "Bool":
+			return "bool"
+		case "Address":
+			return "object_id"
+		default:
+			return "unknown"
+		}
+	}
+
+	// Case 2: map structure (e.g., Vector, Reference, Struct)
+	if m, ok := param.(map[string]interface{}); ok {
+		if vectorVal, ok := m["Vector"]; ok {
+			return "vector<" + ParseParamType(vectorVal) + ">"
+		}
+		if refVal, ok := m["Reference"]; ok {
+			return ParseParamType(refVal)
+		}
+		if mutRefVal, ok := m["MutableReference"]; ok {
+			return ParseParamType(mutRefVal)
+		}
+		if _, ok := m["Struct"]; ok {
+			return "object_id"
+		}
+	}
+
+	// Fallback
+	return "unknown"
+}
+
+func isFunctionValid(lggr logger.Logger, function map[string]any, name string) (bool, []SuiArgumentMetadata) {
 	parameters := function["parameters"].([]any)
 	lggr.Debugw("parameters", "parameters", parameters)
 
@@ -130,18 +205,27 @@ func isFunctionValid(lggr logger.Logger, function map[string]any) (bool, []SuiAr
 	param1 := decodedParameters[1]
 	param2 := decodedParameters[2]
 
-	if param0.Module != "state_object" || param0.Name != "CCIPObjectRef" {
-		lggr.Errorw("CCIPObjectRef is not the first parameter", "module", param0.Module, "name", param0.Name)
-		return false, nil
-	}
+	switch name {
+	case LockOrBurn:
+		if param0.Module != "state_object" || param0.Name != "CCIPObjectRef" {
+			lggr.Errorw("CCIPObjectRef is not the first parameter", "module", param0.Module, "name", param0.Name)
+			return false, nil
+		}
 
-	if param1.Module != "coin" || param1.Name != "Coin" {
-		lggr.Errorw("Coin is not the second parameter", "module", param1.Module, "name", param1.Name)
-		return false, nil
-	}
+		if param1.Module != "coin" || param1.Name != "Coin" {
+			lggr.Errorw("Coin is not the second parameter", "module", param1.Module, "name", param1.Name)
+			return false, nil
+		}
 
-	if param2.Module != "dynamic_dispatcher" || param2.Name != "TokenParams" {
-		lggr.Errorw("Hot potato TokenParams is not the third parameter", "module", param2.Module, "name", param2.Name)
+		if param2.Module != "dynamic_dispatcher" || param2.Name != "TokenParams" {
+			lggr.Errorw("Hot potato TokenParams is not the third parameter", "module", param2.Module, "name", param2.Name)
+			return false, nil
+		}
+	case ReleaseOrMint:
+		//TODO: Implement
+		return false, nil
+	default:
+		lggr.Errorw("Invalid function name", "name", name)
 		return false, nil
 	}
 
