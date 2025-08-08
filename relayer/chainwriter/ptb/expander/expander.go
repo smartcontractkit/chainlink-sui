@@ -1,3 +1,4 @@
+// / DO NOT EDIT - this will be removed
 package expander
 
 import (

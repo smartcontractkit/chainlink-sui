@@ -1,3 +1,4 @@
+// / DO NOT EDIT - this will be removed
 package expander
 
 import (
@@ -577,7 +578,6 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 					"address",
 				},
 			)
-
 			if err != nil {
 				lggr.Errorw("Error getting pool infos", "error", err)
 				return nil, err

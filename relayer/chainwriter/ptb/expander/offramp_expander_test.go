@@ -1,3 +1,4 @@
+// / DO NOT EDIT - this will be removed
 //go:build unit
 
 package expander_test
