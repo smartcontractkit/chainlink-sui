@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -49,6 +48,8 @@ func (i *Indexer) Name() string {
 func (i *Indexer) Start(ctx context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
 		txnIndexerCtx, txnIndexerCancel := context.WithCancel(ctx)
+		// set the cancel function
+		i.transactionIndexerCancel = &txnIndexerCancel
 
 		go func() {
 			if err := i.transactionIndexer.Start(txnIndexerCtx); err != nil {
@@ -56,13 +57,11 @@ func (i *Indexer) Start(ctx context.Context) error {
 				txnIndexerCancel()
 				return
 			}
-
-			i.log.Info("Events indexer started")
-			// set the cancel function
-			i.transactionIndexerCancel = &txnIndexerCancel
 		}()
 
 		eventsIndexerCtx, eventsIndexerCancel := context.WithCancel(ctx)
+		// set the cancel function
+		i.eventsIndexerCancel = &eventsIndexerCancel
 
 		go func() {
 			if err := i.eventsIndexer.Start(eventsIndexerCtx); err != nil {
@@ -70,16 +69,7 @@ func (i *Indexer) Start(ctx context.Context) error {
 				eventsIndexerCancel()
 				return
 			}
-
-			i.log.Info("Events indexer started")
-			// set the cancel function
-			i.eventsIndexerCancel = &eventsIndexerCancel
 		}()
-
-		// If either of the indexers failed to start, we return an error
-		if i.transactionIndexerCancel == nil || i.eventsIndexerCancel == nil {
-			return fmt.Errorf("Indexers failed to start, cancel functions are nil")
-		}
 
 		return nil
 	})

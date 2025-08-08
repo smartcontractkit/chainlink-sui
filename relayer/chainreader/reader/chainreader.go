@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -51,6 +50,11 @@ type suiChainReader struct {
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
+
+type ExtendedContractReader interface {
+	pkgtypes.ContractReader
+	QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]aptosCRConfig.SequenceWithMetadata, error)
+}
 
 // readIdentifier represents the parsed components of a read identifier
 type readIdentifier struct {
@@ -209,46 +213,10 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
 func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]pkgtypes.Sequence, error) {
-	// Validate contract binding
-	if err := s.validateContractBinding(contract); err != nil {
-		return nil, err
-	}
-
-	// Get module and event configuration
-	moduleConfig := s.config.Modules[contract.Name]
-	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
-	// No event config found, construct a config
-	if err == nil && eventConfig == nil {
-		// construct a new config ad-hoc
-		eventConfig = &config.ChainReaderEvent{
-			Name:      filter.Key,
-			EventType: filter.Key,
-			EventSelector: client.EventSelector{
-				Package: contract.Address,
-				Module:  contract.Name,
-				Event:   filter.Key,
-			},
-		}
-	} else if err != nil {
-		return nil, err
-	}
-
-	if moduleConfig.Name != "" {
-		eventConfig.Name = moduleConfig.Name
-	}
-
-	// only write contract address, rest will be handled during chainreader config
-	eventConfig.Package = contract.Address
-
-	// Sync the event in case it's not already in the database
-	err = s.indexer.GetEventIndexer().SyncEvent(ctx, &eventConfig.EventSelector)
+	eventConfig, err := s.updateEventConfigs(ctx, contract, filter)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: move this to the bind call
-	// update the event config in the transactions indexer to ensure that the package ID is known
-	s.indexer.GetTransactionIndexer().UpdateEventConfig(eventConfig)
 
 	// Query events from database
 	eventRecords, err := s.queryEvents(ctx, eventConfig, filter.Expressions, limitAndSort)
@@ -257,35 +225,48 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	}
 
 	// Transform events to sequences
-	return s.transformEventsToSequences(eventRecords, sequenceDataType)
-}
-
-func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]aptosCRConfig.SequenceWithMetadata, error) {
-	seqs, err := s.QueryKey(ctx, contract, filter, limitAndSort, sequenceDataType)
+	sequences, err := s.transformEventsToSequences(eventRecords, sequenceDataType, false)
 	if err != nil {
 		return nil, err
 	}
 
-	var enriched []aptosCRConfig.SequenceWithMetadata
-	for _, seq := range seqs {
-		eventID, err := strconv.ParseUint(seq.Cursor, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid event id in cursor %q: %w", seq.Cursor, err)
-		}
+	transformedSequences := make([]pkgtypes.Sequence, 0)
+	for _, seq := range sequences {
+		transformedSequences = append(transformedSequences, seq.Sequence)
+	}
 
-		txDigest, err := s.dbStore.GetTxDigestByEventId(ctx, eventID)
-		if err != nil {
-			return nil, err
-		}
+	return transformedSequences, nil
+}
 
-		enriched = append(enriched, aptosCRConfig.SequenceWithMetadata{
-			Sequence:  seq,
+func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]aptosCRConfig.SequenceWithMetadata, error) {
+	eventConfig, err := s.updateEventConfigs(ctx, contract, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Query events from database
+	eventRecords, err := s.queryEvents(ctx, eventConfig, filter.Expressions, limitAndSort)
+	if err != nil {
+		return nil, err
+	}
+
+	// Transform events to sequences
+	sequences, err := s.transformEventsToSequences(eventRecords, sequenceDataType, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// Transform events to enriched sequences (include metadata)
+	transformedSequences := make([]aptosCRConfig.SequenceWithMetadata, 0)
+	for _, seq := range sequences {
+		transformedSequences = append(transformedSequences, aptosCRConfig.SequenceWithMetadata{
+			Sequence:  seq.Sequence,
 			TxVersion: 0,
-			TxHash:    txDigest,
+			TxHash:    seq.Record.TxDigest,
 		})
 	}
 
-	return enriched, nil
+	return transformedSequences, nil
 }
 
 func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgtypes.BatchGetLatestValuesRequest) (pkgtypes.BatchGetLatestValuesResult, error) {
@@ -349,6 +330,50 @@ func (s *suiChainReader) parseReadIdentifier(identifier string) (*readIdentifier
 		contractName: components[1],
 		readName:     components[2],
 	}, nil
+}
+
+func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter) (*config.ChainReaderEvent, error) {
+	// Validate contract binding
+	if err := s.validateContractBinding(contract); err != nil {
+		return nil, err
+	}
+
+	// Get module and event configuration
+	moduleConfig := s.config.Modules[contract.Name]
+	eventConfig, err := s.getEventConfig(moduleConfig, filter.Key)
+	// No event config found, construct a config
+	if err == nil && eventConfig == nil {
+		// construct a new config ad-hoc
+		eventConfig = &config.ChainReaderEvent{
+			Name:      filter.Key,
+			EventType: filter.Key,
+			EventSelector: client.EventSelector{
+				Package: contract.Address,
+				Module:  contract.Name,
+				Event:   filter.Key,
+			},
+		}
+	} else if err != nil {
+		return nil, err
+	}
+
+	if moduleConfig.Name != "" {
+		eventConfig.Name = moduleConfig.Name
+	}
+
+	// only write contract address, rest will be handled during chainreader config
+	eventConfig.Package = contract.Address
+
+	// Sync the event in case it's not already in the database
+	err = s.indexer.GetEventIndexer().SyncEvent(ctx, &eventConfig.EventSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	// update the event config in the transactions indexer to ensure that the package ID is known
+	s.indexer.GetTransactionIndexer().UpdateEventConfig(eventConfig)
+
+	return eventConfig, nil
 }
 
 // validateBinding validates that the contract is bound and addresses match
@@ -687,9 +712,14 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 	return records, nil
 }
 
+type SequenceWithRecord struct {
+	Sequence pkgtypes.Sequence
+	Record   *database.EventRecord
+}
+
 // transformEventsToSequences converts database event records to sequence format
-func (s *suiChainReader) transformEventsToSequences(eventRecords []database.EventRecord, sequenceDataType any) ([]pkgtypes.Sequence, error) {
-	sequences := make([]pkgtypes.Sequence, 0, len(eventRecords))
+func (s *suiChainReader) transformEventsToSequences(eventRecords []database.EventRecord, sequenceDataType any, includeRecord bool) ([]SequenceWithRecord, error) {
+	sequences := make([]SequenceWithRecord, 0, len(eventRecords))
 
 	s.logger.Debugw("Transforming events to sequences", "eventRecords", eventRecords, "sequenceDataType", sequenceDataType)
 
@@ -724,7 +754,20 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 			},
 		}
 
-		sequences = append(sequences, sequence)
+		// If we are simply querying the keys without metadata (non enriched), then we don't need the
+		// the original DB record
+		if !includeRecord {
+			sequences = append(sequences, SequenceWithRecord{
+				Sequence: sequence,
+				Record:   nil,
+			})
+			continue
+		}
+
+		sequences = append(sequences, SequenceWithRecord{
+			Sequence: sequence,
+			Record:   &record,
+		})
 	}
 
 	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences))
