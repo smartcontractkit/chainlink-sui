@@ -50,7 +50,7 @@ type SuiPTBClient interface {
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
-	GetNormalizedModule(ctx context.Context, moduleKey string, eventKey string) (models.GetNormalizedMoveModuleResponse, error)
+	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
 	GetClient() sui.ISuiAPI
 	HashTxBytes(txBytes []byte) []byte
