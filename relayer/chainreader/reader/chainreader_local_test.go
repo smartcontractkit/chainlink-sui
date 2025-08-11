@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader"
+	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/stretchr/testify/require"
@@ -217,6 +219,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		err = chainReader.Start(ctx)
 		require.NoError(t, err)
 		log.Debugw("ChainReader started")
+	}()
+	go func() {
+		err = indexerInstance.Start(ctx)
+		require.NoError(t, err)
+		log.Debugw("Indexers started")
 	}()
 
 	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
@@ -461,6 +468,49 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			// Query for events
 			var counterEvent CounterDecrementEvent
 			sequences, err = chainReader.QueryKey(
+				ctx,
+				counterBinding,
+				filter,
+				limitAndSort,
+				&counterEvent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", "error", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+		require.NotEmpty(t, sequences, "Expected at least one event")
+	})
+
+	t.Run("QueryKey_WithMetadata", func(t *testing.T) {
+		type CounterDecrementEvent struct {
+			EventType string `json:"eventType"`
+			CounterID string `json:"counterId"`
+			NewValue  uint64 `json:"newValue"`
+		}
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "counter_decremented",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		sequences := []aptosCRConfig.SequenceWithMetadata{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var counterEvent CounterDecrementEvent
+			sequences, err = chainReader.(chainreader.ExtendedContractReader).QueryKeyWithMetadata(
 				ctx,
 				counterBinding,
 				filter,
