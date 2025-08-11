@@ -25,6 +25,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./cont
 # CCIP - LINK
 go run bindgen/main.go --moveConfig ./contracts/ccip/mock_link_token --input ./contracts/ccip/mock_link_token/sources/mock_link_token.move --output ./bindings/generated/ccip/mock_link_token/mock_link_token
 
+# CCIP - ETH
+go run bindgen/main.go --moveConfig ./contracts/ccip/mock_eth_token --input ./contracts/ccip/mock_eth_token/sources/mock_eth_token.move --output ./bindings/generated/ccip/mock_eth_token/mock_eth_token
+
 # CCIP - Managed Token
 go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./contracts/ccip/managed_token/sources/managed_token.move --output ./bindings/generated/ccip/managed_token/managed_token
 

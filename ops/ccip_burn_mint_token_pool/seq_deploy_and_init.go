@@ -14,8 +14,8 @@ type DeployBurnMintTokenPoolObjects struct {
 }
 
 type DeployBurnMintTokenPoolOutput struct {
-	CCIPPackageId string
-	Objects       DeployBurnMintTokenPoolObjects
+	BurnMintTPPackageID string
+	Objects             DeployBurnMintTokenPoolObjects
 }
 
 type DeployAndInitBurnMintTokenPoolInput struct {
@@ -110,7 +110,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		}
 
 		return DeployBurnMintTokenPoolOutput{
-			CCIPPackageId: deployReport.Output.PackageId,
+			BurnMintTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployBurnMintTokenPoolObjects{
 				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,
