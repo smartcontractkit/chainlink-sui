@@ -3,6 +3,7 @@ package bind
 import (
 	"fmt"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/utils"
 )
 
@@ -14,4 +15,12 @@ func ToSuiAddress(address string) (string, error) {
 	}
 
 	return string(normalized), nil
+}
+
+func GetFailedTxError(tx *models.SuiTransactionBlockResponse) error {
+	if tx.Effects.Status.Status != "failure" {
+		return nil
+	}
+
+	return fmt.Errorf("transaction failed with error: %s", tx.Effects.Status.Error)
 }

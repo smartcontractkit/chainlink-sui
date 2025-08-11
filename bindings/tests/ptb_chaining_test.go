@@ -61,12 +61,12 @@ func TestPTBChaining(t *testing.T) {
 
 		incrementBy10, err := counterContract.Encoder().IncrementBy(counterObj, 10)
 		require.NoError(t, err)
-		_, err = counterContract.BuildPTB(ctx, ptb, incrementBy10)
+		_, err = counterContract.AppendPTB(ctx, opts, ptb, incrementBy10)
 		require.NoError(t, err)
 
 		incrementMult, err := counterContract.Encoder().IncrementMult(counterObj, 5, 6)
 		require.NoError(t, err)
-		_, err = counterContract.BuildPTB(ctx, ptb, incrementMult)
+		_, err = counterContract.AppendPTB(ctx, opts, ptb, incrementMult)
 		require.NoError(t, err)
 
 		ptbTx, err := bind.ExecutePTB(ctx, opts, client, ptb)
@@ -93,12 +93,12 @@ func TestPTBChaining(t *testing.T) {
 
 		createToken1, err := contract.Encoder().CreateSuiToken()
 		require.NoError(t, err)
-		token1Result, err := contract.BuildPTB(ctx, ptb, createToken1)
+		token1Result, err := contract.AppendPTB(ctx, opts, ptb, createToken1)
 		require.NoError(t, err)
 
 		createToken2, err := contract.Encoder().CreateSuiToken()
 		require.NoError(t, err)
-		token2Result, err := contract.BuildPTB(ctx, ptb, createToken2)
+		token2Result, err := contract.AppendPTB(ctx, opts, ptb, createToken2)
 		require.NoError(t, err)
 
 		depositEncoded, err := contract.Encoder().DepositWithArgs(
@@ -107,7 +107,7 @@ func TestPTBChaining(t *testing.T) {
 			*token2Result,
 		)
 		require.NoError(t, err)
-		_, err = contract.BuildPTB(ctx, ptb, depositEncoded)
+		_, err = contract.AppendPTB(ctx, opts, ptb, depositEncoded)
 		require.NoError(t, err)
 
 		ptb.TransferObjects(

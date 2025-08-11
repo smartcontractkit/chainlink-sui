@@ -72,17 +72,17 @@ func TestProgrammableTransactionBlocks(t *testing.T) {
 		// Add multiple operations to PTB
 		encoded1, err := encoder.IncrementByOne(counterObj)
 		require.NoError(t, err)
-		_, err = counter.BuildPTB(ctx, ptb, encoded1)
+		_, err = counter.AppendPTB(ctx, opts, ptb, encoded1)
 		require.NoError(t, err)
 
 		encoded2, err := encoder.IncrementBy(counterObj, 5)
 		require.NoError(t, err)
-		_, err = counter.BuildPTB(ctx, ptb, encoded2)
+		_, err = counter.AppendPTB(ctx, opts, ptb, encoded2)
 		require.NoError(t, err)
 
 		encoded3, err := encoder.IncrementMult(counterObj, 2, 3)
 		require.NoError(t, err)
-		_, err = counter.BuildPTB(ctx, ptb, encoded3)
+		_, err = counter.AppendPTB(ctx, opts, ptb, encoded3)
 		require.NoError(t, err)
 
 		// Execute PTB (total: 1 + 5 + 6 = 12)
@@ -112,14 +112,14 @@ func TestProgrammableTransactionBlocks(t *testing.T) {
 		encodedCreate, err := encoder.Create()
 		require.NoError(t, err)
 
-		counterResult, err := counter.BuildPTB(ctx, ptb, encodedCreate)
+		counterResult, err := counter.AppendPTB(ctx, opts, ptb, encodedCreate)
 		require.NoError(t, err)
 		require.NotNil(t, counterResult)
 
 		encodedGetCount, err := encoder.GetCountWithArgs(*counterResult)
 		require.NoError(t, err)
 
-		countResult, err := counter.BuildPTB(ctx, ptb, encodedGetCount)
+		countResult, err := counter.AppendPTB(ctx, opts, ptb, encodedGetCount)
 		require.NoError(t, err)
 		require.NotNil(t, countResult)
 
@@ -195,13 +195,13 @@ func TestProgrammableTransactionBlocks(t *testing.T) {
 		// Check with object ref
 		encoded1, err := encoder.CheckWithObjectRef(complexObj)
 		require.NoError(t, err)
-		_, err = complexContract.BuildPTB(ctx, ptb, encoded1)
+		_, err = complexContract.AppendPTB(ctx, opts, ptb, encoded1)
 		require.NoError(t, err)
 
 		// Check with mut object ref
 		encoded2, err := encoder.CheckWithMutObjectRef(complexObj, uint64(200))
 		require.NoError(t, err)
-		_, err = complexContract.BuildPTB(ctx, ptb, encoded2)
+		_, err = complexContract.AppendPTB(ctx, opts, ptb, encoded2)
 		require.NoError(t, err)
 
 		// No need to transfer - object is shared

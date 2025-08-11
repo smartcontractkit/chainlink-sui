@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -157,47 +156,6 @@ func (c *FeeQuoterContract) Encoder() FeeQuoterEncoder {
 
 func (c *FeeQuoterContract) DevInspect() IFeeQuoterDevInspect {
 	return c.devInspect
-}
-
-func (c *FeeQuoterContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
 }
 
 type FeeQuoterState struct {
@@ -1315,7 +1273,7 @@ func (c feeQuoterEncoder) GetTimestampedPriceFields(tp TimestampedPrice) (*bind.
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_timestamped_price_fields", typeArgsList, typeParamsList, []string{
-		"TimestampedPrice",
+		"ccip::fee_quoter::TimestampedPrice",
 	}, []any{
 		tp,
 	}, []string{
@@ -1328,7 +1286,7 @@ func (c feeQuoterEncoder) GetTimestampedPriceFields(tp TimestampedPrice) (*bind.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetTimestampedPriceFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"TimestampedPrice",
+		"ccip::fee_quoter::TimestampedPrice",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1353,7 +1311,7 @@ func (c feeQuoterEncoder) GetTokenPrices(ref bind.Object, tokens []string) (*bin
 		ref,
 		tokens,
 	}, []string{
-		"vector<TimestampedPrice>",
+		"vector<ccip::fee_quoter::TimestampedPrice>",
 	})
 }
 
@@ -1371,7 +1329,7 @@ func (c feeQuoterEncoder) GetTokenPricesWithArgs(args ...any) (*bind.EncodedCall
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_prices", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<TimestampedPrice>",
+		"vector<ccip::fee_quoter::TimestampedPrice>",
 	})
 }
 
@@ -1945,7 +1903,7 @@ func (c feeQuoterEncoder) GetDestChainConfigFields(destChainConfig DestChainConf
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dest_chain_config_fields", typeArgsList, typeParamsList, []string{
-		"DestChainConfig",
+		"ccip::fee_quoter::DestChainConfig",
 	}, []any{
 		destChainConfig,
 	}, []string{
@@ -1975,7 +1933,7 @@ func (c feeQuoterEncoder) GetDestChainConfigFields(destChainConfig DestChainConf
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetDestChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"DestChainConfig",
+		"ccip::fee_quoter::DestChainConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2130,7 +2088,7 @@ func (c feeQuoterEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.Encoded
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
-		"StaticConfig",
+		"ccip::fee_quoter::StaticConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2144,7 +2102,7 @@ func (c feeQuoterEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.Encoded
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"StaticConfig",
+		"ccip::fee_quoter::StaticConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2164,7 +2122,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeCo
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config_fields", typeArgsList, typeParamsList, []string{
-		"TokenTransferFeeConfig",
+		"ccip::fee_quoter::TokenTransferFeeConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2181,7 +2139,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeCo
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"TokenTransferFeeConfig",
+		"ccip::fee_quoter::TokenTransferFeeConfig",
 	}
 
 	if len(args) != len(expectedParams) {

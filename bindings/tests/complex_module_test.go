@@ -161,4 +161,34 @@ func TestComplexModule(t *testing.T) {
 			require.Equal(t, someNumber, checkResult, "State should not be modified by DevInspect")
 		})
 	})
+
+	t.Run("CheckString", func(t *testing.T) {
+		testCases := []struct {
+			name  string
+			value string
+		}{
+			{"max u64", "some string value"},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				output, err := contract.DevInspect().CheckString(ctx, opts, tc.value)
+				require.NoError(t, err)
+				require.Equal(t, tc.value, output, "String round-trip failed for %s", tc.name)
+			})
+		}
+	})
+
+	t.Run("FlattenString", func(t *testing.T) {
+		someStrings := [][]string{{"hello", "world"}, {"foo", "bar"}}
+
+		flattened, err := contract.DevInspect().FlattenString(ctx, opts, someStrings)
+		require.NoError(t, err)
+		require.Len(t, flattened, 4)
+		require.Equal(t, "hello", flattened[0])
+		require.Equal(t, "world", flattened[1])
+		require.Equal(t, "foo", flattened[2])
+		require.Equal(t, "bar", flattened[3])
+	})
+
 }

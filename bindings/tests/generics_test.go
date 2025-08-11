@@ -99,7 +99,7 @@ func TestGenerics(t *testing.T) {
 		encoded, err := genericsContract.Encoder().CreateAndTransferToken(typeArgs)
 		require.NoError(t, err)
 
-		_, err = genericsContract.BuildPTB(ctx, ptb, encoded)
+		_, err = genericsContract.AppendPTB(ctx, opts, ptb, encoded)
 		require.NoError(t, err)
 
 		tx, err := bind.ExecutePTB(ctx, opts, client, ptb)

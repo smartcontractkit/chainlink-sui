@@ -236,6 +236,23 @@ func decodeBCSValue(data []byte, moveType string) (any, error) {
 
 		return result, nil
 
+	case "0x1::string::String":
+		var result string
+		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
+	// TODO: handle vectors recursively
+	case "vector<0x1::string::String>":
+		var result []string
+		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
 	default:
 		return data, fmt.Errorf("unsupported type for automatic decoding: %s", moveType)
 	}

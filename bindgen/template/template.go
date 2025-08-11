@@ -342,6 +342,29 @@ func getZeroValue(goType string) string {
 	}
 }
 
+func getFullyQualifiedType(moveType string, packageName string, moduleName string, structMap map[string]*tmplStruct) string {
+	// Handle vector types recursively
+	if strings.HasPrefix(moveType, "vector<") && strings.HasSuffix(moveType, ">") {
+		innerType := strings.TrimSuffix(strings.TrimPrefix(moveType, "vector<"), ">")
+		qualifiedInnerType := getFullyQualifiedType(innerType, packageName, moduleName, structMap)
+		return "vector<" + qualifiedInnerType + ">"
+	}
+
+	// Handle standard library types
+	switch moveType {
+	case "String":
+		return "0x1::string::String"
+	case "Option":
+		return "0x1::option::Option"
+	}
+
+	// check if this is a struct defined in this module
+	if _, ok := structMap[moveType]; ok {
+		return packageName + "::" + moduleName + "::" + moveType
+	}
+	return moveType
+}
+
 func Generate(data tmplData) (string, error) {
 	structMap := data.BuildStructMap()
 
@@ -365,11 +388,7 @@ func Generate(data tmplData) (string, error) {
 			return false
 		},
 		"getFullyQualifiedType": func(moveType string, packageName string, moduleName string) string {
-			// check if this is a struct defined in this module, else return as-is
-			if _, ok := structMap[moveType]; ok {
-				return packageName + "::" + moduleName + "::" + moveType
-			}
-			return moveType
+			return getFullyQualifiedType(moveType, packageName, moduleName, structMap)
 		},
 	}
 
