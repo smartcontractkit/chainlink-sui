@@ -91,13 +91,17 @@ func BuildOffRampExecutePTB(
 		return nil, nil, nil, err
 	}
 
+	// TODO: add init-execute command here
+
+	// TODO: pass ptb into GeneratePTBCommandsForTokenPools
 	generatedTokenPoolCommands, err := GeneratePTBCommandsForTokenPools(lggr, tokenPoolStateAddresses)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	// TODO: filter  out messages that have a receiver that is not registered
+	// TODO: filter out messages that have a receiver that is not registered
 
+	// TODO: move into its own file related to receives
 	// Generate receiver call commands
 	//nolint:gosec // G115:
 	receiverCommands, err := GenerateReceiverCallCommands(lggr, messages, uint16(len(generatedTokenPoolCommands)))
@@ -105,60 +109,65 @@ func BuildOffRampExecutePTB(
 		return nil, nil, nil, err
 	}
 
-	// Construct the final PTB commands by inserting generated commands between config commands
-	//nolint:gosec // G115:
-	finalPTBCommands := make([]config.ChainWriterPTBCommand, 0, len(ptbConfigs.PTBCommands)+len(generatedTokenPoolCommands)+len(receiverCommands))
+	// TODO: add make move vec command here (does this need to be done before or after the receiver calls?)
 
-	// Add the first command from config (init_execute)
-	finalPTBCommands = append(finalPTBCommands, ptbConfigs.PTBCommands[0])
+	// TODO: add finish-execute command here
 
-	// Insert all generated token pool commands
-	finalPTBCommands = append(finalPTBCommands, generatedTokenPoolCommands...)
+	// !! IGNORE CODE BELOW, WILL BE REMOVED - JUST KEPT FOR REFERENCE
+	// // Construct the final PTB commands by inserting generated commands between config commands
+	// //nolint:gosec // G115:
+	// finalPTBCommands := make([]config.ChainWriterPTBCommand, 0, len(ptbConfigs.PTBCommands)+len(generatedTokenPoolCommands)+len(receiverCommands))
 
-	// Insert all generated receiver commands
-	finalPTBCommands = append(finalPTBCommands, receiverCommands...)
+	// // Add the first command from config (init_execute)
+	// finalPTBCommands = append(finalPTBCommands, ptbConfigs.PTBCommands[0])
 
-	// Add the remaining commands from config (finish_execute)
-	endCommand := ptbConfigs.PTBCommands[len(ptbConfigs.PTBCommands)-1]
+	// // Insert all generated token pool commands
+	// finalPTBCommands = append(finalPTBCommands, generatedTokenPoolCommands...)
 
-	// Find and update the PTB dependency in the existing parameters
-	for i := range endCommand.Params {
-		if endCommand.Params[i].PTBDependency != nil {
-			//nolint:gosec // G115: PTB commands are typically small in number, overflow extremely unlikely
-			endCommand.Params[i].PTBDependency.CommandIndex = uint16(len(finalPTBCommands) - 1)
-		}
-	}
+	// // Insert all generated receiver commands
+	// finalPTBCommands = append(finalPTBCommands, receiverCommands...)
 
-	finalPTBCommands = append(finalPTBCommands, endCommand)
+	// // Add the remaining commands from config (finish_execute)
+	// endCommand := ptbConfigs.PTBCommands[len(ptbConfigs.PTBCommands)-1]
 
-	// Generate token pool arguments
-	tokenPoolArgs, typeArgs, err := GenerateArgumentsForTokenPools(s.AddressMappings["ccipObjectRef"], s.AddressMappings["clockObject"], lggr, tokenPoolStateAddresses)
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	// // Find and update the PTB dependency in the existing parameters
+	// for i := range endCommand.Params {
+	// 	if endCommand.Params[i].PTBDependency != nil {
+	// 		//nolint:gosec // G115: PTB commands are typically small in number, overflow extremely unlikely
+	// 		endCommand.Params[i].PTBDependency.CommandIndex = uint16(len(finalPTBCommands) - 1)
+	// 	}
+	// }
 
-	filteredMessages, err := s.FilterRegisteredReceivers(ctx, lggr, messages, signerPublicKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	// finalPTBCommands = append(finalPTBCommands, endCommand)
 
-	// Generate receiver call arguments
-	//nolint:gosec // G115:
-	receiverArgs, err := GenerateReceiverCallArguments(lggr, filteredMessages, uint16(len(generatedTokenPoolCommands)), s.AddressMappings["ccipObjectRef"])
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	// // Generate token pool arguments
+	// tokenPoolArgs, typeArgs, err := GenerateArgumentsForTokenPools(s.AddressMappings["ccipObjectRef"], s.AddressMappings["clockObject"], lggr, tokenPoolStateAddresses)
+	// if err != nil {
+	// 	return nil, nil, nil, err
+	// }
 
-	// Merge token pool and receiver arguments
-	ptbArguments := make(map[string]any)
-	for k, v := range tokenPoolArgs {
-		ptbArguments[k] = v
-	}
-	for k, v := range receiverArgs {
-		ptbArguments[k] = v
-	}
+	// filteredMessages, err := s.FilterRegisteredReceivers(ctx, lggr, messages, signerPublicKey)
+	// if err != nil {
+	// 	return nil, nil, nil, err
+	// }
 
-	return finalPTBCommands, ptbArguments, typeArgs, nil
+	// // Generate receiver call arguments
+	// //nolint:gosec // G115:
+	// receiverArgs, err := GenerateReceiverCallArguments(lggr, filteredMessages, uint16(len(generatedTokenPoolCommands)), s.AddressMappings["ccipObjectRef"])
+	// if err != nil {
+	// 	return nil, nil, nil, err
+	// }
+
+	// // Merge token pool and receiver arguments
+	// ptbArguments := make(map[string]any)
+	// for k, v := range tokenPoolArgs {
+	// 	ptbArguments[k] = v
+	// }
+	// for k, v := range receiverArgs {
+	// 	ptbArguments[k] = v
+	// }
+
+	// return finalPTBCommands, ptbArguments, typeArgs, nil
 }
 
 func GenerateReceiverCallCommands(
