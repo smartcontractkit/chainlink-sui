@@ -297,7 +297,7 @@ public fun test_extract_any2sui_message() {
     // Register a receiver
     receiver_registry::register_receiver(
         &mut ref,
-        @0x123, // receiver_state_id
+        //@0x123, // receiver_state_id
         vector[], // receiver_state_params
         TestTypeProof {}
     );

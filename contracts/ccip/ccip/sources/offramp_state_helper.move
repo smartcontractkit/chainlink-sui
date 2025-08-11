@@ -175,7 +175,7 @@ public fun extract_any2sui_message<TypeProof: drop>(
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
 
     let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);
-    let (_, _, _, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
+    let (_, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
     assert!(
         proof_typename == proof_tn,
         ETypeProofMismatch

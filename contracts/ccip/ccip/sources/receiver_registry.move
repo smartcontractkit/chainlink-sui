@@ -13,13 +13,6 @@ use ccip::ownable::OwnerCap;
 
 public struct ReceiverConfig has store, copy, drop {
     module_name: String,
-    // technically not needed, bc it is always "ccip_receive"
-    function_name: String,
-    // if the receiver state is an empty address, we assume that the receiver has a function sign like
-    // receiver::module_name::ccip_receive(ref: &CCIPObjectRef, receiver_package_id: address, receiver_params: osh::ReceiverParams): osh::ReceiverParams
-    // if the receiver state is not an empty address, we assume that the receiver has a function signature like
-    // receiver::module_name::ccip_receive(ref: &CCIPObjectRef, receiver_state: &mut ReceiverState, receiver_package_id: address, receiver_params: osh::ReceiverParams): osh::ReceiverParams
-    receiver_state_id: address,
     receiver_state_params: vector<address>,
     proof_typename: TypeName,
 }
@@ -32,7 +25,6 @@ public struct ReceiverRegistry has key, store {
 
 public struct ReceiverRegistered has copy, drop {
     receiver_package_id: address,
-    receiver_state_id: address,
     receiver_module_name: String,
     receiver_state_params: vector<address>,
     proof_typename: TypeName,
@@ -72,7 +64,6 @@ public fun initialize(
 
 public fun register_receiver<ProofType: drop>(
     ref: &mut CCIPObjectRef,
-    receiver_state_id: address,
     receiver_state_params: vector<address>,
     _proof: ProofType,
 ) {
@@ -91,8 +82,6 @@ public fun register_receiver<ProofType: drop>(
     let proof_typename = type_name::get<ProofType>();
     let receiver_config = ReceiverConfig {
         module_name: receiver_module_name,
-        function_name: string::utf8(b"ccip_receive"),
-        receiver_state_id,
         receiver_state_params,
         proof_typename,
     };
@@ -100,7 +89,6 @@ public fun register_receiver<ProofType: drop>(
 
     event::emit(ReceiverRegistered {
         receiver_package_id,
-        receiver_state_id,
         receiver_module_name,
         receiver_state_params,
         proof_typename,
@@ -145,19 +133,18 @@ public fun get_receiver_config(
     *registry.receiver_configs.get(&receiver_package_id)
 }
 
-public fun get_receiver_config_fields(rc: ReceiverConfig): (String, String, address, vector<address>, TypeName) {
-    (rc.module_name, rc.function_name, rc.receiver_state_id, rc.receiver_state_params, rc.proof_typename)
+public fun get_receiver_config_fields(rc: ReceiverConfig): (String, vector<address>, TypeName) {
+    (rc.module_name, rc.receiver_state_params, rc.proof_typename)
 }
 
-// this will return empty string if the receiver is not registered. this can be called by the PTB to get the module name of the receiver and confirm if this receiver is registered.
-// this is used by the PTB to get the module name of the receiver and confirm if this receiver is registered.
-public fun get_receiver_info(ref: &CCIPObjectRef, receiver_package_id: address): (String, address, vector<address>) {
+// this will return empty string if the receiver is not registered.
+public fun get_receiver_info(ref: &CCIPObjectRef, receiver_package_id: address): (String, vector<address>) {
     let registry = state_object::borrow<ReceiverRegistry>(ref);
 
     if (registry.receiver_configs.contains(&receiver_package_id)) {
         let receiver_config = registry.receiver_configs.get(&receiver_package_id);
-        return (receiver_config.module_name, receiver_config.receiver_state_id, receiver_config.receiver_state_params)
+        return (receiver_config.module_name, receiver_config.receiver_state_params)
     };
 
-    (string::utf8(b""), @0x0, vector[])
+    (string::utf8(b""), vector[])
 }
