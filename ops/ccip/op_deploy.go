@@ -17,7 +17,7 @@ type DeployCCIPObjects struct {
 	OwnerCapObjectId             string
 	CCIPObjectRefPointerObjectId string
 	CCIPObjectRefObjectId        string
-	// dynamic_dispatcher
+	// onramp_state_helper
 	SourceTransferCapObjectId string
 	// offramp_state_helper
 	DestTransferCapObjectId string
@@ -46,7 +46,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "state_object", "CCIPObjectRefPointer")
 	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "state_object", "CCIPObjectRef")
-	obj4, err4 := bind.FindObjectIdFromPublishTx(*tx, "dynamic_dispatcher", "SourceTransferCap")
+	obj4, err4 := bind.FindObjectIdFromPublishTx(*tx, "onramp_state_helper", "SourceTransferCap")
 	obj5, err5 := bind.FindObjectIdFromPublishTx(*tx, "offramp_state_helper", "DestTransferCap")
 
 	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil {

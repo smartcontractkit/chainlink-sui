@@ -79,7 +79,7 @@ public fun test_create_receiver_params() {
     assert!(source_chain == SOURCE_CHAIN_SELECTOR);
     
     // Clean up
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params, vector[]);
     
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
@@ -93,7 +93,7 @@ public fun test_get_source_chain_selector() {
     let source_chain = offramp_state_helper::get_source_chain_selector(&receiver_params);
     assert!(source_chain == different_chain);
     
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params, vector[]);
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
 
@@ -205,7 +205,7 @@ public fun test_get_token_param_data_wrong_index() {
     let (_receiver, _source_amount, _dest_token_address, _source_pool_address, _source_pool_data, _offchain_data) = 
         offramp_state_helper::get_token_param_data(&receiver_params, 0);
     
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params, vector[]);
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
 
@@ -273,9 +273,9 @@ public fun test_complete_token_transfer() {
 
     // let local_amount = coin::value(&test_coin);
     // Complete the token transfer
-    let updated_receiver_params =offramp_state_helper::complete_token_transfer(
+    let completed_transfer = offramp_state_helper::complete_token_transfer(
         &ref,
-        receiver_params,
+        &mut receiver_params,
         0, // index
         TestTypeProof {}
     );
@@ -284,7 +284,8 @@ public fun test_complete_token_transfer() {
     coin::burn_for_testing(test_coin);
     
     // Clean up - the receiver_params should have completed transfers
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, updated_receiver_params);
+    let completed_transfers = vector[completed_transfer];
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params, completed_transfers);
     
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
@@ -324,7 +325,7 @@ public fun test_extract_any2sui_message() {
     assert!(extracted_message.is_some());
     
     // Clean up
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params, vector[]);
     
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
@@ -337,7 +338,7 @@ public fun test_deconstruct_receiver_params_empty() {
     let receiver_params = offramp_state_helper::create_receiver_params(&dest_cap, SOURCE_CHAIN_SELECTOR);
     
     // Should succeed with no token transfers and no message
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params, vector[]);
     
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 } 

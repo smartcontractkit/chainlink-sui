@@ -668,7 +668,6 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             b"updated_token_pool",
             type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
@@ -684,7 +683,6 @@ public fun test_set_pool_comprehensive() {
             &mut ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2, // same package ID
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1, // different state address
             string::utf8(b"should_not_update"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -697,7 +695,6 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_2, // unchanged
             b"updated_token_pool", // unchanged
             type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
@@ -754,7 +751,6 @@ public fun test_register_and_unregister_as_non_admin() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS_2
         );
@@ -820,7 +816,6 @@ public fun test_set_pool_unregistered_token() {
             &mut ref,
             @0x999, // unregistered token
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             string::utf8(b"test_pool"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -853,7 +848,6 @@ public fun test_set_pool_unauthorized() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS_2
         );
@@ -874,7 +868,6 @@ public fun test_set_pool_unauthorized() {
             &mut ref,
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             string::utf8(b"unauthorized_update"),
             vector[], // lock_or_burn_params
             vector[], // release_or_mint_params
@@ -930,7 +923,6 @@ public fun test_register_pool_already_registered() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"first_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -941,7 +933,6 @@ public fun test_register_pool_already_registered() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_2,
             b"second_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -974,7 +965,6 @@ public fun test_transfer_admin_role_not_administrator() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -1018,7 +1008,6 @@ public fun test_accept_admin_role_not_pending() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS
         );
@@ -1066,7 +1055,6 @@ public fun test_accept_admin_role_no_pending_transfer() {
             &treasury_cap,
             &coin_metadata,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // MOCK_TOKEN_POOL_STATE_ADDRESS_1,
             b"test_pool",
             TOKEN_ADMIN_ADDRESS
         );

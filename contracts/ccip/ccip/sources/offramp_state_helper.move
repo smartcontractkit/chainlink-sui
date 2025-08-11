@@ -11,11 +11,13 @@ use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
 
 const EWrongIndexInReceiverParams: u64 = 1;
-const ETokenTransferAlreadyCompleted: u64 = 2;
+// const ETokenTransferAlreadyCompleted: u64 = 2;
 const ETokenPoolAddressMismatch: u64 = 3;
 const ETypeProofMismatch: u64 = 4;
-const ETokenTransferFailed: u64 = 5;
+// const ETokenTransferFailed: u64 = 5;
 const ECCIPReceiveFailed: u64 = 6;
+const EWrongNumberOfCompletedTransfers: u64 = 7;
+const ETokenTransferMismatch: u64 = 8;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -32,6 +34,12 @@ public struct DestTransferCap has key, store {
     id: UID,
 }
 
+public struct CompletedDestTokenTransfer {
+    receiver: address,
+    dest_token_address: address,
+    dest_token_pool_package_id: address,
+}
+
 public struct DestTokenTransfer has copy, drop {
     receiver: address,
     // the amount of token to transfer, denoted from the source chain
@@ -44,8 +52,6 @@ public struct DestTokenTransfer has copy, drop {
     source_pool_address: vector<u8>,
     source_pool_data: vector<u8>,
     offchain_token_data: vector<u8>,
-    // whether the token transfer has been completed
-    completed: bool
 }
 
 fun init(_witness: OFFRAMP_STATE_HELPER, ctx: &mut TxContext) {
@@ -85,13 +91,11 @@ public fun add_dest_token_transfer(
         DestTokenTransfer {
             receiver,
             source_amount,
-            // local_amount: 0, // to be calculated by the destination token pool
             dest_token_address,
             dest_token_pool_package_id,
             source_pool_address,
             source_pool_data,
             offchain_token_data: offchain_data,
-            completed: false, // to be set to true by the destination token pool
         }
     );
 }
@@ -130,17 +134,17 @@ public fun get_token_param_data(
 /// and set the local amount.
 public fun complete_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
-    mut receiver_params: ReceiverParams,
+    receiver_params: &mut ReceiverParams,
     index: u64,
     _: TypeProof,
-): ReceiverParams {
+): CompletedDestTokenTransfer {
     assert!(
         index < receiver_params.params.length(),
         EWrongIndexInReceiverParams,
     );
 
     let token_transfer = receiver_params.params[index];
-    assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
+    // assert!(!token_transfer.completed, ETokenTransferAlreadyCompleted);
     let token_config = registry::get_token_config(ref, token_transfer.dest_token_address);
     let (token_pool_package_id,  _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
     assert!(
@@ -151,8 +155,13 @@ public fun complete_token_transfer<TypeProof: drop>(
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
-    receiver_params.params[index].completed = true;
-    receiver_params
+    // receiver_params.params[index].completed = true;
+    // receiver_params
+    CompletedDestTokenTransfer {
+        receiver: token_transfer.receiver,
+        dest_token_address: token_transfer.dest_token_address,
+        dest_token_pool_package_id: token_transfer.dest_token_pool_package_id,
+    }
 }
 
 /// called by ccip receiver directly, permissioned by the type proof of the receiver.
@@ -183,20 +192,32 @@ public fun extract_any2sui_message<TypeProof: drop>(
 public fun deconstruct_receiver_params(
     _: &DestTransferCap,
     receiver_params: ReceiverParams,
+    mut completed_transfers: vector<CompletedDestTokenTransfer>,
 ) {
     let ReceiverParams {
-        params,
+        mut params,
         message,
         source_chain_selector: _,
     } = receiver_params;
 
     // make sure all token transfers are completed
-    let mut i = 0;
-    let number_of_tokens_in_msg = params.length();
-    while (i < number_of_tokens_in_msg) {
-        assert!(params[i].completed, ETokenTransferFailed);
-        i = i + 1;
+    assert!(completed_transfers.length() == params.length(), EWrongNumberOfCompletedTransfers);
+    while (!completed_transfers.is_empty()) {
+        let completed_transfer = completed_transfers.pop_back();
+        let CompletedDestTokenTransfer {
+            receiver,
+            dest_token_address,
+            dest_token_pool_package_id,
+        } = completed_transfer;
+        let token_transfer = params.pop_back();
+        assert!(
+            receiver == token_transfer.receiver &&
+            dest_token_address == token_transfer.dest_token_address &&
+            dest_token_pool_package_id == token_transfer.dest_token_pool_package_id,
+            ETokenTransferMismatch
+        );
     };
+    completed_transfers.destroy_empty();
 
     // make sure the any2sui message is extracted
     assert!(message.is_none(), ECCIPReceiveFailed);
