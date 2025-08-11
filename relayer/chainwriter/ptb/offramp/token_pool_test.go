@@ -1,6 +1,6 @@
 //go:build integration
 
-package expander_test
+package offramp_test
 
 import (
 	"context"
