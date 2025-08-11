@@ -39,31 +39,31 @@ var addressMappings = map[string]string{
 	"clockObject": "0x6",
 }
 
-// ExpectedPoolInfo represents the expected values for a test scenario
-type ExpectedPoolInfo struct {
-	TokenPoolPackageIds     []string
-	TokenPoolStateAddresses []string
-	TokenPoolModules        []string
-	TokenTypes              []string
-}
-
-type ExpectedReceiverInfo struct {
-	PackageIds []string
-}
-
-func GenerateBSCEncodedTokenPoolInfo() ([]any, string) {
-	tokenPoolInfo := expander.GetPoolInfosResult{
-		TokenPoolPackageIds: []expander.SuiAddress{
-			{0x1},
+func GenerateBSCEncodedTokenConfigs() ([]any, string) {
+	tokenConfigs := []expander.TokenConfig{
+		{
+			TokenPoolPackageId:   expander.SuiAddress{0x1},
+			TokenPoolModule:      "0x3",
+			TokenType:            "0x66::link::LINK",
+			Administrator:        expander.SuiAddress{0x4},
+			PendingAdministrator: expander.SuiAddress{0x5},
+			TypeProof:            "0x77::lock_release_token_pool::TypeProof",
+			LockOrBurnParams:     []string{"0x7"},
+			ReleaseOrMintParams:  []string{"0x8"},
 		},
-		TokenPoolStateAddresses: []expander.SuiAddress{
-			{0x2},
+		{
+			TokenPoolPackageId:   expander.SuiAddress{0x9},
+			TokenPoolModule:      "0x11",
+			TokenType:            "0x12::usdc::USDC",
+			Administrator:        expander.SuiAddress{0x13},
+			PendingAdministrator: expander.SuiAddress{0x14},
+			TypeProof:            "0x88::usdc_token_pool::TypeProof",
+			LockOrBurnParams:     []string{"0x15"},
+			ReleaseOrMintParams:  []string{"0x16"},
 		},
-		TokenPoolModules: []string{"0x3"},
-		TokenTypes:       []string{"0x66::link::LINK", "0x7::usdc::USDC"},
 	}
 
-	bcsBytes, err := bcs.Marshal(tokenPoolInfo)
+	bcsBytes, err := bcs.Marshal(tokenConfigs)
 	if err != nil {
 		panic(err)
 	}
