@@ -92,44 +92,50 @@ func GeneratePTBCommandsForTokenPools(
 	ctx context.Context,
 	lggr logger.Logger,
 	tokenPools []TokenPool,
-	ptbClient client.SuiPTBClient,
+	ptbClient *client.PTBClient,
 	ptb *transaction.Transaction,
-	ccipObjectRef string,
 	signerAddress string,
-	ccipPackageId string,
-) (int, error) {
+	ccipObjectRef string,
+) ([]*transaction.Argument, error) {
 
-	commands := make([]cwConfig.ChainWriterPTBCommand, len(tokenPools))
-	numberCommandsReturningHotPotato := 0
+	results := make([]*transaction.Argument, len(tokenPools))
+	cachedArgs := make(map[string]transaction.Argument)
+
 	for i, tokenPool := range tokenPools {
-		ptbConfig, err := GetTokenPoolPTBConfig(ctx, lggr, ptbClient, tokenPool)
+		ptbCommand, err := GetTokenPoolPTBCommand(ctx, lggr, ptbClient, tokenPool)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 
-		arguments, err := GetTokenPoolArguments(lggr, tokenPool)
+		arguments, err := GetTokenPoolArguments(lggr, tokenPool, ptbCommand, ccipObjectRef, i)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 
-		lggr.Debugw("PTB config", "ptbConfig", ptbConfig)
+		lggr.Debugw("PTB commands", "ptbCommands", ptbCommand)
 		lggr.Debugw("Arguments", "arguments", arguments)
 
-		// ptb.MoveCall(
-		// 	models.SuiAddress(*ptbConfig.PackageId),
-		// 	*ptbConfig.ModuleId,
-		// 	*ptbConfig.Function,
-		// 	arguments,
-		// )
-
-		numberCommandsReturningHotPotato += 1
-
-		commands[i] = *ptbConfig
+		output, err := ProcessMoveCall(
+			ctx,
+			lggr,
+			ptb,
+			ptbCommand,
+			arguments,
+			&cachedArgs,
+			ptbClient,
+		)
+		if err != nil {
+			return nil, err
+		}
+		results[i] = output
 	}
 
-	return numberCommandsReturningHotPotato, nil
+	lggr.Debugw("Results for token pools commands", "results", results)
+
+	return results, nil
 }
 
+// TODO: replace by bindings, only used here for testing..
 func GetTokenPoolByTokenAddress(
 	ctx context.Context,
 	lggr logger.Logger,
@@ -238,74 +244,112 @@ func GetTokenPoolByTokenAddress(
 	return tokenPools, nil
 }
 
-func GetTokenPoolPTBConfig(
+func GetTokenPoolPTBCommand(
 	ctx context.Context,
 	lggr logger.Logger,
-	ptbClient client.SuiPTBClient,
+	ptbClient *client.PTBClient,
 	tokenPoolInfo TokenPool,
-) (*cwConfig.ChainWriterPTBCommand, error) {
+) (cwConfig.ChainWriterPTBCommand, error) {
 	normalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenPoolInfo.PackageId, tokenPoolInfo.ModuleId)
 	if err != nil {
 		lggr.Errorw("Error getting normalized module", "error", err)
-		return nil, err
+		return cwConfig.ChainWriterPTBCommand{}, err
 	}
 
 	functions := normalizedModule.ExposedFunctions
-	ptbConfig := cwConfig.ChainWriterPTBCommand{}
 
 	if functions[tokenPoolInfo.Function] == nil {
 		lggr.Errorw("Function not found", "function", tokenPoolInfo.Function)
-		return nil, fmt.Errorf("function not found: %s", tokenPoolInfo.Function)
-	} else {
-		function := functions[tokenPoolInfo.Function].(map[string]any)
-		decodedParameters, err := DecodeParameters(lggr, function)
-		if err != nil {
-			lggr.Errorw("Error decoding parameters", "error", err)
-			return nil, err
-		}
-		isValid, _ := IsFunctionValid(lggr, decodedParameters, tokenPoolInfo.Function)
-		if !isValid {
-			// So the decoded parameters are not available for use in the PTB command. They are not needed.
-			// Just log and return the error.
-			lggr.Errorw("function is not valid", "function", function)
-			return nil, fmt.Errorf("function is not valid: %s", tokenPoolInfo.Function)
-		}
-
-		lggr.Debugw("decodedParameters", "decodedParameters", decodedParameters)
-
-		ptbParams := []codec.SuiFunctionParam{}
-		for _, param := range decodedParameters {
-			if param.Module == "tx_context" && param.Address == "0x2" {
-				lggr.Debugw("Skipping out tx_context", "param", param)
-				continue
-			}
-
-			isMutable := param.Reference == "MutableReference"
-			ptbParams = append(ptbParams, codec.SuiFunctionParam{
-				Name:      buildParameterName(param, tokenPoolInfo.Index),
-				Type:      param.Type,
-				Required:  true,
-				IsMutable: &isMutable,
-			})
-		}
-
-		ptbConfig = cwConfig.ChainWriterPTBCommand{
-			Type:      codec.SuiPTBCommandMoveCall,
-			PackageId: offramp.AnyPointer(tokenPoolInfo.PackageId),
-			ModuleId:  offramp.AnyPointer(tokenPoolInfo.ModuleId),
-			Function:  offramp.AnyPointer(tokenPoolInfo.Function),
-			Params:    ptbParams,
-		}
+		return cwConfig.ChainWriterPTBCommand{}, fmt.Errorf("function not found: %s", tokenPoolInfo.Function)
 	}
 
-	return &ptbConfig, nil
+	function := functions[tokenPoolInfo.Function].(map[string]any)
+	decodedParameters, err := DecodeParameters(lggr, function)
+	if err != nil {
+		lggr.Errorw("Error decoding parameters", "error", err)
+		return cwConfig.ChainWriterPTBCommand{}, err
+	}
+	isValid, _ := IsFunctionValid(lggr, decodedParameters, tokenPoolInfo.Function)
+	if !isValid {
+		// So the decoded parameters are not available for use in the PTB command. They are not needed.
+		// Just log and return the error.
+		lggr.Errorw("function is not valid", "function", function)
+		return cwConfig.ChainWriterPTBCommand{}, fmt.Errorf("function is not valid: %s", tokenPoolInfo.Function)
+	}
+
+	lggr.Debugw("decodedParameters", "decodedParameters", decodedParameters)
+
+	ptbParams := []codec.SuiFunctionParam{}
+	for _, param := range decodedParameters {
+		// skip SUI move tx_context
+		if param.Module == "tx_context" && param.Address == "0x2" {
+			lggr.Debugw("Skipping out tx_context", "param", param)
+			continue
+		}
+
+		// skip receiver params hot potato
+		if param.Module == "offramp_state_helper" && param.Name == "ReceiverParams" {
+			lggr.Debugw("Skipping out offramp_state_helper", "param", param)
+			continue
+		}
+
+		isMutable := param.Reference == "MutableReference"
+		ptbParams = append(ptbParams, codec.SuiFunctionParam{
+			Name:      buildParameterName(param, tokenPoolInfo.Index),
+			Type:      param.Type,
+			Required:  true,
+			IsMutable: &isMutable,
+			IsGeneric: isParameterGeneric(param),
+		})
+	}
+
+	return cwConfig.ChainWriterPTBCommand{
+		Type:      codec.SuiPTBCommandMoveCall,
+		PackageId: offramp.AnyPointer(tokenPoolInfo.PackageId),
+		ModuleId:  offramp.AnyPointer(tokenPoolInfo.ModuleId),
+		Function:  offramp.AnyPointer(tokenPoolInfo.Function),
+		Params:    ptbParams,
+	}, nil
 }
 
 func GetTokenPoolArguments(
 	lggr logger.Logger,
 	tokenPoolInfo TokenPool,
+	command cwConfig.ChainWriterPTBCommand,
+	ccipObjectRef string,
+	index int,
 ) (cwConfig.Arguments, error) {
-	return cwConfig.Arguments{}, nil
+
+	arguments := map[string]any{}
+
+	// Argument 0 is the ccipObjectRef
+	ccipObjectRefArgument := command.Params[0]
+	arguments[ccipObjectRefArgument.Name] = ccipObjectRef
+
+	// Argument 1 is the index (convert int to uint64 for U64 Move type)
+	remoteChainSelectorArgument := command.Params[1]
+	arguments[remoteChainSelectorArgument.Name] = uint64(index)
+
+	// the other arguments are the dynamic ones
+	genericArgs := map[string]string{}
+
+	i := 0
+	for _, param := range command.Params[2:] {
+		arguments[param.Name] = tokenPoolInfo.ReleaseOrMintParams[i]
+
+		if param.IsGeneric {
+			genericArgs[param.Name] = tokenPoolInfo.TokenType
+		}
+
+		i++
+	}
+
+	tokenPoolArgs := cwConfig.Arguments{
+		Args:     arguments,
+		ArgTypes: genericArgs,
+	}
+
+	return tokenPoolArgs, nil
 }
 
 // getTokenPoolByTokenAddress gets token pool addresses for given token addresses (internal method)
@@ -407,6 +451,11 @@ func buildParameterName(param SuiArgumentMetadata, tokenPoolIndex int) string {
 	}
 
 	return fmt.Sprintf("token_pool_%d_%s", tokenPoolIndex, suffix)
+}
+
+func isParameterGeneric(param SuiArgumentMetadata) bool {
+	typeArgs := param.TypeArguments
+	return len(typeArgs) > 0
 }
 
 func decodeParam(lggr logger.Logger, param any, reference string) SuiArgumentMetadata {
@@ -577,8 +626,20 @@ func IsFunctionValid(lggr logger.Logger, decodedParameters []SuiArgumentMetadata
 			return false, nil
 		}
 	case ReleaseOrMint:
-		// TODO: Implement
-		return false, nil
+		if param0.Module != "state_object" || param0.Name != "CCIPObjectRef" {
+			lggr.Errorw("CCIPObjectRef is not the first parameter", "module", param0.Module, "name", param0.Name)
+			return false, nil
+		}
+
+		if param1.Module != "offramp_state_helper" || param1.Name != "ReceiverParams" {
+			lggr.Errorw("ReceiverParams is not the second parameter", "module", param1.Module, "name", param1.Name)
+			return false, nil
+		}
+
+		if param2.Name != "U64" && param2.Type != "int64" {
+			lggr.Errorw("U64 is not the third parameter", "parameter", param2)
+			return false, nil
+		}
 	default:
 		lggr.Errorw("Invalid function name", "name", name)
 		return false, nil

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/holiman/uint256"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -411,6 +412,15 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 	client, err := ptbClient.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 100, "WaitForLocalExecution")
 	require.NoError(t, err, "failed to create PTB client")
 
+	tokenAmount := ccipocr3.RampTokenAmount{
+		DestTokenAddress: normalizeTo32Bytes(envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId),
+		Amount:           ccipocr3.NewBigInt(big.NewInt(300)),
+	}
+
+	ctx := context.Background()
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	t.Run("ParseParamType", func(t *testing.T) {
 		jsonStr := `{"MutableReference": {"Struct": {"address": "0x2", "module": "object", "name": "UID"}}}`
 		var param interface{}
@@ -470,7 +480,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("GetTokenPoolPTBConfig", func(t *testing.T) {
+	t.Run("GetTokenPoolPTBCommand", func(t *testing.T) {
 		tokenPoolInfo := token_pool.TokenPool{
 			PackageId: envSettings.TokenPoolReport.Output.LockReleaseTPPackageID,
 			ModuleId:  "lock_release_token_pool",
@@ -483,16 +493,16 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 			},
 		}
 
-		ptbConfig, err := token_pool.GetTokenPoolPTBConfig(context.Background(), lggr, client, tokenPoolInfo)
+		ptbCommand, err := token_pool.GetTokenPoolPTBCommand(context.Background(), lggr, client, tokenPoolInfo)
 		require.NoError(t, err, "failed to get token pool PTB config")
-		lggr.Debugw("PTB config", "ptbConfig", *ptbConfig)
+		lggr.Debugw("PTB config", "ptbConfig", ptbCommand)
 
-		require.Equal(t, ptbConfig.Type, codec.SuiPTBCommandMoveCall)
-		require.Equal(t, ptbConfig.PackageId, offramp.AnyPointer(tokenPoolInfo.PackageId))
-		require.Equal(t, ptbConfig.ModuleId, offramp.AnyPointer(tokenPoolInfo.ModuleId))
-		require.Equal(t, ptbConfig.Function, offramp.AnyPointer(tokenPoolInfo.Function))
-		require.Equal(t, len(ptbConfig.Params), 5)
-		params := ptbConfig.Params
+		require.Equal(t, ptbCommand.Type, codec.SuiPTBCommandMoveCall)
+		require.Equal(t, ptbCommand.PackageId, offramp.AnyPointer(tokenPoolInfo.PackageId))
+		require.Equal(t, ptbCommand.ModuleId, offramp.AnyPointer(tokenPoolInfo.ModuleId))
+		require.Equal(t, ptbCommand.Function, offramp.AnyPointer(tokenPoolInfo.Function))
+		require.Equal(t, len(ptbCommand.Params), 5)
+		params := ptbCommand.Params
 
 		ccipObjectRef := params[0]
 		coin := params[1]
@@ -510,6 +520,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		require.Equal(t, clock.Type, "object_id")
 		require.Equal(t, state.Name, "token_pool_0_lock_release_token_pool_LockReleaseTokenPoolState")
 		require.Equal(t, state.Type, "object_id")
+		require.Equal(t, state.IsGeneric, true)
 
 		for _, param := range params {
 			// check that hot potato does not exist
@@ -519,11 +530,6 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 	})
 
 	t.Run("GetTokenPoolByTokenAddress", func(t *testing.T) {
-		tokenAmount := ccipocr3.RampTokenAmount{
-			DestTokenAddress: normalizeTo32Bytes(envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId),
-			Amount:           ccipocr3.NewBigInt(big.NewInt(300)),
-		}
-
 		tokenPoolInfos, err := token_pool.GetTokenPoolByTokenAddress(
 			context.Background(),
 			lggr,
@@ -550,6 +556,33 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 	})
 
 	t.Run("GeneratePTBCommandsForTokenPools", func(t *testing.T) {
-		t.Skip("Skipping GeneratePTBCommandsForTokenPools test")
+		ccipPackageId := envSettings.CCIPReport.Output.CCIPPackageId
+		ccipObjectRef := envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId
+
+		tokenPoolInfos, err := token_pool.GetTokenPoolByTokenAddress(
+			context.Background(),
+			lggr,
+			[]ccipocr3.RampTokenAmount{tokenAmount},
+			envSettings.AccountAddress,
+			ccipPackageId,
+			ccipObjectRef,
+			client,
+		)
+		require.NoError(t, err, "failed to get token pool by token address")
+
+		ptb := transaction.NewTransaction()
+
+		tokenPoolCommands, err := token_pool.GeneratePTBCommandsForTokenPools(
+			cancelCtx,
+			lggr,
+			tokenPoolInfos,
+			client,
+			ptb,
+			envSettings.AccountAddress,
+			ccipObjectRef,
+		)
+		require.NoError(t, err, "failed to generate PTB commands for token pools")
+		lggr.Debugw("Token pool commands", "tokenPoolCommands", tokenPoolCommands)
+		require.Equal(t, len(tokenPoolCommands), 1)
 	})
 }
