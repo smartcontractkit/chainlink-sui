@@ -19,7 +19,6 @@ import (
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
-	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
@@ -66,8 +65,7 @@ func BuildOffRampExecutePTB(
 	client sui.ISuiAPI,
 	ptb *transaction.Transaction,
 	args config.Arguments,
-	ptbConfigs *config.ChainWriterFunction, // TODO: needed?
-	signerPublicKey []byte,
+	signerAddress string,
 	addressMappings OffRampAddressMappings,
 ) (err error) {
 	offrampArgs := &SuiOffRampExecCallArgs{}
@@ -76,6 +74,7 @@ func BuildOffRampExecutePTB(
 		return fmt.Errorf("failed to decode args for offramp execute PTB: %w", err)
 	}
 
+	coinMetadataAddresses := make([]string, 0)
 	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0)
 	messages := make([]ccipocr3.Message, 0)
 
@@ -84,12 +83,17 @@ func BuildOffRampExecutePTB(
 		for _, message := range report.Messages {
 			tokenAmounts = append(tokenAmounts, message.TokenAmounts...)
 			messages = append(messages, message)
+			for _, tokenAmount := range message.TokenAmounts {
+				coinMetadataAddresses = append(coinMetadataAddresses, tokenAmount.DestTokenAddress.String())
+			}
 		}
 	}
 
+	devInspectSigner := signer.NewDevInspectSigner(signerAddress)
+
 	// Call options for bindings DevInspect calls
 	callOpts := &bind.CallOpts{
-		Signer:           signer.NewPrivateKeySigner("..."),
+		Signer:           devInspectSigner,
 		WaitForExecution: true,
 	}
 
@@ -101,11 +105,9 @@ func BuildOffRampExecutePTB(
 	tokenAdminRegistryContract := ccipPkg.TokenAdminRegistry().(*module_token_admin_registry.TokenAdminRegistryContract)
 	tokenAdminRegistryDevInspect := tokenAdminRegistryContract.DevInspect()
 
-	tokenAdminRegistryDevInspect.GetPools(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef})
-
-	tokenPoolStateAddresses, err := GetTokenPoolByTokenAddress(ctx, lggr, tokenAmounts, signerPublicKey)
+	pools, err := tokenAdminRegistryDevInspect.GetPools(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
 	if err != nil {
-		return fmt.Errorf("failed to get token pool by token address offramp execute PTB: %w", err)
+		return fmt.Errorf("failed to get pools from token admin registry: %w", err)
 	}
 
 	// Set the offramp package interface from bindings
@@ -139,7 +141,7 @@ func BuildOffRampExecutePTB(
 
 	// Generate N token pool commands and attach them to the PTB, each command must return a result
 	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
-	generatedTokenPoolCommands, err := GeneratePTBCommandsForTokenPools(ptb, lggr, tokenPoolStateAddresses)
+	tokenPoolCommandsResults, err := GeneratePTBCommandsForTokenPools(lggr, ptb, pools)
 	if err != nil {
 		return err
 	}
@@ -149,20 +151,17 @@ func BuildOffRampExecutePTB(
 	// TODO: move into its own file related to receives
 	// Generate receiver call commands
 	//nolint:gosec // G115:
-	receiverCommands, err := GenerateReceiverCallCommands(lggr, messages, uint16(len(generatedTokenPoolCommands)))
+	receiverCommands, err := GenerateReceiverCallCommands(lggr, messages, uint16(len(tokenPoolCommandsResults)))
 	if err != nil {
 		return err
 	}
 
 	// Make a vector of hot potatoes from all the token pool commands' results.
 	// This will be passed into the final `finish_execute` call.
-	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer("sui:0x_::_::_"), generatedTokenPoolCommands)
+	// TODO: check if passing nil as a type is allowed for make_move_vec
+	hotPotatoVecResult := ptb.MakeMoveVec(nil, tokenPoolCommandsResults)
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
-	// "&mut OffRampState",
-	// "osh::ReceiverParams",
-	// "vector<osh::CompletedDestTokenTransfer>",
-	// TODO: how do we pass the vec of hot potatoes directly into this method since they are PTB dependencies?
 	_, err = offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
@@ -312,9 +311,9 @@ func GenerateReceiverCallArguments(
 // GeneratePTBCommands generates PTB commands for each of the token pool addresses.
 // This method also attached the commands directly into the PTB and returns the set of results from each command.
 func GeneratePTBCommandsForTokenPools(
-	ptb *transaction.Transaction,
 	lggr logger.Logger,
-	tokenPools []TokenPool,
+	ptb *transaction.Transaction,
+	tokenPools []string,
 ) ([]transaction.Argument, error) {
 	// TODO: implement this
 	return nil, fmt.Errorf("not implemented")

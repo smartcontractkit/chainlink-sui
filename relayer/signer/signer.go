@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"log"
 
 	"golang.org/x/crypto/blake2b"
@@ -130,4 +131,29 @@ func messageWithIntent(message []byte) []byte {
 	copy(intentMessage[len(intent):], message)
 
 	return intentMessage
+}
+
+// DevInspectSigner is an interface that exposes the same methods as a regular signer but does not sign anything.
+// It is meant to be used for DevInspectCalls where only the address is needed.
+type DevInspectSigner struct {
+	Address string
+}
+
+type DevInspectSuiSigner interface {
+	Sign(message []byte) ([]string, error)
+	GetAddress() (string, error)
+}
+
+func NewDevInspectSigner(address string) DevInspectSuiSigner {
+	return &DevInspectSigner{
+		Address: address,
+	}
+}
+
+func (diSigner *DevInspectSigner) Sign(message []byte) ([]string, error) {
+	return nil, fmt.Errorf("signing not implemented for DevInspectSuiSigner")
+}
+
+func (diSigner *DevInspectSigner) GetAddress() (string, error) {
+	return diSigner.Address, nil
 }
