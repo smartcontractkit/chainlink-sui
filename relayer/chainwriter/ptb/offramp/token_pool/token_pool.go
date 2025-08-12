@@ -269,7 +269,7 @@ func GetTokenPoolPTBCommand(
 		lggr.Errorw("Error decoding parameters", "error", err)
 		return cwConfig.ChainWriterPTBCommand{}, err
 	}
-	isValid, _ := IsFunctionValid(lggr, decodedParameters, tokenPoolInfo.Function)
+	isValid := IsFunctionValid(lggr, decodedParameters, tokenPoolInfo.Function)
 	if !isValid {
 		// So the decoded parameters are not available for use in the PTB command. They are not needed.
 		// Just log and return the error.
@@ -351,96 +351,6 @@ func GetTokenPoolArguments(
 
 	return tokenPoolArgs, nil
 }
-
-// getTokenPoolByTokenAddress gets token pool addresses for given token addresses (internal method)
-// func GetTokenPoolByTokenAddress(
-// 	ctx context.Context,
-// 	lggr logger.Logger,
-// 	tokenAmounts []ccipocr3.RampTokenAmount,
-// 	signerPublicKey []byte,
-// ) ([]TokenPool, error) {
-// 	coinMetadataAddresses := make([]string, len(tokenAmounts))
-// 	for i, tokenAmount := range tokenAmounts {
-// 		address := tokenAmount.DestTokenAddress
-// 		coinMetadataAddresses[i] = "0x" + hex.EncodeToString(address)
-// 	}
-
-// 	lggr.Debugw("getting token pool infos",
-// 		"packageID", s.AddressMappings["ccipPackageId"],
-// 		"ccipObjectRef", s.AddressMappings["ccipObjectRef"],
-// 		"coinMetadataAddresses", coinMetadataAddresses)
-
-// 	signerAddress, err := client.GetAddressFromPublicKey(signerPublicKey)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	poolInfos, err := s.ptbClient.ReadFunction(
-// 		ctx,
-// 		signerAddress,
-// 		s.AddressMappings["ccipPackageId"],
-// 		"token_admin_registry",
-// 		"get_pool_infos",
-// 		[]any{
-// 			s.AddressMappings["ccipObjectRef"],
-// 			coinMetadataAddresses,
-// 		},
-// 		[]string{"object_id", "vector<address>"},
-// 	)
-// 	if err != nil {
-// 		lggr.Errorw("Error getting pool infos", "error", err)
-// 		return nil, err
-// 	}
-
-// 	var tokenPoolInfo GetPoolInfosResult
-// 	lggr.Debugw("tokenPoolInfo", "tokenPoolInfo", poolInfos[0])
-// 	jsonBytes, err := json.Marshal(poolInfos[0])
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	err = json.Unmarshal(jsonBytes, &tokenPoolInfo)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	lggr.Debugw("Decoded tokenPoolInfo", "tokenPoolInfo", tokenPoolInfo)
-
-// 	tokenPools := make([]TokenPool, len(tokenAmounts))
-// 	for i, tokenAmount := range tokenAmounts {
-// 		lggr.Debugw("\n\nGetting pool address for token",
-// 			"tokenAddress", tokenAmount.DestTokenAddress,
-// 			"poolIndex", i)
-
-// 		packageId := hex.EncodeToString(tokenPoolInfo.TokenPoolPackageIds[i][:])
-// 		if !strings.HasPrefix(packageId, "0x") {
-// 			packageId = "0x" + packageId
-// 		}
-
-// 		tokenType := tokenPoolInfo.TokenTypes[i]
-// 		if !strings.HasPrefix(tokenType, "0x") {
-// 			tokenType = "0x" + tokenType
-// 		}
-
-// 		tokenPoolStateAddress := hex.EncodeToString(tokenPoolInfo.TokenPoolStateAddresses[i][:])
-// 		if !strings.HasPrefix(tokenPoolStateAddress, "0x") {
-// 			tokenPoolStateAddress = "0x" + tokenPoolStateAddress
-// 		}
-
-// 		tokenPools[i] = TokenPool{
-// 			CoinMetadata:          "0x" + hex.EncodeToString(tokenAmount.DestTokenAddress),
-// 			TokenType:             tokenType,
-// 			PackageId:             packageId,
-// 			ModuleId:              tokenPoolInfo.TokenPoolModules[i],
-// 			Function:              OFFRAMP_TOKEN_POOL_FUNCTION_NAME,
-// 			TokenPoolStateAddress: tokenPoolStateAddress,
-// 			Index:                 i,
-// 		}
-// 	}
-
-// 	lggr.Debugw("tokenPoolInfo Decoded", "tokenPoolInfo", tokenPools)
-
-// 	return tokenPools, nil
-// }
 
 func buildParameterName(param SuiArgumentMetadata, tokenPoolIndex int) string {
 	suffix := ""
@@ -597,11 +507,11 @@ func DecodeParameters(lggr logger.Logger, function map[string]any) ([]SuiArgumen
 	return decodedParameters, nil
 }
 
-func IsFunctionValid(lggr logger.Logger, decodedParameters []SuiArgumentMetadata, name string) (bool, []SuiArgumentMetadata) {
+func IsFunctionValid(lggr logger.Logger, decodedParameters []SuiArgumentMetadata, name string) bool {
 
 	if len(decodedParameters) < 3 {
 		lggr.Errorw("Not enough parameters", "parameters", decodedParameters)
-		return false, nil
+		return false
 	}
 
 	// Decode and validate parameters
@@ -613,37 +523,37 @@ func IsFunctionValid(lggr logger.Logger, decodedParameters []SuiArgumentMetadata
 	case LockOrBurn:
 		if param0.Module != "state_object" || param0.Name != "CCIPObjectRef" {
 			lggr.Errorw("CCIPObjectRef is not the first parameter", "module", param0.Module, "name", param0.Name)
-			return false, nil
+			return false
 		}
 
 		if param1.Module != "coin" || param1.Name != "Coin" {
 			lggr.Errorw("Coin is not the second parameter", "module", param1.Module, "name", param1.Name)
-			return false, nil
+			return false
 		}
 
 		if param2.Name != "U64" && param2.Type != "int64" {
 			lggr.Errorw("U64 is not the third parameter", "parameter", param2)
-			return false, nil
+			return false
 		}
 	case ReleaseOrMint:
 		if param0.Module != "state_object" || param0.Name != "CCIPObjectRef" {
 			lggr.Errorw("CCIPObjectRef is not the first parameter", "module", param0.Module, "name", param0.Name)
-			return false, nil
+			return false
 		}
 
 		if param1.Module != "offramp_state_helper" || param1.Name != "ReceiverParams" {
 			lggr.Errorw("ReceiverParams is not the second parameter", "module", param1.Module, "name", param1.Name)
-			return false, nil
+			return false
 		}
 
 		if param2.Name != "U64" && param2.Type != "int64" {
 			lggr.Errorw("U64 is not the third parameter", "parameter", param2)
-			return false, nil
+			return false
 		}
 	default:
 		lggr.Errorw("Invalid function name", "name", name)
-		return false, nil
+		return false
 	}
 
-	return true, decodedParameters
+	return true
 }
