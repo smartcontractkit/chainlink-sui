@@ -1,6 +1,6 @@
 //go:build integration
 
-package offramp_test
+package token_pool_test
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
-	ptbClient "github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp/token_pool"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
@@ -401,16 +401,24 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 	// Create keystore and get account
 	keystoreInstance := testutils.NewTestKeystore(t)
 
-	t.Run("parse_param_type", func(t *testing.T) {
+	envSettings := SetupTestEnvironment(t, sourceChainSelector, destChainSelector, keystoreInstance)
+
+	accountAddress, _ := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	lggr.Infow("Using account", "address", accountAddress)
+
+	client, err := ptbClient.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 100, "WaitForLocalExecution")
+	require.NoError(t, err, "failed to create PTB client")
+
+	t.Run("ParseParamType", func(t *testing.T) {
 		jsonStr := `{"MutableReference": {"Struct": {"address": "0x2", "module": "object", "name": "UID"}}}`
 		var param interface{}
 		_ = json.Unmarshal([]byte(jsonStr), &param)
 
-		paramType := offramp.ParseParamType(lggr, param)
+		paramType := token_pool.ParseParamType(lggr, param)
 		require.Equal(t, paramType, "object_id")
 	})
 
-	t.Run("decode_parameters", func(t *testing.T) {
+	t.Run("DecodeParameters", func(t *testing.T) {
 		jsonStr := `
 	{"increment_mult": {
 		"isEntry": true,
@@ -451,7 +459,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		require.NotNil(t, function, "Function map should not be nil")
 		lggr.Debugw("Parsed function", "function", function)
 
-		decodedParameters, err := offramp.DecodeParameters(lggr, function["increment_mult"].(map[string]any))
+		decodedParameters, err := token_pool.DecodeParameters(lggr, function["increment_mult"].(map[string]any))
 		require.NoError(t, err)
 		require.Equal(t, len(decodedParameters), 4)
 
@@ -460,22 +468,22 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("lock_or_burn", func(t *testing.T) {
-		envSettings := SetupTestEnvironment(t, sourceChainSelector, destChainSelector, keystoreInstance)
-
-		accountAddress, _ := testutils.GetAccountAndKeyFromSui(keystoreInstance)
-		lggr.Infow("Using account", "address", accountAddress)
-
-		tokenPoolInfo := offramp.TokenPool{
+	t.Run("GetTokenPoolPTBConfig", func(t *testing.T) {
+		tokenPoolInfo := token_pool.TokenPool{
 			PackageId: envSettings.TokenPoolReport.Output.LockReleaseTPPackageID,
 			ModuleId:  "lock_release_token_pool",
 			Function:  "lock_or_burn",
+			LockOrBurnParams: []string{
+				"0x2",
+			},
+			ReleaseOrMintParams: []string{
+				"0x3",
+			},
 		}
 
-		client, err := ptbClient.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 100, "WaitForLocalExecution")
-		require.NoError(t, err, "failed to create PTB client")
+		lggr.Debugw("Token pool info", "tokenPoolInfo", tokenPoolInfo)
 
-		ptbConfig, err := offramp.GetTokenPoolPTBConfig(context.Background(), lggr, client, tokenPoolInfo)
+		ptbConfig, err := token_pool.GetTokenPoolPTBConfig(context.Background(), lggr, client, tokenPoolInfo)
 		require.NoError(t, err, "failed to get token pool PTB config")
 		lggr.Debugw("PTB config", "ptbConfig", *ptbConfig)
 
