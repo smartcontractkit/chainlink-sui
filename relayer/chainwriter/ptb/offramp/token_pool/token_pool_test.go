@@ -14,6 +14,7 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/holiman/uint256"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -27,6 +28,7 @@ import (
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp/token_pool"
+	ptbClient "github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
@@ -481,8 +483,6 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 			},
 		}
 
-		lggr.Debugw("Token pool info", "tokenPoolInfo", tokenPoolInfo)
-
 		ptbConfig, err := token_pool.GetTokenPoolPTBConfig(context.Background(), lggr, client, tokenPoolInfo)
 		require.NoError(t, err, "failed to get token pool PTB config")
 		lggr.Debugw("PTB config", "ptbConfig", *ptbConfig)
@@ -516,5 +516,30 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 			require.NotEqual(t, param.Name, "hot_potato")
 			require.NotEqual(t, param.Name, "tx_context")
 		}
+	})
+
+	t.Run("GetTokenPoolByTokenAddress", func(t *testing.T) {
+		tokenAmount := ccipocr3.RampTokenAmount{
+			DestTokenAddress: normalizeTo32Bytes(envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId),
+			Amount:           ccipocr3.NewBigInt(big.NewInt(300)),
+		}
+
+		tokenPoolInfos, err := token_pool.GetTokenPoolByTokenAddress(
+			context.Background(),
+			lggr,
+			[]ccipocr3.RampTokenAmount{tokenAmount},
+			envSettings.AccountAddress,
+			envSettings.CCIPReport.Output.CCIPPackageId,
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			client,
+		)
+		require.NoError(t, err, "failed to get token pool by token address")
+		require.Equal(t, len(tokenPoolInfos), 1)
+
+		lggr.Debugw("Token pool infos", "tokenPoolInfos", tokenPoolInfos)
+	})
+
+	t.Run("GeneratePTBCommandsForTokenPools", func(t *testing.T) {
+		t.Skip("Skipping GeneratePTBCommandsForTokenPools test")
 	})
 }
