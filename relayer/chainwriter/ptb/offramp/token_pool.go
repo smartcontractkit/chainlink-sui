@@ -75,11 +75,6 @@ func GetTokenPoolPTBConfig(
 
 		ptbParams := []codec.SuiFunctionParam{}
 		for _, param := range decodedParameters {
-			if param.Name == "TokenParams" && param.Module == "dynamic_dispatcher" {
-				lggr.Debugw("Skipping out hot potato TokenParams", "param", param)
-				continue
-			}
-
 			if param.Module == "tx_context" && param.Address == "0x2" {
 				lggr.Debugw("Skipping out tx_context", "param", param)
 				continue
