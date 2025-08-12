@@ -91,18 +91,13 @@ const (
 func GeneratePTBCommandsForTokenPools(
 	ctx context.Context,
 	lggr logger.Logger,
-	tokenAmounts []ccipocr3.RampTokenAmount,
+	tokenPools []TokenPool,
 	ptbClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
 	ccipObjectRef string,
 	signerAddress string,
 	ccipPackageId string,
 ) (int, error) {
-
-	tokenPools, err := GetTokenPoolByTokenAddress(ctx, lggr, tokenAmounts, signerAddress, ccipPackageId, ccipObjectRef, ptbClient)
-	if err != nil {
-		return 0, err
-	}
 
 	commands := make([]cwConfig.ChainWriterPTBCommand, len(tokenPools))
 	numberCommandsReturningHotPotato := 0
@@ -155,46 +150,46 @@ func GetTokenPoolByTokenAddress(
 		"ccipObjectRef", ccipObjectRef,
 		"coinMetadataAddresses", coinMetadataAddresses)
 
-	// this function will be replaced
-	tokenConfigResults, err := ptbClient.ReadFunction(
-		ctx,
-		signerAddress,
-		ccipPackageId,
-		"token_admin_registry",
-		"get_token_configs",
-		[]any{
-			ccipObjectRef,
-			coinMetadataAddresses,
-		},
-		[]string{"object_id", "vector<address>"},
-	)
-	if err != nil {
-		lggr.Errorw("Error getting pool infos", "error", err)
-		return nil, err
-	}
+	results := []TokenConfig{}
 
-	var tokenConfigs []TokenConfig
-	lggr.Debugw("tokenConfigs", "tokenConfigs", tokenConfigResults)
-	jsonBytes, err := json.Marshal(tokenConfigResults[0])
-	if err != nil {
-		return nil, err
-	}
+	for _, coinMetadataAddress := range coinMetadataAddresses {
+		tokenConfigResults, err := ptbClient.ReadFunction(
+			ctx,
+			signerAddress,
+			ccipPackageId,
+			"token_admin_registry",
+			"get_token_config",
+			[]any{
+				ccipObjectRef,
+				coinMetadataAddress,
+			},
+			[]string{"object_id", "address"},
+		)
+		if err != nil {
+			lggr.Errorw("Error getting pool infos", "error", err)
+			return nil, err
+		}
 
-	// Try to unmarshal as an array first, if that fails, try as a single object
-	err = json.Unmarshal(jsonBytes, &tokenConfigs)
-	if err != nil {
-		lggr.Errorw("Error unmarshalling token configs", "error", err, "trying to unmarshal as a single object")
+		if len(tokenConfigResults) != 1 {
+			lggr.Errorw("Expected 1 token config result, got", "count", len(tokenConfigResults))
+			return nil, fmt.Errorf("expected 1 token config result, got %d", len(tokenConfigResults))
+		}
 
-		// If unmarshaling as array fails, try as a single TokenConfig
-		var singleConfig TokenConfig
-		err = json.Unmarshal(jsonBytes, &singleConfig)
+		var tokenConfig TokenConfig
+		lggr.Debugw("tokenConfigs", "tokenConfigs", tokenConfigResults[0])
+		jsonBytes, err := json.Marshal(tokenConfigResults[0])
 		if err != nil {
 			return nil, err
 		}
-		tokenConfigs = []TokenConfig{singleConfig}
-	}
 
-	lggr.Debugw("Decoded tokenConfigs", "tokenConfigs", tokenConfigs)
+		// Try to unmarshal as an array first, if that fails, try as a single object
+		err = json.Unmarshal(jsonBytes, &tokenConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, tokenConfig)
+	}
 
 	tokenPools := make([]TokenPool, len(tokenAmounts))
 	for i, tokenAmount := range tokenAmounts {
@@ -202,35 +197,39 @@ func GetTokenPoolByTokenAddress(
 			"tokenAddress", tokenAmount.DestTokenAddress,
 			"poolIndex", i)
 
-		packageId := hex.EncodeToString(tokenConfigs[i].TokenPoolPackageId[:])
-		if !strings.HasPrefix(packageId, "0x") {
-			packageId = "0x" + packageId
-		}
+		packageId := encodeHexByteArray(results[i].TokenPoolPackageId[:])
 
-		tokenType := tokenConfigs[i].TokenType
-		if !strings.HasPrefix(tokenType, "0x") {
-			tokenType = "0x" + tokenType
-		}
+		tokenType := results[i].TokenType
+		tokenType = formatSuiObjectString(tokenType)
 
 		var tokenPoolStateAddress string
-		typeProof := tokenConfigs[i].TypeProof
+		typeProof := results[i].TypeProof
 		var parts = strings.Split(typeProof, "::")
 		// if the type proof is valid, we can get the token pool state address
 		if len(parts) == 3 {
 			tokenPoolStateAddress = parts[0]
 		}
-		if !strings.HasPrefix(tokenPoolStateAddress, "0x") {
-			tokenPoolStateAddress = "0x" + tokenPoolStateAddress
+		tokenPoolStateAddress = formatSuiObjectString(tokenPoolStateAddress)
+
+		lockOrBurnParams, err := DecodeBase64ParamsArray(results[i].LockOrBurnParams)
+		if err != nil {
+			return nil, err
+		}
+		releaseOrMintParams, err := DecodeBase64ParamsArray(results[i].ReleaseOrMintParams)
+		if err != nil {
+			return nil, err
 		}
 
 		tokenPools[i] = TokenPool{
 			CoinMetadata:          "0x" + hex.EncodeToString(tokenAmount.DestTokenAddress),
 			TokenType:             tokenType,
 			PackageId:             packageId,
-			ModuleId:              tokenConfigs[i].TokenPoolModule,
+			ModuleId:              results[i].TokenPoolModule,
 			Function:              OfframpTokenPoolFunctionName,
 			TokenPoolStateAddress: tokenPoolStateAddress,
 			Index:                 i,
+			LockOrBurnParams:      lockOrBurnParams,
+			ReleaseOrMintParams:   releaseOrMintParams,
 		}
 	}
 

@@ -536,7 +536,17 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		require.NoError(t, err, "failed to get token pool by token address")
 		require.Equal(t, len(tokenPoolInfos), 1)
 
-		lggr.Debugw("Token pool infos", "tokenPoolInfos", tokenPoolInfos)
+		tokenPoolInfo := tokenPoolInfos[0]
+		lggr.Debugw("Token pool info", "tokenPoolInfo", tokenPoolInfo)
+		require.Equal(t, tokenPoolInfo.PackageId, envSettings.TokenPoolReport.Output.LockReleaseTPPackageID)
+		require.Equal(t, tokenPoolInfo.ModuleId, "lock_release_token_pool")
+		require.Equal(t, tokenPoolInfo.Function, "release_or_mint")
+		require.Equal(t, len(tokenPoolInfo.ReleaseOrMintParams), 2)
+
+		clockAddress := "0x0000000000000000000000000000000000000000000000000000000000000006"
+		lockReleaseTokenPoolState := envSettings.TokenPoolReport.Output.Objects.StateObjectId
+		require.Equal(t, tokenPoolInfo.ReleaseOrMintParams[0], clockAddress)
+		require.Equal(t, tokenPoolInfo.ReleaseOrMintParams[1], lockReleaseTokenPoolState)
 	})
 
 	t.Run("GeneratePTBCommandsForTokenPools", func(t *testing.T) {
