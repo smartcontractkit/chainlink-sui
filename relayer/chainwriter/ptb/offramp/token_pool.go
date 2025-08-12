@@ -75,6 +75,11 @@ func GetTokenPoolPTBConfig(
 
 		ptbParams := []codec.SuiFunctionParam{}
 		for _, param := range decodedParameters {
+			if param.Module == "tx_context" && param.Address == "0x2" {
+				lggr.Debugw("Skipping out tx_context", "param", param)
+				continue
+			}
+
 			isMutable := param.Reference == "MutableReference"
 			ptbParams = append(ptbParams, codec.SuiFunctionParam{
 				Name:      buildParameterName(param, tokenPoolInfo.Index),
