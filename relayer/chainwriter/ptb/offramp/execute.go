@@ -8,10 +8,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
+	module_complex "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/complex"
+	module_counter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -23,16 +30,6 @@ var (
 	OFFRAMP_TOKEN_POOL_FUNCTION_NAME = "release_or_mint"
 	SUI_PATH_COMPONENTS_COUNT        = 3
 )
-
-type TokenPool struct {
-	CoinMetadata          string
-	TokenType             string // e.g. "sui:0x66::link_module::LINK"
-	PackageId             string
-	ModuleId              string
-	Function              string
-	TokenPoolStateAddress string
-	Index                 int
-}
 
 type SuiOffRampExecCallArgs struct {
 	ReportContext [2][32]byte                `mapstructure:"ReportContext"`
@@ -64,22 +61,24 @@ type GetPoolInfosResult struct {
 func BuildOffRampExecutePTB(
 	ctx context.Context,
 	lggr logger.Logger,
+	client sui.ISuiAPI,
+	ptb *transaction.Transaction,
 	args config.Arguments,
 	ptbConfigs *config.ChainWriterFunction, // TODO: needed?
 	signerPublicKey []byte,
 	addressMappings OffRampAddressMappings,
-) (ptb *transaction.Transaction, err error) {
+) (err error) {
 	offrampArgs := &SuiOffRampExecCallArgs{}
 	err = mapstructure.Decode(args.Args, &offrampArgs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode args: %w", err)
+		return fmt.Errorf("failed to decode args for offramp execute PTB: %w", err)
 	}
 
 	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0)
 	messages := make([]ccipocr3.Message, 0)
 
 	// save all messages in a single slice
-	for _, report := range args.Info.AbstractReports {
+	for _, report := range offrampArgs.Info.AbstractReports {
 		for _, message := range report.Messages {
 			tokenAmounts = append(tokenAmounts, message.TokenAmounts...)
 			messages = append(messages, message)
@@ -88,15 +87,43 @@ func BuildOffRampExecutePTB(
 
 	tokenPoolStateAddresses, err := GetTokenPoolByTokenAddress(ctx, lggr, tokenAmounts, signerPublicKey)
 	if err != nil {
-		return nil, nil, nil, err
+		return fmt.Errorf("failed to get token pool by token address offramp execute PTB: %w", err)
 	}
 
-	// TODO: add init-execute command here
-
-	// TODO: pass ptb into GeneratePTBCommandsForTokenPools
-	generatedTokenPoolCommands, err := GeneratePTBCommandsForTokenPools(lggr, tokenPoolStateAddresses)
+	// Set the offramp package interface from bindings
+	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, client)
 	if err != nil {
-		return nil, nil, nil, err
+		return err
+	}
+	offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
+	offrampEncoder := offrampContract.Encoder()
+
+	// Create an encoder for the `init_execute` offramp method to be attached to the PTB.
+	// This is being done using the bindings to re-use code but can otherwise be done using the SDK directly.
+	encodedInitExecute, err := offrampEncoder.InitExecute(
+		bind.Object{Id: addressMappings.CcipObjectRef}, // TODO: double check this
+		bind.Object{Id: addressMappings.OffRampState},
+		bind.Object{Id: addressMappings.ClockObject},
+		[][]byte{
+			offrampArgs.ReportContext[0][:],
+			offrampArgs.ReportContext[1][:],
+		},
+		offrampArgs.Report,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to encode move call (init_execute) using bindings: %w", err)
+	}
+
+	initExecuteResult, err := offrampContract.BuildPTB(ctx, ptb, encodedInitExecute)
+	if err != nil {
+		return fmt.Errorf("failed to build PTB (init_execute) using bindings: %w", err)
+	}
+
+	// Generate N token pool commands and attach them to the PTB, each command must return a result
+	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
+	generatedTokenPoolCommands, err := GeneratePTBCommandsForTokenPools(ptb, lggr, tokenPoolStateAddresses)
+	if err != nil {
+		return err
 	}
 
 	// TODO: filter out messages that have a receiver that is not registered
@@ -106,68 +133,23 @@ func BuildOffRampExecutePTB(
 	//nolint:gosec // G115:
 	receiverCommands, err := GenerateReceiverCallCommands(lggr, messages, uint16(len(generatedTokenPoolCommands)))
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
 	// TODO: add make move vec command here (does this need to be done before or after the receiver calls?)
+	hotPotatoVecResult := ptb.MakeMoveVec(strPtr("osh::...."), generatedTokenPoolCommands)
 
-	// TODO: add finish-execute command here
+	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
+	// "&mut OffRampState",
+	// "osh::ReceiverParams",
+	// "vector<osh::CompletedDestTokenTransfer>",
+	// TODO: how do we pass the vec of hot potatoes directly into this method since they are PTB dependencies?
+	_, err = offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
+	if err != nil {
+		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
+	}
 
-	// !! IGNORE CODE BELOW, WILL BE REMOVED - JUST KEPT FOR REFERENCE
-	// // Construct the final PTB commands by inserting generated commands between config commands
-	// //nolint:gosec // G115:
-	// finalPTBCommands := make([]config.ChainWriterPTBCommand, 0, len(ptbConfigs.PTBCommands)+len(generatedTokenPoolCommands)+len(receiverCommands))
-
-	// // Add the first command from config (init_execute)
-	// finalPTBCommands = append(finalPTBCommands, ptbConfigs.PTBCommands[0])
-
-	// // Insert all generated token pool commands
-	// finalPTBCommands = append(finalPTBCommands, generatedTokenPoolCommands...)
-
-	// // Insert all generated receiver commands
-	// finalPTBCommands = append(finalPTBCommands, receiverCommands...)
-
-	// // Add the remaining commands from config (finish_execute)
-	// endCommand := ptbConfigs.PTBCommands[len(ptbConfigs.PTBCommands)-1]
-
-	// // Find and update the PTB dependency in the existing parameters
-	// for i := range endCommand.Params {
-	// 	if endCommand.Params[i].PTBDependency != nil {
-	// 		//nolint:gosec // G115: PTB commands are typically small in number, overflow extremely unlikely
-	// 		endCommand.Params[i].PTBDependency.CommandIndex = uint16(len(finalPTBCommands) - 1)
-	// 	}
-	// }
-
-	// finalPTBCommands = append(finalPTBCommands, endCommand)
-
-	// // Generate token pool arguments
-	// tokenPoolArgs, typeArgs, err := GenerateArgumentsForTokenPools(s.AddressMappings["ccipObjectRef"], s.AddressMappings["clockObject"], lggr, tokenPoolStateAddresses)
-	// if err != nil {
-	// 	return nil, nil, nil, err
-	// }
-
-	// filteredMessages, err := s.FilterRegisteredReceivers(ctx, lggr, messages, signerPublicKey)
-	// if err != nil {
-	// 	return nil, nil, nil, err
-	// }
-
-	// // Generate receiver call arguments
-	// //nolint:gosec // G115:
-	// receiverArgs, err := GenerateReceiverCallArguments(lggr, filteredMessages, uint16(len(generatedTokenPoolCommands)), s.AddressMappings["ccipObjectRef"])
-	// if err != nil {
-	// 	return nil, nil, nil, err
-	// }
-
-	// // Merge token pool and receiver arguments
-	// ptbArguments := make(map[string]any)
-	// for k, v := range tokenPoolArgs {
-	// 	ptbArguments[k] = v
-	// }
-	// for k, v := range receiverArgs {
-	// 	ptbArguments[k] = v
-	// }
-
-	// return finalPTBCommands, ptbArguments, typeArgs, nil
+	return nil
 }
 
 func GenerateReceiverCallCommands(
@@ -312,9 +294,10 @@ func GenerateReceiverCallArguments(
 
 // GeneratePTBCommands generates PTB commands for token addresses
 func GeneratePTBCommandsForTokenPools(
+	ptb *transaction.Transaction,
 	lggr logger.Logger,
 	tokenPools []TokenPool,
-) ([]config.ChainWriterPTBCommand, error) {
+) ([]transaction.Argument, error) {
 	ptbCommands := make([]config.ChainWriterPTBCommand, len(tokenPools))
 	for i, tokenPool := range tokenPools {
 		cmdIndex := i + 1
@@ -394,8 +377,4 @@ func GenerateArgumentsForTokenPools(
 	}
 
 	return arguments, typeArgs, nil
-}
-
-func AnyPointer[T any](v T) *T {
-	return &v
 }

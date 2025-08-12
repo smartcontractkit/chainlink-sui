@@ -162,7 +162,14 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 			return nil, err
 		}
 
-		return offramp.BuildOffRampExecutePTB(ctx, p.log, arguments, nil, txnConfig.PublicKey, addressMappings)
+		// Construct the entire PTB transaction for offramp execute without CW configs
+		err = offramp.BuildOffRampExecutePTB(ctx, p.log, ptb, arguments, nil, txnConfig.PublicKey, addressMappings)
+		if err != nil {
+			p.log.Errorw("Error building OffRamp execute PTB", "error", err)
+			return nil, err
+		}
+
+		return ptb, nil
 	}
 
 	// Create a map for caching objects
