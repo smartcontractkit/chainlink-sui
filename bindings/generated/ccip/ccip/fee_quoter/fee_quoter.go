@@ -22,7 +22,7 @@ var (
 
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error)
@@ -30,21 +30,22 @@ type IFeeQuoter interface {
 	GetTokenAndGasPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, token string, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	ConvertTokenAmount(ctx context.Context, opts *bind.CallOpts, ref bind.Object, fromToken string, fromTokenAmount uint64, toToken string) (*models.SuiTransactionBlockResponse, error)
 	GetFeeTokens(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error)
+	ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenTransferFeeConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error)
-	ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error)
+	ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error)
 	UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error)
 	GetValidatedFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
-	ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error)
+	ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error)
 	GetPremiumMultiplierWeiPerEth(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, extraArgs []byte, messageReceiver []byte) (*models.SuiTransactionBlockResponse, error)
 	ProcessMessageArgs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error)
-	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error)
+	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
 	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error)
+	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
 }
@@ -73,7 +74,7 @@ type IFeeQuoterDevInspect interface {
 type FeeQuoterEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error)
+	Initialize(ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error)
 	GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -89,17 +90,17 @@ type FeeQuoterEncoder interface {
 	ConvertTokenAmountWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetFeeTokens(ref bind.Object) (*bind.EncodedCall, error)
 	GetFeeTokensWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyFeeTokenUpdates(ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*bind.EncodedCall, error)
+	ApplyFeeTokenUpdates(ref bind.Object, ownerCap bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*bind.EncodedCall, error)
 	ApplyFeeTokenUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfig(ref bind.Object, destChainSelector uint64, token string) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyTokenTransferFeeConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error)
+	ApplyTokenTransferFeeConfigUpdates(ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error)
 	ApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	UpdatePrices(ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error)
 	UpdatePricesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetValidatedFee(ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*bind.EncodedCall, error)
 	GetValidatedFeeWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*bind.EncodedCall, error)
+	ApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, ownerCap bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*bind.EncodedCall, error)
 	ApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetPremiumMultiplierWeiPerEth(ref bind.Object, token string) (*bind.EncodedCall, error)
 	GetPremiumMultiplierWeiPerEthWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -111,7 +112,7 @@ type FeeQuoterEncoder interface {
 	GetDestChainConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetDestChainConfigFields(destChainConfig DestChainConfig) (*bind.EncodedCall, error)
 	GetDestChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyDestChainConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*bind.EncodedCall, error)
+	ApplyDestChainConfigUpdates(ref bind.Object, ownerCap bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*bind.EncodedCall, error)
 	ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetStaticConfig(ref bind.Object) (*bind.EncodedCall, error)
 	GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -119,6 +120,8 @@ type FeeQuoterEncoder interface {
 	GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsEntrypoint(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type FeeQuoterContract struct {
@@ -300,6 +303,12 @@ type DestChainConfigUpdated struct {
 type PremiumMultiplierWeiPerEthUpdated struct {
 	Token                      string `move:"address"`
 	PremiumMultiplierWeiPerEth uint64 `move:"u64"`
+}
+
+type CCIPAdminProof struct {
+}
+
+type McmsCallback struct {
 }
 
 type bcsFeeQuoterState struct {
@@ -559,6 +568,22 @@ func init() {
 		result := convertPremiumMultiplierWeiPerEthUpdatedFromBCS(temp)
 		return result, nil
 	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::CCIPAdminProof", func(data []byte) (interface{}, error) {
+		var result CCIPAdminProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::McmsCallback", func(data []byte) (interface{}, error) {
+		var result McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -572,8 +597,8 @@ func (c *FeeQuoterContract) TypeAndVersion(ctx context.Context, opts *bind.CallO
 }
 
 // Initialize executes the initialize Move function.
-func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.Initialize(ref, param, maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold, feeTokens)
+func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.Initialize(ref, ownerCap, maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold, feeTokens)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -652,8 +677,8 @@ func (c *FeeQuoterContract) GetFeeTokens(ctx context.Context, opts *bind.CallOpt
 }
 
 // ApplyFeeTokenUpdates executes the apply_fee_token_updates Move function.
-func (c *FeeQuoterContract) ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.ApplyFeeTokenUpdates(ref, param, feeTokensToRemove, feeTokensToAdd)
+func (c *FeeQuoterContract) ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyFeeTokenUpdates(ref, ownerCap, feeTokensToRemove, feeTokensToAdd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -672,8 +697,8 @@ func (c *FeeQuoterContract) GetTokenTransferFeeConfig(ctx context.Context, opts 
 }
 
 // ApplyTokenTransferFeeConfigUpdates executes the apply_token_transfer_fee_config_updates Move function.
-func (c *FeeQuoterContract) ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.ApplyTokenTransferFeeConfigUpdates(ref, param, destChainSelector, addTokens, addMinFeeUsdCents, addMaxFeeUsdCents, addDeciBps, addDestGasOverhead, addDestBytesOverhead, addIsEnabled, removeTokens)
+func (c *FeeQuoterContract) ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyTokenTransferFeeConfigUpdates(ref, ownerCap, destChainSelector, addTokens, addMinFeeUsdCents, addMaxFeeUsdCents, addDeciBps, addDestGasOverhead, addDestBytesOverhead, addIsEnabled, removeTokens)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -702,8 +727,8 @@ func (c *FeeQuoterContract) GetValidatedFee(ctx context.Context, opts *bind.Call
 }
 
 // ApplyPremiumMultiplierWeiPerEthUpdates executes the apply_premium_multiplier_wei_per_eth_updates Move function.
-func (c *FeeQuoterContract) ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.ApplyPremiumMultiplierWeiPerEthUpdates(ref, param, tokens, premiumMultiplierWeiPerEth)
+func (c *FeeQuoterContract) ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyPremiumMultiplierWeiPerEthUpdates(ref, ownerCap, tokens, premiumMultiplierWeiPerEth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -762,8 +787,8 @@ func (c *FeeQuoterContract) GetDestChainConfigFields(ctx context.Context, opts *
 }
 
 // ApplyDestChainConfigUpdates executes the apply_dest_chain_config_updates Move function.
-func (c *FeeQuoterContract) ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.ApplyDestChainConfigUpdates(ref, param, destChainSelector, isEnabled, maxNumberOfTokensPerMsg, maxDataBytes, maxPerMsgGasLimit, destGasOverhead, destGasPerPayloadByteBase, destGasPerPayloadByteHigh, destGasPerPayloadByteThreshold, destDataAvailabilityOverheadGas, destGasPerDataAvailabilityByte, destDataAvailabilityMultiplierBps, chainFamilySelector, enforceOutOfOrder, defaultTokenFeeUsdCents, defaultTokenDestGasOverhead, defaultTxGasLimit, gasMultiplierWeiPerEth, gasPriceStalenessThreshold, networkFeeUsdCents)
+func (c *FeeQuoterContract) ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.ApplyDestChainConfigUpdates(ref, ownerCap, destChainSelector, isEnabled, maxNumberOfTokensPerMsg, maxDataBytes, maxPerMsgGasLimit, destGasOverhead, destGasPerPayloadByteBase, destGasPerPayloadByteHigh, destGasPerPayloadByteThreshold, destDataAvailabilityOverheadGas, destGasPerDataAvailabilityByte, destDataAvailabilityMultiplierBps, chainFamilySelector, enforceOutOfOrder, defaultTokenFeeUsdCents, defaultTokenDestGasOverhead, defaultTxGasLimit, gasMultiplierWeiPerEth, gasPriceStalenessThreshold, networkFeeUsdCents)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -794,6 +819,16 @@ func (c *FeeQuoterContract) GetStaticConfigFields(ctx context.Context, opts *bin
 // GetTokenTransferFeeConfigFields executes the get_token_transfer_fee_config_fields Move function.
 func (c *FeeQuoterContract) GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.GetTokenTransferFeeConfigFields(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsEntrypoint executes the mcms_entrypoint Move function.
+func (c *FeeQuoterContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsEntrypoint(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1202,7 +1237,7 @@ func (c feeQuoterEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c feeQuoterEncoder) Initialize(ref bind.Object, param bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) Initialize(ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
@@ -1214,7 +1249,7 @@ func (c feeQuoterEncoder) Initialize(ref bind.Object, param bind.Object, maxFeeJ
 		"vector<address>",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		maxFeeJuelsPerMsg,
 		linkToken,
 		tokenPriceStalenessThreshold,
@@ -1484,7 +1519,7 @@ func (c feeQuoterEncoder) GetFeeTokensWithArgs(args ...any) (*bind.EncodedCall, 
 }
 
 // ApplyFeeTokenUpdates encodes a call to the apply_fee_token_updates Move function.
-func (c feeQuoterEncoder) ApplyFeeTokenUpdates(ref bind.Object, param bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) ApplyFeeTokenUpdates(ref bind.Object, ownerCap bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_fee_token_updates", typeArgsList, typeParamsList, []string{
@@ -1494,7 +1529,7 @@ func (c feeQuoterEncoder) ApplyFeeTokenUpdates(ref bind.Object, param bind.Objec
 		"vector<address>",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		feeTokensToRemove,
 		feeTokensToAdd,
 	}, nil)
@@ -1555,7 +1590,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigWithArgs(args ...any) (*bind.
 }
 
 // ApplyTokenTransferFeeConfigUpdates encodes a call to the apply_token_transfer_fee_config_updates Move function.
-func (c feeQuoterEncoder) ApplyTokenTransferFeeConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) ApplyTokenTransferFeeConfigUpdates(ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, []string{
@@ -1572,7 +1607,7 @@ func (c feeQuoterEncoder) ApplyTokenTransferFeeConfigUpdates(ref bind.Object, pa
 		"vector<address>",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		destChainSelector,
 		addTokens,
 		addMinFeeUsdCents,
@@ -1709,7 +1744,7 @@ func (c feeQuoterEncoder) GetValidatedFeeWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // ApplyPremiumMultiplierWeiPerEthUpdates encodes a call to the apply_premium_multiplier_wei_per_eth_updates Move function.
-func (c feeQuoterEncoder) ApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, param bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) ApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, ownerCap bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_premium_multiplier_wei_per_eth_updates", typeArgsList, typeParamsList, []string{
@@ -1719,7 +1754,7 @@ func (c feeQuoterEncoder) ApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object
 		"vector<u64>",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		tokens,
 		premiumMultiplierWeiPerEth,
 	}, nil)
@@ -1972,7 +2007,7 @@ func (c feeQuoterEncoder) GetDestChainConfigFieldsWithArgs(args ...any) (*bind.E
 }
 
 // ApplyDestChainConfigUpdates encodes a call to the apply_dest_chain_config_updates Move function.
-func (c feeQuoterEncoder) ApplyDestChainConfigUpdates(ref bind.Object, param bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) ApplyDestChainConfigUpdates(ref bind.Object, ownerCap bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_dest_chain_config_updates", typeArgsList, typeParamsList, []string{
@@ -2000,7 +2035,7 @@ func (c feeQuoterEncoder) ApplyDestChainConfigUpdates(ref bind.Object, param bin
 		"u32",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		destChainSelector,
 		isEnabled,
 		maxNumberOfTokensPerMsg,
@@ -2162,4 +2197,36 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (
 		"u32",
 		"bool",
 	})
+}
+
+// McmsEntrypoint encodes a call to the mcms_entrypoint Move function.
+func (c feeQuoterEncoder) McmsEntrypoint(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsEntrypointWithArgs encodes a call to the mcms_entrypoint Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

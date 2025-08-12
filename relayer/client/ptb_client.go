@@ -50,7 +50,7 @@ type SuiPTBClient interface {
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
-	GetNormalizedModule(ctx context.Context, moduleKey string, eventKey string) (models.GetNormalizedMoveModuleResponse, error)
+	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
 	GetClient() sui.ISuiAPI
 	HashTxBytes(txBytes []byte) []byte
@@ -196,6 +196,8 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.S
 		if err != nil {
 			return fmt.Errorf("failed to read object: %w", err)
 		}
+
+		c.log.Infow("ReadObjectId response", "response", response)
 
 		if response.Data == nil || response.Data.Content == nil {
 			return fmt.Errorf("object has no content")
@@ -386,6 +388,16 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 				return fmt.Errorf("failed to convert return value to bytes: %w", err)
 			}
 			bcsDecoder := bcs.NewDeserializer(bcsBytes)
+
+			// This is a special case for Sui strings as they are represented as a struct with tag "0x1::string::String"
+			// Since we use the tag to fetch the normalized module, it causes a failure since a module "string" does not exist.
+			// We parse the value separately here. The BCS decoder is not actually needed for this case but we are already initializing it for the complex structs
+			// so we can use it to read the string value.
+			if structTag == "0x1::string::String" {
+				strValue := bcsDecoder.ReadString()
+				results[i] = strValue
+				continue
+			}
 
 			// if the response type is not a struct (primitive type), skip the result (keep it as is)
 			structPartsLen := 3

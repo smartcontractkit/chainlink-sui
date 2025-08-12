@@ -8,7 +8,8 @@ use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
 
-use ccip::state_object::{Self, CCIPObjectRef, OwnerCap};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 
 // TODO: consider add/using a different structure if someone registers too many tokens
 // figure out & ask about the vector & map size limit for different structures
@@ -79,7 +80,7 @@ public fun type_and_version(): String {
 
 public fun initialize(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     ctx: &mut TxContext
 ) {
     assert!(
@@ -91,7 +92,7 @@ public fun initialize(
         token_configs: linked_table::new(ctx),
     };
 
-    state_object::add(ref, state, ctx);
+    state_object::add(ref, owner_cap, state, ctx);
 }
 
 public fun get_pools(
@@ -269,7 +270,7 @@ public fun register_pool<T, TypeProof: drop>(
 
 public fun register_pool_by_admin(
     ref: &mut CCIPObjectRef,
-    _: &state_object::OwnerCap,
+    _: state_object::CCIPAdminProof,
     coin_metadata_address: address,
     token_pool_package_id: address,
     token_pool_module: String,

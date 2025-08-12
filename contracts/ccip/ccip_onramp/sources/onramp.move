@@ -149,6 +149,7 @@ module ccip_onramp::onramp {
     const ECalculateMessageHashInvalidArguments: u64 = 17;
     const EInvalidRemoteChainSelector: u64 = 18;
     const DuplicateSourceTokenCoinMetadataAddress: u64 = 19;
+    const EInvalidFunction: u64 = 20;
 
     public fun type_and_version(): String {
         string::utf8(b"OnRamp 1.6.0")
@@ -980,6 +981,22 @@ module ccip_onramp::onramp {
         ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
     }
 
+    // Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
+    public fun accept_ownership_as_mcms(
+        state: &mut OnRampState,
+        params: ExecutingCallbackParams,
+        ctx: &mut TxContext,
+    ) {
+        let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(params, McmsCallback {});
+        assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+
+        let mut stream = bcs_stream::new(data);
+        let mcms = bcs_stream::deserialize_address(&mut stream);
+        bcs_stream::assert_is_consumed(&stream);
+
+        ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    }
+
     public fun execute_ownership_transfer(
         owner_cap: OwnerCap,
         ownable_state: &mut OwnableState,
@@ -989,19 +1006,19 @@ module ccip_onramp::onramp {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public fun mcms_register_entrypoint(
-        registry: &mut Registry,
-        state: &mut OnRampState,
+    public entry fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
-        mcms: address,
+        state: &mut OnRampState,
+        registry: &mut Registry,
+        to: address,
         ctx: &mut TxContext,
     ) {
-        ownable::set_owner(&owner_cap, &mut state.ownable_state, mcms, ctx);
-
-        mcms_registry::register_entrypoint(
+        ownable::execute_ownership_transfer_to_mcms(
+            owner_cap,
+            &mut state.ownable_state,
             registry,
+            to,
             McmsCallback {},
-            option::some(owner_cap),
             ctx,
         );
     }
@@ -1099,11 +1116,6 @@ module ccip_onramp::onramp {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);
             transfer_ownership(state, owner_cap, to, ctx);
-        } else if (function_bytes == b"accept_ownership_as_mcms") {
-            // TODO: This may not be needed as we call `mcms_registry::register_entrypoint` with the `OwnerCap`
-            let mcms = bcs_stream::deserialize_address(&mut stream);
-            bcs_stream::assert_is_consumed(&stream);
-            ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
         } else if (function_bytes == b"execute_ownership_transfer") {
             let to = bcs_stream::deserialize_address(&mut stream);
             bcs_stream::assert_is_consumed(&stream);

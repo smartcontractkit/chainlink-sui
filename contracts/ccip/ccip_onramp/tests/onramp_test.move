@@ -93,7 +93,7 @@ module ccip_onramp::onramp_test {
         let mut ref = ts::take_shared<CCIPObjectRef>(&scenario);
         let state = ts::take_shared<OnRampState>(&scenario);
 
-        let ccip_owner_cap = ts::take_from_sender<state_object::OwnerCap>(&scenario);
+        let ccip_owner_cap = ts::take_from_sender<ccip::ownable::OwnerCap>(&scenario);
         nonce_manager::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
         token_admin_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
         rmn_remote::initialize(&mut ref, &ccip_owner_cap, 1000, scenario.ctx());
@@ -164,9 +164,10 @@ module ccip_onramp::onramp_test {
     /// Configure fee quoter for a destination chain with the specified chain family
     fun configure_fee_quoter_dest_chain(
         ref: &mut CCIPObjectRef,
-        ccip_owner_cap: &state_object::OwnerCap,
+        ccip_owner_cap: &ccip::ownable::OwnerCap,
         dest_chain_selector: u64,
-        chain_family_selector: vector<u8>
+        chain_family_selector: vector<u8>,
+        ctx: &mut TxContext
     ) {
         fee_quoter::apply_dest_chain_config_updates(
             ref,
@@ -190,14 +191,15 @@ module ccip_onramp::onramp_test {
             200_000, // default_tx_gas_limit
             DEFAULT_PREMIUM_MULTIPLIER, // gas_multiplier_wei_per_eth
             1_000_000, // gas_price_staleness_threshold
-            50 // network_fee_usd_cents
+            50, // network_fee_usd_cents
+            ctx
         );
     }
 
     /// Setup token and price configuration for fee calculation
     fun setup_fee_token_and_prices(
         ref: &mut CCIPObjectRef,
-        ccip_owner_cap: &state_object::OwnerCap,
+        ccip_owner_cap: &ccip::ownable::OwnerCap,
         clock: &sui::clock::Clock,
         coin_metadata_addr: address,
         dest_chain_selector: u64,
@@ -209,6 +211,7 @@ module ccip_onramp::onramp_test {
             ccip_owner_cap,
             vector[], // fee_tokens_to_remove
             vector[coin_metadata_addr], // fee_tokens_to_add
+            ctx
         );
 
         // Set up premium multipliers
@@ -217,6 +220,7 @@ module ccip_onramp::onramp_test {
             ccip_owner_cap,
             vector[coin_metadata_addr],
             vector[DEFAULT_PREMIUM_MULTIPLIER],
+            ctx
         );
 
         // Set up price updates
@@ -228,7 +232,8 @@ module ccip_onramp::onramp_test {
             vector[coin_metadata_addr],
             vector[DEFAULT_TOKEN_PRICE],
             vector[dest_chain_selector],
-            vector[DEFAULT_GAS_PRICE]
+            vector[DEFAULT_GAS_PRICE],
+            ctx
         );
 
         fee_quoter_cap
@@ -241,7 +246,7 @@ module ccip_onramp::onramp_test {
         OnRampState,
         Registry,
         sui::clock::Clock,
-        state_object::OwnerCap,
+        ccip::ownable::OwnerCap,
         OwnerCap,
         coin::TreasuryCap<ONRAMP_TEST>,
         CoinMetadata<ONRAMP_TEST>,
@@ -266,7 +271,7 @@ module ccip_onramp::onramp_test {
         let registry = ts::take_shared<Registry>(&scenario);
         let mut state = ts::take_shared<OnRampState>(&scenario);
         
-        let ccip_owner_cap = ts::take_from_sender<state_object::OwnerCap>(&scenario);
+        let ccip_owner_cap = ts::take_from_sender<ccip::ownable::OwnerCap>(&scenario);
         let onramp_owner_cap = ts::take_from_sender<OwnerCap>(&scenario);
         
         // Initialize CCIP modules
@@ -319,7 +324,7 @@ module ccip_onramp::onramp_test {
         state: OnRampState,
         registry: Registry,
         clock: sui::clock::Clock,
-        ccip_owner_cap: state_object::OwnerCap,
+        ccip_owner_cap: ccip::ownable::OwnerCap,
         onramp_owner_cap: OwnerCap,
         treasury_cap: coin::TreasuryCap<ONRAMP_TEST>,
         coin_metadata: CoinMetadata<ONRAMP_TEST>,
@@ -663,7 +668,7 @@ module ccip_onramp::onramp_test {
         ) = setup_standalone_fee_test_env();
 
         // Configure fee quoter for EVM
-        configure_fee_quoter_dest_chain(&mut ref, &ccip_owner_cap, DEST_CHAIN_SELECTOR_1, CHAIN_FAMILY_SELECTOR_EVM);
+        configure_fee_quoter_dest_chain(&mut ref, &ccip_owner_cap, DEST_CHAIN_SELECTOR_1, CHAIN_FAMILY_SELECTOR_EVM, scenario.ctx());
         
         // Setup token and prices
         let fee_quoter_cap = setup_fee_token_and_prices(
@@ -700,7 +705,7 @@ module ccip_onramp::onramp_test {
         ) = setup_standalone_fee_test_env();
 
         // Configure fee quoter for SVM
-        configure_fee_quoter_dest_chain(&mut ref, &ccip_owner_cap, DEST_CHAIN_SELECTOR_1, CHAIN_FAMILY_SELECTOR_SVM);
+        configure_fee_quoter_dest_chain(&mut ref, &ccip_owner_cap, DEST_CHAIN_SELECTOR_1, CHAIN_FAMILY_SELECTOR_SVM, scenario.ctx());
         
         // Setup token and prices
         let fee_quoter_cap = setup_fee_token_and_prices(

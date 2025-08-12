@@ -11,7 +11,8 @@ use sui::test_scenario::{Self, Scenario};
 
 use ccip::onramp_state_helper as onramp_sh;
 use ccip::offramp_state_helper as offramp_sh;
-use ccip::state_object::{Self, OwnerCap as CCIPOwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap as CCIPOwnerCap;
 use ccip::token_admin_registry;
 use ccip::rmn_remote;
 
@@ -730,7 +731,7 @@ public fun test_initialize_by_ccip_admin() {
         // Test initialize_by_ccip_admin function (doesn't require treasury cap)
         managed_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            &ccip_owner_cap,
+            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             mint_cap,
             managed_token_state_address,

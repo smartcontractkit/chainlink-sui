@@ -37,7 +37,7 @@ const (
     `
 
 	QueryEventsBase = `
-	SELECT event_account_address, event_handle, event_offset, block_version, block_height, block_hash, block_timestamp, data
+	SELECT event_account_address, event_handle, event_offset, block_version, block_height, block_hash, block_timestamp, tx_digest, data
 	FROM sui.events
 	WHERE event_account_address = $1 AND event_handle = $2
     `
@@ -56,8 +56,9 @@ const (
 	WHERE event_account_address = $1 AND event_handle = $2 
 	`
 
-	QueryTransactionVersionByID = `
-	SELECT tx_version FROM sui.events
+	GetTxDigestById = `
+	SELECT tx_digest
+	FROM sui.events
 	WHERE id = $1
 	`
 )

@@ -22,7 +22,7 @@ var (
 
 type INonceManager interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
 	GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() INonceManagerDevInspect
@@ -38,7 +38,7 @@ type INonceManagerDevInspect interface {
 type NonceManagerEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error)
+	Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOutboundNonce(ref bind.Object, destChainSelector uint64, sender string) (*bind.EncodedCall, error)
 	GetOutboundNonceWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -161,8 +161,8 @@ func (c *NonceManagerContract) TypeAndVersion(ctx context.Context, opts *bind.Ca
 }
 
 // Initialize executes the initialize Move function.
-func (c *NonceManagerContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.nonceManagerEncoder.Initialize(ref, param)
+func (c *NonceManagerContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.nonceManagerEncoder.Initialize(ref, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -285,7 +285,7 @@ func (c nonceManagerEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedC
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c nonceManagerEncoder) Initialize(ref bind.Object, param bind.Object) (*bind.EncodedCall, error) {
+func (c nonceManagerEncoder) Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
@@ -293,7 +293,7 @@ func (c nonceManagerEncoder) Initialize(ref bind.Object, param bind.Object) (*bi
 		"&OwnerCap",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 	}, nil)
 }
 

@@ -55,19 +55,36 @@ fun setup_mcms_registry_and_user_data(scenario: &mut Scenario): address {
         let mut registry = ts::take_shared<Registry>(scenario);
         let user_data = ts::take_shared<UserData>(scenario);
         let owner_cap = ts::take_from_sender<OwnerCap>(scenario);
+        let ctx = ts::ctx(scenario);
+
+
+        // Initialize the user data with mcms_registry
+        // This creates a owner_cap and mcms_registry owns this cap
+        mcms_user::register_mcms_entrypoint(
+            owner_cap,
+            &mut registry,
+            &user_data,
+            ctx,
+        );
+
+        ts::return_shared(user_data);
+        ts::return_shared(registry);
+    };
+
+    {
+        ts::next_tx(scenario, SENDER);
+
         let mut deployer_state = ts::take_shared<DeployerState>(scenario);
+        let mut registry = ts::take_shared<Registry>(scenario);
+        let user_data = ts::take_shared<UserData>(scenario);
         let ctx = ts::ctx(scenario);
 
         let upgrade_cap = package::test_publish(@mcms_test.to_id(), ctx);
 
-        // Initialize the user data with mcms_registry
-        // This creates a owner_cap and mcms_registry owns this cap
-        mcms_user::initialize(
-            owner_cap,
-            upgrade_cap,
-            &user_data,
-            &mut registry,
+        mcms_user::register_upgrade_cap(
             &mut deployer_state,
+            upgrade_cap,
+            &mut registry,
             ctx,
         );
 
@@ -132,8 +149,8 @@ fun test_mcms_entrypoint_function_one() {
 
         // Command 2: Call mcms_entrypoint with params hot potato
         mcms_user::mcms_entrypoint(
-            &mut registry,
             &mut user_data,
+            &mut registry,
             params,
             ctx,
         );
@@ -183,8 +200,8 @@ fun test_mcms_entrypoint_function_two() {
 
         // Command 2: Call mcms_entrypoint
         mcms_user::mcms_entrypoint(
-            &mut registry,
             &mut user_data,
+            &mut registry,
             params,
             ctx,
         );
@@ -227,8 +244,8 @@ fun test_mcms_entrypoint_unknown_function() {
         let ctx = ts::ctx(&mut scenario);
         // Command 2: This should fail because the function name is unknown
         mcms_user::mcms_entrypoint(
-            &mut registry,
             &mut user_data,
+            &mut registry,
             params,
             ctx,
         );
@@ -247,7 +264,7 @@ fun test_mcms_entrypoint_wrong_module_name() {
 
     let sender = setup_mcms_registry_and_user_data(&mut scenario);
 
-    // Transaction 4: Execute mcms_entrypoint with wrong module name
+    // Transaction 4: Execute mcms_entrypoint with wrong package name
     {
         ts::next_tx(&mut scenario, sender);
 
@@ -266,8 +283,8 @@ fun test_mcms_entrypoint_wrong_module_name() {
         let ctx = ts::ctx(&mut scenario);
         // Command 2: This should fail because the module name doesn't match
         mcms_user::mcms_entrypoint(
-            &mut registry,
             &mut user_data,
+            &mut registry,
             params,
             ctx,
         );
@@ -313,8 +330,8 @@ fun test_sequential_function_calls() {
 
         // Command 2: Call mcms_entrypoint
         mcms_user::mcms_entrypoint(
-            &mut registry,
             &mut user_data,
+            &mut registry,
             params,
             ctx,
         );
@@ -354,8 +371,8 @@ fun test_sequential_function_calls() {
 
         // Command 2: Call mcms_entrypoint
         mcms_user::mcms_entrypoint(
-            &mut registry,
             &mut user_data,
+            &mut registry,
             params,
             ctx,
         );
@@ -411,8 +428,8 @@ fun test_call_function_with_invalid_user_data() {
         // Command 2: This should fail because we provide an unregistered user_data
         // The cap does not exist for this user_data
         mcms_user::mcms_entrypoint(
-            &mut registry,
             &mut fake_user_data,
+            &mut registry,
             params,
             ctx,
         );

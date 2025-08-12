@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	config2 "github.com/smartcontractkit/chainlink-sui/relayer/config"
 
 	"github.com/hashicorp/go-plugin"
@@ -23,7 +23,7 @@ func main() {
 	s := loop.MustNewStartedServer(loggerName)
 	defer s.Stop()
 
-	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}, db: s.DataSource}
+	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}, db: s.DataSource, lgr: s.Logger}
 	defer s.Logger.ErrorIfFn(p.Close, "Failed to close")
 
 	s.MustRegister(p)
@@ -49,7 +49,8 @@ func main() {
 
 type pluginRelayer struct {
 	loop.Plugin
-	db sqlutil.DataSource
+	db  sqlutil.DataSource
+	lgr logger.Logger
 }
 
 var _ loop.PluginRelayer = &pluginRelayer{}

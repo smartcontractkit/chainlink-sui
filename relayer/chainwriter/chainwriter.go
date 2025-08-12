@@ -190,12 +190,7 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
-	configOverrides := &cwConfig.ConfigOverrides{
-		ToAddress: toAddress,
-	}
-
-	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, configOverrides)
-
+	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, toAddress)
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err

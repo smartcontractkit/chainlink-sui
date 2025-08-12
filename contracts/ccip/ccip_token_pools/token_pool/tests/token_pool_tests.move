@@ -45,7 +45,7 @@ fun set_up_test(): (Scenario, TokenPoolState) {
     (scenario, state)
 }
 
-fun set_up_token_pool_test_with_ccip(): (Scenario, ccip::state_object::OwnerCap, ccip::state_object::CCIPObjectRef, TokenPoolState) {
+fun set_up_token_pool_test_with_ccip(): (Scenario, ccip::ownable::OwnerCap, ccip::state_object::CCIPObjectRef, TokenPoolState) {
     let mut scenario = test_scenario::begin(@ccip_token_pool);
 
     ccip::state_object::test_init(scenario.ctx());
@@ -54,7 +54,7 @@ fun set_up_token_pool_test_with_ccip(): (Scenario, ccip::state_object::OwnerCap,
     scenario.next_tx(@ccip_token_pool);
 
     // Retrieve the OwnerCap that was transferred to the sender
-    let owner_cap = scenario.take_from_sender<ccip::state_object::OwnerCap>();
+    let owner_cap = scenario.take_from_sender<ccip::ownable::OwnerCap>();
 
     // Retrieve the shared CCIPObjectRef
     let mut ref = scenario.take_shared<ccip::state_object::CCIPObjectRef>();

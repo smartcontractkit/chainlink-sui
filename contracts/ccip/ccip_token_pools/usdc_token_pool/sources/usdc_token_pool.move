@@ -94,7 +94,7 @@ public fun type_and_version(): String {
 #[allow(lint(self_transfer))]
 public fun initialize<T: drop>(
     ref: &mut CCIPObjectRef,
-    owner_cap: &state_object::OwnerCap,
+    ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
     local_domain_identifier: u32,
     token_pool_package_id: address,
@@ -123,7 +123,7 @@ public fun initialize<T: drop>(
 
     token_admin_registry::register_pool_by_admin(
         ref,
-        owner_cap,
+        ccip_admin_proof,
         coin_metadata_address,
         token_pool_package_id,
         string::utf8(b"usdc_token_pool"),
@@ -663,18 +663,19 @@ public fun execute_ownership_transfer(
     ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
 
-public fun mcms_register_entrypoint(
-    registry: &mut Registry,
-    state: &mut USDCTokenPoolState,
+public entry fun execute_ownership_transfer_to_mcms(
     owner_cap: OwnerCap,
+    state: &mut USDCTokenPoolState,
+    registry: &mut Registry,
+    to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
-
-    mcms_registry::register_entrypoint(
+    ownable::execute_ownership_transfer_to_mcms(
+        owner_cap,
+        &mut state.ownable_state,
         registry,
+        to,
         McmsCallback{},
-        option::some(owner_cap),
         ctx,
     );
 }
@@ -812,7 +813,7 @@ const EInvalidFunction: u64 = 13;
 public fun destroy_token_pool(
     state: USDCTokenPoolState,
     owner_cap: OwnerCap,
-    _ctx: &mut TxContext,
+    ctx: &mut TxContext,
 ) {
     assert!(object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
@@ -828,6 +829,6 @@ public fun destroy_token_pool(
     object::delete(state_id);
 
     // Destroy ownable state and owner cap using helper functions
-    ownable::destroy_ownable_state(ownable_state);
-    ownable::destroy_owner_cap(owner_cap);
+    ownable::destroy_ownable_state(ownable_state, ctx);
+    ownable::destroy_owner_cap(owner_cap, ctx);
 }

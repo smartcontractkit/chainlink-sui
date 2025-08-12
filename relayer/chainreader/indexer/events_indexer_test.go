@@ -94,7 +94,7 @@ func TestEventsIndexer(t *testing.T) {
 	syncTimeout := 10 * time.Second
 
 	indexer := indexer2.NewEventIndexer(
-		dbStore,
+		db,
 		log,
 		relayerClient,
 		[]*client.EventSelector{eventSelector},
@@ -302,7 +302,7 @@ func TestEventsIndexer(t *testing.T) {
 		}
 
 		freshIndexer := indexer2.NewEventIndexer(
-			dbStore,
+			db,
 			log,
 			relayerClient,
 			[]*client.EventSelector{freshEventSelector},

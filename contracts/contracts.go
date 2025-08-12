@@ -25,10 +25,12 @@ const (
 	ManagedToken         = Package("managed_token")
 	ManagedTokenFaucet   = Package("managed_token_faucet")
 	MockLinkToken        = Package("mock_link_token")
+	MockEthToken         = Package("mock_eth_token")
 	// LINK
 	LINK = Package("link")
 	// MCMS
-	MCMS = Package("mcms")
+	MCMS     = Package("mcms")
+	MCMSUser = Package("mcms_user")
 	// Other
 	Test = Package("test")
 )
@@ -49,10 +51,12 @@ var Contracts map[Package]string = map[Package]string{
 	ManagedToken:         filepath.Join("ccip", "managed_token"),
 	ManagedTokenFaucet:   filepath.Join("ccip", "managed_token_faucet"),
 	MockLinkToken:        filepath.Join("ccip", "mock_link_token"),
+	MockEthToken:         filepath.Join("ccip", "mock_eth_token"),
 	// LINK
 	LINK: filepath.Join("link"),
 	// MCMS
-	MCMS: filepath.Join("mcms", "mcms"),
+	MCMS:     filepath.Join("mcms", "mcms"),
+	MCMSUser: filepath.Join("mcms", "mcms_test"),
 	// Other
 	Test: filepath.Join("test"),
 }

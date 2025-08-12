@@ -80,7 +80,7 @@ module mcms::mcms_account {
         state: &mut AccountState,
         ctx: &mut TxContext,
     ) {
-        transfer_ownership(owner_cap, state, @mcms, ctx);
+        transfer_ownership(owner_cap, state, mcms_registry::get_multisig_address(), ctx);
     }
 
     public fun accept_ownership(state: &mut AccountState, ctx: &mut TxContext) {
@@ -88,7 +88,7 @@ module mcms::mcms_account {
     }
 
     public(package) fun accept_ownership_as_timelock(state: &mut AccountState, _ctx: &mut TxContext) {
-        accept_ownership_internal(state, @mcms);
+        accept_ownership_internal(state, mcms_registry::get_multisig_address());
     }
 
     /// UID is a privileged type that is only accessible by the object owner.
@@ -134,11 +134,11 @@ module mcms::mcms_account {
         assert!(pending_transfer.accepted, ETransferNotAccepted);
 
         // if the new owner is mcms, we need to add the `OwnerCap` to the registry.
-        if (new_owner == @mcms) {
+        if (new_owner == mcms_registry::get_multisig_address()) {
             mcms_registry::register_entrypoint(
                 registry,
                 mcms_registry::create_mcms_proof(),
-                option::some(owner_cap),
+                owner_cap,
                 ctx,
             );
         } else {

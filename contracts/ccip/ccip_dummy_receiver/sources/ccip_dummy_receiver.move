@@ -59,17 +59,15 @@ fun init(ctx: &mut TxContext) {
     transfer::transfer(owner_cap, ctx.sender());
 }
 
-public fun register_receiver(ref: &mut CCIPObjectRef, receiver_state_id: address, receiver_state_params: vector<address>) {
-    receiver_registry::register_receiver(ref, receiver_state_id, receiver_state_params, DummyReceiverProof {});
+public fun register_receiver(ref: &mut CCIPObjectRef, receiver_state_params: vector<address>) {
+    receiver_registry::register_receiver(ref, receiver_state_params, DummyReceiverProof {});
 }
 
 public fun get_counter(state: &CCIPReceiverState): u64 {
     state.counter
 }
 
-// PTB needs the package id from execution report (msg.receiver) & the module name to call the receiver
 // any ccip receiver must implement this function with the same signature
-// a receive function with 2 extra parameters: state and clock
 public fun ccip_receive(ref: &CCIPObjectRef, receiver_params: osh::ReceiverParams, state: &mut CCIPReceiverState, _: &Clock): osh::ReceiverParams {
     let (message_op, receiver_params) = osh::extract_any2sui_message(ref, receiver_params, DummyReceiverProof {});
     if (message_op.is_none()) {

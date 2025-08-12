@@ -27,8 +27,8 @@ type IManagedToken interface {
 	MintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TotalSupply(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IsAuthorizedMintCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, id bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
-	IncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*models.SuiTransactionBlockResponse, error)
+	ConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
+	IncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*models.SuiTransactionBlockResponse, error)
 	SetUnlimitedMintAllowances(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, isUnlimited bool) (*models.SuiTransactionBlockResponse, error)
 	GetAllMintCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	MintAndTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, mintCap bind.Object, denyList bind.Object, amount uint64, recipient string) (*models.SuiTransactionBlockResponse, error)
@@ -48,8 +48,9 @@ type IManagedToken interface {
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipAsMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IManagedTokenDevInspect
@@ -85,9 +86,9 @@ type ManagedTokenEncoder interface {
 	TotalSupplyWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	IsAuthorizedMintCap(typeArgs []string, state bind.Object, id bind.Object) (*bind.EncodedCall, error)
 	IsAuthorizedMintCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ConfigureNewMinter(typeArgs []string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error)
+	ConfigureNewMinter(typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error)
 	ConfigureNewMinterWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	IncrementMintAllowance(typeArgs []string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*bind.EncodedCall, error)
+	IncrementMintAllowance(typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*bind.EncodedCall, error)
 	IncrementMintAllowanceWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetUnlimitedMintAllowances(typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, isUnlimited bool) (*bind.EncodedCall, error)
 	SetUnlimitedMintAllowancesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -127,10 +128,12 @@ type ManagedTokenEncoder interface {
 	AcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(typeArgs []string, state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
+	AcceptOwnershipAsMcms(typeArgs []string, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	AcceptOwnershipAsMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsRegisterEntrypoint(typeArgs []string, registry bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
-	McmsRegisterEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsEntrypoint(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -523,8 +526,8 @@ func (c *ManagedTokenContract) IsAuthorizedMintCap(ctx context.Context, opts *bi
 }
 
 // ConfigureNewMinter executes the configure_new_minter Move function.
-func (c *ManagedTokenContract) ConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.ConfigureNewMinter(typeArgs, state, param, minter, allowance, isUnlimited)
+func (c *ManagedTokenContract) ConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.ConfigureNewMinter(typeArgs, state, ownerCap, minter, allowance, isUnlimited)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -533,8 +536,8 @@ func (c *ManagedTokenContract) ConfigureNewMinter(ctx context.Context, opts *bin
 }
 
 // IncrementMintAllowance executes the increment_mint_allowance Move function.
-func (c *ManagedTokenContract) IncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.IncrementMintAllowance(typeArgs, state, param, mintCapId, denyList, allowanceIncrement)
+func (c *ManagedTokenContract) IncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.IncrementMintAllowance(typeArgs, state, ownerCap, mintCapId, denyList, allowanceIncrement)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -732,9 +735,9 @@ func (c *ManagedTokenContract) AcceptOwnershipFromObject(ctx context.Context, op
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *ManagedTokenContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.ExecuteOwnershipTransfer(typeArgs, ownerCap, ownableState, to)
+// AcceptOwnershipAsMcms executes the accept_ownership_as_mcms Move function.
+func (c *ManagedTokenContract) AcceptOwnershipAsMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.AcceptOwnershipAsMcms(typeArgs, state, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -742,9 +745,19 @@ func (c *ManagedTokenContract) ExecuteOwnershipTransfer(ctx context.Context, opt
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsRegisterEntrypoint executes the mcms_register_entrypoint Move function.
-func (c *ManagedTokenContract) McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.McmsRegisterEntrypoint(typeArgs, registry, state, ownerCap)
+// ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
+func (c *ManagedTokenContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.ExecuteOwnershipTransfer(typeArgs, ownerCap, state, to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
+func (c *ManagedTokenContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1236,7 +1249,7 @@ func (c managedTokenEncoder) IsAuthorizedMintCapWithArgs(typeArgs []string, args
 }
 
 // ConfigureNewMinter encodes a call to the configure_new_minter Move function.
-func (c managedTokenEncoder) ConfigureNewMinter(typeArgs []string, state bind.Object, param bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) ConfigureNewMinter(typeArgs []string, state bind.Object, ownerCap bind.Object, minter string, allowance uint64, isUnlimited bool) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1249,7 +1262,7 @@ func (c managedTokenEncoder) ConfigureNewMinter(typeArgs []string, state bind.Ob
 		"bool",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		minter,
 		allowance,
 		isUnlimited,
@@ -1278,7 +1291,7 @@ func (c managedTokenEncoder) ConfigureNewMinterWithArgs(typeArgs []string, args 
 }
 
 // IncrementMintAllowance encodes a call to the increment_mint_allowance Move function.
-func (c managedTokenEncoder) IncrementMintAllowance(typeArgs []string, state bind.Object, param bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) IncrementMintAllowance(typeArgs []string, state bind.Object, ownerCap bind.Object, mintCapId bind.Object, denyList bind.Object, allowanceIncrement uint64) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1291,7 +1304,7 @@ func (c managedTokenEncoder) IncrementMintAllowance(typeArgs []string, state bin
 		"u64",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		mintCapId,
 		denyList,
 		allowanceIncrement,
@@ -2020,19 +2033,52 @@ func (c managedTokenEncoder) AcceptOwnershipFromObjectWithArgs(typeArgs []string
 	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// AcceptOwnershipAsMcms encodes a call to the accept_ownership_as_mcms Move function.
+func (c managedTokenEncoder) AcceptOwnershipAsMcms(typeArgs []string, state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_as_mcms", typeArgsList, typeParamsList, []string{
+		"&mut TokenState<T>",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		params,
+	}, nil)
+}
+
+// AcceptOwnershipAsMcmsWithArgs encodes a call to the accept_ownership_as_mcms Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) AcceptOwnershipAsMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut TokenState<T>",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("accept_ownership_as_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c managedTokenEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"OwnerCap<T>",
-		"&mut OwnableState<T>",
+		"&mut TokenState<T>",
 		"address",
 	}, []any{
 		ownerCap,
-		ownableState,
+		state,
 		to,
 	}, nil)
 }
@@ -2042,7 +2088,7 @@ func (c managedTokenEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCa
 func (c managedTokenEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"OwnerCap<T>",
-		"&mut OwnableState<T>",
+		"&mut TokenState<T>",
 		"address",
 	}
 
@@ -2056,30 +2102,33 @@ func (c managedTokenEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string,
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsRegisterEntrypoint encodes a call to the mcms_register_entrypoint Move function.
-func (c managedTokenEncoder) McmsRegisterEntrypoint(typeArgs []string, registry bind.Object, state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
+// ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
+func (c managedTokenEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, []string{
-		"&mut Registry",
-		"&mut TokenState<T>",
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
 		"OwnerCap<T>",
+		"&mut TokenState<T>",
+		"&mut Registry",
+		"address",
 	}, []any{
-		registry,
-		state,
 		ownerCap,
+		state,
+		registry,
+		to,
 	}, nil)
 }
 
-// McmsRegisterEntrypointWithArgs encodes a call to the mcms_register_entrypoint Move function using arbitrary arguments.
+// ExecuteOwnershipTransferToMcmsWithArgs encodes a call to the execute_ownership_transfer_to_mcms Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c managedTokenEncoder) McmsRegisterEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&mut Registry",
-		"&mut TokenState<T>",
 		"OwnerCap<T>",
+		"&mut TokenState<T>",
+		"&mut Registry",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2089,7 +2138,7 @@ func (c managedTokenEncoder) McmsRegisterEntrypointWithArgs(typeArgs []string, a
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.

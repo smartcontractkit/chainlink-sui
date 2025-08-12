@@ -5,8 +5,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
-	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
-
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
@@ -58,12 +56,6 @@ type RenamedField struct {
 
 	// Rename sub-fields. This assumes that the event field value is a struct or a map with string keys.
 	SubFieldRenames map[string]RenamedField
-}
-
-type SequenceWithMetadata struct {
-	Sequence  pkgtypes.Sequence
-	TxVersion uint64
-	TxHash    string
 }
 
 type EventsIndexerConfig struct {

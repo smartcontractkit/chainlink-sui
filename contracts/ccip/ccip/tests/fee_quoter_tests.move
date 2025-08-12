@@ -8,7 +8,8 @@ use sui::test_scenario::{Self, Scenario};
 use sui::clock;
 
 use ccip::fee_quoter::{Self, FeeQuoterState};
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 
 // === Constants ===
 
@@ -77,7 +78,8 @@ fun setup_basic_dest_chain_config(
     owner_cap: &OwnerCap,
     dest_chain_selector: u64,
     chain_family_selector: vector<u8>,
-    enforce_out_of_order: bool
+    enforce_out_of_order: bool,
+    ctx: &mut TxContext,
 ) {
     fee_quoter::apply_dest_chain_config_updates(
         ref,
@@ -101,7 +103,8 @@ fun setup_basic_dest_chain_config(
         200_000, // default_tx_gas_limit
         ONE_E_18 as u64, // gas_multiplier_wei_per_eth
         1_000_000, // gas_price_staleness_threshold
-        50 // network_fee_usd_cents
+        50, // network_fee_usd_cents
+        ctx,
     );
 }
 
@@ -130,7 +133,8 @@ fun setup_token_transfer_fee_configs(
 fun setup_price_updates(
     ref: &mut CCIPObjectRef,
     fee_quoter_cap: &fee_quoter::FeeQuoterCap,
-    clock: &clock::Clock
+    clock: &clock::Clock,
+    ctx: &mut TxContext
 ) {
     fee_quoter::update_prices(
         ref,
@@ -139,7 +143,8 @@ fun setup_price_updates(
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
         vector[DEFAULT_TOKEN_PRICE * ONE_E_18, DEFAULT_TOKEN_PRICE * ONE_E_18], // source_usd_per_token
         vector[100, 1000], // gas_dest_chain_selectors
-        vector[DEFAULT_GAS_PRICE, DEFAULT_GAS_PRICE] // gas_usd_per_unit_gas
+        vector[DEFAULT_GAS_PRICE, DEFAULT_GAS_PRICE], // gas_usd_per_unit_gas
+        ctx
     );
 }
 
@@ -188,6 +193,7 @@ public fun test_apply_fee_token_updates() {
             MOCK_ADDRESS_4,
             MOCK_ADDRESS_5
         ],
+        ctx,
     );
 
     let fee_tokens = fee_quoter::get_fee_tokens(&ref);
@@ -278,6 +284,7 @@ public fun test_apply_premium_multiplier_wei_per_eth_updates() {
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
         // 900_000_000_000_000_000 = 90%
         vector[900_000_000_000_000_000, 200_000_000_000_000_000], // premium_multiplier_wei_per_eth
+        ctx
     );
 
     assert!(fee_quoter::get_premium_multiplier_wei_per_eth(&ref, MOCK_ADDRESS_1) == 900000000000000000);
@@ -298,7 +305,7 @@ public fun test_update_prices() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
     // Prices are successfully updated if we can find the config for the dest chain selector / token address
     let _timestamp_price = fee_quoter::get_dest_chain_gas_price(&ref, 100);
@@ -317,7 +324,7 @@ public fun test_apply_dest_chain_config_updates() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true, ctx);
 
     let _config = fee_quoter::get_dest_chain_config(&ref, 100);
 
@@ -333,7 +340,7 @@ public fun test_process_message_args_evm() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true, ctx);
     setup_token_transfer_fee_configs(&mut ref, &owner_cap, 100, ctx);
 
     let evm_extra_args = x"181dcf10a1a910000000000000000000000000000000000000000000000000000000000001";
@@ -376,7 +383,7 @@ public fun test_process_message_args_svm() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SVM, true);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SVM, true, ctx);
 
     fee_quoter::apply_token_transfer_fee_config_updates(
         &mut ref,
@@ -439,7 +446,7 @@ public fun test_get_validated_fee() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
     fee_quoter::apply_dest_chain_config_updates(
         &mut ref,
@@ -463,7 +470,8 @@ public fun test_get_validated_fee() {
         200_000, // default_tx_gas_limit
         ONE_E_18 as u64, // gas_multiplier_wei_per_eth
         1_000_000, // gas_price_staleness_threshold
-        10 // network_fee_usd_cents
+        10, // network_fee_usd_cents
+        ctx,
     );
 
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -486,7 +494,8 @@ public fun test_get_validated_fee() {
         &owner_cap,
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens
         // 900_000_000_000_000_000 = 90%
-        vector[900_000_000_000_000_000, 900_000_000_000_000_000] // premium_multiplier_wei_per_eth
+        vector[900_000_000_000_000_000, 900_000_000_000_000_000], // premium_multiplier_wei_per_eth
+        ctx
     );
 
     // The gas limit is hex(30D40) = 200000
@@ -529,7 +538,7 @@ public fun test_get_timestamped_price_fields() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
     let timestamped_price = fee_quoter::get_token_price(&ref, MOCK_ADDRESS_1);
     let (value, timestamp) = fee_quoter::get_timestamped_price_fields(timestamped_price);
@@ -552,7 +561,7 @@ public fun test_get_token_prices() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
     let prices = fee_quoter::get_token_prices(&ref, vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2]);
     assert!(prices.length() == 2);
@@ -578,8 +587,8 @@ public fun test_get_token_and_gas_prices() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false, ctx);
 
     let (token_price, gas_price) = fee_quoter::get_token_and_gas_prices(&ref, &clock, MOCK_ADDRESS_1, 100);
     
@@ -609,7 +618,8 @@ public fun test_convert_token_amount() {
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], 
         vector[100 * ONE_E_18, 200 * ONE_E_18], // MOCK_ADDRESS_1: $100, MOCK_ADDRESS_2: $200
         vector[100], 
-        vector[DEFAULT_GAS_PRICE] 
+        vector[DEFAULT_GAS_PRICE],
+        ctx
     );
 
     // Convert 100 units of MOCK_ADDRESS_1 ($100 each) to MOCK_ADDRESS_2 ($200 each)
@@ -628,7 +638,7 @@ public fun test_get_token_receiver() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false, ctx);
 
     let message_receiver = x"000000000000000000000000f4030086522a5beea4988f8ca5b36dbc97bee88c";
     let evm_extra_args = x"181dcf10a1a910000000000000000000000000000000000000000000000000000000000001";
@@ -645,7 +655,7 @@ public fun test_get_dest_chain_config_fields() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true, ctx);
 
     let config = fee_quoter::get_dest_chain_config(&ref, 100);
     let (
@@ -722,7 +732,7 @@ public fun test_get_token_and_gas_prices_chain_not_enabled() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
     // Configure destination chain as DISABLED
     fee_quoter::apply_dest_chain_config_updates(
@@ -747,7 +757,8 @@ public fun test_get_token_and_gas_prices_chain_not_enabled() {
         200_000, // default_tx_gas_limit
         ONE_E_18 as u64, // gas_multiplier_wei_per_eth
         1_000_000, // gas_price_staleness_threshold
-        50 // network_fee_usd_cents
+        50, // network_fee_usd_cents
+        ctx,
     );
 
     // This should fail because the destination chain is disabled
@@ -777,7 +788,8 @@ public fun test_update_prices_token_update_mismatch() {
         vector[MOCK_ADDRESS_1, MOCK_ADDRESS_2], // source_tokens (2 elements)
         vector[DEFAULT_TOKEN_PRICE * ONE_E_18], // source_usd_per_token (1 element - MISMATCH!)
         vector[100], // gas_dest_chain_selectors
-        vector[DEFAULT_GAS_PRICE] // gas_usd_per_unit_gas
+        vector[DEFAULT_GAS_PRICE], // gas_usd_per_unit_gas
+        ctx
     );
 
     fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
@@ -797,8 +809,8 @@ public fun test_get_validated_fee_invalid_extra_args_data_too_short() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false, ctx);
 
     // Create extra args that are too short (less than 4 bytes for the tag)
     let invalid_extra_args = x"12"; // Only 1 byte, should be at least 4
@@ -833,8 +845,8 @@ public fun test_get_validated_fee_invalid_token_receiver_svm() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SVM, false);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SVM, false, ctx);
 
     // Create SVM extra args with ZERO token receiver (invalid for token transfers)
     // Using the client module to create properly formatted SVM extra args
@@ -884,7 +896,7 @@ public fun test_process_message_args_message_fee_too_high() {
         ctx
     );
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false, ctx);
 
     let evm_extra_args = x"181dcf10a1a910000000000000000000000000000000000000000000000000000000000001";
 
@@ -911,7 +923,7 @@ public fun test_process_message_args_source_token_data_too_large() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false, ctx);
 
     // Configure token with very small dest_bytes_overhead
     fee_quoter::apply_token_transfer_fee_config_updates(
@@ -980,7 +992,8 @@ public fun test_apply_dest_chain_config_invalid_dest_chain_selector_zero() {
         200_000, // default_tx_gas_limit
         ONE_E_18 as u64, // gas_multiplier_wei_per_eth
         1_000_000, // gas_price_staleness_threshold
-        50 // network_fee_usd_cents
+        50, // network_fee_usd_cents
+        ctx,
     );
 
     cleanup_test_scenario(scenario, owner_cap, ref);
@@ -998,8 +1011,8 @@ public fun test_get_validated_fee_svm_empty_extra_args() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SVM, false);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SVM, false, ctx);
 
     // Create completely EMPTY extra args for SVM (invalid)
     let empty_extra_args = x""; // Empty extra args
@@ -1067,7 +1080,8 @@ public fun test_update_prices_gas_update_mismatch() {
         vector[MOCK_ADDRESS_1], // source_tokens
         vector[DEFAULT_TOKEN_PRICE * ONE_E_18], // source_usd_per_token (matching length)
         vector[100, 1000], // gas_dest_chain_selectors (2 elements)
-        vector[DEFAULT_GAS_PRICE] // gas_usd_per_unit_gas (1 element - MISMATCH!)
+        vector[DEFAULT_GAS_PRICE], // gas_usd_per_unit_gas (1 element - MISMATCH!)
+        ctx
     );
 
     fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
@@ -1113,9 +1127,9 @@ public fun test_get_validated_fee_unsupported_fee_token() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false, ctx);
 
     let evm_extra_args = x"181dcf10a1a910000000000000000000000000000000000000000000000000000000000000";
 
@@ -1150,10 +1164,10 @@ public fun test_get_validated_fee_out_of_order_execution_required() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
     // Configure destination chain to ENFORCE out-of-order execution
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true, ctx);
 
     // Create extra args with allow_out_of_order_execution = FALSE
     // This will conflict with the chain config that enforces out-of-order execution
@@ -1189,8 +1203,8 @@ public fun test_get_validated_fee_invalid_extra_args_tag() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
-    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, false, ctx);
 
     // Create extra args with INVALID tag (should be x"181dcf10" for EVM v2)
     let invalid_extra_args = x"deadbeefa1a910000000000000000000000000000000000000000000000000000000000000"; // invalid tag
@@ -1225,7 +1239,7 @@ public fun test_get_validated_fee_compute_unit_limit_too_high() {
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
     
-    setup_price_updates(&mut ref, &fee_quoter_cap, &clock);
+    setup_price_updates(&mut ref, &fee_quoter_cap, &clock, ctx);
 
     // Configure SVM destination chain with LOW max_per_msg_gas_limit
     fee_quoter::apply_dest_chain_config_updates(
@@ -1250,7 +1264,8 @@ public fun test_get_validated_fee_compute_unit_limit_too_high() {
         500, // default_tx_gas_limit (must be <= max_per_msg_gas_limit)
         ONE_E_18 as u64, // gas_multiplier_wei_per_eth
         1_000_000, // gas_price_staleness_threshold
-        50 // network_fee_usd_cents
+        50, // network_fee_usd_cents
+        ctx,
     );
 
     // Create SVM extra args with compute_units = 5000 (exceeds the limit of 1000)
@@ -1305,7 +1320,8 @@ public fun test_apply_dest_chain_config_invalid_chain_family_selector() {
         200_000, // default_tx_gas_limit
         ONE_E_18 as u64, // gas_multiplier_wei_per_eth
         1_000_000, // gas_price_staleness_threshold
-        50 // network_fee_usd_cents
+        50, // network_fee_usd_cents
+        ctx,
     );
 
     cleanup_test_scenario(scenario, owner_cap, ref);

@@ -11,7 +11,8 @@ use sui::test_scenario::{Self as ts, Scenario};
 use ccip::client;
 use ccip::offramp_state_helper::{Self, DestTransferCap};
 use ccip::receiver_registry;
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 use ccip::token_admin_registry as registry;
 
 public struct OFFRAMP_STATE_HELPER_TESTS has drop {}
@@ -236,11 +237,11 @@ public fun test_populate_message() {
 #[test]
 public fun test_complete_token_transfer() {
     let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
-    
+
     // Register a token in the token admin registry
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
         string::utf8(b"test_pool"),
@@ -296,7 +297,7 @@ public fun test_extract_any2sui_message() {
     // Register a receiver
     receiver_registry::register_receiver(
         &mut ref,
-        @0x123, // receiver_state_id
+        //@0x123, // receiver_state_id
         vector[], // receiver_state_params
         TestTypeProof {}
     );

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader"
+	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/stretchr/testify/require"
@@ -20,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -149,6 +152,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							Event:   "CounterIncremented",
 						},
 					},
+					"counter_decremented": {
+						Name:      "counter_decremented",
+						EventType: "CounterDecremented",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "counter",
+							Event:   "CounterDecremented",
+						},
+					},
 				},
 			},
 		},
@@ -169,13 +181,50 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	_, err = db.Connx(ctx)
 	require.NoError(t, err)
 
-	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db)
+	// Create the indexers
+	txnIndexer := indexer.NewTransactionsIndexer(
+		db,
+		log,
+		relayerClient,
+		chainReaderConfig.TransactionsIndexer.PollingInterval,
+		chainReaderConfig.TransactionsIndexer.SyncTimeout,
+		// start without any configs, they will be set when ChainReader is initialized and gets a reference
+		// to the transaction indexer to avoid having to reading ChainReader configs here as well
+		map[string]*config.ChainReaderEvent{},
+	)
+	evIndexer := indexer.NewEventIndexer(
+		db,
+		log,
+		relayerClient,
+		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		[]*client.EventSelector{},
+		chainReaderConfig.EventsIndexer.PollingInterval,
+		chainReaderConfig.EventsIndexer.SyncTimeout,
+	)
+	indexerInstance := indexer.NewIndexer(
+		log,
+		evIndexer,
+		txnIndexer,
+	)
+
+	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding})
 	require.NoError(t, err)
 
 	log.Debugw("ChainReader setup complete")
+
+	go func() {
+		err = chainReader.Start(ctx)
+		require.NoError(t, err)
+		log.Debugw("ChainReader started")
+	}()
+	go func() {
+		err = indexerInstance.Start(ctx)
+		require.NoError(t, err)
+		log.Debugw("Indexers started")
+	}()
 
 	t.Run("GetLatestValue_FunctionRead", func(t *testing.T) {
 		expectedUint64 := uint64(0)
@@ -294,13 +343,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("QueryKey_Events", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-
-		go func() {
-			_ = chainReader.Start(ctx)
-		}()
-
 		// Increment the counter to emit an event
 		log.Debugw("Incrementing counter to emit event", "counterObjectId", counterObjectId)
 
@@ -380,6 +422,111 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NotNil(t, event)
 		log.Debugw("Event data", "counterId", event.CounterID, "newValue", event.NewValue)
 		require.Equal(t, uint64(1), event.NewValue, "Expected counter value to be 1")
+	})
+
+	t.Run("QueryKey_WithFilter", func(t *testing.T) {
+		// Decrement the counter to emit an event (different from what has been previously emitted)
+		log.Debugw("Decrementing counter to emit event", "counterObjectId", counterObjectId)
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "counter",
+			Function:        "decrement",
+			TypeArguments:   []any{},
+			Arguments:       []any{counterObjectId},
+			GasBudget:       2000000,
+		}
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		_, testErr = relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		// Query for counter increment events
+		type CounterDecrementEvent struct {
+			EventType string `json:"eventType"`
+			CounterID string `json:"counterId"`
+			NewValue  uint64 `json:"newValue"`
+		}
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "counter_decremented",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		sequences := []types.Sequence{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var counterEvent CounterDecrementEvent
+			sequences, err = chainReader.QueryKey(
+				ctx,
+				counterBinding,
+				filter,
+				limitAndSort,
+				&counterEvent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", "error", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+		require.NotEmpty(t, sequences, "Expected at least one event")
+	})
+
+	t.Run("QueryKey_WithMetadata", func(t *testing.T) {
+		type CounterDecrementEvent struct {
+			EventType string `json:"eventType"`
+			CounterID string `json:"counterId"`
+			NewValue  uint64 `json:"newValue"`
+		}
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "counter_decremented",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		sequences := []aptosCRConfig.SequenceWithMetadata{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var counterEvent CounterDecrementEvent
+			sequences, err = chainReader.(chainreader.ExtendedContractReader).QueryKeyWithMetadata(
+				ctx,
+				counterBinding,
+				filter,
+				limitAndSort,
+				&counterEvent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", "error", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+		require.NotEmpty(t, sequences, "Expected at least one event")
 	})
 
 	t.Run("GetLatestValue_PointerTag", func(t *testing.T) {

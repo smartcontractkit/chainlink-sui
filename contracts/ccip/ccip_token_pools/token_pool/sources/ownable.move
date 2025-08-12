@@ -1,15 +1,9 @@
-/// Ownable functionality for the Burn Mint Token Pool module
+/// Ownable functionality for the CCIP Token Pool module
 /// Provides ownership management with two-step ownership transfer process
 module ccip_token_pool::ownable {
     use sui::event;
 
-    const EInvalidOwnerCap: u64 = 0;
-    const EUnauthorizedOwnershipTransfer: u64 = 1;
-    const ENoPendingTransfer: u64 = 2;
-    const EUnauthorizedAcceptance: u64 = 3;
-    const ETransferAlreadyAccepted: u64 = 4;
-    const EInvalidRecipient: u64 = 5;
-    const ETransferNotAccepted: u64 = 6;
+    use mcms::mcms_registry::{Self, Registry};
 
     public struct OwnerCap has key, store {
         id: UID,
@@ -36,30 +30,40 @@ module ccip_token_pool::ownable {
         owner: address,
     }
 
-    public struct OwnershipTransferRequested has copy, drop, store {
+    public struct OwnershipTransferRequested has copy, drop {
         from: address,
         to: address,
     }
 
-    public struct OwnershipTransferAccepted has copy, drop, store {
+    public struct OwnershipTransferAccepted has copy, drop {
         from: address,
         to: address,
     }
 
-    public struct OwnershipTransferred has copy, drop, store {
+    public struct OwnershipTransferred has copy, drop {
         from: address,
         to: address,
     }
 
-    // =================== Functions =================== //
+    const EInvalidOwnerCap: u64 = 1;
+    const ECannotTransferToSelf: u64 = 2;
+    const EMustBeProposedOwner: u64 = 3;
+    const ENoPendingTransfer: u64 = 4;
+    const ETransferAlreadyAccepted: u64 = 5;
+    const EOwnerChanged: u64 = 6;
+    const EProposedOwnerMismatch: u64 = 7;
+    const ETransferNotAccepted: u64 = 8;
+    const ECannotTransferToMcms: u64 = 9;
+    const EMustTransferToMcms: u64 = 10;
 
     public fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
         let owner = ctx.sender();
+
         let owner_cap = OwnerCap {
             id: object::new(ctx),
         };
 
-        let ownable_state = OwnableState {
+        let state = OwnableState {
             id: object::new(ctx),
             owner,
             pending_transfer: option::none(),
@@ -67,188 +71,174 @@ module ccip_token_pool::ownable {
         };
 
         event::emit(NewOwnableStateEvent {
-            ownable_state_id: object::id(&ownable_state),
+            ownable_state_id: object::id(&state),
             owner_cap_id: object::id(&owner_cap),
             owner,
         });
 
-        (ownable_state, owner_cap)
+        (state, owner_cap)
     }
 
-    public fun owner(ownable_state: &OwnableState): address {
-        ownable_state.owner
+    public fun owner_cap_id(state: &OwnableState): ID {
+        state.owner_cap_id
     }
 
-    public fun owner_cap_id(ownable_state: &OwnableState): ID {
-        ownable_state.owner_cap_id
+    public fun owner(state: &OwnableState): address {
+        state.owner
     }
 
-    public fun has_pending_transfer(ownable_state: &OwnableState): bool {
-        ownable_state.pending_transfer.is_some()
+    public fun has_pending_transfer(state: &OwnableState): bool {
+        state.pending_transfer.is_some()
     }
 
-    public fun pending_transfer_from(ownable_state: &OwnableState): Option<address> {
-        if (ownable_state.pending_transfer.is_some()) {
-            option::some(ownable_state.pending_transfer.borrow().from)
-        } else {
-            option::none()
-        }
+    public fun pending_transfer_from(state: &OwnableState): Option<address> {
+        state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.from)
     }
 
-    public fun pending_transfer_to(ownable_state: &OwnableState): Option<address> {
-        if (ownable_state.pending_transfer.is_some()) {
-            option::some(ownable_state.pending_transfer.borrow().to)
-        } else {
-            option::none()
-        }
+    public fun pending_transfer_to(state: &OwnableState): Option<address> {
+        state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.to)
     }
 
-    public fun pending_transfer_accepted(ownable_state: &OwnableState): Option<bool> {
-        if (ownable_state.pending_transfer.is_some()) {
-            option::some(ownable_state.pending_transfer.borrow().accepted)
-        } else {
-            option::none()
-        }
+    public fun pending_transfer_accepted(state: &OwnableState): Option<bool> {
+        state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
     }
 
     public fun transfer_ownership(
         owner_cap: &OwnerCap,
-        ownable_state: &mut OwnableState,
-        new_owner: address,
-        ctx: &mut TxContext,
-    ) {
-        assert!(object::id(owner_cap) == ownable_state.owner_cap_id, EInvalidOwnerCap);
-        assert!(ctx.sender() == ownable_state.owner, EUnauthorizedOwnershipTransfer);
-
-        ownable_state.pending_transfer = option::some(PendingTransfer {
-            from: ownable_state.owner,
-            to: new_owner,
-            accepted: false,
-        });
-
-        event::emit(OwnershipTransferRequested {
-            from: ownable_state.owner,
-            to: new_owner,
-        });
-    }
-
-    public fun accept_ownership(
-        ownable_state: &mut OwnableState,
-        ctx: &mut TxContext,
-    ) {
-        assert!(ownable_state.pending_transfer.is_some(), ENoPendingTransfer);
-        let pending = ownable_state.pending_transfer.borrow_mut();
-        assert!(ctx.sender() == pending.to, EUnauthorizedAcceptance);
-        assert!(!pending.accepted, ETransferAlreadyAccepted);
-
-        pending.accepted = true;
-
-        event::emit(OwnershipTransferAccepted {
-            from: pending.from,
-            to: pending.to,
-        });
-    }
-
-    public fun accept_ownership_from_object(
-        ownable_state: &mut OwnableState,
-        from: &mut UID,
+        state: &mut OwnableState,
+        to: address,
         _ctx: &mut TxContext,
     ) {
-        assert!(ownable_state.pending_transfer.is_some(), ENoPendingTransfer);
-        let pending = ownable_state.pending_transfer.borrow_mut();
-        assert!(from.to_address() == pending.to, EUnauthorizedAcceptance);
-        assert!(!pending.accepted, ETransferAlreadyAccepted);
+        assert!(object::id(owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
+        assert!(state.owner != to, ECannotTransferToSelf);
 
-        pending.accepted = true;
+        state.pending_transfer =
+            option::some(PendingTransfer {
+                from: state.owner,
+                to,
+                accepted: false,
+            });
 
-        event::emit(OwnershipTransferAccepted {
-            from: pending.from,
-            to: pending.to,
-        });
+        event::emit(OwnershipTransferRequested { from: state.owner, to });
     }
 
-    public fun accept_ownership_as_mcms(
-        ownable_state: &mut OwnableState,
-        mcms: address,
-        _ctx: &mut TxContext,
-    ) {
-        assert!(ownable_state.pending_transfer.is_some(), ENoPendingTransfer);
-        let pending = ownable_state.pending_transfer.borrow_mut();
-        assert!(mcms == pending.to, EUnauthorizedAcceptance);
-        assert!(!pending.accepted, ETransferAlreadyAccepted);
-
-        pending.accepted = true;
-
-        event::emit(OwnershipTransferAccepted {
-            from: pending.from,
-            to: pending.to,
-        });
+    public fun accept_ownership(state: &mut OwnableState, ctx: &mut TxContext) {
+        accept_ownership_internal(state, ctx.sender());
     }
 
+    /// UID is a privileged type that is only accessible by the object owner.
+    public fun accept_ownership_from_object(state: &mut OwnableState, from: &mut UID, _ctx: &mut TxContext) {
+        accept_ownership_internal(state, from.to_address());
+    }
+
+    public fun accept_ownership_as_mcms(state: &mut OwnableState, mcms: address, _ctx: &mut TxContext) {
+        accept_ownership_internal(state, mcms);
+    }
+
+    fun accept_ownership_internal(state: &mut OwnableState, caller: address) {
+        assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
+
+        let pending_transfer = state.pending_transfer.borrow_mut();
+        let current_owner = state.owner;
+
+        // check that the owner has not changed from a direct call to 0x1::transfer::public_transfer,
+        // in which case the transfer flow should be restarted.
+        assert!(current_owner == pending_transfer.from, EOwnerChanged);
+        assert!(caller == pending_transfer.to, EMustBeProposedOwner);
+        assert!(!pending_transfer.accepted, ETransferAlreadyAccepted);
+
+        pending_transfer.accepted = true;
+
+        event::emit(OwnershipTransferAccepted { from: pending_transfer.from, to: caller });
+    }
+
+    #[allow(lint(custom_state_change))]
     public fun execute_ownership_transfer(
         owner_cap: OwnerCap,
-        ownable_state: &mut OwnableState,
+        state: &mut OwnableState,
         to: address,
-        ctx: &mut TxContext,
-    ) {
-        assert!(object::id(&owner_cap) == ownable_state.owner_cap_id, EInvalidOwnerCap);
-        assert!(ownable_state.pending_transfer.is_some(), ENoPendingTransfer);
-        let pending = ownable_state.pending_transfer.borrow();
-        assert!(pending.to == to, EInvalidRecipient);
-        assert!(pending.accepted, ETransferNotAccepted);
-
-        let old_owner = ownable_state.owner;
-        ownable_state.owner = to;
-        ownable_state.pending_transfer = option::none();
-
-        // Create new owner cap for the new owner
-        let new_owner_cap = OwnerCap {
-            id: object::new(ctx),
-        };
-        ownable_state.owner_cap_id = object::id(&new_owner_cap);
-
-        // Destroy the old owner cap
-        let OwnerCap { id } = owner_cap;
-        object::delete(id);
-
-        event::emit(OwnershipTransferred {
-            from: old_owner,
-            to,
-        });
-
-        // Transfer the new owner cap to the new owner
-        transfer::public_transfer(new_owner_cap, to);
-    }
-
-    public fun set_owner(
-        owner_cap: &OwnerCap,
-        ownable_state: &mut OwnableState,
-        new_owner: address,
         _ctx: &mut TxContext,
     ) {
-        assert!(object::id(owner_cap) == ownable_state.owner_cap_id, EInvalidOwnerCap);
-        
-        let old_owner = ownable_state.owner;
-        ownable_state.owner = new_owner;
+        assert!(object::id(&owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
+        assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
 
-        event::emit(OwnershipTransferred {
-            from: old_owner,
-            to: new_owner,
-        });
+        let pending_transfer = state.pending_transfer.extract();
+        let current_owner = state.owner;
+        let new_owner = pending_transfer.to;
+
+        // check that the owner has not changed from a direct call to 0x1::transfer::public_transfer,
+        // in which case the transfer flow should be restarted.
+        assert!(pending_transfer.from == current_owner, EOwnerChanged);
+        assert!(new_owner == to, EProposedOwnerMismatch);
+        assert!(pending_transfer.accepted, ETransferNotAccepted);
+
+        // Must call `execute_ownership_transfer_to_mcms` instead
+        assert!(new_owner != mcms_registry::get_multisig_address(), ECannotTransferToMcms);
+
+        state.owner = to;
+        state.pending_transfer = option::none();
+
+        transfer::transfer(owner_cap, to);
+
+        event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
     }
 
-    public fun destroy_ownable_state(ownable_state: OwnableState) {
+    #[allow(lint(custom_state_change))]
+    public fun execute_ownership_transfer_to_mcms<T: drop>(
+        owner_cap: OwnerCap,
+        state: &mut OwnableState,
+        registry: &mut Registry,
+        to: address,
+        proof: T,
+        ctx: &mut TxContext,
+    ) {
+        assert!(object::id(&owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
+        assert!(state.pending_transfer.is_some(), ENoPendingTransfer);
+
+        let pending_transfer = state.pending_transfer.extract();
+        let current_owner = state.owner;
+        let new_owner = pending_transfer.to;
+
+        // check that the owner has not changed from a direct call to 0x1::transfer::public_transfer,
+        // in which case the transfer flow should be restarted.
+        assert!(pending_transfer.from == current_owner, EOwnerChanged);
+        assert!(new_owner == to, EProposedOwnerMismatch);
+        assert!(pending_transfer.accepted, ETransferNotAccepted);
+        assert!(to == mcms_registry::get_multisig_address(), EMustTransferToMcms);
+
+        state.owner = to;
+        state.pending_transfer = option::none();
+
+        mcms_registry::register_entrypoint(
+            registry,
+            proof,
+            owner_cap,
+            ctx,
+        );
+
+        event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
+    }
+
+    public fun destroy_ownable_state(state: OwnableState, _ctx: &mut TxContext) {
         let OwnableState {
-            id: ownable_id,
+            id,
             owner: _,
             pending_transfer: _,
             owner_cap_id: _,
-        } = ownable_state;
-        object::delete(ownable_id);
+        } = state;
+
+        object::delete(id);
     }
 
-    public fun destroy_owner_cap(owner_cap: OwnerCap) {
-        let OwnerCap { id: owner_cap_id } = owner_cap;
-        object::delete(owner_cap_id);
+    public fun destroy_owner_cap(owner_cap: OwnerCap, _ctx: &mut TxContext) {
+        let OwnerCap { id } = owner_cap;
+        object::delete(id);
     }
-} 
+
+    #[test_only]
+    public fun create_test_owner_cap(ctx: &mut TxContext): OwnerCap {
+        OwnerCap {
+            id: object::new(ctx),
+        }
+    }
+}

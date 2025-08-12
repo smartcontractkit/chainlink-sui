@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/monitor"
 
@@ -40,6 +42,8 @@ type SuiRelayer struct {
 	client         *client.PTBClient
 	txm            *txm.SuiTxm
 	balanceMonitor services.Service
+
+	indexer *indexer.Indexer
 }
 
 var _ types.Relayer = &SuiRelayer{}
@@ -99,6 +103,32 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
+	// Setup indexers
+	txnIndexer := indexer.NewTransactionsIndexer(
+		db,
+		loggerInstance,
+		suiClient,
+		time.Duration(*cfg.TransactionsIndexer.PollingIntervalSecs)*time.Second,
+		time.Duration(*cfg.TransactionsIndexer.SyncTimeoutSecs)*time.Second,
+		// start without any configs, they will be set when ChainReader is initialized and gets a reference
+		// to the transaction indexer to avoid having to reading ChainReader configs here as well
+		map[string]*chainreaderConfig.ChainReaderEvent{},
+	)
+	evIndexer := indexer.NewEventIndexer(
+		db,
+		loggerInstance,
+		suiClient,
+		// start without any selectors, they will be added during .Bind() calls on ChainReader
+		[]*client.EventSelector{},
+		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,
+		time.Duration(*cfg.EventsIndexer.SyncTimeoutSecs)*time.Second,
+	)
+	indexerInstance := indexer.NewIndexer(
+		loggerInstance,
+		evIndexer,
+		txnIndexer,
+	)
+
 	loggerInstance.Infof("Creating retry manager. NumberRetries: %d", *cfg.TransactionManager.MaxTxRetryAttempts)
 	//nolint:gosec
 	retryManager := txm.NewDefaultRetryManager(int(*cfg.TransactionManager.MaxTxRetryAttempts))
@@ -145,6 +175,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		txm:            txManager,
 		balanceMonitor: balanceMonitorService,
 		db:             db,
+		indexer:        indexerInstance,
 	}, nil
 }
 
@@ -165,7 +196,7 @@ func (r *SuiRelayer) Start(ctx context.Context) error {
 		r.lggr.Debug("Starting Sui Relayer")
 		var ms services.MultiStart
 
-		return ms.Start(ctx, r.txm)
+		return ms.Start(ctx, r.txm, r.indexer)
 	})
 }
 
@@ -173,7 +204,7 @@ func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Stopping Sui Relayer")
 
-		return r.txm.Close()
+		return services.CloseAll(r.txm, r.indexer)
 	})
 }
 
@@ -181,6 +212,7 @@ func (r *SuiRelayer) Ready() error {
 	return errors.Join(
 		r.StateMachine.Ready(),
 		r.txm.Ready(),
+		r.indexer.Ready(),
 	)
 }
 
@@ -239,7 +271,7 @@ func (r *SuiRelayer) NewContractReader(ctx context.Context, contractReaderConfig
 	}
 
 	// TODO: validate chainConfig
-	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db)
+	chainReader, err := chainreader.NewChainReader(ctx, r.lggr, r.client, chainConfig, r.db, r.indexer)
 	if err != nil {
 		return nil, fmt.Errorf("error in NewContractReader: %w", err)
 	}

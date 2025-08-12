@@ -9,7 +9,8 @@ use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
 
-use ccip::state_object::{Self, OwnerCap as CCIPOwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap as CCIPOwnerCap;
 use ccip::onramp_state_helper as onramp_sh;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::rmn_remote;
@@ -958,7 +959,7 @@ public fun test_lock_or_burn_functionality() {
     
     lock_release_token_pool::initialize_by_ccip_admin(
         &mut ccip_ref,
-        &ccip_owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         &coin_metadata,
         TOKEN_ADMIN,
         REBALANCER,
@@ -1109,7 +1110,7 @@ public fun test_release_or_mint_functionality() {
         
         lock_release_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            &ccip_owner_cap,
+            state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             TOKEN_ADMIN,
             REBALANCER,

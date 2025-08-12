@@ -43,7 +43,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	}
 
 	// TODO: We should move the object ID finding logic into the binding package
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "state_object", "OwnerCap")
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "state_object", "CCIPObjectRefPointer")
 	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "state_object", "CCIPObjectRef")
 	obj4, err4 := bind.FindObjectIdFromPublishTx(*tx, "onramp_state_helper", "SourceTransferCap")

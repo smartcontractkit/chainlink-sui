@@ -1,3 +1,4 @@
+// / DO NOT EDIT - this will be removed
 package expander
 
 import (
@@ -101,11 +102,15 @@ func NewSuiPTBExpander(
 	}
 }
 
-type GetPoolInfosResult struct {
-	TokenPoolPackageIds     []SuiAddress `json:"token_pool_package_ids"`
-	TokenPoolStateAddresses []SuiAddress `json:"token_pool_state_addresses"`
-	TokenPoolModules        []string     `json:"token_pool_modules"`
-	TokenTypes              []string     `json:"token_types"`
+type TokenConfig struct {
+	TokenPoolPackageId   SuiAddress `json:"token_pool_package_id"`
+	TokenPoolModule      string     `json:"token_pool_module"`
+	TokenType            string     `json:"token_type"`
+	Administrator        SuiAddress `json:"administrator"`
+	PendingAdministrator SuiAddress `json:"pending_administrator"`
+	TypeProof            string     `json:"type_proof"`
+	LockOrBurnParams     []string   `json:"lock_or_burn_params"`
+	ReleaseOrMintParams  []string   `json:"release_or_mint_params"`
 }
 
 // SetupAddressMappings initializes and populates all required address mappings for PTB expansion operations.
@@ -236,10 +241,6 @@ func SetupAddressMappings(
 		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, "state_object::CCIPObjectRefPointer") {
 			// parse the object into a map
 			parsedObject := ccipOwnedObject.Data.Content.Fields
-			if err != nil {
-				lggr.Errorw("Error parsing ccip object ref", "error", err)
-				return nil, err
-			}
 			lggr.Debugw("ccipObjectRefPointer", "ccipObjectRefPointer", parsedObject)
 			addressMappings["ccipObjectRef"] = parsedObject["object_ref_id"].(string)
 			addressMappings["ccipOwnerCap"] = parsedObject["owner_cap_id"].(string)
@@ -296,12 +297,13 @@ func (s *SuiPTBExpander) getTokenPoolByTokenAddress(
 		return nil, err
 	}
 
-	poolInfos, err := s.ptbClient.ReadFunction(
+	// this function will be replaced
+	tokenConfigResults, err := s.ptbClient.ReadFunction(
 		ctx,
 		signerAddress,
 		s.AddressMappings["ccipPackageId"],
 		"token_admin_registry",
-		"get_pool_infos",
+		"get_token_configs",
 		[]any{
 			s.AddressMappings["ccipObjectRef"],
 			coinMetadataAddresses,
@@ -313,18 +315,18 @@ func (s *SuiPTBExpander) getTokenPoolByTokenAddress(
 		return nil, err
 	}
 
-	var tokenPoolInfo GetPoolInfosResult
-	lggr.Debugw("tokenPoolInfo", "tokenPoolInfo", poolInfos[0])
-	jsonBytes, err := json.Marshal(poolInfos[0])
+	var tokenConfigs []TokenConfig
+	lggr.Debugw("tokenConfigs", "tokenConfigs", tokenConfigResults)
+	jsonBytes, err := json.Marshal(tokenConfigResults[0])
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(jsonBytes, &tokenPoolInfo)
+	err = json.Unmarshal(jsonBytes, &tokenConfigs)
 	if err != nil {
 		return nil, err
 	}
 
-	lggr.Debugw("Decoded tokenPoolInfo", "tokenPoolInfo", tokenPoolInfo)
+	lggr.Debugw("Decoded tokenConfigs", "tokenConfigs", tokenConfigs)
 
 	tokenPools := make([]TokenPool, len(tokenAmounts))
 	for i, tokenAmount := range tokenAmounts {
@@ -332,17 +334,23 @@ func (s *SuiPTBExpander) getTokenPoolByTokenAddress(
 			"tokenAddress", tokenAmount.DestTokenAddress,
 			"poolIndex", i)
 
-		packageId := hex.EncodeToString(tokenPoolInfo.TokenPoolPackageIds[i][:])
+		packageId := hex.EncodeToString(tokenConfigs[i].TokenPoolPackageId[:])
 		if !strings.HasPrefix(packageId, "0x") {
 			packageId = "0x" + packageId
 		}
 
-		tokenType := tokenPoolInfo.TokenTypes[i]
+		tokenType := tokenConfigs[i].TokenType
 		if !strings.HasPrefix(tokenType, "0x") {
 			tokenType = "0x" + tokenType
 		}
 
-		tokenPoolStateAddress := hex.EncodeToString(tokenPoolInfo.TokenPoolStateAddresses[i][:])
+		var tokenPoolStateAddress string
+		typeProof := tokenConfigs[i].TypeProof
+		var parts = strings.Split(typeProof, "::")
+		// if the type proof is valid, we can get the token pool state address
+		if len(parts) == 3 {
+			tokenPoolStateAddress = parts[0]
+		}
 		if !strings.HasPrefix(tokenPoolStateAddress, "0x") {
 			tokenPoolStateAddress = "0x" + tokenPoolStateAddress
 		}
@@ -351,7 +359,7 @@ func (s *SuiPTBExpander) getTokenPoolByTokenAddress(
 			CoinMetadata:          "0x" + hex.EncodeToString(tokenAmount.DestTokenAddress),
 			TokenType:             tokenType,
 			PackageId:             packageId,
-			ModuleId:              tokenPoolInfo.TokenPoolModules[i],
+			ModuleId:              tokenConfigs[i].TokenPoolModule,
 			Function:              OFFRAMP_TOKEN_POOL_FUNCTION_NAME,
 			TokenPoolStateAddress: tokenPoolStateAddress,
 			Index:                 i,
@@ -414,12 +422,13 @@ func (s *SuiPTBExpander) getOffRampPTB(
 		}
 	}
 
-	tokenPoolStateAddresses, err := s.getTokenPoolByTokenAddress(ctx, lggr, tokenAmounts, signerPublicKey)
+	// this function needs updates
+	tokenPools, err := s.getTokenPoolByTokenAddress(ctx, lggr, tokenAmounts, signerPublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	generatedTokenPoolCommands, err := GeneratePTBCommandsForTokenPools(lggr, tokenPoolStateAddresses)
+	generatedTokenPoolCommands, err := GeneratePTBCommandsForTokenPools(lggr, tokenPools)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -460,7 +469,7 @@ func (s *SuiPTBExpander) getOffRampPTB(
 	finalPTBCommands = append(finalPTBCommands, endCommand)
 
 	// Generate token pool arguments
-	tokenPoolArgs, typeArgs, err := GenerateArgumentsForTokenPools(s.AddressMappings["ccipObjectRef"], s.AddressMappings["clockObject"], lggr, tokenPoolStateAddresses)
+	tokenPoolArgs, typeArgs, err := GenerateArgumentsForTokenPools(s.AddressMappings["ccipObjectRef"], s.AddressMappings["clockObject"], lggr, tokenPools)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -577,7 +586,6 @@ func (s *SuiPTBExpander) FilterRegisteredReceivers(
 					"address",
 				},
 			)
-
 			if err != nil {
 				lggr.Errorw("Error getting pool infos", "error", err)
 				return nil, err
@@ -630,7 +638,7 @@ func GenerateReceiverCallArguments(
 
 // Auxiliary functions
 
-// GeneratePTBCommands generates PTB commands for token addresses
+// GeneratePTBCommandsForTokenPools generates PTB commands for token pool addresses
 func GeneratePTBCommandsForTokenPools(
 	lggr logger.Logger,
 	tokenPools []TokenPool,

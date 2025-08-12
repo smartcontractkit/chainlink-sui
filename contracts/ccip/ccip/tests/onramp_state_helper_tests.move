@@ -8,7 +8,8 @@ use std::type_name;
 use sui::test_scenario::{Self as ts, Scenario};
 
 use ccip::onramp_state_helper::{Self, SourceTransferCap};
-use ccip::state_object::{Self, OwnerCap, CCIPObjectRef};
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::ownable::OwnerCap;
 use ccip::token_admin_registry as registry;
 
 public struct ONRAMP_STATE_HELPER_TESTS has drop {}
@@ -66,7 +67,7 @@ public fun test_create_token_transfer_params() {
     // Register a token in the token admin registry first
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -115,7 +116,7 @@ public fun test_create_token_transfer_params_wrong_proof() {
     // Register a token with TestTypeProof
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -150,7 +151,7 @@ public fun test_get_remote_chain_selector() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -209,7 +210,7 @@ public fun test_create_and_verify_token_transfer() {
     // Register a token in the token admin registry first
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -257,7 +258,7 @@ public fun test_multiple_token_transfers() {
     // Register two tokens
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool_1"),
@@ -271,7 +272,7 @@ public fun test_multiple_token_transfers() {
     
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_2,
         TOKEN_POOL_PACKAGE_ID_2,
         string::utf8(b"test_pool_2"),
@@ -355,7 +356,7 @@ public fun test_get_source_token_transfer_data() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -403,7 +404,7 @@ public fun test_edge_case_large_amounts() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -445,7 +446,7 @@ public fun test_edge_case_empty_data() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -488,7 +489,7 @@ public fun test_different_destination_chains() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -539,7 +540,7 @@ public fun test_zero_amount_transfer() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),
@@ -580,7 +581,7 @@ public fun test_source_transfer_cap_permission() {
     // Register a token
     registry::register_pool_by_admin(
         &mut ref,
-        &owner_cap,
+        state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_PACKAGE_ID_1,
         string::utf8(b"test_pool"),

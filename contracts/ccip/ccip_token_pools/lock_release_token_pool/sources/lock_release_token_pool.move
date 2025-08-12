@@ -79,7 +79,7 @@ public fun initialize<T>(
 /// it does not require a treasury cap object
 public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
-    owner_cap: &state_object::OwnerCap,
+    ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>,
     token_pool_administrator: address,
     rebalancer: address,
@@ -93,7 +93,7 @@ public fun initialize_by_ccip_admin<T>(
 
     token_admin_registry::register_pool_by_admin(
         ref,
-        owner_cap,
+        ccip_admin_proof,
         coin_metadata_address,
         lock_release_token_pool_package_id,
         string::utf8(b"lock_release_token_pool"),
@@ -530,6 +530,22 @@ public fun accept_ownership_from_object<T>(
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
+/// Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
+public fun accept_ownership_as_mcms<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(params, McmsCallback<T>{});
+    assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    let mcms = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+}
+
 public fun execute_ownership_transfer(
     owner_cap: OwnerCap,
     ownable_state: &mut OwnableState,
@@ -539,18 +555,19 @@ public fun execute_ownership_transfer(
     ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
 
-public fun mcms_register_entrypoint<T>(
-    registry: &mut Registry,
-    state: &mut LockReleaseTokenPoolState<T>,
+public entry fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap,
+    state: &mut LockReleaseTokenPoolState<T>,
+    registry: &mut Registry,
+    to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::set_owner(&owner_cap, &mut state.ownable_state, @mcms, ctx);
-
-    mcms_registry::register_entrypoint(
+    ownable::execute_ownership_transfer_to_mcms(
+        owner_cap,
+        &mut state.ownable_state,
         registry,
-        McmsCallback{},
-        option::some(owner_cap),
+        to,
+        McmsCallback<T>{},
         ctx,
     );
 }
@@ -573,7 +590,7 @@ public fun mcms_register_upgrade_cap(
 // |                      MCMS Entrypoint                         |
 // ================================================================
 
-public struct McmsCallback has drop {}
+public struct McmsCallback<phantom T> has drop {}
 
 public fun mcms_entrypoint<T>(
     state: &mut LockReleaseTokenPoolState<T>,
@@ -582,11 +599,11 @@ public fun mcms_entrypoint<T>(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<
-        McmsCallback,
+        McmsCallback<T>,
         OwnerCap,
     >(
         registry,
-        McmsCallback{},
+        McmsCallback<T>{},
         params,
     );
 
@@ -645,14 +662,10 @@ public fun mcms_entrypoint<T>(
         let to = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
         transfer_ownership(state, owner_cap, to, ctx);
-    } else if (function_bytes == b"accept_ownership_as_mcms") {
-        let mcms = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
     } else if (function_bytes == b"execute_ownership_transfer") {
         let to = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, McmsCallback{});
+        let owner_cap = mcms_registry::release_cap(registry, McmsCallback<T>{});
         execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
     } else {
         abort EInvalidFunction
@@ -664,7 +677,7 @@ public fun mcms_entrypoint<T>(
 public fun destroy_token_pool<T>(
     state: LockReleaseTokenPoolState<T>,
     owner_cap: OwnerCap,
-    _ctx: &mut TxContext,
+    ctx: &mut TxContext,
 ): Coin<T> {
     assert!(object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
@@ -679,8 +692,8 @@ public fun destroy_token_pool<T>(
     object::delete(state_id);
 
     // Destroy ownable state and owner cap using helper functions
-    ownable::destroy_ownable_state(ownable_state);
-    ownable::destroy_owner_cap(owner_cap);
+    ownable::destroy_ownable_state(ownable_state, ctx);
+    ownable::destroy_owner_cap(owner_cap, ctx);
 
     reserve
 }

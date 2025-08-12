@@ -11,6 +11,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -31,20 +32,24 @@ type EventsIndexerApi interface {
 	Start(ctx context.Context) error
 	SyncAllEvents(ctx context.Context) error
 	SyncEvent(ctx context.Context, selector *client.EventSelector) error
+	Ready() error
+	Close() error
 }
 
 const batchSizeRecords = 50
 
 func NewEventIndexer(
-	db *database.DBStore,
+	db sqlutil.DataSource,
 	log logger.Logger,
 	ptbClient client.SuiPTBClient,
 	eventConfigurations []*client.EventSelector,
 	pollingInterval time.Duration,
 	syncTimeout time.Duration,
 ) EventsIndexerApi {
+	dataStore := database.NewDBStore(db, log)
+
 	return &EventsIndexer{
-		db:                   db,
+		db:                   dataStore,
 		client:               ptbClient,
 		logger:               log,
 		pollingInterval:      pollingInterval,
@@ -344,4 +349,14 @@ func (eIndexer *EventsIndexer) isEventSelectorAdded(eConfig client.EventSelector
 	}
 
 	return false
+}
+
+func (eIndexer *EventsIndexer) Ready() error {
+	// TODO: implement
+	return nil
+}
+
+func (eIndexer *EventsIndexer) Close() error {
+	// TODO: implement
+	return nil
 }

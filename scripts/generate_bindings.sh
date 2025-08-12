@@ -10,6 +10,7 @@ go run bindgen/main.go --moveConfig ./contracts/test/ --input ./contracts/test/s
 
 # CCIP
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/fee_quoter.move --output ./bindings/generated/ccip/ccip/fee_quoter
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/state_object.move --output ./bindings/generated/ccip/ccip/state_object
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/nonce_manager.move --output ./bindings/generated/ccip/ccip/nonce_manager
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/receiver_registry.move --output ./bindings/generated/ccip/ccip/receiver_registry
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/rmn_remote.move --output ./bindings/generated/ccip/ccip/rmn_remote
@@ -23,6 +24,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./cont
 
 # CCIP - LINK
 go run bindgen/main.go --moveConfig ./contracts/ccip/mock_link_token --input ./contracts/ccip/mock_link_token/sources/mock_link_token.move --output ./bindings/generated/ccip/mock_link_token/mock_link_token
+
+# CCIP - ETH
+go run bindgen/main.go --moveConfig ./contracts/ccip/mock_eth_token --input ./contracts/ccip/mock_eth_token/sources/mock_eth_token.move --output ./bindings/generated/ccip/mock_eth_token/mock_eth_token
 
 # CCIP - Managed Token
 go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./contracts/ccip/managed_token/sources/managed_token.move --output ./bindings/generated/ccip/managed_token/managed_token
@@ -56,3 +60,6 @@ go run bindgen/main.go --moveConfig ./contracts/mcms/mcms --input ./contracts/mc
 
 # CCIP - Dummy Receiver
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_dummy_receiver --input ./contracts/ccip/ccip_dummy_receiver/sources/ccip_dummy_receiver.move --output ./bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver
+
+# MCMS User for testing
+go run bindgen/main.go --moveConfig ./contracts/mcms/mcms_test --input ./contracts/mcms/mcms_test/sources/mcms_user.move --output ./bindings/generated/mcms/mcms_user
