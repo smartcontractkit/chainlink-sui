@@ -15,8 +15,12 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
+	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -82,6 +86,22 @@ func BuildOffRampExecutePTB(
 			messages = append(messages, message)
 		}
 	}
+
+	// Call options for bindings DevInspect calls
+	callOpts := &bind.CallOpts{
+		Signer:           signer.NewPrivateKeySigner("..."),
+		WaitForExecution: true,
+	}
+
+	// Set the ccip package interface from bindings
+	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, client)
+	if err != nil {
+		return err
+	}
+	tokenAdminRegistryContract := ccipPkg.TokenAdminRegistry().(*module_token_admin_registry.TokenAdminRegistryContract)
+	tokenAdminRegistryDevInspect := tokenAdminRegistryContract.DevInspect()
+
+	tokenAdminRegistryDevInspect.GetPools(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef})
 
 	tokenPoolStateAddresses, err := GetTokenPoolByTokenAddress(ctx, lggr, tokenAmounts, signerPublicKey)
 	if err != nil {

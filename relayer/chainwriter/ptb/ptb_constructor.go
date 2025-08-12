@@ -151,8 +151,9 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 	}
 
 	// Create a new transaction builder
+	sdkClient := p.client.GetClient()
 	ptb := transaction.NewTransaction()
-	ptb.SetSuiClient(p.client.GetClient().(*sui.Client))
+	ptb.SetSuiClient(sdkClient.(*sui.Client))
 
 	// If the function is CCIPExecuteReport, then we need to built the PTB using bespoke code rather than using the configs to programmatically build the PTB commands.
 	if function == cwConfig.CCIPExecuteReportFunctionName {
@@ -163,7 +164,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		}
 
 		// Construct the entire PTB transaction for offramp execute without CW configs
-		err = offramp.BuildOffRampExecutePTB(ctx, p.log, ptb, arguments, nil, txnConfig.PublicKey, addressMappings)
+		err = offramp.BuildOffRampExecutePTB(ctx, p.log, sdkClient, ptb, arguments, nil, txnConfig.PublicKey, addressMappings)
 		if err != nil {
 			p.log.Errorw("Error building OffRamp execute PTB", "error", err)
 			return nil, err
