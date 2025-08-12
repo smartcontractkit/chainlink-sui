@@ -42,27 +42,21 @@ func NewObjectResolver(client sui.ISuiAPI) *ObjectResolver {
 	}
 }
 
-func GetObject(ctx context.Context, client sui.ISuiAPI, objectId string) (*Object, error) {
+func GetSharedObject(ctx context.Context, client sui.ISuiAPI, objectId string) (*Object, error) {
 	resolver := NewObjectResolver(client)
-	return resolver.GetObject(ctx, objectId)
+	return resolver.GetSharedObject(ctx, objectId)
 }
 
-func (r *ObjectResolver) GetObject(ctx context.Context, objectId string) (*Object, error) {
+func (r *ObjectResolver) GetSharedObject(ctx context.Context, objectId string) (*Object, error) {
 	normalizedId, err := bindutils.ConvertAddressToString(objectId)
 	if err != nil {
 		return nil, fmt.Errorf("invalid object ID %s: %w", objectId, err)
-	}
-
-	if cached := r.cache.get(normalizedId); cached != nil {
-		return r.createObjectFromResolved(cached), nil
 	}
 
 	resolved, err := r.resolveObject(ctx, normalizedId)
 	if err != nil {
 		return nil, err
 	}
-
-	r.cache.set(normalizedId, resolved)
 
 	return r.createObjectFromResolved(resolved), nil
 }
@@ -103,6 +97,9 @@ func (r *ObjectResolver) ResolveCallArg(ctx context.Context, arg *transaction.Ca
 }
 
 func (r *ObjectResolver) resolveObject(ctx context.Context, objectId string) (*resolvedObject, error) {
+	if cached := r.cache.get(objectId); cached != nil {
+		return cached, nil
+	}
 	resp, err := r.client.SuiGetObject(ctx, models.SuiGetObjectRequest{
 		ObjectId: objectId,
 		Options: models.SuiObjectDataOptions{
@@ -158,6 +155,8 @@ func (r *ObjectResolver) resolveObject(ctx context.Context, objectId string) (*r
 			}
 		}
 	}
+
+	r.cache.set(objectId, resolved)
 
 	return resolved, nil
 }

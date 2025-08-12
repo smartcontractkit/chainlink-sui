@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -94,47 +93,6 @@ func (c *McmsAccountContract) Encoder() McmsAccountEncoder {
 
 func (c *McmsAccountContract) DevInspect() IMcmsAccountDevInspect {
 	return c.devInspect
-}
-
-func (c *McmsAccountContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
 }
 
 type OwnerCap struct {
@@ -611,7 +569,7 @@ func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
-		"OwnerCap",
+		"mcms::mcms_account::OwnerCap",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",
@@ -627,7 +585,7 @@ func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsAccountEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OwnerCap",
+		"mcms::mcms_account::OwnerCap",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",

@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -117,47 +116,6 @@ func (c *TokenAdminRegistryContract) Encoder() TokenAdminRegistryEncoder {
 
 func (c *TokenAdminRegistryContract) DevInspect() ITokenAdminRegistryDevInspect {
 	return c.devInspect
-}
-
-func (c *TokenAdminRegistryContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
 }
 
 type TokenAdminRegistryState struct {
@@ -885,7 +843,7 @@ func (c tokenAdminRegistryEncoder) GetTokenConfigs(ref bind.Object, coinMetadata
 		ref,
 		coinMetadataAddresses,
 	}, []string{
-		"vector<TokenConfig>",
+		"vector<ccip::token_admin_registry::TokenConfig>",
 	})
 }
 
@@ -903,7 +861,7 @@ func (c tokenAdminRegistryEncoder) GetTokenConfigsWithArgs(args ...any) (*bind.E
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_configs", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<TokenConfig>",
+		"vector<ccip::token_admin_registry::TokenConfig>",
 	})
 }
 
@@ -912,7 +870,7 @@ func (c tokenAdminRegistryEncoder) GetTokenConfigData(tokenConfig TokenConfig) (
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_config_data", typeArgsList, typeParamsList, []string{
-		"TokenConfig",
+		"ccip::token_admin_registry::TokenConfig",
 	}, []any{
 		tokenConfig,
 	}, []string{
@@ -931,7 +889,7 @@ func (c tokenAdminRegistryEncoder) GetTokenConfigData(tokenConfig TokenConfig) (
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c tokenAdminRegistryEncoder) GetTokenConfigDataWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"TokenConfig",
+		"ccip::token_admin_registry::TokenConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1003,7 +961,7 @@ func (c tokenAdminRegistryEncoder) RegisterPool(typeArgs []string, ref bind.Obje
 		"&TreasuryCap<T>",
 		"&CoinMetadata<T>",
 		"address",
-		"String",
+		"0x1::string::String",
 		"address",
 		"vector<address>",
 		"vector<address>",
@@ -1029,7 +987,7 @@ func (c tokenAdminRegistryEncoder) RegisterPoolWithArgs(typeArgs []string, args 
 		"&TreasuryCap<T>",
 		"&CoinMetadata<T>",
 		"address",
-		"String",
+		"0x1::string::String",
 		"address",
 		"vector<address>",
 		"vector<address>",
@@ -1056,7 +1014,7 @@ func (c tokenAdminRegistryEncoder) RegisterPoolByAdmin(ref bind.Object, param bi
 		"state_object::CCIPAdminProof",
 		"address",
 		"address",
-		"String",
+		"0x1::string::String",
 		"ascii::String",
 		"address",
 		"ascii::String",
@@ -1084,7 +1042,7 @@ func (c tokenAdminRegistryEncoder) RegisterPoolByAdminWithArgs(args ...any) (*bi
 		"state_object::CCIPAdminProof",
 		"address",
 		"address",
-		"String",
+		"0x1::string::String",
 		"ascii::String",
 		"address",
 		"ascii::String",
@@ -1139,7 +1097,7 @@ func (c tokenAdminRegistryEncoder) SetPool(typeArgs []string, ref bind.Object, c
 		"&mut CCIPObjectRef",
 		"address",
 		"address",
-		"String",
+		"0x1::string::String",
 		"vector<address>",
 		"vector<address>",
 		"TypeProof",
@@ -1161,7 +1119,7 @@ func (c tokenAdminRegistryEncoder) SetPoolWithArgs(typeArgs []string, args ...an
 		"&mut CCIPObjectRef",
 		"address",
 		"address",
-		"String",
+		"0x1::string::String",
 		"vector<address>",
 		"vector<address>",
 		"TypeProof",

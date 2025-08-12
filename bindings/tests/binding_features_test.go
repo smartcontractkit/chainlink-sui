@@ -150,12 +150,12 @@ func TestBindingFeatures(t *testing.T) {
 
 			encoded1, err := encoder.IncrementBy(counterObj, 10)
 			require.NoError(t, err)
-			_, err = counterContract.BuildPTB(ctx, ptb, encoded1)
+			_, err = counterContract.AppendPTB(ctx, opts, ptb, encoded1)
 			require.NoError(t, err)
 
 			encoded2, err := encoder.IncrementBy(counterObj, 20)
 			require.NoError(t, err)
-			_, err = counterContract.BuildPTB(ctx, ptb, encoded2)
+			_, err = counterContract.AppendPTB(ctx, opts, ptb, encoded2)
 			require.NoError(t, err)
 
 			signerAddr, err := signer.GetAddress()

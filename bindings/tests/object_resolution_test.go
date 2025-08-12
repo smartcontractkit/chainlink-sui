@@ -69,7 +69,7 @@ func TestObjectResolution(t *testing.T) {
 
 		t.Run("GetObjectHelper", func(t *testing.T) {
 			// Use the helper to get a fully resolved object
-			resolvedObj, err := bind.GetObject(ctx, client, counterId)
+			resolvedObj, err := bind.GetSharedObject(ctx, client, counterId)
 			require.NoError(t, err)
 			require.NotNil(t, resolvedObj)
 			require.Equal(t, counterId, resolvedObj.Id)
@@ -118,7 +118,7 @@ func TestObjectResolution(t *testing.T) {
 		})
 
 		t.Run("GetObject", func(t *testing.T) {
-			resolvedObj, err := bind.GetObject(ctx, client, objectId)
+			resolvedObj, err := bind.GetSharedObject(ctx, client, objectId)
 			require.NoError(t, err)
 			require.NotNil(t, resolvedObj)
 			require.Equal(t, objectId, resolvedObj.Id)
@@ -145,12 +145,12 @@ func TestObjectResolution(t *testing.T) {
 		require.NotEmpty(t, testObjectId, "No test object found")
 
 		// First call - should fetch from blockchain
-		obj1, err := resolver.GetObject(ctx, testObjectId)
+		obj1, err := resolver.GetSharedObject(ctx, testObjectId)
 		require.NoError(t, err)
 		require.NotNil(t, obj1)
 
 		// Second call - should use cache
-		obj2, err := resolver.GetObject(ctx, testObjectId)
+		obj2, err := resolver.GetSharedObject(ctx, testObjectId)
 		require.NoError(t, err)
 		require.NotNil(t, obj2)
 
@@ -162,7 +162,7 @@ func TestObjectResolution(t *testing.T) {
 		resolver.ClearCache()
 
 		// Next call should fetch from blockchain again
-		obj3, err := resolver.GetObject(ctx, testObjectId)
+		obj3, err := resolver.GetSharedObject(ctx, testObjectId)
 		require.NoError(t, err)
 		require.NotNil(t, obj3)
 		require.Equal(t, obj1.Id, obj3.Id)
@@ -172,7 +172,7 @@ func TestObjectResolution(t *testing.T) {
 		resolver := bind.NewObjectResolver(client)
 
 		// Test with invalid format
-		_, err := resolver.GetObject(ctx, "invalid-id")
+		_, err := resolver.GetSharedObject(ctx, "invalid-id")
 		require.Error(t, err)
 		// The error could be either from address validation or from fetching
 		require.True(t,
@@ -181,7 +181,7 @@ func TestObjectResolution(t *testing.T) {
 			"Expected error about invalid object ID or fetch failure, got: %v", err)
 
 		// Test with non-existent object
-		_, err = resolver.GetObject(ctx, "0x0000000000000000000000000000000000000000000000000000000000000000")
+		_, err = resolver.GetSharedObject(ctx, "0x0000000000000000000000000000000000000000000000000000000000000000")
 		require.Error(t, err)
 	})
 }

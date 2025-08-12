@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -186,47 +185,6 @@ func (c *OnrampContract) Encoder() OnrampEncoder {
 
 func (c *OnrampContract) DevInspect() IOnrampDevInspect {
 	return c.devInspect
-}
-
-func (c *OnrampContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
 }
 
 type OnRampState struct {
@@ -1974,7 +1932,7 @@ func (c onrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
-		"StaticConfig",
+		"ccip_onramp::onramp::StaticConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -1986,7 +1944,7 @@ func (c onrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCal
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"StaticConfig",
+		"ccip_onramp::onramp::StaticConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2034,7 +1992,7 @@ func (c onrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedC
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config_fields", typeArgsList, typeParamsList, []string{
-		"DynamicConfig",
+		"ccip_onramp::onramp::DynamicConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2047,7 +2005,7 @@ func (c onrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedC
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"DynamicConfig",
+		"ccip_onramp::onramp::DynamicConfig",
 	}
 
 	if len(args) != len(expectedParams) {

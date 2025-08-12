@@ -65,6 +65,10 @@ func SignAndSendTx(ctx context.Context, signer bindutils.SuiSigner, client sui.I
 		return nil, msg
 	}
 
+	if err := GetFailedTxError(&tx); err != nil {
+		return &tx, err
+	}
+
 	return &tx, nil
 }
 
