@@ -2,6 +2,7 @@ package token_pool
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,32 @@ type TypeParameter struct {
 }
 
 type SuiAddress [32]byte
+
+// UnmarshalJSON implements custom JSON unmarshaling for SuiAddress
+func (s *SuiAddress) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+
+	// Decode base64 string to bytes
+	bytes, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		return err
+	}
+
+	if len(bytes) != 32 {
+		return fmt.Errorf("invalid address length: expected 32 bytes, got %d", len(bytes))
+	}
+
+	copy(s[:], bytes)
+	return nil
+}
+
+// MarshalJSON implements custom JSON marshaling for SuiAddress
+func (s SuiAddress) MarshalJSON() ([]byte, error) {
+	return json.Marshal(base64.StdEncoding.EncodeToString(s[:]))
+}
 
 type TokenPool struct {
 	CoinMetadata          string
@@ -152,9 +179,19 @@ func GetTokenPoolByTokenAddress(
 	if err != nil {
 		return nil, err
 	}
+
+	// Try to unmarshal as an array first, if that fails, try as a single object
 	err = json.Unmarshal(jsonBytes, &tokenConfigs)
 	if err != nil {
-		return nil, err
+		lggr.Errorw("Error unmarshalling token configs", "error", err, "trying to unmarshal as a single object")
+
+		// If unmarshaling as array fails, try as a single TokenConfig
+		var singleConfig TokenConfig
+		err = json.Unmarshal(jsonBytes, &singleConfig)
+		if err != nil {
+			return nil, err
+		}
+		tokenConfigs = []TokenConfig{singleConfig}
 	}
 
 	lggr.Debugw("Decoded tokenConfigs", "tokenConfigs", tokenConfigs)
