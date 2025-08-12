@@ -27,13 +27,6 @@ type SuiArgumentMetadata struct {
 	Type          string          `json:"type"`
 }
 
-// func (m SuiArgumentMetadata) GetType() (string, error) {
-// 	if m.Address != "0x2" {
-// 		return "object_id", nil
-// 	}
-
-// }
-
 const (
 	LockOrBurn    = "lock_or_burn"
 	ReleaseOrMint = "release_or_mint"
@@ -58,8 +51,13 @@ func GetTokenPoolPTBConfig(
 		lggr.Errorw("Function not found", "function", tokenPoolInfo.Function)
 		return nil, fmt.Errorf("function not found: %s", tokenPoolInfo.Function)
 	} else {
-		function := functions[tokenPoolInfo.Function]
-		isValid, decodedParameters := isFunctionValid(lggr, function.(map[string]any), tokenPoolInfo.Function)
+		function := functions[tokenPoolInfo.Function].(map[string]any)
+		decodedParameters, err := DecodeParameters(lggr, function)
+		if err != nil {
+			lggr.Errorw("Error decoding parameters", "error", err)
+			return nil, err
+		}
+		isValid, _ := IsFunctionValid(lggr, decodedParameters, tokenPoolInfo.Function)
 		if !isValid {
 			// So the decoded parameters are not available for use in the PTB command. They are not needed.
 			// Just log and return the error.
@@ -76,10 +74,15 @@ func GetTokenPoolPTBConfig(
 				continue
 			}
 
+			if param.Module == "tx_context" && param.Address == "0x2" {
+				lggr.Debugw("Skipping out tx_context", "param", param)
+				continue
+			}
+
 			isMutable := param.Reference == "MutableReference"
 			ptbParams = append(ptbParams, codec.SuiFunctionParam{
 				Name:      buildParameterName(param, tokenPoolInfo.Index),
-				Type:      param.Module + "::" + param.Name,
+				Type:      param.Type,
 				Required:  true,
 				IsMutable: &isMutable,
 			})
@@ -192,10 +195,24 @@ func buildParameterName(param SuiArgumentMetadata, tokenPoolIndex int) string {
 	return fmt.Sprintf("token_pool_%d_%s", tokenPoolIndex, suffix)
 }
 
-func decodeParam(param any) SuiArgumentMetadata {
+func decodeParam(lggr logger.Logger, param any, reference string) SuiArgumentMetadata {
+	// Handle primitive types (strings like "U64", "Bool", etc.)
+	if str, ok := param.(string); ok {
+		return SuiArgumentMetadata{
+			Address:       "",
+			Module:        "",
+			Name:          str,
+			Reference:     reference,
+			TypeArguments: []TypeParameter{},
+			Type:          ParseParamType(lggr, str),
+		}
+	}
+
+	// Handle complex types (maps)
 	m := param.(map[string]any)
 	for k, v := range m {
-		if k == "Struct" {
+		switch k {
+		case "Struct":
 			// Direct struct
 			s := v.(map[string]any)
 			typeArguments := []TypeParameter{}
@@ -207,14 +224,15 @@ func decodeParam(param any) SuiArgumentMetadata {
 				Address:       s["address"].(string),
 				Module:        s["module"].(string),
 				Name:          s["name"].(string),
-				Reference:     "",
+				Reference:     reference,
 				TypeArguments: typeArguments,
-				Type:          ParseParamType(v),
+				Type:          ParseParamType(lggr, v),
 			}
-		} else {
-			// Note, we do not support Vector, so this logic holds
-			// Adding support for Vectors
-			// Wrapped (Reference/MutableReference/etc) - unwrap once
+		case "Reference", "MutableReference", "Vector":
+			// Reference and MutableReference are the same thing
+			// We need to unwrap the struct
+			return decodeParam(lggr, v, k)
+		default:
 			inner := v.(map[string]any)["Struct"].(map[string]any)
 			typeArguments := []TypeParameter{}
 			for _, ta := range inner["typeArguments"].([]any) {
@@ -227,14 +245,18 @@ func decodeParam(param any) SuiArgumentMetadata {
 				Name:          inner["name"].(string),
 				Reference:     k,
 				TypeArguments: typeArguments,
+				Type:          ParseParamType(lggr, v),
 			}
 		}
 	}
 	return SuiArgumentMetadata{}
 }
 
-func ParseParamType(param interface{}) string {
+func ParseParamType(lggr logger.Logger, param interface{}) string {
 	// Case 1: string primitive
+
+	lggr.Debugw("Parsing parameter", "param", param)
+
 	if str, ok := param.(string); ok {
 		switch str {
 		case "U8":
@@ -261,15 +283,26 @@ func ParseParamType(param interface{}) string {
 	// Case 2: map structure (e.g., Vector, Reference, Struct)
 	if m, ok := param.(map[string]interface{}); ok {
 		if vectorVal, ok := m["Vector"]; ok {
-			return "vector<" + ParseParamType(vectorVal) + ">"
+			return "vector<" + ParseParamType(lggr, vectorVal) + ">"
 		}
 		if refVal, ok := m["Reference"]; ok {
-			return ParseParamType(refVal)
+			return ParseParamType(lggr, refVal)
 		}
 		if mutRefVal, ok := m["MutableReference"]; ok {
-			return ParseParamType(mutRefVal)
+			return ParseParamType(lggr, mutRefVal)
 		}
 		if _, ok := m["Struct"]; ok {
+			// Special case for strings
+			if m["address"] == "String" {
+				return "string"
+			}
+			return "object_id"
+		}
+		// Handle direct struct content (when called from decodeParam with unwrapped struct)
+		if address, ok := m["address"]; ok {
+			if address == "String" {
+				return "string"
+			}
 			return "object_id"
 		}
 	}
@@ -278,17 +311,31 @@ func ParseParamType(param interface{}) string {
 	return "unknown"
 }
 
-func isFunctionValid(lggr logger.Logger, function map[string]any, name string) (bool, []SuiArgumentMetadata) {
-	parameters := function["parameters"].([]any)
-	lggr.Debugw("parameters", "parameters", parameters)
-
-	decodedParameters := make([]SuiArgumentMetadata, len(parameters))
-	for i, parameter := range parameters {
-		decodedParameters[i] = decodeParam(parameter)
+func DecodeParameters(lggr logger.Logger, function map[string]any) ([]SuiArgumentMetadata, error) {
+	parametersRaw, exists := function["parameters"]
+	if !exists || parametersRaw == nil {
+		lggr.Errorw("Parameters field is missing or nil", "function", function)
+		return nil, fmt.Errorf("parameters field is missing or nil")
 	}
 
-	if len(parameters) < 3 {
-		lggr.Errorw("Not enough parameters", "parameters", parameters)
+	parameters, ok := parametersRaw.([]any)
+	if !ok {
+		lggr.Errorw("Parameters field is not an array", "parametersRaw", parametersRaw)
+		return nil, fmt.Errorf("parameters field is not an array")
+	}
+
+	defaultReference := "Reference"
+	decodedParameters := make([]SuiArgumentMetadata, len(parameters))
+	for i, parameter := range parameters {
+		decodedParameters[i] = decodeParam(lggr, parameter, defaultReference)
+	}
+	return decodedParameters, nil
+}
+
+func IsFunctionValid(lggr logger.Logger, decodedParameters []SuiArgumentMetadata, name string) (bool, []SuiArgumentMetadata) {
+
+	if len(decodedParameters) < 3 {
+		lggr.Errorw("Not enough parameters", "parameters", decodedParameters)
 		return false, nil
 	}
 

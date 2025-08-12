@@ -406,8 +406,58 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		var param interface{}
 		_ = json.Unmarshal([]byte(jsonStr), &param)
 
-		paramType := expander.ParseParamType(param)
+		paramType := expander.ParseParamType(lggr, param)
 		require.Equal(t, paramType, "object_id")
+	})
+
+	t.Run("decode_parameters", func(t *testing.T) {
+		jsonStr := `
+	{"increment_mult": {
+		"isEntry": true,
+		"parameters": [
+			{
+			"MutableReference": {
+				"Struct": {
+				"address": "0x66b827fe66f3bc50c9deef27624c7b705a1d0af4a8b0883280d729c728559b71",
+				"module": "counter",
+				"name": "Counter",
+				"typeArguments": []
+				}
+			}
+			},
+			"U64",
+			"U64",
+			{
+			"MutableReference": {
+				"Struct": {
+				"address": "0x2",
+				"module": "tx_context",
+				"name": "TxContext",
+				"typeArguments": []
+				}
+			}
+			}
+		],
+		"return": [],
+		"typeParameters": [],
+		"visibility": "Public"
+		}
+	}
+	`
+
+		var function map[string]any
+		err := json.Unmarshal([]byte(jsonStr), &function)
+		require.NoError(t, err, "Failed to unmarshal JSON")
+		require.NotNil(t, function, "Function map should not be nil")
+		lggr.Debugw("Parsed function", "function", function)
+
+		decodedParameters, err := expander.DecodeParameters(lggr, function["increment_mult"].(map[string]any))
+		require.NoError(t, err)
+		require.Equal(t, len(decodedParameters), 4)
+
+		for _, param := range decodedParameters {
+			lggr.Debugw("Decoded parameter", "param", param)
+		}
 	})
 
 	t.Run("lock_or_burn", func(t *testing.T) {
@@ -433,7 +483,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		require.Equal(t, ptbConfig.PackageId, expander.AnyPointer(tokenPoolInfo.PackageId))
 		require.Equal(t, ptbConfig.ModuleId, expander.AnyPointer(tokenPoolInfo.ModuleId))
 		require.Equal(t, ptbConfig.Function, expander.AnyPointer(tokenPoolInfo.Function))
-		require.Equal(t, len(ptbConfig.Params), 5)
+		require.Equal(t, len(ptbConfig.Params), 4)
 		params := ptbConfig.Params
 
 		ccipObjectRef := params[0]
@@ -450,6 +500,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		for _, param := range params {
 			// check that hot potato does not exist
 			require.NotEqual(t, param.Name, "hot_potato")
+			require.NotEqual(t, param.Name, "tx_context")
 		}
 	})
 }
