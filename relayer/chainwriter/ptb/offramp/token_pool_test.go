@@ -25,7 +25,7 @@ import (
 	cciptokenpoolop "github.com/smartcontractkit/chainlink-sui/ops/ccip_token_pool"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/expander"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	ptbClient "github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
@@ -62,7 +62,7 @@ func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 	// Fund the account.
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err)
-	for range 10 {
+	for range 3 {
 		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
 		require.NoError(t, err)
 	}
@@ -406,7 +406,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		var param interface{}
 		_ = json.Unmarshal([]byte(jsonStr), &param)
 
-		paramType := expander.ParseParamType(lggr, param)
+		paramType := offramp.ParseParamType(lggr, param)
 		require.Equal(t, paramType, "object_id")
 	})
 
@@ -451,7 +451,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		require.NotNil(t, function, "Function map should not be nil")
 		lggr.Debugw("Parsed function", "function", function)
 
-		decodedParameters, err := expander.DecodeParameters(lggr, function["increment_mult"].(map[string]any))
+		decodedParameters, err := offramp.DecodeParameters(lggr, function["increment_mult"].(map[string]any))
 		require.NoError(t, err)
 		require.Equal(t, len(decodedParameters), 4)
 
@@ -466,7 +466,7 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		accountAddress, _ := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 		lggr.Infow("Using account", "address", accountAddress)
 
-		tokenPoolInfo := expander.TokenPool{
+		tokenPoolInfo := offramp.TokenPool{
 			PackageId: envSettings.TokenPoolReport.Output.LockReleaseTPPackageID,
 			ModuleId:  "lock_release_token_pool",
 			Function:  "lock_or_burn",
@@ -475,27 +475,33 @@ func TestGetTokenPoolPTBConfig(t *testing.T) {
 		client, err := ptbClient.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 100, "WaitForLocalExecution")
 		require.NoError(t, err, "failed to create PTB client")
 
-		ptbConfig, err := expander.GetTokenPoolPTBConfig(context.Background(), lggr, client, tokenPoolInfo)
-		lggr.Debugw("PTB config", "ptbConfig", *ptbConfig)
+		ptbConfig, err := offramp.GetTokenPoolPTBConfig(context.Background(), lggr, client, tokenPoolInfo)
 		require.NoError(t, err, "failed to get token pool PTB config")
+		lggr.Debugw("PTB config", "ptbConfig", *ptbConfig)
 
 		require.Equal(t, ptbConfig.Type, codec.SuiPTBCommandMoveCall)
-		require.Equal(t, ptbConfig.PackageId, expander.AnyPointer(tokenPoolInfo.PackageId))
-		require.Equal(t, ptbConfig.ModuleId, expander.AnyPointer(tokenPoolInfo.ModuleId))
-		require.Equal(t, ptbConfig.Function, expander.AnyPointer(tokenPoolInfo.Function))
-		require.Equal(t, len(ptbConfig.Params), 4)
+		require.Equal(t, ptbConfig.PackageId, offramp.AnyPointer(tokenPoolInfo.PackageId))
+		require.Equal(t, ptbConfig.ModuleId, offramp.AnyPointer(tokenPoolInfo.ModuleId))
+		require.Equal(t, ptbConfig.Function, offramp.AnyPointer(tokenPoolInfo.Function))
+		require.Equal(t, len(ptbConfig.Params), 5)
 		params := ptbConfig.Params
 
 		ccipObjectRef := params[0]
 		coin := params[1]
-		tokenParams := params[2]
+		remoteChainSelector := params[2]
+		clock := params[3]
+		state := params[4]
 
 		require.Equal(t, ccipObjectRef.Name, "token_pool_0_state_object_CCIPObjectRef")
 		require.Equal(t, ccipObjectRef.Type, "object_id")
 		require.Equal(t, coin.Name, "token_pool_0_coin_Coin")
 		require.Equal(t, coin.Type, "object_id")
-		require.Equal(t, tokenParams.Name, "token_pool_0_clock_Clock")
-		require.Equal(t, tokenParams.Type, "object_id")
+		require.Equal(t, remoteChainSelector.Name, "token_pool_0_U64")
+		require.Equal(t, remoteChainSelector.Type, "int64")
+		require.Equal(t, clock.Name, "token_pool_0_clock_Clock")
+		require.Equal(t, clock.Type, "object_id")
+		require.Equal(t, state.Name, "token_pool_0_lock_release_token_pool_LockReleaseTokenPoolState")
+		require.Equal(t, state.Type, "object_id")
 
 		for _, param := range params {
 			// check that hot potato does not exist

@@ -11,6 +11,10 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
+func AnyPointer[T any](v T) *T {
+	return &v
+}
+
 type OffRampAddressMappings struct {
 	CcipPackageId    string `json:"ccipPackageId"`
 	CcipObjectRef    string `json:"ccipObjectRef"`

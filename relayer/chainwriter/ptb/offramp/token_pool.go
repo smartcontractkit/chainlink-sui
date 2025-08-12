@@ -2,12 +2,8 @@ package offramp
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
@@ -16,6 +12,16 @@ import (
 
 type TypeParameter struct {
 	TypeParameter float64 `json:"TypeParameter"`
+}
+
+type TokenPool struct {
+	CoinMetadata          string
+	TokenType             string // e.g. "sui:0x66::link_module::LINK"
+	PackageId             string
+	ModuleId              string
+	Function              string
+	TokenPoolStateAddress string
+	Index                 int
 }
 
 type SuiArgumentMetadata struct {
@@ -101,97 +107,103 @@ func GetTokenPoolPTBConfig(
 }
 
 // getTokenPoolByTokenAddress gets token pool addresses for given token addresses (internal method)
-func GetTokenPoolByTokenAddress(
-	ctx context.Context,
-	lggr logger.Logger,
-	tokenAmounts []ccipocr3.RampTokenAmount,
-	signerPublicKey []byte,
-) ([]TokenPool, error) {
-	coinMetadataAddresses := make([]string, len(tokenAmounts))
-	for i, tokenAmount := range tokenAmounts {
-		address := tokenAmount.DestTokenAddress
-		coinMetadataAddresses[i] = "0x" + hex.EncodeToString(address)
-	}
+// func GetTokenPoolByTokenAddress(
+// 	ctx context.Context,
+// 	lggr logger.Logger,
+// 	tokenAmounts []ccipocr3.RampTokenAmount,
+// 	signerPublicKey []byte,
+// ) ([]TokenPool, error) {
+// 	coinMetadataAddresses := make([]string, len(tokenAmounts))
+// 	for i, tokenAmount := range tokenAmounts {
+// 		address := tokenAmount.DestTokenAddress
+// 		coinMetadataAddresses[i] = "0x" + hex.EncodeToString(address)
+// 	}
 
-	lggr.Debugw("getting token pool infos",
-		"packageID", s.AddressMappings["ccipPackageId"],
-		"ccipObjectRef", s.AddressMappings["ccipObjectRef"],
-		"coinMetadataAddresses", coinMetadataAddresses)
+// 	lggr.Debugw("getting token pool infos",
+// 		"packageID", s.AddressMappings["ccipPackageId"],
+// 		"ccipObjectRef", s.AddressMappings["ccipObjectRef"],
+// 		"coinMetadataAddresses", coinMetadataAddresses)
 
-	signerAddress, err := client.GetAddressFromPublicKey(signerPublicKey)
-	if err != nil {
-		return nil, err
-	}
+// 	signerAddress, err := client.GetAddressFromPublicKey(signerPublicKey)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	poolInfos, err := s.ptbClient.ReadFunction(
-		ctx,
-		signerAddress,
-		s.AddressMappings["ccipPackageId"],
-		"token_admin_registry",
-		"get_pool_infos",
-		[]any{
-			s.AddressMappings["ccipObjectRef"],
-			coinMetadataAddresses,
-		},
-		[]string{"object_id", "vector<address>"},
-	)
-	if err != nil {
-		lggr.Errorw("Error getting pool infos", "error", err)
-		return nil, err
-	}
+// 	poolInfos, err := s.ptbClient.ReadFunction(
+// 		ctx,
+// 		signerAddress,
+// 		s.AddressMappings["ccipPackageId"],
+// 		"token_admin_registry",
+// 		"get_pool_infos",
+// 		[]any{
+// 			s.AddressMappings["ccipObjectRef"],
+// 			coinMetadataAddresses,
+// 		},
+// 		[]string{"object_id", "vector<address>"},
+// 	)
+// 	if err != nil {
+// 		lggr.Errorw("Error getting pool infos", "error", err)
+// 		return nil, err
+// 	}
 
-	var tokenPoolInfo GetPoolInfosResult
-	lggr.Debugw("tokenPoolInfo", "tokenPoolInfo", poolInfos[0])
-	jsonBytes, err := json.Marshal(poolInfos[0])
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(jsonBytes, &tokenPoolInfo)
-	if err != nil {
-		return nil, err
-	}
+// 	var tokenPoolInfo GetPoolInfosResult
+// 	lggr.Debugw("tokenPoolInfo", "tokenPoolInfo", poolInfos[0])
+// 	jsonBytes, err := json.Marshal(poolInfos[0])
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	err = json.Unmarshal(jsonBytes, &tokenPoolInfo)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	lggr.Debugw("Decoded tokenPoolInfo", "tokenPoolInfo", tokenPoolInfo)
+// 	lggr.Debugw("Decoded tokenPoolInfo", "tokenPoolInfo", tokenPoolInfo)
 
-	tokenPools := make([]TokenPool, len(tokenAmounts))
-	for i, tokenAmount := range tokenAmounts {
-		lggr.Debugw("\n\nGetting pool address for token",
-			"tokenAddress", tokenAmount.DestTokenAddress,
-			"poolIndex", i)
+// 	tokenPools := make([]TokenPool, len(tokenAmounts))
+// 	for i, tokenAmount := range tokenAmounts {
+// 		lggr.Debugw("\n\nGetting pool address for token",
+// 			"tokenAddress", tokenAmount.DestTokenAddress,
+// 			"poolIndex", i)
 
-		packageId := hex.EncodeToString(tokenPoolInfo.TokenPoolPackageIds[i][:])
-		if !strings.HasPrefix(packageId, "0x") {
-			packageId = "0x" + packageId
-		}
+// 		packageId := hex.EncodeToString(tokenPoolInfo.TokenPoolPackageIds[i][:])
+// 		if !strings.HasPrefix(packageId, "0x") {
+// 			packageId = "0x" + packageId
+// 		}
 
-		tokenType := tokenPoolInfo.TokenTypes[i]
-		if !strings.HasPrefix(tokenType, "0x") {
-			tokenType = "0x" + tokenType
-		}
+// 		tokenType := tokenPoolInfo.TokenTypes[i]
+// 		if !strings.HasPrefix(tokenType, "0x") {
+// 			tokenType = "0x" + tokenType
+// 		}
 
-		tokenPoolStateAddress := hex.EncodeToString(tokenPoolInfo.TokenPoolStateAddresses[i][:])
-		if !strings.HasPrefix(tokenPoolStateAddress, "0x") {
-			tokenPoolStateAddress = "0x" + tokenPoolStateAddress
-		}
+// 		tokenPoolStateAddress := hex.EncodeToString(tokenPoolInfo.TokenPoolStateAddresses[i][:])
+// 		if !strings.HasPrefix(tokenPoolStateAddress, "0x") {
+// 			tokenPoolStateAddress = "0x" + tokenPoolStateAddress
+// 		}
 
-		tokenPools[i] = TokenPool{
-			CoinMetadata:          "0x" + hex.EncodeToString(tokenAmount.DestTokenAddress),
-			TokenType:             tokenType,
-			PackageId:             packageId,
-			ModuleId:              tokenPoolInfo.TokenPoolModules[i],
-			Function:              OFFRAMP_TOKEN_POOL_FUNCTION_NAME,
-			TokenPoolStateAddress: tokenPoolStateAddress,
-			Index:                 i,
-		}
-	}
+// 		tokenPools[i] = TokenPool{
+// 			CoinMetadata:          "0x" + hex.EncodeToString(tokenAmount.DestTokenAddress),
+// 			TokenType:             tokenType,
+// 			PackageId:             packageId,
+// 			ModuleId:              tokenPoolInfo.TokenPoolModules[i],
+// 			Function:              OFFRAMP_TOKEN_POOL_FUNCTION_NAME,
+// 			TokenPoolStateAddress: tokenPoolStateAddress,
+// 			Index:                 i,
+// 		}
+// 	}
 
-	lggr.Debugw("tokenPoolInfo Decoded", "tokenPoolInfo", tokenPools)
+// 	lggr.Debugw("tokenPoolInfo Decoded", "tokenPoolInfo", tokenPools)
 
-	return tokenPools, nil
-}
+// 	return tokenPools, nil
+// }
 
 func buildParameterName(param SuiArgumentMetadata, tokenPoolIndex int) string {
-	suffix := fmt.Sprintf("%s_%s", param.Module, param.Name)
+	suffix := ""
+	if param.Module == "" {
+		suffix = param.Name
+	} else {
+		suffix = fmt.Sprintf("%s_%s", param.Module, param.Name)
+	}
+
 	return fmt.Sprintf("token_pool_%d_%s", tokenPoolIndex, suffix)
 }
 
@@ -324,6 +336,8 @@ func DecodeParameters(lggr logger.Logger, function map[string]any) ([]SuiArgumen
 		return nil, fmt.Errorf("parameters field is not an array")
 	}
 
+	lggr.Debugw("Raw parameters", "parameters", parameters)
+
 	defaultReference := "Reference"
 	decodedParameters := make([]SuiArgumentMetadata, len(parameters))
 	for i, parameter := range parameters {
@@ -356,8 +370,8 @@ func IsFunctionValid(lggr logger.Logger, decodedParameters []SuiArgumentMetadata
 			return false, nil
 		}
 
-		if param2.Module != "dynamic_dispatcher" || param2.Name != "TokenParams" {
-			lggr.Errorw("Hot potato TokenParams is not the third parameter", "module", param2.Module, "name", param2.Name)
+		if param2.Name != "U64" && param2.Type != "int64" {
+			lggr.Errorw("U64 is not the third parameter", "parameter", param2)
 			return false, nil
 		}
 	case ReleaseOrMint:
