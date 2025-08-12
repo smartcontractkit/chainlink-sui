@@ -38,8 +38,7 @@ public struct TokenState<phantom T> has key, store {
     ownable_state: OwnableState<T>,
 }
 
-/// An object representing the ability to mint up to an allowance
-/// specified in the Treasury.
+/// An object representing the ability to mint unlimitedly or up to an allowance.
 /// The privilege can be revoked by the token owner.
 public struct MintCap<phantom T> has key, store {
     id: UID,

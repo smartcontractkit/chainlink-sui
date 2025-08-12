@@ -51,6 +51,7 @@ module ccip_offramp::offramp {
         roots: Table<vector<u8>, u64>,
         // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
         latest_price_sequence_number: u64,
+        // provided when initializing the fee quoter in CCIP package
         fee_quoter_cap: Option<FeeQuoterCap>,
         dest_transfer_cap: Option<osh::DestTransferCap>,
         ownable_state: OwnableState,

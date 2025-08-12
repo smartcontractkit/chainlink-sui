@@ -42,6 +42,7 @@ public struct ReceiverUnregistered has copy, drop {
     receiver_package_id: address,
 }
 
+// TODO: what limit should we set here?
 const MAX_RECEIVER_STATE_PARAMS: u64 = 6;
 
 const EAlreadyRegistered: u64 = 1;

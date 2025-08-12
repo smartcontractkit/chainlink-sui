@@ -36,6 +36,7 @@ module ccip_onramp::onramp {
         dest_chain_configs: Table<u64, DestChainConfig>,
         // coin metadata address -> Coin
         fee_tokens: Bag,
+        // provided when initializing the nonce manager in CCIP package
         nonce_manager_cap: Option<NonceManagerCap>,
         source_transfer_cap: Option<dd::SourceTransferCap>,
         ownable_state: OwnableState,

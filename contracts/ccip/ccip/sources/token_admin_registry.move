@@ -11,24 +11,36 @@ use sui::linked_table::{Self, LinkedTable};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::ownable::OwnerCap;
 
-// TODO: consider add/using a different structure if someone registers too many tokens
-// figure out & ask about the vector & map size limit for different structures
 public struct TokenAdminRegistryState has key, store {
     id: UID,
     // coin metadata object id -> token config
     token_configs: LinkedTable<address, TokenConfig>,
 }
 
+// TODO: what limit should we set for the length of the lock_or_burn_params and release_or_mint_params?
 public struct TokenConfig has store, drop, copy {
     token_pool_package_id: address,
     token_pool_module: String,
-    // the type of the token
+    // the type of the token, this should be the full type name of the token, e.g. "0x2::token::Token<0x1::sui::SUI>"
     token_type: ascii::String,
     administrator: address,
     pending_administrator: address,
     // type proof of the token pool
     type_proof: ascii::String,
+    // the extra params for the lock or burn function.
+    // in lock_or_burn function in token pools, the first 3 params are mandatory and always the same,
+    // which include CCIP object ref, coin, and remote chain selector.
+    // the rest of the params are extra params for the lock or burn function and they are provided
+    // here at the process of registering the token pool.
+    // these extra params are expected to be object ids. they MUST be shared, or immutable, or accessible
+    // onchain by the PTB sender.
     lock_or_burn_params: vector<address>,
+    // the extra params for the release or mint function.
+    // in release_or_mint function in token pools, the first 3 params are mandatory and always the same,
+    // which include CCIP object ref, hot potato, and index.
+    // the rest of the params are extra params for the release or mint function and they are provided
+    // here at the process of registering the token pool.
+    // these extra params are expected to be object ids. they MUST be shared or immutable.
     release_or_mint_params: vector<address>,
 }
 
@@ -101,25 +113,23 @@ public fun get_pools(
 ): vector<address>{
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
-    let mut token_pool_addresses: vector<address> = vector[];
+    let mut token_pool_package_ids: vector<address> = vector[];
     coin_metadata_addresses.do_ref!(
         |metadata_address| {
             let metadata_address: address = *metadata_address;
             if (state.token_configs.contains(metadata_address)) {
                 let token_config = state.token_configs.borrow(metadata_address);
-                token_pool_addresses.push_back(token_config.token_pool_package_id);
+                token_pool_package_ids.push_back(token_config.token_pool_package_id);
             } else {
                 // returns @0x0 for assets without token pools.
-                token_pool_addresses.push_back(@0x0);
+                token_pool_package_ids.push_back(@0x0);
             }
         }
     );
 
-    token_pool_addresses
+    token_pool_package_ids
 }
 
-// this function can also take a coin metadata or a coin::zero
-// but that requires adding a type parameter to the function
 public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): address {
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
@@ -195,7 +205,7 @@ public fun get_token_config_data(token_config: TokenConfig): (address, String, a
 /// @param max_count - Maximum number of tokens to return
 ///
 /// @return:
-///   - vector<address>: List of token addresses (up to max_count)
+///   - vector<address>: List of token coin metadata addresses (up to max_count)
 ///   - address: Next key to use for pagination (pass this as start_key in next call)
 ///   - bool: Whether there are more tokens after this batch
 public fun get_all_configured_tokens(
@@ -204,17 +214,17 @@ public fun get_all_configured_tokens(
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     let mut i = 0;
-    let mut result = vector[];
+    let mut results = vector[];
     let mut key = start_key;
     if (key == @0x0) {
         if (state.token_configs.is_empty()) {
-            return (result, key, false)
+            return (results, key, false)
         };
         if (max_count == 0) {
-            return (result, key, true)
+            return (results, key, true)
         };
         key = *state.token_configs.front().borrow();
-        result.push_back(key);
+        results.push_back(key);
         i = 1;
     } else {
         assert!(state.token_configs.contains(start_key), ETokenAddressNotRegistered);
@@ -223,24 +233,25 @@ public fun get_all_configured_tokens(
     while (i < max_count) {
         let next_key_opt = state.token_configs.next(key);
         if (next_key_opt.is_none()) {
-            return (result, key, false)
+            return (results, key, false)
         };
 
         key = *next_key_opt.borrow();
-        result.push_back(key);
+        results.push_back(key);
         i = i + 1;
     };
 
     // Check if there are more tokens after the last key
     let has_more = state.token_configs.next(key).is_some();
-    (result, key, has_more)
+    (results, key, has_more)
 }
 
 // ================================================================
 // |                       Register Pool                          |
 // ================================================================
 
-// only the token owner with the treasury cap can call this function.
+// only the token owner can call this function to register a token pool for the token it owns._
+// the ownership is proven by the presence of the treasury cap.
 public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
@@ -268,6 +279,8 @@ public fun register_pool<T, TypeProof: drop>(
     );
 }
 
+// this function is only callable by the CCIP admin, who can present a CCIP admin proof.
+// the CCIP admin needs to know the token pool's type proof string too.
 public fun register_pool_by_admin(
     ref: &mut CCIPObjectRef,
     _: state_object::CCIPAdminProof,
