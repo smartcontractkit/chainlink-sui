@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
@@ -15,9 +16,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
-	module_complex "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/complex"
-	module_counter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
-	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
@@ -51,10 +49,10 @@ type OffRampPTBResult struct {
 }
 
 type GetPoolInfosResult struct {
-	TokenPoolPackageIds     []SuiAddress `json:"token_pool_package_ids"`
-	TokenPoolStateAddresses []SuiAddress `json:"token_pool_state_addresses"`
-	TokenPoolModules        []string     `json:"token_pool_modules"`
-	TokenTypes              []string     `json:"token_types"`
+	TokenPoolPackageIds     []models.SuiAddress `json:"token_pool_package_ids"`
+	TokenPoolStateAddresses []models.SuiAddress `json:"token_pool_state_addresses"`
+	TokenPoolModules        []string            `json:"token_pool_modules"`
+	TokenTypes              []string            `json:"token_types"`
 }
 
 // BuildOffRampExecutePTB builds the PTB for the OffRampExecute operation
@@ -136,8 +134,9 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
-	// TODO: add make move vec command here (does this need to be done before or after the receiver calls?)
-	hotPotatoVecResult := ptb.MakeMoveVec(strPtr("osh::...."), generatedTokenPoolCommands)
+	// Make a vector of hot potatoes from all the token pool commands' results.
+	// This will be passed into the final `finish_execute` call.
+	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer("sui:0x_::_::_"), generatedTokenPoolCommands)
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	// "&mut OffRampState",
@@ -290,68 +289,15 @@ func GenerateReceiverCallArguments(
 	return arguments, nil
 }
 
-// Auxiliary functions
-
-// GeneratePTBCommands generates PTB commands for token addresses
+// GeneratePTBCommands generates PTB commands for each of the token pool addresses.
+// This method also attached the commands directly into the PTB and returns the set of results from each command.
 func GeneratePTBCommandsForTokenPools(
 	ptb *transaction.Transaction,
 	lggr logger.Logger,
 	tokenPools []TokenPool,
 ) ([]transaction.Argument, error) {
-	ptbCommands := make([]config.ChainWriterPTBCommand, len(tokenPools))
-	for i, tokenPool := range tokenPools {
-		cmdIndex := i + 1
-		previousCommandIndex := i
-		// We need to increment the index by 1 because the first command (`init_execute`) is already added
-		lggr.Infow("Generating PTB command from token pool", "tokenPool", tokenPool, "with index", i)
-		packageID := tokenPool.PackageId
-		if !strings.HasPrefix(packageID, "0x") {
-			packageID = "0x" + packageID
-		}
-		ptbCommands[i] = config.ChainWriterPTBCommand{
-			Type:      codec.SuiPTBCommandMoveCall,
-			PackageId: AnyPointer(packageID),
-			ModuleId:  AnyPointer(tokenPool.ModuleId),
-			Function:  AnyPointer(tokenPool.Function),
-			Params: []codec.SuiFunctionParam{
-				{
-					Name:      "ccip_object_ref",
-					Type:      "object_id",
-					Required:  true,
-					IsMutable: AnyPointer(false),
-				},
-				{
-					Name:     "receiver_params",
-					Type:     "ptb_dependency",
-					Required: true,
-					PTBDependency: &codec.PTBCommandDependency{
-						//nolint:gosec // G115: PTB commands are typically small in number, overflow extremely unlikely
-						CommandIndex: uint16(previousCommandIndex),
-					},
-				},
-				{
-					Name:     fmt.Sprintf("index_%d", cmdIndex),
-					Type:     "u64",
-					Required: true,
-				},
-				{
-					Name:      fmt.Sprintf("pool_%d", cmdIndex),
-					Type:      "object_id",
-					Required:  true,
-					IsMutable: AnyPointer(true),
-					IsGeneric: true,
-				},
-				{
-					Name:      "clock",
-					Type:      "object_id",
-					Required:  true,
-					IsMutable: AnyPointer(false),
-				},
-			},
-		}
-	}
-
-	return ptbCommands, nil
+	// TODO: implement this
+	return nil, fmt.Errorf("not implemented")
 }
 
 // GenerateArgumentsFromTokenAmounts generates PTB arguments for token addresses
