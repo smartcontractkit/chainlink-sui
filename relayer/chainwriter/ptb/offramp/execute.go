@@ -97,7 +97,7 @@ func BuildOffRampExecutePTB(
 	// Create an encoder for the `init_execute` offramp method to be attached to the PTB.
 	// This is being done using the bindings to re-use code but can otherwise be done using the SDK directly.
 	encodedInitExecute, err := offrampEncoder.InitExecute(
-		bind.Object{Id: addressMappings.CcipObjectRef}, // TODO: double check this
+		bind.Object{Id: addressMappings.CcipObjectRef},
 		bind.Object{Id: addressMappings.OffRampState},
 		bind.Object{Id: addressMappings.ClockObject},
 		[][]byte{
@@ -125,8 +125,6 @@ func BuildOffRampExecutePTB(
 			return fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
 
-		// TODO: is there a possibility of a nil reference here?
-
 		tokenPoolCommandsResults = append(tokenPoolCommandsResults, *tokenPoolCommandResult)
 	}
 
@@ -135,7 +133,7 @@ func BuildOffRampExecutePTB(
 		// TODO: filter out messages that have a receiver that is not registered
 
 		if len(message.Receiver) > 0 && len(message.Data) > 0 {
-			_, err := AppendPTBCommandForReceiver(ctx, lggr, sdkClient, ptb, callOpts, message, addressMappings.CcipObjectRef)
+			_, err := AppendPTBCommandForReceiver(ctx, lggr, sdkClient, ptb, callOpts, message, &addressMappings)
 			if err != nil {
 				return err
 			}
@@ -210,16 +208,6 @@ func AppendPTBCommandForTokenPool(
 	return tokenPoolCommandResult, nil
 }
 
-func FilterRegisteredReceivers(
-	ctx context.Context,
-	lggr logger.Logger,
-	messages []ccipocr3.Message,
-	signerPublicKey []byte,
-) ([]ccipocr3.Message, error) {
-	// TODO: implement
-	return messages, fmt.Errorf("not implemented")
-}
-
 func AppendPTBCommandForReceiver(
 	ctx context.Context,
 	lggr logger.Logger,
@@ -227,7 +215,7 @@ func AppendPTBCommandForReceiver(
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
 	message ccipocr3.Message,
-	ccipObjectRef string,
+	addressMappings *OffRampAddressMappings,
 ) (*transaction.Argument, error) {
 	// Parse the receiver string into `packageID::moduleID::functionName` format
 	receiverParts := strings.Split(string(message.Receiver), "::")
@@ -249,7 +237,7 @@ func AppendPTBCommandForReceiver(
 		//"_" // TODO: figure out the type for this
 	}, []any{
 		bind.Object{
-			Id: ccipObjectRef,
+			Id: addressMappings.CcipObjectRef,
 		},
 		//ownerCap,
 		//maxFeeJuelsPerMsg,
