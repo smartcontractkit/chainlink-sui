@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
@@ -32,42 +30,28 @@ var (
 	SUI_PATH_COMPONENTS_COUNT        = 3
 )
 
+const (
+	LockOrBurn    = "lock_or_burn"
+	ReleaseOrMint = "release_or_mint"
+)
+
 type SuiOffRampExecCallArgs struct {
 	ReportContext [2][32]byte                `mapstructure:"ReportContext"`
 	Report        []byte                     `mapstructure:"Report"`
 	Info          ccipocr3.ExecuteReportInfo `mapstructure:"Info"`
 }
 
-// OffRampPTBArgs represents arguments for OffRamp PTB expansion operations
-type OffRampPTBArgs struct {
-	ExecArgs   SuiOffRampExecCallArgs
-	PTBConfigs *config.ChainWriterFunction
-}
-
-// OffRampPTBResult represents the result of OffRamp PTB expansion operations
-type OffRampPTBResult struct {
-	PTBCommands []config.ChainWriterPTBCommand
-	UpdatedArgs map[string]any
-	TypeArgs    map[string]string
-}
-
-type GetPoolInfosResult struct {
-	TokenPoolPackageIds     []models.SuiAddress `json:"token_pool_package_ids"`
-	TokenPoolStateAddresses []models.SuiAddress `json:"token_pool_state_addresses"`
-	TokenPoolModules        []string            `json:"token_pool_modules"`
-	TokenTypes              []string            `json:"token_types"`
-}
-
 // BuildOffRampExecutePTB builds the PTB for the OffRampExecute operation
 func BuildOffRampExecutePTB(
 	ctx context.Context,
 	lggr logger.Logger,
-	client sui.ISuiAPI,
+	ptbClient client.SuiPTBClient,
 	ptb *transaction.Transaction,
 	args config.Arguments,
 	signerAddress string,
 	addressMappings OffRampAddressMappings,
 ) (err error) {
+	sdkClient := ptbClient.GetClient()
 	offrampArgs := &SuiOffRampExecCallArgs{}
 	err = mapstructure.Decode(args.Args, &offrampArgs)
 	if err != nil {
@@ -98,7 +82,7 @@ func BuildOffRampExecutePTB(
 	}
 
 	// Set the ccip package interface from bindings
-	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, client)
+	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, sdkClient)
 	if err != nil {
 		return err
 	}
@@ -111,7 +95,7 @@ func BuildOffRampExecutePTB(
 	}
 
 	// Set the offramp package interface from bindings
-	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, client)
+	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, sdkClient)
 	if err != nil {
 		return err
 	}
@@ -134,16 +118,63 @@ func BuildOffRampExecutePTB(
 		return fmt.Errorf("failed to encode move call (init_execute) using bindings: %w", err)
 	}
 
-	initExecuteResult, err := offrampContract.BuildPTB(ctx, ptb, encodedInitExecute)
+	initExecuteResult, err := offrampContract.AppendPTB(ctx, callOpts, ptb, encodedInitExecute)
 	if err != nil {
 		return fmt.Errorf("failed to build PTB (init_execute) using bindings: %w", err)
 	}
 
 	// Generate N token pool commands and attach them to the PTB, each command must return a result
 	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
-	tokenPoolCommandsResults, err := GeneratePTBCommandsForTokenPools(lggr, ptb, pools)
-	if err != nil {
-		return err
+	tokenConfigs, err := tokenAdminRegistryDevInspect.GetTokenConfigs(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
+	tokenPoolCommandsResults := make([]transaction.Argument, 0)
+	for _, tokenPoolConfigs := range tokenConfigs {
+		poolBoundContract, err := bind.NewBoundContract(
+			tokenPoolConfigs.TokenPoolPackageId,
+			tokenPoolConfigs.TokenPoolPackageId,
+			tokenPoolConfigs.TokenPoolModule,
+			sdkClient,
+		)
+		if err != nil {
+			return err
+		}
+
+		var functionName string
+		switch tokenPoolConfigs.TokenType.Id {
+		case "lockOrBurn":
+			functionName = LockOrBurn
+		case "releaseOrMint":
+			functionName = ReleaseOrMint
+		default:
+			return fmt.Errorf("unsupported token type: %s", tokenPoolConfigs.TokenType.Id)
+		}
+
+		typeArgsList := []string{}
+		typeParamsList := []string{}
+		encodedTokenPoolCall, err := poolBoundContract.EncodeCallArgsWithGenerics(functionName, typeArgsList, typeParamsList, []string{
+			//"&mut CCIPObjectRef",
+			//"&OwnerCap",
+			//"u256",
+			//"address",
+			//"u64",
+			//"vector<address>",
+		}, []any{
+			//ref,
+			//ownerCap,
+			//maxFeeJuelsPerMsg,
+			//linkToken,
+			//tokenPriceStalenessThreshold,
+			//feeTokens,
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("failed to encode token pool call: %w", err)
+		}
+
+		tokenPoolCommandResult, err := poolBoundContract.AppendPTB(ctx, callOpts, ptb, encodedTokenPoolCall)
+		if err != nil {
+			return fmt.Errorf("failed to build PTB (token pool call) using bindings: %w", err)
+		}
+
+		tokenPoolCommandsResults = append(tokenPoolCommandsResults, *tokenPoolCommandResult)
 	}
 
 	// TODO: filter out messages that have a receiver that is not registered
@@ -162,9 +193,14 @@ func BuildOffRampExecutePTB(
 	hotPotatoVecResult := ptb.MakeMoveVec(nil, tokenPoolCommandsResults)
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
-	_, err = offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
+	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
+	}
+
+	_, err = offrampContract.AppendPTB(ctx, callOpts, ptb, encodedFinishExecute)
+	if err != nil {
+		return fmt.Errorf("failed to build PTB (finish_execute) using bindings: %w", err)
 	}
 
 	return nil

@@ -169,7 +169,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		}
 
 		// Construct the entire PTB transaction for offramp execute without CW configs
-		err = offramp.BuildOffRampExecutePTB(ctx, p.log, sdkClient, ptb, arguments, signerAddress, addressMappings)
+		err = offramp.BuildOffRampExecutePTB(ctx, p.log, p.client, ptb, arguments, signerAddress, addressMappings)
 		if err != nil {
 			p.log.Errorw("Error building OffRamp execute PTB", "error", err)
 			return nil, err
