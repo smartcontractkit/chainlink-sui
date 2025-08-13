@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	receiver_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/receiver_registry"
 	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
@@ -128,16 +129,59 @@ func BuildOffRampExecutePTB(
 		tokenPoolCommandsResults = append(tokenPoolCommandsResults, *tokenPoolCommandResult)
 	}
 
+	// Create a receiver binding interface to filter out non-registered receivers
+	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, sdkClient)
+	if err != nil {
+		return err
+	}
+	receiverRegistryDevInspect := receiverRegistryPkg.DevInspect()
+
+	receiverCommandsResults := make([]transaction.Argument, 0)
 	// Generate receiver call commands
 	for _, message := range messages {
-		// TODO: filter out messages that have a receiver that is not registered
-
-		if len(message.Receiver) > 0 && len(message.Data) > 0 {
-			_, err := AppendPTBCommandForReceiver(ctx, lggr, sdkClient, ptb, callOpts, message, &addressMappings)
-			if err != nil {
-				return err
-			}
+		// If there is no receiver, skip this message
+		if len(message.Receiver) == 0 || message.Receiver == nil {
+			lggr.Debugw("no receiver specified, skipping message in offramp execution...", "message", message)
+			continue
 		}
+		// If there is no data, skip this message
+		if len(message.Data) == 0 {
+			lggr.Debugw("no data specified, skipping message in offramp execution...", "message", message)
+			continue
+		}
+
+		// Parse the receiver string into `packageID::moduleID::functionName` format
+		receiverParts := strings.Split(string(message.Receiver), "::")
+		if len(receiverParts) != 3 {
+			return fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
+		}
+
+		receiverPackageId, receiverModule, receiverFunction := receiverParts[0], receiverParts[1], receiverParts[2]
+		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
+		if err != nil {
+			return fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
+		}
+		if !isRegistered {
+			// TODO: should this fail the whole execution?
+			lggr.Debugw("receiver is not registered in offramp execution, skipping message...", "receiver", message.Receiver)
+			continue
+		}
+
+		receiverCommandResult, err := AppendPTBCommandForReceiver(
+			ctx,
+			lggr,
+			sdkClient,
+			ptb,
+			callOpts,
+			receiverPackageId,
+			receiverModule,
+			receiverFunction,
+			&addressMappings,
+		)
+		if err != nil {
+			return err
+		}
+		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
 
 	// Make a vector of hot potatoes from all the token pool commands' results.
@@ -214,16 +258,11 @@ func AppendPTBCommandForReceiver(
 	sdkClient sui.ISuiAPI,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
-	message ccipocr3.Message,
+	packageId string,
+	moduleId string,
+	functionName string,
 	addressMappings *OffRampAddressMappings,
 ) (*transaction.Argument, error) {
-	// Parse the receiver string into `packageID::moduleID::functionName` format
-	receiverParts := strings.Split(string(message.Receiver), "::")
-	if len(receiverParts) != 3 {
-		return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
-	}
-
-	packageId, moduleId, functionName := receiverParts[0], receiverParts[1], receiverParts[2]
 	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create receiver bound contract when appending PTB command: %w", err)
