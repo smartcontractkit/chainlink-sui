@@ -438,6 +438,36 @@ module ccip_offramp::offramp {
         pre_execute_single_report(ref, state, clock, reports, false)
     }
 
+
+    public fun dummy_init_execute(
+        state: &mut OffRampState,
+        source_chain_selector: u64,
+        message_id: vector<u8>,
+        sender: vector<u8>,
+        data: vector<u8>,
+    ): osh::ReceiverParams {
+        let mut receiver_params = osh::create_receiver_params(state.dest_transfer_cap.borrow(), source_chain_selector);
+
+        let any2sui_message =
+                client::new_any2sui_message(
+                    message_id,
+                    source_chain_selector,
+                    sender,
+                    data,
+                    vector[],
+                );
+
+            osh::populate_message(state.dest_transfer_cap.borrow(), &mut receiver_params, any2sui_message);
+        receiver_params
+    }
+    public fun dummy_finish_execute(
+        state: &mut OffRampState,
+        receiver_params: osh::ReceiverParams,
+        _: vector<osh::CompletedDestTokenTransfer>,
+    ) {
+        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, vector[]);
+    }
+
     public fun finish_execute(
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
