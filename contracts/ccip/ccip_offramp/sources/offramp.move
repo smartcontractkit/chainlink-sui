@@ -463,9 +463,9 @@ module ccip_offramp::offramp {
     public fun dummy_finish_execute(
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
-        _: vector<osh::CompletedDestTokenTransfer>,
+        completed_transfers: vector<osh::CompletedDestTokenTransfer>,
     ) {
-        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, vector[]);
+        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, completed_transfers);
     }
 
     public fun finish_execute(
