@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
@@ -24,16 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
-var (
-	DEFAULT_NR_OFFRAMP_PTB_COMMANDS  = 2
-	OFFRAMP_TOKEN_POOL_FUNCTION_NAME = "release_or_mint"
-	SUI_PATH_COMPONENTS_COUNT        = 3
-)
-
-const (
-	LockOrBurn    = "lock_or_burn"
-	ReleaseOrMint = "release_or_mint"
-)
+const OfframpTokenPoolFunctionName = "release_or_mint"
 
 type SuiOffRampExecCallArgs struct {
 	ReportContext [2][32]byte                `mapstructure:"ReportContext"`
@@ -89,7 +81,8 @@ func BuildOffRampExecutePTB(
 	tokenAdminRegistryContract := ccipPkg.TokenAdminRegistry().(*module_token_admin_registry.TokenAdminRegistryContract)
 	tokenAdminRegistryDevInspect := tokenAdminRegistryContract.DevInspect()
 
-	pools, err := tokenAdminRegistryDevInspect.GetPools(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
+	// TODO: remove this, it's not needed since we make a `GetTokenConfigs` call which includes the pools
+	_, err = tokenAdminRegistryDevInspect.GetPools(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
 	if err != nil {
 		return fmt.Errorf("failed to get pools from token admin registry: %w", err)
 	}
@@ -128,58 +121,14 @@ func BuildOffRampExecutePTB(
 	tokenConfigs, err := tokenAdminRegistryDevInspect.GetTokenConfigs(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
 	for _, tokenPoolConfigs := range tokenConfigs {
-		poolBoundContract, err := bind.NewBoundContract(
-			tokenPoolConfigs.TokenPoolPackageId,
-			tokenPoolConfigs.TokenPoolPackageId,
-			tokenPoolConfigs.TokenPoolModule,
-			sdkClient,
-		)
+		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(ctx, lggr, sdkClient, ptb, callOpts, tokenPoolConfigs)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
-
-		var functionName string
-		switch tokenPoolConfigs.TokenType.Id {
-		case "lockOrBurn":
-			functionName = LockOrBurn
-		case "releaseOrMint":
-			functionName = ReleaseOrMint
-		default:
-			return fmt.Errorf("unsupported token type: %s", tokenPoolConfigs.TokenType.Id)
-		}
-
-		typeArgsList := []string{}
-		typeParamsList := []string{}
-		encodedTokenPoolCall, err := poolBoundContract.EncodeCallArgsWithGenerics(functionName, typeArgsList, typeParamsList, []string{
-			//"&mut CCIPObjectRef",
-			//"&OwnerCap",
-			//"u256",
-			//"address",
-			//"u64",
-			//"vector<address>",
-		}, []any{
-			//ref,
-			//ownerCap,
-			//maxFeeJuelsPerMsg,
-			//linkToken,
-			//tokenPriceStalenessThreshold,
-			//feeTokens,
-		}, nil)
-		if err != nil {
-			return fmt.Errorf("failed to encode token pool call: %w", err)
-		}
-
-		tokenPoolCommandResult, err := poolBoundContract.AppendPTB(ctx, callOpts, ptb, encodedTokenPoolCall)
-		if err != nil {
-			return fmt.Errorf("failed to build PTB (token pool call) using bindings: %w", err)
-		}
-
 		tokenPoolCommandsResults = append(tokenPoolCommandsResults, *tokenPoolCommandResult)
 	}
 
 	// TODO: filter out messages that have a receiver that is not registered
-
-	// TODO: move into its own file related to receives
 	// Generate receiver call commands
 	//nolint:gosec // G115:
 	receiverCommands, err := GenerateReceiverCallCommands(lggr, messages, uint16(len(tokenPoolCommandsResults)))
@@ -204,6 +153,53 @@ func BuildOffRampExecutePTB(
 	}
 
 	return nil
+}
+
+func AppendPTBCommandForTokenPool(
+	ctx context.Context,
+	lggr logger.Logger,
+	sdkClient sui.ISuiAPI,
+	ptb *transaction.Transaction,
+	callOpts *bind.CallOpts,
+	tokenPoolConfigs module_token_admin_registry.TokenConfig,
+) (*transaction.Argument, error) {
+	poolBoundContract, err := bind.NewBoundContract(
+		tokenPoolConfigs.TokenPoolPackageId,
+		tokenPoolConfigs.TokenPoolPackageId,
+		tokenPoolConfigs.TokenPoolModule,
+		sdkClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
+	}
+
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	encodedTokenPoolCall, err := poolBoundContract.EncodeCallArgsWithGenerics(OfframpTokenPoolFunctionName, typeArgsList, typeParamsList, []string{
+		//"&mut CCIPObjectRef",
+		//"&OwnerCap",
+		//"u256",
+		//"address",
+		//"u64",
+		//"vector<address>",
+	}, []any{
+		//ref,
+		//ownerCap,
+		//maxFeeJuelsPerMsg,
+		//linkToken,
+		//tokenPriceStalenessThreshold,
+		//feeTokens,
+	}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode token pool call: %w", err)
+	}
+
+	tokenPoolCommandResult, err := poolBoundContract.AppendPTB(ctx, callOpts, ptb, encodedTokenPoolCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build PTB (token pool call) using bindings: %w", err)
+	}
+
+	return tokenPoolCommandResult, nil
 }
 
 func GenerateReceiverCallCommands(
@@ -342,40 +338,4 @@ func GenerateReceiverCallArguments(
 	}
 
 	return arguments, nil
-}
-
-// GeneratePTBCommands generates PTB commands for each of the token pool addresses.
-// This method also attached the commands directly into the PTB and returns the set of results from each command.
-func GeneratePTBCommandsForTokenPools(
-	lggr logger.Logger,
-	ptb *transaction.Transaction,
-	tokenPools []string,
-) ([]transaction.Argument, error) {
-	// TODO: implement this
-	return nil, fmt.Errorf("not implemented")
-}
-
-// GenerateArgumentsFromTokenAmounts generates PTB arguments for token addresses
-//
-//nolint:gosec // G115:
-func GenerateArgumentsForTokenPools(
-	ccipObjectRef string,
-	clockRef string,
-	lggr logger.Logger,
-	tokenPools []TokenPool,
-) (map[string]any, map[string]string, error) {
-	arguments := make(map[string]any)
-	typeArgs := make(map[string]string)
-
-	arguments["ccip_object_ref"] = ccipObjectRef
-	arguments["clock"] = clockRef
-
-	for i, tokenPool := range tokenPools {
-		cmdIndex := i + 1
-		arguments[fmt.Sprintf("pool_%d", cmdIndex)] = tokenPool.TokenPoolStateAddress
-		arguments[fmt.Sprintf("index_%d", cmdIndex)] = uint64(tokenPool.Index)
-		typeArgs[fmt.Sprintf("pool_%d", cmdIndex)] = tokenPool.TokenType
-	}
-
-	return arguments, typeArgs, nil
 }
