@@ -82,7 +82,7 @@ func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 	// Fund the account.
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err)
-	for range 10 {
+	for range 5 {
 		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
 		require.NoError(t, err)
 	}
