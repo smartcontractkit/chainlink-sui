@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/holiman/uint256"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -298,15 +299,29 @@ func TestReceiver(t *testing.T) {
 			Data:     []byte("Hello World"),
 		}
 
+		// Create a new transaction builder
+		ptb := transaction.NewTransaction()
+		ptb.SetSuiClient(env.Client.(*sui.Client))
+
 		signerAddress, err := env.Signer.GetAddress()
 		require.NoError(t, err)
 
 		ptbClient, err := client.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 5, "WaitForLocalExecution")
 		require.NoError(t, err, "Failed to create PTB client for event querying")
 
-		receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, signerAddress, []ccipocr3.Message{msg}, 0, ccipObjectRef, ccipPackageId, ptbClient)
+		receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, ptb, signerAddress, []ccipocr3.Message{msg}, 0, ccipObjectRef, ccipPackageId, ptbClient)
 		require.NoError(t, err)
 		lggr.Info("receiver commands", "commands", receiverCommands)
+
+		opts := &bind.CallOpts{
+			Signer:           env.Signer,
+			WaitForExecution: true,
+		}
+
+		tx, err := bind.ExecutePTB(ctx, opts, env.Client, ptb)
+		require.NoError(t, err)
+		lggr.Infow("tx", "tx", tx)
+
 		//require.Equal(t, 1, len(receiverCommands))
 	})
 }

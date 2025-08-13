@@ -67,6 +67,10 @@ public fun get_counter(state: &CCIPReceiverState): u64 {
     state.counter
 }
 
+public fun echo(ref: &CCIPObjectRef, message: vector<u8>): vector<u8> {
+    message
+}
+
 // any ccip receiver must implement this function with the same signature
 public fun ccip_receive(ref: &CCIPObjectRef, receiver_params: osh::ReceiverParams, state: &mut CCIPReceiverState, _: &Clock): osh::ReceiverParams {
     let (message_op, receiver_params) = osh::extract_any2sui_message(ref, receiver_params, DummyReceiverProof {});

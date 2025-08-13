@@ -77,13 +77,14 @@ func FilterRegisteredReceivers(
 func AddReceiverCallCommands(
 	ctx context.Context,
 	lggr logger.Logger,
+	ptb *transaction.Transaction,
 	signerAddress string,
 	messages []ccipocr3.Message,
 	previousCommandIndex uint16,
 	ccipObjectRef string,
 	ccipPackageId string,
 	client ptbClient.SuiPTBClient,
-) ([]transaction.Argument, error) {
+) ([]*transaction.Argument, error) {
 	suiClient := client.GetClient()
 	devInspectSigner := signer.NewDevInspectSigner(signerAddress)
 	registeredReceivers, err := FilterRegisteredReceivers(ctx, lggr, messages, signerAddress, client, ccipObjectRef, ccipPackageId)
@@ -92,6 +93,8 @@ func AddReceiverCallCommands(
 	}
 
 	lggr.Info("registered receivers", "count", len(registeredReceivers))
+
+	finalCommands := []*transaction.Argument{}
 
 	for _, message := range registeredReceivers {
 		receiverParts := strings.Split(string(message.Receiver), "::")
@@ -109,15 +112,58 @@ func AddReceiverCallCommands(
 
 		lggr.Infow("receiver info", "receiver", receiverPackageId, "module", moduleName, "stateParams", stateParams)
 
-		signature, err := GetCCIPReceiverSignature(ctx, lggr, signerAddress, receiverPackageId, moduleName, client)
+		// TODO: remove, this is a debug function
+		receiverFunction := "echo"
+
+		signature, err := GetCCIPReceiverSignature(ctx, lggr, signerAddress, receiverPackageId, moduleName, client, receiverFunction)
+		if err != nil {
+			lggr.Error("failed to get receiver info", "error", err)
+			return nil, err
+		}
+
+		receiverBoundContract, err := bind.NewBoundContract(
+			receiverPackageId,
+			receiverPackageId,
+			moduleName,
+			suiClient,
+		)
+		if err != nil {
+			lggr.Error("failed to get receiver bound contract", "error", err)
+			return nil, err
+		}
+
+		paramTypes := []string{"&object", "vector<u8>"}
+		paramValues := []any{ccipObjectRef, []byte("Hello World")}
+		returnTypes := []string{"vector<u8>"}
+
+		encodedCall, err := receiverBoundContract.EncodeCallArgsWithGenerics(
+			receiverFunction,
+			[]string{},
+			[]string{},
+			paramTypes,
+			paramValues,
+			returnTypes,
+		)
+		if err != nil {
+			lggr.Error("failed to encode call", "error", err)
+			return nil, err
+		}
+
+		opts := &bind.CallOpts{
+			Signer:           devInspectSigner,
+			WaitForExecution: true,
+		}
+
+		arg, err := receiverBoundContract.AppendPTB(ctx, opts, ptb, encodedCall)
 		if err != nil {
 			return nil, err
 		}
+		finalCommands = append(finalCommands, arg)
 
 		lggr.Infow("signature", "signature", signature)
 	}
 
-	return []transaction.Argument{}, nil
+	return finalCommands, nil
 }
 
 func GetCCIPReceiverSignature(
@@ -127,24 +173,27 @@ func GetCCIPReceiverSignature(
 	receiverPackageId string,
 	receiverModule string,
 	client ptbClient.SuiPTBClient,
-) (string, error) {
+	receiverFunction string,
+) (map[string]any, error) {
 	lggr.Infow("getting ccip receiver signature", "receiverPackageId", receiverPackageId, "receiverModule", receiverModule)
 	normalizedModule, err := client.GetNormalizedModule(ctx, receiverPackageId, receiverModule)
 	if err != nil {
 		lggr.Error("failed to get normalized module", "error", err)
-		return "", err
+		return nil, err
 	}
+
+	lggr.Infow("normalized module", "normalizedModule", normalizedModule)
 
 	functions := normalizedModule.ExposedFunctions
-	if functions[CCIP_RECEIVER_FUNCTION] == nil {
+	if functions[receiverFunction] == nil {
 		lggr.Error("ccip_receive function not found", "receiverPackageId", receiverPackageId)
-		return "", fmt.Errorf("ccip_receive function not found: %s", receiverPackageId)
+		return nil, fmt.Errorf("ccip_receive function not found: %s", receiverPackageId)
 	}
 
-	function := functions[CCIP_RECEIVER_FUNCTION].(map[string]any)
+	function := functions[receiverFunction].(map[string]any)
 	lggr.Infow("function", "function", function)
 
-	return "", nil
+	return function, nil
 }
 
 func getReceiverInfo(
