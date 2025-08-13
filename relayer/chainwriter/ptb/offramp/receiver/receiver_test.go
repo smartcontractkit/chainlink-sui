@@ -292,7 +292,7 @@ func TestReceiver(t *testing.T) {
 	t.Run("TestAddReceiverCallCommands", func(t *testing.T) {
 		receiverPackageId := env.DummyReceiverReport.Output.DummyReceiverPackageId
 		receiverModule := "ccip_dummy_receiver"
-		receiver := fmt.Sprintf("%s::%s::ccip_receive", receiverPackageId, receiverModule)
+		receiver := fmt.Sprintf("%s::%s::echo", receiverPackageId, receiverModule)
 
 		msg := ccipocr3.Message{
 			Receiver: []byte(receiver),
