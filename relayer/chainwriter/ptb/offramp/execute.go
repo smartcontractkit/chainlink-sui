@@ -22,7 +22,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 const OfframpTokenPoolFunctionName = "release_or_mint"
@@ -125,15 +124,22 @@ func BuildOffRampExecutePTB(
 		if err != nil {
 			return fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
+
+		// TODO: is there a possibility of a nil reference here?
+
 		tokenPoolCommandsResults = append(tokenPoolCommandsResults, *tokenPoolCommandResult)
 	}
 
-	// TODO: filter out messages that have a receiver that is not registered
 	// Generate receiver call commands
-	//nolint:gosec // G115:
-	receiverCommands, err := GenerateReceiverCallCommands(lggr, messages, uint16(len(tokenPoolCommandsResults)))
-	if err != nil {
-		return err
+	for _, message := range messages {
+		// TODO: filter out messages that have a receiver that is not registered
+
+		if len(message.Receiver) > 0 && len(message.Data) > 0 {
+			_, err := AppendPTBCommandForReceiver(ctx, lggr, sdkClient, ptb, callOpts, message, addressMappings.CcipObjectRef)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Make a vector of hot potatoes from all the token pool commands' results.
@@ -202,140 +208,58 @@ func AppendPTBCommandForTokenPool(
 	return tokenPoolCommandResult, nil
 }
 
-func GenerateReceiverCallCommands(
-	lggr logger.Logger,
-	messages []ccipocr3.Message,
-	previousCommandIndex uint16,
-) ([]config.ChainWriterPTBCommand, error) {
-	var receiverCommands []config.ChainWriterPTBCommand
-	receiverIndex := previousCommandIndex + 1
-	for _, message := range messages {
-		if len(message.Receiver) > 0 && len(message.Data) > 0 {
-			// Parse the receiver string into packageID:moduleID:functionName format
-			receiverParts := strings.Split(string(message.Receiver), "::")
-			if len(receiverParts) != SUI_PATH_COMPONENTS_COUNT {
-				return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
-			}
-
-			receiverCommands = append(receiverCommands, config.ChainWriterPTBCommand{
-				Type:      codec.SuiPTBCommandMoveCall,
-				PackageId: AnyPointer(receiverParts[0]),
-				ModuleId:  AnyPointer(receiverParts[1]),
-				Function:  AnyPointer(receiverParts[2]),
-				Params: []codec.SuiFunctionParam{
-					{
-						Name:     "ccip_object_ref",
-						Type:     "object_id",
-						Required: true,
-					},
-					{
-						Name:     fmt.Sprintf("package_id_%d", receiverIndex),
-						Type:     "address",
-						Required: true,
-					},
-					{
-						Name:     fmt.Sprintf("receiver_params_%d", receiverIndex),
-						Type:     "ptb_dependency",
-						Required: true,
-						PTBDependency: &codec.PTBCommandDependency{
-							// PTB commands are typically small in number, overflow extremely unlikely
-							//nolint:gosec
-							CommandIndex: receiverIndex - 1,
-						},
-					},
-				},
-			})
-			receiverIndex++
-		}
-	}
-
-	return receiverCommands, nil
-}
-
 func FilterRegisteredReceivers(
 	ctx context.Context,
 	lggr logger.Logger,
 	messages []ccipocr3.Message,
 	signerPublicKey []byte,
 ) ([]ccipocr3.Message, error) {
-	registeredReceivers := make([]ccipocr3.Message, 0)
-	for _, message := range messages {
-		if len(message.Receiver) > 0 && len(message.Data) > 0 {
-			receiverParts := strings.Split(string(message.Receiver), "::")
-			if len(receiverParts) != SUI_PATH_COMPONENTS_COUNT {
-				return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
-			}
-
-			receiverPackageId := receiverParts[0]
-
-			signerAddress, err := client.GetAddressFromPublicKey(signerPublicKey)
-			if err != nil {
-				return nil, err
-			}
-
-			lggr.Debugw("Getting receiver config", "receiverPackageId", receiverPackageId, "receiverFunctionName", receiverParts[2])
-
-			result, err := s.ptbClient.ReadFunction(
-				ctx,
-				signerAddress,
-				s.AddressMappings["ccipPackageId"],
-				"receiver_registry",
-				"is_registered_receiver",
-				[]any{
-					s.AddressMappings["ccipObjectRef"],
-					receiverPackageId,
-				},
-				[]string{
-					"object_id",
-					"address",
-				},
-			)
-			if err != nil {
-				lggr.Errorw("Error getting pool infos", "error", err)
-				return nil, err
-			}
-
-			var isRegistered bool
-			lggr.Debugw("isRegistered", "isRegistered", result[0])
-			err = codec.DecodeSuiJsonValue(result[0], &isRegistered)
-			if err != nil {
-				return nil, err
-			}
-
-			if isRegistered {
-				registeredReceivers = append(registeredReceivers, message)
-			}
-		}
-	}
-
-	lggr.Debugw("registeredReceivers", "registeredReceivers", registeredReceivers)
-
-	return registeredReceivers, nil
+	// TODO: implement
+	return messages, fmt.Errorf("not implemented")
 }
 
-func GenerateReceiverCallArguments(
+func AppendPTBCommandForReceiver(
+	ctx context.Context,
 	lggr logger.Logger,
-	messages []ccipocr3.Message,
-	previousCommandIndex uint16,
+	sdkClient sui.ISuiAPI,
+	ptb *transaction.Transaction,
+	callOpts *bind.CallOpts,
+	message ccipocr3.Message,
 	ccipObjectRef string,
-) (map[string]any, error) {
-	arguments := make(map[string]any)
-
-	arguments["ccip_object_ref"] = ccipObjectRef
-
-	commandIndex := previousCommandIndex + 1
-
-	for _, message := range messages {
-		if len(message.Receiver) > 0 && len(message.Data) > 0 {
-			lggr.Debugw("receiverParts", "receiverParts", message.Receiver)
-			receiverParts := strings.Split(string(message.Receiver), "::")
-			if len(receiverParts) != SUI_PATH_COMPONENTS_COUNT {
-				return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
-			}
-			arguments[fmt.Sprintf("package_id_%d", commandIndex)] = receiverParts[0]
-			commandIndex++
-		}
+) (*transaction.Argument, error) {
+	// Parse the receiver string into `packageID::moduleID::functionName` format
+	receiverParts := strings.Split(string(message.Receiver), "::")
+	if len(receiverParts) != 3 {
+		return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
 	}
 
-	return arguments, nil
+	packageId, moduleId, functionName := receiverParts[0], receiverParts[1], receiverParts[2]
+	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create receiver bound contract when appending PTB command: %w", err)
+	}
+
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(functionName, typeArgsList, typeParamsList, []string{
+		//"&mut CCIPObjectRef",
+		//"address",
+		//"_"
+	}, []any{
+		bind.Object{
+			Id: ccipObjectRef,
+		},
+		//ownerCap,
+		//maxFeeJuelsPerMsg,
+	}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode receiver call: %w", err)
+	}
+
+	receiverCommandResult, err := boundReceiverContract.AppendPTB(ctx, callOpts, ptb, encodedReceiverCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build PTB (receiver call) using bindings: %w", err)
+	}
+
+	return receiverCommandResult, nil
 }
