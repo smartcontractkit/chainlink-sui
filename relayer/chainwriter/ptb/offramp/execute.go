@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/mitchellh/mapstructure"
@@ -81,12 +82,6 @@ func BuildOffRampExecutePTB(
 	tokenAdminRegistryContract := ccipPkg.TokenAdminRegistry().(*module_token_admin_registry.TokenAdminRegistryContract)
 	tokenAdminRegistryDevInspect := tokenAdminRegistryContract.DevInspect()
 
-	// TODO: remove this, it's not needed since we make a `GetTokenConfigs` call which includes the pools
-	_, err = tokenAdminRegistryDevInspect.GetPools(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
-	if err != nil {
-		return fmt.Errorf("failed to get pools from token admin registry: %w", err)
-	}
-
 	// Set the offramp package interface from bindings
 	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, sdkClient)
 	if err != nil {
@@ -121,7 +116,12 @@ func BuildOffRampExecutePTB(
 	tokenConfigs, err := tokenAdminRegistryDevInspect.GetTokenConfigs(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
 	for _, tokenPoolConfigs := range tokenConfigs {
-		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(ctx, lggr, sdkClient, ptb, callOpts, tokenPoolConfigs)
+		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule)
+		if err != nil {
+			return fmt.Errorf("failed to get normalized module for token pool: %w", err)
+		}
+
+		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(ctx, lggr, sdkClient, ptb, callOpts, &addressMappings, &tokenPoolConfigs, &tokenPoolNormalizedModule)
 		if err != nil {
 			return fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
@@ -173,6 +173,7 @@ func BuildOffRampExecutePTB(
 			sdkClient,
 			ptb,
 			callOpts,
+			initExecuteResult,
 			receiverPackageId,
 			receiverModule,
 			receiverFunction,
@@ -184,11 +185,17 @@ func BuildOffRampExecutePTB(
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
 
+	var ccipReceiveCommandResult *transaction.Argument
+	if len(receiverCommandsResults) > 0 {
+		// TODO: handle CCIP receive
+	}
+
 	// Make a vector of hot potatoes from all the token pool commands' results.
 	// This will be passed into the final `finish_execute` call.
 	// TODO: check if passing nil as a type is allowed for make_move_vec
 	hotPotatoVecResult := ptb.MakeMoveVec(nil, tokenPoolCommandsResults)
 
+	// TODO: check if the hot potato from the init or the ccip_receive is passed in here
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
 	if err != nil {
@@ -209,7 +216,9 @@ func AppendPTBCommandForTokenPool(
 	sdkClient sui.ISuiAPI,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
-	tokenPoolConfigs module_token_admin_registry.TokenConfig,
+	addressMappings *OffRampAddressMappings,
+	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
+	normalizedModule *models.GetNormalizedMoveModuleResponse,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
@@ -220,8 +229,6 @@ func AppendPTBCommandForTokenPool(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
 	}
-
-	// TODO: figure out the args from the normalized move module
 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
@@ -258,6 +265,7 @@ func AppendPTBCommandForReceiver(
 	sdkClient sui.ISuiAPI,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
+	initHotPotatoResult *transaction.Argument,
 	packageId string,
 	moduleId string,
 	functionName string,
