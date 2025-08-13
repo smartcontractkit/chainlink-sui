@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
@@ -34,6 +35,16 @@ type SuiOffRampExecCallArgs struct {
 	Info          ccipocr3.ExecuteReportInfo `mapstructure:"Info"`
 }
 
+type TokenPoolCallData struct {
+	RemoteChainSelector uint64
+	Receiver            [32]byte
+	SourceAmount        uint64
+	DestTokenAddress    [32]byte
+	SourcePoolAddress   []byte
+	SourcePoolData      []byte
+	OffchainTokenData   []byte
+}
+
 // BuildOffRampExecutePTB builds the PTB for the OffRampExecute operation
 func BuildOffRampExecutePTB(
 	ctx context.Context,
@@ -54,6 +65,7 @@ func BuildOffRampExecutePTB(
 	coinMetadataAddresses := make([]string, 0)
 	tokenAmounts := make([]ccipocr3.RampTokenAmount, 0)
 	messages := make([]ccipocr3.Message, 0)
+	tokenPoolCallData := make([]TokenPoolCallData, 0)
 
 	// save all messages in a single slice
 	for _, report := range offrampArgs.Info.AbstractReports {
@@ -62,6 +74,15 @@ func BuildOffRampExecutePTB(
 			messages = append(messages, message)
 			for _, tokenAmount := range message.TokenAmounts {
 				coinMetadataAddresses = append(coinMetadataAddresses, tokenAmount.DestTokenAddress.String())
+				tokenPoolCallData = append(tokenPoolCallData, TokenPoolCallData{
+					RemoteChainSelector: uint64(report.SourceChainSelector),
+					Receiver:            [32]byte(message.Receiver),
+					SourceAmount:        tokenAmount.SourceAmount,
+					DestTokenAddress:    [32]byte(tokenAmount.DestTokenAddress),
+					SourcePoolAddress:   tokenAmount.SourcePoolAddress,
+					SourcePoolData:      tokenAmount.SourcePoolData,
+					OffchainTokenData:   tokenAmount.OffchainTokenData,
+				})
 			}
 		}
 	}
@@ -115,13 +136,24 @@ func BuildOffRampExecutePTB(
 	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
 	tokenConfigs, err := tokenAdminRegistryDevInspect.GetTokenConfigs(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
-	for _, tokenPoolConfigs := range tokenConfigs {
+	for idx, tokenPoolConfigs := range tokenConfigs {
+		tokenPoolEncodedData := tokenPoolCallData[idx]
 		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule)
 		if err != nil {
 			return fmt.Errorf("failed to get normalized module for token pool: %w", err)
 		}
 
-		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(ctx, lggr, sdkClient, ptb, callOpts, &addressMappings, &tokenPoolConfigs, &tokenPoolNormalizedModule)
+		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(
+			ctx,
+			lggr,
+			sdkClient,
+			ptb,
+			callOpts,
+			&addressMappings,
+			&tokenPoolConfigs,
+			&tokenPoolNormalizedModule,
+			tokenPoolEncodedData,
+		)
 		if err != nil {
 			return fmt.Errorf("failed to append token pool command to PTB: %w", err)
 		}
@@ -167,17 +199,22 @@ func BuildOffRampExecutePTB(
 			continue
 		}
 
+		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverModule)
+		if err != nil {
+			return fmt.Errorf("failed to get normalized module for token pool: %w", err)
+		}
+
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
 			ctx,
 			lggr,
 			sdkClient,
 			ptb,
 			callOpts,
-			initExecuteResult,
 			receiverPackageId,
 			receiverModule,
 			receiverFunction,
 			&addressMappings,
+			&receiverNormalizedModule,
 		)
 		if err != nil {
 			return err
@@ -188,6 +225,7 @@ func BuildOffRampExecutePTB(
 	var ccipReceiveCommandResult *transaction.Argument
 	if len(receiverCommandsResults) > 0 {
 		// TODO: handle CCIP receive
+		ccipReceiveCommandResult = initExecuteResult
 	}
 
 	// Make a vector of hot potatoes from all the token pool commands' results.
@@ -197,7 +235,7 @@ func BuildOffRampExecutePTB(
 
 	// TODO: check if the hot potato from the init or the ccip_receive is passed in here
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
-	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
+	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, ccipReceiveCommandResult, hotPotatoVecResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
 	}
@@ -219,6 +257,7 @@ func AppendPTBCommandForTokenPool(
 	addressMappings *OffRampAddressMappings,
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
+	data TokenPoolCallData,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
@@ -230,23 +269,52 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
 	}
 
+	// Encode the data needed by the token pool call
+	bcsEncoder := &aptosBCS.Serializer{}
+	bcsEncoder.U64(data.RemoteChainSelector)
+	bcsEncoder.FixedBytes(data.Receiver[:])
+	bcsEncoder.U64(data.SourceAmount)
+	bcsEncoder.FixedBytes(data.DestTokenAddress[:])
+	bcsEncoder.WriteBytes(data.SourcePoolAddress)
+	bcsEncoder.WriteBytes(data.SourcePoolData)
+	bcsEncoder.WriteBytes(data.OffchainTokenData)
+	encodedData := bcsEncoder.ToBytes()
+
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	encodedTokenPoolCall, err := poolBoundContract.EncodeCallArgsWithGenerics(OfframpTokenPoolFunctionName, typeArgsList, typeParamsList, []string{
-		//"&mut CCIPObjectRef",
-		//"&OwnerCap",
-		//"u256",
-		//"address",
-		//"u64",
-		//"vector<address>",
-	}, []any{
-		//ref,
-		//ownerCap,
-		//maxFeeJuelsPerMsg,
-		//linkToken,
-		//tokenPriceStalenessThreshold,
-		//feeTokens,
-	}, nil)
+	paramTypes := []string{}
+	// The fixed arguments that must be present for every token pool call.
+	paramValues := []any{
+		bind.Object{Id: addressMappings.CcipObjectRef},
+		encodedData,
+	}
+
+	// Append dynamic values (addresses) to the paramValues for the token pool call.
+	// This allows an unknown set of addresses to be passed in.
+	for _, value := range tokenPoolConfigs.ReleaseOrMintParams {
+		paramValues = append(paramValues, value)
+	}
+
+	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
+	functionSignature, ok := normalizedModule.ExposedFunctions[OfframpTokenPoolFunctionName]
+	if !ok {
+		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
+	}
+
+	// Figure out the parameter types from the normalized module of the token pool
+	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
+	}
+
+	encodedTokenPoolCall, err := poolBoundContract.EncodeCallArgsWithGenerics(
+		OfframpTokenPoolFunctionName,
+		typeArgsList,
+		typeParamsList,
+		paramTypes,
+		paramValues,
+		nil,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode token pool call: %w", err)
 	}
@@ -265,11 +333,11 @@ func AppendPTBCommandForReceiver(
 	sdkClient sui.ISuiAPI,
 	ptb *transaction.Transaction,
 	callOpts *bind.CallOpts,
-	initHotPotatoResult *transaction.Argument,
 	packageId string,
 	moduleId string,
 	functionName string,
 	addressMappings *OffRampAddressMappings,
+	normalizedModule *models.GetNormalizedMoveModuleResponse,
 ) (*transaction.Argument, error) {
 	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
 	if err != nil {
@@ -278,17 +346,29 @@ func AppendPTBCommandForReceiver(
 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(functionName, typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"address",
-		//"_" // TODO: figure out the type for this
-	}, []any{
-		bind.Object{
-			Id: addressMappings.CcipObjectRef,
-		},
-		//ownerCap,
-		//maxFeeJuelsPerMsg,
-	}, nil)
+	paramTypes := []string{}
+	paramValues := []any{}
+
+	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
+	functionSignature, ok := normalizedModule.ExposedFunctions[OfframpTokenPoolFunctionName]
+	if !ok {
+		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
+	}
+
+	// Figure out the parameter types from the normalized module of the token pool
+	paramTypes, err = DecodeParameters(lggr, functionSignature.(map[string]any), "parameters")
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
+	}
+
+	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
+		functionName,
+		typeArgsList,
+		typeParamsList,
+		paramTypes,
+		paramValues,
+		nil,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode receiver call: %w", err)
 	}
