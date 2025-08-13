@@ -179,6 +179,8 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
 	}
 
+	// TODO: figure out the args from the normalized move module
+
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	encodedTokenPoolCall, err := poolBoundContract.EncodeCallArgsWithGenerics(OfframpTokenPoolFunctionName, typeArgsList, typeParamsList, []string{
@@ -242,9 +244,9 @@ func AppendPTBCommandForReceiver(
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(functionName, typeArgsList, typeParamsList, []string{
-		//"&mut CCIPObjectRef",
-		//"address",
-		//"_"
+		"&mut CCIPObjectRef",
+		"address",
+		//"_" // TODO: figure out the type for this
 	}, []any{
 		bind.Object{
 			Id: ccipObjectRef,
