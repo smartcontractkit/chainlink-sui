@@ -401,9 +401,7 @@ func ProcessReceivers(
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
 		if !isRegistered {
-			// TODO: should this fail the whole execution?
-			lggr.Debugw("receiver is not registered in offramp execution, skipping message...", "receiver", message.Receiver)
-			continue
+			return nil, fmt.Errorf("receiver is not registered in offramp execution. error: %s", message.Receiver)
 		}
 
 		// Get the receiver config via the receiver registry binding
