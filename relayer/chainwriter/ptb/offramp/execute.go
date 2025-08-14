@@ -151,6 +151,7 @@ func BuildOffRampExecutePTB(
 		messages,
 		&addressMappings,
 		callOpts,
+		initExecuteResult,
 	)
 	if err != nil {
 		return err
@@ -161,7 +162,7 @@ func BuildOffRampExecutePTB(
 	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer("_"), tokenPoolCommandsResults)
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
-	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, ccipReceiveCommandResult, hotPotatoVecResult)
+	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
 	}
@@ -202,7 +203,7 @@ func ProcessTokenPools(
 	}
 
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
-	for _, tokenPoolConfigs := range tokenConfigs {
+	for idx, tokenPoolConfigs := range tokenConfigs {
 		// TODO: remove once hot potato approach validated
 		//// Get the relevant receiver params data for this token pool
 		//tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
@@ -223,6 +224,7 @@ func ProcessTokenPools(
 			&tokenPoolConfigs,
 			&tokenPoolNormalizedModule,
 			receiverParams,
+			idx,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
@@ -244,6 +246,7 @@ func AppendPTBCommandForTokenPool(
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
+	index int,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
@@ -268,15 +271,17 @@ func AppendPTBCommandForTokenPool(
 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	paramTypes := []string{}
+	paramTypes := []string{
+		"&mut ReceiverParams",
+		"u64",
+	}
 	paramValues := []any{
-		bind.Object{Id: addressMappings.CcipObjectRef},
 		receiverParams,
-		// TODO: add an identifier of the token pool
+		index,
 	}
 
 	encodedGetTokenParamDataCall, err := offrampStateHelperContract.EncodeCallArgsWithGenerics(
-		"get_token_param_data",
+		"get_dest_token_transfer",
 		typeArgsList,
 		typeParamsList,
 		paramTypes,
@@ -359,6 +364,7 @@ func ProcessReceivers(
 	messages []ccipocr3.Message,
 	addressMappings *OffRampAddressMappings,
 	callOpts *bind.CallOpts,
+	receiverParams *transaction.Argument,
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
@@ -395,9 +401,7 @@ func ProcessReceivers(
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
 		if !isRegistered {
-			// TODO: should this fail the whole execution?
-			lggr.Debugw("receiver is not registered in offramp execution, skipping message...", "receiver", message.Receiver)
-			continue
+			return nil, fmt.Errorf("receiver is not registered in offramp execution. error: %s", message.Receiver)
 		}
 
 		// Get the receiver config via the receiver registry binding
@@ -428,6 +432,7 @@ func ProcessReceivers(
 			addressMappings,
 			&receiverConfig,
 			&receiverNormalizedModule,
+			receiverParams,
 		)
 		if err != nil {
 			return nil, err
