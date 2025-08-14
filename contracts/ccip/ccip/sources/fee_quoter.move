@@ -499,7 +499,7 @@ public fun apply_token_transfer_fee_config_updates(
     });
 }
 
-// this should only be called from offramp, hence gated by a special cap owned by offramp
+// this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
 public fun update_prices(
     ref: &mut CCIPObjectRef,
     _: &FeeQuoterCap,
