@@ -151,6 +151,7 @@ func BuildOffRampExecutePTB(
 		messages,
 		&addressMappings,
 		callOpts,
+		initExecuteResult,
 	)
 	if err != nil {
 		return err
@@ -161,7 +162,7 @@ func BuildOffRampExecutePTB(
 	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer("_"), tokenPoolCommandsResults)
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
-	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, ccipReceiveCommandResult, hotPotatoVecResult)
+	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
 	}
@@ -359,6 +360,7 @@ func ProcessReceivers(
 	messages []ccipocr3.Message,
 	addressMappings *OffRampAddressMappings,
 	callOpts *bind.CallOpts,
+	receiverParams *transaction.Argument,
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
@@ -428,6 +430,7 @@ func ProcessReceivers(
 			addressMappings,
 			&receiverConfig,
 			&receiverNormalizedModule,
+			receiverParams,
 		)
 		if err != nil {
 			return nil, err
