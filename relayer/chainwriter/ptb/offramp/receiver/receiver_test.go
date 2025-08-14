@@ -363,9 +363,10 @@ func TestReceiver(t *testing.T) {
 		receiverModule := "ccip_dummy_receiver"
 		receiver := fmt.Sprintf("%s::%s::ccip_receive", receiverPackageId, receiverModule)
 
+		data := []byte("Hello World")
 		msg := ccipocr3.Message{
 			Receiver: []byte(receiver),
-			Data:     []byte("Hello World"),
+			Data:     data,
 		}
 
 		// Create a new transaction builder
@@ -393,8 +394,9 @@ func TestReceiver(t *testing.T) {
 
 		sourceChainSelector := uint64(2)
 		messageId := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-		sender := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-		data := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+		sender, err := hex.DecodeString(strings.TrimPrefix(signerAddress, "0x"))
+		require.NoError(t, err)
+		lggr.Infow("sender", "sender", sender)
 
 		lggr.Infow("Will call DummyInitExecute with params", "sourceChainSelector", sourceChainSelector, "messageId", messageId, "sender", sender, "data", data, "offrampState", offrampState)
 
@@ -422,13 +424,20 @@ func TestReceiver(t *testing.T) {
 		require.NotEmpty(t, receiverCommands, "receiverCommands should not be empty")
 		require.NotNil(t, receiverCommands[0], "first receiverCommand should not be nil")
 
+		hotPotatoType := fmt.Sprintf("%s::%s::%s", ccipPackageId, "offramp_state_helper", "CompletedDestTokenTransfer")
+		emptyTokenPoolResults := []transaction.Argument{}
+		tokenPoolPotatoes := ptb.MakeMoveVec(&hotPotatoType, emptyTokenPoolResults)
+		lggr.Infow("tokenPoolPotatoes", "tokenPoolPotatoes", tokenPoolPotatoes)
+
 		// Call DummyFinishExecuteWithArgs with only the required parameters
 		// The completed_transfers parameter has been removed from the Move function
-		encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
+
+		encodeFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(
 			bind.Object{Id: offrampState},
 			receiverCommands[0],
+			tokenPoolPotatoes,
 		)
-		require.NoError(t, err, "DummyFinishExecuteWithArgs should not fail")
+		require.NoError(t, err, "FinishExecuteWithArgs should not fail")
 		require.NotNil(t, encodeFinishExecute, "encodeFinishExecute should not be nil")
 		lggr.Infow("encodeFinishExecute", "encodeFinishExecute", encodeFinishExecute)
 
@@ -460,12 +469,23 @@ func TestReceiver(t *testing.T) {
 						"transactionModule", event.TransactionModule,
 						"parsedJson", event.ParsedJson)
 
-					// Check if this is the ExecutionCompleted event
-					if strings.Contains(event.Type, "ExecutionCompleted") &&
-						event.PackageId == offrampPackageId {
-						lggr.Info("Found ExecutionCompleted event!")
-						lggr.Infow("ExecutionCompleted event data", "data", event.ParsedJson)
+					dataField, exists := event.ParsedJson["data"]
+					if exists {
+						dataArray, ok := dataField.([]interface{})
+						if ok {
+							// Convert to byte slice
+							dataBytes := make([]byte, len(dataArray))
+							for j, v := range dataArray {
+								if num, ok := v.(float64); ok {
+									dataBytes[j] = byte(num)
+								}
+							}
+							decodedString := string(dataBytes)
+							lggr.Infow("Decoded data", "decodedString", decodedString)
+							require.Equal(t, "Hello World", decodedString)
+						}
 					}
+					require.Fail(t, "hello world not found")
 				}
 			} else {
 				lggr.Warn("No events found in successful transaction")
