@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	aptosBCS "github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
@@ -35,15 +34,16 @@ type SuiOffRampExecCallArgs struct {
 	Info          ccipocr3.ExecuteReportInfo `mapstructure:"Info"`
 }
 
-type ReceiverParams struct {
-	RemoteChainSelector uint64
-	Receiver            [32]byte
-	SourceAmount        uint64
-	DestTokenAddress    [32]byte
-	SourcePoolAddress   []byte
-	SourcePoolData      []byte
-	OffchainTokenData   []byte
-}
+// TODO: remove once hot potato approach validated
+//type ReceiverParams struct {
+//	RemoteChainSelector uint64
+//	Receiver            [32]byte
+//	SourceAmount        uint64
+//	DestTokenAddress    [32]byte
+//	SourcePoolAddress   []byte
+//	SourcePoolData      []byte
+//	OffchainTokenData   []byte
+//}
 
 // BuildOffRampExecutePTB builds the PTB for the OffRampExecute operation
 func BuildOffRampExecutePTB(
@@ -64,7 +64,9 @@ func BuildOffRampExecutePTB(
 
 	coinMetadataAddresses := make([]string, 0)
 	messages := make([]ccipocr3.Message, 0)
-	receiverParamsData := map[string]ReceiverParams{}
+
+	// TODO: remove once hot potato approach validated
+	//receiverParamsData := map[string]ReceiverParams{}
 
 	// Prepare some data from the execution report for easy access when constructing the PTB commands.
 	for _, report := range offrampArgs.Info.AbstractReports {
@@ -73,16 +75,18 @@ func BuildOffRampExecutePTB(
 			for _, tokenAmount := range message.TokenAmounts {
 				destTokenAddress := tokenAmount.DestTokenAddress.String()
 				coinMetadataAddresses = append(coinMetadataAddresses, destTokenAddress)
-				receiverParamsData[destTokenAddress] = ReceiverParams{
-					RemoteChainSelector: uint64(report.SourceChainSelector),
-					Receiver:            [32]byte(message.Receiver),
-					SourceAmount:        tokenAmount.Amount.Uint64(),
-					DestTokenAddress:    [32]byte(tokenAmount.DestTokenAddress),
-					SourcePoolAddress:   tokenAmount.SourcePoolAddress,
-					// TODO: double check if the following fields are correct
-					SourcePoolData:    tokenAmount.ExtraData,
-					OffchainTokenData: tokenAmount.DestExecData,
-				}
+
+				// TODO: remove once hot potato approach validated
+				//receiverParamsData[destTokenAddress] = ReceiverParams{
+				//	RemoteChainSelector: uint64(report.SourceChainSelector),
+				//	Receiver:            [32]byte(message.Receiver),
+				//	SourceAmount:        tokenAmount.Amount.Uint64(),
+				//	DestTokenAddress:    [32]byte(tokenAmount.DestTokenAddress),
+				//	SourcePoolAddress:   tokenAmount.SourcePoolAddress,
+				//	// TODO: double check if the following fields are correct
+				//	SourcePoolData:    tokenAmount.ExtraData,
+				//	OffchainTokenData: tokenAmount.DestExecData,
+				//}
 			}
 		}
 	}
@@ -135,11 +139,11 @@ func BuildOffRampExecutePTB(
 		&addressMappings,
 		callOpts,
 		coinMetadataAddresses,
-		receiverParamsData,
+		initExecuteResult,
 	)
 
 	// Process each message and create PTB commands for each (valid) receiver.
-	receiverCommandsResults, err := ProcessReceivers(
+	_, err = ProcessReceivers(
 		ctx,
 		lggr,
 		ptbClient,
@@ -152,18 +156,9 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
-	var ccipReceiveCommandResult *transaction.Argument
-	if len(receiverCommandsResults) > 0 {
-		// TODO: handle CCIP receive
-	} else {
-		// If there are no receiver commands, use the init_execute result (hot potato) as the ccip_receive command result
-		ccipReceiveCommandResult = initExecuteResult
-	}
-
 	// Make a vector of hot potatoes from all the token pool commands' results.
 	// This will be passed into the final `finish_execute` call.
-	// TODO: check if passing nil as a type is allowed for make_move_vec
-	hotPotatoVecResult := ptb.MakeMoveVec(nil, tokenPoolCommandsResults)
+	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer("_"), tokenPoolCommandsResults)
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, ccipReceiveCommandResult, hotPotatoVecResult)
@@ -187,7 +182,7 @@ func ProcessTokenPools(
 	addressMappings *OffRampAddressMappings,
 	callOpts *bind.CallOpts,
 	coinMetadataAddresses []string,
-	receiverParamsData map[string]ReceiverParams,
+	receiverParams *transaction.Argument,
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
@@ -207,9 +202,11 @@ func ProcessTokenPools(
 	}
 
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
-	for idx, tokenPoolConfigs := range tokenConfigs {
-		// Get the relevant receiver params data for this token pool
-		tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
+	for _, tokenPoolConfigs := range tokenConfigs {
+		// TODO: remove once hot potato approach validated
+		//// Get the relevant receiver params data for this token pool
+		//tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
+
 		// Get the move normalized module to dynamically construct the parameters for the token pool call
 		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule)
 		if err != nil {
@@ -225,7 +222,7 @@ func ProcessTokenPools(
 			addressMappings,
 			&tokenPoolConfigs,
 			&tokenPoolNormalizedModule,
-			tokenPoolEncodedData,
+			receiverParams,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
@@ -246,7 +243,7 @@ func AppendPTBCommandForTokenPool(
 	addressMappings *OffRampAddressMappings,
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
-	data ReceiverParams,
+	receiverParams *transaction.Argument,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
@@ -258,24 +255,62 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
 	}
 
-	// Encode the data needed by the token pool call
-	bcsEncoder := &aptosBCS.Serializer{}
-	bcsEncoder.U64(data.RemoteChainSelector)
-	bcsEncoder.FixedBytes(data.Receiver[:])
-	bcsEncoder.U64(data.SourceAmount)
-	bcsEncoder.FixedBytes(data.DestTokenAddress[:])
-	bcsEncoder.WriteBytes(data.SourcePoolAddress)
-	bcsEncoder.WriteBytes(data.SourcePoolData)
-	bcsEncoder.WriteBytes(data.OffchainTokenData)
-	encodedData := bcsEncoder.ToBytes()
+	// TODO: replace this call with generated bindings call once ready
+	offrampStateHelperContract, err := bind.NewBoundContract(
+		addressMappings.CcipPackageId,
+		addressMappings.CcipPackageId,
+		"offramp_state_helper",
+		sdkClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)
+	}
 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	paramTypes := []string{}
-	// The fixed arguments that must be present for every token pool call.
 	paramValues := []any{
 		bind.Object{Id: addressMappings.CcipObjectRef},
-		encodedData,
+		receiverParams,
+		// TODO: add an identifier of the token pool
+	}
+
+	encodedGetTokenParamDataCall, err := offrampStateHelperContract.EncodeCallArgsWithGenerics(
+		"get_token_param_data",
+		typeArgsList,
+		typeParamsList,
+		paramTypes,
+		paramValues,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode get_token_param_data call: %w", err)
+	}
+
+	getTokenParamDataCommandResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedGetTokenParamDataCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
+	}
+
+	// TODO: remove once hot potato approach validated
+	//// Encode the data needed by the token pool call
+	//bcsEncoder := &aptosBCS.Serializer{}
+	//bcsEncoder.U64(data.RemoteChainSelector)
+	//bcsEncoder.FixedBytes(data.Receiver[:])
+	//bcsEncoder.U64(data.SourceAmount)
+	//bcsEncoder.FixedBytes(data.DestTokenAddress[:])
+	//bcsEncoder.WriteBytes(data.SourcePoolAddress)
+	//bcsEncoder.WriteBytes(data.SourcePoolData)
+	//bcsEncoder.WriteBytes(data.OffchainTokenData)
+	//encodedData := bcsEncoder.ToBytes()
+
+	typeArgsList = []string{}
+	typeParamsList = []string{}
+	paramTypes = []string{}
+	// The fixed arguments that must be present for every token pool call.
+	paramValues = []any{
+		bind.Object{Id: addressMappings.CcipObjectRef},
+		getTokenParamDataCommandResult,
 	}
 
 	// Append dynamic values (addresses) to the paramValues for the token pool call.
@@ -415,10 +450,21 @@ func AppendPTBCommandForReceiver(
 	addressMappings *OffRampAddressMappings,
 	receiverConfig *receiver_registry.ReceiverConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
+	receiverParams *transaction.Argument,
 ) (*transaction.Argument, error) {
 	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create receiver bound contract when appending PTB command: %w", err)
+	}
+
+	offrampStateHelperContract, err := bind.NewBoundContract(
+		addressMappings.CcipPackageId,
+		addressMappings.CcipPackageId,
+		"offramp_state_helper",
+		sdkClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)
 	}
 
 	typeArgsList := []string{}
@@ -426,7 +472,33 @@ func AppendPTBCommandForReceiver(
 	paramTypes := []string{}
 	paramValues := []any{
 		bind.Object{Id: addressMappings.CcipObjectRef},
-		// TODO: need to figure out the hot potato vs. BCS encoded data here
+		receiverParams,
+		// TODO: figure out what else is needed
+	}
+
+	encodedAny2SuiExtractCall, err := offrampStateHelperContract.EncodeCallArgsWithGenerics(
+		"extract_any2sui_message",
+		typeArgsList,
+		typeParamsList,
+		paramTypes,
+		paramValues,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode get_token_param_data call: %w", err)
+	}
+
+	extractedAny2SuiMessageResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedAny2SuiExtractCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
+	}
+
+	typeArgsList = []string{}
+	typeParamsList = []string{}
+	paramTypes = []string{}
+	paramValues = []any{
+		bind.Object{Id: addressMappings.CcipObjectRef},
+		extractedAny2SuiMessageResult,
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
