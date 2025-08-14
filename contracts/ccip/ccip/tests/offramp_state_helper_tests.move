@@ -301,10 +301,9 @@ public fun test_extract_any2sui_message() {
     // Register a receiver
     receiver_registry::register_receiver(
         &mut ref,
-        vector[], // receiver_state_params
         TestTypeProof {}
     );
-    
+
     let mut receiver_params = offramp_state_helper::create_receiver_params(&dest_cap, SOURCE_CHAIN_SELECTOR);
     
     // Create and populate a message

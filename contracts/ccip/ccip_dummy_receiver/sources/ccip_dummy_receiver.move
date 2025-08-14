@@ -67,8 +67,8 @@ fun init(ctx: &mut TxContext) {
     transfer::transfer(owner_cap, ctx.sender());
 }
 
-public fun register_receiver(ref: &mut CCIPObjectRef, receiver_state_params: vector<address>) {
-    receiver_registry::register_receiver(ref, receiver_state_params, DummyReceiverProof {});
+public fun register_receiver(ref: &mut CCIPObjectRef) {
+    receiver_registry::register_receiver(ref, DummyReceiverProof {});
 }
 
 public fun get_counter(state: &CCIPReceiverState): u64 {

@@ -22,7 +22,7 @@ var (
 type IReceiverRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
-	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateParams []string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	UnregisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	IsRegisteredReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	GetReceiverConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
@@ -45,7 +45,7 @@ type ReceiverRegistryEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateParams []string, proof bind.Object) (*bind.EncodedCall, error)
+	RegisterReceiver(typeArgs []string, ref bind.Object, proof bind.Object) (*bind.EncodedCall, error)
 	RegisterReceiverWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	UnregisterReceiver(ref bind.Object, param bind.Object, receiverPackageId string) (*bind.EncodedCall, error)
 	UnregisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -95,9 +95,8 @@ func (c *ReceiverRegistryContract) DevInspect() IReceiverRegistryDevInspect {
 }
 
 type ReceiverConfig struct {
-	ModuleName          string      `move:"0x1::string::String"`
-	ReceiverStateParams []string    `move:"vector<address>"`
-	ProofTypename       bind.Object `move:"TypeName"`
+	ModuleName    string      `move:"0x1::string::String"`
+	ProofTypename bind.Object `move:"TypeName"`
 }
 
 type ReceiverRegistry struct {
@@ -106,55 +105,26 @@ type ReceiverRegistry struct {
 }
 
 type ReceiverRegistered struct {
-	ReceiverPackageId   string      `move:"address"`
-	ReceiverModuleName  string      `move:"0x1::string::String"`
-	ReceiverStateParams []string    `move:"vector<address>"`
-	ProofTypename       bind.Object `move:"TypeName"`
+	ReceiverPackageId  string      `move:"address"`
+	ReceiverModuleName string      `move:"0x1::string::String"`
+	ProofTypename      bind.Object `move:"TypeName"`
 }
 
 type ReceiverUnregistered struct {
 	ReceiverPackageId string `move:"address"`
 }
 
-type bcsReceiverConfig struct {
-	ModuleName          string
-	ReceiverStateParams [][32]byte
-	ProofTypename       bind.Object
-}
-
-func convertReceiverConfigFromBCS(bcs bcsReceiverConfig) ReceiverConfig {
-	return ReceiverConfig{
-		ModuleName: bcs.ModuleName,
-		ReceiverStateParams: func() []string {
-			addrs := make([]string, len(bcs.ReceiverStateParams))
-			for i, addr := range bcs.ReceiverStateParams {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		ProofTypename: bcs.ProofTypename,
-	}
-}
-
 type bcsReceiverRegistered struct {
-	ReceiverPackageId   [32]byte
-	ReceiverModuleName  string
-	ReceiverStateParams [][32]byte
-	ProofTypename       bind.Object
+	ReceiverPackageId  [32]byte
+	ReceiverModuleName string
+	ProofTypename      bind.Object
 }
 
 func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) ReceiverRegistered {
 	return ReceiverRegistered{
 		ReceiverPackageId:  fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
 		ReceiverModuleName: bcs.ReceiverModuleName,
-		ReceiverStateParams: func() []string {
-			addrs := make([]string, len(bcs.ReceiverStateParams))
-			for i, addr := range bcs.ReceiverStateParams {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		ProofTypename: bcs.ProofTypename,
+		ProofTypename:      bcs.ProofTypename,
 	}
 }
 
@@ -170,13 +140,11 @@ func convertReceiverUnregisteredFromBCS(bcs bcsReceiverUnregistered) ReceiverUnr
 
 func init() {
 	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverConfig", func(data []byte) (interface{}, error) {
-		var temp bcsReceiverConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
+		var result ReceiverConfig
+		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
 		}
-
-		result := convertReceiverConfigFromBCS(temp)
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverRegistry", func(data []byte) (interface{}, error) {
@@ -230,8 +198,8 @@ func (c *ReceiverRegistryContract) Initialize(ctx context.Context, opts *bind.Ca
 }
 
 // RegisterReceiver executes the register_receiver Move function.
-func (c *ReceiverRegistryContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverStateParams []string, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.receiverRegistryEncoder.RegisterReceiver(typeArgs, ref, receiverStateParams, proof)
+func (c *ReceiverRegistryContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.receiverRegistryEncoder.RegisterReceiver(typeArgs, ref, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -360,8 +328,7 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfig(ctx context.Context, opts
 // Returns:
 //
 //	[0]: 0x1::string::String
-//	[1]: vector<address>
-//	[2]: TypeName
+//	[1]: TypeName
 func (d *ReceiverRegistryDevInspect) GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) ([]any, error) {
 	encoded, err := d.contract.receiverRegistryEncoder.GetReceiverConfigFields(rc)
 	if err != nil {
@@ -375,7 +342,7 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfigFields(ctx context.Context
 // Returns:
 //
 //	[0]: 0x1::string::String
-//	[1]: vector<address>
+//	[1]: ascii::String
 func (d *ReceiverRegistryDevInspect) GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) ([]any, error) {
 	encoded, err := d.contract.receiverRegistryEncoder.GetReceiverInfo(ref, receiverPackageId)
 	if err != nil {
@@ -442,18 +409,16 @@ func (c receiverRegistryEncoder) InitializeWithArgs(args ...any) (*bind.EncodedC
 }
 
 // RegisterReceiver encodes a call to the register_receiver Move function.
-func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Object, receiverStateParams []string, proof bind.Object) (*bind.EncodedCall, error) {
+func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Object, proof bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"ProofType",
 	}
 	return c.EncodeCallArgsWithGenerics("register_receiver", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"vector<address>",
 		"ProofType",
 	}, []any{
 		ref,
-		receiverStateParams,
 		proof,
 	}, nil)
 }
@@ -463,7 +428,6 @@ func (c receiverRegistryEncoder) RegisterReceiver(typeArgs []string, ref bind.Ob
 func (c receiverRegistryEncoder) RegisterReceiverWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"vector<address>",
 		"ProofType",
 	}
 
@@ -585,7 +549,6 @@ func (c receiverRegistryEncoder) GetReceiverConfigFields(rc ReceiverConfig) (*bi
 		rc,
 	}, []string{
 		"0x1::string::String",
-		"vector<address>",
 		"TypeName",
 	})
 }
@@ -604,7 +567,6 @@ func (c receiverRegistryEncoder) GetReceiverConfigFieldsWithArgs(args ...any) (*
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_receiver_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::string::String",
-		"vector<address>",
 		"TypeName",
 	})
 }
@@ -621,7 +583,7 @@ func (c receiverRegistryEncoder) GetReceiverInfo(ref bind.Object, receiverPackag
 		receiverPackageId,
 	}, []string{
 		"0x1::string::String",
-		"vector<address>",
+		"ascii::String",
 	})
 }
 
@@ -640,6 +602,6 @@ func (c receiverRegistryEncoder) GetReceiverInfoWithArgs(args ...any) (*bind.Enc
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_receiver_info", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::string::String",
-		"vector<address>",
+		"ascii::String",
 	})
 }

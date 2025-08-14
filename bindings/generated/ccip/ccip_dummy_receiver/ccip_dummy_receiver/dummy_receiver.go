@@ -21,7 +21,7 @@ var (
 
 type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverStateParams []string) (*models.SuiTransactionBlockResponse, error)
+	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
@@ -44,7 +44,7 @@ type IDummyReceiverDevInspect interface {
 type DummyReceiverEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	RegisterReceiver(ref bind.Object, receiverStateParams []string) (*bind.EncodedCall, error)
+	RegisterReceiver(ref bind.Object) (*bind.EncodedCall, error)
 	RegisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCounter(state bind.Object) (*bind.EncodedCall, error)
 	GetCounterWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -210,8 +210,8 @@ func (c *DummyReceiverContract) TypeAndVersion(ctx context.Context, opts *bind.C
 }
 
 // RegisterReceiver executes the register_receiver Move function.
-func (c *DummyReceiverContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverStateParams []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.RegisterReceiver(ref, receiverStateParams)
+func (c *DummyReceiverContract) RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.RegisterReceiver(ref)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -440,15 +440,13 @@ func (c dummyReceiverEncoder) TypeAndVersionWithArgs(args ...any) (*bind.Encoded
 }
 
 // RegisterReceiver encodes a call to the register_receiver Move function.
-func (c dummyReceiverEncoder) RegisterReceiver(ref bind.Object, receiverStateParams []string) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) RegisterReceiver(ref bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("register_receiver", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"vector<address>",
 	}, []any{
 		ref,
-		receiverStateParams,
 	}, nil)
 }
 
@@ -457,7 +455,6 @@ func (c dummyReceiverEncoder) RegisterReceiver(ref bind.Object, receiverStatePar
 func (c dummyReceiverEncoder) RegisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
