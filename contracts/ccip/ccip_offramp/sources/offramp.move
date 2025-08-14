@@ -438,6 +438,9 @@ module ccip_offramp::offramp {
         pre_execute_single_report(ref, state, clock, reports, false)
     }
 
+    public struct ExecutionCompleted has copy, drop {
+        state: u8
+    }
 
     public fun dummy_init_execute(
         state: &mut OffRampState,
@@ -460,13 +463,20 @@ module ccip_offramp::offramp {
             osh::populate_message(state.dest_transfer_cap.borrow(), &mut receiver_params, any2sui_message);
         receiver_params
     }
+
     public fun dummy_finish_execute(
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
-        completed_transfers: vector<osh::CompletedDestTokenTransfer>,
+        //completed_transfers: vector<osh::CompletedDestTokenTransfer>,
     ) {
+        let completed_transfers = vector[];
         osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, completed_transfers);
+        event::emit(ExecutionCompleted {
+            state: EXECUTION_STATE_SUCCESS
+        });
     }
+
+
 
     public fun finish_execute(
         state: &mut OffRampState,

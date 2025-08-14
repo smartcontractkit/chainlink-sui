@@ -407,9 +407,8 @@ func TestReceiver(t *testing.T) {
 			sender,
 			data,
 		)
-		if err != nil {
-			return
-		}
+		require.NoError(t, err, "DummyInitExecute should not fail")
+		require.NotNil(t, encodedInitExecute, "encodedInitExecute should not be nil")
 
 		initHotPotato, err := offrampContract.AppendPTB(ctx, opts, ptb, encodedInitExecute)
 		require.NoError(t, err)
@@ -419,11 +418,19 @@ func TestReceiver(t *testing.T) {
 		require.NoError(t, err)
 		lggr.Info("receiver commands", "commands", receiverCommands)
 
+		// Validate that we have at least one receiver command
+		require.NotEmpty(t, receiverCommands, "receiverCommands should not be empty")
+		require.NotNil(t, receiverCommands[0], "first receiverCommand should not be nil")
+
+		// Call DummyFinishExecuteWithArgs with only the required parameters
+		// The completed_transfers parameter has been removed from the Move function
 		encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
 			bind.Object{Id: offrampState},
 			receiverCommands[0],
-			[]bind.Object{},
 		)
+		require.NoError(t, err, "DummyFinishExecuteWithArgs should not fail")
+		require.NotNil(t, encodeFinishExecute, "encodeFinishExecute should not be nil")
+		lggr.Infow("encodeFinishExecute", "encodeFinishExecute", encodeFinishExecute)
 
 		res, err := offrampContract.AppendPTB(ctx, opts, ptb, encodeFinishExecute)
 		require.NoError(t, err)
@@ -433,6 +440,38 @@ func TestReceiver(t *testing.T) {
 		require.NoError(t, err)
 		lggr.Infow("tx", "tx", tx)
 
-		//require.Equal(t, 1, len(receiverCommands))
+		// Read the ExecutionCompleted event emitted by dummy_finish_execute
+		lggr.Info("Reading ExecutionCompleted event from transaction")
+
+		// Get transaction details to access events
+		if tx.Effects.Status.Status == "success" {
+			lggr.Info("Transaction executed successfully")
+
+			// Check for events in the transaction
+			if len(tx.Events) > 0 {
+				lggr.Infow("Found events in transaction", "eventCount", len(tx.Events))
+
+				for i, event := range tx.Events {
+					lggr.Infow("Event details",
+						"index", i,
+						"type", event.Type,
+						"sender", event.Sender,
+						"packageId", event.PackageId,
+						"transactionModule", event.TransactionModule,
+						"parsedJson", event.ParsedJson)
+
+					// Check if this is the ExecutionCompleted event
+					if strings.Contains(event.Type, "ExecutionCompleted") &&
+						event.PackageId == offrampPackageId {
+						lggr.Info("Found ExecutionCompleted event!")
+						lggr.Infow("ExecutionCompleted event data", "data", event.ParsedJson)
+					}
+				}
+			} else {
+				lggr.Warn("No events found in successful transaction")
+			}
+		} else {
+			lggr.Errorw("Transaction failed or status unavailable", "status", tx.Effects.Status.Status, "error", tx.Effects.Status.Error)
+		}
 	})
 }
