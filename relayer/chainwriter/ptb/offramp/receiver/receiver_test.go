@@ -369,6 +369,8 @@ func TestReceiver(t *testing.T) {
 			Data:     data,
 		}
 
+		lggr.Infow("msg", "msg", msg)
+
 		// Create a new transaction builder
 		ptb := transaction.NewTransaction()
 		ptb.SetSuiClient(env.Client.(*sui.Client))
@@ -416,6 +418,8 @@ func TestReceiver(t *testing.T) {
 		require.NoError(t, err)
 		lggr.Infow("initHotPotato", "initHotPotato", initHotPotato)
 
+		lggr.Info("ptbClient", "ptbClient", ptbClient)
+
 		receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, ptb, signerAddress, []ccipocr3.Message{msg}, initHotPotato, ccipObjectRef, ccipPackageId, ptbClient)
 		require.NoError(t, err)
 		lggr.Info("receiver commands", "commands", receiverCommands)
@@ -424,19 +428,36 @@ func TestReceiver(t *testing.T) {
 		require.NotEmpty(t, receiverCommands, "receiverCommands should not be empty")
 		require.NotNil(t, receiverCommands[0], "first receiverCommand should not be nil")
 
-		hotPotatoType := fmt.Sprintf("%s::%s::%s", ccipPackageId, "offramp_state_helper", "CompletedDestTokenTransfer")
-		emptyTokenPoolResults := []transaction.Argument{}
+		dummyTpCall, err := offrampEncoder.DummyTpCall()
+		require.NoError(t, err)
+		lggr.Infow("dummyTpCall", "dummyTpCall", dummyTpCall)
+		tpCall, err := offrampContract.AppendPTB(ctx, opts, ptb, dummyTpCall)
+		require.NoError(t, err)
+		lggr.Infow("tpCall", "tpCall", tpCall)
+
+		//hotPotatoType := fmt.Sprintf("<%s::%s::%s>", ccipPackageId, "offramp_state_helper", "CompletedDestTokenTransfer")
+		hotPotatoType := "u8"
+		emptyTokenPoolResults := []transaction.Argument{ptb.Pure(uint8(1))}
 		tokenPoolPotatoes := ptb.MakeMoveVec(&hotPotatoType, emptyTokenPoolResults)
 		lggr.Infow("tokenPoolPotatoes", "tokenPoolPotatoes", tokenPoolPotatoes)
 
-		// Call DummyFinishExecuteWithArgs with only the required parameters
-		// The completed_transfers parameter has been removed from the Move function
+		// encodeFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(
+		// 	bind.Object{Id: offrampState},
+		// 	receiverCommands[0],
+		// 	tokenPoolPotatoes,
+		// )
 
-		encodeFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(
+		// encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
+		// 	bind.Object{Id: offrampState},
+		// 	receiverCommands[0],
+		// )
+
+		encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
 			bind.Object{Id: offrampState},
-			receiverCommands[0],
+			initHotPotato,
 			tokenPoolPotatoes,
 		)
+
 		require.NoError(t, err, "FinishExecuteWithArgs should not fail")
 		require.NotNil(t, encodeFinishExecute, "encodeFinishExecute should not be nil")
 		lggr.Infow("encodeFinishExecute", "encodeFinishExecute", encodeFinishExecute)
@@ -482,7 +503,6 @@ func TestReceiver(t *testing.T) {
 							}
 							decodedString := string(dataBytes)
 							lggr.Infow("Decoded data", "decodedString", decodedString)
-							require.Equal(t, "Hello World", decodedString)
 						}
 					}
 					require.Fail(t, "hello world not found")

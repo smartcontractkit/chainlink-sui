@@ -24,8 +24,9 @@ type IOfframp interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error)
+	DummyTpCall(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	DummyInitExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, messageId []byte, sender []byte, data []byte) (*models.SuiTransactionBlockResponse, error)
-	DummyFinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DummyFinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, foo []byte) (*models.SuiTransactionBlockResponse, error)
 	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
@@ -67,6 +68,7 @@ type IOfframpDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bind.Object, error)
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error)
+	DummyTpCall(ctx context.Context, opts *bind.CallOpts) (bind.Object, error)
 	DummyInitExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, messageId []byte, sender []byte, data []byte) (bind.Object, error)
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (byte, error)
@@ -99,9 +101,11 @@ type OfframpEncoder interface {
 	GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, error)
 	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error)
 	InitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
+	DummyTpCall() (*bind.EncodedCall, error)
+	DummyTpCallWithArgs(args ...any) (*bind.EncodedCall, error)
 	DummyInitExecute(state bind.Object, sourceChainSelector uint64, messageId []byte, sender []byte, data []byte) (*bind.EncodedCall, error)
 	DummyInitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
-	DummyFinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
+	DummyFinishExecute(state bind.Object, receiverParams bind.Object, foo []byte) (*bind.EncodedCall, error)
 	DummyFinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	FinishExecute(state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*bind.EncodedCall, error)
 	FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -745,6 +749,16 @@ func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// DummyTpCall executes the dummy_tp_call Move function.
+func (c *OfframpContract) DummyTpCall(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.DummyTpCall()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // DummyInitExecute executes the dummy_init_execute Move function.
 func (c *OfframpContract) DummyInitExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, messageId []byte, sender []byte, data []byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.offrampEncoder.DummyInitExecute(state, sourceChainSelector, messageId, sender, data)
@@ -756,8 +770,8 @@ func (c *OfframpContract) DummyInitExecute(ctx context.Context, opts *bind.CallO
 }
 
 // DummyFinishExecute executes the dummy_finish_execute Move function.
-func (c *OfframpContract) DummyFinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.DummyFinishExecute(state, receiverParams)
+func (c *OfframpContract) DummyFinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, foo []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.DummyFinishExecute(state, receiverParams, foo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1144,6 +1158,28 @@ func (d *OfframpDevInspect) GetOcr3Base(ctx context.Context, opts *bind.CallOpts
 // Returns: osh::ReceiverParams
 func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error) {
 	encoded, err := d.contract.offrampEncoder.InitExecute(ref, state, clock, reportContext, report)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
+// DummyTpCall executes the dummy_tp_call Move function using DevInspect to get return values.
+//
+// Returns: osh::CompletedDestTokenTransfer
+func (d *OfframpDevInspect) DummyTpCall(ctx context.Context, opts *bind.CallOpts) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.DummyTpCall()
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1749,6 +1785,30 @@ func (c offrampEncoder) InitExecuteWithArgs(args ...any) (*bind.EncodedCall, err
 	})
 }
 
+// DummyTpCall encodes a call to the dummy_tp_call Move function.
+func (c offrampEncoder) DummyTpCall() (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("dummy_tp_call", typeArgsList, typeParamsList, []string{}, []any{}, []string{
+		"osh::CompletedDestTokenTransfer",
+	})
+}
+
+// DummyTpCallWithArgs encodes a call to the dummy_tp_call Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) DummyTpCallWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("dummy_tp_call", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"osh::CompletedDestTokenTransfer",
+	})
+}
+
 // DummyInitExecute encodes a call to the dummy_init_execute Move function.
 func (c offrampEncoder) DummyInitExecute(state bind.Object, sourceChainSelector uint64, messageId []byte, sender []byte, data []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1792,15 +1852,17 @@ func (c offrampEncoder) DummyInitExecuteWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // DummyFinishExecute encodes a call to the dummy_finish_execute Move function.
-func (c offrampEncoder) DummyFinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) DummyFinishExecute(state bind.Object, receiverParams bind.Object, foo []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dummy_finish_execute", typeArgsList, typeParamsList, []string{
 		"&mut OffRampState",
 		"osh::ReceiverParams",
+		"vector<u8>",
 	}, []any{
 		state,
 		receiverParams,
+		foo,
 	}, nil)
 }
 
@@ -1810,6 +1872,7 @@ func (c offrampEncoder) DummyFinishExecuteWithArgs(args ...any) (*bind.EncodedCa
 	expectedParams := []string{
 		"&mut OffRampState",
 		"osh::ReceiverParams",
+		"vector<u8>",
 	}
 
 	if len(args) != len(expectedParams) {

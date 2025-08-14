@@ -439,6 +439,10 @@ module ccip_offramp::offramp {
         pre_execute_single_report(ref, state, clock, reports, false)
     }
 
+    public fun dummy_tp_call(): osh::CompletedDestTokenTransfer {
+        osh::dummy_tp_call()
+    }
+
     public fun dummy_init_execute(
         state: &mut OffRampState,
         source_chain_selector: u64,
@@ -464,13 +468,13 @@ module ccip_offramp::offramp {
     public fun dummy_finish_execute(
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
+        foo: vector<u8>,
         //completed_transfers: vector<osh::CompletedDestTokenTransfer>,
     ) {
+        let foo_len = foo.length();
         let completed_transfers = vector[];
         osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, completed_transfers);
     }
-
-
 
     public fun finish_execute(
         state: &mut OffRampState,
