@@ -111,11 +111,12 @@ type bcsOwnerCap struct {
 	ReceiverAddress [32]byte
 }
 
-func convertOwnerCapFromBCS(bcs bcsOwnerCap) OwnerCap {
+func convertOwnerCapFromBCS(bcs bcsOwnerCap) (OwnerCap, error) {
+
 	return OwnerCap{
 		Id:              bcs.Id,
 		ReceiverAddress: fmt.Sprintf("0x%x", bcs.ReceiverAddress),
-	}
+	}, nil
 }
 
 func init() {
@@ -126,7 +127,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOwnerCapFromBCS(temp)
+		result, err := convertOwnerCapFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::ReceivedMessage", func(data []byte) (interface{}, error) {

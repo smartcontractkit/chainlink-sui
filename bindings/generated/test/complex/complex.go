@@ -127,7 +127,8 @@ type bcsSampleObject struct {
 	SomeAddresses [][32]byte
 }
 
-func convertSampleObjectFromBCS(bcs bcsSampleObject) SampleObject {
+func convertSampleObjectFromBCS(bcs bcsSampleObject) (SampleObject, error) {
+
 	return SampleObject{
 		Id:          bcs.Id,
 		SomeId:      bcs.SomeId,
@@ -140,7 +141,7 @@ func convertSampleObjectFromBCS(bcs bcsSampleObject) SampleObject {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 type bcsDroppableObject struct {
@@ -150,7 +151,8 @@ type bcsDroppableObject struct {
 	SomeAddresses [][32]byte
 }
 
-func convertDroppableObjectFromBCS(bcs bcsDroppableObject) DroppableObject {
+func convertDroppableObjectFromBCS(bcs bcsDroppableObject) (DroppableObject, error) {
+
 	return DroppableObject{
 		SomeId:      bcs.SomeId,
 		SomeNumber:  bcs.SomeNumber,
@@ -162,7 +164,7 @@ func convertDroppableObjectFromBCS(bcs bcsDroppableObject) DroppableObject {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 func init() {
@@ -173,7 +175,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSampleObjectFromBCS(temp)
+		result, err := convertSampleObjectFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("test::complex::DroppableObject", func(data []byte) (interface{}, error) {
@@ -183,7 +188,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDroppableObjectFromBCS(temp)
+		result, err := convertDroppableObjectFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }

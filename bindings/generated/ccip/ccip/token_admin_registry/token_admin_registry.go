@@ -177,7 +177,8 @@ type bcsTokenConfig struct {
 	ReleaseOrMintParams  [][32]byte
 }
 
-func convertTokenConfigFromBCS(bcs bcsTokenConfig) TokenConfig {
+func convertTokenConfigFromBCS(bcs bcsTokenConfig) (TokenConfig, error) {
+
 	return TokenConfig{
 		TokenPoolPackageId:   fmt.Sprintf("0x%x", bcs.TokenPoolPackageId),
 		TokenPoolModule:      bcs.TokenPoolModule,
@@ -199,7 +200,7 @@ func convertTokenConfigFromBCS(bcs bcsTokenConfig) TokenConfig {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 type bcsPoolSet struct {
@@ -211,7 +212,8 @@ type bcsPoolSet struct {
 	ReleaseOrMintParams   [][32]byte
 }
 
-func convertPoolSetFromBCS(bcs bcsPoolSet) PoolSet {
+func convertPoolSetFromBCS(bcs bcsPoolSet) (PoolSet, error) {
+
 	return PoolSet{
 		CoinMetadataAddress:   fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
 		PreviousPoolPackageId: fmt.Sprintf("0x%x", bcs.PreviousPoolPackageId),
@@ -231,7 +233,7 @@ func convertPoolSetFromBCS(bcs bcsPoolSet) PoolSet {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 type bcsPoolRegistered struct {
@@ -241,13 +243,14 @@ type bcsPoolRegistered struct {
 	TypeProof           bind.Object
 }
 
-func convertPoolRegisteredFromBCS(bcs bcsPoolRegistered) PoolRegistered {
+func convertPoolRegisteredFromBCS(bcs bcsPoolRegistered) (PoolRegistered, error) {
+
 	return PoolRegistered{
 		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
 		TokenPoolPackageId:  fmt.Sprintf("0x%x", bcs.TokenPoolPackageId),
 		Administrator:       fmt.Sprintf("0x%x", bcs.Administrator),
 		TypeProof:           bcs.TypeProof,
-	}
+	}, nil
 }
 
 type bcsPoolUnregistered struct {
@@ -255,11 +258,12 @@ type bcsPoolUnregistered struct {
 	PreviousPoolAddress [32]byte
 }
 
-func convertPoolUnregisteredFromBCS(bcs bcsPoolUnregistered) PoolUnregistered {
+func convertPoolUnregisteredFromBCS(bcs bcsPoolUnregistered) (PoolUnregistered, error) {
+
 	return PoolUnregistered{
 		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
 		PreviousPoolAddress: fmt.Sprintf("0x%x", bcs.PreviousPoolAddress),
-	}
+	}, nil
 }
 
 type bcsAdministratorTransferRequested struct {
@@ -268,12 +272,13 @@ type bcsAdministratorTransferRequested struct {
 	NewAdmin            [32]byte
 }
 
-func convertAdministratorTransferRequestedFromBCS(bcs bcsAdministratorTransferRequested) AdministratorTransferRequested {
+func convertAdministratorTransferRequestedFromBCS(bcs bcsAdministratorTransferRequested) (AdministratorTransferRequested, error) {
+
 	return AdministratorTransferRequested{
 		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
 		CurrentAdmin:        fmt.Sprintf("0x%x", bcs.CurrentAdmin),
 		NewAdmin:            fmt.Sprintf("0x%x", bcs.NewAdmin),
-	}
+	}, nil
 }
 
 type bcsAdministratorTransferred struct {
@@ -281,11 +286,12 @@ type bcsAdministratorTransferred struct {
 	NewAdmin            [32]byte
 }
 
-func convertAdministratorTransferredFromBCS(bcs bcsAdministratorTransferred) AdministratorTransferred {
+func convertAdministratorTransferredFromBCS(bcs bcsAdministratorTransferred) (AdministratorTransferred, error) {
+
 	return AdministratorTransferred{
 		CoinMetadataAddress: fmt.Sprintf("0x%x", bcs.CoinMetadataAddress),
 		NewAdmin:            fmt.Sprintf("0x%x", bcs.NewAdmin),
-	}
+	}, nil
 }
 
 func init() {
@@ -304,7 +310,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertTokenConfigFromBCS(temp)
+		result, err := convertTokenConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolSet", func(data []byte) (interface{}, error) {
@@ -314,7 +323,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertPoolSetFromBCS(temp)
+		result, err := convertPoolSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolRegistered", func(data []byte) (interface{}, error) {
@@ -324,7 +336,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertPoolRegisteredFromBCS(temp)
+		result, err := convertPoolRegisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolUnregistered", func(data []byte) (interface{}, error) {
@@ -334,7 +349,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertPoolUnregisteredFromBCS(temp)
+		result, err := convertPoolUnregisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferRequested", func(data []byte) (interface{}, error) {
@@ -344,7 +362,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAdministratorTransferRequestedFromBCS(temp)
+		result, err := convertAdministratorTransferRequestedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferred", func(data []byte) (interface{}, error) {
@@ -354,7 +375,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAdministratorTransferredFromBCS(temp)
+		result, err := convertAdministratorTransferredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }

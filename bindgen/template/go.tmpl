@@ -99,7 +99,27 @@ type bcs{{.Name}} struct { {{range $field := .Fields}}
   {{$field.Name}} {{getBCSType $field}} {{end}}
 }
 
-func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) {{.Name}} {
+func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) ({{.Name}}, error) {
+	{{- $structName := .Name}}
+	{{- range .Fields}}
+	{{- if eq .Type.MoveType "u256"}}
+	{{.Name}}Field, err := bind.DecodeU256Value(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to decode u256 field {{.Name}}: %w", err)
+	}
+	{{- else if eq .Type.MoveType "u128"}}
+	{{.Name}}Field, err := bind.DecodeU128Value(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to decode u128 field {{.Name}}: %w", err)
+	}
+	{{- else if isNestedStructWithDecoder .Type.MoveType}}
+	{{.Name}}Field, err := convert{{.Type.MoveType}}FromBCS(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to convert nested struct {{.Name}}: %w", err)
+	}
+	{{- end}}
+	{{- end}}
+
 	return {{.Name}}{
 	{{- range .Fields}}
 		{{- if eq .Type.MoveType "address"}}
@@ -124,13 +144,17 @@ func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) {{.Name}} {
 			}
 			return addrs
 		}(),
+		{{- else if eq .Type.MoveType "u256"}}
+		{{.Name}}: {{.Name}}Field,
+		{{- else if eq .Type.MoveType "u128"}}
+		{{.Name}}: {{.Name}}Field,
 		{{- else if isNestedStructWithDecoder .Type.MoveType}}
-		{{.Name}}: convert{{.Type.MoveType}}FromBCS(bcs.{{.Name}}),
+		{{.Name}}: {{.Name}}Field,
 		{{- else}}
 		{{.Name}}: bcs.{{.Name}},
 		{{- end}}
 	{{- end}}
-	}
+	}, nil
 }
 {{end}}
 {{- end}}
@@ -145,7 +169,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convert{{.Name}}FromBCS(temp)
+		result, err := convert{{.Name}}FromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	{{- else}}

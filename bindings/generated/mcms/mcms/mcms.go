@@ -483,13 +483,26 @@ type bcsMultisigState struct {
 	Proposer  bcsMultisig
 }
 
-func convertMultisigStateFromBCS(bcs bcsMultisigState) MultisigState {
+func convertMultisigStateFromBCS(bcs bcsMultisigState) (MultisigState, error) {
+	BypasserField, err := convertMultisigFromBCS(bcs.Bypasser)
+	if err != nil {
+		return MultisigState{}, fmt.Errorf("failed to convert nested struct Bypasser: %w", err)
+	}
+	CancellerField, err := convertMultisigFromBCS(bcs.Canceller)
+	if err != nil {
+		return MultisigState{}, fmt.Errorf("failed to convert nested struct Canceller: %w", err)
+	}
+	ProposerField, err := convertMultisigFromBCS(bcs.Proposer)
+	if err != nil {
+		return MultisigState{}, fmt.Errorf("failed to convert nested struct Proposer: %w", err)
+	}
+
 	return MultisigState{
 		Id:        bcs.Id,
-		Bypasser:  convertMultisigFromBCS(bcs.Bypasser),
-		Canceller: convertMultisigFromBCS(bcs.Canceller),
-		Proposer:  convertMultisigFromBCS(bcs.Proposer),
-	}
+		Bypasser:  BypasserField,
+		Canceller: CancellerField,
+		Proposer:  ProposerField,
+	}, nil
 }
 
 type bcsMultisig struct {
@@ -501,20 +514,25 @@ type bcsMultisig struct {
 	RootMetadata           bcsRootMetadata
 }
 
-func convertMultisigFromBCS(bcs bcsMultisig) Multisig {
+func convertMultisigFromBCS(bcs bcsMultisig) (Multisig, error) {
+	RootMetadataField, err := convertRootMetadataFromBCS(bcs.RootMetadata)
+	if err != nil {
+		return Multisig{}, fmt.Errorf("failed to convert nested struct RootMetadata: %w", err)
+	}
+
 	return Multisig{
 		Role:                   bcs.Role,
 		Signers:                bcs.Signers,
 		Config:                 bcs.Config,
 		SeenSignedHashes:       bcs.SeenSignedHashes,
 		ExpiringRootAndOpCount: bcs.ExpiringRootAndOpCount,
-		RootMetadata:           convertRootMetadataFromBCS(bcs.RootMetadata),
-	}
+		RootMetadata:           RootMetadataField,
+	}, nil
 }
 
 type bcsOp struct {
 	Role         byte
-	ChainId      *big.Int
+	ChainId      [32]byte
 	Multisig     [32]byte
 	Nonce        uint64
 	To           [32]byte
@@ -523,37 +541,47 @@ type bcsOp struct {
 	Data         []byte
 }
 
-func convertOpFromBCS(bcs bcsOp) Op {
+func convertOpFromBCS(bcs bcsOp) (Op, error) {
+	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
+	if err != nil {
+		return Op{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
+	}
+
 	return Op{
 		Role:         bcs.Role,
-		ChainId:      bcs.ChainId,
+		ChainId:      ChainIdField,
 		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
 		Nonce:        bcs.Nonce,
 		To:           fmt.Sprintf("0x%x", bcs.To),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsRootMetadata struct {
 	Role                 byte
-	ChainId              *big.Int
+	ChainId              [32]byte
 	Multisig             [32]byte
 	PreOpCount           uint64
 	PostOpCount          uint64
 	OverridePreviousRoot bool
 }
 
-func convertRootMetadataFromBCS(bcs bcsRootMetadata) RootMetadata {
+func convertRootMetadataFromBCS(bcs bcsRootMetadata) (RootMetadata, error) {
+	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
+	if err != nil {
+		return RootMetadata{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
+	}
+
 	return RootMetadata{
 		Role:                 bcs.Role,
-		ChainId:              bcs.ChainId,
+		ChainId:              ChainIdField,
 		Multisig:             fmt.Sprintf("0x%x", bcs.Multisig),
 		PreOpCount:           bcs.PreOpCount,
 		PostOpCount:          bcs.PostOpCount,
 		OverridePreviousRoot: bcs.OverridePreviousRoot,
-	}
+	}, nil
 }
 
 type bcsNewRoot struct {
@@ -563,18 +591,23 @@ type bcsNewRoot struct {
 	Metadata   bcsRootMetadata
 }
 
-func convertNewRootFromBCS(bcs bcsNewRoot) NewRoot {
+func convertNewRootFromBCS(bcs bcsNewRoot) (NewRoot, error) {
+	MetadataField, err := convertRootMetadataFromBCS(bcs.Metadata)
+	if err != nil {
+		return NewRoot{}, fmt.Errorf("failed to convert nested struct Metadata: %w", err)
+	}
+
 	return NewRoot{
 		Role:       bcs.Role,
 		Root:       bcs.Root,
 		ValidUntil: bcs.ValidUntil,
-		Metadata:   convertRootMetadataFromBCS(bcs.Metadata),
-	}
+		Metadata:   MetadataField,
+	}, nil
 }
 
 type bcsOpExecuted struct {
 	Role         byte
-	ChainId      *big.Int
+	ChainId      [32]byte
 	Multisig     [32]byte
 	Nonce        uint64
 	To           [32]byte
@@ -583,17 +616,22 @@ type bcsOpExecuted struct {
 	Data         []byte
 }
 
-func convertOpExecutedFromBCS(bcs bcsOpExecuted) OpExecuted {
+func convertOpExecutedFromBCS(bcs bcsOpExecuted) (OpExecuted, error) {
+	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
+	if err != nil {
+		return OpExecuted{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
+	}
+
 	return OpExecuted{
 		Role:         bcs.Role,
-		ChainId:      bcs.ChainId,
+		ChainId:      ChainIdField,
 		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
 		Nonce:        bcs.Nonce,
 		To:           fmt.Sprintf("0x%x", bcs.To),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsCall struct {
@@ -601,11 +639,16 @@ type bcsCall struct {
 	Data     []byte
 }
 
-func convertCallFromBCS(bcs bcsCall) Call {
-	return Call{
-		Function: convertFunctionFromBCS(bcs.Function),
-		Data:     bcs.Data,
+func convertCallFromBCS(bcs bcsCall) (Call, error) {
+	FunctionField, err := convertFunctionFromBCS(bcs.Function)
+	if err != nil {
+		return Call{}, fmt.Errorf("failed to convert nested struct Function: %w", err)
 	}
+
+	return Call{
+		Function: FunctionField,
+		Data:     bcs.Data,
+	}, nil
 }
 
 type bcsFunction struct {
@@ -614,12 +657,13 @@ type bcsFunction struct {
 	FunctionName string
 }
 
-func convertFunctionFromBCS(bcs bcsFunction) Function {
+func convertFunctionFromBCS(bcs bcsFunction) (Function, error) {
+
 	return Function{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
-	}
+	}, nil
 }
 
 type bcsBypasserCallInitiated struct {
@@ -630,14 +674,15 @@ type bcsBypasserCallInitiated struct {
 	Data         []byte
 }
 
-func convertBypasserCallInitiatedFromBCS(bcs bcsBypasserCallInitiated) BypasserCallInitiated {
+func convertBypasserCallInitiatedFromBCS(bcs bcsBypasserCallInitiated) (BypasserCallInitiated, error) {
+
 	return BypasserCallInitiated{
 		Index:        bcs.Index,
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsCallScheduled struct {
@@ -652,7 +697,8 @@ type bcsCallScheduled struct {
 	Delay        uint64
 }
 
-func convertCallScheduledFromBCS(bcs bcsCallScheduled) CallScheduled {
+func convertCallScheduledFromBCS(bcs bcsCallScheduled) (CallScheduled, error) {
+
 	return CallScheduled{
 		Id:           bcs.Id,
 		Index:        bcs.Index,
@@ -663,7 +709,7 @@ func convertCallScheduledFromBCS(bcs bcsCallScheduled) CallScheduled {
 		Predecessor:  bcs.Predecessor,
 		Salt:         bcs.Salt,
 		Delay:        bcs.Delay,
-	}
+	}, nil
 }
 
 type bcsCallInitiated struct {
@@ -675,7 +721,8 @@ type bcsCallInitiated struct {
 	Data         []byte
 }
 
-func convertCallInitiatedFromBCS(bcs bcsCallInitiated) CallInitiated {
+func convertCallInitiatedFromBCS(bcs bcsCallInitiated) (CallInitiated, error) {
+
 	return CallInitiated{
 		Id:           bcs.Id,
 		Index:        bcs.Index,
@@ -683,7 +730,7 @@ func convertCallInitiatedFromBCS(bcs bcsCallInitiated) CallInitiated {
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsFunctionBlocked struct {
@@ -692,12 +739,13 @@ type bcsFunctionBlocked struct {
 	FunctionName string
 }
 
-func convertFunctionBlockedFromBCS(bcs bcsFunctionBlocked) FunctionBlocked {
+func convertFunctionBlockedFromBCS(bcs bcsFunctionBlocked) (FunctionBlocked, error) {
+
 	return FunctionBlocked{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
-	}
+	}, nil
 }
 
 type bcsFunctionUnblocked struct {
@@ -706,12 +754,13 @@ type bcsFunctionUnblocked struct {
 	FunctionName string
 }
 
-func convertFunctionUnblockedFromBCS(bcs bcsFunctionUnblocked) FunctionUnblocked {
+func convertFunctionUnblockedFromBCS(bcs bcsFunctionUnblocked) (FunctionUnblocked, error) {
+
 	return FunctionUnblocked{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
-	}
+	}, nil
 }
 
 func init() {
@@ -722,7 +771,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertMultisigStateFromBCS(temp)
+		result, err := convertMultisigStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Multisig", func(data []byte) (interface{}, error) {
@@ -732,7 +784,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertMultisigFromBCS(temp)
+		result, err := convertMultisigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Signer", func(data []byte) (interface{}, error) {
@@ -766,7 +821,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOpFromBCS(temp)
+		result, err := convertOpFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::RootMetadata", func(data []byte) (interface{}, error) {
@@ -776,7 +834,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertRootMetadataFromBCS(temp)
+		result, err := convertRootMetadataFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::TimelockCallbackParams", func(data []byte) (interface{}, error) {
@@ -810,7 +871,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertNewRootFromBCS(temp)
+		result, err := convertNewRootFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::OpExecuted", func(data []byte) (interface{}, error) {
@@ -820,7 +884,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOpExecutedFromBCS(temp)
+		result, err := convertOpExecutedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::MCMS", func(data []byte) (interface{}, error) {
@@ -854,7 +921,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCallFromBCS(temp)
+		result, err := convertCallFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Function", func(data []byte) (interface{}, error) {
@@ -864,7 +934,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFunctionFromBCS(temp)
+		result, err := convertFunctionFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::TimelockInitialized", func(data []byte) (interface{}, error) {
@@ -882,7 +955,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertBypasserCallInitiatedFromBCS(temp)
+		result, err := convertBypasserCallInitiatedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Cancelled", func(data []byte) (interface{}, error) {
@@ -900,7 +976,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCallScheduledFromBCS(temp)
+		result, err := convertCallScheduledFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::CallInitiated", func(data []byte) (interface{}, error) {
@@ -910,7 +989,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCallInitiatedFromBCS(temp)
+		result, err := convertCallInitiatedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::UpdateMinDelay", func(data []byte) (interface{}, error) {
@@ -928,7 +1010,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFunctionBlockedFromBCS(temp)
+		result, err := convertFunctionBlockedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::FunctionUnblocked", func(data []byte) (interface{}, error) {
@@ -938,7 +1023,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFunctionUnblockedFromBCS(temp)
+		result, err := convertFunctionUnblockedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }

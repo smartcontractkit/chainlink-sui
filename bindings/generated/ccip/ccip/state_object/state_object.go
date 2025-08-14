@@ -153,12 +153,13 @@ type bcsCCIPObjectRefPointer struct {
 	OwnerCapId  [32]byte
 }
 
-func convertCCIPObjectRefPointerFromBCS(bcs bcsCCIPObjectRefPointer) CCIPObjectRefPointer {
+func convertCCIPObjectRefPointerFromBCS(bcs bcsCCIPObjectRefPointer) (CCIPObjectRefPointer, error) {
+
 	return CCIPObjectRefPointer{
 		Id:          bcs.Id,
 		ObjectRefId: fmt.Sprintf("0x%x", bcs.ObjectRefId),
 		OwnerCapId:  fmt.Sprintf("0x%x", bcs.OwnerCapId),
-	}
+	}, nil
 }
 
 func init() {
@@ -177,7 +178,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCCIPObjectRefPointerFromBCS(temp)
+		result, err := convertCCIPObjectRefPointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::state_object::STATE_OBJECT", func(data []byte) (interface{}, error) {

@@ -109,13 +109,14 @@ type bcsUpgradeCapRegistered struct {
 	Policy         byte
 }
 
-func convertUpgradeCapRegisteredFromBCS(bcs bcsUpgradeCapRegistered) UpgradeCapRegistered {
+func convertUpgradeCapRegisteredFromBCS(bcs bcsUpgradeCapRegistered) (UpgradeCapRegistered, error) {
+
 	return UpgradeCapRegistered{
 		PrevOwner:      fmt.Sprintf("0x%x", bcs.PrevOwner),
 		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
 		Version:        bcs.Version,
 		Policy:         bcs.Policy,
-	}
+	}, nil
 }
 
 type bcsUpgradeTicketAuthorized struct {
@@ -124,12 +125,13 @@ type bcsUpgradeTicketAuthorized struct {
 	Digest         []byte
 }
 
-func convertUpgradeTicketAuthorizedFromBCS(bcs bcsUpgradeTicketAuthorized) UpgradeTicketAuthorized {
+func convertUpgradeTicketAuthorizedFromBCS(bcs bcsUpgradeTicketAuthorized) (UpgradeTicketAuthorized, error) {
+
 	return UpgradeTicketAuthorized{
 		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
 		Policy:         bcs.Policy,
 		Digest:         bcs.Digest,
-	}
+	}, nil
 }
 
 type bcsUpgradeReceiptCommitted struct {
@@ -138,12 +140,13 @@ type bcsUpgradeReceiptCommitted struct {
 	NewVersion     uint64
 }
 
-func convertUpgradeReceiptCommittedFromBCS(bcs bcsUpgradeReceiptCommitted) UpgradeReceiptCommitted {
+func convertUpgradeReceiptCommittedFromBCS(bcs bcsUpgradeReceiptCommitted) (UpgradeReceiptCommitted, error) {
+
 	return UpgradeReceiptCommitted{
 		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
 		OldVersion:     bcs.OldVersion,
 		NewVersion:     bcs.NewVersion,
-	}
+	}, nil
 }
 
 func init() {
@@ -162,7 +165,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertUpgradeCapRegisteredFromBCS(temp)
+		result, err := convertUpgradeCapRegisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeTicketAuthorized", func(data []byte) (interface{}, error) {
@@ -172,7 +178,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertUpgradeTicketAuthorizedFromBCS(temp)
+		result, err := convertUpgradeTicketAuthorizedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_deployer::UpgradeReceiptCommitted", func(data []byte) (interface{}, error) {
@@ -182,7 +191,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertUpgradeReceiptCommittedFromBCS(temp)
+		result, err := convertUpgradeReceiptCommittedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_deployer::MCMS_DEPLOYER", func(data []byte) (interface{}, error) {

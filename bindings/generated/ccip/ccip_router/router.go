@@ -163,11 +163,16 @@ type bcsOnRampSet struct {
 	OnRampInfo        bcsOnRampInfo
 }
 
-func convertOnRampSetFromBCS(bcs bcsOnRampSet) OnRampSet {
+func convertOnRampSetFromBCS(bcs bcsOnRampSet) (OnRampSet, error) {
+	OnRampInfoField, err := convertOnRampInfoFromBCS(bcs.OnRampInfo)
+	if err != nil {
+		return OnRampSet{}, fmt.Errorf("failed to convert nested struct OnRampInfo: %w", err)
+	}
+
 	return OnRampSet{
 		DestChainSelector: bcs.DestChainSelector,
-		OnRampInfo:        convertOnRampInfoFromBCS(bcs.OnRampInfo),
-	}
+		OnRampInfo:        OnRampInfoField,
+	}, nil
 }
 
 type bcsOnRampInfo struct {
@@ -175,11 +180,12 @@ type bcsOnRampInfo struct {
 	OnrampVersion []byte
 }
 
-func convertOnRampInfoFromBCS(bcs bcsOnRampInfo) OnRampInfo {
+func convertOnRampInfoFromBCS(bcs bcsOnRampInfo) (OnRampInfo, error) {
+
 	return OnRampInfo{
 		OnrampAddress: fmt.Sprintf("0x%x", bcs.OnrampAddress),
 		OnrampVersion: bcs.OnrampVersion,
-	}
+	}, nil
 }
 
 func init() {
@@ -198,7 +204,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOnRampSetFromBCS(temp)
+		result, err := convertOnRampSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_router::router::OnRampInfo", func(data []byte) (interface{}, error) {
@@ -208,7 +217,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOnRampInfoFromBCS(temp)
+		result, err := convertOnRampInfoFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_router::router::RouterState", func(data []byte) (interface{}, error) {

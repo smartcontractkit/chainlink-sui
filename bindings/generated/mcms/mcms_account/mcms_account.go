@@ -135,12 +135,13 @@ type bcsAccountState struct {
 	PendingTransfer *PendingTransfer
 }
 
-func convertAccountStateFromBCS(bcs bcsAccountState) AccountState {
+func convertAccountStateFromBCS(bcs bcsAccountState) (AccountState, error) {
+
 	return AccountState{
 		Id:              bcs.Id,
 		Owner:           fmt.Sprintf("0x%x", bcs.Owner),
 		PendingTransfer: bcs.PendingTransfer,
-	}
+	}, nil
 }
 
 type bcsPendingTransfer struct {
@@ -149,12 +150,13 @@ type bcsPendingTransfer struct {
 	Accepted bool
 }
 
-func convertPendingTransferFromBCS(bcs bcsPendingTransfer) PendingTransfer {
+func convertPendingTransferFromBCS(bcs bcsPendingTransfer) (PendingTransfer, error) {
+
 	return PendingTransfer{
 		From:     fmt.Sprintf("0x%x", bcs.From),
 		To:       fmt.Sprintf("0x%x", bcs.To),
 		Accepted: bcs.Accepted,
-	}
+	}, nil
 }
 
 type bcsOwnershipTransferRequested struct {
@@ -162,11 +164,12 @@ type bcsOwnershipTransferRequested struct {
 	To   [32]byte
 }
 
-func convertOwnershipTransferRequestedFromBCS(bcs bcsOwnershipTransferRequested) OwnershipTransferRequested {
+func convertOwnershipTransferRequestedFromBCS(bcs bcsOwnershipTransferRequested) (OwnershipTransferRequested, error) {
+
 	return OwnershipTransferRequested{
 		From: fmt.Sprintf("0x%x", bcs.From),
 		To:   fmt.Sprintf("0x%x", bcs.To),
-	}
+	}, nil
 }
 
 type bcsOwnershipTransferAccepted struct {
@@ -174,11 +177,12 @@ type bcsOwnershipTransferAccepted struct {
 	To   [32]byte
 }
 
-func convertOwnershipTransferAcceptedFromBCS(bcs bcsOwnershipTransferAccepted) OwnershipTransferAccepted {
+func convertOwnershipTransferAcceptedFromBCS(bcs bcsOwnershipTransferAccepted) (OwnershipTransferAccepted, error) {
+
 	return OwnershipTransferAccepted{
 		From: fmt.Sprintf("0x%x", bcs.From),
 		To:   fmt.Sprintf("0x%x", bcs.To),
-	}
+	}, nil
 }
 
 type bcsOwnershipTransferred struct {
@@ -186,11 +190,12 @@ type bcsOwnershipTransferred struct {
 	To   [32]byte
 }
 
-func convertOwnershipTransferredFromBCS(bcs bcsOwnershipTransferred) OwnershipTransferred {
+func convertOwnershipTransferredFromBCS(bcs bcsOwnershipTransferred) (OwnershipTransferred, error) {
+
 	return OwnershipTransferred{
 		From: fmt.Sprintf("0x%x", bcs.From),
 		To:   fmt.Sprintf("0x%x", bcs.To),
-	}
+	}, nil
 }
 
 func init() {
@@ -209,7 +214,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAccountStateFromBCS(temp)
+		result, err := convertAccountStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::PendingTransfer", func(data []byte) (interface{}, error) {
@@ -219,7 +227,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertPendingTransferFromBCS(temp)
+		result, err := convertPendingTransferFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferRequested", func(data []byte) (interface{}, error) {
@@ -229,7 +240,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOwnershipTransferRequestedFromBCS(temp)
+		result, err := convertOwnershipTransferRequestedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferAccepted", func(data []byte) (interface{}, error) {
@@ -239,7 +253,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOwnershipTransferAcceptedFromBCS(temp)
+		result, err := convertOwnershipTransferAcceptedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferred", func(data []byte) (interface{}, error) {
@@ -249,7 +266,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOwnershipTransferredFromBCS(temp)
+		result, err := convertOwnershipTransferredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::MCMS_ACCOUNT", func(data []byte) (interface{}, error) {

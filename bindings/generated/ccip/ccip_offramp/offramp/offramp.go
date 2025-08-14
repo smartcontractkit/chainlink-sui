@@ -349,12 +349,13 @@ type bcsOffRampStatePointer struct {
 	OwnerCapId     [32]byte
 }
 
-func convertOffRampStatePointerFromBCS(bcs bcsOffRampStatePointer) OffRampStatePointer {
+func convertOffRampStatePointerFromBCS(bcs bcsOffRampStatePointer) (OffRampStatePointer, error) {
+
 	return OffRampStatePointer{
 		Id:             bcs.Id,
 		OffRampStateId: fmt.Sprintf("0x%x", bcs.OffRampStateId),
 		OwnerCapId:     fmt.Sprintf("0x%x", bcs.OwnerCapId),
-	}
+	}, nil
 }
 
 type bcsSourceChainConfig struct {
@@ -365,14 +366,15 @@ type bcsSourceChainConfig struct {
 	OnRamp                    []byte
 }
 
-func convertSourceChainConfigFromBCS(bcs bcsSourceChainConfig) SourceChainConfig {
+func convertSourceChainConfigFromBCS(bcs bcsSourceChainConfig) (SourceChainConfig, error) {
+
 	return SourceChainConfig{
 		Router:                    fmt.Sprintf("0x%x", bcs.Router),
 		IsEnabled:                 bcs.IsEnabled,
 		MinSeqNr:                  bcs.MinSeqNr,
 		IsRmnVerificationDisabled: bcs.IsRmnVerificationDisabled,
 		OnRamp:                    bcs.OnRamp,
-	}
+	}, nil
 }
 
 type bcsAny2SuiRampMessage struct {
@@ -380,19 +382,24 @@ type bcsAny2SuiRampMessage struct {
 	Sender       []byte
 	Data         []byte
 	Receiver     [32]byte
-	GasLimit     *big.Int
+	GasLimit     [32]byte
 	TokenAmounts []Any2SuiTokenTransfer
 }
 
-func convertAny2SuiRampMessageFromBCS(bcs bcsAny2SuiRampMessage) Any2SuiRampMessage {
+func convertAny2SuiRampMessageFromBCS(bcs bcsAny2SuiRampMessage) (Any2SuiRampMessage, error) {
+	GasLimitField, err := bind.DecodeU256Value(bcs.GasLimit)
+	if err != nil {
+		return Any2SuiRampMessage{}, fmt.Errorf("failed to decode u256 field GasLimit: %w", err)
+	}
+
 	return Any2SuiRampMessage{
 		Header:       bcs.Header,
 		Sender:       bcs.Sender,
 		Data:         bcs.Data,
 		Receiver:     fmt.Sprintf("0x%x", bcs.Receiver),
-		GasLimit:     bcs.GasLimit,
+		GasLimit:     GasLimitField,
 		TokenAmounts: bcs.TokenAmounts,
-	}
+	}, nil
 }
 
 type bcsAny2SuiTokenTransfer struct {
@@ -400,17 +407,22 @@ type bcsAny2SuiTokenTransfer struct {
 	DestTokenAddress  [32]byte
 	DestGasAmount     uint32
 	ExtraData         []byte
-	Amount            *big.Int
+	Amount            [32]byte
 }
 
-func convertAny2SuiTokenTransferFromBCS(bcs bcsAny2SuiTokenTransfer) Any2SuiTokenTransfer {
+func convertAny2SuiTokenTransferFromBCS(bcs bcsAny2SuiTokenTransfer) (Any2SuiTokenTransfer, error) {
+	AmountField, err := bind.DecodeU256Value(bcs.Amount)
+	if err != nil {
+		return Any2SuiTokenTransfer{}, fmt.Errorf("failed to decode u256 field Amount: %w", err)
+	}
+
 	return Any2SuiTokenTransfer{
 		SourcePoolAddress: bcs.SourcePoolAddress,
 		DestTokenAddress:  fmt.Sprintf("0x%x", bcs.DestTokenAddress),
 		DestGasAmount:     bcs.DestGasAmount,
 		ExtraData:         bcs.ExtraData,
-		Amount:            bcs.Amount,
-	}
+		Amount:            AmountField,
+	}, nil
 }
 
 type bcsExecutionReport struct {
@@ -420,25 +432,52 @@ type bcsExecutionReport struct {
 	Proofs              [][]byte
 }
 
-func convertExecutionReportFromBCS(bcs bcsExecutionReport) ExecutionReport {
+func convertExecutionReportFromBCS(bcs bcsExecutionReport) (ExecutionReport, error) {
+	MessageField, err := convertAny2SuiRampMessageFromBCS(bcs.Message)
+	if err != nil {
+		return ExecutionReport{}, fmt.Errorf("failed to convert nested struct Message: %w", err)
+	}
+
 	return ExecutionReport{
 		SourceChainSelector: bcs.SourceChainSelector,
-		Message:             convertAny2SuiRampMessageFromBCS(bcs.Message),
+		Message:             MessageField,
 		OffchainTokenData:   bcs.OffchainTokenData,
 		Proofs:              bcs.Proofs,
-	}
+	}, nil
 }
 
 type bcsTokenPriceUpdate struct {
 	SourceToken [32]byte
-	UsdPerToken *big.Int
+	UsdPerToken [32]byte
 }
 
-func convertTokenPriceUpdateFromBCS(bcs bcsTokenPriceUpdate) TokenPriceUpdate {
+func convertTokenPriceUpdateFromBCS(bcs bcsTokenPriceUpdate) (TokenPriceUpdate, error) {
+	UsdPerTokenField, err := bind.DecodeU256Value(bcs.UsdPerToken)
+	if err != nil {
+		return TokenPriceUpdate{}, fmt.Errorf("failed to decode u256 field UsdPerToken: %w", err)
+	}
+
 	return TokenPriceUpdate{
 		SourceToken: fmt.Sprintf("0x%x", bcs.SourceToken),
-		UsdPerToken: bcs.UsdPerToken,
+		UsdPerToken: UsdPerTokenField,
+	}, nil
+}
+
+type bcsGasPriceUpdate struct {
+	DestChainSelector uint64
+	UsdPerUnitGas     [32]byte
+}
+
+func convertGasPriceUpdateFromBCS(bcs bcsGasPriceUpdate) (GasPriceUpdate, error) {
+	UsdPerUnitGasField, err := bind.DecodeU256Value(bcs.UsdPerUnitGas)
+	if err != nil {
+		return GasPriceUpdate{}, fmt.Errorf("failed to decode u256 field UsdPerUnitGas: %w", err)
 	}
+
+	return GasPriceUpdate{
+		DestChainSelector: bcs.DestChainSelector,
+		UsdPerUnitGas:     UsdPerUnitGasField,
+	}, nil
 }
 
 type bcsStaticConfig struct {
@@ -448,13 +487,14 @@ type bcsStaticConfig struct {
 	NonceManager       [32]byte
 }
 
-func convertStaticConfigFromBCS(bcs bcsStaticConfig) StaticConfig {
+func convertStaticConfigFromBCS(bcs bcsStaticConfig) (StaticConfig, error) {
+
 	return StaticConfig{
 		ChainSelector:      bcs.ChainSelector,
 		RmnRemote:          fmt.Sprintf("0x%x", bcs.RmnRemote),
 		TokenAdminRegistry: fmt.Sprintf("0x%x", bcs.TokenAdminRegistry),
 		NonceManager:       fmt.Sprintf("0x%x", bcs.NonceManager),
-	}
+	}, nil
 }
 
 type bcsDynamicConfig struct {
@@ -462,21 +502,27 @@ type bcsDynamicConfig struct {
 	PermissionlessExecutionThresholdSeconds uint32
 }
 
-func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) DynamicConfig {
+func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) (DynamicConfig, error) {
+
 	return DynamicConfig{
 		FeeQuoter:                               fmt.Sprintf("0x%x", bcs.FeeQuoter),
 		PermissionlessExecutionThresholdSeconds: bcs.PermissionlessExecutionThresholdSeconds,
-	}
+	}, nil
 }
 
 type bcsDynamicConfigSet struct {
 	DynamicConfig bcsDynamicConfig
 }
 
-func convertDynamicConfigSetFromBCS(bcs bcsDynamicConfigSet) DynamicConfigSet {
-	return DynamicConfigSet{
-		DynamicConfig: convertDynamicConfigFromBCS(bcs.DynamicConfig),
+func convertDynamicConfigSetFromBCS(bcs bcsDynamicConfigSet) (DynamicConfigSet, error) {
+	DynamicConfigField, err := convertDynamicConfigFromBCS(bcs.DynamicConfig)
+	if err != nil {
+		return DynamicConfigSet{}, fmt.Errorf("failed to convert nested struct DynamicConfig: %w", err)
 	}
+
+	return DynamicConfigSet{
+		DynamicConfig: DynamicConfigField,
+	}, nil
 }
 
 type bcsSourceChainConfigSet struct {
@@ -484,11 +530,16 @@ type bcsSourceChainConfigSet struct {
 	SourceChainConfig   bcsSourceChainConfig
 }
 
-func convertSourceChainConfigSetFromBCS(bcs bcsSourceChainConfigSet) SourceChainConfigSet {
+func convertSourceChainConfigSetFromBCS(bcs bcsSourceChainConfigSet) (SourceChainConfigSet, error) {
+	SourceChainConfigField, err := convertSourceChainConfigFromBCS(bcs.SourceChainConfig)
+	if err != nil {
+		return SourceChainConfigSet{}, fmt.Errorf("failed to convert nested struct SourceChainConfig: %w", err)
+	}
+
 	return SourceChainConfigSet{
 		SourceChainSelector: bcs.SourceChainSelector,
-		SourceChainConfig:   convertSourceChainConfigFromBCS(bcs.SourceChainConfig),
-	}
+		SourceChainConfig:   SourceChainConfigField,
+	}, nil
 }
 
 func init() {
@@ -507,7 +558,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOffRampStatePointerFromBCS(temp)
+		result, err := convertOffRampStatePointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::SourceChainConfig", func(data []byte) (interface{}, error) {
@@ -517,7 +571,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSourceChainConfigFromBCS(temp)
+		result, err := convertSourceChainConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::RampMessageHeader", func(data []byte) (interface{}, error) {
@@ -535,7 +592,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAny2SuiRampMessageFromBCS(temp)
+		result, err := convertAny2SuiRampMessageFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::Any2SuiTokenTransfer", func(data []byte) (interface{}, error) {
@@ -545,7 +605,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAny2SuiTokenTransferFromBCS(temp)
+		result, err := convertAny2SuiTokenTransferFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::ExecutionReport", func(data []byte) (interface{}, error) {
@@ -555,7 +618,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertExecutionReportFromBCS(temp)
+		result, err := convertExecutionReportFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::CommitReport", func(data []byte) (interface{}, error) {
@@ -581,12 +647,20 @@ func init() {
 			return nil, err
 		}
 
-		result := convertTokenPriceUpdateFromBCS(temp)
+		result, err := convertTokenPriceUpdateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::GasPriceUpdate", func(data []byte) (interface{}, error) {
-		var result GasPriceUpdate
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsGasPriceUpdate
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertGasPriceUpdateFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -607,7 +681,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertStaticConfigFromBCS(temp)
+		result, err := convertStaticConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::DynamicConfig", func(data []byte) (interface{}, error) {
@@ -617,7 +694,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDynamicConfigFromBCS(temp)
+		result, err := convertDynamicConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::StaticConfigSet", func(data []byte) (interface{}, error) {
@@ -635,7 +715,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDynamicConfigSetFromBCS(temp)
+		result, err := convertDynamicConfigSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::SourceChainConfigSet", func(data []byte) (interface{}, error) {
@@ -645,7 +728,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSourceChainConfigSetFromBCS(temp)
+		result, err := convertSourceChainConfigSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::SkippedAlreadyExecuted", func(data []byte) (interface{}, error) {
