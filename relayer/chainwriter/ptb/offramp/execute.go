@@ -400,6 +400,7 @@ func ProcessReceivers(
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
+		// If the receiver is not registered, fail the entire execution
 		if !isRegistered {
 			return nil, fmt.Errorf("receiver is not registered in offramp execution. error: %s", message.Receiver)
 		}
