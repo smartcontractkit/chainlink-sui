@@ -234,7 +234,7 @@ func AddReceiverCallCommands(
 	ptb *transaction.Transaction,
 	signerAddress string,
 	messages []ccipocr3.Message,
-	previousCommandIndex uint16,
+	initHotPotato *transaction.Argument,
 	ccipObjectRef string,
 	ccipPackageId string,
 	client ptbClient.SuiPTBClient,
@@ -267,7 +267,8 @@ func AddReceiverCallCommands(
 		lggr.Infow("receiver info", "receiver", receiverPackageId, "module", moduleName, "stateParams", stateParams)
 
 		// TODO: remove, this is a debug function
-		receiverFunction := "echo"
+		//receiverFunction := "echo"
+		receiverFunction := CCIP_RECEIVER_FUNCTION
 
 		signature, err := GetCCIPReceiverSignature(ctx, lggr, signerAddress, receiverPackageId, moduleName, client, receiverFunction)
 		if err != nil {
@@ -326,7 +327,7 @@ func AddReceiverCallCommands(
 
 		lggr.Infow("return types", "returnTypes", returnTypes)
 
-		paramValues := []any{ccipObjectRef, []byte("Hello World")}
+		paramValues := []any{ccipObjectRef, initHotPotato, []byte("Hello World")}
 
 		encodedCall, err := receiverBoundContract.EncodeCallArgsWithGenerics(
 			receiverFunction,
@@ -351,8 +352,6 @@ func AddReceiverCallCommands(
 			return nil, err
 		}
 		finalCommands = append(finalCommands, arg)
-
-		lggr.Infow("signature", "signature", signature)
 	}
 
 	return finalCommands, nil

@@ -18,6 +18,8 @@ import (
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
+	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
 	lockreleaseops "github.com/smartcontractkit/chainlink-sui/ops/ccip_lock_release_token_pool"
@@ -57,7 +59,7 @@ type EnvironmentSettings struct {
 	Client sui.ISuiAPI
 }
 
-func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI) {
+func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI, ed25519.PrivateKey) {
 	t.Helper()
 
 	// Start the node.
@@ -87,22 +89,26 @@ func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 		require.NoError(t, err)
 	}
 
-	return signer, client
+	return signer, client, pk
 }
 
 func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	lggr := logger.Test(t)
 	lggr.Debugw("Starting Sui node")
 
-	signer, client := setupClients(t, lggr)
-
-	// Declare all arrays
-	signerAddrBytes := make([][]byte, 0, 4)
-	signerPrivateKeys := make([]ed25519.PrivateKey, 0, 4)
+	signer, client, privateKey := setupClients(t, lggr)
 
 	// Get the main account's public key first
 	keystoreInstance := testutils.NewTestKeystore(t)
-	_, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	accountAddressBytes, err := hex.DecodeString(strings.TrimPrefix(accountAddress, "0x"))
+	require.NoError(t, err)
+
+	// Declare all arrays
+	signerAddresses := make([]string, 0, 4)
+	signerAddrBytes := make([][]byte, 0, 4)
+	signerPublicKeys := make([][]byte, 0, 4)
+	signerPrivateKeys := make([]ed25519.PrivateKey, 0, 4)
 
 	// add 3 generated signers
 	for range 3 {
@@ -113,20 +119,25 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 
 		signerAddress, err := _signer.GetAddress()
 		require.NoError(t, err)
+		signerAddresses = append(signerAddresses, signerAddress)
 
 		addrHex := strings.TrimPrefix(signerAddress, "0x")
 		addrBytes, err := hex.DecodeString(addrHex)
 		require.NoError(t, err)
 		signerAddrBytes = append(signerAddrBytes, addrBytes)
 
+		// Extract the public key (32 bytes) for OCR3
+		publicKey := pk.Public().(ed25519.PublicKey)
+		signerPublicKeys = append(signerPublicKeys, []byte(publicKey))
+
 		signerPrivateKeys = append(signerPrivateKeys, pk)
 	}
 
 	// the 4th signer is the account that will call the OffRamp
-	// signerAddresses = append(signerAddresses, accountAddress)
-	// signerAddrBytes = append(signerAddrBytes, accountAddressBytes)
-	// signerPublicKeys = append(signerPublicKeys, publicKeyBytes)
-	// signerPrivateKeys = append(signerPrivateKeys, privateKey)
+	signerAddresses = append(signerAddresses, accountAddress)
+	signerAddrBytes = append(signerAddrBytes, accountAddressBytes)
+	signerPublicKeys = append(signerPublicKeys, publicKeyBytes)
+	signerPrivateKeys = append(signerPrivateKeys, privateKey)
 
 	// Create 20-byte Ethereum addresses for RMN Remote signers
 	ethAddr1, err := hex.DecodeString("8a1b2c3d4e5f60718293a4b5c6d7e8f901234567")
@@ -233,15 +244,70 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 			McmsOwner:     signerAddr,
 		},
 		CCIPObjectRefObjectId: report.Output.Objects.CCIPObjectRefObjectId,
+		ReceiverStateParams:   []string{"0x6"}, // the clock object id
 	})
 
 	require.NoError(t, err, "failed to deploy and initialize dummy receiver")
 	lggr.Debugw("Dummy receiver deployment report", "output", dummyReceiverReport.Output)
 
+	// Create a dummy OnRamp address
+	OnRampAddress := make([]byte, 32)
+	OnRampAddress[31] = 20
+
+	seqOffRampInput := offrampops.DeployAndInitCCIPOffRampSeqInput{
+		DeployCCIPOffRampInput: offrampops.DeployCCIPOffRampInput{
+			CCIPPackageId: report.Output.CCIPPackageId,
+			MCMSPackageId: reportMCMs.Output.PackageId,
+		},
+		InitializeOffRampInput: offrampops.InitializeOffRampInput{
+			DestTransferCapId:                     report.Output.Objects.DestTransferCapObjectId,
+			FeeQuoterCapId:                        report.Output.Objects.FeeQuoterCapObjectId,
+			ChainSelector:                         SUI_CHAIN_SELECTOR,
+			PremissionExecThresholdSeconds:        10,
+			SourceChainSelectors:                  []uint64{ETHEREUM_CHAIN_SELECTOR},
+			SourceChainsIsEnabled:                 []bool{true},
+			SourceChainsIsRMNVerificationDisabled: []bool{true},
+			SourceChainsOnRamp:                    [][]byte{OnRampAddress},
+		},
+		CommitOCR3Config: offrampops.SetOCR3ConfigInput{
+			// Sample config digest
+			ConfigDigest: []byte{
+				0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
+				0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
+				0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
+				0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
+			},
+			OCRPluginType:                  byte(0),
+			BigF:                           byte(1),
+			IsSignatureVerificationEnabled: true,
+			Signers:                        signerPublicKeys,
+			Transmitters:                   signerAddresses,
+		},
+		ExecutionOCR3Config: offrampops.SetOCR3ConfigInput{
+			ConfigDigest: []byte{
+				0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
+				0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
+				0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
+				0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
+			},
+			OCRPluginType:                  byte(1),
+			BigF:                           byte(1),
+			IsSignatureVerificationEnabled: false,
+			Signers:                        signerPublicKeys,
+			Transmitters:                   signerAddresses,
+		},
+	}
+
+	offrampReport, err := cld_ops.ExecuteSequence(bundle, offrampops.DeployAndInitCCIPOffRampSequence, deps, seqOffRampInput)
+	require.NoError(t, err, "failed to deploy CCIP Package")
+
+	lggr.Debugw("Offramp deployment report", "output", offrampReport.Output)
+
 	return &EnvironmentSettings{
 		MockLinkReport:      mockLinkReport,
 		CCIPReport:          report,
 		DummyReceiverReport: &dummyReceiverReport,
+		OffRampReport:       offrampReport,
 		SignersAddrBytes:    signerAddrBytes,
 		Signer:              signer,
 		PublicKeys:          [][]byte{ethAddr1, ethAddr2, ethAddr3, accountEthAddr},
@@ -257,6 +323,9 @@ func TestReceiver(t *testing.T) {
 
 	ccipObjectRef := env.CCIPReport.Output.Objects.CCIPObjectRefObjectId
 	ccipPackageId := env.CCIPReport.Output.CCIPPackageId
+	offrampState := env.OffRampReport.Output.Objects.StateObjectId
+	offrampPackageId := env.OffRampReport.Output.CCIPOffRampPackageId
+	//clock := "0x6"
 
 	t.Run("TestFilterRegisteredReceivers", func(t *testing.T) {
 		t.Skip()
@@ -309,14 +378,46 @@ func TestReceiver(t *testing.T) {
 		ptbClient, err := client.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 5, "WaitForLocalExecution")
 		require.NoError(t, err, "Failed to create PTB client for event querying")
 
-		receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, ptb, signerAddress, []ccipocr3.Message{msg}, 0, ccipObjectRef, ccipPackageId, ptbClient)
+		lggr.Infow("offrampPackageId", "offrampPackageId", offrampPackageId)
+
+		// Set the offramp package interface from bindings
+		offrampPkg, err := offramp.NewOfframp(offrampPackageId, env.Client)
 		require.NoError(t, err)
-		lggr.Info("receiver commands", "commands", receiverCommands)
+		offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
+		offrampEncoder := offrampContract.Encoder()
 
 		opts := &bind.CallOpts{
 			Signer:           env.Signer,
 			WaitForExecution: true,
 		}
+
+		sourceChainSelector := uint64(2)
+		messageId := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+		sender := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+		data := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+
+		lggr.Infow("Will call DummyInitExecute with params", "sourceChainSelector", sourceChainSelector, "messageId", messageId, "sender", sender, "data", data, "offrampState", offrampState)
+
+		// Create an encoder for the `init_execute` offramp method to be attached to the PTB.
+		// This is being done using the bindings to re-use code but can otherwise be done using the SDK directly.
+		encodedInitExecute, err := offrampEncoder.DummyInitExecute(
+			bind.Object{Id: offrampState},
+			sourceChainSelector,
+			messageId,
+			sender,
+			data,
+		)
+		if err != nil {
+			return
+		}
+
+		initHotPotato, err := offrampContract.AppendPTB(ctx, opts, ptb, encodedInitExecute)
+		require.NoError(t, err)
+		lggr.Infow("initHotPotato", "initHotPotato", initHotPotato)
+
+		receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, ptb, signerAddress, []ccipocr3.Message{msg}, initHotPotato, ccipObjectRef, ccipPackageId, ptbClient)
+		require.NoError(t, err)
+		lggr.Info("receiver commands", "commands", receiverCommands)
 
 		tx, err := bind.ExecutePTB(ctx, opts, env.Client, ptb)
 		require.NoError(t, err)

@@ -23,6 +23,7 @@ type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverStateParams []string) (*models.SuiTransactionBlockResponse, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) (*models.SuiTransactionBlockResponse, error)
 	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
@@ -31,6 +32,7 @@ type IDummyReceiver interface {
 type IDummyReceiverDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (uint64, error)
+	Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) ([]byte, error)
 	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (bind.Object, error)
 }
 
@@ -41,6 +43,8 @@ type DummyReceiverEncoder interface {
 	RegisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCounter(state bind.Object) (*bind.EncodedCall, error)
 	GetCounterWithArgs(args ...any) (*bind.EncodedCall, error)
+	Echo(ref bind.Object, message []byte) (*bind.EncodedCall, error)
+	EchoWithArgs(args ...any) (*bind.EncodedCall, error)
 	CcipReceive(ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -185,6 +189,16 @@ func (c *DummyReceiverContract) GetCounter(ctx context.Context, opts *bind.CallO
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// Echo executes the echo Move function.
+func (c *DummyReceiverContract) Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.Echo(ref, message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // CcipReceive executes the ccip_receive Move function.
 func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, state bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.dummyReceiverEncoder.CcipReceive(ref, receiverParams, state, param)
@@ -235,6 +249,28 @@ func (d *DummyReceiverDevInspect) GetCounter(ctx context.Context, opts *bind.Cal
 	result, ok := results[0].(uint64)
 	if !ok {
 		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	}
+	return result, nil
+}
+
+// Echo executes the echo Move function using DevInspect to get return values.
+//
+// Returns: vector<u8>
+func (d *DummyReceiverDevInspect) Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) ([]byte, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.Echo(ref, message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
 	}
 	return result, nil
 }
@@ -345,6 +381,39 @@ func (c dummyReceiverEncoder) GetCounterWithArgs(args ...any) (*bind.EncodedCall
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_counter", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"u64",
+	})
+}
+
+// Echo encodes a call to the echo Move function.
+func (c dummyReceiverEncoder) Echo(ref bind.Object, message []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("echo", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"vector<u8>",
+	}, []any{
+		ref,
+		message,
+	}, []string{
+		"vector<u8>",
+	})
+}
+
+// EchoWithArgs encodes a call to the echo Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) EchoWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("echo", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<u8>",
 	})
 }
 

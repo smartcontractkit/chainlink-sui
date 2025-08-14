@@ -72,7 +72,7 @@ public fun echo(ref: &CCIPObjectRef, message: vector<u8>): vector<u8> {
 }
 
 // any ccip receiver must implement this function with the same signature
-public fun ccip_receive(ref: &CCIPObjectRef, receiver_params: osh::ReceiverParams, state: &mut CCIPReceiverState, _: &Clock): osh::ReceiverParams {
+public fun ccip_receive(ref: &CCIPObjectRef, receiver_params: osh::ReceiverParams, _: &Clock): osh::ReceiverParams {
     let (message_op, receiver_params) = osh::extract_any2sui_message(ref, receiver_params, DummyReceiverProof {});
     if (message_op.is_none()) {
         return receiver_params
@@ -83,12 +83,6 @@ public fun ccip_receive(ref: &CCIPObjectRef, receiver_params: osh::ReceiverParam
     let sender = client::get_sender(message);
     let data = client::get_data(message);
     let dest_token_transfer_length = client::get_dest_token_amounts(message).length();
-    state.counter = state.counter + 1;
-    state.message_id = message_id;
-    state.source_chain_selector = source_chain_selector;
-    state.sender = sender;
-    state.data = data;
-    state.dest_token_transfer_length = dest_token_transfer_length;
 
     event::emit(
         ReceivedMessage {
