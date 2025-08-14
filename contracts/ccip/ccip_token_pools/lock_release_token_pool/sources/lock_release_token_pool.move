@@ -31,6 +31,8 @@ public struct LockReleaseTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
+const CLOCK_ADDRESS: address = @0x6;
+
 const EInvalidArguments: u64 = 1;
 const ETokenPoolBalanceTooLow: u64 = 2;
 const EUnauthorized: u64 = 3;
@@ -53,7 +55,7 @@ public fun initialize<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (_, _, _, type_proof_type_name) =
+    let (_, lock_release_token_pool_state_address, _, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     let type_proof_type_name_address = type_proof_type_name.get_address();
@@ -66,6 +68,8 @@ public fun initialize<T>(
         lock_release_token_pool_package_id,
         string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         TypeProof {},
     );
 }
@@ -81,7 +85,7 @@ public fun initialize_by_ccip_admin<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, _, token_type, type_proof_type_name) =
+    let (coin_metadata_address, lock_release_token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     let type_proof_type_name_address = type_proof_type_name.get_address();
@@ -96,6 +100,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         ctx,
     );
 }

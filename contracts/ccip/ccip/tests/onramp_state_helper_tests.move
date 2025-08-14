@@ -74,6 +74,8 @@ public fun test_create_token_transfer_params() {
         ascii::string(b"TestType"),
         OWNER, // administrator
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -121,6 +123,8 @@ public fun test_create_token_transfer_params_wrong_proof() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -154,6 +158,8 @@ public fun test_get_remote_chain_selector() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -211,6 +217,8 @@ public fun test_create_and_verify_token_transfer() {
         ascii::string(b"TestType"),
         OWNER, // administrator
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -257,6 +265,8 @@ public fun test_multiple_token_transfers() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -269,6 +279,8 @@ public fun test_multiple_token_transfers() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof2>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -351,6 +363,8 @@ public fun test_get_source_token_transfer_data() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -397,6 +411,8 @@ public fun test_edge_case_large_amounts() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -437,6 +453,8 @@ public fun test_edge_case_empty_data() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -478,6 +496,8 @@ public fun test_different_destination_chains() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -527,6 +547,8 @@ public fun test_zero_amount_transfer() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     
@@ -566,6 +588,8 @@ public fun test_source_transfer_cap_permission() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     

@@ -251,6 +251,8 @@ public fun test_complete_token_transfer() {
         ascii::string(b"TestType"),
         OWNER,
         type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         scenario.ctx(),
     );
     

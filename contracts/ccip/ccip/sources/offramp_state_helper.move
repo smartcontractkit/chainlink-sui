@@ -11,7 +11,7 @@ use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
 
 const EWrongIndexInReceiverParams: u64 = 1;
-const ETokenPoolAddressMismatch: u64 = 2;
+const ENoMessageToExtract: u64 = 2;
 const ETypeProofMismatch: u64 = 3;
 const ECCIPReceiveFailed: u64 = 4;
 const EWrongNumberOfCompletedTransfers: u64 = 5;
@@ -186,7 +186,7 @@ public fun complete_token_transfer<TypeProof: drop>(
     _: TypeProof,
 ): CompletedDestTokenTransfer {
     let token_config = registry::get_token_config(ref, dest_token_address);
-    let (_,  _, _, _, _, type_proof) = registry::get_token_config_data(token_config);
+    let (_,  _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
 
     let proof_tn = type_name::get<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
@@ -198,29 +198,31 @@ public fun complete_token_transfer<TypeProof: drop>(
     }
 }
 
-///// this function is called by ccip receiver directly, permissioned by the type proof of the receiver.
-///// the caller must provide an eligible type proof to ensure that the receiver is a valid pre-registered ccip receiver.
-// public fun extract_any2sui_message<TypeProof: drop>(
-//     ref: &CCIPObjectRef,
-//     receiver_params: &mut ReceiverParams,
-//     _: TypeProof,
-// ): Option<client::Any2SuiMessage> {
-//     let proof_tn = type_name::get<TypeProof>();
-//     let address_str = type_name::get_address(&proof_tn);
-//     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
+/// this function is called by ccip receiver directly, permissioned by the type proof of the receiver.
+/// the caller must provide an eligible type proof to ensure that the receiver is a valid pre-registered ccip receiver.
+public fun extract_any2sui_message<TypeProof: drop>(
+    ref: &CCIPObjectRef,
+    receiver_params: &mut ReceiverParams,
+    _: TypeProof,
+): client::Any2SuiMessage {
+    assert!(
+        receiver_params.message.is_some(),
+        ENoMessageToExtract
+    );
 
-//     let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);
-//     let (_, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
-//     assert!(
-//         proof_typename == proof_tn,
-//         ETypeProofMismatch
-//     );
+    let proof_tn = type_name::get<TypeProof>();
+    let address_str = type_name::get_address(&proof_tn);
+    let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
 
-//     let message = receiver_params.message;
-//     receiver_params.message = option::none();
+    let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);
+    let (_, _, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
+    assert!(
+        proof_typename == proof_tn,
+        ETypeProofMismatch
+    );
 
-//     message
-// }
+    receiver_params.message.extract()
+}
 
 public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,

@@ -703,10 +703,14 @@ public fun test_initialize_by_ccip_admin() {
         coin_metadata
     };
     
+    // Get the managed token state address and create mint cap
     scenario.next_tx(@managed_token_pool);
-    {
+    let managed_token_state_address = {
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        
+        // Get the address before creating mint cap
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
         
         // Create mint cap for the pool
         managed_token::configure_new_minter(
@@ -720,6 +724,7 @@ public fun test_initialize_by_ccip_admin() {
         
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
+        managed_token_state_address
     };
 
     // Get the mint cap first, then switch to CCIP admin
@@ -735,6 +740,7 @@ public fun test_initialize_by_ccip_admin() {
             state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             mint_cap,
+            managed_token_state_address, // Use the actual managed token state address
             @0x123, // token_pool_administrator
             scenario.ctx()
         );
@@ -1126,7 +1132,7 @@ public fun test_initialize_with_managed_token_function() {
         assert!(pool_address == actual_package_id); // Should match the dynamically calculated package id
         
         let token_config = token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
-        let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof) = 
+        let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof, _lock_or_burn_params, _release_or_mint_params) = 
             token_admin_registry::get_token_config_data(token_config);
         
         assert!(pool_package_id == actual_package_id);
