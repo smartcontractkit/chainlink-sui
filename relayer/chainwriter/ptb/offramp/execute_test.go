@@ -25,6 +25,7 @@ import (
 	cciptokenpoolop "github.com/smartcontractkit/chainlink-sui/ops/ccip_token_pool"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
@@ -536,11 +537,13 @@ func TestExecuteOffRamp(t *testing.T) {
 	env := SetupTestEnvironment(t, SUI_CHAIN_SELECTOR, ETHEREUM_CHAIN_SELECTOR, testutils.NewTestKeystore(t))
 
 	keystoreInstance := testutils.NewTestKeystore(t)
-	_, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
 	lggr.Infow("Environment settings", "env", env)
 
 	offrampPackageId := env.OffRampReport.Output.CCIPOffRampPackageId
+	linkTokenPackageId := env.MockLinkReport.Output.PackageId
+	linkTokenAddress := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", linkTokenPackageId)
 
 	t.Run("TestTokenTransferWithArbitraryMessaging", func(t *testing.T) {
 		lggr.Infow("Testing Token Transfer with Arbitrary Messaging")
@@ -551,6 +554,8 @@ func TestExecuteOffRamp(t *testing.T) {
 		receiverPackageId := env.DummyReceiverReport.Output.DummyReceiverPackageId
 		receiverModule := "ccip_dummy_receiver"
 		receiver := fmt.Sprintf("%s::%s::ccip_receive", receiverPackageId, receiverModule)
+
+		tokenAmount := ccipocr3.BigInt{Int: big.NewInt(300)}
 
 		rawContent := "Do or do not, there is no try."
 		msg := ccipocr3.Message{
@@ -575,5 +580,44 @@ func TestExecuteOffRamp(t *testing.T) {
 		require.NoError(t, err, "failed to get offramp address mappings")
 		lggr.Infow("Offramp address mappings", "addressMappings", addressMappings)
 
+		execReport := ccipocr3.ExecuteReportInfo{
+			AbstractReports: []ccipocr3.ExecutePluginReportSingleChain{
+				{
+					SourceChainSelector: ETHEREUM_CHAIN_SELECTOR,
+					Messages: []ccipocr3.Message{
+						{
+							Receiver: []byte(receiver),
+							Data:     []byte(rawContent),
+							TokenAmounts: []ccipocr3.RampTokenAmount{
+								{
+									DestTokenAddress: []byte(linkTokenAddress),
+									Amount:           tokenAmount,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		args := cwConfig.Arguments{
+			Args: map[string]interface{}{
+				"ReportContext": [2][32]byte{},
+				"Report":        []byte{},
+				"Info":          execReport,
+			},
+		}
+
+		err = offramp.BuildOffRampExecutePTB(
+			ctx,
+			lggr,
+			ptbClient,
+			ptb,
+			args,
+			accountAddress,
+			addressMappings,
+		)
+		require.NoError(t, err, "failed to build offramp execute PTB")
+		lggr.Infow("Offramp execute PTB", "ptb", ptb)
 	})
 }

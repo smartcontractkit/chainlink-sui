@@ -439,10 +439,6 @@ module ccip_offramp::offramp {
         pre_execute_single_report(ref, state, clock, reports, false)
     }
 
-    public fun dummy_tp_call(): osh::CompletedDestTokenTransfer {
-        osh::dummy_tp_call()
-    }
-
     public fun dummy_init_execute(
         state: &mut OffRampState,
         source_chain_selector: u64,
