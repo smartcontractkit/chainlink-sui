@@ -203,7 +203,7 @@ func ProcessTokenPools(
 	}
 
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
-	for _, tokenPoolConfigs := range tokenConfigs {
+	for idx, tokenPoolConfigs := range tokenConfigs {
 		// TODO: remove once hot potato approach validated
 		//// Get the relevant receiver params data for this token pool
 		//tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
@@ -224,6 +224,7 @@ func ProcessTokenPools(
 			&tokenPoolConfigs,
 			&tokenPoolNormalizedModule,
 			receiverParams,
+			idx,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
@@ -245,6 +246,7 @@ func AppendPTBCommandForTokenPool(
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
+	index int,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
@@ -269,15 +271,17 @@ func AppendPTBCommandForTokenPool(
 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	paramTypes := []string{}
+	paramTypes := []string{
+		"&mut ReceiverParams",
+		"u64",
+	}
 	paramValues := []any{
-		bind.Object{Id: addressMappings.CcipObjectRef},
 		receiverParams,
-		// TODO: add an identifier of the token pool
+		index,
 	}
 
 	encodedGetTokenParamDataCall, err := offrampStateHelperContract.EncodeCallArgsWithGenerics(
-		"get_token_param_data",
+		"get_dest_token_transfer",
 		typeArgsList,
 		typeParamsList,
 		paramTypes,
