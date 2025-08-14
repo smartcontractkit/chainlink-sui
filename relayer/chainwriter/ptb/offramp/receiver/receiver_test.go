@@ -361,7 +361,7 @@ func TestReceiver(t *testing.T) {
 	t.Run("TestAddReceiverCallCommands", func(t *testing.T) {
 		receiverPackageId := env.DummyReceiverReport.Output.DummyReceiverPackageId
 		receiverModule := "ccip_dummy_receiver"
-		receiver := fmt.Sprintf("%s::%s::echo", receiverPackageId, receiverModule)
+		receiver := fmt.Sprintf("%s::%s::ccip_receive", receiverPackageId, receiverModule)
 
 		msg := ccipocr3.Message{
 			Receiver: []byte(receiver),
@@ -418,6 +418,16 @@ func TestReceiver(t *testing.T) {
 		receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, ptb, signerAddress, []ccipocr3.Message{msg}, initHotPotato, ccipObjectRef, ccipPackageId, ptbClient)
 		require.NoError(t, err)
 		lggr.Info("receiver commands", "commands", receiverCommands)
+
+		encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
+			bind.Object{Id: offrampState},
+			receiverCommands[0],
+			[]bind.Object{},
+		)
+
+		res, err := offrampContract.AppendPTB(ctx, opts, ptb, encodeFinishExecute)
+		require.NoError(t, err)
+		lggr.Infow("encodeFinishExecute", "encodeFinishExecute", res)
 
 		tx, err := bind.ExecutePTB(ctx, opts, env.Client, ptb)
 		require.NoError(t, err)
