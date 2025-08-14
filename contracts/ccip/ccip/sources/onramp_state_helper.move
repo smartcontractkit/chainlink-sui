@@ -31,6 +31,8 @@ fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
     transfer::transfer(source_cap, ctx.sender());
 }
 
+// this function is called by token pools to create and return a TokenTransferParams object.
+// only token pools with proper type proof can call this function.
 public fun create_token_transfer_params<TypeProof: drop>(
     ref: &CCIPObjectRef,
     remote_chain_selector: u64,
@@ -41,7 +43,7 @@ public fun create_token_transfer_params<TypeProof: drop>(
     _: TypeProof,
  ): TokenTransferParams {
     let token_config = registry::get_token_config(ref, source_token_coin_metadata_address);
-    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
+    let (token_pool_package_id, _, _, _, _, type_proof) = registry::get_token_config_data(token_config);
     let proof_tn = type_name::get<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);

@@ -622,6 +622,7 @@ public fun test_release_or_mint_functionality() {
             &dest_transfer_cap,
             &mut receiver_params,
             receiver_address,
+            DefaultRemoteChain, // remote_chain_selector
             source_amount,
             coin_metadata_address,
             @managed_token_pool, // Package address, not token address
@@ -634,11 +635,13 @@ public fun test_release_or_mint_functionality() {
         let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
         assert!(source_chain == DefaultRemoteChain);
         
+        // Get the token transfer from receiver params
+        let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
+
         // Actually call release_or_mint function
         let completed_transfer = managed_token_pool::release_or_mint(
             &ccip_ref,
-            &mut receiver_params,
-            0, // index of the token transfer
+            token_transfer,
             &clock,
             &deny_list,
             &mut token_state,
@@ -700,7 +703,6 @@ public fun test_initialize_by_ccip_admin() {
         coin_metadata
     };
     
-    let managed_token_state_address;
     scenario.next_tx(@managed_token_pool);
     {
         let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
@@ -716,7 +718,6 @@ public fun test_initialize_by_ccip_admin() {
             scenario.ctx()
         );
         
-        managed_token_state_address = object::id_to_address(&object::id(&token_state));
         scenario.return_to_sender(token_owner_cap);
         test_scenario::return_shared(token_state);
     };
@@ -734,7 +735,6 @@ public fun test_initialize_by_ccip_admin() {
             state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             mint_cap,
-            managed_token_state_address,
             @0x123, // token_pool_administrator
             scenario.ctx()
         );
@@ -1126,7 +1126,7 @@ public fun test_initialize_with_managed_token_function() {
         assert!(pool_address == actual_package_id); // Should match the dynamically calculated package id
         
         let token_config = token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
-        let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof, _, _) = 
+        let (pool_package_id, pool_module, token_type, admin, pending_admin, type_proof) = 
             token_admin_registry::get_token_config_data(token_config);
         
         assert!(pool_package_id == actual_package_id);

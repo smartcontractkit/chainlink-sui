@@ -39,9 +39,6 @@ const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
 
-const CLOCK_ADDRESS: address = @0x6;
-const DENY_LIST_ADDRESS: address = @0x403;
-
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -69,7 +66,7 @@ public fun initialize_with_managed_token<T>(
     let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
     
     // Initialize the token pool
-    let (_, managed_token_pool_state_address, _, type_proof_type_name) =
+    let (_, _, _, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     let type_proof_type_name_address = type_proof_type_name.get_address();
@@ -83,8 +80,6 @@ public fun initialize_with_managed_token<T>(
         managed_token_pool_package_id,
         string::utf8(b"managed_token_pool"),
         token_pool_administrator,
-        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
-        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, object::id_to_address(&object::id(managed_token_state)), managed_token_pool_state_address],
         TypeProof {},
     );  
 }
@@ -94,11 +89,10 @@ public fun initialize_by_ccip_admin<T>(
     ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
-    managed_token_state: address,
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, managed_token_pool_state_address, token_type, type_proof_type_name) =
+    let (coin_metadata_address, _, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, mint_cap, ctx);
 
     let type_proof_type_name_address = type_proof_type_name.get_address();
@@ -113,8 +107,6 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, managed_token_state, managed_token_pool_state_address],
-        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, managed_token_state, managed_token_pool_state_address],
         ctx,
     );
 }
@@ -323,16 +315,15 @@ public fun lock_or_burn<T>(
 /// index because each token transfer is protected by a type proof
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    receiver_params: &mut offramp_sh::ReceiverParams,
-    index: u64,
+    token_transfer: offramp_sh::DestTokenTransfer,
     clock: &Clock,
     deny_list: &DenyList,
     token_state: &mut TokenState<T>,
     state: &mut ManagedTokenPoolState<T>,
     ctx: &mut TxContext,
-    ): offramp_sh::CompletedDestTokenTransfer {
-    let remote_chain_selector = offramp_sh::get_source_chain_selector(receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(receiver_params, index);
+): offramp_sh::CompletedDestTokenTransfer {
+    let (receiver, remote_chain_selector, source_amount, dest_token_address, _, source_pool_address, source_pool_data, _) = offramp_sh::get_dest_token_transfer_data(token_transfer);
+
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &state.token_pool_state,
         source_pool_data,
@@ -368,8 +359,8 @@ public fun release_or_mint<T>(
 
     offramp_sh::complete_token_transfer(
         ref,
-        receiver_params,
-        index,
+        receiver,
+        dest_token_address,
         TypeProof {},
     )
 }

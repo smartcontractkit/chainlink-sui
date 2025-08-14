@@ -1215,6 +1215,7 @@ public fun test_release_or_mint_functionality() {
             &dest_transfer_cap,
             &mut receiver_params,
             receiver_address,
+            DefaultRemoteChain, // remote_chain_selector
             source_amount,
             coin_metadata_address,
             actual_package_id, // Use the dynamically calculated package ID
@@ -1229,11 +1230,13 @@ public fun test_release_or_mint_functionality() {
         let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
         assert!(source_chain == DefaultRemoteChain);
         
+        // Get the token transfer from receiver params
+        let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
+
         // Call the actual release_or_mint function
         let completed_transfer = lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
-            &mut receiver_params,
-            0, // index of the token transfer
+            token_transfer,
             &clock,
             &mut pool_state,
             &mut ctx

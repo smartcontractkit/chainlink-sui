@@ -6,9 +6,9 @@ use sui::event;
 use sui::clock::Clock;
 
 use ccip::client;
-use ccip::offramp_state_helper as osh;
 use ccip::receiver_registry;
 use ccip::state_object::CCIPObjectRef;
+use ccip::offramp_state_helper::{Self as osh};
 
 public struct OwnerCap has key, store {
     id: UID,
@@ -21,6 +21,7 @@ public struct ReceivedMessage has copy, drop {
     sender: vector<u8>,
     data: vector<u8>,
     dest_token_transfer_length: u64,
+    dest_token_amounts: vector<TokenAmount>,
 }
 
 public struct CCIPReceiverState has key {
@@ -31,9 +32,15 @@ public struct CCIPReceiverState has key {
     sender: vector<u8>,
     data: vector<u8>,
     dest_token_transfer_length: u64,
+    dest_token_amounts: vector<TokenAmount>,
 }
 
 public struct DummyReceiverProof has drop {}
+
+public struct TokenAmount has copy, drop, store {
+    token: address,
+    amount: u64,
+}
 
 public fun type_and_version(): String {
     string::utf8(b"DummyReceiver 1.6.0")
@@ -48,6 +55,7 @@ fun init(ctx: &mut TxContext) {
         sender: vector[],
         data: vector[],
         dest_token_transfer_length: 0,
+        dest_token_amounts: vector[],
     };
 
     let owner_cap = OwnerCap {
@@ -67,22 +75,52 @@ public fun get_counter(state: &CCIPReceiverState): u64 {
     state.counter
 }
 
+public fun get_dest_token_amounts(state: &CCIPReceiverState): vector<TokenAmount> {
+    state.dest_token_amounts
+}
+
+public fun get_token_amount_token(token_amount: &TokenAmount): address {
+    token_amount.token
+}
+
+public fun get_token_amount_amount(token_amount: &TokenAmount): u64 {
+    token_amount.amount
+}
+
 public fun echo(ref: &CCIPObjectRef, message: vector<u8>): vector<u8> {
     message
 }
 
 // any ccip receiver must implement this function with the same signature
-public fun ccip_receive(ref: &CCIPObjectRef, receiver_params: osh::ReceiverParams, _: &Clock): osh::ReceiverParams {
-    let (message_op, receiver_params) = osh::extract_any2sui_message(ref, receiver_params, DummyReceiverProof {});
-    if (message_op.is_none()) {
-        return receiver_params
+public fun ccip_receive(
+    ref: &CCIPObjectRef,
+    message: client::Any2SuiMessage,
+    _: &Clock, // this is a precompile, but remain the same across all messages
+    state: &mut CCIPReceiverState, // this is a singleton, but remain the same across all messages
+    // _: &mut 0x2::coin::Coin<0x2::sui::SUI>, // the object which can be different from message to message. TODO: decide if implement this.
+) {
+    let (
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts,
+    ) = osh::consume_any2sui_message(ref, message, DummyReceiverProof {});
+
+    state.counter = state.counter + 1;
+    state.message_id = message_id;
+    state.source_chain_selector = source_chain_selector;
+    state.sender = sender;
+    state.data = data;
+    state.dest_token_transfer_length = dest_token_amounts.length() as u64;
+    state.dest_token_amounts = vector[];
+
+    let mut i = 0;
+    while (i < state.dest_token_transfer_length) {
+        let (token, amount) = client::get_token_and_amount(&dest_token_amounts[i]);
+        state.dest_token_amounts.push_back(TokenAmount { token, amount });
+        i = i + 1;
     };
-    let message = message_op.borrow();
-    let message_id = client::get_message_id(message);
-    let source_chain_selector = client::get_source_chain_selector(message);
-    let sender = client::get_sender(message);
-    let data = client::get_data(message);
-    let dest_token_transfer_length = client::get_dest_token_amounts(message).length();
 
     event::emit(
         ReceivedMessage {
@@ -90,8 +128,8 @@ public fun ccip_receive(ref: &CCIPObjectRef, receiver_params: osh::ReceiverParam
             source_chain_selector,
             sender,
             data,
-            dest_token_transfer_length,
+            dest_token_transfer_length: state.dest_token_transfer_length,
+            dest_token_amounts: state.dest_token_amounts,
         }
     );
-    receiver_params
 }

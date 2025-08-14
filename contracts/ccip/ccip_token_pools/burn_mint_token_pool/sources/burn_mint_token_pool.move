@@ -37,7 +37,7 @@ const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EUnknownFunction: u64 = 4;
 
-const CLOCK_ADDRESS: address = @0x6;
+// const CLOCK_ADDRESS: address = @0x6;
 
 // ================================================================
 // |                             Init                             |
@@ -68,8 +68,8 @@ public fun initialize<T>(
         burn_mint_token_pool_package_id,
         string::utf8(b"burn_mint_token_pool"),
         token_pool_administrator,
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        // vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        // vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         TypeProof {},
     );
 
@@ -99,8 +99,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
-        vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        // vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
+        // vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         ctx,
     );
 
@@ -296,14 +296,13 @@ public fun lock_or_burn<T>(
 
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
-    receiver_params: &mut offramp_sh::ReceiverParams,
-    index: u64,
+    token_transfer: offramp_sh::DestTokenTransfer,
     clock: &Clock,
     pool: &mut BurnMintTokenPoolState<T>,
     ctx: &mut TxContext
 ): offramp_sh::CompletedDestTokenTransfer {
-    let remote_chain_selector = offramp_sh::get_source_chain_selector(receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(receiver_params, index);
+    let (receiver, remote_chain_selector, source_amount, dest_token_address, _, source_pool_address, source_pool_data, _) = offramp_sh::get_dest_token_transfer_data(token_transfer);
+
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &pool.token_pool_state,
         source_pool_data,
@@ -336,8 +335,8 @@ public fun release_or_mint<T>(
 
     offramp_sh::complete_token_transfer(
         ref,
-        receiver_params,
-        index,
+        receiver,
+        dest_token_address,
         TypeProof {},
     )
 }

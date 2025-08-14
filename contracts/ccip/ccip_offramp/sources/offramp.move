@@ -672,6 +672,7 @@ module ccip_offramp::offramp {
                 state.dest_transfer_cap.borrow(),
                 &mut receiver_params,
                 message.receiver,
+                source_chain_selector,
                 amount,
                 message.token_amounts[i].dest_token_address,
                 token_pool_address,

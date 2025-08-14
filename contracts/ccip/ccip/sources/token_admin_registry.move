@@ -17,7 +17,6 @@ public struct TokenAdminRegistryState has key, store {
     token_configs: LinkedTable<address, TokenConfig>,
 }
 
-// TODO: what limit should we set for the length of the lock_or_burn_params and release_or_mint_params?
 public struct TokenConfig has store, drop, copy {
     token_pool_package_id: address,
     token_pool_module: String,
@@ -27,21 +26,6 @@ public struct TokenConfig has store, drop, copy {
     pending_administrator: address,
     // type proof of the token pool
     type_proof: ascii::String,
-    // the extra params for the lock or burn function.
-    // in lock_or_burn function in token pools, the first 3 params are mandatory and always the same,
-    // which include CCIP object ref, coin, and remote chain selector.
-    // the rest of the params are extra params for the lock or burn function and they are provided
-    // here at the process of registering the token pool.
-    // these extra params are expected to be object ids. they MUST be shared, or immutable, or accessible
-    // onchain by the PTB sender.
-    lock_or_burn_params: vector<address>,
-    // the extra params for the release or mint function.
-    // in release_or_mint function in token pools, the first 3 params are mandatory and always the same,
-    // which include CCIP object ref, hot potato, and index.
-    // the rest of the params are extra params for the release or mint function and they are provided
-    // here at the process of registering the token pool.
-    // these extra params are expected to be object ids. they MUST be shared or immutable.
-    release_or_mint_params: vector<address>,
 }
 
 public struct PoolSet has copy, drop {
@@ -50,8 +34,6 @@ public struct PoolSet has copy, drop {
     new_pool_package_id: address,
     // type proof of the new token pool
     type_proof: ascii::String,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
 }
 
 public struct PoolRegistered has copy, drop {
@@ -158,8 +140,6 @@ public fun get_token_config(
             administrator: @0x0,
             pending_administrator: @0x0,
             type_proof: ascii::string(b""),
-            lock_or_burn_params: vector[],
-            release_or_mint_params: vector[],
         }
     }
 }
@@ -180,7 +160,7 @@ public fun get_token_configs(
     token_configs
 }
 
-public fun get_token_config_data(token_config: TokenConfig): (address, String, ascii::String, address, address, ascii::String, vector<address>, vector<address>) {
+public fun get_token_config_data(token_config: TokenConfig): (address, String, ascii::String, address, address, ascii::String) {
     (
         token_config.token_pool_package_id,
         token_config.token_pool_module,
@@ -188,8 +168,6 @@ public fun get_token_config_data(token_config: TokenConfig): (address, String, a
         token_config.administrator,
         token_config.pending_administrator,
         token_config.type_proof,
-        token_config.lock_or_burn_params,
-        token_config.release_or_mint_params,
     )
 }
 
@@ -259,8 +237,8 @@ public fun register_pool<T, TypeProof: drop>(
     token_pool_package_id: address,
     token_pool_module: String,
     initial_administrator: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
+    // lock_or_burn_params: vector<address>,
+    // release_or_mint_params: vector<address>,
     _proof: TypeProof,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
@@ -274,8 +252,6 @@ public fun register_pool<T, TypeProof: drop>(
         token_type,
         initial_administrator,
         type_name::into_string(proof_tn),
-        lock_or_burn_params,
-        release_or_mint_params,
     );
 }
 
@@ -290,8 +266,8 @@ public fun register_pool_by_admin(
     token_type: ascii::String,
     initial_administrator: address,
     proof: ascii::String,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
+    // lock_or_burn_params: vector<address>,
+    // release_or_mint_params: vector<address>,
     _: &mut TxContext,
 ) {
     register_pool_internal(
@@ -302,8 +278,6 @@ public fun register_pool_by_admin(
         token_type,
         initial_administrator,
         proof,
-        lock_or_burn_params,
-        release_or_mint_params,
     );
 }
 
@@ -315,8 +289,6 @@ fun register_pool_internal(
     token_type: ascii::String,
     initial_administrator: address,
     proof: ascii::String,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
 ) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
     assert!(
@@ -331,8 +303,6 @@ fun register_pool_internal(
         administrator: initial_administrator,
         pending_administrator: @0x0,
         type_proof: proof,
-        lock_or_burn_params,
-        release_or_mint_params,
     };
 
     state.token_configs.push_back(coin_metadata_address, token_config);
@@ -378,8 +348,6 @@ public fun set_pool<TypeProof: drop>(
     coin_metadata_address: address,
     token_pool_package_id: address,
     token_pool_module: String,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
@@ -401,8 +369,6 @@ public fun set_pool<TypeProof: drop>(
     if (previous_pool_package_id != token_pool_package_id) {
         token_config.token_pool_package_id = token_pool_package_id;
         token_config.token_pool_module = token_pool_module;
-        token_config.lock_or_burn_params = lock_or_burn_params;
-        token_config.release_or_mint_params = release_or_mint_params;
         let proof_tn = type_name::get<TypeProof>();
         let proof_str = type_name::into_string(proof_tn);
         token_config.type_proof = proof_str;
@@ -413,8 +379,6 @@ public fun set_pool<TypeProof: drop>(
                 previous_pool_package_id,
                 new_pool_package_id: token_pool_package_id,
                 type_proof: proof_str,
-                lock_or_burn_params,
-                release_or_mint_params,
             }
         );
     }
@@ -509,8 +473,6 @@ public fun insert_token_configs_for_test<TypeProof: drop>(
             administrator: @0x0,
             pending_administrator: @0x0,
             type_proof: ascii::string(b"TestProof"),
-            lock_or_burn_params: vector[],
-            release_or_mint_params: vector[],
         };
         state.token_configs.push_back(
             coin_metadata_addresses[i],

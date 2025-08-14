@@ -102,8 +102,6 @@ fun register_test_pool<T>(
         pool_package_id,
         string::utf8(pool_module),
         admin,
-        vector[], // lock_or_burn_params
-        vector[], // release_or_mint_params
         TypeProof {},
     );
 }
@@ -120,8 +118,6 @@ fun assert_empty_token_config(
         administrator,
         pending_administrator,
         proof,
-        _lock_or_burn_params,
-        _release_or_mint_params,
     ) = registry::get_token_config_data(token_config);
 
     assert!(token_pool_package_id == @0x0);
@@ -149,8 +145,6 @@ fun assert_token_config(
         administrator,
         pending_administrator,
         _proof,
-        _lock_or_burn_params,
-        _release_or_mint_params,
     ) = registry::get_token_config_data(token_config);
 
     assert!(token_pool_package_id == expected_package_id);
@@ -245,8 +239,6 @@ public fun test_register_pool_by_admin() {
             ascii::string(b"TestType"),
             TOKEN_ADMIN_ADDRESS, // initial_administrator
             ascii::string(b"AdminProof"), // proof
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             ctx,
         );
 
@@ -349,7 +341,7 @@ public fun test_register_and_set_pool() {
         );
 
         let token_config = registry::get_token_config(&ref, local_token);
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
+        let (_, _, token_type, _, _, type_proof) = registry::get_token_config_data(token_config);
         assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
 
@@ -361,8 +353,6 @@ public fun test_register_and_set_pool() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,   
             string::utf8(b"mock_token_pool_2"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             TypeProof2 {},
             ctx,
         );
@@ -390,7 +380,7 @@ public fun test_register_and_set_pool() {
         );
 
         let token_config = registry::get_token_config(&ref, local_token);
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
+        let (_, _, token_type, _, _, type_proof) = registry::get_token_config_data(token_config);
         assert!(token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"));
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof2>()));
 
@@ -441,8 +431,6 @@ public fun test_get_token_configs() {
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             string::utf8(b"mock_token_pool_2"),
             TOKEN_ADMIN_ADDRESS,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             TypeProof2 {},
         );
 
@@ -454,15 +442,15 @@ public fun test_get_token_configs() {
         
         // Verify functionality through get_token_configs results
         assert!(token_configs.length() == 2);
-        let (token_pool_package_id_1, _, _, _, _, _, _, _) = registry::get_token_config_data(token_configs[0]);
-        let (token_pool_package_id_2, _, _, _, _, _, _, _) = registry::get_token_config_data(token_configs[1]);
+        let (token_pool_package_id_1, _, _, _, _, _) = registry::get_token_config_data(token_configs[0]);
+        let (token_pool_package_id_2, _, _, _, _, _) = registry::get_token_config_data(token_configs[1]);
         assert!(token_pool_package_id_1 == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(token_pool_package_id_2 == MOCK_TOKEN_POOL_PACKAGE_ID_2);
         
         // Test with mixed registered/unregistered tokens
         assert!(mixed_token_configs.length() == 2);
-        let (mixed_token_pool_package_id_1, _, _, _, _, _, _, _) = registry::get_token_config_data(mixed_token_configs[0]);
-        let (mixed_token_pool_package_id_2, _, _, _, _, _, _, _) = registry::get_token_config_data(mixed_token_configs[1]);
+        let (mixed_token_pool_package_id_1, _, _, _, _, _) = registry::get_token_config_data(mixed_token_configs[0]);
+        let (mixed_token_pool_package_id_2, _, _, _, _, _) = registry::get_token_config_data(mixed_token_configs[1]);
         assert!(mixed_token_pool_package_id_1 == MOCK_TOKEN_POOL_PACKAGE_ID_1);
         assert!(mixed_token_pool_package_id_2 == @0x0); // unregistered token
         
@@ -646,7 +634,7 @@ public fun test_set_pool_comprehensive() {
         );
 
         let token_config = registry::get_token_config(&ref, local_token);
-        let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
+        let (_, _, _, _, _, type_proof) = registry::get_token_config_data(token_config);
         assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
 
         let ctx = scenario.ctx();
@@ -657,8 +645,6 @@ public fun test_set_pool_comprehensive() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             string::utf8(b"updated_token_pool"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             TypeProof2 {},
             ctx,
         );
@@ -675,7 +661,7 @@ public fun test_set_pool_comprehensive() {
         );
 
         let token_config = registry::get_token_config(&ref, local_token);
-        let (_, _, _, _, _, updated_type_proof, _, _) = registry::get_token_config_data(token_config);
+        let (_, _, _, _, _, updated_type_proof) = registry::get_token_config_data(token_config);
         assert!(updated_type_proof == type_name::into_string(type_name::get<TypeProof2>()));
 
         // Test set_pool with same package ID (should not trigger update)
@@ -684,8 +670,6 @@ public fun test_set_pool_comprehensive() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2, // same package ID
             string::utf8(b"should_not_update"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             TypeProof {},
             ctx,
         );
@@ -702,7 +686,7 @@ public fun test_set_pool_comprehensive() {
         );
 
         let token_config = registry::get_token_config(&ref, local_token);
-        let (_, _, _, _, _, final_type_proof, _, _) = registry::get_token_config_data(token_config);
+        let (_, _, _, _, _, final_type_proof) = registry::get_token_config_data(token_config);
         assert!(final_type_proof == type_name::into_string(type_name::get<TypeProof2>())); // unchanged
         
         transfer::public_transfer(treasury_cap, ctx.sender());
@@ -817,8 +801,6 @@ public fun test_set_pool_unregistered_token() {
             @0x999, // unregistered token
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             string::utf8(b"test_pool"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             TypeProof {},
             ctx,
         );
@@ -869,8 +851,6 @@ public fun test_set_pool_unauthorized() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             string::utf8(b"unauthorized_update"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
             TypeProof2 {},
             ctx,
         );
