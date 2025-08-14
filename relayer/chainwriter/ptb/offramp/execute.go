@@ -87,6 +87,7 @@ func BuildOffRampExecutePTB(
 		}
 	}
 
+	// An interface used to make dev inspect calls in bindings, actual signing does not happen here.
 	devInspectSigner := signer.NewDevInspectSigner(signerAddress)
 
 	// Call options for bindings DevInspect calls
@@ -94,14 +95,6 @@ func BuildOffRampExecutePTB(
 		Signer:           devInspectSigner,
 		WaitForExecution: true,
 	}
-
-	// Set the ccip package interface from bindings
-	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, sdkClient)
-	if err != nil {
-		return err
-	}
-	tokenAdminRegistryContract := ccipPkg.TokenAdminRegistry().(*module_token_admin_registry.TokenAdminRegistryContract)
-	tokenAdminRegistryDevInspect := tokenAdminRegistryContract.DevInspect()
 
 	// Set the offramp package interface from bindings
 	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, sdkClient)
@@ -132,108 +125,31 @@ func BuildOffRampExecutePTB(
 		return fmt.Errorf("failed to build PTB (init_execute) using bindings: %w", err)
 	}
 
-	// Generate N token pool commands and attach them to the PTB, each command must return a result
-	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
-	tokenConfigs, err := tokenAdminRegistryDevInspect.GetTokenConfigs(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
-	tokenPoolCommandsResults := make([]transaction.Argument, 0)
-	for idx, tokenPoolConfigs := range tokenConfigs {
-		// Get the relevant receiver params data for this token pool
-		tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
-		// Get the move normalized module to dynamically construct the parameters for the token pool call
-		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule)
-		if err != nil {
-			return fmt.Errorf("failed to get normalized module for token pool: %w", err)
-		}
+	// Process each token pool from this offramp execution after getting their configs
+	// from the registry. Attach the commands to the PTB and return their argument results.
+	tokenPoolCommandsResults, err := ProcessTokenPools(
+		ctx,
+		lggr,
+		ptbClient,
+		ptb,
+		&addressMappings,
+		callOpts,
+		coinMetadataAddresses,
+		receiverParamsData,
+	)
 
-		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(
-			ctx,
-			lggr,
-			sdkClient,
-			ptb,
-			callOpts,
-			&addressMappings,
-			&tokenPoolConfigs,
-			&tokenPoolNormalizedModule,
-			tokenPoolEncodedData,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to append token pool command to PTB: %w", err)
-		}
-
-		tokenPoolCommandsResults = append(tokenPoolCommandsResults, *tokenPoolCommandResult)
-	}
-
-	// Create a receiver binding interface to filter out non-registered receivers
-	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, sdkClient)
+	// Process each message and create PTB commands for each (valid) receiver.
+	receiverCommandsResults, err := ProcessReceivers(
+		ctx,
+		lggr,
+		ptbClient,
+		ptb,
+		messages,
+		&addressMappings,
+		callOpts,
+	)
 	if err != nil {
 		return err
-	}
-	receiverRegistryDevInspect := receiverRegistryPkg.DevInspect()
-
-	receiverCommandsResults := make([]transaction.Argument, 0)
-	// Generate receiver call commands
-	for _, message := range messages {
-		// If there is no receiver, skip this message
-		if len(message.Receiver) == 0 || message.Receiver == nil {
-			lggr.Debugw("no receiver specified, skipping message in offramp execution...", "message", message)
-			continue
-		}
-		// If there is no data, skip this message
-		if len(message.Data) == 0 {
-			lggr.Debugw("no data specified, skipping message in offramp execution...", "message", message)
-			continue
-		}
-
-		// Parse the receiver string into `packageID::moduleID::functionName` format
-		receiverParts := strings.Split(string(message.Receiver), "::")
-		if len(receiverParts) != 3 {
-			return fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
-		}
-
-		receiverPackageId, receiverModule, receiverFunction := receiverParts[0], receiverParts[1], receiverParts[2]
-		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
-		if err != nil {
-			return fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
-		}
-		if !isRegistered {
-			// TODO: should this fail the whole execution?
-			lggr.Debugw("receiver is not registered in offramp execution, skipping message...", "receiver", message.Receiver)
-			continue
-		}
-
-		// Get the receiver config via the receiver registry binding
-		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(
-			ctx,
-			callOpts,
-			bind.Object{Id: addressMappings.CcipObjectRef},
-			receiverPackageId,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to get receiver config for offramp execution: %w", err)
-		}
-
-		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverModule)
-		if err != nil {
-			return fmt.Errorf("failed to get normalized module for token pool: %w", err)
-		}
-
-		receiverCommandResult, err := AppendPTBCommandForReceiver(
-			ctx,
-			lggr,
-			sdkClient,
-			ptb,
-			callOpts,
-			receiverPackageId,
-			receiverModule,
-			receiverFunction,
-			&addressMappings,
-			&receiverConfig,
-			&receiverNormalizedModule,
-		)
-		if err != nil {
-			return err
-		}
-		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
 
 	var ccipReceiveCommandResult *transaction.Argument
@@ -261,6 +177,64 @@ func BuildOffRampExecutePTB(
 	}
 
 	return nil
+}
+
+func ProcessTokenPools(
+	ctx context.Context,
+	lggr logger.Logger,
+	ptbClient client.SuiPTBClient,
+	ptb *transaction.Transaction,
+	addressMappings *OffRampAddressMappings,
+	callOpts *bind.CallOpts,
+	coinMetadataAddresses []string,
+	receiverParamsData map[string]ReceiverParams,
+) ([]transaction.Argument, error) {
+	sdkClient := ptbClient.GetClient()
+
+	// Set the ccip package interface from bindings
+	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, sdkClient)
+	if err != nil {
+		return nil, err
+	}
+	tokenAdminRegistryContract := ccipPkg.TokenAdminRegistry().(*module_token_admin_registry.TokenAdminRegistryContract)
+	tokenAdminRegistryDevInspect := tokenAdminRegistryContract.DevInspect()
+
+	// Generate N token pool commands and attach them to the PTB, each command must return a result
+	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
+	tokenConfigs, err := tokenAdminRegistryDevInspect.GetTokenConfigs(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token configs for offramp execution: %w", err)
+	}
+
+	tokenPoolCommandsResults := make([]transaction.Argument, 0)
+	for idx, tokenPoolConfigs := range tokenConfigs {
+		// Get the relevant receiver params data for this token pool
+		tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
+		// Get the move normalized module to dynamically construct the parameters for the token pool call
+		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
+		}
+
+		tokenPoolCommandResult, err := AppendPTBCommandForTokenPool(
+			ctx,
+			lggr,
+			sdkClient,
+			ptb,
+			callOpts,
+			addressMappings,
+			&tokenPoolConfigs,
+			&tokenPoolNormalizedModule,
+			tokenPoolEncodedData,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
+		}
+
+		tokenPoolCommandsResults = append(tokenPoolCommandsResults, *tokenPoolCommandResult)
+	}
+
+	return tokenPoolCommandsResults, nil
 }
 
 func AppendPTBCommandForTokenPool(
@@ -340,6 +314,93 @@ func AppendPTBCommandForTokenPool(
 	}
 
 	return tokenPoolCommandResult, nil
+}
+
+func ProcessReceivers(
+	ctx context.Context,
+	lggr logger.Logger,
+	ptbClient client.SuiPTBClient,
+	ptb *transaction.Transaction,
+	messages []ccipocr3.Message,
+	addressMappings *OffRampAddressMappings,
+	callOpts *bind.CallOpts,
+) ([]transaction.Argument, error) {
+	sdkClient := ptbClient.GetClient()
+
+	// Create a receiver binding interface to filter out non-registered receivers
+	receiverRegistryPkg, err := receiver_registry.NewReceiverRegistry(addressMappings.CcipPackageId, sdkClient)
+	if err != nil {
+		return nil, err
+	}
+	receiverRegistryDevInspect := receiverRegistryPkg.DevInspect()
+
+	receiverCommandsResults := make([]transaction.Argument, 0)
+	// Generate receiver call commands
+	for _, message := range messages {
+		// If there is no receiver, skip this message
+		if len(message.Receiver) == 0 || message.Receiver == nil {
+			lggr.Debugw("no receiver specified, skipping message in offramp execution...", "message", message)
+			continue
+		}
+		// If there is no data, skip this message
+		if len(message.Data) == 0 {
+			lggr.Debugw("no data specified, skipping message in offramp execution...", "message", message)
+			continue
+		}
+
+		// Parse the receiver string into `packageID::moduleID::functionName` format
+		receiverParts := strings.Split(string(message.Receiver), "::")
+		if len(receiverParts) != 3 {
+			return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
+		}
+
+		receiverPackageId, receiverModule, receiverFunction := receiverParts[0], receiverParts[1], receiverParts[2]
+		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
+		}
+		if !isRegistered {
+			// TODO: should this fail the whole execution?
+			lggr.Debugw("receiver is not registered in offramp execution, skipping message...", "receiver", message.Receiver)
+			continue
+		}
+
+		// Get the receiver config via the receiver registry binding
+		receiverConfig, err := receiverRegistryDevInspect.GetReceiverConfig(
+			ctx,
+			callOpts,
+			bind.Object{Id: addressMappings.CcipObjectRef},
+			receiverPackageId,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get receiver config for offramp execution: %w", err)
+		}
+
+		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverModule)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
+		}
+
+		receiverCommandResult, err := AppendPTBCommandForReceiver(
+			ctx,
+			lggr,
+			sdkClient,
+			ptb,
+			callOpts,
+			receiverPackageId,
+			receiverModule,
+			receiverFunction,
+			addressMappings,
+			&receiverConfig,
+			&receiverNormalizedModule,
+		)
+		if err != nil {
+			return nil, err
+		}
+		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
+	}
+
+	return receiverCommandsResults, nil
 }
 
 func AppendPTBCommandForReceiver(
