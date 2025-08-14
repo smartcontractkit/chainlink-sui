@@ -23,8 +23,11 @@ type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverStateParams []string) (*models.SuiTransactionBlockResponse, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
+	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
 	Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) (*models.SuiTransactionBlockResponse, error)
-	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
 }
@@ -32,8 +35,10 @@ type IDummyReceiver interface {
 type IDummyReceiverDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (uint64, error)
+	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]TokenAmount, error)
+	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (string, error)
+	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (uint64, error)
 	Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) ([]byte, error)
-	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, param bind.Object) (bind.Object, error)
 }
 
 type DummyReceiverEncoder interface {
@@ -43,9 +48,15 @@ type DummyReceiverEncoder interface {
 	RegisterReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCounter(state bind.Object) (*bind.EncodedCall, error)
 	GetCounterWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetDestTokenAmounts(state bind.Object) (*bind.EncodedCall, error)
+	GetDestTokenAmountsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenAmountToken(tokenAmount TokenAmount) (*bind.EncodedCall, error)
+	GetTokenAmountTokenWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenAmountAmount(tokenAmount TokenAmount) (*bind.EncodedCall, error)
+	GetTokenAmountAmountWithArgs(args ...any) (*bind.EncodedCall, error)
 	Echo(ref bind.Object, message []byte) (*bind.EncodedCall, error)
 	EchoWithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipReceive(ref bind.Object, receiverParams bind.Object, param bind.Object) (*bind.EncodedCall, error)
+	CcipReceive(ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -90,24 +101,31 @@ type OwnerCap struct {
 }
 
 type ReceivedMessage struct {
-	MessageId               []byte `move:"vector<u8>"`
-	SourceChainSelector     uint64 `move:"u64"`
-	Sender                  []byte `move:"vector<u8>"`
-	Data                    []byte `move:"vector<u8>"`
-	DestTokenTransferLength uint64 `move:"u64"`
+	MessageId               []byte        `move:"vector<u8>"`
+	SourceChainSelector     uint64        `move:"u64"`
+	Sender                  []byte        `move:"vector<u8>"`
+	Data                    []byte        `move:"vector<u8>"`
+	DestTokenTransferLength uint64        `move:"u64"`
+	DestTokenAmounts        []TokenAmount `move:"vector<TokenAmount>"`
 }
 
 type CCIPReceiverState struct {
-	Id                      string `move:"sui::object::UID"`
-	Counter                 uint64 `move:"u64"`
-	MessageId               []byte `move:"vector<u8>"`
-	SourceChainSelector     uint64 `move:"u64"`
-	Sender                  []byte `move:"vector<u8>"`
-	Data                    []byte `move:"vector<u8>"`
-	DestTokenTransferLength uint64 `move:"u64"`
+	Id                      string        `move:"sui::object::UID"`
+	Counter                 uint64        `move:"u64"`
+	MessageId               []byte        `move:"vector<u8>"`
+	SourceChainSelector     uint64        `move:"u64"`
+	Sender                  []byte        `move:"vector<u8>"`
+	Data                    []byte        `move:"vector<u8>"`
+	DestTokenTransferLength uint64        `move:"u64"`
+	DestTokenAmounts        []TokenAmount `move:"vector<TokenAmount>"`
 }
 
 type DummyReceiverProof struct {
+}
+
+type TokenAmount struct {
+	Token  string `move:"address"`
+	Amount uint64 `move:"u64"`
 }
 
 type bcsOwnerCap struct {
@@ -119,6 +137,18 @@ func convertOwnerCapFromBCS(bcs bcsOwnerCap) OwnerCap {
 	return OwnerCap{
 		Id:              bcs.Id,
 		ReceiverAddress: fmt.Sprintf("0x%x", bcs.ReceiverAddress),
+	}
+}
+
+type bcsTokenAmount struct {
+	Token  [32]byte
+	Amount uint64
+}
+
+func convertTokenAmountFromBCS(bcs bcsTokenAmount) TokenAmount {
+	return TokenAmount{
+		Token:  fmt.Sprintf("0x%x", bcs.Token),
+		Amount: bcs.Amount,
 	}
 }
 
@@ -157,6 +187,16 @@ func init() {
 		}
 		return result, nil
 	})
+	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::TokenAmount", func(data []byte) (interface{}, error) {
+		var temp bcsTokenAmount
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result := convertTokenAmountFromBCS(temp)
+		return result, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -189,6 +229,36 @@ func (c *DummyReceiverContract) GetCounter(ctx context.Context, opts *bind.CallO
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetDestTokenAmounts executes the get_dest_token_amounts Move function.
+func (c *DummyReceiverContract) GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.GetDestTokenAmounts(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetTokenAmountToken executes the get_token_amount_token Move function.
+func (c *DummyReceiverContract) GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.GetTokenAmountToken(tokenAmount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetTokenAmountAmount executes the get_token_amount_amount Move function.
+func (c *DummyReceiverContract) GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.GetTokenAmountAmount(tokenAmount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // Echo executes the echo Move function.
 func (c *DummyReceiverContract) Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.dummyReceiverEncoder.Echo(ref, message)
@@ -200,8 +270,8 @@ func (c *DummyReceiverContract) Echo(ctx context.Context, opts *bind.CallOpts, r
 }
 
 // CcipReceive executes the ccip_receive Move function.
-func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.CcipReceive(ref, receiverParams, param)
+func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.CcipReceive(ref, message, param, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -253,6 +323,72 @@ func (d *DummyReceiverDevInspect) GetCounter(ctx context.Context, opts *bind.Cal
 	return result, nil
 }
 
+// GetDestTokenAmounts executes the get_dest_token_amounts Move function using DevInspect to get return values.
+//
+// Returns: vector<TokenAmount>
+func (d *DummyReceiverDevInspect) GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]TokenAmount, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.GetDestTokenAmounts(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]TokenAmount)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []TokenAmount, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenAmountToken executes the get_token_amount_token Move function using DevInspect to get return values.
+//
+// Returns: address
+func (d *DummyReceiverDevInspect) GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (string, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.GetTokenAmountToken(tokenAmount)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenAmountAmount executes the get_token_amount_amount Move function using DevInspect to get return values.
+//
+// Returns: u64
+func (d *DummyReceiverDevInspect) GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (uint64, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.GetTokenAmountAmount(tokenAmount)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(uint64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	}
+	return result, nil
+}
+
 // Echo executes the echo Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
@@ -271,28 +407,6 @@ func (d *DummyReceiverDevInspect) Echo(ctx context.Context, opts *bind.CallOpts,
 	result, ok := results[0].([]byte)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
-	}
-	return result, nil
-}
-
-// CcipReceive executes the ccip_receive Move function using DevInspect to get return values.
-//
-// Returns: osh::ReceiverParams
-func (d *DummyReceiverDevInspect) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverParams bind.Object, param bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.dummyReceiverEncoder.CcipReceive(ref, receiverParams, param)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -384,6 +498,96 @@ func (c dummyReceiverEncoder) GetCounterWithArgs(args ...any) (*bind.EncodedCall
 	})
 }
 
+// GetDestTokenAmounts encodes a call to the get_dest_token_amounts Move function.
+func (c dummyReceiverEncoder) GetDestTokenAmounts(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_token_amounts", typeArgsList, typeParamsList, []string{
+		"&CCIPReceiverState",
+	}, []any{
+		state,
+	}, []string{
+		"vector<ccip_dummy_receiver::dummy_receiver::TokenAmount>",
+	})
+}
+
+// GetDestTokenAmountsWithArgs encodes a call to the get_dest_token_amounts Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) GetDestTokenAmountsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPReceiverState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_dest_token_amounts", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<ccip_dummy_receiver::dummy_receiver::TokenAmount>",
+	})
+}
+
+// GetTokenAmountToken encodes a call to the get_token_amount_token Move function.
+func (c dummyReceiverEncoder) GetTokenAmountToken(tokenAmount TokenAmount) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_amount_token", typeArgsList, typeParamsList, []string{
+		"&TokenAmount",
+	}, []any{
+		tokenAmount,
+	}, []string{
+		"address",
+	})
+}
+
+// GetTokenAmountTokenWithArgs encodes a call to the get_token_amount_token Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) GetTokenAmountTokenWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&TokenAmount",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_amount_token", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
+	})
+}
+
+// GetTokenAmountAmount encodes a call to the get_token_amount_amount Move function.
+func (c dummyReceiverEncoder) GetTokenAmountAmount(tokenAmount TokenAmount) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_amount_amount", typeArgsList, typeParamsList, []string{
+		"&TokenAmount",
+	}, []any{
+		tokenAmount,
+	}, []string{
+		"u64",
+	})
+}
+
+// GetTokenAmountAmountWithArgs encodes a call to the get_token_amount_amount Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) GetTokenAmountAmountWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&TokenAmount",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_amount_amount", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
+	})
+}
+
 // Echo encodes a call to the echo Move function.
 func (c dummyReceiverEncoder) Echo(ref bind.Object, message []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -418,20 +622,20 @@ func (c dummyReceiverEncoder) EchoWithArgs(args ...any) (*bind.EncodedCall, erro
 }
 
 // CcipReceive encodes a call to the ccip_receive Move function.
-func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, receiverParams bind.Object, param bind.Object) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"client::Any2SuiMessage",
 		"&Clock",
+		"&mut CCIPReceiverState",
 	}, []any{
 		ref,
-		receiverParams,
+		message,
 		param,
-	}, []string{
-		"osh::ReceiverParams",
-	})
+		state,
+	}, nil)
 }
 
 // CcipReceiveWithArgs encodes a call to the ccip_receive Move function using arbitrary arguments.
@@ -439,8 +643,9 @@ func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, receiverParams bind.O
 func (c dummyReceiverEncoder) CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
-		"osh::ReceiverParams",
+		"client::Any2SuiMessage",
 		"&Clock",
+		"&mut CCIPReceiverState",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -448,7 +653,5 @@ func (c dummyReceiverEncoder) CcipReceiveWithArgs(args ...any) (*bind.EncodedCal
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"osh::ReceiverParams",
-	})
+	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
