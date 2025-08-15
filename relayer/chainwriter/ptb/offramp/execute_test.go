@@ -277,11 +277,11 @@ func SetupTokenPool(t *testing.T,
 
 		// Chain updates - adding the destination chain
 		RemoteChainSelectorsToRemove: []uint64{},
-		RemoteChainSelectorsToAdd:    []uint64{destChainSelector},             // Destination chain selector
+		RemoteChainSelectorsToAdd:    []uint64{ETHEREUM_CHAIN_SELECTOR},       // Destination chain selector
 		RemotePoolAddressesToAdd:     [][]string{{ethereumPoolAddressString}}, // 32-byte remote pool address
 		RemoteTokenAddressesToAdd:    []string{remoteTokenAddressString},      // 32-byte remote token address
 		// Rate limiter configurations
-		RemoteChainSelectors: []uint64{destChainSelector}, // Destination chain selector
+		RemoteChainSelectors: []uint64{ETHEREUM_CHAIN_SELECTOR}, // Destination chain selector
 		OutboundIsEnableds:   []bool{false},
 		OutboundCapacities:   []uint64{1000000}, // 1M tokens capacity
 		OutboundRates:        []uint64{100000},  // 100K tokens per time window
@@ -535,7 +535,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 
 func TestExecuteOffRamp(t *testing.T) {
 	lggr := logger.Test(t)
-	env := SetupTestEnvironment(t, SUI_CHAIN_SELECTOR, ETHEREUM_CHAIN_SELECTOR, testutils.NewTestKeystore(t))
+	env := SetupTestEnvironment(t, ETHEREUM_CHAIN_SELECTOR, SUI_CHAIN_SELECTOR, testutils.NewTestKeystore(t))
 
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
@@ -583,12 +583,21 @@ func TestExecuteOffRamp(t *testing.T) {
 		hexEncodedLinkPackageId, err := hex.DecodeString(strings.Replace(linkTokenPackageId, "0x", "", 1))
 		require.NoError(t, err, "failed to decode link token package id")
 
+		var messageIDBytes32 ccipocr3.Bytes32
+
 		execReport := ccipocr3.ExecuteReportInfo{
 			AbstractReports: []ccipocr3.ExecutePluginReportSingleChain{
 				{
 					SourceChainSelector: ETHEREUM_CHAIN_SELECTOR,
 					Messages: []ccipocr3.Message{
 						{
+							Header: ccipocr3.RampMessageHeader{
+								MessageID:           messageIDBytes32,
+								SourceChainSelector: ccipocr3.ChainSelector(ETHEREUM_CHAIN_SELECTOR),
+								DestChainSelector:   ccipocr3.ChainSelector(SUI_CHAIN_SELECTOR),
+								SequenceNumber:      ccipocr3.SeqNum(uint64(1)),
+								Nonce:               uint64(0),
+							},
 							Receiver: []byte{}, // []byte(receiver),
 							Data:     []byte(rawContent),
 							TokenAmounts: []ccipocr3.RampTokenAmount{
