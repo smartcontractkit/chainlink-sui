@@ -282,6 +282,11 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)
 	}
 
+	tokenType := tokenPoolConfigs.TokenType
+	if !strings.HasPrefix(tokenType, "0x") {
+		tokenType = "0x" + tokenType
+	}
+
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	paramTypes := []string{
@@ -322,7 +327,7 @@ func AppendPTBCommandForTokenPool(
 	//bcsEncoder.WriteBytes(data.OffchainTokenData)
 	//encodedData := bcsEncoder.ToBytes()
 
-	typeArgsList = []string{}
+	typeArgsList = []string{tokenType}
 	typeParamsList = []string{}
 	paramTypes = []string{}
 	// The fixed arguments that must be present for every token pool call.

@@ -523,6 +523,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 
 	return &EnvironmentSettings{
 		AccountAddress:      accountAddress,
+		EthereumPoolAddress: []byte(ethereumPoolAddressString),
 		MockLinkReport:      mockLinkReport,
 		CCIPReport:          report,
 		OffRampReport:       offrampReport,
@@ -602,8 +603,10 @@ func TestExecuteOffRamp(t *testing.T) {
 							Data:     []byte(rawContent),
 							TokenAmounts: []ccipocr3.RampTokenAmount{
 								{
-									DestTokenAddress: hexEncodedLinkPackageId,
-									Amount:           tokenAmount,
+									SourcePoolAddress: env.EthereumPoolAddress,
+									DestTokenAddress:  hexEncodedLinkPackageId,
+									Amount:            tokenAmount,
+									ExtraData:         []byte{},
 								},
 							},
 						},
