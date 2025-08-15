@@ -39,6 +39,13 @@ const (
 	ETHEREUM_CHAIN_SELECTOR = 1
 )
 
+var ConfigDigest = []byte{
+	0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
+	0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
+	0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
+	0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
+}
+
 func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI, ed25519.PrivateKey) {
 	t.Helper()
 
@@ -192,12 +199,7 @@ func SetupOffRamp(t *testing.T,
 		},
 		CommitOCR3Config: offrampops.SetOCR3ConfigInput{
 			// Sample config digest
-			ConfigDigest: []byte{
-				0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
-				0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
-				0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
-				0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
-			},
+			ConfigDigest:                   ConfigDigest,
 			OCRPluginType:                  byte(0),
 			BigF:                           byte(1),
 			IsSignatureVerificationEnabled: true,
@@ -205,12 +207,7 @@ func SetupOffRamp(t *testing.T,
 			Transmitters:                   signerAddresses,
 		},
 		ExecutionOCR3Config: offrampops.SetOCR3ConfigInput{
-			ConfigDigest: []byte{
-				0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
-				0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
-				0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
-				0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
-			},
+			ConfigDigest:                   ConfigDigest,
 			OCRPluginType:                  byte(1),
 			BigF:                           byte(1),
 			IsSignatureVerificationEnabled: false,
@@ -623,6 +620,13 @@ func TestExecuteOffRamp(t *testing.T) {
 
 		execReportBCSBytes, err := testutils.SerializeExecutionReport(report)
 		require.NoError(t, err, "failed to serialize execution report")
+
+		reportContext := [][]byte{
+			make([]byte, 32), // config digest - 32 bytes
+			make([]byte, 32), // epoch and round - 32 bytes
+		}
+		reportContext[0] = ConfigDigest
+		reportContext[1][0] = 0x022
 
 		args := cwConfig.Arguments{
 			Args: map[string]interface{}{
