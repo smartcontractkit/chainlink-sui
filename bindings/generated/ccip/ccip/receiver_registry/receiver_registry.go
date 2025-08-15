@@ -96,7 +96,7 @@ func (c *ReceiverRegistryContract) DevInspect() IReceiverRegistryDevInspect {
 
 type ReceiverConfig struct {
 	ModuleName    string      `move:"0x1::string::String"`
-	ProofTypename bind.Object `move:"TypeName"`
+	ProofTypename string 	  `move:"TypeName"`
 }
 
 type ReceiverRegistry struct {
