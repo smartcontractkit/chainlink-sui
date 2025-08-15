@@ -5,6 +5,7 @@ package offramp
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -73,7 +74,10 @@ func BuildOffRampExecutePTB(
 		for _, message := range report.Messages {
 			messages = append(messages, message)
 			for _, tokenAmount := range message.TokenAmounts {
-				destTokenAddress := tokenAmount.DestTokenAddress.String()
+				destTokenAddress := "0x" + hex.EncodeToString(tokenAmount.DestTokenAddress)
+
+				lggr.Debugw("found token metadata address", "address", destTokenAddress)
+
 				coinMetadataAddresses = append(coinMetadataAddresses, destTokenAddress)
 
 				// TODO: remove once hot potato approach validated
@@ -141,6 +145,11 @@ func BuildOffRampExecutePTB(
 		coinMetadataAddresses,
 		initExecuteResult,
 	)
+	if err != nil {
+		return err
+	}
+
+	lggr.Debugw("finished processing token pool calls", "tokenPoolCalls", tokenPoolCommandsResults)
 
 	// Process each message and create PTB commands for each (valid) receiver.
 	_, err = ProcessReceivers(
@@ -159,7 +168,7 @@ func BuildOffRampExecutePTB(
 
 	// Make a vector of hot potatoes from all the token pool commands' results.
 	// This will be passed into the final `finish_execute` call.
-	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer("_"), tokenPoolCommandsResults)
+	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer(""), tokenPoolCommandsResults)
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
@@ -187,6 +196,8 @@ func ProcessTokenPools(
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
+	lggr.Debugw("processing token pools for offramp execution...", "coinMetadataAddresses", coinMetadataAddresses)
+
 	// Set the ccip package interface from bindings
 	ccipPkg, err := ccip.NewCCIP(addressMappings.CcipPackageId, sdkClient)
 	if err != nil {
@@ -197,19 +208,21 @@ func ProcessTokenPools(
 
 	// Generate N token pool commands and attach them to the PTB, each command must return a result
 	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
-	tokenConfigs, err := tokenAdminRegistryDevInspect.GetTokenConfigs(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddresses)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token configs for offramp execution: %w", err)
-	}
-
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
-	for idx, tokenPoolConfigs := range tokenConfigs {
+	for idx, coinMetadataAddress := range coinMetadataAddresses {
+		tokenConfig, err := tokenAdminRegistryDevInspect.GetTokenConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get token configs for offramp execution: %w", err)
+		}
+
+		lggr.Debugw("fetched token configs via dev inspect call", "tokenConfig", tokenConfig)
+
 		// TODO: remove once hot potato approach validated
 		//// Get the relevant receiver params data for this token pool
 		//tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
 
 		// Get the move normalized module to dynamically construct the parameters for the token pool call
-		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenPoolConfigs.TokenPoolPackageId, tokenPoolConfigs.TokenPoolModule)
+		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenConfig.TokenPoolPackageId, tokenConfig.TokenPoolModule)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
 		}
@@ -221,7 +234,7 @@ func ProcessTokenPools(
 			ptb,
 			callOpts,
 			addressMappings,
-			&tokenPoolConfigs,
+			&tokenConfig,
 			&tokenPoolNormalizedModule,
 			receiverParams,
 			idx,
@@ -336,6 +349,8 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
 
+	lggr.Debugw("calling token pool", "paramTypes", paramTypes, "paramValues", paramValues)
+
 	encodedTokenPoolCall, err := poolBoundContract.EncodeCallArgsWithGenerics(
 		OfframpTokenPoolFunctionName,
 		typeArgsList,
@@ -416,6 +431,8 @@ func ProcessReceivers(
 			return nil, fmt.Errorf("failed to get receiver config for offramp execution: %w", err)
 		}
 
+		lggr.Debugw("fetched receiver config via dev inspect call", "receiverConfig", receiverConfig)
+
 		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverModule)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
@@ -475,12 +492,17 @@ func AppendPTBCommandForReceiver(
 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	paramTypes := []string{}
+	paramTypes := []string{
+		"&object",
+		"&object",
+	}
 	paramValues := []any{
 		bind.Object{Id: addressMappings.CcipObjectRef},
 		receiverParams,
 		// TODO: figure out what else is needed
 	}
+
+	lggr.Debugw("calling offramp state helper to extract any2sui message", "paramTypes", paramTypes, "paramValues", paramValues)
 
 	encodedAny2SuiExtractCall, err := offrampStateHelperContract.EncodeCallArgsWithGenerics(
 		"extract_any2sui_message",
@@ -519,11 +541,13 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
 
+	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
+
 	// Append dynamic values (addresses) to the paramValues for the receiver call.
 	// This is used for state references for the receiver (similar to the token pool call).
-	for _, value := range receiverConfig.ReceiverStateParams {
-		paramValues = append(paramValues, value)
-	}
+	//for _, value := range receiverConfig.ReceiverStateParams {
+	//	paramValues = append(paramValues, value)
+	//}
 
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
 		functionName,

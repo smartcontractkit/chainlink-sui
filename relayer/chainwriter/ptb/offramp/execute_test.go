@@ -542,8 +542,7 @@ func TestExecuteOffRamp(t *testing.T) {
 	lggr.Infow("Environment settings", "env", env)
 
 	offrampPackageId := env.OffRampReport.Output.CCIPOffRampPackageId
-	linkTokenPackageId := env.MockLinkReport.Output.PackageId
-	linkTokenAddress := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", linkTokenPackageId)
+	linkTokenPackageId := env.MockLinkReport.Output.Objects.CoinMetadataObjectId
 
 	t.Run("TestTokenTransferWithArbitraryMessaging", func(t *testing.T) {
 		lggr.Infow("Testing Token Transfer with Arbitrary Messaging")
@@ -552,7 +551,7 @@ func TestExecuteOffRamp(t *testing.T) {
 		ptb.SetSuiClient(env.Client.(*sui.Client))
 
 		receiverPackageId := env.DummyReceiverReport.Output.DummyReceiverPackageId
-		receiverModule := "ccip_dummy_receiver"
+		receiverModule := "dummy_receiver"
 		receiver := fmt.Sprintf("%s::%s::ccip_receive", receiverPackageId, receiverModule)
 
 		tokenAmount := ccipocr3.BigInt{Int: big.NewInt(300)}
@@ -580,17 +579,20 @@ func TestExecuteOffRamp(t *testing.T) {
 		require.NoError(t, err, "failed to get offramp address mappings")
 		lggr.Infow("Offramp address mappings", "addressMappings", addressMappings)
 
+		hexEncodedLinkPackageId, err := hex.DecodeString(strings.Replace(linkTokenPackageId, "0x", "", 1))
+		require.NoError(t, err, "failed to decode link token package id")
+
 		execReport := ccipocr3.ExecuteReportInfo{
 			AbstractReports: []ccipocr3.ExecutePluginReportSingleChain{
 				{
 					SourceChainSelector: ETHEREUM_CHAIN_SELECTOR,
 					Messages: []ccipocr3.Message{
 						{
-							Receiver: []byte(receiver),
+							Receiver: []byte{}, // []byte(receiver),
 							Data:     []byte(rawContent),
 							TokenAmounts: []ccipocr3.RampTokenAmount{
 								{
-									DestTokenAddress: []byte(linkTokenAddress),
+									DestTokenAddress: hexEncodedLinkPackageId,
 									Amount:           tokenAmount,
 								},
 							},
@@ -600,10 +602,32 @@ func TestExecuteOffRamp(t *testing.T) {
 			},
 		}
 
+		offChainTokenData := [][]byte{
+			make([]byte, 32), // config digest - 32 bytes
+		}
+		offChainTokenData[0] = []byte{
+			0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
+			0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
+			0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
+			0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
+		}
+		proofs := [][]byte{}
+
+		report := testutils.GetExecutionReportFromCCIP(
+			uint64(execReport.AbstractReports[0].SourceChainSelector),
+			execReport.AbstractReports[0].Messages[0],
+			offChainTokenData,
+			proofs,
+			uint32(1_000_000),
+		)
+
+		execReportBCSBytes, err := testutils.SerializeExecutionReport(report)
+		require.NoError(t, err, "failed to serialize execution report")
+
 		args := cwConfig.Arguments{
 			Args: map[string]interface{}{
 				"ReportContext": [2][32]byte{},
-				"Report":        []byte{},
+				"Report":        execReportBCSBytes,
 				"Info":          execReport,
 			},
 		}
@@ -619,5 +643,15 @@ func TestExecuteOffRamp(t *testing.T) {
 		)
 		require.NoError(t, err, "failed to build offramp execute PTB")
 		lggr.Infow("Offramp execute PTB", "ptb", ptb)
+
+		opts := &bind.CallOpts{
+			Signer:           env.Signer,
+			WaitForExecution: true,
+		}
+
+		txResponse, err := bind.ExecutePTB(ctx, opts, env.Client, ptb)
+		require.NoError(t, err, "failed to execute PTB")
+
+		lggr.Debugw("PTB transaction response", "txResponse", txResponse)
 	})
 }

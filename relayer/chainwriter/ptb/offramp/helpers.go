@@ -303,6 +303,10 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 
 	paramTypes := make([]string, 0, len(decodedParameters))
 	for _, param := range decodedParameters {
+		if param.Name == "TxContext" {
+			continue
+		}
+
 		if param.Reference == "Reference" {
 			paramTypes = append(paramTypes, "&object")
 			continue
