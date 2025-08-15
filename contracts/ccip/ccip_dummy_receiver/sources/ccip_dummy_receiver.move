@@ -10,6 +10,8 @@ use ccip::receiver_registry;
 use ccip::state_object::CCIPObjectRef;
 use ccip::offramp_state_helper::{Self as osh};
 
+const EMessageIdMismatch: u64 = 0;
+
 public struct OwnerCap has key, store {
     id: UID,
     receiver_address: address,
@@ -93,6 +95,7 @@ public fun echo(ref: &CCIPObjectRef, message: vector<u8>): vector<u8> {
 
 // any ccip receiver must implement this function with the same signature
 public fun ccip_receive(
+    expected_message_id: vector<u8>,
     ref: &CCIPObjectRef,
     message: client::Any2SuiMessage,
     _: &Clock, // this is a precompile, but remain the same across all messages
@@ -106,6 +109,11 @@ public fun ccip_receive(
         data,
         dest_token_amounts,
     ) = osh::consume_any2sui_message(ref, message, DummyReceiverProof {});
+
+    assert!(
+        message_id == expected_message_id,
+        EMessageIdMismatch
+    );
 
     state.counter = state.counter + 1;
     state.message_id = message_id;

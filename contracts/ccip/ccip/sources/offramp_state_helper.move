@@ -5,7 +5,7 @@ use std::type_name;
 
 use sui::address;
 
-use ccip::client;
+use ccip::client::{Self, Any2SuiMessage, Any2SuiTokenAmount};
 use ccip::receiver_registry;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
@@ -23,7 +23,7 @@ public struct ReceiverParams {
     // if this CCIP message contains token transfers, this vector will be non-empty.
     params: vector<DestTokenTransfer>,
     // if this CCIP message needs to call a function on the receiver, this will be populated.
-    message: Option<client::Any2SuiMessage>,
+    message: Option<Any2SuiMessage>,
     source_chain_selector: u64,
 }
 
@@ -106,7 +106,7 @@ public fun add_dest_token_transfer(
 public fun populate_message(
     _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
-    any2sui_message: client::Any2SuiMessage,
+    any2sui_message: Any2SuiMessage,
 ) {
     receiver_params.message.fill(any2sui_message);
 }
@@ -198,27 +198,12 @@ public fun complete_token_transfer<TypeProof: drop>(
     }
 }
 
-/// this function is called by ccip receiver directly, permissioned by the type proof of the receiver.
-/// the caller must provide an eligible type proof to ensure that the receiver is a valid pre-registered ccip receiver.
-public fun extract_any2sui_message<TypeProof: drop>(
-    ref: &CCIPObjectRef,
+public fun extract_any2sui_message(
     receiver_params: &mut ReceiverParams,
-    _: TypeProof,
-): client::Any2SuiMessage {
+): Any2SuiMessage {
     assert!(
         receiver_params.message.is_some(),
         ENoMessageToExtract
-    );
-
-    let proof_tn = type_name::get<TypeProof>();
-    let address_str = type_name::get_address(&proof_tn);
-    let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
-
-    let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);
-    let (_, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
-    assert!(
-        proof_typename == proof_tn,
-        ETypeProofMismatch
     );
 
     receiver_params.message.extract()
@@ -226,9 +211,9 @@ public fun extract_any2sui_message<TypeProof: drop>(
 
 public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
-    message: client::Any2SuiMessage,
+    message: Any2SuiMessage,
     _: TypeProof,
-): (vector<u8>, u64, vector<u8>, vector<u8>, vector<client::Any2SuiTokenAmount>) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
     let proof_tn = type_name::get<TypeProof>();
     let address_str = type_name::get_address(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));

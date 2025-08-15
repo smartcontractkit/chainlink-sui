@@ -27,7 +27,7 @@ type IDummyReceiver interface {
 	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
 	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
 	Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) (*models.SuiTransactionBlockResponse, error)
-	CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
 }
@@ -56,7 +56,7 @@ type DummyReceiverEncoder interface {
 	GetTokenAmountAmountWithArgs(args ...any) (*bind.EncodedCall, error)
 	Echo(ref bind.Object, message []byte) (*bind.EncodedCall, error)
 	EchoWithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipReceive(ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -270,8 +270,8 @@ func (c *DummyReceiverContract) Echo(ctx context.Context, opts *bind.CallOpts, r
 }
 
 // CcipReceive executes the ccip_receive Move function.
-func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.CcipReceive(ref, message, param, state)
+func (c *DummyReceiverContract) CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.CcipReceive(expectedMessageId, ref, message, param, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -619,15 +619,17 @@ func (c dummyReceiverEncoder) EchoWithArgs(args ...any) (*bind.EncodedCall, erro
 }
 
 // CcipReceive encodes a call to the ccip_receive Move function.
-func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("ccip_receive", typeArgsList, typeParamsList, []string{
+		"vector<u8>",
 		"&CCIPObjectRef",
 		"client::Any2SuiMessage",
 		"&Clock",
 		"&mut CCIPReceiverState",
 	}, []any{
+		expectedMessageId,
 		ref,
 		message,
 		param,
@@ -639,6 +641,7 @@ func (c dummyReceiverEncoder) CcipReceive(ref bind.Object, message bind.Object, 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c dummyReceiverEncoder) CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"vector<u8>",
 		"&CCIPObjectRef",
 		"client::Any2SuiMessage",
 		"&Clock",
