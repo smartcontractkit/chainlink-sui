@@ -10,3 +10,6 @@
 **/build/**
 .DS_Store
 *.cursor
+
+# Node.js
+**/node_modules/
