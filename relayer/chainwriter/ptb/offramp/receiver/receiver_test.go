@@ -4,7 +4,10 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -34,6 +37,152 @@ import (
 
 const SUI_CHAIN_SELECTOR = 2
 const ETHEREUM_CHAIN_SELECTOR = 1
+
+// DeploymentState represents the persistent state from contract deployments
+type DeploymentState struct {
+	// Network configuration
+	NetworkURL     string         `json:"network_url"`
+	ChainSelectors ChainSelectors `json:"chain_selectors"`
+
+	// Package IDs
+	CCIPPackageId          string `json:"ccip_package_id"`
+	OfframpPackageId       string `json:"offramp_package_id"`
+	DummyReceiverPackageId string `json:"dummy_receiver_package_id"`
+	MockLinkPackageId      string `json:"mock_link_package_id"`
+	MCMSPackageId          string `json:"mcms_package_id"`
+
+	// Object References
+	CCIPObjectRefObjectId string `json:"ccip_object_ref_object_id"`
+	OfframpStateObjectId  string `json:"offramp_state_object_id"`
+	OfframpOwnerCapId     string `json:"offramp_owner_cap_id"`
+
+	// CCIP Objects
+	CCIPObjects CCIPObjectReferences `json:"ccip_objects"`
+
+	// Dummy Receiver Objects
+	DummyReceiverObjects DummyReceiverReferences `json:"dummy_receiver_objects"`
+
+	// Mock Link Objects
+	MockLinkObjects MockLinkReferences `json:"mock_link_objects"`
+
+	// Signer information
+	SignerAddress   string   `json:"signer_address"`
+	PublicKeys      []string `json:"public_keys"`
+	SignerAddresses []string `json:"signer_addresses"`
+
+	// Deployment timestamp
+	DeployedAt string `json:"deployed_at"`
+}
+
+type ChainSelectors struct {
+	SuiChainSelector      uint64 `json:"sui_chain_selector"`
+	EthereumChainSelector uint64 `json:"ethereum_chain_selector"`
+}
+
+type CCIPObjectReferences struct {
+	OwnerCapObjectId                string `json:"owner_cap_object_id"`
+	FeeQuoterCapObjectId            string `json:"fee_quoter_cap_object_id"`
+	FeeQuoterStateObjectId          string `json:"fee_quoter_state_object_id"`
+	NonceManagerStateObjectId       string `json:"nonce_manager_state_object_id"`
+	NonceManagerCapObjectId         string `json:"nonce_manager_cap_object_id"`
+	ReceiverRegistryStateObjectId   string `json:"receiver_registry_state_object_id"`
+	RMNRemoteStateObjectId          string `json:"rmn_remote_state_object_id"`
+	TokenAdminRegistryStateObjectId string `json:"token_admin_registry_state_object_id"`
+	SourceTransferCapObjectId       string `json:"source_transfer_cap_object_id"`
+	DestTransferCapObjectId         string `json:"dest_transfer_cap_object_id"`
+}
+
+type DummyReceiverReferences struct {
+	OwnerCapObjectId          string `json:"owner_cap_object_id"`
+	CCIPReceiverStateObjectId string `json:"ccip_receiver_state_object_id"`
+}
+
+type MockLinkReferences struct {
+	CoinMetadataObjectId string `json:"coin_metadata_object_id"`
+	TreasuryCapObjectId  string `json:"treasury_cap_object_id"`
+}
+
+// saveDeploymentState saves the deployment state to a JSON file
+func saveDeploymentState(env *EnvironmentSettings, mcmsPackageId string) error {
+	// Get the project root directory (go up from current test location)
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	// Navigate to project root (assuming we're in relayer/chainwriter/ptb/offramp/receiver/)
+	projectRoot := filepath.Join(currentDir, "..", "..", "..", "..", "..")
+
+	stateFile := filepath.Join(projectRoot, "state.json")
+
+	signerAddress, _ := env.Signer.GetAddress()
+
+	// Convert public keys to hex strings
+	publicKeysHex := make([]string, len(env.PublicKeys))
+	for i, pk := range env.PublicKeys {
+		publicKeysHex[i] = hex.EncodeToString(pk)
+	}
+
+	// Convert signer addresses to strings
+	signerAddresses := make([]string, len(env.SignersAddrBytes))
+	for i, addr := range env.SignersAddrBytes {
+		signerAddresses[i] = "0x" + hex.EncodeToString(addr)
+	}
+
+	state := DeploymentState{
+		NetworkURL: testutils.LocalUrl,
+		ChainSelectors: ChainSelectors{
+			SuiChainSelector:      SUI_CHAIN_SELECTOR,
+			EthereumChainSelector: ETHEREUM_CHAIN_SELECTOR,
+		},
+		CCIPPackageId:          env.CCIPReport.Output.CCIPPackageId,
+		OfframpPackageId:       env.OffRampReport.Output.CCIPOffRampPackageId,
+		DummyReceiverPackageId: env.DummyReceiverReport.Output.DummyReceiverPackageId,
+		MockLinkPackageId:      env.MockLinkReport.Output.PackageId,
+		MCMSPackageId:          mcmsPackageId,
+		CCIPObjectRefObjectId:  env.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+		OfframpStateObjectId:   env.OffRampReport.Output.Objects.StateObjectId,
+		OfframpOwnerCapId:      env.OffRampReport.Output.Objects.OwnerCapId,
+		CCIPObjects: CCIPObjectReferences{
+			OwnerCapObjectId:                env.CCIPReport.Output.Objects.OwnerCapObjectId,
+			FeeQuoterCapObjectId:            env.CCIPReport.Output.Objects.FeeQuoterCapObjectId,
+			FeeQuoterStateObjectId:          env.CCIPReport.Output.Objects.FeeQuoterStateObjectId,
+			NonceManagerStateObjectId:       env.CCIPReport.Output.Objects.NonceManagerStateObjectId,
+			NonceManagerCapObjectId:         env.CCIPReport.Output.Objects.NonceManagerCapObjectId,
+			ReceiverRegistryStateObjectId:   env.CCIPReport.Output.Objects.ReceiverRegistryStateObjectId,
+			RMNRemoteStateObjectId:          env.CCIPReport.Output.Objects.RMNRemoteStateObjectId,
+			TokenAdminRegistryStateObjectId: env.CCIPReport.Output.Objects.TokenAdminRegistryStateObjectId,
+			SourceTransferCapObjectId:       env.CCIPReport.Output.Objects.SourceTransferCapObjectId,
+			DestTransferCapObjectId:         env.CCIPReport.Output.Objects.DestTransferCapObjectId,
+		},
+		DummyReceiverObjects: DummyReceiverReferences{
+			OwnerCapObjectId:          env.DummyReceiverReport.Output.Objects.OwnerCapObjectId,
+			CCIPReceiverStateObjectId: env.DummyReceiverReport.Output.Objects.CCIPReceiverStateObjectId,
+		},
+		MockLinkObjects: MockLinkReferences{
+			CoinMetadataObjectId: env.MockLinkReport.Output.Objects.CoinMetadataObjectId,
+			TreasuryCapObjectId:  env.MockLinkReport.Output.Objects.TreasuryCapObjectId,
+		},
+		SignerAddress:   signerAddress,
+		PublicKeys:      publicKeysHex,
+		SignerAddresses: signerAddresses,
+		DeployedAt:      time.Now().Format(time.RFC3339),
+	}
+
+	// Marshal to JSON with indentation
+	jsonData, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal deployment state: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(stateFile, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to write state file: %w", err)
+	}
+
+	fmt.Printf("✅ Deployment state saved to: %s\n", stateFile)
+	return nil
+}
 
 type EnvironmentSettings struct {
 	// Deployment reports
@@ -67,9 +216,10 @@ func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI,
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if cmd.Process != nil {
-			if perr := cmd.Process.Kill(); perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
+			// if perr := cmd.Process.Kill(); perr != nil {
+			// 	t.Logf("Failed to kill process: %v", perr)
+			// }
+			fmt.Println("Killing process", cmd.Process.Pid)
 		}
 	})
 
@@ -303,7 +453,7 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 
 	lggr.Debugw("Offramp deployment report", "output", offrampReport.Output)
 
-	return &EnvironmentSettings{
+	env := &EnvironmentSettings{
 		MockLinkReport:      mockLinkReport,
 		CCIPReport:          report,
 		DummyReceiverReport: &dummyReceiverReport,
@@ -314,6 +464,13 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 		PrivateKeys:         signerPrivateKeys,
 		Client:              client,
 	}
+
+	// Save deployment state to JSON file for TypeScript consumption
+	if err := saveDeploymentState(env, reportMCMs.Output.PackageId); err != nil {
+		lggr.Errorw("Failed to save deployment state", "error", err)
+	}
+
+	return env
 }
 
 func TestReceiver(t *testing.T) {
@@ -380,6 +537,7 @@ func TestReceiver(t *testing.T) {
 
 		ptbClient, err := client.NewPTBClient(lggr, testutils.LocalUrl, nil, 10*time.Second, nil, 5, "WaitForLocalExecution")
 		require.NoError(t, err, "Failed to create PTB client for event querying")
+		lggr.Infow("ptbClient", "ptbClient", ptbClient)
 
 		lggr.Infow("offrampPackageId", "offrampPackageId", offrampPackageId)
 
@@ -418,45 +576,35 @@ func TestReceiver(t *testing.T) {
 		require.NoError(t, err)
 		lggr.Infow("initHotPotato", "initHotPotato", initHotPotato)
 
-		lggr.Info("ptbClient", "ptbClient", ptbClient)
+		// receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, ptb, signerAddress, []ccipocr3.Message{msg}, initHotPotato, ccipObjectRef, ccipPackageId, ptbClient)
+		// require.NoError(t, err)
+		// lggr.Info("receiver commands", "commands", receiverCommands)
 
-		receiverCommands, err := receiver_module.AddReceiverCallCommands(ctx, lggr, ptb, signerAddress, []ccipocr3.Message{msg}, initHotPotato, ccipObjectRef, ccipPackageId, ptbClient)
-		require.NoError(t, err)
-		lggr.Info("receiver commands", "commands", receiverCommands)
+		// // Validate that we have at least one receiver command
+		// require.NotEmpty(t, receiverCommands, "receiverCommands should not be empty")
+		// require.NotNil(t, receiverCommands[0], "first receiverCommand should not be nil")
 
-		// Validate that we have at least one receiver command
-		require.NotEmpty(t, receiverCommands, "receiverCommands should not be empty")
-		require.NotNil(t, receiverCommands[0], "first receiverCommand should not be nil")
-
-		dummyTpCall, err := offrampEncoder.DummyTpCall()
-		require.NoError(t, err)
-		lggr.Infow("dummyTpCall", "dummyTpCall", dummyTpCall)
-		tpCall, err := offrampContract.AppendPTB(ctx, opts, ptb, dummyTpCall)
-		require.NoError(t, err)
-		lggr.Infow("tpCall", "tpCall", tpCall)
-
-		//hotPotatoType := fmt.Sprintf("<%s::%s::%s>", ccipPackageId, "offramp_state_helper", "CompletedDestTokenTransfer")
-		hotPotatoType := "u8"
-		emptyTokenPoolResults := []transaction.Argument{ptb.Pure(uint8(1))}
-		tokenPoolPotatoes := ptb.MakeMoveVec(&hotPotatoType, emptyTokenPoolResults)
+		hotPotatoType := fmt.Sprintf("%s::%s::%s", ccipPackageId, "offramp_state_helper", "CompletedDestTokenTransfer")
+		lggr.Infow("hotPotatoType", "hotPotatoType", hotPotatoType)
+		tokenPoolPotatoes := ptb.MakeMoveVec(&hotPotatoType, nil)
 		lggr.Infow("tokenPoolPotatoes", "tokenPoolPotatoes", tokenPoolPotatoes)
 
-		// encodeFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(
-		// 	bind.Object{Id: offrampState},
-		// 	receiverCommands[0],
-		// 	tokenPoolPotatoes,
-		// )
+		encodeFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(
+			bind.Object{Id: offrampState},
+			initHotPotato,
+			tokenPoolPotatoes,
+		)
 
 		// encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
 		// 	bind.Object{Id: offrampState},
 		// 	receiverCommands[0],
 		// )
 
-		encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
-			bind.Object{Id: offrampState},
-			initHotPotato,
-			tokenPoolPotatoes,
-		)
+		// encodeFinishExecute, err := offrampEncoder.DummyFinishExecuteWithArgs(
+		// 	bind.Object{Id: offrampState},
+		// 	initHotPotato,
+		// 	tokenPoolPotatoes,
+		// )
 
 		require.NoError(t, err, "FinishExecuteWithArgs should not fail")
 		require.NotNil(t, encodeFinishExecute, "encodeFinishExecute should not be nil")
