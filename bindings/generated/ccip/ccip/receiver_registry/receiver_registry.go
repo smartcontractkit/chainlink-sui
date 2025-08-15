@@ -95,8 +95,8 @@ func (c *ReceiverRegistryContract) DevInspect() IReceiverRegistryDevInspect {
 }
 
 type ReceiverConfig struct {
-	ModuleName    string      `move:"0x1::string::String"`
-	ProofTypename bind.Object `move:"ascii::String"`
+	ModuleName    string `move:"0x1::string::String"`
+	ProofTypename string `move:"ascii::String"`
 }
 
 type ReceiverRegistry struct {
@@ -105,9 +105,9 @@ type ReceiverRegistry struct {
 }
 
 type ReceiverRegistered struct {
-	ReceiverPackageId  string      `move:"address"`
-	ReceiverModuleName string      `move:"0x1::string::String"`
-	ProofTypename      bind.Object `move:"ascii::String"`
+	ReceiverPackageId  string `move:"address"`
+	ReceiverModuleName string `move:"0x1::string::String"`
+	ProofTypename      string `move:"ascii::String"`
 }
 
 type ReceiverUnregistered struct {
@@ -117,7 +117,7 @@ type ReceiverUnregistered struct {
 type bcsReceiverRegistered struct {
 	ReceiverPackageId  [32]byte
 	ReceiverModuleName string
-	ProofTypename      bind.Object
+	ProofTypename      string
 }
 
 func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) ReceiverRegistered {
@@ -328,7 +328,7 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfig(ctx context.Context, opts
 // Returns:
 //
 //	[0]: 0x1::string::String
-//	[1]: TypeName
+//	[1]: ascii::String
 func (d *ReceiverRegistryDevInspect) GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) ([]any, error) {
 	encoded, err := d.contract.receiverRegistryEncoder.GetReceiverConfigFields(rc)
 	if err != nil {
@@ -549,7 +549,7 @@ func (c receiverRegistryEncoder) GetReceiverConfigFields(rc ReceiverConfig) (*bi
 		rc,
 	}, []string{
 		"0x1::string::String",
-		"TypeName",
+		"ascii::String",
 	})
 }
 
@@ -567,7 +567,7 @@ func (c receiverRegistryEncoder) GetReceiverConfigFieldsWithArgs(args ...any) (*
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_receiver_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::string::String",
-		"TypeName",
+		"ascii::String",
 	})
 }
 
