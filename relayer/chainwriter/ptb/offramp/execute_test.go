@@ -630,7 +630,7 @@ func TestExecuteOffRamp(t *testing.T) {
 
 		args := cwConfig.Arguments{
 			Args: map[string]interface{}{
-				"ReportContext": [2][32]byte{},
+				"ReportContext": reportContext,
 				"Report":        execReportBCSBytes,
 				"Info":          execReport,
 			},
