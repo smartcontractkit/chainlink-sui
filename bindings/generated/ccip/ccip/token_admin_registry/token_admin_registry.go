@@ -126,10 +126,10 @@ type TokenAdminRegistryState struct {
 type TokenConfig struct {
 	TokenPoolPackageId   string      `move:"address"`
 	TokenPoolModule      string      `move:"0x1::string::String"`
-	TokenType            string 	 `move:"ascii::String"`
+	TokenType            bind.Object `move:"ascii::String"`
 	Administrator        string      `move:"address"`
 	PendingAdministrator string      `move:"address"`
-	TokenPoolTypeProof   string `move:"ascii::String"`
+	TokenPoolTypeProof   bind.Object `move:"ascii::String"`
 	LockOrBurnParams     []string    `move:"vector<address>"`
 	ReleaseOrMintParams  []string    `move:"vector<address>"`
 }
@@ -169,10 +169,10 @@ type AdministratorTransferred struct {
 type bcsTokenConfig struct {
 	TokenPoolPackageId   [32]byte
 	TokenPoolModule      string
-	TokenType            string
+	TokenType            bind.Object
 	Administrator        [32]byte
 	PendingAdministrator [32]byte
-	TokenPoolTypeProof   string
+	TokenPoolTypeProof   bind.Object
 	LockOrBurnParams     [][32]byte
 	ReleaseOrMintParams  [][32]byte
 }

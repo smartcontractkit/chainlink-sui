@@ -221,7 +221,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);
     let (_, proof_typename) = receiver_registry::get_receiver_config_fields(receiver_config);
     assert!(
-        proof_typename == proof_tn,
+        proof_typename == proof_tn.into_string(),
         ETypeProofMismatch
     );
 

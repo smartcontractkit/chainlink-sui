@@ -1,7 +1,7 @@
 module ccip::receiver_registry;
 
 use std::ascii;
-use std::type_name::{Self, TypeName};
+use std::type_name;
 use std::string::{Self, String};
 
 use sui::address;
@@ -13,7 +13,7 @@ use ccip::ownable::OwnerCap;
 
 public struct ReceiverConfig has store, copy, drop {
     module_name: String,
-    proof_typename: TypeName,
+    proof_typename: ascii::String,
 }
 
 // TODO: rethink the use of vec_map here, as it is O(N) for lookups. consider a bag or other map-like structure.
@@ -25,7 +25,7 @@ public struct ReceiverRegistry has key, store {
 public struct ReceiverRegistered has copy, drop {
     receiver_package_id: address,
     receiver_module_name: String,
-    proof_typename: TypeName,
+    proof_typename: ascii::String,
 }
 
 public struct ReceiverUnregistered has copy, drop {
@@ -62,23 +62,21 @@ public fun register_receiver<ProofType: drop>(
     _proof: ProofType,
 ) {
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
-    let proof_tn = type_name::get<ProofType>();
-    let address_str = type_name::get_address(&proof_tn);
-    let receiver_module_name = std::string::from_ascii(type_name::get_module(&proof_tn));
-    let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
+    let proof_typename = type_name::get<ProofType>();
+    let receiver_module_name = std::string::from_ascii(type_name::get_module(&proof_typename));
+    let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(type_name::get_address(&proof_typename)));
     assert!(!registry.receiver_configs.contains(&receiver_package_id), EAlreadyRegistered);
 
-    let proof_typename = type_name::get<ProofType>();
     let receiver_config = ReceiverConfig {
         module_name: receiver_module_name,
-        proof_typename,
+        proof_typename: proof_typename.into_string(),
     };
     registry.receiver_configs.insert(receiver_package_id, receiver_config);
 
     event::emit(ReceiverRegistered {
         receiver_package_id,
         receiver_module_name,
-        proof_typename,
+        proof_typename: proof_typename.into_string(),
     });
 }
 
@@ -120,7 +118,7 @@ public fun get_receiver_config(
     *registry.receiver_configs.get(&receiver_package_id)
 }
 
-public fun get_receiver_config_fields(rc: ReceiverConfig): (String, TypeName) {
+public fun get_receiver_config_fields(rc: ReceiverConfig): (String, ascii::String) {
     (rc.module_name, rc.proof_typename)
 }
 
@@ -130,7 +128,7 @@ public fun get_receiver_info(ref: &CCIPObjectRef, receiver_package_id: address):
 
     if (registry.receiver_configs.contains(&receiver_package_id)) {
         let receiver_config = registry.receiver_configs.get(&receiver_package_id);
-        return (receiver_config.module_name, receiver_config.proof_typename.into_string())
+        return (receiver_config.module_name, receiver_config.proof_typename)
     };
 
     (string::utf8(b""), ascii::string(b""))

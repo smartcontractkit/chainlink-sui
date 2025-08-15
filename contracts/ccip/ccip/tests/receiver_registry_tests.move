@@ -99,7 +99,7 @@ public fun test_register_receiver() {
         receiver_registry::get_receiver_config_fields(config);
     
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
-    assert!(proof_typename == type_name::get<TestReceiverProof>());
+    assert!(proof_typename == type_name::into_string(type_name::get<TestReceiverProof>()));
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -160,7 +160,7 @@ public fun test_register_multiple_receivers_same_package() {
     let config = receiver_registry::get_receiver_config(&ref, package_id_1);
     let (_, proof_type) = receiver_registry::get_receiver_config_fields(config);
     
-    assert!(proof_type == type_name::get<TestReceiverProof>());
+    assert!(proof_type == type_name::into_string(type_name::get<TestReceiverProof>()));
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -261,7 +261,7 @@ public fun test_get_receiver_config() {
     
     // Verify all fields
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
-    assert!(proof_typename == type_name::get<TestReceiverProof>());
+    assert!(proof_typename == type_name::into_string(type_name::get<TestReceiverProof>()));
     
     cleanup_test(scenario, ref, owner_cap);
 }
@@ -335,12 +335,12 @@ public fun test_complete_receiver_lifecycle() {
         receiver_registry::get_receiver_config_fields(config);
     
     assert!(module_name == string::utf8(b"receiver_registry_tests"));
-    assert!(proof_typename == type_name::get<TestReceiverProof>());
+    assert!(proof_typename == type_name::into_string(type_name::get<TestReceiverProof>()));
     
     // 4. Verify module and proof typename lookup
     let (lookup_module, lookup_proof_typename_str) = receiver_registry::get_receiver_info(&ref, package_id_1);
     assert!(lookup_module == module_name);
-    assert!(lookup_proof_typename_str == type_name::into_string(proof_typename));
+    assert!(lookup_proof_typename_str == proof_typename);
     
     // 5. Unregister receiver
     receiver_registry::unregister_receiver(&mut ref, &owner_cap, package_id_1, ctx);
