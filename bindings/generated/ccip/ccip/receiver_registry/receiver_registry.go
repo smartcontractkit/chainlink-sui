@@ -328,7 +328,7 @@ func (d *ReceiverRegistryDevInspect) GetReceiverConfig(ctx context.Context, opts
 // Returns:
 //
 //	[0]: 0x1::string::String
-//	[1]: ascii::String
+//	[1]: TypeName
 func (d *ReceiverRegistryDevInspect) GetReceiverConfigFields(ctx context.Context, opts *bind.CallOpts, rc ReceiverConfig) ([]any, error) {
 	encoded, err := d.contract.receiverRegistryEncoder.GetReceiverConfigFields(rc)
 	if err != nil {
@@ -549,7 +549,7 @@ func (c receiverRegistryEncoder) GetReceiverConfigFields(rc ReceiverConfig) (*bi
 		rc,
 	}, []string{
 		"0x1::string::String",
-		"ascii::String",
+		"TypeName",
 	})
 }
 
@@ -567,7 +567,7 @@ func (c receiverRegistryEncoder) GetReceiverConfigFieldsWithArgs(args ...any) (*
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_receiver_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::string::String",
-		"ascii::String",
+		"TypeName",
 	})
 }
 

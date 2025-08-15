@@ -448,6 +448,7 @@ func ProcessReceivers(
 			receiverModule,
 			receiverFunction,
 			addressMappings,
+			message.Header.MessageID,
 			&receiverConfig,
 			&receiverNormalizedModule,
 			receiverParams,
@@ -471,6 +472,7 @@ func AppendPTBCommandForReceiver(
 	moduleId string,
 	functionName string,
 	addressMappings *OffRampAddressMappings,
+	messageID [32]byte,
 	receiverConfig *receiver_registry.ReceiverConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
@@ -494,12 +496,9 @@ func AppendPTBCommandForReceiver(
 	typeParamsList := []string{}
 	paramTypes := []string{
 		"&object",
-		"&object",
 	}
 	paramValues := []any{
-		bind.Object{Id: addressMappings.CcipObjectRef},
 		receiverParams,
-		// TODO: figure out what else is needed
 	}
 
 	lggr.Debugw("calling offramp state helper to extract any2sui message", "paramTypes", paramTypes, "paramValues", paramValues)
@@ -525,6 +524,7 @@ func AppendPTBCommandForReceiver(
 	typeParamsList = []string{}
 	paramTypes = []string{}
 	paramValues = []any{
+		messageID,
 		bind.Object{Id: addressMappings.CcipObjectRef},
 		extractedAny2SuiMessageResult,
 	}
