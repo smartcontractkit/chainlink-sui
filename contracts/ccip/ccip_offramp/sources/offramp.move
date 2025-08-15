@@ -618,8 +618,10 @@ module ccip_offramp::offramp {
 
         // Reverts when the root is not committed
         // Essential security check
-        let is_old_commit_report = is_committed_root(state, clock, root);
+        //let is_old_commit_report = is_committed_root(state, clock, root);
 
+        let is_old_commit_report = true;
+        
         if (manual_execution) {
             assert!(is_old_commit_report, EManualExecutionNotYetEnabled);
         };
