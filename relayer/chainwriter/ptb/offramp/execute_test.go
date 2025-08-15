@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/holiman/uint256"
@@ -181,6 +183,8 @@ func SetupOffRamp(t *testing.T,
 	signerAddrBytes = append(signerAddrBytes, accountAddressBytes)
 	signerPublicKeys = append(signerPublicKeys, publicKeyBytes)
 	signerPrivateKeys = append(signerPrivateKeys, privateKey)
+
+	lggr.Infow("signer addresses", "signerAddresses", signerAddresses)
 
 	seqOffRampInput := offrampops.DeployAndInitCCIPOffRampSeqInput{
 		DeployCCIPOffRampInput: offrampops.DeployCCIPOffRampInput{
@@ -648,14 +652,28 @@ func TestExecuteOffRamp(t *testing.T) {
 		require.NoError(t, err, "failed to build offramp execute PTB")
 		lggr.Infow("Offramp execute PTB", "ptb", ptb)
 
-		opts := &bind.CallOpts{
-			Signer:           env.Signer,
-			WaitForExecution: true,
+		// Fund the account
+		for range 3 {
+			err = testutils.FundWithFaucet(lggr, "localnet", accountAddress)
+			require.NoError(t, err)
 		}
 
-		txResponse, err := bind.ExecutePTB(ctx, opts, env.Client, ptb)
-		require.NoError(t, err, "failed to execute PTB")
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr)
+		txManager.Start(ctx)
 
-		lggr.Debugw("PTB transaction response", "txResponse", txResponse)
+		txID := "execute-offramp-test"
+		txMetadata := &commontypes.TxMeta{}
+
+		txManager.EnqueuePTB(ctx, txID, txMetadata, publicKeyBytes, ptb, false)
+
+		require.Eventually(t, func() bool {
+			status, statusErr := txManager.GetTransactionStatus(ctx, txID)
+			if statusErr != nil {
+				lggr.Errorw("Failed to get transaction status", "error", statusErr)
+				return false
+			}
+			lggr.Debugw("Transaction status", "status", status)
+			return status == commontypes.Finalized
+		}, 10*time.Second, 1*time.Second, "Execute transaction final state not reached")
 	})
 }
