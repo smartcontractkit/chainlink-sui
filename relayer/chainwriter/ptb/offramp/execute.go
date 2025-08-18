@@ -35,17 +35,6 @@ type SuiOffRampExecCallArgs struct {
 	Info          ccipocr3.ExecuteReportInfo `mapstructure:"Info"`
 }
 
-// TODO: remove once hot potato approach validated
-//type ReceiverParams struct {
-//	RemoteChainSelector uint64
-//	Receiver            [32]byte
-//	SourceAmount        uint64
-//	DestTokenAddress    [32]byte
-//	SourcePoolAddress   []byte
-//	SourcePoolData      []byte
-//	OffchainTokenData   []byte
-//}
-
 // BuildOffRampExecutePTB builds the PTB for the OffRampExecute operation
 func BuildOffRampExecutePTB(
 	ctx context.Context,
@@ -79,18 +68,6 @@ func BuildOffRampExecutePTB(
 				lggr.Debugw("found token metadata address", "address", destTokenAddress)
 
 				coinMetadataAddresses = append(coinMetadataAddresses, destTokenAddress)
-
-				// TODO: remove once hot potato approach validated
-				//receiverParamsData[destTokenAddress] = ReceiverParams{
-				//	RemoteChainSelector: uint64(report.SourceChainSelector),
-				//	Receiver:            [32]byte(message.Receiver),
-				//	SourceAmount:        tokenAmount.Amount.Uint64(),
-				//	DestTokenAddress:    [32]byte(tokenAmount.DestTokenAddress),
-				//	SourcePoolAddress:   tokenAmount.SourcePoolAddress,
-				//	// TODO: double check if the following fields are correct
-				//	SourcePoolData:    tokenAmount.ExtraData,
-				//	OffchainTokenData: tokenAmount.DestExecData,
-				//}
 			}
 		}
 	}
@@ -218,10 +195,6 @@ func ProcessTokenPools(
 
 		lggr.Debugw("fetched token configs via dev inspect call", "tokenConfig", tokenConfig)
 
-		// TODO: remove once hot potato approach validated
-		//// Get the relevant receiver params data for this token pool
-		//tokenPoolEncodedData := receiverParamsData[coinMetadataAddresses[idx]]
-
 		// Get the move normalized module to dynamically construct the parameters for the token pool call
 		tokenPoolNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, tokenConfig.TokenPoolPackageId, tokenConfig.TokenPoolModule)
 		if err != nil {
@@ -315,18 +288,6 @@ func AppendPTBCommandForTokenPool(
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
 	}
-
-	// TODO: remove once hot potato approach validated
-	//// Encode the data needed by the token pool call
-	//bcsEncoder := &aptosBCS.Serializer{}
-	//bcsEncoder.U64(data.RemoteChainSelector)
-	//bcsEncoder.FixedBytes(data.Receiver[:])
-	//bcsEncoder.U64(data.SourceAmount)
-	//bcsEncoder.FixedBytes(data.DestTokenAddress[:])
-	//bcsEncoder.WriteBytes(data.SourcePoolAddress)
-	//bcsEncoder.WriteBytes(data.SourcePoolData)
-	//bcsEncoder.WriteBytes(data.OffchainTokenData)
-	//encodedData := bcsEncoder.ToBytes()
 
 	typeArgsList = []string{tokenType}
 	typeParamsList = []string{}
@@ -549,6 +510,7 @@ func AppendPTBCommandForReceiver(
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
+	// TODO: replace this with the decoded extraArgs from core
 	// Append dynamic values (addresses) to the paramValues for the receiver call.
 	// This is used for state references for the receiver (similar to the token pool call).
 	//for _, value := range receiverConfig.ReceiverStateParams {
