@@ -10,7 +10,6 @@ import (
 )
 
 // Taken from the Aptos ChainReader DB methods: https://github.com/smartcontractkit/chainlink-aptos/blob/develop/relayer/chainreader/db/db.go#L257
-// TODO: make the aptos method publicly available and remove the code below
 func BuildSQLCondition(expr query.Expression, args *[]any, argCount *int) (string, error) {
 	//nolint:all
 	if expr.IsPrimitive() {

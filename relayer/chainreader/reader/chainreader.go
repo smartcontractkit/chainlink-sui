@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -146,6 +147,10 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	}
 	_, contractName, method := parsed.address, parsed.contractName, parsed.readName
 
+	if err = s.validateBinding(parsed); err != nil {
+		return err
+	}
+
 	// this ensures we are using values from chain-reader config set in core
 	moduleConfig, ok := s.config.Modules[contractName]
 	if !ok {
@@ -169,23 +174,17 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		parsed.readName = functionConfig.Name
 	}
 
-	s.logger.Debugw("calling function",
+	s.logger.Debugw("calling function after overwrite",
 		"address", parsed.address,
 		"contract", parsed.contractName,
 		"function", parsed.readName,
 	)
 
-	if err = s.validateBinding(parsed); err != nil {
-		return err
-	}
-
-	results, err := s.callFunction(ctx, parsed, params)
+	results, err := s.callFunction(ctx, parsed, params, functionConfig)
 	if err != nil {
 		return err
 	}
 
-	// get function config to determine if transformations for tuples are needed
-	functionConfig = s.config.Modules[parsed.contractName].Functions[parsed.readName]
 	if functionConfig.ResultTupleToStruct != nil {
 		structResult := make(map[string]any)
 		for i, mapKey := range functionConfig.ResultTupleToStruct {
@@ -238,6 +237,10 @@ func (s *suiChainReader) QueryKey(ctx context.Context, contract pkgtypes.BoundCo
 	return transformedSequences, nil
 }
 
+type cursor struct {
+	EventOffset int64 `json:"event_offset"`
+}
+
 func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter, limitAndSort query.LimitAndSort, sequenceDataType any) ([]aptosCRConfig.SequenceWithMetadata, error) {
 	eventConfig, err := s.updateEventConfigs(ctx, contract, filter)
 	if err != nil {
@@ -259,6 +262,12 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 	// Transform events to enriched sequences (include metadata)
 	transformedSequences := make([]aptosCRConfig.SequenceWithMetadata, 0)
 	for _, seq := range sequences {
+		var c cursor
+		if err := json.Unmarshal([]byte(seq.Sequence.Cursor), &c); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal cursor: %w", err)
+		}
+
+		seq.Sequence.Cursor = strconv.FormatInt(c.EventOffset, 10)
 		transformedSequences = append(transformedSequences, aptosCRConfig.SequenceWithMetadata{
 			Sequence:  seq.Sequence,
 			TxVersion: 0,
@@ -415,24 +424,17 @@ func (s *suiChainReader) validateContractBinding(contract pkgtypes.BoundContract
 }
 
 // callFunction calls a contract function and returns the result
-func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any) ([]any, error) {
-	moduleConfig := s.config.Modules[parsed.contractName]
-	functionConfig, ok := moduleConfig.Functions[parsed.readName]
-	if !ok {
-		return nil, fmt.Errorf("no function configuration for: %s", parsed.readName)
-	}
-
+func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *config.ChainReaderFunction) ([]any, error) {
 	argMap, err := s.parseParams(params, functionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
-
 	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
 
-	responseValues, err := s.executeFunction(ctx, parsed, moduleConfig, functionConfig, args, argTypes)
+	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -586,21 +588,21 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 }
 
 // executeFunction executes the actual function call
-func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, moduleConfig *config.ChainReaderModule, functionConfig *config.ChainReaderFunction, args []any, argTypes []string) ([]any, error) {
+func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdentifier, functionConfig *config.ChainReaderFunction, args []any, argTypes []string) ([]any, error) {
 	s.logger.Debugw("Calling ReadFunction",
 		"address", parsed.address,
-		"module", moduleConfig.Name,
+		"module", parsed.contractName,
 		"method", parsed.readName,
 		"encodedArgs", args,
 		"argTypes", argTypes,
 	)
 
-	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, moduleConfig.Name, parsed.readName, args, argTypes)
+	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
 			"error", err,
 			"address", parsed.address,
-			"module", moduleConfig.Name,
+			"module", parsed.contractName,
 			"method", parsed.readName,
 			"args", args,
 			"argTypes", argTypes,

@@ -168,7 +168,6 @@ func GenerateTransaction(
 	}
 
 	// Get the ID (in keystore) of the public key
-	// TODO: check if this is also the way signers are keyed in chainlink core
 	signerId := fmt.Sprintf("%064x", pubKey)
 
 	signatures, err := keystoreService.Sign(ctx, signerId, suiClient.HashTxBytes(txBytes))

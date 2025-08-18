@@ -288,14 +288,13 @@ eventLoop:
 				record := database.EventRecord{
 					EventAccountAddress: selector.Package,
 					EventHandle:         eventHandle,
-					// TODO: event offset is a string and should be stored in the DB as a string
-					EventOffset:    offset,
-					TxDigest:       event.Id.TxDigest,
-					BlockVersion:   0,
-					BlockHeight:    fmt.Sprintf("%d", block.Height),
-					BlockHash:      []byte(block.TxDigest),
-					BlockTimestamp: block.Timestamp,
-					Data:           normalizedData.(map[string]any),
+					EventOffset:         offset,
+					TxDigest:            event.Id.TxDigest,
+					BlockVersion:        0,
+					BlockHeight:         fmt.Sprintf("%d", block.Height),
+					BlockHash:           []byte(block.TxDigest),
+					BlockTimestamp:      block.Timestamp,
+					Data:                normalizedData.(map[string]any),
 				}
 				batchRecords = append(batchRecords, record)
 			}
