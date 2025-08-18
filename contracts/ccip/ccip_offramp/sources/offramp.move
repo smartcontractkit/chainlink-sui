@@ -6,6 +6,7 @@ module ccip_offramp::offramp {
     use std::string::{Self, String};
     use std::type_name;
     use std::u256;
+    use std::option::Option;
 
     use sui::address;
     use sui::clock;
@@ -465,20 +466,17 @@ module ccip_offramp::offramp {
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
         foo: vector<u8>,
-        //completed_transfers: vector<osh::CompletedDestTokenTransfer>,
     ) {
-        let foo_len = foo.length();
-        let completed_transfers = vector[];
-        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, completed_transfers);
+        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params);
     }
 
     public fun finish_execute(
         state: &mut OffRampState,
         receiver_params: osh::ReceiverParams,
-        completed_transfers: vector<osh::CompletedDestTokenTransfer>,
+        // completed_transfers: vector<osh::CompletedDestTokenTransfer>,
     ) {
         assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
-        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params, completed_transfers);
+        osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params);
     }
 
     // this function does not involve ocr3 transmit & it sets manual_execution to true

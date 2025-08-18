@@ -38,7 +38,7 @@ type ILockReleaseTokenPool interface {
 	SetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, enabled bool) (*models.SuiTransactionBlockResponse, error)
 	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, removes []string, adds []string) (*models.SuiTransactionBlockResponse, error)
 	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error)
 	ProvideLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, c_ bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -76,7 +76,6 @@ type ILockReleaseTokenPoolDevInspect interface {
 	GetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (bool, error)
 	GetAllowlist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) ([]string, error)
 	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (bind.Object, error)
-	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (bind.Object, error)
 	WithdrawLiquidity(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, amount uint64) (any, error)
 	GetRebalancer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (string, error)
 	GetBalance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (uint64, error)
@@ -125,7 +124,7 @@ type LockReleaseTokenPoolEncoder interface {
 	ApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	LockOrBurn(typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	LockOrBurnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ReleaseOrMint(typeArgs []string, ref bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigs(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -448,8 +447,8 @@ func (c *LockReleaseTokenPoolContract) LockOrBurn(ctx context.Context, opts *bin
 }
 
 // ReleaseOrMint executes the release_or_mint Move function.
-func (c *LockReleaseTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, tokenTransfer, clock, state)
+func (c *LockReleaseTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, tokenTransfer, clock, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -892,28 +891,6 @@ func (d *LockReleaseTokenPoolDevInspect) GetAllowlist(ctx context.Context, opts 
 // Returns: onramp_sh::TokenTransferParams
 func (d *LockReleaseTokenPoolDevInspect) LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, state bind.Object) (bind.Object, error) {
 	encoded, err := d.contract.lockReleaseTokenPoolEncoder.LockOrBurn(typeArgs, ref, c_, remoteChainSelector, clock, state)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
-	}
-	return result, nil
-}
-
-// ReleaseOrMint executes the release_or_mint Move function using DevInspect to get return values.
-//
-// Returns: offramp_sh::CompletedDestTokenTransfer
-func (d *LockReleaseTokenPoolDevInspect) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.lockReleaseTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, tokenTransfer, clock, state)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1799,24 +1776,24 @@ func (c lockReleaseTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args 
 }
 
 // ReleaseOrMint encodes a call to the release_or_mint Move function.
-func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
+		"&mut offramp_sh::ReceiverParams",
 		"offramp_sh::DestTokenTransfer",
 		"&Clock",
 		"&mut LockReleaseTokenPoolState<T>",
 	}, []any{
 		ref,
+		receiverParams,
 		tokenTransfer,
 		clock,
 		state,
-	}, []string{
-		"offramp_sh::CompletedDestTokenTransfer",
-	})
+	}, nil)
 }
 
 // ReleaseOrMintWithArgs encodes a call to the release_or_mint Move function using arbitrary arguments.
@@ -1824,6 +1801,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.O
 func (c lockReleaseTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
+		"&mut offramp_sh::ReceiverParams",
 		"offramp_sh::DestTokenTransfer",
 		"&Clock",
 		"&mut LockReleaseTokenPoolState<T>",
@@ -1836,9 +1814,7 @@ func (c lockReleaseTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, ar
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"offramp_sh::CompletedDestTokenTransfer",
-	})
+	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // SetChainRateLimiterConfigs encodes a call to the set_chain_rate_limiter_configs Move function.

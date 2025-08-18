@@ -26,7 +26,7 @@ type IOfframp interface {
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error)
 	DummyInitExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, messageId []byte, sender []byte, data []byte) (*models.SuiTransactionBlockResponse, error)
 	DummyFinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, foo []byte) (*models.SuiTransactionBlockResponse, error)
-	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*models.SuiTransactionBlockResponse, error)
+	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
@@ -103,7 +103,7 @@ type OfframpEncoder interface {
 	DummyInitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	DummyFinishExecute(state bind.Object, receiverParams bind.Object, foo []byte) (*bind.EncodedCall, error)
 	DummyFinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
-	FinishExecute(state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*bind.EncodedCall, error)
+	FinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
 	FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error)
 	ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -766,8 +766,8 @@ func (c *OfframpContract) DummyFinishExecute(ctx context.Context, opts *bind.Cal
 }
 
 // FinishExecute executes the finish_execute Move function.
-func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.FinishExecute(state, receiverParams, completedTransfers)
+func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.FinishExecute(state, receiverParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1824,17 +1824,15 @@ func (c offrampEncoder) DummyFinishExecuteWithArgs(args ...any) (*bind.EncodedCa
 }
 
 // FinishExecute encodes a call to the finish_execute Move function.
-func (c offrampEncoder) FinishExecute(state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) FinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("finish_execute", typeArgsList, typeParamsList, []string{
 		"&mut OffRampState",
 		"osh::ReceiverParams",
-		"vector<osh::CompletedDestTokenTransfer>",
 	}, []any{
 		state,
 		receiverParams,
-		completedTransfers,
 	}, nil)
 }
 
@@ -1844,7 +1842,6 @@ func (c offrampEncoder) FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, e
 	expectedParams := []string{
 		"&mut OffRampState",
 		"osh::ReceiverParams",
-		"vector<osh::CompletedDestTokenTransfer>",
 	}
 
 	if len(args) != len(expectedParams) {
