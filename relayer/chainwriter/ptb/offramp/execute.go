@@ -143,13 +143,8 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
-	// Make a vector of hot potatoes from all the token pool commands' results.
-	// This will be passed into the final `finish_execute` call.
-	hotPotatoType := fmt.Sprintf("%s::offramp_state_helper::CompletedDestTokenTransfer", addressMappings.CcipPackageId)
-	hotPotatoVecResult := ptb.MakeMoveVec(AnyPointer(hotPotatoType), tokenPoolCommandsResults)
-
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
-	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult, hotPotatoVecResult)
+	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
 	}
@@ -295,6 +290,7 @@ func AppendPTBCommandForTokenPool(
 	// The fixed arguments that must be present for every token pool call.
 	paramValues = []any{
 		bind.Object{Id: addressMappings.CcipObjectRef},
+		receiverParams,
 		getTokenParamDataCommandResult,
 	}
 
