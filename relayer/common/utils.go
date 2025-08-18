@@ -15,8 +15,8 @@ func ValueAt[T any](slice []T, idx int) (T, bool) {
 	return slice[idx], true
 }
 
-// inferArgumentType attempts to determine the argument type from the value
-// TODO: this method shouldn't be needed, it's a fallback for when the argument type is not known
+// InferArgumentType attempts to determine the argument type from the value
+// NOTE: this method shouldn't be needed, it's a fallback for when the argument type is not known
 func InferArgumentType(arg any) string {
 	switch arg := arg.(type) {
 	case string:

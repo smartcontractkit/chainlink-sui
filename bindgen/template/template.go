@@ -78,7 +78,8 @@ type tmplStruct struct {
 func (s *tmplStruct) NeedsCustomDecoder(allStructs map[string]*tmplStruct) bool {
 	for _, field := range s.Fields {
 		// TODO: recursively handle address decoding
-		if field.Type.MoveType == "address" || field.Type.MoveType == "vector<address>" || field.Type.MoveType == "vector<vector<address>>" {
+		switch field.Type.MoveType {
+		case "address", "vector<address>", "vector<vector<address>>", "u256", "u128":
 			return true
 		}
 
@@ -100,6 +101,10 @@ func GetBCSType(field *tmplField, allStructs map[string]*tmplStruct) string {
 		return "[][32]byte"
 	case "vector<vector<address>>":
 		return "[][][32]byte"
+	case "u256":
+		return "[32]byte"
+	case "u128":
+		return "[16]byte"
 	default:
 		if nestedStruct, ok := allStructs[field.Type.MoveType]; ok {
 			if nestedStruct.NeedsCustomDecoder(allStructs) {

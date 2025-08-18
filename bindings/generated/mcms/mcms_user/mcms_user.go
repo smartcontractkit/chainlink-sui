@@ -130,20 +130,25 @@ type bcsUserData struct {
 	A           string
 	B           []byte
 	C           [32]byte
-	D           *big.Int
+	D           [16]byte
 	OwnerCap    bind.Object
 }
 
-func convertUserDataFromBCS(bcs bcsUserData) UserData {
+func convertUserDataFromBCS(bcs bcsUserData) (UserData, error) {
+	DField, err := bind.DecodeU128Value(bcs.D)
+	if err != nil {
+		return UserData{}, fmt.Errorf("failed to decode u128 field D: %w", err)
+	}
+
 	return UserData{
 		Id:          bcs.Id,
 		Invocations: bcs.Invocations,
 		A:           bcs.A,
 		B:           bcs.B,
 		C:           fmt.Sprintf("0x%x", bcs.C),
-		D:           bcs.D,
+		D:           DField,
 		OwnerCap:    bcs.OwnerCap,
-	}
+	}, nil
 }
 
 func init() {
@@ -154,7 +159,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertUserDataFromBCS(temp)
+		result, err := convertUserDataFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms_test::mcms_user::OwnerCap", func(data []byte) (interface{}, error) {

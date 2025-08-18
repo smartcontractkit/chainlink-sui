@@ -227,14 +227,15 @@ type bcsLockReleaseTokenPoolState struct {
 	OwnableState   bind.Object
 }
 
-func convertLockReleaseTokenPoolStateFromBCS(bcs bcsLockReleaseTokenPoolState) LockReleaseTokenPoolState {
+func convertLockReleaseTokenPoolStateFromBCS(bcs bcsLockReleaseTokenPoolState) (LockReleaseTokenPoolState, error) {
+
 	return LockReleaseTokenPoolState{
 		Id:             bcs.Id,
 		TokenPoolState: bcs.TokenPoolState,
 		Reserve:        bcs.Reserve,
 		Rebalancer:     fmt.Sprintf("0x%x", bcs.Rebalancer),
 		OwnableState:   bcs.OwnableState,
-	}
+	}, nil
 }
 
 func init() {
@@ -245,7 +246,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertLockReleaseTokenPoolStateFromBCS(temp)
+		result, err := convertLockReleaseTokenPoolStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("lock_release_token_pool::lock_release_token_pool::TypeProof", func(data []byte) (interface{}, error) {

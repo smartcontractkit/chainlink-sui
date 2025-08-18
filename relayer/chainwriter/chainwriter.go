@@ -191,6 +191,7 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 	}
 
 	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, toAddress)
+
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err
@@ -226,7 +227,7 @@ func (s *SuiChainWriter) GetEstimateFee(ctx context.Context, contractName string
 func (s *SuiChainWriter) Close() error {
 	return s.StopOnce(ServiceName, func() error {
 		s.lggr.Infow("Stopping SuiChainWriter")
-		return s.txm.Close()
+		return nil
 	})
 }
 
@@ -249,7 +250,7 @@ func (s *SuiChainWriter) Ready() error {
 func (s *SuiChainWriter) Start(ctx context.Context) error {
 	return s.StartOnce(ServiceName, func() error {
 		s.lggr.Infow("Starting SuiChainWriter")
-		return s.txm.Start(ctx)
+		return nil
 	})
 }
 

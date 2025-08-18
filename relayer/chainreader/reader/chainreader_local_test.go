@@ -98,7 +98,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			SyncTimeout:     10 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
-			"counter": {
+			"Counter": {
 				Name: "counter",
 				Functions: map[string]*config.ChainReaderFunction{
 					"get_count": {
@@ -167,7 +167,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	}
 
 	counterBinding := types.BoundContract{
-		Name:    "counter",
+		Name:    "Counter",
 		Address: packageId, // Package ID of the deployed counter contract
 	}
 
@@ -237,7 +237,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		err = chainReader.GetLatestValue(
 			context.Background(),
-			strings.Join([]string{packageId, "counter", "get_count"}, "-"),
+			strings.Join([]string{packageId, "Counter", "get_count"}, "-"),
 			primitives.Finalized,
 			map[string]any{
 				"counter_id": counterObjectId,
@@ -257,7 +257,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		err = chainReader.GetLatestValue(
 			context.Background(),
-			strings.Join([]string{packageId, "counter", "get_simple_result"}, "-"),
+			strings.Join([]string{packageId, "Counter", "get_simple_result"}, "-"),
 			primitives.Finalized,
 			map[string]any{}, // No parameters needed
 			&retSimpleResult,
@@ -281,7 +281,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		err = chainReader.GetLatestValue(
 			context.Background(),
-			strings.Join([]string{packageId, "counter", "get_address_list"}, "-"),
+			strings.Join([]string{packageId, "Counter", "get_address_list"}, "-"),
 			primitives.Finalized,
 			map[string]any{}, // No parameters needed
 			&retAddressList,
@@ -322,7 +322,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		err = chainReader.GetLatestValue(
 			context.Background(),
-			strings.Join([]string{packageId, "counter", "get_tuple_struct"}, "-"),
+			strings.Join([]string{packageId, "Counter", "get_tuple_struct"}, "-"),
 			primitives.Finalized,
 			map[string]any{}, // No parameters needed
 			&retTupleStruct,
@@ -539,7 +539,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		err = chainReader.GetLatestValue(
 			context.Background(),
-			strings.Join([]string{packageId, "counter", "get_count_using_pointer"}, "-"),
+			strings.Join([]string{packageId, "Counter", "get_count_using_pointer"}, "-"),
 			primitives.Finalized,
 			map[string]any{}, // No parameters needed, the counter_id object should be populated from the pointer tag
 			&retUint64,

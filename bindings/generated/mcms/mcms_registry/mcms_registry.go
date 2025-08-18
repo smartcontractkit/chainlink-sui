@@ -151,13 +151,14 @@ type bcsExecutingCallbackParams struct {
 	Data         []byte
 }
 
-func convertExecutingCallbackParamsFromBCS(bcs bcsExecutingCallbackParams) ExecutingCallbackParams {
+func convertExecutingCallbackParamsFromBCS(bcs bcsExecutingCallbackParams) (ExecutingCallbackParams, error) {
+
 	return ExecutingCallbackParams{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsEntrypointRegistered struct {
@@ -166,12 +167,13 @@ type bcsEntrypointRegistered struct {
 	ModuleName     string
 }
 
-func convertEntrypointRegisteredFromBCS(bcs bcsEntrypointRegistered) EntrypointRegistered {
+func convertEntrypointRegisteredFromBCS(bcs bcsEntrypointRegistered) (EntrypointRegistered, error) {
+
 	return EntrypointRegistered{
 		RegistryId:     bcs.RegistryId,
 		AccountAddress: fmt.Sprintf("0x%x", bcs.AccountAddress),
 		ModuleName:     bcs.ModuleName,
-	}
+	}, nil
 }
 
 func init() {
@@ -190,7 +192,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertExecutingCallbackParamsFromBCS(temp)
+		result, err := convertExecutingCallbackParamsFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::EntrypointRegistered", func(data []byte) (interface{}, error) {
@@ -200,7 +205,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertEntrypointRegisteredFromBCS(temp)
+		result, err := convertEntrypointRegisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::MCMS_REGISTRY", func(data []byte) (interface{}, error) {

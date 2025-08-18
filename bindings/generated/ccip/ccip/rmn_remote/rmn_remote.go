@@ -180,14 +180,15 @@ type bcsReport struct {
 	MerkleRoots                 []MerkleRoot
 }
 
-func convertReportFromBCS(bcs bcsReport) Report {
+func convertReportFromBCS(bcs bcsReport) (Report, error) {
+
 	return Report{
 		DestChainSelector:           bcs.DestChainSelector,
 		RmnRemoteContractAddress:    fmt.Sprintf("0x%x", bcs.RmnRemoteContractAddress),
 		OffRampAddress:              fmt.Sprintf("0x%x", bcs.OffRampAddress),
 		RmnHomeContractConfigDigest: bcs.RmnHomeContractConfigDigest,
 		MerkleRoots:                 bcs.MerkleRoots,
-	}
+	}, nil
 }
 
 func init() {
@@ -222,7 +223,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertReportFromBCS(temp)
+		result, err := convertReportFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::MerkleRoot", func(data []byte) (interface{}, error) {

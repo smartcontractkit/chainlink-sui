@@ -120,7 +120,8 @@ type bcsReceiverRegistered struct {
 	ProofTypename      string
 }
 
-func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) ReceiverRegistered {
+func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) (ReceiverRegistered, error) {
+
 	return ReceiverRegistered{
 		ReceiverPackageId:  fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
 		ReceiverModuleName: bcs.ReceiverModuleName,
@@ -132,10 +133,11 @@ type bcsReceiverUnregistered struct {
 	ReceiverPackageId [32]byte
 }
 
-func convertReceiverUnregisteredFromBCS(bcs bcsReceiverUnregistered) ReceiverUnregistered {
+func convertReceiverUnregisteredFromBCS(bcs bcsReceiverUnregistered) (ReceiverUnregistered, error) {
+
 	return ReceiverUnregistered{
 		ReceiverPackageId: fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
-	}
+	}, nil
 }
 
 func init() {
@@ -162,7 +164,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertReceiverRegisteredFromBCS(temp)
+		result, err := convertReceiverRegisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverUnregistered", func(data []byte) (interface{}, error) {
@@ -172,7 +177,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertReceiverUnregisteredFromBCS(temp)
+		result, err := convertReceiverUnregisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }
