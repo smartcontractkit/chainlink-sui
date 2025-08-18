@@ -361,6 +361,13 @@ func decodeStruct(data any, target any) error {
 		Result:           target,
 		WeaklyTypedInput: true,
 		TagName:          "json",
+		MatchName: func(mapKey, fieldName string) bool {
+			mk := strings.ReplaceAll(mapKey, "_", "")
+			fn := strings.ReplaceAll(fieldName, "_", "")
+			ok := strings.EqualFold(mk, fn)
+			fmt.Printf("MatchName? mapKey=%q(%q) field=%q(%q) -> %v\n", mapKey, mk, fieldName, fn, ok)
+			return ok
+		},
 	}
 
 	decoder, err := mapstructure.NewDecoder(config)
@@ -967,8 +974,8 @@ func base64StringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
 	}
 
-	// Only try base64 decoding for byte slices
-	if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8 {
+	// Try base64 decoding for byte-slices AND byte-arrays that's fixed length
+	if (t.Kind() == reflect.Slice || t.Kind() == reflect.Array) && t.Elem().Kind() == reflect.Uint8 {
 		if bytes, err := base64.StdEncoding.DecodeString(str); err == nil {
 			return bytes, nil
 		}

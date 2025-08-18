@@ -475,12 +475,8 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 			limitVal = uint64(*limit)
 		}
 
-		eventFilter := models.EventFilterByMoveEventModule{
-			MoveEventModule: models.MoveEventModule{
-				Package: filter.Package,
-				Module:  filter.Module,
-				Event:   filter.Event,
-			},
+		eventFilter := models.EventFilterByMoveEventType{
+			MoveEventType: fmt.Sprintf("%s::%s::%s", filter.Package, filter.Module, filter.Event),
 		}
 
 		queryReq := models.SuiXQueryEventsRequest{

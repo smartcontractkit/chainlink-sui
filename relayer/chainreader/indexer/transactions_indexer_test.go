@@ -1,11 +1,8 @@
-//go:build integration
-
 package indexer_test
 
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -225,11 +222,11 @@ func TestTransactionsIndexer(t *testing.T) {
 
 	readerConfig := config.ChainReaderConfig{
 		Modules: map[string]*config.ChainReaderModule{
-			"offramp": {
+			"OffRamp": {
 				Name:      "offramp",
 				Functions: map[string]*config.ChainReaderFunction{},
 				Events: map[string]*config.ChainReaderEvent{
-					"offramp::ExecutionStateChanged": {
+					"ExecutionStateChanged": {
 						Name:      "offramp",
 						EventType: "ExecutionStateChanged",
 						EventSelector: client.EventSelector{
@@ -238,7 +235,7 @@ func TestTransactionsIndexer(t *testing.T) {
 							Event:   "ExecutionStateChanged",
 						},
 					},
-					"offramp::SourceChainConfigSet": {
+					"SourceChainConfigSet": {
 						Name:      "offramp",
 						EventType: "SourceChainConfigSet",
 						EventSelector: client.EventSelector{
@@ -250,10 +247,9 @@ func TestTransactionsIndexer(t *testing.T) {
 				},
 			},
 			"ocr3_base": {
-				Name:      "ocr3_base",
 				Functions: map[string]*config.ChainReaderFunction{},
 				Events: map[string]*config.ChainReaderEvent{
-					"ocr3_base::ConfigSet": {
+					"ConfigSet": {
 						Name:      "ocr3_base",
 						EventType: "ConfigSet",
 						EventSelector: client.EventSelector{
@@ -268,7 +264,7 @@ func TestTransactionsIndexer(t *testing.T) {
 				Name:      "counter",
 				Functions: map[string]*config.ChainReaderFunction{},
 				Events: map[string]*config.ChainReaderEvent{
-					"counter::CounterIncremented": {
+					"CounterIncremented": {
 						Name:      "counter",
 						EventType: "CounterIncremented",
 						EventSelector: client.EventSelector{
@@ -302,6 +298,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
 	)
+
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		log,
@@ -344,7 +341,7 @@ func TestTransactionsIndexer(t *testing.T) {
 			Address: packageId,
 		},
 		{
-			Name:    "offramp",
+			Name:    "OffRamp",
 			Address: packageId,
 		},
 	}
@@ -368,6 +365,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		// 3. Start the indexers and ensure that the events / transactions are indexed
 		go func() {
 			_ = cReader.Start(ctx)
+			_ = txnIndexer.Start(ctx)
 		}()
 
 		// 4. Create a successful transaction to trigger the transactions indexer
@@ -399,41 +397,30 @@ func TestTransactionsIndexer(t *testing.T) {
 		// Execute the PTB command using the PTB client, we don't check errors because we expect a failure
 		_, _ = relayerClient.FinishPTBAndSend(ctx, txnSigner, ptbTx, client.WaitForLocalExecution)
 
-		// 5. Use eventually to check if the correct synth events have been inserted
-		require.Eventually(t, func() bool {
-			eventHandle := fmt.Sprintf("%s::%s", boundContracts[0].Name, "ConfigSet")
-			events, err := cReader.QueryKey(ctx, boundContracts[0], query.KeyFilter{Key: eventHandle}, query.LimitAndSort{}, &database.EventRecord{})
+		// helper: returns true if at least one event with the given key exists for the contract
+		hasEvent := func(contract types.BoundContract, key string) bool {
+			events, err := cReader.QueryKey(ctx, contract, query.KeyFilter{Key: key}, query.LimitAndSort{}, &database.EventRecord{})
 			if err != nil {
-				log.Errorw("Error querying ConfigSet events", "error", err)
+				log.Errorw("Error querying events", "contract", contract.Name, "key", key, "error", err)
 				return false
 			}
-			testutils.PrettyPrintDebug(log, events, "ConfigSet events in DB")
-
 			return len(events) > 0
-		}, 120*time.Second, 10*time.Second)
+		}
 
+		// wait for all three
 		require.Eventually(t, func() bool {
-			eventHandle := fmt.Sprintf("%s::%s", boundContracts[1].Name, "SourceChainConfigSet")
-			events, err := cReader.QueryKey(ctx, boundContracts[1], query.KeyFilter{Key: eventHandle}, query.LimitAndSort{}, &database.EventRecord{})
-			if err != nil {
-				log.Errorw("Error querying SourceChainConfigSet events", "error", err)
-				return false
-			}
+			okConfig := hasEvent(boundContracts[0], "ConfigSet")
+			okSrcCfg := hasEvent(boundContracts[1], "SourceChainConfigSet")
+			okExec := hasEvent(boundContracts[1], "ExecutionStateChanged")
 
-			return len(events) > 0
-		}, 120*time.Second, 10*time.Second)
+			log.Debugw("event wait progress",
+				"ConfigSet", okConfig,
+				"SourceChainConfigSet", okSrcCfg,
+				"ExecutionStateChanged", okExec,
+			)
 
-		// 5. Use eventually to check if the correct synth events have been inserted
-		require.Eventually(t, func() bool {
-			eventHandle := fmt.Sprintf("%s::%s", boundContracts[1].Name, "ExecutionStateChanged")
-			events, err := cReader.QueryKey(ctx, boundContracts[1], query.KeyFilter{Key: eventHandle}, query.LimitAndSort{}, &database.EventRecord{})
-			if err != nil {
-				log.Errorw("Error querying ExecutionStateChanged events", "error", err)
-				return false
-			}
-
-			return len(events) > 0
-		}, 120*time.Second, 10*time.Second)
+			return okConfig && okSrcCfg && okExec
+		}, 90*time.Second, 5*time.Second)
 	})
 }
 

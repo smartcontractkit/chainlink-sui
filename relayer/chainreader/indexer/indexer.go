@@ -47,18 +47,6 @@ func (i *Indexer) Name() string {
 
 func (i *Indexer) Start(ctx context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
-		txnIndexerCtx, txnIndexerCancel := context.WithCancel(ctx)
-		// set the cancel function
-		i.transactionIndexerCancel = &txnIndexerCancel
-
-		go func() {
-			if err := i.transactionIndexer.Start(txnIndexerCtx); err != nil {
-				i.log.Errorw("Transaction indexer failed to start", "error", err)
-				txnIndexerCancel()
-				return
-			}
-		}()
-
 		eventsIndexerCtx, eventsIndexerCancel := context.WithCancel(ctx)
 		// set the cancel function
 		i.eventsIndexerCancel = &eventsIndexerCancel
@@ -69,8 +57,21 @@ func (i *Indexer) Start(ctx context.Context) error {
 				eventsIndexerCancel()
 				return
 			}
+			i.log.Info("Events indexer started")
 		}()
 
+		// context.Background() so the TxIndexer’s wait loop isn’t killed by the parent context
+		txnIndexerCtx, txnIndexerCancel := context.WithCancel(context.Background())
+		// set the cancel function
+		i.transactionIndexerCancel = &txnIndexerCancel
+		go func() {
+			if err := i.transactionIndexer.Start(txnIndexerCtx); err != nil {
+				i.log.Errorw("Transaction indexer failed to start", "error", err)
+				txnIndexerCancel()
+				return
+			}
+			i.log.Info("Transactions indexer started")
+		}()
 		return nil
 	})
 }

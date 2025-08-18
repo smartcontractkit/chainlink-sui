@@ -125,6 +125,10 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 
 	maps.Copy(s.packageAddresses, newBindings)
 
+	// Only need the OffRamp package for the tx indexer
+	if pkg, ok := newBindings["OffRamp"]; ok {
+		s.indexer.GetTransactionIndexer().SetOffRampPackage(pkg)
+	}
 	return nil
 }
 

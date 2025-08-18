@@ -490,6 +490,9 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	err = chainWriter.Start(ctx)
 	require.NoError(t, err)
 
+	err = txManager.Start(ctx)
+	require.NoError(t, err)
+
 	ethereumAddress := "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"
 
 	t.Run("CCIP SUI messaging", func(t *testing.T) {

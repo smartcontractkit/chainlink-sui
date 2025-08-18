@@ -194,9 +194,9 @@ func (r *SuiRelayer) TxManager() *txm.SuiTxm {
 func (r *SuiRelayer) Start(ctx context.Context) error {
 	return r.StartOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Starting Sui Relayer")
-		var ms services.MultiStart
 
-		return ms.Start(ctx, r.txm, r.indexer)
+		var ms services.MultiStart
+		return ms.Start(ctx, r.txm, r.indexer, r.balanceMonitor)
 	})
 }
 
@@ -204,7 +204,7 @@ func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Stopping Sui Relayer")
 
-		return services.CloseAll(r.txm, r.indexer)
+		return services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
 	})
 }
 
@@ -212,6 +212,7 @@ func (r *SuiRelayer) Ready() error {
 	return errors.Join(
 		r.StateMachine.Ready(),
 		r.txm.Ready(),
+		r.balanceMonitor.Ready(),
 		r.indexer.Ready(),
 	)
 }

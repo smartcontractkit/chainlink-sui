@@ -194,6 +194,15 @@ func enqueuePTB(ctx context.Context, s *SuiChainWriter, ptbName string, method s
 		ToAddress: toAddress,
 	}
 
+	// overwrite ptbName
+	if moduleConfig.Name != "" {
+		ptbName = moduleConfig.Name
+	}
+
+	if functionConfig.Name != "" {
+		method = functionConfig.Name
+	}
+
 	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, configOverrides)
 
 	if err != nil {
@@ -231,7 +240,7 @@ func (s *SuiChainWriter) GetEstimateFee(ctx context.Context, contractName string
 func (s *SuiChainWriter) Close() error {
 	return s.StopOnce(ServiceName, func() error {
 		s.lggr.Infow("Stopping SuiChainWriter")
-		return s.txm.Close()
+		return nil
 	})
 }
 
@@ -254,7 +263,7 @@ func (s *SuiChainWriter) Ready() error {
 func (s *SuiChainWriter) Start(ctx context.Context) error {
 	return s.StartOnce(ServiceName, func() error {
 		s.lggr.Infow("Starting SuiChainWriter")
-		return s.txm.Start(ctx)
+		return nil
 	})
 }
 

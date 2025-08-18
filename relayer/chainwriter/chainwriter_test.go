@@ -163,8 +163,12 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	defer cancel()
 
 	err = chainWriter.Start(ctx)
-	defer chainWriter.Close()
 	require.NoError(t, err)
+	err = testState.TxManager.Start(ctx)
+	require.NoError(t, err)
+
+	defer chainWriter.Close()
+	defer testState.TxManager.Close()
 
 	// Simple map style for builder pattern
 	simpleArgs := map[string]any{
