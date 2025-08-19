@@ -162,11 +162,17 @@ func DecodeSuiStructToJSON(normalizedStructs map[string]any, identifier string, 
 				if !ok {
 					return nil, fmt.Errorf("struct name not found for field %s", fieldName)
 				}
-				inner, err := DecodeSuiStructToJSON(normalizedStructs, structName, bcsDecoder)
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode struct field %s: %w", fieldName, err)
+
+				// Special case for String struct - it's a primitive type in Sui
+				if structName == "String" {
+					jsonResult[fieldName] = bcsDecoder.ReadString()
+				} else {
+					inner, err := DecodeSuiStructToJSON(normalizedStructs, structName, bcsDecoder)
+					if err != nil {
+						return nil, fmt.Errorf("failed to decode struct field %s: %w", fieldName, err)
+					}
+					jsonResult[fieldName] = inner
 				}
-				jsonResult[fieldName] = inner
 			}
 		}
 	}

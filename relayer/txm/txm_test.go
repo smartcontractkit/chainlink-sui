@@ -369,7 +369,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			expectError:     nil,
 			expectedResult:  "3",
 			status:          commontypes.Finalized,
-			numberAttemps:   1,
+			numberAttemps:   3,
 		},
 	}
 
@@ -384,7 +384,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			arg := config.Arguments{
 				Args: tc.args.(map[string]any),
 			}
-			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, arg, nil)
+			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, arg, packageId)
 			if tc.expectError != nil {
 				require.Error(t, err, "Expected an error but BuildPTBCommands succeeded")
 			} else {

@@ -54,6 +54,11 @@ func createGoTypeFromMove(s string, localStructs map[string]parse.Struct) (tmplT
 			GoType:   "string",
 			MoveType: "0x1::string::String",
 		}, nil
+	case "ascii::String":
+		return tmplType{
+			GoType:   "string",
+			MoveType: "ascii::String",
+		}, nil
 	case "UID", "object::UID", "sui::object::UID":
 		return tmplType{
 			GoType:   "string",

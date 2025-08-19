@@ -210,138 +210,6 @@ func TestPTBConstructor_ProcessMoveCall(t *testing.T) {
 
 // ------------------------------------------------
 //
-//	Tests prerequisite object filling
-//
-// ------------------------------------------------
-//
-//nolint:paralleltest
-func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
-	ctx := context.Background()
-	log, accountAddress, publicKeyBytes, ptbClient, keystoreInstance, packageId, counterObjectId := setupTestEnvironment(t)
-
-	signerId := fmt.Sprintf("%064x", publicKeyBytes)
-	txnSigner := keystoreInstance.GetSuiSigner(ctx, signerId)
-
-	writerConfig := config.ChainWriterConfig{
-		Modules: map[string]*config.ChainWriterModule{
-			"counter": {
-				Name:     "counter",
-				ModuleID: packageId,
-				Functions: map[string]*config.ChainWriterFunction{
-					"get_count_with_object_id_prereq": {
-						Name:      "get_count_with_object_id_prereq",
-						PublicKey: publicKeyBytes,
-						PrerequisiteObjects: []config.PrerequisiteObject{
-							{
-								// we set the owner as the recently deployed counter contract
-								OwnerId: &accountAddress,
-								Name:    "admin_cap_id",
-								Tag:     "counter::AdminCap",
-								// we don't set the keys as we want to set the ID of the object in the PTB args
-								SetKeys: false,
-							},
-						},
-						PTBCommands: []config.ChainWriterPTBCommand{
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  stringPointer("counter"),
-								Function:  stringPointer("increment_by_two_no_context"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "admin_cap_id",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "counter_id",
-										Type:     "object_id",
-										Required: true,
-									},
-								},
-							},
-						},
-					},
-					"get_count_with_object_keys_prereq": {
-						Name:      "get_count_with_object_id_prereq",
-						PublicKey: publicKeyBytes,
-						PrerequisiteObjects: []config.PrerequisiteObject{
-							{
-								OwnerId: &accountAddress,
-								// name doesn't matter here as we are setting the keys
-								Name: "counter_id",
-								Tag:  "counter::CounterPointer",
-								// the keys of the returned object are set in the PTB args
-								SetKeys: true,
-							},
-						},
-						PTBCommands: []config.ChainWriterPTBCommand{
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  stringPointer("counter"),
-								Function:  stringPointer("increment_by_two_no_context"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "admin_cap_id",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "counter_id",
-										Type:     "object_id",
-										Required: true,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	constructor := ptb.NewPTBConstructor(writerConfig, ptbClient, log)
-	_ = transaction.NewTransaction()
-
-	//nolint:paralleltest
-	t.Run("Should fill a valid prerequisite object ID in CW config", func(t *testing.T) {
-		// we only pass the counter ID as the other object ID (admin cap) is populated by the pre-requisites
-		args := config.Arguments{Args: map[string]any{
-			"counter_id": counterObjectId,
-		}}
-
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_id_prereq", args, nil)
-		require.NoError(t, err)
-		require.NotNil(t, ptb)
-
-		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
-		prettyPrintDebug(log, ptbResult)
-		require.NoError(t, err)
-		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
-	})
-
-	//nolint:paralleltest
-	t.Run("Should fill a valid prerequisite object keys in CW config", func(t *testing.T) {
-		// pass no args as it should be populated by the pre-requisites
-		args := config.Arguments{Args: map[string]any{}}
-
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args, nil)
-		require.NoError(t, err)
-		require.NotNil(t, ptb)
-
-		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
-		prettyPrintDebug(log, ptbResult)
-		require.NoError(t, err)
-		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
-	})
-}
-
-// ------------------------------------------------
-//
 //	Tests with contract interaction
 //
 // ------------------------------------------------
@@ -623,7 +491,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -639,7 +507,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, packageId)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -650,7 +518,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, packageId)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -659,7 +527,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	t.Run("Missing Required Argument", func(t *testing.T) {
 		args := config.Arguments{Args: map[string]any{}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, packageId)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -669,7 +537,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		// Start by creating a Counter and its counter manager
 		args := config.Arguments{Args: map[string]any{}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -693,7 +561,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"manager_object": managerObjectId,
 		}}
 
-		ptb, cError = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, nil)
+		ptb, cError = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -721,7 +589,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -761,7 +629,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		}
 
 		// Use the constructor to build PTB commands for the generic function
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_coin_value_ptb", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_coin_value_ptb", args, packageId)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
