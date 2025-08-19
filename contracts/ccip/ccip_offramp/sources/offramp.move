@@ -649,7 +649,7 @@ module ccip_offramp::offramp {
             osh::add_dest_token_transfer(
                 state.dest_transfer_cap.borrow(),
                 &mut receiver_params,
-                message.receiver, // need to change to token receiver
+                token_receiver, // if there is a token receiver, users must specify token receiver in extra_args
                 source_chain_selector,
                 amount,
                 message.token_amounts[i].dest_token_address,
