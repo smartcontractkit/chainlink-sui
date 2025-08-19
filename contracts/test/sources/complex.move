@@ -1,4 +1,6 @@
 module test::complex {
+    use std::ascii::String;
+
     public struct SampleObject has key, store {
       id: UID,
       some_id: vector<u8>,
@@ -111,5 +113,35 @@ module test::complex {
     ): u64 {
         obj.some_number = new_number;
         obj.some_number
+    }
+
+    public fun check_string(
+        input: String
+    ): String {
+        input
+    }
+
+    public fun flatten_string(
+        input: vector<vector<String>>
+    ): vector<String> {
+        let mut output = vector::empty<String>();
+        let mut i = 0;
+        let len = vector::length(&input);
+
+        while (i < len) {
+            let inner_vector = vector::borrow(&input, i);
+            let inner_len = vector::length(inner_vector);
+            let mut j = 0;
+
+            while (j < inner_len) {
+                let string_item = vector::borrow(inner_vector, j);
+                vector::push_back(&mut output, *string_item);
+                j = j + 1;
+            };
+
+            i = i + 1;
+        };
+
+        output
     }
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -169,47 +168,6 @@ func (c *TokenPoolContract) DevInspect() ITokenPoolDevInspect {
 	return c.devInspect
 }
 
-func (c *TokenPoolContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type TokenPoolState struct {
 	AllowlistState     bind.Object `move:"allowlist::AllowlistState"`
 	CoinMetadata       string      `move:"address"`
@@ -277,14 +235,15 @@ type bcsTokenPoolState struct {
 	RateLimiterConfig  bind.Object
 }
 
-func convertTokenPoolStateFromBCS(bcs bcsTokenPoolState) TokenPoolState {
+func convertTokenPoolStateFromBCS(bcs bcsTokenPoolState) (TokenPoolState, error) {
+
 	return TokenPoolState{
 		AllowlistState:     bcs.AllowlistState,
 		CoinMetadata:       fmt.Sprintf("0x%x", bcs.CoinMetadata),
 		LocalDecimals:      bcs.LocalDecimals,
 		RemoteChainConfigs: bcs.RemoteChainConfigs,
 		RateLimiterConfig:  bcs.RateLimiterConfig,
-	}
+	}, nil
 }
 
 type bcsLockedOrBurned struct {
@@ -293,12 +252,13 @@ type bcsLockedOrBurned struct {
 	Amount              uint64
 }
 
-func convertLockedOrBurnedFromBCS(bcs bcsLockedOrBurned) LockedOrBurned {
+func convertLockedOrBurnedFromBCS(bcs bcsLockedOrBurned) (LockedOrBurned, error) {
+
 	return LockedOrBurned{
 		RemoteChainSelector: bcs.RemoteChainSelector,
 		LocalToken:          fmt.Sprintf("0x%x", bcs.LocalToken),
 		Amount:              bcs.Amount,
-	}
+	}, nil
 }
 
 type bcsReleasedOrMinted struct {
@@ -308,13 +268,14 @@ type bcsReleasedOrMinted struct {
 	Amount              uint64
 }
 
-func convertReleasedOrMintedFromBCS(bcs bcsReleasedOrMinted) ReleasedOrMinted {
+func convertReleasedOrMintedFromBCS(bcs bcsReleasedOrMinted) (ReleasedOrMinted, error) {
+
 	return ReleasedOrMinted{
 		RemoteChainSelector: bcs.RemoteChainSelector,
 		LocalToken:          fmt.Sprintf("0x%x", bcs.LocalToken),
 		Recipient:           fmt.Sprintf("0x%x", bcs.Recipient),
 		Amount:              bcs.Amount,
-	}
+	}, nil
 }
 
 type bcsLiquidityAdded struct {
@@ -323,12 +284,13 @@ type bcsLiquidityAdded struct {
 	Amount     uint64
 }
 
-func convertLiquidityAddedFromBCS(bcs bcsLiquidityAdded) LiquidityAdded {
+func convertLiquidityAddedFromBCS(bcs bcsLiquidityAdded) (LiquidityAdded, error) {
+
 	return LiquidityAdded{
 		LocalToken: fmt.Sprintf("0x%x", bcs.LocalToken),
 		Provider:   fmt.Sprintf("0x%x", bcs.Provider),
 		Amount:     bcs.Amount,
-	}
+	}, nil
 }
 
 type bcsLiquidityRemoved struct {
@@ -337,12 +299,13 @@ type bcsLiquidityRemoved struct {
 	Amount     uint64
 }
 
-func convertLiquidityRemovedFromBCS(bcs bcsLiquidityRemoved) LiquidityRemoved {
+func convertLiquidityRemovedFromBCS(bcs bcsLiquidityRemoved) (LiquidityRemoved, error) {
+
 	return LiquidityRemoved{
 		LocalToken: fmt.Sprintf("0x%x", bcs.LocalToken),
 		Provider:   fmt.Sprintf("0x%x", bcs.Provider),
 		Amount:     bcs.Amount,
-	}
+	}, nil
 }
 
 type bcsRebalancerSet struct {
@@ -351,12 +314,13 @@ type bcsRebalancerSet struct {
 	Rebalancer         [32]byte
 }
 
-func convertRebalancerSetFromBCS(bcs bcsRebalancerSet) RebalancerSet {
+func convertRebalancerSetFromBCS(bcs bcsRebalancerSet) (RebalancerSet, error) {
+
 	return RebalancerSet{
 		LocalToken:         fmt.Sprintf("0x%x", bcs.LocalToken),
 		PreviousRebalancer: fmt.Sprintf("0x%x", bcs.PreviousRebalancer),
 		Rebalancer:         fmt.Sprintf("0x%x", bcs.Rebalancer),
-	}
+	}, nil
 }
 
 func init() {
@@ -367,7 +331,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertTokenPoolStateFromBCS(temp)
+		result, err := convertTokenPoolStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::RemoteChainConfig", func(data []byte) (interface{}, error) {
@@ -385,7 +352,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertLockedOrBurnedFromBCS(temp)
+		result, err := convertLockedOrBurnedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::ReleasedOrMinted", func(data []byte) (interface{}, error) {
@@ -395,7 +365,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertReleasedOrMintedFromBCS(temp)
+		result, err := convertReleasedOrMintedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::RemotePoolAdded", func(data []byte) (interface{}, error) {
@@ -429,7 +402,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertLiquidityAddedFromBCS(temp)
+		result, err := convertLiquidityAddedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::LiquidityRemoved", func(data []byte) (interface{}, error) {
@@ -439,7 +415,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertLiquidityRemovedFromBCS(temp)
+		result, err := convertLiquidityRemovedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::RebalancerSet", func(data []byte) (interface{}, error) {
@@ -449,7 +428,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertRebalancerSetFromBCS(temp)
+		result, err := convertRebalancerSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }
@@ -2064,7 +2046,7 @@ func (c tokenPoolEncoder) DestroyTokenPool(state TokenPoolState) (*bind.EncodedC
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("destroy_token_pool", typeArgsList, typeParamsList, []string{
-		"TokenPoolState",
+		"ccip_token_pool::token_pool::TokenPoolState",
 	}, []any{
 		state,
 	}, nil)
@@ -2074,7 +2056,7 @@ func (c tokenPoolEncoder) DestroyTokenPool(state TokenPoolState) (*bind.EncodedC
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c tokenPoolEncoder) DestroyTokenPoolWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"TokenPoolState",
+		"ccip_token_pool::token_pool::TokenPoolState",
 	}
 
 	if len(args) != len(expectedParams) {

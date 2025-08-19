@@ -216,17 +216,14 @@ func (txm *SuiTxm) Close() error {
 	})
 }
 
-// TODO: implement
 func (txm *SuiTxm) HealthReport() map[string]error {
 	return map[string]error{txm.Name(): txm.Starter.Healthy()}
 }
 
-// TODO: implement
 func (txm *SuiTxm) Name() string {
 	return txm.lggr.Name()
 }
 
-// TODO: implement
 func (txm *SuiTxm) Ready() error {
 	return txm.Starter.Ready()
 }

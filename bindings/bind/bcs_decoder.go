@@ -167,19 +167,17 @@ func decodeBCSValue(data []byte, moveType string) (any, error) {
 		if len(data) != U128Len {
 			return nil, fmt.Errorf("invalid u128 data length: %d", len(data))
 		}
-		result := new(big.Int)
-		result.SetBytes(reverseBytes(data))
-
-		return result, nil
+		var bytes [16]byte
+		copy(bytes[:], data)
+		return DecodeU128Value(bytes)
 
 	case "u256":
 		if len(data) != U256Len {
 			return nil, fmt.Errorf("invalid u256 data length: %d", len(data))
 		}
-		result := new(big.Int)
-		result.SetBytes(reverseBytes(data))
-
-		return result, nil
+		var bytes [32]byte
+		copy(bytes[:], data)
+		return DecodeU256Value(bytes)
 
 	case AddressType:
 		if len(data) != AddressLen {
@@ -236,6 +234,23 @@ func decodeBCSValue(data []byte, moveType string) (any, error) {
 
 		return result, nil
 
+	case "0x1::string::String":
+		var result string
+		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
+	// TODO: handle vectors recursively
+	case "vector<0x1::string::String>":
+		var result []string
+		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
 	default:
 		return data, fmt.Errorf("unsupported type for automatic decoding: %s", moveType)
 	}
@@ -248,4 +263,18 @@ func reverseBytes(data []byte) []byte {
 	}
 
 	return result
+}
+
+// DecodeU256Value decodes a 32-byte array to *big.Int for u256 values
+func DecodeU256Value(bcsBytes [32]byte) (*big.Int, error) {
+	result := new(big.Int)
+	result.SetBytes(reverseBytes(bcsBytes[:]))
+	return result, nil
+}
+
+// DecodeU128Value decodes a 16-byte array to *big.Int for u128 values
+func DecodeU128Value(bcsBytes [16]byte) (*big.Int, error) {
+	result := new(big.Int)
+	result.SetBytes(reverseBytes(bcsBytes[:]))
+	return result, nil
 }

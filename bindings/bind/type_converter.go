@@ -256,6 +256,13 @@ func convertPureValueToCallArg(typeName string, value any) (*transaction.CallArg
 	case "vector<u8>":
 		valueToEncode, err = convertToByteArray(value)
 
+	case "0x1::string::String":
+		str, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected string, got %T", value)
+		}
+		valueToEncode = str
+
 	default:
 		if !strings.HasPrefix(typeName, "vector<") {
 			return nil, fmt.Errorf("unsupported type for CallArg: %s", typeName)
@@ -521,6 +528,18 @@ func convertVectorToBCS(innerType string, value any) (any, error) {
 			result[i] = val
 		}
 
+		return result, nil
+
+	case "0x1::string::String":
+		result := make([]string, rv.Len())
+		for i := range rv.Len() {
+			elem := rv.Index(i).Interface()
+			str, ok := elem.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string at index %d, got %T", i, elem)
+			}
+			result[i] = str
+		}
 		return result, nil
 
 	case "address":

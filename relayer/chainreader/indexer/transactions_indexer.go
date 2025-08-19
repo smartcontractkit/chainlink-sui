@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -32,6 +33,7 @@ type TransactionsIndexer struct {
 	// map of transmitter address to cursor (the last processed transaction digest)
 	transmitters map[models.SuiAddress]string
 	// event selectors
+	eventPackageId          string
 	executionEventModuleKey string
 	executionEventKey       string
 	configEventModuleKey    string
@@ -39,11 +41,16 @@ type TransactionsIndexer struct {
 	executeFunctions        []string
 	// configs
 	eventConfigs map[string]*config.ChainReaderEvent
+
+	mu            sync.RWMutex
+	eventPkgReady chan struct{}
+	eventPkgOnce  sync.Once
 }
 
 type TransactionsIndexerApi interface {
 	Start(ctx context.Context) error
 	UpdateEventConfig(eventConfig *config.ChainReaderEvent)
+	SetOffRampPackage(pkg string)
 	Ready() error
 	Close() error
 }
@@ -71,6 +78,7 @@ func NewTransactionsIndexer(
 		configEventKey:          "ConfigSet",
 		executeFunctions:        []string{"finish_execute"},
 		eventConfigs:            eventConfigs,
+		eventPkgReady:           make(chan struct{}),
 	}
 }
 
@@ -118,43 +126,91 @@ func (tIndexer *TransactionsIndexer) UpdateEventConfig(eventConfig *config.Chain
 	tIndexer.eventConfigs[key] = eventConfig
 }
 
+// SetOffRampPackage sets offramp called by chainreader Bind.
+func (t *TransactionsIndexer) SetOffRampPackage(pkg string) {
+	if pkg == "" {
+		t.logger.Warn("SetOffRampPackage called with empty package id")
+		return
+	}
+	t.mu.Lock()
+	old := t.eventPackageId
+	t.eventPackageId = pkg
+	t.mu.Unlock()
+
+	if old != pkg {
+		t.logger.Infow("OffRamp package set", "old", old, "new", pkg)
+	}
+	t.eventPkgOnce.Do(func() { close(t.eventPkgReady) })
+}
+
+// waitForOffRampPackage blocks until the OffRamp package ID is available or the
+// provided context is canceled.
+func (t *TransactionsIndexer) waitForOffRampPackage(ctx context.Context) (string, error) {
+	t.mu.RLock()
+	pkg := t.eventPackageId
+	ch := t.eventPkgReady
+	t.mu.RUnlock()
+	if pkg != "" {
+		return pkg, nil
+	}
+	t.logger.Info("Waiting for OffRamp package...")
+	select {
+	case <-ch:
+		t.mu.RLock()
+		pkg = t.eventPackageId
+		t.mu.RUnlock()
+		if pkg == "" {
+			return "", fmt.Errorf("package ready signaled but empty")
+		}
+		return pkg, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+}
+
 // waitForInitialEvent method waits for the initial ExecutionStateChanged event to be indexed
 // in the database before starting the transaction polling loop.
 func (tIndexer *TransactionsIndexer) waitForInitialEvent(ctx context.Context) error {
-	var (
-		moduleKey = tIndexer.configEventModuleKey
-		eventKey  = tIndexer.configEventKey
-	)
+	tIndexer.logger.Infow("waitForInitialEvent start", "idx_ptr", fmt.Sprintf("%p", tIndexer))
+
+	moduleKey := tIndexer.configEventModuleKey // "ocr3_base"
+	eventKey := tIndexer.configEventKey        // "ConfigSet"
 
 	tIndexer.logger.Infof("Waiting for initial %s::%s event before starting transaction polling...", moduleKey, eventKey)
 
+	// 1) Wait until Bind provides the OffRamp package (or ctx is cancelled)
+	pkg, err := tIndexer.waitForOffRampPackage(ctx)
+	if err != nil {
+		tIndexer.logger.Infow("Transaction polling stopped during initial wait (no OffRamp pkg).")
+		return err
+	}
+	tIndexer.logger.Infow("OffRamp package ready", "package", pkg)
+
+	// 2) Poll the DB for the first ConfigSet event
 	ticker := time.NewTicker(tIndexer.pollingInterval)
 	defer ticker.Stop()
 
 	for {
-		eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig(moduleKey, eventKey)
-		if err != nil {
-			tIndexer.logger.Warnw(fmt.Sprintf("Failed to get %s::%s event config, retrying...", moduleKey, eventKey), "error", err)
-		} else {
-			eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, moduleKey, eventKey)
-			events, err := tIndexer.db.QueryEvents(
-				ctx,
-				eventAccountAddress,
-				eventHandle,
-				[]query.Expression{},
-				query.LimitAndSort{
-					Limit: query.CountLimit(1),
-					SortBy: []query.SortBy{
-						query.NewSortBySequence(query.Desc),
-					},
+		eventAccountAddress := pkg
+		eventHandle := fmt.Sprintf("%s::%s::%s", eventAccountAddress, moduleKey, eventKey)
+
+		events, err := tIndexer.db.QueryEvents(
+			ctx,
+			eventAccountAddress,
+			eventHandle,
+			[]query.Expression{},
+			query.LimitAndSort{
+				Limit: query.CountLimit(1),
+				SortBy: []query.SortBy{
+					query.NewSortBySequence(query.Desc),
 				},
-			)
-			if err != nil {
-				tIndexer.logger.Warnw(fmt.Sprintf("Failed to query for %s::%s events, retrying...", moduleKey, eventKey), "error", err)
-			} else if len(events) > 0 {
-				tIndexer.logger.Infow(fmt.Sprintf("Found initial %s::%s event, starting tx poller.", moduleKey, eventKey), "count", len(events))
-				return nil
-			}
+			},
+		)
+		if err != nil {
+			tIndexer.logger.Warnw(fmt.Sprintf("Failed to query for %s::%s events, retrying...", moduleKey, eventKey), "error", err)
+		} else if len(events) > 0 {
+			tIndexer.logger.Infow(fmt.Sprintf("Found initial %s::%s event, starting tx poller.", moduleKey, eventKey), "count", len(events))
+			return nil
 		}
 
 		select {
@@ -489,7 +545,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 	const (
 		moduleKey = "offramp"
 		eventKey  = "SourceChainConfigSet"
-		selector  = "SourceChainSelector"
+		selector  = "sourceChainSelector"
 	)
 
 	eventAccountAddress, err := tIndexer.getEventPackageIdFromConfig(moduleKey, eventKey)
@@ -534,20 +590,16 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 	return &configEvent.SourceChainConfig, nil
 }
 
-// getEventConfig method retrieves the event config from the map of configs
-// returns the package, module, and event account address for the event config
-func (tIndexer *TransactionsIndexer) getEventPackageIdFromConfig(moduleKey, eventKey string) (string, error) {
-	key := fmt.Sprintf("%s::%s", moduleKey, eventKey)
+// Prefer the cached OffRamp package; fall back to map (for completeness).
+func (t *TransactionsIndexer) getEventPackageIdFromConfig(_, _ string) (string, error) {
+	t.mu.RLock()
+	pkg := t.eventPackageId
+	t.mu.RUnlock()
 
-	if eventConfig, ok := tIndexer.eventConfigs[key]; ok {
-		if eventConfig.Package == "" {
-			return "", fmt.Errorf("event package ID not found for %s", key)
-		}
-
-		return eventConfig.Package, nil
+	if pkg != "" {
+		return pkg, nil
 	}
-
-	return "", fmt.Errorf("event config not found for %s", key)
+	return "", fmt.Errorf("offramp package not set yet")
 }
 
 // ModuleId represents Move’s ModuleId { address, name }

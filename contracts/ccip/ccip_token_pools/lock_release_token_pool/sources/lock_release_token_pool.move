@@ -31,13 +31,13 @@ public struct LockReleaseTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
+const CLOCK_ADDRESS: address = @0x6;
+
 const EInvalidArguments: u64 = 1;
 const ETokenPoolBalanceTooLow: u64 = 2;
 const EUnauthorized: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
-
-const CLOCK_ADDRESS: address = @0x6;
 
 // ================================================================
 // |                             Init                             |
@@ -55,7 +55,7 @@ public fun initialize<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (_, token_pool_state_address, _, type_proof_type_name) =
+    let (_, lock_release_token_pool_state_address, _, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     let type_proof_type_name_address = type_proof_type_name.get_address();
@@ -68,8 +68,8 @@ public fun initialize<T>(
         lock_release_token_pool_package_id,
         string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
-        vector[CLOCK_ADDRESS, token_pool_state_address],
-        vector[CLOCK_ADDRESS, token_pool_state_address],
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         TypeProof {},
     );
 }
@@ -85,7 +85,7 @@ public fun initialize_by_ccip_admin<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (coin_metadata_address, token_pool_state_address, token_type, type_proof_type_name) =
+    let (coin_metadata_address, lock_release_token_pool_state_address, token_type, type_proof_type_name) =
         initialize_internal(coin_metadata, rebalancer, ctx);
 
     let type_proof_type_name_address = type_proof_type_name.get_address();
@@ -100,8 +100,8 @@ public fun initialize_by_ccip_admin<T>(
         token_type.into_string(),
         token_pool_administrator,
         type_proof_type_name.into_string(),
-        vector[CLOCK_ADDRESS, token_pool_state_address],
-        vector[CLOCK_ADDRESS, token_pool_state_address],
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
+        vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         ctx,
     );
 }
@@ -259,12 +259,13 @@ public struct TypeProof has drop {}
 
 public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
+    token_transfer_params: &mut onramp_sh::TokenTransferParams,
     c: Coin<T>,
     remote_chain_selector: u64,
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
-): onramp_sh::TokenTransferParams {
+) {
     let amount = c.value();
     let sender = ctx.sender();
 
@@ -285,14 +286,15 @@ public fun lock_or_burn<T: drop>(
 
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
 
-    onramp_sh::create_token_transfer_params(
+    onramp_sh::add_token_transfer_param(
         ref,
+        token_transfer_params,
         remote_chain_selector,
         amount,
-        state.token_pool_state.get_token(),
+        get_token(state),
         dest_token_address,
         extra_data,
-        TypeProof {},
+        TypeProof {}
     )
 }
 
@@ -303,13 +305,13 @@ public fun lock_or_burn<T: drop>(
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     receiver_params: &mut offramp_sh::ReceiverParams,
-    index: u64,
+    token_transfer: offramp_sh::DestTokenTransfer,
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext
-): offramp_sh::CompletedDestTokenTransfer {
-    let remote_chain_selector = offramp_sh::get_source_chain_selector(receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(receiver_params, index);
+) {
+    let (receiver, remote_chain_selector, source_amount, dest_token_address, _, source_pool_address, source_pool_data, _) = offramp_sh::get_dest_token_transfer_data(token_transfer);
+
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &state.token_pool_state,
         source_pool_data,
@@ -344,9 +346,11 @@ public fun release_or_mint<T>(
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
-        index,
+        receiver,
+        dest_token_address,
+         object::id(state),
         TypeProof {},
-    )
+    );
 }
 
 // ================================================================

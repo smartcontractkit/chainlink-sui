@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -40,7 +39,7 @@ type IOnramp interface {
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*models.SuiTransactionBlockResponse, error)
-	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams []bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
+	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -73,7 +72,7 @@ type IOnrampDevInspect interface {
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) ([]any, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) ([]byte, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) ([]byte, error)
-	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams []bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error)
+	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (string, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
@@ -121,7 +120,7 @@ type OnrampEncoder interface {
 	CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error)
 	CalculateMetadataHash(sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*bind.EncodedCall, error)
 	CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams []bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
+	CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
 	CcipSendWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetCcipPackageId() (*bind.EncodedCall, error)
 	GetCcipPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -186,47 +185,6 @@ func (c *OnrampContract) Encoder() OnrampEncoder {
 
 func (c *OnrampContract) DevInspect() IOnrampDevInspect {
 	return c.devInspect
-}
-
-func (c *OnrampContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
 }
 
 type OnRampState struct {
@@ -343,7 +301,8 @@ type bcsOnRampState struct {
 	OwnableState      bind.Object
 }
 
-func convertOnRampStateFromBCS(bcs bcsOnRampState) OnRampState {
+func convertOnRampStateFromBCS(bcs bcsOnRampState) (OnRampState, error) {
+
 	return OnRampState{
 		Id:                bcs.Id,
 		ChainSelector:     bcs.ChainSelector,
@@ -354,7 +313,7 @@ func convertOnRampStateFromBCS(bcs bcsOnRampState) OnRampState {
 		NonceManagerCap:   bcs.NonceManagerCap,
 		SourceTransferCap: bcs.SourceTransferCap,
 		OwnableState:      bcs.OwnableState,
-	}
+	}, nil
 }
 
 type bcsOnRampStatePointer struct {
@@ -363,12 +322,13 @@ type bcsOnRampStatePointer struct {
 	OwnerCapId    [32]byte
 }
 
-func convertOnRampStatePointerFromBCS(bcs bcsOnRampStatePointer) OnRampStatePointer {
+func convertOnRampStatePointerFromBCS(bcs bcsOnRampStatePointer) (OnRampStatePointer, error) {
+
 	return OnRampStatePointer{
 		Id:            bcs.Id,
 		OnRampStateId: fmt.Sprintf("0x%x", bcs.OnRampStateId),
 		OwnerCapId:    fmt.Sprintf("0x%x", bcs.OwnerCapId),
-	}
+	}, nil
 }
 
 type bcsDestChainConfig struct {
@@ -378,7 +338,8 @@ type bcsDestChainConfig struct {
 	AllowedSenders   [][32]byte
 }
 
-func convertDestChainConfigFromBCS(bcs bcsDestChainConfig) DestChainConfig {
+func convertDestChainConfigFromBCS(bcs bcsDestChainConfig) (DestChainConfig, error) {
+
 	return DestChainConfig{
 		IsEnabled:        bcs.IsEnabled,
 		SequenceNumber:   bcs.SequenceNumber,
@@ -390,7 +351,7 @@ func convertDestChainConfigFromBCS(bcs bcsDestChainConfig) DestChainConfig {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 type bcsSui2AnyRampMessage struct {
@@ -401,11 +362,16 @@ type bcsSui2AnyRampMessage struct {
 	ExtraArgs      []byte
 	FeeToken       [32]byte
 	FeeTokenAmount uint64
-	FeeValueJuels  *big.Int
+	FeeValueJuels  [32]byte
 	TokenAmounts   []Sui2AnyTokenTransfer
 }
 
-func convertSui2AnyRampMessageFromBCS(bcs bcsSui2AnyRampMessage) Sui2AnyRampMessage {
+func convertSui2AnyRampMessageFromBCS(bcs bcsSui2AnyRampMessage) (Sui2AnyRampMessage, error) {
+	FeeValueJuelsField, err := bind.DecodeU256Value(bcs.FeeValueJuels)
+	if err != nil {
+		return Sui2AnyRampMessage{}, fmt.Errorf("failed to decode u256 field FeeValueJuels: %w", err)
+	}
+
 	return Sui2AnyRampMessage{
 		Header:         bcs.Header,
 		Sender:         fmt.Sprintf("0x%x", bcs.Sender),
@@ -414,9 +380,9 @@ func convertSui2AnyRampMessageFromBCS(bcs bcsSui2AnyRampMessage) Sui2AnyRampMess
 		ExtraArgs:      bcs.ExtraArgs,
 		FeeToken:       fmt.Sprintf("0x%x", bcs.FeeToken),
 		FeeTokenAmount: bcs.FeeTokenAmount,
-		FeeValueJuels:  bcs.FeeValueJuels,
+		FeeValueJuels:  FeeValueJuelsField,
 		TokenAmounts:   bcs.TokenAmounts,
-	}
+	}, nil
 }
 
 type bcsSui2AnyTokenTransfer struct {
@@ -427,14 +393,15 @@ type bcsSui2AnyTokenTransfer struct {
 	DestExecData      []byte
 }
 
-func convertSui2AnyTokenTransferFromBCS(bcs bcsSui2AnyTokenTransfer) Sui2AnyTokenTransfer {
+func convertSui2AnyTokenTransferFromBCS(bcs bcsSui2AnyTokenTransfer) (Sui2AnyTokenTransfer, error) {
+
 	return Sui2AnyTokenTransfer{
 		SourcePoolAddress: fmt.Sprintf("0x%x", bcs.SourcePoolAddress),
 		DestTokenAddress:  bcs.DestTokenAddress,
 		ExtraData:         bcs.ExtraData,
 		Amount:            bcs.Amount,
 		DestExecData:      bcs.DestExecData,
-	}
+	}, nil
 }
 
 type bcsDynamicConfig struct {
@@ -442,11 +409,12 @@ type bcsDynamicConfig struct {
 	AllowlistAdmin [32]byte
 }
 
-func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) DynamicConfig {
+func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) (DynamicConfig, error) {
+
 	return DynamicConfig{
 		FeeAggregator:  fmt.Sprintf("0x%x", bcs.FeeAggregator),
 		AllowlistAdmin: fmt.Sprintf("0x%x", bcs.AllowlistAdmin),
-	}
+	}, nil
 }
 
 type bcsConfigSet struct {
@@ -454,11 +422,16 @@ type bcsConfigSet struct {
 	DynamicConfig bcsDynamicConfig
 }
 
-func convertConfigSetFromBCS(bcs bcsConfigSet) ConfigSet {
+func convertConfigSetFromBCS(bcs bcsConfigSet) (ConfigSet, error) {
+	DynamicConfigField, err := convertDynamicConfigFromBCS(bcs.DynamicConfig)
+	if err != nil {
+		return ConfigSet{}, fmt.Errorf("failed to convert nested struct DynamicConfig: %w", err)
+	}
+
 	return ConfigSet{
 		StaticConfig:  bcs.StaticConfig,
-		DynamicConfig: convertDynamicConfigFromBCS(bcs.DynamicConfig),
-	}
+		DynamicConfig: DynamicConfigField,
+	}, nil
 }
 
 type bcsCCIPMessageSent struct {
@@ -467,12 +440,17 @@ type bcsCCIPMessageSent struct {
 	Message           bcsSui2AnyRampMessage
 }
 
-func convertCCIPMessageSentFromBCS(bcs bcsCCIPMessageSent) CCIPMessageSent {
+func convertCCIPMessageSentFromBCS(bcs bcsCCIPMessageSent) (CCIPMessageSent, error) {
+	MessageField, err := convertSui2AnyRampMessageFromBCS(bcs.Message)
+	if err != nil {
+		return CCIPMessageSent{}, fmt.Errorf("failed to convert nested struct Message: %w", err)
+	}
+
 	return CCIPMessageSent{
 		DestChainSelector: bcs.DestChainSelector,
 		SequenceNumber:    bcs.SequenceNumber,
-		Message:           convertSui2AnyRampMessageFromBCS(bcs.Message),
-	}
+		Message:           MessageField,
+	}, nil
 }
 
 type bcsAllowlistSendersAdded struct {
@@ -480,7 +458,8 @@ type bcsAllowlistSendersAdded struct {
 	Senders           [][32]byte
 }
 
-func convertAllowlistSendersAddedFromBCS(bcs bcsAllowlistSendersAdded) AllowlistSendersAdded {
+func convertAllowlistSendersAddedFromBCS(bcs bcsAllowlistSendersAdded) (AllowlistSendersAdded, error) {
+
 	return AllowlistSendersAdded{
 		DestChainSelector: bcs.DestChainSelector,
 		Senders: func() []string {
@@ -490,7 +469,7 @@ func convertAllowlistSendersAddedFromBCS(bcs bcsAllowlistSendersAdded) Allowlist
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 type bcsAllowlistSendersRemoved struct {
@@ -498,7 +477,8 @@ type bcsAllowlistSendersRemoved struct {
 	Senders           [][32]byte
 }
 
-func convertAllowlistSendersRemovedFromBCS(bcs bcsAllowlistSendersRemoved) AllowlistSendersRemoved {
+func convertAllowlistSendersRemovedFromBCS(bcs bcsAllowlistSendersRemoved) (AllowlistSendersRemoved, error) {
+
 	return AllowlistSendersRemoved{
 		DestChainSelector: bcs.DestChainSelector,
 		Senders: func() []string {
@@ -508,7 +488,7 @@ func convertAllowlistSendersRemovedFromBCS(bcs bcsAllowlistSendersRemoved) Allow
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 type bcsFeeTokenWithdrawn struct {
@@ -517,12 +497,13 @@ type bcsFeeTokenWithdrawn struct {
 	Amount        uint64
 }
 
-func convertFeeTokenWithdrawnFromBCS(bcs bcsFeeTokenWithdrawn) FeeTokenWithdrawn {
+func convertFeeTokenWithdrawnFromBCS(bcs bcsFeeTokenWithdrawn) (FeeTokenWithdrawn, error) {
+
 	return FeeTokenWithdrawn{
 		FeeAggregator: fmt.Sprintf("0x%x", bcs.FeeAggregator),
 		FeeToken:      fmt.Sprintf("0x%x", bcs.FeeToken),
 		Amount:        bcs.Amount,
-	}
+	}, nil
 }
 
 func init() {
@@ -533,7 +514,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOnRampStateFromBCS(temp)
+		result, err := convertOnRampStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampStatePointer", func(data []byte) (interface{}, error) {
@@ -543,7 +527,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOnRampStatePointerFromBCS(temp)
+		result, err := convertOnRampStatePointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::DestChainConfig", func(data []byte) (interface{}, error) {
@@ -553,7 +540,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDestChainConfigFromBCS(temp)
+		result, err := convertDestChainConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::RampMessageHeader", func(data []byte) (interface{}, error) {
@@ -571,7 +561,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSui2AnyRampMessageFromBCS(temp)
+		result, err := convertSui2AnyRampMessageFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::Sui2AnyTokenTransfer", func(data []byte) (interface{}, error) {
@@ -581,7 +574,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSui2AnyTokenTransferFromBCS(temp)
+		result, err := convertSui2AnyTokenTransferFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::StaticConfig", func(data []byte) (interface{}, error) {
@@ -599,7 +595,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDynamicConfigFromBCS(temp)
+		result, err := convertDynamicConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::ConfigSet", func(data []byte) (interface{}, error) {
@@ -609,7 +608,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertConfigSetFromBCS(temp)
+		result, err := convertConfigSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::DestChainConfigSet", func(data []byte) (interface{}, error) {
@@ -627,7 +629,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCCIPMessageSentFromBCS(temp)
+		result, err := convertCCIPMessageSentFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::AllowlistSendersAdded", func(data []byte) (interface{}, error) {
@@ -637,7 +642,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAllowlistSendersAddedFromBCS(temp)
+		result, err := convertAllowlistSendersAddedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::AllowlistSendersRemoved", func(data []byte) (interface{}, error) {
@@ -647,7 +655,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAllowlistSendersRemovedFromBCS(temp)
+		result, err := convertAllowlistSendersRemovedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::FeeTokenWithdrawn", func(data []byte) (interface{}, error) {
@@ -657,7 +668,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFeeTokenWithdrawnFromBCS(temp)
+		result, err := convertFeeTokenWithdrawnFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::ONRAMP", func(data []byte) (interface{}, error) {
@@ -869,7 +883,7 @@ func (c *OnrampContract) CalculateMetadataHash(ctx context.Context, opts *bind.C
 }
 
 // CcipSend executes the ccip_send Move function.
-func (c *OnrampContract) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams []bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
+func (c *OnrampContract) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.onrampEncoder.CcipSend(typeArgs, ref, state, clock, destChainSelector, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -1285,7 +1299,7 @@ func (d *OnrampDevInspect) CalculateMetadataHash(ctx context.Context, opts *bind
 // CcipSend executes the ccip_send Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
-func (d *OnrampDevInspect) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams []bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error) {
+func (d *OnrampDevInspect) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error) {
 	encoded, err := d.contract.onrampEncoder.CcipSend(typeArgs, ref, state, clock, destChainSelector, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
@@ -1974,7 +1988,7 @@ func (c onrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
-		"StaticConfig",
+		"ccip_onramp::onramp::StaticConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -1986,7 +2000,7 @@ func (c onrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCal
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"StaticConfig",
+		"ccip_onramp::onramp::StaticConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2034,7 +2048,7 @@ func (c onrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedC
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config_fields", typeArgsList, typeParamsList, []string{
-		"DynamicConfig",
+		"ccip_onramp::onramp::DynamicConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2047,7 +2061,7 @@ func (c onrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedC
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"DynamicConfig",
+		"ccip_onramp::onramp::DynamicConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2176,7 +2190,7 @@ func (c onrampEncoder) CalculateMetadataHashWithArgs(args ...any) (*bind.Encoded
 }
 
 // CcipSend encodes a call to the ccip_send Move function.
-func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams []bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error) {
+func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2188,7 +2202,7 @@ func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.O
 		"u64",
 		"vector<u8>",
 		"vector<u8>",
-		"vector<osh::TokenTransferParams>",
+		"osh::TokenTransferParams",
 		"&CoinMetadata<T>",
 		"&mut Coin<T>",
 		"vector<u8>",
@@ -2218,7 +2232,7 @@ func (c onrampEncoder) CcipSendWithArgs(typeArgs []string, args ...any) (*bind.E
 		"u64",
 		"vector<u8>",
 		"vector<u8>",
-		"vector<osh::TokenTransferParams>",
+		"osh::TokenTransferParams",
 		"&CoinMetadata<T>",
 		"&mut Coin<T>",
 		"vector<u8>",

@@ -3,7 +3,6 @@ package txm
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -168,7 +167,6 @@ func GenerateTransaction(
 	}
 
 	// Get the ID (in keystore) of the public key
-	// TODO: check if this is also the way signers are keyed in chainlink core
 	signerId := fmt.Sprintf("%064x", pubKey)
 
 	signatures, err := keystoreService.Sign(ctx, signerId, suiClient.HashTxBytes(txBytes))
@@ -323,14 +321,15 @@ func GeneratePTBTransaction(
 
 	// Extract functions from PTB commands
 	functions := []*SuiFunction{}
-	for _, command := range ptb.Data.V1.Kind.ProgrammableTransaction.Commands {
-		packageIDstr := "0x" + hex.EncodeToString(command.MoveCall.Package[:])
-		functions = append(functions, &SuiFunction{
-			PackageId: packageIDstr,
-			Module:    command.MoveCall.Module,
-			Name:      command.MoveCall.Function,
-		})
-	}
+	// TODO: this is just used for debugging, we can add it back later
+	// for _, command := range ptb.Data.V1.Kind.ProgrammableTransaction.Commands {
+	// 	packageIDstr := "0x" + hex.EncodeToString(command.MoveCall.Package[:])
+	// 	functions = append(functions, &SuiFunction{
+	// 		PackageId: packageIDstr,
+	// 		Module:    command.MoveCall.Module,
+	// 		Name:      command.MoveCall.Function,
+	// 	})
+	// }
 
 	return &SuiTx{
 		TransactionID: transactionID,

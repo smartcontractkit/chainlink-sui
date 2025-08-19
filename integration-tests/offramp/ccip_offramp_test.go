@@ -33,11 +33,11 @@ import (
 	chainwriter "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/expander"
-	offramp "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -61,6 +61,79 @@ type ReceivedMessageEvent struct {
 
 func AnyPointer[T any](v T) *T {
 	return &v
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+func GenerateCommitPTB(
+	offRampPackageId string,
+	signerPublicKey []byte,
+) *config.ChainWriterFunction {
+	return &config.ChainWriterFunction{
+		Name:      config.CCIPCommit,
+		PublicKey: signerPublicKey,
+		Params:    []codec.SuiFunctionParam{},
+		PTBCommands: []config.ChainWriterPTBCommand{
+			{
+				Type:      codec.SuiPTBCommandMoveCall,
+				PackageId: strPtr(offRampPackageId),
+				ModuleId:  strPtr("offramp"),
+				Function:  strPtr("commit"),
+				Params: []codec.SuiFunctionParam{
+					{
+						Name:      "ccip_object_ref",
+						Type:      "object_id",
+						Required:  true,
+						IsMutable: boolPtr(true),
+					},
+					{
+						Name:      "state",
+						Type:      "object_id",
+						Required:  true,
+						IsMutable: boolPtr(true),
+					},
+					{
+						Name:      "clock",
+						Type:      "object_id",
+						Required:  true,
+						IsMutable: boolPtr(false),
+					},
+					{
+						Name:     "report_context",
+						Type:     "vector<vector<u8>>",
+						Required: true,
+					},
+					{
+						Name:     "report",
+						Type:     "vector<u8>",
+						Required: true,
+					},
+					{
+						Name:     "signatures",
+						Type:     "vector<vector<u8>>",
+						Required: true,
+					},
+				},
+			},
+		},
+	}
+}
+
+func GenerateExecutePTB(
+	signerPublicKey []byte,
+) *config.ChainWriterFunction {
+	return &config.ChainWriterFunction{
+		Name:        config.CCIPExecute,
+		PublicKey:   signerPublicKey,
+		Params:      []codec.SuiFunctionParam{},
+		PTBCommands: []config.ChainWriterPTBCommand{},
+	}
 }
 
 type EnvironmentSettings struct {
@@ -515,7 +588,7 @@ func SetupTestEnvironment(t *testing.T) *EnvironmentSettings {
 	}
 }
 
-func setupChainWriter(t *testing.T, envSettings *EnvironmentSettings) (*chainwriter.SuiChainWriter, string) {
+func setupChainWriter(t *testing.T, envSettings *EnvironmentSettings) (*chainwriter.SuiChainWriter, *txm.SuiTxm, string) {
 	lggr := logger.Test(t)
 
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -589,8 +662,8 @@ func setupChainWriter(t *testing.T, envSettings *EnvironmentSettings) (*chainwri
 							},
 						},
 					},
-					"ccip_commit":                          offramp.GenerateCommitPTB(lggr, offRampPackageId, publicKeyBytes),
-					cwConfig.CCIPExecuteReportFunctionName: offramp.GenerateExecutePTB(lggr, offRampPackageId, publicKeyBytes),
+					cwConfig.CCIPCommit:  GenerateCommitPTB(lggr, offRampPackageId, publicKeyBytes),
+					cwConfig.CCIPExecute: GenerateExecutePTB(lggr, offRampPackageId, publicKeyBytes),
 				},
 			},
 		},
@@ -601,7 +674,7 @@ func setupChainWriter(t *testing.T, envSettings *EnvironmentSettings) (*chainwri
 	chainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, chainWriterConfig, false)
 	require.NoError(t, err)
 
-	return chainWriter, accountAddress
+	return chainWriter, txManager, accountAddress
 }
 
 func createCommitReport(t *testing.T, envSettings *EnvironmentSettings) ([]byte, testutils.CommitReport, [][]byte, *TestMessage) {
@@ -830,9 +903,12 @@ func TestCCIPOffRamp(t *testing.T) {
 	c := context.Background()
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
-	chainWriter, accountAddress := setupChainWriter(t, envSettings)
+	chainWriter, txM, accountAddress := setupChainWriter(t, envSettings)
 
 	err := chainWriter.Start(ctx)
+	require.NoError(t, err)
+
+	err = txM.Start(ctx)
 	require.NoError(t, err)
 
 	clockObject := "0x6"
@@ -1112,9 +1188,12 @@ func TestCCIPOffRampWithReceiver(t *testing.T) {
 	c := context.Background()
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
-	chainWriter, accountAddress := setupChainWriter(t, envSettings)
+	chainWriter, txM, accountAddress := setupChainWriter(t, envSettings)
 
 	err := chainWriter.Start(ctx)
+	require.NoError(t, err)
+
+	err = txM.Start(ctx)
 	require.NoError(t, err)
 
 	clockObject := "0x6"

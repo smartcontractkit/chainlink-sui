@@ -12,7 +12,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 
@@ -87,48 +86,6 @@ func (c *{{toUpperCamel .Module}}Contract) DevInspect() I{{toUpperCamel .Module}
 	return c.devInspect
 }
 
-func (c *{{toUpperCamel .Module}}Contract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-	   ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
-
 {{$structs := .Structs}}
 {{range $structs}}
 type {{.Name}} struct { {{range $field := .Fields}}
@@ -142,7 +99,27 @@ type bcs{{.Name}} struct { {{range $field := .Fields}}
   {{$field.Name}} {{getBCSType $field}} {{end}}
 }
 
-func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) {{.Name}} {
+func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) ({{.Name}}, error) {
+	{{- $structName := .Name}}
+	{{- range .Fields}}
+	{{- if eq .Type.MoveType "u256"}}
+	{{.Name}}Field, err := bind.DecodeU256Value(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to decode u256 field {{.Name}}: %w", err)
+	}
+	{{- else if eq .Type.MoveType "u128"}}
+	{{.Name}}Field, err := bind.DecodeU128Value(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to decode u128 field {{.Name}}: %w", err)
+	}
+	{{- else if isNestedStructWithDecoder .Type.MoveType}}
+	{{.Name}}Field, err := convert{{.Type.MoveType}}FromBCS(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to convert nested struct {{.Name}}: %w", err)
+	}
+	{{- end}}
+	{{- end}}
+
 	return {{.Name}}{
 	{{- range .Fields}}
 		{{- if eq .Type.MoveType "address"}}
@@ -167,13 +144,17 @@ func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) {{.Name}} {
 			}
 			return addrs
 		}(),
+		{{- else if eq .Type.MoveType "u256"}}
+		{{.Name}}: {{.Name}}Field,
+		{{- else if eq .Type.MoveType "u128"}}
+		{{.Name}}: {{.Name}}Field,
 		{{- else if isNestedStructWithDecoder .Type.MoveType}}
-		{{.Name}}: convert{{.Type.MoveType}}FromBCS(bcs.{{.Name}}),
+		{{.Name}}: {{.Name}}Field,
 		{{- else}}
 		{{.Name}}: bcs.{{.Name}},
 		{{- end}}
 	{{- end}}
-	}
+	}, nil
 }
 {{end}}
 {{- end}}
@@ -188,7 +169,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convert{{.Name}}FromBCS(temp)
+		result, err := convert{{.Name}}FromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	{{- else}}
@@ -291,7 +275,7 @@ func (c {{toLowerCamel $.Module}}Encoder) {{.Name}}({{if .HasTypeParams}}typeArg
 	{{- if .HasReturnValues }}
 	return c.EncodeCallArgsWithGenerics("{{.MoveName}}", typeArgsList, typeParamsList, []string{
 	{{- range .Params}}
-		"{{.Type.OriginalType}}",
+		"{{getFullyQualifiedType .Type.OriginalType $.Package $.Module}}",
 	{{- end}}
 	}, []any{
 	{{- range .Params}}
@@ -305,7 +289,7 @@ func (c {{toLowerCamel $.Module}}Encoder) {{.Name}}({{if .HasTypeParams}}typeArg
 	{{- else }}
 	return c.EncodeCallArgsWithGenerics("{{.MoveName}}", typeArgsList, typeParamsList, []string{
 	{{- range .Params}}
-		"{{.Type.OriginalType}}",
+		"{{getFullyQualifiedType .Type.OriginalType $.Package $.Module}}",
 	{{- end}}
 	}, []any{
 	{{- range .Params}}
@@ -320,7 +304,7 @@ func (c {{toLowerCamel $.Module}}Encoder) {{.Name}}({{if .HasTypeParams}}typeArg
 func (c {{toLowerCamel $.Module}}Encoder) {{.Name}}WithArgs({{if .HasTypeParams}}typeArgs []string, {{end}}args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 	{{- range .Params}}
-		"{{.Type.OriginalType}}",
+		"{{getFullyQualifiedType .Type.OriginalType $.Package $.Module}}",
 	{{- end}}
 	}
 	

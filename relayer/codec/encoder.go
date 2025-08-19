@@ -135,7 +135,8 @@ func encodeUint(typeName string, value any) (any, error) {
 			}
 			baseValue = uint64(f)
 		} else {
-			i, err := v.Int64()
+			// json parsing int64 for selector was going out of range
+			i, err := strconv.ParseUint(v.String(), base10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("cannot convert json.Number %s to %s: %w", v, typeName, err)
 			}

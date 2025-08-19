@@ -256,12 +256,13 @@ public struct TypeProof has drop {}
 
 public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
+    token_transfer_params: &mut onramp_sh::TokenTransferParams,
     c: Coin<T>,
     remote_chain_selector: u64,
     clock: &Clock,
     state: &mut BurnMintTokenPoolState<T>,
     ctx: &mut TxContext
-): onramp_sh::TokenTransferParams {
+) {
     let amount = c.value();
     let sender = ctx.sender();
 
@@ -283,27 +284,28 @@ public fun lock_or_burn<T>(
 
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
 
-    onramp_sh::create_token_transfer_params(
+    onramp_sh::add_token_transfer_param(
         ref,
+        token_transfer_params,
         remote_chain_selector,
         amount,
-        state.token_pool_state.get_token(),
+        get_token(state),
         dest_token_address,
         extra_data,
-        TypeProof {},
+        TypeProof {}
     )
 }
 
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     receiver_params: &mut offramp_sh::ReceiverParams,
-    index: u64,
+    token_transfer: offramp_sh::DestTokenTransfer,
     clock: &Clock,
     pool: &mut BurnMintTokenPoolState<T>,
     ctx: &mut TxContext
-): offramp_sh::CompletedDestTokenTransfer {
-    let remote_chain_selector = offramp_sh::get_source_chain_selector(receiver_params);
-    let (receiver, source_amount, dest_token_address, source_pool_address, source_pool_data, _) = offramp_sh::get_token_param_data(receiver_params, index);
+) {
+    let (receiver, remote_chain_selector, source_amount, dest_token_address, _, source_pool_address, source_pool_data, _) = offramp_sh::get_dest_token_transfer_data(token_transfer);
+
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &pool.token_pool_state,
         source_pool_data,
@@ -337,9 +339,11 @@ public fun release_or_mint<T>(
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
-        index,
+        receiver,
+        dest_token_address,
+         object::id(pool),
         TypeProof {},
-    )
+    );
 }
 
 // ================================================================

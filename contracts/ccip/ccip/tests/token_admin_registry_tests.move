@@ -102,8 +102,8 @@ fun register_test_pool<T>(
         pool_package_id,
         string::utf8(pool_module),
         admin,
-        vector[], // lock_or_burn_params
-        vector[], // release_or_mint_params
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
         TypeProof {},
     );
 }
@@ -245,8 +245,8 @@ public fun test_register_pool_by_admin() {
             ascii::string(b"TestType"),
             TOKEN_ADMIN_ADDRESS, // initial_administrator
             ascii::string(b"AdminProof"), // proof
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
+            vector<address>[], // lock_or_burn_params
+            vector<address>[], // release_or_mint_params
             ctx,
         );
 
@@ -361,8 +361,8 @@ public fun test_register_and_set_pool() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,   
             string::utf8(b"mock_token_pool_2"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
+            vector<address>[], // lock_or_burn_params
+            vector<address>[], // release_or_mint_params
             TypeProof2 {},
             ctx,
         );
@@ -441,8 +441,8 @@ public fun test_get_token_configs() {
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             string::utf8(b"mock_token_pool_2"),
             TOKEN_ADMIN_ADDRESS,
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
+            vector[],
+            vector[],
             TypeProof2 {},
         );
 
@@ -657,8 +657,8 @@ public fun test_set_pool_comprehensive() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             string::utf8(b"updated_token_pool"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
+            vector<address>[], // lock_or_burn_params
+            vector<address>[], // release_or_mint_params
             TypeProof2 {},
             ctx,
         );
@@ -684,8 +684,8 @@ public fun test_set_pool_comprehensive() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2, // same package ID
             string::utf8(b"should_not_update"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
+            vector<address>[], // lock_or_burn_params
+            vector<address>[], // release_or_mint_params
             TypeProof {},
             ctx,
         );
@@ -817,8 +817,8 @@ public fun test_set_pool_unregistered_token() {
             @0x999, // unregistered token
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             string::utf8(b"test_pool"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
+            vector<address>[], // lock_or_burn_params
+            vector<address>[], // release_or_mint_params
             TypeProof {},
             ctx,
         );
@@ -869,8 +869,8 @@ public fun test_set_pool_unauthorized() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             string::utf8(b"unauthorized_update"),
-            vector[], // lock_or_burn_params
-            vector[], // release_or_mint_params
+            vector<address>[], // lock_or_burn_params
+            vector<address>[], // release_or_mint_params
             TypeProof2 {},
             ctx,
         );

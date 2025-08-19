@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -308,47 +307,6 @@ func (c *McmsContract) DevInspect() IMcmsDevInspect {
 	return c.devInspect
 }
 
-func (c *McmsContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type MultisigState struct {
 	Id        string   `move:"sui::object::UID"`
 	Bypasser  Multisig `move:"Multisig"`
@@ -525,13 +483,26 @@ type bcsMultisigState struct {
 	Proposer  bcsMultisig
 }
 
-func convertMultisigStateFromBCS(bcs bcsMultisigState) MultisigState {
+func convertMultisigStateFromBCS(bcs bcsMultisigState) (MultisigState, error) {
+	BypasserField, err := convertMultisigFromBCS(bcs.Bypasser)
+	if err != nil {
+		return MultisigState{}, fmt.Errorf("failed to convert nested struct Bypasser: %w", err)
+	}
+	CancellerField, err := convertMultisigFromBCS(bcs.Canceller)
+	if err != nil {
+		return MultisigState{}, fmt.Errorf("failed to convert nested struct Canceller: %w", err)
+	}
+	ProposerField, err := convertMultisigFromBCS(bcs.Proposer)
+	if err != nil {
+		return MultisigState{}, fmt.Errorf("failed to convert nested struct Proposer: %w", err)
+	}
+
 	return MultisigState{
 		Id:        bcs.Id,
-		Bypasser:  convertMultisigFromBCS(bcs.Bypasser),
-		Canceller: convertMultisigFromBCS(bcs.Canceller),
-		Proposer:  convertMultisigFromBCS(bcs.Proposer),
-	}
+		Bypasser:  BypasserField,
+		Canceller: CancellerField,
+		Proposer:  ProposerField,
+	}, nil
 }
 
 type bcsMultisig struct {
@@ -543,20 +514,25 @@ type bcsMultisig struct {
 	RootMetadata           bcsRootMetadata
 }
 
-func convertMultisigFromBCS(bcs bcsMultisig) Multisig {
+func convertMultisigFromBCS(bcs bcsMultisig) (Multisig, error) {
+	RootMetadataField, err := convertRootMetadataFromBCS(bcs.RootMetadata)
+	if err != nil {
+		return Multisig{}, fmt.Errorf("failed to convert nested struct RootMetadata: %w", err)
+	}
+
 	return Multisig{
 		Role:                   bcs.Role,
 		Signers:                bcs.Signers,
 		Config:                 bcs.Config,
 		SeenSignedHashes:       bcs.SeenSignedHashes,
 		ExpiringRootAndOpCount: bcs.ExpiringRootAndOpCount,
-		RootMetadata:           convertRootMetadataFromBCS(bcs.RootMetadata),
-	}
+		RootMetadata:           RootMetadataField,
+	}, nil
 }
 
 type bcsOp struct {
 	Role         byte
-	ChainId      *big.Int
+	ChainId      [32]byte
 	Multisig     [32]byte
 	Nonce        uint64
 	To           [32]byte
@@ -565,37 +541,47 @@ type bcsOp struct {
 	Data         []byte
 }
 
-func convertOpFromBCS(bcs bcsOp) Op {
+func convertOpFromBCS(bcs bcsOp) (Op, error) {
+	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
+	if err != nil {
+		return Op{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
+	}
+
 	return Op{
 		Role:         bcs.Role,
-		ChainId:      bcs.ChainId,
+		ChainId:      ChainIdField,
 		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
 		Nonce:        bcs.Nonce,
 		To:           fmt.Sprintf("0x%x", bcs.To),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsRootMetadata struct {
 	Role                 byte
-	ChainId              *big.Int
+	ChainId              [32]byte
 	Multisig             [32]byte
 	PreOpCount           uint64
 	PostOpCount          uint64
 	OverridePreviousRoot bool
 }
 
-func convertRootMetadataFromBCS(bcs bcsRootMetadata) RootMetadata {
+func convertRootMetadataFromBCS(bcs bcsRootMetadata) (RootMetadata, error) {
+	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
+	if err != nil {
+		return RootMetadata{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
+	}
+
 	return RootMetadata{
 		Role:                 bcs.Role,
-		ChainId:              bcs.ChainId,
+		ChainId:              ChainIdField,
 		Multisig:             fmt.Sprintf("0x%x", bcs.Multisig),
 		PreOpCount:           bcs.PreOpCount,
 		PostOpCount:          bcs.PostOpCount,
 		OverridePreviousRoot: bcs.OverridePreviousRoot,
-	}
+	}, nil
 }
 
 type bcsNewRoot struct {
@@ -605,18 +591,23 @@ type bcsNewRoot struct {
 	Metadata   bcsRootMetadata
 }
 
-func convertNewRootFromBCS(bcs bcsNewRoot) NewRoot {
+func convertNewRootFromBCS(bcs bcsNewRoot) (NewRoot, error) {
+	MetadataField, err := convertRootMetadataFromBCS(bcs.Metadata)
+	if err != nil {
+		return NewRoot{}, fmt.Errorf("failed to convert nested struct Metadata: %w", err)
+	}
+
 	return NewRoot{
 		Role:       bcs.Role,
 		Root:       bcs.Root,
 		ValidUntil: bcs.ValidUntil,
-		Metadata:   convertRootMetadataFromBCS(bcs.Metadata),
-	}
+		Metadata:   MetadataField,
+	}, nil
 }
 
 type bcsOpExecuted struct {
 	Role         byte
-	ChainId      *big.Int
+	ChainId      [32]byte
 	Multisig     [32]byte
 	Nonce        uint64
 	To           [32]byte
@@ -625,17 +616,22 @@ type bcsOpExecuted struct {
 	Data         []byte
 }
 
-func convertOpExecutedFromBCS(bcs bcsOpExecuted) OpExecuted {
+func convertOpExecutedFromBCS(bcs bcsOpExecuted) (OpExecuted, error) {
+	ChainIdField, err := bind.DecodeU256Value(bcs.ChainId)
+	if err != nil {
+		return OpExecuted{}, fmt.Errorf("failed to decode u256 field ChainId: %w", err)
+	}
+
 	return OpExecuted{
 		Role:         bcs.Role,
-		ChainId:      bcs.ChainId,
+		ChainId:      ChainIdField,
 		Multisig:     fmt.Sprintf("0x%x", bcs.Multisig),
 		Nonce:        bcs.Nonce,
 		To:           fmt.Sprintf("0x%x", bcs.To),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsCall struct {
@@ -643,11 +639,16 @@ type bcsCall struct {
 	Data     []byte
 }
 
-func convertCallFromBCS(bcs bcsCall) Call {
-	return Call{
-		Function: convertFunctionFromBCS(bcs.Function),
-		Data:     bcs.Data,
+func convertCallFromBCS(bcs bcsCall) (Call, error) {
+	FunctionField, err := convertFunctionFromBCS(bcs.Function)
+	if err != nil {
+		return Call{}, fmt.Errorf("failed to convert nested struct Function: %w", err)
 	}
+
+	return Call{
+		Function: FunctionField,
+		Data:     bcs.Data,
+	}, nil
 }
 
 type bcsFunction struct {
@@ -656,12 +657,13 @@ type bcsFunction struct {
 	FunctionName string
 }
 
-func convertFunctionFromBCS(bcs bcsFunction) Function {
+func convertFunctionFromBCS(bcs bcsFunction) (Function, error) {
+
 	return Function{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
-	}
+	}, nil
 }
 
 type bcsBypasserCallInitiated struct {
@@ -672,14 +674,15 @@ type bcsBypasserCallInitiated struct {
 	Data         []byte
 }
 
-func convertBypasserCallInitiatedFromBCS(bcs bcsBypasserCallInitiated) BypasserCallInitiated {
+func convertBypasserCallInitiatedFromBCS(bcs bcsBypasserCallInitiated) (BypasserCallInitiated, error) {
+
 	return BypasserCallInitiated{
 		Index:        bcs.Index,
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsCallScheduled struct {
@@ -694,7 +697,8 @@ type bcsCallScheduled struct {
 	Delay        uint64
 }
 
-func convertCallScheduledFromBCS(bcs bcsCallScheduled) CallScheduled {
+func convertCallScheduledFromBCS(bcs bcsCallScheduled) (CallScheduled, error) {
+
 	return CallScheduled{
 		Id:           bcs.Id,
 		Index:        bcs.Index,
@@ -705,7 +709,7 @@ func convertCallScheduledFromBCS(bcs bcsCallScheduled) CallScheduled {
 		Predecessor:  bcs.Predecessor,
 		Salt:         bcs.Salt,
 		Delay:        bcs.Delay,
-	}
+	}, nil
 }
 
 type bcsCallInitiated struct {
@@ -717,7 +721,8 @@ type bcsCallInitiated struct {
 	Data         []byte
 }
 
-func convertCallInitiatedFromBCS(bcs bcsCallInitiated) CallInitiated {
+func convertCallInitiatedFromBCS(bcs bcsCallInitiated) (CallInitiated, error) {
+
 	return CallInitiated{
 		Id:           bcs.Id,
 		Index:        bcs.Index,
@@ -725,7 +730,7 @@ func convertCallInitiatedFromBCS(bcs bcsCallInitiated) CallInitiated {
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsFunctionBlocked struct {
@@ -734,12 +739,13 @@ type bcsFunctionBlocked struct {
 	FunctionName string
 }
 
-func convertFunctionBlockedFromBCS(bcs bcsFunctionBlocked) FunctionBlocked {
+func convertFunctionBlockedFromBCS(bcs bcsFunctionBlocked) (FunctionBlocked, error) {
+
 	return FunctionBlocked{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
-	}
+	}, nil
 }
 
 type bcsFunctionUnblocked struct {
@@ -748,12 +754,13 @@ type bcsFunctionUnblocked struct {
 	FunctionName string
 }
 
-func convertFunctionUnblockedFromBCS(bcs bcsFunctionUnblocked) FunctionUnblocked {
+func convertFunctionUnblockedFromBCS(bcs bcsFunctionUnblocked) (FunctionUnblocked, error) {
+
 	return FunctionUnblocked{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
-	}
+	}, nil
 }
 
 func init() {
@@ -764,7 +771,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertMultisigStateFromBCS(temp)
+		result, err := convertMultisigStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Multisig", func(data []byte) (interface{}, error) {
@@ -774,7 +784,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertMultisigFromBCS(temp)
+		result, err := convertMultisigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Signer", func(data []byte) (interface{}, error) {
@@ -808,7 +821,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOpFromBCS(temp)
+		result, err := convertOpFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::RootMetadata", func(data []byte) (interface{}, error) {
@@ -818,7 +834,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertRootMetadataFromBCS(temp)
+		result, err := convertRootMetadataFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::TimelockCallbackParams", func(data []byte) (interface{}, error) {
@@ -852,7 +871,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertNewRootFromBCS(temp)
+		result, err := convertNewRootFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::OpExecuted", func(data []byte) (interface{}, error) {
@@ -862,7 +884,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOpExecutedFromBCS(temp)
+		result, err := convertOpExecutedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::MCMS", func(data []byte) (interface{}, error) {
@@ -896,7 +921,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCallFromBCS(temp)
+		result, err := convertCallFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Function", func(data []byte) (interface{}, error) {
@@ -906,7 +934,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFunctionFromBCS(temp)
+		result, err := convertFunctionFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::TimelockInitialized", func(data []byte) (interface{}, error) {
@@ -924,7 +955,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertBypasserCallInitiatedFromBCS(temp)
+		result, err := convertBypasserCallInitiatedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Cancelled", func(data []byte) (interface{}, error) {
@@ -942,7 +976,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCallScheduledFromBCS(temp)
+		result, err := convertCallScheduledFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::CallInitiated", func(data []byte) (interface{}, error) {
@@ -952,7 +989,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCallInitiatedFromBCS(temp)
+		result, err := convertCallInitiatedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::UpdateMinDelay", func(data []byte) (interface{}, error) {
@@ -970,7 +1010,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFunctionBlockedFromBCS(temp)
+		result, err := convertFunctionBlockedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::FunctionUnblocked", func(data []byte) (interface{}, error) {
@@ -980,7 +1023,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFunctionUnblockedFromBCS(temp)
+		result, err := convertFunctionUnblockedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }
@@ -2778,8 +2824,8 @@ func (c mcmsEncoder) Execute(state bind.Object, clock bind.Object, role byte, ch
 		"address",
 		"u64",
 		"address",
-		"String",
-		"String",
+		"0x1::string::String",
+		"0x1::string::String",
 		"vector<u8>",
 		"vector<vector<u8>>",
 	}, []any{
@@ -2810,8 +2856,8 @@ func (c mcmsEncoder) ExecuteWithArgs(args ...any) (*bind.EncodedCall, error) {
 		"address",
 		"u64",
 		"address",
-		"String",
-		"String",
+		"0x1::string::String",
+		"0x1::string::String",
 		"vector<u8>",
 		"vector<vector<u8>>",
 	}
@@ -2833,7 +2879,7 @@ func (c mcmsEncoder) DispatchTimelockScheduleBatch(timelock bind.Object, clock b
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_schedule_batch", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&Clock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}, []any{
 		timelock,
 		clock,
@@ -2847,7 +2893,7 @@ func (c mcmsEncoder) DispatchTimelockScheduleBatchWithArgs(args ...any) (*bind.E
 	expectedParams := []string{
 		"&mut Timelock",
 		"&Clock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2865,7 +2911,7 @@ func (c mcmsEncoder) DispatchTimelockExecuteBatch(timelock bind.Object, clock bi
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_execute_batch", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&Clock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}, []any{
 		timelock,
 		clock,
@@ -2881,7 +2927,7 @@ func (c mcmsEncoder) DispatchTimelockExecuteBatchWithArgs(args ...any) (*bind.En
 	expectedParams := []string{
 		"&mut Timelock",
 		"&Clock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2899,7 +2945,7 @@ func (c mcmsEncoder) DispatchTimelockBypasserExecuteBatch(timelockCallbackParams
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_bypasser_execute_batch", typeArgsList, typeParamsList, []string{
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}, []any{
 		timelockCallbackParams,
 	}, []string{
@@ -2911,7 +2957,7 @@ func (c mcmsEncoder) DispatchTimelockBypasserExecuteBatch(timelockCallbackParams
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsEncoder) DispatchTimelockBypasserExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2930,7 +2976,7 @@ func (c mcmsEncoder) DispatchTimelockCancel(timelock bind.Object, timelockCallba
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_cancel", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}, []any{
 		timelock,
 		timelockCallbackParams,
@@ -2942,7 +2988,7 @@ func (c mcmsEncoder) DispatchTimelockCancel(timelock bind.Object, timelockCallba
 func (c mcmsEncoder) DispatchTimelockCancelWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2959,7 +3005,7 @@ func (c mcmsEncoder) DispatchTimelockUpdateMinDelay(timelock bind.Object, timelo
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_update_min_delay", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}, []any{
 		timelock,
 		timelockCallbackParams,
@@ -2971,7 +3017,7 @@ func (c mcmsEncoder) DispatchTimelockUpdateMinDelay(timelock bind.Object, timelo
 func (c mcmsEncoder) DispatchTimelockUpdateMinDelayWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2988,7 +3034,7 @@ func (c mcmsEncoder) DispatchTimelockBlockFunction(timelock bind.Object, timeloc
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_block_function", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}, []any{
 		timelock,
 		timelockCallbackParams,
@@ -3000,7 +3046,7 @@ func (c mcmsEncoder) DispatchTimelockBlockFunction(timelock bind.Object, timeloc
 func (c mcmsEncoder) DispatchTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -3017,7 +3063,7 @@ func (c mcmsEncoder) DispatchTimelockUnblockFunction(timelock bind.Object, timel
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_unblock_function", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}, []any{
 		timelock,
 		timelockCallbackParams,
@@ -3029,7 +3075,7 @@ func (c mcmsEncoder) DispatchTimelockUnblockFunction(timelock bind.Object, timel
 func (c mcmsEncoder) DispatchTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
-		"TimelockCallbackParams",
+		"mcms::mcms::TimelockCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -3479,7 +3525,7 @@ func (c mcmsEncoder) HashOpLeaf(domainSeparator []byte, op Op) (*bind.EncodedCal
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("hash_op_leaf", typeArgsList, typeParamsList, []string{
 		"vector<u8>",
-		"Op",
+		"mcms::mcms::Op",
 	}, []any{
 		domainSeparator,
 		op,
@@ -3493,7 +3539,7 @@ func (c mcmsEncoder) HashOpLeaf(domainSeparator []byte, op Op) (*bind.EncodedCal
 func (c mcmsEncoder) HashOpLeafWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"vector<u8>",
-		"Op",
+		"mcms::mcms::Op",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -4127,7 +4173,7 @@ func (c mcmsEncoder) ConfigSigners(config Config) (*bind.EncodedCall, error) {
 	}, []any{
 		config,
 	}, []string{
-		"vector<Signer>",
+		"vector<mcms::mcms::Signer>",
 	})
 }
 
@@ -4144,7 +4190,7 @@ func (c mcmsEncoder) ConfigSignersWithArgs(args ...any) (*bind.EncodedCall, erro
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("config_signers", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<Signer>",
+		"vector<mcms::mcms::Signer>",
 	})
 }
 
@@ -4216,8 +4262,8 @@ func (c mcmsEncoder) TimelockExecuteBatch(timelock bind.Object, clock bind.Objec
 		"&mut Timelock",
 		"&Clock",
 		"vector<address>",
-		"vector<String>",
-		"vector<String>",
+		"vector<0x1::string::String>",
+		"vector<0x1::string::String>",
 		"vector<vector<u8>>",
 		"vector<u8>",
 		"vector<u8>",
@@ -4242,8 +4288,8 @@ func (c mcmsEncoder) TimelockExecuteBatchWithArgs(args ...any) (*bind.EncodedCal
 		"&mut Timelock",
 		"&Clock",
 		"vector<address>",
-		"vector<String>",
-		"vector<String>",
+		"vector<0x1::string::String>",
+		"vector<0x1::string::String>",
 		"vector<vector<u8>>",
 		"vector<u8>",
 		"vector<u8>",
@@ -4499,7 +4545,7 @@ func (c mcmsEncoder) TimelockGetBlockedFunctions(timelock bind.Object) (*bind.En
 	}, []any{
 		timelock,
 	}, []string{
-		"vector<Function>",
+		"vector<mcms::mcms::Function>",
 	})
 }
 
@@ -4516,7 +4562,7 @@ func (c mcmsEncoder) TimelockGetBlockedFunctionsWithArgs(args ...any) (*bind.Enc
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("timelock_get_blocked_functions", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<Function>",
+		"vector<mcms::mcms::Function>",
 	})
 }
 
@@ -4556,8 +4602,8 @@ func (c mcmsEncoder) CreateCalls(targets []string, moduleNames []string, functio
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("create_calls", typeArgsList, typeParamsList, []string{
 		"vector<address>",
-		"vector<String>",
-		"vector<String>",
+		"vector<0x1::string::String>",
+		"vector<0x1::string::String>",
 		"vector<vector<u8>>",
 	}, []any{
 		targets,
@@ -4565,7 +4611,7 @@ func (c mcmsEncoder) CreateCalls(targets []string, moduleNames []string, functio
 		functionNames,
 		datas,
 	}, []string{
-		"vector<Call>",
+		"vector<mcms::mcms::Call>",
 	})
 }
 
@@ -4574,8 +4620,8 @@ func (c mcmsEncoder) CreateCalls(targets []string, moduleNames []string, functio
 func (c mcmsEncoder) CreateCallsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"vector<address>",
-		"vector<String>",
-		"vector<String>",
+		"vector<0x1::string::String>",
+		"vector<0x1::string::String>",
 		"vector<vector<u8>>",
 	}
 
@@ -4585,7 +4631,7 @@ func (c mcmsEncoder) CreateCallsWithArgs(args ...any) (*bind.EncodedCall, error)
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("create_calls", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<Call>",
+		"vector<mcms::mcms::Call>",
 	})
 }
 
@@ -4594,7 +4640,7 @@ func (c mcmsEncoder) HashOperationBatch(calls []Call, predecessor []byte, salt [
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("hash_operation_batch", typeArgsList, typeParamsList, []string{
-		"vector<Call>",
+		"vector<mcms::mcms::Call>",
 		"vector<u8>",
 		"vector<u8>",
 	}, []any{
@@ -4610,7 +4656,7 @@ func (c mcmsEncoder) HashOperationBatch(calls []Call, predecessor []byte, salt [
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsEncoder) HashOperationBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"vector<Call>",
+		"vector<mcms::mcms::Call>",
 		"vector<u8>",
 		"vector<u8>",
 	}
@@ -4664,7 +4710,7 @@ func (c mcmsEncoder) FunctionName(function Function) (*bind.EncodedCall, error) 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("function_name", typeArgsList, typeParamsList, []string{
-		"Function",
+		"mcms::mcms::Function",
 	}, []any{
 		function,
 	}, []string{
@@ -4676,7 +4722,7 @@ func (c mcmsEncoder) FunctionName(function Function) (*bind.EncodedCall, error) 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsEncoder) FunctionNameWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"Function",
+		"mcms::mcms::Function",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -4694,7 +4740,7 @@ func (c mcmsEncoder) ModuleName(function Function) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("module_name", typeArgsList, typeParamsList, []string{
-		"Function",
+		"mcms::mcms::Function",
 	}, []any{
 		function,
 	}, []string{
@@ -4706,7 +4752,7 @@ func (c mcmsEncoder) ModuleName(function Function) (*bind.EncodedCall, error) {
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsEncoder) ModuleNameWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"Function",
+		"mcms::mcms::Function",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -4724,7 +4770,7 @@ func (c mcmsEncoder) Target(function Function) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("target", typeArgsList, typeParamsList, []string{
-		"Function",
+		"mcms::mcms::Function",
 	}, []any{
 		function,
 	}, []string{
@@ -4736,7 +4782,7 @@ func (c mcmsEncoder) Target(function Function) (*bind.EncodedCall, error) {
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsEncoder) TargetWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"Function",
+		"mcms::mcms::Function",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -4754,7 +4800,7 @@ func (c mcmsEncoder) Data(call Call) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("data", typeArgsList, typeParamsList, []string{
-		"Call",
+		"mcms::mcms::Call",
 	}, []any{
 		call,
 	}, []string{
@@ -4766,7 +4812,7 @@ func (c mcmsEncoder) Data(call Call) (*bind.EncodedCall, error) {
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsEncoder) DataWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"Call",
+		"mcms::mcms::Call",
 	}
 
 	if len(args) != len(expectedParams) {

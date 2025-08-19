@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -162,47 +161,6 @@ func (c *CounterContract) DevInspect() ICounterDevInspect {
 	return c.devInspect
 }
 
-func (c *CounterContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type COUNTER struct {
 }
 
@@ -281,12 +239,13 @@ type bcsCounterPointer struct {
 	AdminCapId [32]byte
 }
 
-func convertCounterPointerFromBCS(bcs bcsCounterPointer) CounterPointer {
+func convertCounterPointerFromBCS(bcs bcsCounterPointer) (CounterPointer, error) {
+
 	return CounterPointer{
 		Id:         bcs.Id,
 		CounterId:  fmt.Sprintf("0x%x", bcs.CounterId),
 		AdminCapId: fmt.Sprintf("0x%x", bcs.AdminCapId),
-	}
+	}, nil
 }
 
 type bcsAddressList struct {
@@ -294,7 +253,8 @@ type bcsAddressList struct {
 	Count     uint64
 }
 
-func convertAddressListFromBCS(bcs bcsAddressList) AddressList {
+func convertAddressListFromBCS(bcs bcsAddressList) (AddressList, error) {
+
 	return AddressList{
 		Addresses: func() []string {
 			addrs := make([]string, len(bcs.Addresses))
@@ -304,7 +264,7 @@ func convertAddressListFromBCS(bcs bcsAddressList) AddressList {
 			return addrs
 		}(),
 		Count: bcs.Count,
-	}
+	}, nil
 }
 
 type bcsComplexResult struct {
@@ -314,13 +274,14 @@ type bcsComplexResult struct {
 	Bytes     []byte
 }
 
-func convertComplexResultFromBCS(bcs bcsComplexResult) ComplexResult {
+func convertComplexResultFromBCS(bcs bcsComplexResult) (ComplexResult, error) {
+
 	return ComplexResult{
 		Count:     bcs.Count,
 		Addr:      fmt.Sprintf("0x%x", bcs.Addr),
 		IsComplex: bcs.IsComplex,
 		Bytes:     bcs.Bytes,
-	}
+	}, nil
 }
 
 type bcsNestedStruct struct {
@@ -330,13 +291,18 @@ type bcsNestedStruct struct {
 	NestedSimpleStruct SimpleResult
 }
 
-func convertNestedStructFromBCS(bcs bcsNestedStruct) NestedStruct {
+func convertNestedStructFromBCS(bcs bcsNestedStruct) (NestedStruct, error) {
+	NestedStructField, err := convertComplexResultFromBCS(bcs.NestedStruct)
+	if err != nil {
+		return NestedStruct{}, fmt.Errorf("failed to convert nested struct NestedStruct: %w", err)
+	}
+
 	return NestedStruct{
 		IsNested:           bcs.IsNested,
 		DoubleCount:        bcs.DoubleCount,
-		NestedStruct:       convertComplexResultFromBCS(bcs.NestedStruct),
+		NestedStruct:       NestedStructField,
 		NestedSimpleStruct: bcs.NestedSimpleStruct,
-	}
+	}, nil
 }
 
 type bcsMultiNestedStruct struct {
@@ -346,13 +312,18 @@ type bcsMultiNestedStruct struct {
 	NestedSimpleStruct SimpleResult
 }
 
-func convertMultiNestedStructFromBCS(bcs bcsMultiNestedStruct) MultiNestedStruct {
+func convertMultiNestedStructFromBCS(bcs bcsMultiNestedStruct) (MultiNestedStruct, error) {
+	NestedStructField, err := convertNestedStructFromBCS(bcs.NestedStruct)
+	if err != nil {
+		return MultiNestedStruct{}, fmt.Errorf("failed to convert nested struct NestedStruct: %w", err)
+	}
+
 	return MultiNestedStruct{
 		IsMultiNested:      bcs.IsMultiNested,
 		DoubleCount:        bcs.DoubleCount,
-		NestedStruct:       convertNestedStructFromBCS(bcs.NestedStruct),
+		NestedStruct:       NestedStructField,
 		NestedSimpleStruct: bcs.NestedSimpleStruct,
-	}
+	}, nil
 }
 
 type bcsOCRConfig struct {
@@ -361,7 +332,8 @@ type bcsOCRConfig struct {
 	Transmitters [][32]byte
 }
 
-func convertOCRConfigFromBCS(bcs bcsOCRConfig) OCRConfig {
+func convertOCRConfigFromBCS(bcs bcsOCRConfig) (OCRConfig, error) {
+
 	return OCRConfig{
 		ConfigInfo: bcs.ConfigInfo,
 		Signers:    bcs.Signers,
@@ -372,7 +344,7 @@ func convertOCRConfigFromBCS(bcs bcsOCRConfig) OCRConfig {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 func init() {
@@ -423,7 +395,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertCounterPointerFromBCS(temp)
+		result, err := convertCounterPointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("test::counter::AddressList", func(data []byte) (interface{}, error) {
@@ -433,7 +408,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAddressListFromBCS(temp)
+		result, err := convertAddressListFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("test::counter::SimpleResult", func(data []byte) (interface{}, error) {
@@ -451,7 +429,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertComplexResultFromBCS(temp)
+		result, err := convertComplexResultFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("test::counter::NestedStruct", func(data []byte) (interface{}, error) {
@@ -461,7 +442,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertNestedStructFromBCS(temp)
+		result, err := convertNestedStructFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("test::counter::MultiNestedStruct", func(data []byte) (interface{}, error) {
@@ -471,7 +455,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertMultiNestedStructFromBCS(temp)
+		result, err := convertMultiNestedStructFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("test::counter::ConfigInfo", func(data []byte) (interface{}, error) {
@@ -489,7 +476,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOCRConfigFromBCS(temp)
+		result, err := convertOCRConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }

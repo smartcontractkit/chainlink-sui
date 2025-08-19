@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -175,47 +174,6 @@ func (c *ManagedTokenContract) DevInspect() IManagedTokenDevInspect {
 	return c.devInspect
 }
 
-func (c *ManagedTokenContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type TokenState struct {
 	Id                string       `move:"sui::object::UID"`
 	TreasuryCap       bind.Object  `move:"TreasuryCap<T>"`
@@ -287,13 +245,14 @@ type bcsMinterConfigured struct {
 	IsUnlimited  bool
 }
 
-func convertMinterConfiguredFromBCS(bcs bcsMinterConfigured) MinterConfigured {
+func convertMinterConfiguredFromBCS(bcs bcsMinterConfigured) (MinterConfigured, error) {
+
 	return MinterConfigured{
 		MintCapOwner: fmt.Sprintf("0x%x", bcs.MintCapOwner),
 		MintCap:      bcs.MintCap,
 		Allowance:    bcs.Allowance,
 		IsUnlimited:  bcs.IsUnlimited,
-	}
+	}, nil
 }
 
 type bcsMinted struct {
@@ -303,13 +262,14 @@ type bcsMinted struct {
 	Amount  uint64
 }
 
-func convertMintedFromBCS(bcs bcsMinted) Minted {
+func convertMintedFromBCS(bcs bcsMinted) (Minted, error) {
+
 	return Minted{
 		MintCap: bcs.MintCap,
 		Minter:  fmt.Sprintf("0x%x", bcs.Minter),
 		To:      fmt.Sprintf("0x%x", bcs.To),
 		Amount:  bcs.Amount,
-	}
+	}, nil
 }
 
 type bcsBurnt struct {
@@ -319,33 +279,36 @@ type bcsBurnt struct {
 	Amount  uint64
 }
 
-func convertBurntFromBCS(bcs bcsBurnt) Burnt {
+func convertBurntFromBCS(bcs bcsBurnt) (Burnt, error) {
+
 	return Burnt{
 		MintCap: bcs.MintCap,
 		Burner:  fmt.Sprintf("0x%x", bcs.Burner),
 		From:    fmt.Sprintf("0x%x", bcs.From),
 		Amount:  bcs.Amount,
-	}
+	}, nil
 }
 
 type bcsBlocklisted struct {
 	Address [32]byte
 }
 
-func convertBlocklistedFromBCS(bcs bcsBlocklisted) Blocklisted {
+func convertBlocklistedFromBCS(bcs bcsBlocklisted) (Blocklisted, error) {
+
 	return Blocklisted{
 		Address: fmt.Sprintf("0x%x", bcs.Address),
-	}
+	}, nil
 }
 
 type bcsUnblocklisted struct {
 	Address [32]byte
 }
 
-func convertUnblocklistedFromBCS(bcs bcsUnblocklisted) Unblocklisted {
+func convertUnblocklistedFromBCS(bcs bcsUnblocklisted) (Unblocklisted, error) {
+
 	return Unblocklisted{
 		Address: fmt.Sprintf("0x%x", bcs.Address),
-	}
+	}, nil
 }
 
 func init() {
@@ -380,7 +343,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertMinterConfiguredFromBCS(temp)
+		result, err := convertMinterConfiguredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Minted", func(data []byte) (interface{}, error) {
@@ -390,7 +356,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertMintedFromBCS(temp)
+		result, err := convertMintedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Burnt", func(data []byte) (interface{}, error) {
@@ -400,7 +369,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertBurntFromBCS(temp)
+		result, err := convertBurntFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Blocklisted", func(data []byte) (interface{}, error) {
@@ -410,7 +382,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertBlocklistedFromBCS(temp)
+		result, err := convertBlocklistedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Unblocklisted", func(data []byte) (interface{}, error) {
@@ -420,7 +395,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertUnblocklistedFromBCS(temp)
+		result, err := convertUnblocklistedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Paused", func(data []byte) (interface{}, error) {

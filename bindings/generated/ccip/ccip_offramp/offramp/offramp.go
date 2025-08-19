@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -24,9 +23,9 @@ type IOfframp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error)
-	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error)
+	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
+	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
@@ -65,8 +64,8 @@ type IOfframp interface {
 type IOfframpDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bind.Object, error)
-	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error)
-	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error)
+	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error)
+	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (byte, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error)
@@ -95,11 +94,11 @@ type OfframpEncoder interface {
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOcr3Base(state bind.Object) (*bind.EncodedCall, error)
 	GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, error)
-	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error)
+	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error)
 	InitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
-	FinishExecute(state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*bind.EncodedCall, error)
+	FinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
 	FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
-	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error)
+	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*bind.EncodedCall, error)
 	ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*bind.EncodedCall, error)
 	GetExecutionStateWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -198,47 +197,6 @@ func (c *OfframpContract) Encoder() OfframpEncoder {
 
 func (c *OfframpContract) DevInspect() IOfframpDevInspect {
 	return c.devInspect
-}
-
-func (c *OfframpContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
 }
 
 type OffRampState struct {
@@ -391,12 +349,13 @@ type bcsOffRampStatePointer struct {
 	OwnerCapId     [32]byte
 }
 
-func convertOffRampStatePointerFromBCS(bcs bcsOffRampStatePointer) OffRampStatePointer {
+func convertOffRampStatePointerFromBCS(bcs bcsOffRampStatePointer) (OffRampStatePointer, error) {
+
 	return OffRampStatePointer{
 		Id:             bcs.Id,
 		OffRampStateId: fmt.Sprintf("0x%x", bcs.OffRampStateId),
 		OwnerCapId:     fmt.Sprintf("0x%x", bcs.OwnerCapId),
-	}
+	}, nil
 }
 
 type bcsSourceChainConfig struct {
@@ -407,14 +366,15 @@ type bcsSourceChainConfig struct {
 	OnRamp                    []byte
 }
 
-func convertSourceChainConfigFromBCS(bcs bcsSourceChainConfig) SourceChainConfig {
+func convertSourceChainConfigFromBCS(bcs bcsSourceChainConfig) (SourceChainConfig, error) {
+
 	return SourceChainConfig{
 		Router:                    fmt.Sprintf("0x%x", bcs.Router),
 		IsEnabled:                 bcs.IsEnabled,
 		MinSeqNr:                  bcs.MinSeqNr,
 		IsRmnVerificationDisabled: bcs.IsRmnVerificationDisabled,
 		OnRamp:                    bcs.OnRamp,
-	}
+	}, nil
 }
 
 type bcsAny2SuiRampMessage struct {
@@ -422,19 +382,24 @@ type bcsAny2SuiRampMessage struct {
 	Sender       []byte
 	Data         []byte
 	Receiver     [32]byte
-	GasLimit     *big.Int
+	GasLimit     [32]byte
 	TokenAmounts []Any2SuiTokenTransfer
 }
 
-func convertAny2SuiRampMessageFromBCS(bcs bcsAny2SuiRampMessage) Any2SuiRampMessage {
+func convertAny2SuiRampMessageFromBCS(bcs bcsAny2SuiRampMessage) (Any2SuiRampMessage, error) {
+	GasLimitField, err := bind.DecodeU256Value(bcs.GasLimit)
+	if err != nil {
+		return Any2SuiRampMessage{}, fmt.Errorf("failed to decode u256 field GasLimit: %w", err)
+	}
+
 	return Any2SuiRampMessage{
 		Header:       bcs.Header,
 		Sender:       bcs.Sender,
 		Data:         bcs.Data,
 		Receiver:     fmt.Sprintf("0x%x", bcs.Receiver),
-		GasLimit:     bcs.GasLimit,
+		GasLimit:     GasLimitField,
 		TokenAmounts: bcs.TokenAmounts,
-	}
+	}, nil
 }
 
 type bcsAny2SuiTokenTransfer struct {
@@ -442,17 +407,22 @@ type bcsAny2SuiTokenTransfer struct {
 	DestTokenAddress  [32]byte
 	DestGasAmount     uint32
 	ExtraData         []byte
-	Amount            *big.Int
+	Amount            [32]byte
 }
 
-func convertAny2SuiTokenTransferFromBCS(bcs bcsAny2SuiTokenTransfer) Any2SuiTokenTransfer {
+func convertAny2SuiTokenTransferFromBCS(bcs bcsAny2SuiTokenTransfer) (Any2SuiTokenTransfer, error) {
+	AmountField, err := bind.DecodeU256Value(bcs.Amount)
+	if err != nil {
+		return Any2SuiTokenTransfer{}, fmt.Errorf("failed to decode u256 field Amount: %w", err)
+	}
+
 	return Any2SuiTokenTransfer{
 		SourcePoolAddress: bcs.SourcePoolAddress,
 		DestTokenAddress:  fmt.Sprintf("0x%x", bcs.DestTokenAddress),
 		DestGasAmount:     bcs.DestGasAmount,
 		ExtraData:         bcs.ExtraData,
-		Amount:            bcs.Amount,
-	}
+		Amount:            AmountField,
+	}, nil
 }
 
 type bcsExecutionReport struct {
@@ -462,25 +432,52 @@ type bcsExecutionReport struct {
 	Proofs              [][]byte
 }
 
-func convertExecutionReportFromBCS(bcs bcsExecutionReport) ExecutionReport {
+func convertExecutionReportFromBCS(bcs bcsExecutionReport) (ExecutionReport, error) {
+	MessageField, err := convertAny2SuiRampMessageFromBCS(bcs.Message)
+	if err != nil {
+		return ExecutionReport{}, fmt.Errorf("failed to convert nested struct Message: %w", err)
+	}
+
 	return ExecutionReport{
 		SourceChainSelector: bcs.SourceChainSelector,
-		Message:             convertAny2SuiRampMessageFromBCS(bcs.Message),
+		Message:             MessageField,
 		OffchainTokenData:   bcs.OffchainTokenData,
 		Proofs:              bcs.Proofs,
-	}
+	}, nil
 }
 
 type bcsTokenPriceUpdate struct {
 	SourceToken [32]byte
-	UsdPerToken *big.Int
+	UsdPerToken [32]byte
 }
 
-func convertTokenPriceUpdateFromBCS(bcs bcsTokenPriceUpdate) TokenPriceUpdate {
+func convertTokenPriceUpdateFromBCS(bcs bcsTokenPriceUpdate) (TokenPriceUpdate, error) {
+	UsdPerTokenField, err := bind.DecodeU256Value(bcs.UsdPerToken)
+	if err != nil {
+		return TokenPriceUpdate{}, fmt.Errorf("failed to decode u256 field UsdPerToken: %w", err)
+	}
+
 	return TokenPriceUpdate{
 		SourceToken: fmt.Sprintf("0x%x", bcs.SourceToken),
-		UsdPerToken: bcs.UsdPerToken,
+		UsdPerToken: UsdPerTokenField,
+	}, nil
+}
+
+type bcsGasPriceUpdate struct {
+	DestChainSelector uint64
+	UsdPerUnitGas     [32]byte
+}
+
+func convertGasPriceUpdateFromBCS(bcs bcsGasPriceUpdate) (GasPriceUpdate, error) {
+	UsdPerUnitGasField, err := bind.DecodeU256Value(bcs.UsdPerUnitGas)
+	if err != nil {
+		return GasPriceUpdate{}, fmt.Errorf("failed to decode u256 field UsdPerUnitGas: %w", err)
 	}
+
+	return GasPriceUpdate{
+		DestChainSelector: bcs.DestChainSelector,
+		UsdPerUnitGas:     UsdPerUnitGasField,
+	}, nil
 }
 
 type bcsStaticConfig struct {
@@ -490,13 +487,14 @@ type bcsStaticConfig struct {
 	NonceManager       [32]byte
 }
 
-func convertStaticConfigFromBCS(bcs bcsStaticConfig) StaticConfig {
+func convertStaticConfigFromBCS(bcs bcsStaticConfig) (StaticConfig, error) {
+
 	return StaticConfig{
 		ChainSelector:      bcs.ChainSelector,
 		RmnRemote:          fmt.Sprintf("0x%x", bcs.RmnRemote),
 		TokenAdminRegistry: fmt.Sprintf("0x%x", bcs.TokenAdminRegistry),
 		NonceManager:       fmt.Sprintf("0x%x", bcs.NonceManager),
-	}
+	}, nil
 }
 
 type bcsDynamicConfig struct {
@@ -504,21 +502,27 @@ type bcsDynamicConfig struct {
 	PermissionlessExecutionThresholdSeconds uint32
 }
 
-func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) DynamicConfig {
+func convertDynamicConfigFromBCS(bcs bcsDynamicConfig) (DynamicConfig, error) {
+
 	return DynamicConfig{
 		FeeQuoter:                               fmt.Sprintf("0x%x", bcs.FeeQuoter),
 		PermissionlessExecutionThresholdSeconds: bcs.PermissionlessExecutionThresholdSeconds,
-	}
+	}, nil
 }
 
 type bcsDynamicConfigSet struct {
 	DynamicConfig bcsDynamicConfig
 }
 
-func convertDynamicConfigSetFromBCS(bcs bcsDynamicConfigSet) DynamicConfigSet {
-	return DynamicConfigSet{
-		DynamicConfig: convertDynamicConfigFromBCS(bcs.DynamicConfig),
+func convertDynamicConfigSetFromBCS(bcs bcsDynamicConfigSet) (DynamicConfigSet, error) {
+	DynamicConfigField, err := convertDynamicConfigFromBCS(bcs.DynamicConfig)
+	if err != nil {
+		return DynamicConfigSet{}, fmt.Errorf("failed to convert nested struct DynamicConfig: %w", err)
 	}
+
+	return DynamicConfigSet{
+		DynamicConfig: DynamicConfigField,
+	}, nil
 }
 
 type bcsSourceChainConfigSet struct {
@@ -526,11 +530,16 @@ type bcsSourceChainConfigSet struct {
 	SourceChainConfig   bcsSourceChainConfig
 }
 
-func convertSourceChainConfigSetFromBCS(bcs bcsSourceChainConfigSet) SourceChainConfigSet {
+func convertSourceChainConfigSetFromBCS(bcs bcsSourceChainConfigSet) (SourceChainConfigSet, error) {
+	SourceChainConfigField, err := convertSourceChainConfigFromBCS(bcs.SourceChainConfig)
+	if err != nil {
+		return SourceChainConfigSet{}, fmt.Errorf("failed to convert nested struct SourceChainConfig: %w", err)
+	}
+
 	return SourceChainConfigSet{
 		SourceChainSelector: bcs.SourceChainSelector,
-		SourceChainConfig:   convertSourceChainConfigFromBCS(bcs.SourceChainConfig),
-	}
+		SourceChainConfig:   SourceChainConfigField,
+	}, nil
 }
 
 func init() {
@@ -549,7 +558,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOffRampStatePointerFromBCS(temp)
+		result, err := convertOffRampStatePointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::SourceChainConfig", func(data []byte) (interface{}, error) {
@@ -559,7 +571,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSourceChainConfigFromBCS(temp)
+		result, err := convertSourceChainConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::RampMessageHeader", func(data []byte) (interface{}, error) {
@@ -577,7 +592,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAny2SuiRampMessageFromBCS(temp)
+		result, err := convertAny2SuiRampMessageFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::Any2SuiTokenTransfer", func(data []byte) (interface{}, error) {
@@ -587,7 +605,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAny2SuiTokenTransferFromBCS(temp)
+		result, err := convertAny2SuiTokenTransferFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::ExecutionReport", func(data []byte) (interface{}, error) {
@@ -597,7 +618,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertExecutionReportFromBCS(temp)
+		result, err := convertExecutionReportFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::CommitReport", func(data []byte) (interface{}, error) {
@@ -623,12 +647,20 @@ func init() {
 			return nil, err
 		}
 
-		result := convertTokenPriceUpdateFromBCS(temp)
+		result, err := convertTokenPriceUpdateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::GasPriceUpdate", func(data []byte) (interface{}, error) {
-		var result GasPriceUpdate
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsGasPriceUpdate
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertGasPriceUpdateFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -649,7 +681,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertStaticConfigFromBCS(temp)
+		result, err := convertStaticConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::DynamicConfig", func(data []byte) (interface{}, error) {
@@ -659,7 +694,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDynamicConfigFromBCS(temp)
+		result, err := convertDynamicConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::StaticConfigSet", func(data []byte) (interface{}, error) {
@@ -677,7 +715,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDynamicConfigSetFromBCS(temp)
+		result, err := convertDynamicConfigSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::SourceChainConfigSet", func(data []byte) (interface{}, error) {
@@ -687,7 +728,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSourceChainConfigSetFromBCS(temp)
+		result, err := convertSourceChainConfigSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_offramp::offramp::SkippedAlreadyExecuted", func(data []byte) (interface{}, error) {
@@ -771,8 +815,8 @@ func (c *OfframpContract) GetOcr3Base(ctx context.Context, opts *bind.CallOpts, 
 }
 
 // InitExecute executes the init_execute Move function.
-func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.InitExecute(ref, state, clock, reportContext, report)
+func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.InitExecute(ref, state, clock, reportContext, report, tokenReceiver)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -781,8 +825,8 @@ func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, 
 }
 
 // FinishExecute executes the finish_execute Move function.
-func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.FinishExecute(state, receiverParams, completedTransfers)
+func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.FinishExecute(state, receiverParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -791,8 +835,8 @@ func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts
 }
 
 // ManuallyInitExecute executes the manually_init_execute Move function.
-func (c *OfframpContract) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes)
+func (c *OfframpContract) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes, tokenReceiver)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1157,8 +1201,8 @@ func (d *OfframpDevInspect) GetOcr3Base(ctx context.Context, opts *bind.CallOpts
 // InitExecute executes the init_execute Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error) {
-	encoded, err := d.contract.offrampEncoder.InitExecute(ref, state, clock, reportContext, report)
+func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.InitExecute(ref, state, clock, reportContext, report, tokenReceiver)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1179,8 +1223,8 @@ func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts
 // ManuallyInitExecute executes the manually_init_execute Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *OfframpDevInspect) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error) {
-	encoded, err := d.contract.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes)
+func (d *OfframpDevInspect) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes, tokenReceiver)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1701,7 +1745,7 @@ func (c offrampEncoder) GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, err
 }
 
 // InitExecute encodes a call to the init_execute Move function.
-func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("init_execute", typeArgsList, typeParamsList, []string{
@@ -1710,12 +1754,14 @@ func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bi
 		"&clock::Clock",
 		"vector<vector<u8>>",
 		"vector<u8>",
+		"address",
 	}, []any{
 		ref,
 		state,
 		clock,
 		reportContext,
 		report,
+		tokenReceiver,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -1730,6 +1776,7 @@ func (c offrampEncoder) InitExecuteWithArgs(args ...any) (*bind.EncodedCall, err
 		"&clock::Clock",
 		"vector<vector<u8>>",
 		"vector<u8>",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1743,17 +1790,15 @@ func (c offrampEncoder) InitExecuteWithArgs(args ...any) (*bind.EncodedCall, err
 }
 
 // FinishExecute encodes a call to the finish_execute Move function.
-func (c offrampEncoder) FinishExecute(state bind.Object, receiverParams bind.Object, completedTransfers []bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) FinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("finish_execute", typeArgsList, typeParamsList, []string{
 		"&mut OffRampState",
 		"osh::ReceiverParams",
-		"vector<osh::CompletedDestTokenTransfer>",
 	}, []any{
 		state,
 		receiverParams,
-		completedTransfers,
 	}, nil)
 }
 
@@ -1763,7 +1808,6 @@ func (c offrampEncoder) FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, e
 	expectedParams := []string{
 		"&mut OffRampState",
 		"osh::ReceiverParams",
-		"vector<osh::CompletedDestTokenTransfer>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1775,7 +1819,7 @@ func (c offrampEncoder) FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, e
 }
 
 // ManuallyInitExecute encodes a call to the manually_init_execute Move function.
-func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("manually_init_execute", typeArgsList, typeParamsList, []string{
@@ -1783,11 +1827,13 @@ func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, 
 		"&mut OffRampState",
 		"&clock::Clock",
 		"vector<u8>",
+		"address",
 	}, []any{
 		ref,
 		state,
 		clock,
 		reportBytes,
+		tokenReceiver,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -1801,6 +1847,7 @@ func (c offrampEncoder) ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedC
 		"&mut OffRampState",
 		"&clock::Clock",
 		"vector<u8>",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2176,7 +2223,7 @@ func (c offrampEncoder) GetSourceChainConfigFields(sourceChainConfig SourceChain
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_source_chain_config_fields", typeArgsList, typeParamsList, []string{
-		"SourceChainConfig",
+		"ccip_offramp::offramp::SourceChainConfig",
 	}, []any{
 		sourceChainConfig,
 	}, []string{
@@ -2192,7 +2239,7 @@ func (c offrampEncoder) GetSourceChainConfigFields(sourceChainConfig SourceChain
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetSourceChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"SourceChainConfig",
+		"ccip_offramp::offramp::SourceChainConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2219,7 +2266,7 @@ func (c offrampEncoder) GetAllSourceChainConfigs(state bind.Object) (*bind.Encod
 		state,
 	}, []string{
 		"vector<u64>",
-		"vector<SourceChainConfig>",
+		"vector<ccip_offramp::offramp::SourceChainConfig>",
 	})
 }
 
@@ -2237,7 +2284,7 @@ func (c offrampEncoder) GetAllSourceChainConfigsWithArgs(args ...any) (*bind.Enc
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_all_source_chain_configs", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"vector<u64>",
-		"vector<SourceChainConfig>",
+		"vector<ccip_offramp::offramp::SourceChainConfig>",
 	})
 }
 
@@ -2276,7 +2323,7 @@ func (c offrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCa
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
-		"StaticConfig",
+		"ccip_offramp::offramp::StaticConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2291,7 +2338,7 @@ func (c offrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCa
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"StaticConfig",
+		"ccip_offramp::offramp::StaticConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2342,7 +2389,7 @@ func (c offrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.Encoded
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config_fields", typeArgsList, typeParamsList, []string{
-		"DynamicConfig",
+		"ccip_offramp::offramp::DynamicConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2355,7 +2402,7 @@ func (c offrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.Encoded
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"DynamicConfig",
+		"ccip_offramp::offramp::DynamicConfig",
 	}
 
 	if len(args) != len(expectedParams) {

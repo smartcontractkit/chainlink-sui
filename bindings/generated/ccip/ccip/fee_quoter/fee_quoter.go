@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -159,47 +158,6 @@ func (c *FeeQuoterContract) DevInspect() IFeeQuoterDevInspect {
 	return c.devInspect
 }
 
-func (c *FeeQuoterContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type FeeQuoterState struct {
 	Id                           string      `move:"sui::object::UID"`
 	MaxFeeJuelsPerMsg            *big.Int    `move:"u256"`
@@ -313,7 +271,7 @@ type McmsCallback struct {
 
 type bcsFeeQuoterState struct {
 	Id                           string
-	MaxFeeJuelsPerMsg            *big.Int
+	MaxFeeJuelsPerMsg            [32]byte
 	LinkToken                    [32]byte
 	TokenPriceStalenessThreshold uint64
 	FeeTokens                    [][32]byte
@@ -324,10 +282,15 @@ type bcsFeeQuoterState struct {
 	PremiumMultiplierWeiPerEth   bind.Object
 }
 
-func convertFeeQuoterStateFromBCS(bcs bcsFeeQuoterState) FeeQuoterState {
+func convertFeeQuoterStateFromBCS(bcs bcsFeeQuoterState) (FeeQuoterState, error) {
+	MaxFeeJuelsPerMsgField, err := bind.DecodeU256Value(bcs.MaxFeeJuelsPerMsg)
+	if err != nil {
+		return FeeQuoterState{}, fmt.Errorf("failed to decode u256 field MaxFeeJuelsPerMsg: %w", err)
+	}
+
 	return FeeQuoterState{
 		Id:                           bcs.Id,
-		MaxFeeJuelsPerMsg:            bcs.MaxFeeJuelsPerMsg,
+		MaxFeeJuelsPerMsg:            MaxFeeJuelsPerMsgField,
 		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
 		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
 		FeeTokens: func() []string {
@@ -342,41 +305,65 @@ func convertFeeQuoterStateFromBCS(bcs bcsFeeQuoterState) FeeQuoterState {
 		DestChainConfigs:           bcs.DestChainConfigs,
 		TokenTransferFeeConfigs:    bcs.TokenTransferFeeConfigs,
 		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
-	}
+	}, nil
 }
 
 type bcsStaticConfig struct {
-	MaxFeeJuelsPerMsg            *big.Int
+	MaxFeeJuelsPerMsg            [32]byte
 	LinkToken                    [32]byte
 	TokenPriceStalenessThreshold uint64
 }
 
-func convertStaticConfigFromBCS(bcs bcsStaticConfig) StaticConfig {
+func convertStaticConfigFromBCS(bcs bcsStaticConfig) (StaticConfig, error) {
+	MaxFeeJuelsPerMsgField, err := bind.DecodeU256Value(bcs.MaxFeeJuelsPerMsg)
+	if err != nil {
+		return StaticConfig{}, fmt.Errorf("failed to decode u256 field MaxFeeJuelsPerMsg: %w", err)
+	}
+
 	return StaticConfig{
-		MaxFeeJuelsPerMsg:            bcs.MaxFeeJuelsPerMsg,
+		MaxFeeJuelsPerMsg:            MaxFeeJuelsPerMsgField,
 		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
 		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
+	}, nil
+}
+
+type bcsTimestampedPrice struct {
+	Value     [32]byte
+	Timestamp uint64
+}
+
+func convertTimestampedPriceFromBCS(bcs bcsTimestampedPrice) (TimestampedPrice, error) {
+	ValueField, err := bind.DecodeU256Value(bcs.Value)
+	if err != nil {
+		return TimestampedPrice{}, fmt.Errorf("failed to decode u256 field Value: %w", err)
 	}
+
+	return TimestampedPrice{
+		Value:     ValueField,
+		Timestamp: bcs.Timestamp,
+	}, nil
 }
 
 type bcsFeeTokenAdded struct {
 	FeeToken [32]byte
 }
 
-func convertFeeTokenAddedFromBCS(bcs bcsFeeTokenAdded) FeeTokenAdded {
+func convertFeeTokenAddedFromBCS(bcs bcsFeeTokenAdded) (FeeTokenAdded, error) {
+
 	return FeeTokenAdded{
 		FeeToken: fmt.Sprintf("0x%x", bcs.FeeToken),
-	}
+	}, nil
 }
 
 type bcsFeeTokenRemoved struct {
 	FeeToken [32]byte
 }
 
-func convertFeeTokenRemovedFromBCS(bcs bcsFeeTokenRemoved) FeeTokenRemoved {
+func convertFeeTokenRemovedFromBCS(bcs bcsFeeTokenRemoved) (FeeTokenRemoved, error) {
+
 	return FeeTokenRemoved{
 		FeeToken: fmt.Sprintf("0x%x", bcs.FeeToken),
-	}
+	}, nil
 }
 
 type bcsTokenTransferFeeConfigAdded struct {
@@ -385,12 +372,13 @@ type bcsTokenTransferFeeConfigAdded struct {
 	TokenTransferFeeConfig TokenTransferFeeConfig
 }
 
-func convertTokenTransferFeeConfigAddedFromBCS(bcs bcsTokenTransferFeeConfigAdded) TokenTransferFeeConfigAdded {
+func convertTokenTransferFeeConfigAddedFromBCS(bcs bcsTokenTransferFeeConfigAdded) (TokenTransferFeeConfigAdded, error) {
+
 	return TokenTransferFeeConfigAdded{
 		DestChainSelector:      bcs.DestChainSelector,
 		Token:                  fmt.Sprintf("0x%x", bcs.Token),
 		TokenTransferFeeConfig: bcs.TokenTransferFeeConfig,
-	}
+	}, nil
 }
 
 type bcsTokenTransferFeeConfigRemoved struct {
@@ -398,25 +386,50 @@ type bcsTokenTransferFeeConfigRemoved struct {
 	Token             [32]byte
 }
 
-func convertTokenTransferFeeConfigRemovedFromBCS(bcs bcsTokenTransferFeeConfigRemoved) TokenTransferFeeConfigRemoved {
+func convertTokenTransferFeeConfigRemovedFromBCS(bcs bcsTokenTransferFeeConfigRemoved) (TokenTransferFeeConfigRemoved, error) {
+
 	return TokenTransferFeeConfigRemoved{
 		DestChainSelector: bcs.DestChainSelector,
 		Token:             fmt.Sprintf("0x%x", bcs.Token),
-	}
+	}, nil
 }
 
 type bcsUsdPerTokenUpdated struct {
 	Token       [32]byte
-	UsdPerToken *big.Int
+	UsdPerToken [32]byte
 	Timestamp   uint64
 }
 
-func convertUsdPerTokenUpdatedFromBCS(bcs bcsUsdPerTokenUpdated) UsdPerTokenUpdated {
+func convertUsdPerTokenUpdatedFromBCS(bcs bcsUsdPerTokenUpdated) (UsdPerTokenUpdated, error) {
+	UsdPerTokenField, err := bind.DecodeU256Value(bcs.UsdPerToken)
+	if err != nil {
+		return UsdPerTokenUpdated{}, fmt.Errorf("failed to decode u256 field UsdPerToken: %w", err)
+	}
+
 	return UsdPerTokenUpdated{
 		Token:       fmt.Sprintf("0x%x", bcs.Token),
-		UsdPerToken: bcs.UsdPerToken,
+		UsdPerToken: UsdPerTokenField,
 		Timestamp:   bcs.Timestamp,
+	}, nil
+}
+
+type bcsUsdPerUnitGasUpdated struct {
+	DestChainSelector uint64
+	UsdPerUnitGas     [32]byte
+	Timestamp         uint64
+}
+
+func convertUsdPerUnitGasUpdatedFromBCS(bcs bcsUsdPerUnitGasUpdated) (UsdPerUnitGasUpdated, error) {
+	UsdPerUnitGasField, err := bind.DecodeU256Value(bcs.UsdPerUnitGas)
+	if err != nil {
+		return UsdPerUnitGasUpdated{}, fmt.Errorf("failed to decode u256 field UsdPerUnitGas: %w", err)
 	}
+
+	return UsdPerUnitGasUpdated{
+		DestChainSelector: bcs.DestChainSelector,
+		UsdPerUnitGas:     UsdPerUnitGasField,
+		Timestamp:         bcs.Timestamp,
+	}, nil
 }
 
 type bcsPremiumMultiplierWeiPerEthUpdated struct {
@@ -424,11 +437,12 @@ type bcsPremiumMultiplierWeiPerEthUpdated struct {
 	PremiumMultiplierWeiPerEth uint64
 }
 
-func convertPremiumMultiplierWeiPerEthUpdatedFromBCS(bcs bcsPremiumMultiplierWeiPerEthUpdated) PremiumMultiplierWeiPerEthUpdated {
+func convertPremiumMultiplierWeiPerEthUpdatedFromBCS(bcs bcsPremiumMultiplierWeiPerEthUpdated) (PremiumMultiplierWeiPerEthUpdated, error) {
+
 	return PremiumMultiplierWeiPerEthUpdated{
 		Token:                      fmt.Sprintf("0x%x", bcs.Token),
 		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
-	}
+	}, nil
 }
 
 func init() {
@@ -439,7 +453,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFeeQuoterStateFromBCS(temp)
+		result, err := convertFeeQuoterStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
@@ -457,7 +474,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertStaticConfigFromBCS(temp)
+		result, err := convertStaticConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfig", func(data []byte) (interface{}, error) {
@@ -477,8 +497,13 @@ func init() {
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::TimestampedPrice", func(data []byte) (interface{}, error) {
-		var result TimestampedPrice
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsTimestampedPrice
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertTimestampedPriceFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -491,7 +516,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFeeTokenAddedFromBCS(temp)
+		result, err := convertFeeTokenAddedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenRemoved", func(data []byte) (interface{}, error) {
@@ -501,7 +529,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertFeeTokenRemovedFromBCS(temp)
+		result, err := convertFeeTokenRemovedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigAdded", func(data []byte) (interface{}, error) {
@@ -511,7 +542,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertTokenTransferFeeConfigAddedFromBCS(temp)
+		result, err := convertTokenTransferFeeConfigAddedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigRemoved", func(data []byte) (interface{}, error) {
@@ -521,7 +555,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertTokenTransferFeeConfigRemovedFromBCS(temp)
+		result, err := convertTokenTransferFeeConfigRemovedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerTokenUpdated", func(data []byte) (interface{}, error) {
@@ -531,12 +568,20 @@ func init() {
 			return nil, err
 		}
 
-		result := convertUsdPerTokenUpdatedFromBCS(temp)
+		result, err := convertUsdPerTokenUpdatedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerUnitGasUpdated", func(data []byte) (interface{}, error) {
-		var result UsdPerUnitGasUpdated
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsUsdPerUnitGasUpdated
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertUsdPerUnitGasUpdatedFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -565,7 +610,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertPremiumMultiplierWeiPerEthUpdatedFromBCS(temp)
+		result, err := convertPremiumMultiplierWeiPerEthUpdatedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::CCIPAdminProof", func(data []byte) (interface{}, error) {
@@ -1315,7 +1363,7 @@ func (c feeQuoterEncoder) GetTimestampedPriceFields(tp TimestampedPrice) (*bind.
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_timestamped_price_fields", typeArgsList, typeParamsList, []string{
-		"TimestampedPrice",
+		"ccip::fee_quoter::TimestampedPrice",
 	}, []any{
 		tp,
 	}, []string{
@@ -1328,7 +1376,7 @@ func (c feeQuoterEncoder) GetTimestampedPriceFields(tp TimestampedPrice) (*bind.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetTimestampedPriceFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"TimestampedPrice",
+		"ccip::fee_quoter::TimestampedPrice",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1353,7 +1401,7 @@ func (c feeQuoterEncoder) GetTokenPrices(ref bind.Object, tokens []string) (*bin
 		ref,
 		tokens,
 	}, []string{
-		"vector<TimestampedPrice>",
+		"vector<ccip::fee_quoter::TimestampedPrice>",
 	})
 }
 
@@ -1371,7 +1419,7 @@ func (c feeQuoterEncoder) GetTokenPricesWithArgs(args ...any) (*bind.EncodedCall
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_prices", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<TimestampedPrice>",
+		"vector<ccip::fee_quoter::TimestampedPrice>",
 	})
 }
 
@@ -1945,7 +1993,7 @@ func (c feeQuoterEncoder) GetDestChainConfigFields(destChainConfig DestChainConf
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dest_chain_config_fields", typeArgsList, typeParamsList, []string{
-		"DestChainConfig",
+		"ccip::fee_quoter::DestChainConfig",
 	}, []any{
 		destChainConfig,
 	}, []string{
@@ -1975,7 +2023,7 @@ func (c feeQuoterEncoder) GetDestChainConfigFields(destChainConfig DestChainConf
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetDestChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"DestChainConfig",
+		"ccip::fee_quoter::DestChainConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2130,7 +2178,7 @@ func (c feeQuoterEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.Encoded
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
-		"StaticConfig",
+		"ccip::fee_quoter::StaticConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2144,7 +2192,7 @@ func (c feeQuoterEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.Encoded
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"StaticConfig",
+		"ccip::fee_quoter::StaticConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2164,7 +2212,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeCo
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config_fields", typeArgsList, typeParamsList, []string{
-		"TokenTransferFeeConfig",
+		"ccip::fee_quoter::TokenTransferFeeConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2181,7 +2229,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeCo
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"TokenTransferFeeConfig",
+		"ccip::fee_quoter::TokenTransferFeeConfig",
 	}
 
 	if len(args) != len(expectedParams) {

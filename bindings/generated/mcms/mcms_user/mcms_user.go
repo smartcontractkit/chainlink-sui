@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -105,47 +104,6 @@ func (c *McmsUserContract) DevInspect() IMcmsUserDevInspect {
 	return c.devInspect
 }
 
-func (c *McmsUserContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type UserData struct {
 	Id          string      `move:"sui::object::UID"`
 	Invocations byte        `move:"u8"`
@@ -172,20 +130,25 @@ type bcsUserData struct {
 	A           string
 	B           []byte
 	C           [32]byte
-	D           *big.Int
+	D           [16]byte
 	OwnerCap    bind.Object
 }
 
-func convertUserDataFromBCS(bcs bcsUserData) UserData {
+func convertUserDataFromBCS(bcs bcsUserData) (UserData, error) {
+	DField, err := bind.DecodeU128Value(bcs.D)
+	if err != nil {
+		return UserData{}, fmt.Errorf("failed to decode u128 field D: %w", err)
+	}
+
 	return UserData{
 		Id:          bcs.Id,
 		Invocations: bcs.Invocations,
 		A:           bcs.A,
 		B:           bcs.B,
 		C:           fmt.Sprintf("0x%x", bcs.C),
-		D:           bcs.D,
+		D:           DField,
 		OwnerCap:    bcs.OwnerCap,
-	}
+	}, nil
 }
 
 func init() {
@@ -196,7 +159,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertUserDataFromBCS(temp)
+		result, err := convertUserDataFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms_test::mcms_user::OwnerCap", func(data []byte) (interface{}, error) {
@@ -478,7 +444,7 @@ func (c mcmsUserEncoder) FunctionOne(userData bind.Object, ownerCap bind.Object,
 	return c.EncodeCallArgsWithGenerics("function_one", typeArgsList, typeParamsList, []string{
 		"&mut UserData",
 		"&OwnerCap",
-		"String",
+		"0x1::string::String",
 		"vector<u8>",
 	}, []any{
 		userData,
@@ -494,7 +460,7 @@ func (c mcmsUserEncoder) FunctionOneWithArgs(args ...any) (*bind.EncodedCall, er
 	expectedParams := []string{
 		"&mut UserData",
 		"&OwnerCap",
-		"String",
+		"0x1::string::String",
 		"vector<u8>",
 	}
 
@@ -546,7 +512,7 @@ func (c mcmsUserEncoder) RegisterMcmsEntrypoint(ownerCap bind.Object, registry b
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("register_mcms_entrypoint", typeArgsList, typeParamsList, []string{
-		"OwnerCap",
+		"mcms_test::mcms_user::OwnerCap",
 		"&mut Registry",
 		"&UserData",
 	}, []any{
@@ -560,7 +526,7 @@ func (c mcmsUserEncoder) RegisterMcmsEntrypoint(ownerCap bind.Object, registry b
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsUserEncoder) RegisterMcmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OwnerCap",
+		"mcms_test::mcms_user::OwnerCap",
 		"&mut Registry",
 		"&UserData",
 	}

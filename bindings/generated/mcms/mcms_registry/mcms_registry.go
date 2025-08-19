@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -121,47 +120,6 @@ func (c *McmsRegistryContract) DevInspect() IMcmsRegistryDevInspect {
 	return c.devInspect
 }
 
-func (c *McmsRegistryContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type Registry struct {
 	Id          string      `move:"sui::object::UID"`
 	PackageCaps bind.Object `move:"Bag"`
@@ -193,13 +151,14 @@ type bcsExecutingCallbackParams struct {
 	Data         []byte
 }
 
-func convertExecutingCallbackParamsFromBCS(bcs bcsExecutingCallbackParams) ExecutingCallbackParams {
+func convertExecutingCallbackParamsFromBCS(bcs bcsExecutingCallbackParams) (ExecutingCallbackParams, error) {
+
 	return ExecutingCallbackParams{
 		Target:       fmt.Sprintf("0x%x", bcs.Target),
 		ModuleName:   bcs.ModuleName,
 		FunctionName: bcs.FunctionName,
 		Data:         bcs.Data,
-	}
+	}, nil
 }
 
 type bcsEntrypointRegistered struct {
@@ -208,12 +167,13 @@ type bcsEntrypointRegistered struct {
 	ModuleName     string
 }
 
-func convertEntrypointRegisteredFromBCS(bcs bcsEntrypointRegistered) EntrypointRegistered {
+func convertEntrypointRegisteredFromBCS(bcs bcsEntrypointRegistered) (EntrypointRegistered, error) {
+
 	return EntrypointRegistered{
 		RegistryId:     bcs.RegistryId,
 		AccountAddress: fmt.Sprintf("0x%x", bcs.AccountAddress),
 		ModuleName:     bcs.ModuleName,
-	}
+	}, nil
 }
 
 func init() {
@@ -232,7 +192,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertExecutingCallbackParamsFromBCS(temp)
+		result, err := convertExecutingCallbackParamsFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::EntrypointRegistered", func(data []byte) (interface{}, error) {
@@ -242,7 +205,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertEntrypointRegisteredFromBCS(temp)
+		result, err := convertEntrypointRegisteredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::MCMS_REGISTRY", func(data []byte) (interface{}, error) {
@@ -718,7 +684,7 @@ func (c mcmsRegistryEncoder) GetCallbackParams(typeArgs []string, registry bind.
 	return c.EncodeCallArgsWithGenerics("get_callback_params", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"T",
-		"ExecutingCallbackParams",
+		"mcms::mcms_registry::ExecutingCallbackParams",
 	}, []any{
 		registry,
 		proof,
@@ -736,7 +702,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsWithArgs(typeArgs []string, args .
 	expectedParams := []string{
 		"&mut Registry",
 		"T",
-		"ExecutingCallbackParams",
+		"mcms::mcms_registry::ExecutingCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -834,7 +800,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsForMcms(typeArgs []string, params 
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("get_callback_params_for_mcms", typeArgsList, typeParamsList, []string{
-		"ExecutingCallbackParams",
+		"mcms::mcms_registry::ExecutingCallbackParams",
 		"T",
 	}, []any{
 		params,
@@ -851,7 +817,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsForMcms(typeArgs []string, params 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsRegistryEncoder) GetCallbackParamsForMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"ExecutingCallbackParams",
+		"mcms::mcms_registry::ExecutingCallbackParams",
 		"T",
 	}
 
@@ -875,7 +841,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsFromMcms(params ExecutingCallbackP
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_callback_params_from_mcms", typeArgsList, typeParamsList, []string{
-		"ExecutingCallbackParams",
+		"mcms::mcms_registry::ExecutingCallbackParams",
 	}, []any{
 		params,
 	}, []string{
@@ -890,7 +856,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsFromMcms(params ExecutingCallbackP
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsRegistryEncoder) GetCallbackParamsFromMcmsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"ExecutingCallbackParams",
+		"mcms::mcms_registry::ExecutingCallbackParams",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -912,8 +878,8 @@ func (c mcmsRegistryEncoder) CreateExecutingCallbackParams(target string, module
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("create_executing_callback_params", typeArgsList, typeParamsList, []string{
 		"address",
-		"String",
-		"String",
+		"0x1::string::String",
+		"0x1::string::String",
 		"vector<u8>",
 	}, []any{
 		target,
@@ -930,8 +896,8 @@ func (c mcmsRegistryEncoder) CreateExecutingCallbackParams(target string, module
 func (c mcmsRegistryEncoder) CreateExecutingCallbackParamsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"address",
-		"String",
-		"String",
+		"0x1::string::String",
+		"0x1::string::String",
 		"vector<u8>",
 	}
 

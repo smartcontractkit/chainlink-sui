@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -124,47 +123,6 @@ func (c *RmnRemoteContract) DevInspect() IRmnRemoteDevInspect {
 	return c.devInspect
 }
 
-func (c *RmnRemoteContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type RMNRemoteState struct {
 	Id                 string      `move:"sui::object::UID"`
 	LocalChainSelector uint64      `move:"u64"`
@@ -222,14 +180,15 @@ type bcsReport struct {
 	MerkleRoots                 []MerkleRoot
 }
 
-func convertReportFromBCS(bcs bcsReport) Report {
+func convertReportFromBCS(bcs bcsReport) (Report, error) {
+
 	return Report{
 		DestChainSelector:           bcs.DestChainSelector,
 		RmnRemoteContractAddress:    fmt.Sprintf("0x%x", bcs.RmnRemoteContractAddress),
 		OffRampAddress:              fmt.Sprintf("0x%x", bcs.OffRampAddress),
 		RmnHomeContractConfigDigest: bcs.RmnHomeContractConfigDigest,
 		MerkleRoots:                 bcs.MerkleRoots,
-	}
+	}, nil
 }
 
 func init() {
@@ -264,7 +223,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertReportFromBCS(temp)
+		result, err := convertReportFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::MerkleRoot", func(data []byte) (interface{}, error) {

@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -96,47 +95,6 @@ func (c *McmsAccountContract) DevInspect() IMcmsAccountDevInspect {
 	return c.devInspect
 }
 
-func (c *McmsAccountContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type OwnerCap struct {
 	Id string `move:"sui::object::UID"`
 }
@@ -177,12 +135,13 @@ type bcsAccountState struct {
 	PendingTransfer *PendingTransfer
 }
 
-func convertAccountStateFromBCS(bcs bcsAccountState) AccountState {
+func convertAccountStateFromBCS(bcs bcsAccountState) (AccountState, error) {
+
 	return AccountState{
 		Id:              bcs.Id,
 		Owner:           fmt.Sprintf("0x%x", bcs.Owner),
 		PendingTransfer: bcs.PendingTransfer,
-	}
+	}, nil
 }
 
 type bcsPendingTransfer struct {
@@ -191,12 +150,13 @@ type bcsPendingTransfer struct {
 	Accepted bool
 }
 
-func convertPendingTransferFromBCS(bcs bcsPendingTransfer) PendingTransfer {
+func convertPendingTransferFromBCS(bcs bcsPendingTransfer) (PendingTransfer, error) {
+
 	return PendingTransfer{
 		From:     fmt.Sprintf("0x%x", bcs.From),
 		To:       fmt.Sprintf("0x%x", bcs.To),
 		Accepted: bcs.Accepted,
-	}
+	}, nil
 }
 
 type bcsOwnershipTransferRequested struct {
@@ -204,11 +164,12 @@ type bcsOwnershipTransferRequested struct {
 	To   [32]byte
 }
 
-func convertOwnershipTransferRequestedFromBCS(bcs bcsOwnershipTransferRequested) OwnershipTransferRequested {
+func convertOwnershipTransferRequestedFromBCS(bcs bcsOwnershipTransferRequested) (OwnershipTransferRequested, error) {
+
 	return OwnershipTransferRequested{
 		From: fmt.Sprintf("0x%x", bcs.From),
 		To:   fmt.Sprintf("0x%x", bcs.To),
-	}
+	}, nil
 }
 
 type bcsOwnershipTransferAccepted struct {
@@ -216,11 +177,12 @@ type bcsOwnershipTransferAccepted struct {
 	To   [32]byte
 }
 
-func convertOwnershipTransferAcceptedFromBCS(bcs bcsOwnershipTransferAccepted) OwnershipTransferAccepted {
+func convertOwnershipTransferAcceptedFromBCS(bcs bcsOwnershipTransferAccepted) (OwnershipTransferAccepted, error) {
+
 	return OwnershipTransferAccepted{
 		From: fmt.Sprintf("0x%x", bcs.From),
 		To:   fmt.Sprintf("0x%x", bcs.To),
-	}
+	}, nil
 }
 
 type bcsOwnershipTransferred struct {
@@ -228,11 +190,12 @@ type bcsOwnershipTransferred struct {
 	To   [32]byte
 }
 
-func convertOwnershipTransferredFromBCS(bcs bcsOwnershipTransferred) OwnershipTransferred {
+func convertOwnershipTransferredFromBCS(bcs bcsOwnershipTransferred) (OwnershipTransferred, error) {
+
 	return OwnershipTransferred{
 		From: fmt.Sprintf("0x%x", bcs.From),
 		To:   fmt.Sprintf("0x%x", bcs.To),
-	}
+	}, nil
 }
 
 func init() {
@@ -251,7 +214,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertAccountStateFromBCS(temp)
+		result, err := convertAccountStateFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::PendingTransfer", func(data []byte) (interface{}, error) {
@@ -261,7 +227,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertPendingTransferFromBCS(temp)
+		result, err := convertPendingTransferFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferRequested", func(data []byte) (interface{}, error) {
@@ -271,7 +240,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOwnershipTransferRequestedFromBCS(temp)
+		result, err := convertOwnershipTransferRequestedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferAccepted", func(data []byte) (interface{}, error) {
@@ -281,7 +253,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOwnershipTransferAcceptedFromBCS(temp)
+		result, err := convertOwnershipTransferAcceptedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferred", func(data []byte) (interface{}, error) {
@@ -291,7 +266,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOwnershipTransferredFromBCS(temp)
+		result, err := convertOwnershipTransferredFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::MCMS_ACCOUNT", func(data []byte) (interface{}, error) {
@@ -611,7 +589,7 @@ func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
-		"OwnerCap",
+		"mcms::mcms_account::OwnerCap",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",
@@ -627,7 +605,7 @@ func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsAccountEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OwnerCap",
+		"mcms::mcms_account::OwnerCap",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",

@@ -39,7 +39,7 @@ var registerDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		b.GetContext(),
 		opts,
 		bind.Object{Id: input.CCIPObjectRefObjectId},
-		input.ReceiverStateParams,
+		//input.ReceiverStateParams,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[RegisterDummyReceiverObjects]{}, fmt.Errorf("failed to execute dummy receiver registration: %w", err)

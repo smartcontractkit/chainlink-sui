@@ -1027,18 +1027,18 @@ public fun test_lock_or_burn_functionality() {
         
         let initial_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
 
-        let mut token_transfer_params = vector[];
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params();
 
         // Call the actual lock_or_burn function
-        let token_transfer_param = lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
+        lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
+            &mut token_transfer_params,
             test_coin, // This coin gets locked in the pool
             DefaultRemoteChain,
             &clock,
             &mut pool_state,
             &mut ctx
         );
-        token_transfer_params.push_back(token_transfer_param);
 
         // Verify pool balance increased by the locked amount
         let new_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
@@ -1047,14 +1047,17 @@ public fun test_lock_or_burn_functionality() {
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<onramp_sh::SourceTransferCap>(TOKEN_ADMIN);
 
+        //TOOD: add token package ID to omnramp state helper to continue with this test
         // Calculate the actual package ID from TypeProof (same as initialization)
         let type_proof_type_name = type_name::get<lock_release_token_pool::TypeProof>();
         let _type_proof_type_name_address = type_proof_type_name.get_address();
         let actual_package_id = address::from_ascii_bytes(&_type_proof_type_name_address.into_bytes());
         
-        let (chain_selector, source_pool_package_id, amount, source_token_address, dest_token_address, extra_data) = onramp_sh::get_source_token_transfer_data(&token_transfer_params, 0);
+        let (chain_selector, token_pool_package_id, amount, source_token_address, dest_token_address, extra_data) = onramp_sh::get_source_token_transfer_data(&token_transfer_params, 0);
+        // TODO: add token package ID to omnramp state helper to continue with this test
+        // assert!(actual_package_id == object::id_from_address(token_pool_package_id));
         assert!(chain_selector == DefaultRemoteChain);
-        assert!(source_pool_package_id == actual_package_id); // Should match the dynamically calculated package id
+        assert!(token_pool_package_id == actual_package_id);
         assert!(amount == initial_coin_value);
         assert!(source_token_address == lock_release_token_pool::get_token(&pool_state));
         assert!(dest_token_address == DefaultRemoteToken);
@@ -1215,6 +1218,7 @@ public fun test_release_or_mint_functionality() {
             &dest_transfer_cap,
             &mut receiver_params,
             receiver_address,
+            DefaultRemoteChain, // remote_chain_selector
             source_amount,
             coin_metadata_address,
             actual_package_id, // Use the dynamically calculated package ID
@@ -1229,23 +1233,25 @@ public fun test_release_or_mint_functionality() {
         let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
         assert!(source_chain == DefaultRemoteChain);
         
+        // Get the token transfer from receiver params
+        let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
+
         // Call the actual release_or_mint function
-        let completed_transfer = lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
+        lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
             &mut receiver_params,
-            0, // index of the token transfer
+            token_transfer,
             &clock,
             &mut pool_state,
             &mut ctx
         );
-        
+
         // Verify pool balance decreased by the released amount
         let new_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         assert!(new_pool_balance == initial_pool_balance - source_amount);
-        
-        // Clean up receiver params with completed transfers
-        let completed_transfers = vector[completed_transfer];
-        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params, completed_transfers);
+
+        // Clean up receiver params
+        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, TOKEN_ADMIN);

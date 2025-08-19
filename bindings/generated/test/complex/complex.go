@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -29,6 +28,8 @@ type IComplex interface {
 	CheckU256(ctx context.Context, opts *bind.CallOpts, input *big.Int) (*models.SuiTransactionBlockResponse, error)
 	CheckWithObjectRef(ctx context.Context, opts *bind.CallOpts, obj bind.Object) (*models.SuiTransactionBlockResponse, error)
 	CheckWithMutObjectRef(ctx context.Context, opts *bind.CallOpts, obj bind.Object, newNumber uint64) (*models.SuiTransactionBlockResponse, error)
+	CheckString(ctx context.Context, opts *bind.CallOpts, input string) (*models.SuiTransactionBlockResponse, error)
+	FlattenString(ctx context.Context, opts *bind.CallOpts, input [][]string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IComplexDevInspect
 	Encoder() ComplexEncoder
 }
@@ -41,6 +42,8 @@ type IComplexDevInspect interface {
 	CheckU256(ctx context.Context, opts *bind.CallOpts, input *big.Int) (*big.Int, error)
 	CheckWithObjectRef(ctx context.Context, opts *bind.CallOpts, obj bind.Object) (uint64, error)
 	CheckWithMutObjectRef(ctx context.Context, opts *bind.CallOpts, obj bind.Object, newNumber uint64) (uint64, error)
+	CheckString(ctx context.Context, opts *bind.CallOpts, input string) (string, error)
+	FlattenString(ctx context.Context, opts *bind.CallOpts, input [][]string) ([]string, error)
 }
 
 type ComplexEncoder interface {
@@ -60,6 +63,10 @@ type ComplexEncoder interface {
 	CheckWithObjectRefWithArgs(args ...any) (*bind.EncodedCall, error)
 	CheckWithMutObjectRef(obj bind.Object, newNumber uint64) (*bind.EncodedCall, error)
 	CheckWithMutObjectRefWithArgs(args ...any) (*bind.EncodedCall, error)
+	CheckString(input string) (*bind.EncodedCall, error)
+	CheckStringWithArgs(args ...any) (*bind.EncodedCall, error)
+	FlattenString(input [][]string) (*bind.EncodedCall, error)
+	FlattenStringWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type ComplexContract struct {
@@ -97,47 +104,6 @@ func (c *ComplexContract) DevInspect() IComplexDevInspect {
 	return c.devInspect
 }
 
-func (c *ComplexContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type SampleObject struct {
 	Id            string   `move:"sui::object::UID"`
 	SomeId        []byte   `move:"vector<u8>"`
@@ -161,7 +127,8 @@ type bcsSampleObject struct {
 	SomeAddresses [][32]byte
 }
 
-func convertSampleObjectFromBCS(bcs bcsSampleObject) SampleObject {
+func convertSampleObjectFromBCS(bcs bcsSampleObject) (SampleObject, error) {
+
 	return SampleObject{
 		Id:          bcs.Id,
 		SomeId:      bcs.SomeId,
@@ -174,7 +141,7 @@ func convertSampleObjectFromBCS(bcs bcsSampleObject) SampleObject {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 type bcsDroppableObject struct {
@@ -184,7 +151,8 @@ type bcsDroppableObject struct {
 	SomeAddresses [][32]byte
 }
 
-func convertDroppableObjectFromBCS(bcs bcsDroppableObject) DroppableObject {
+func convertDroppableObjectFromBCS(bcs bcsDroppableObject) (DroppableObject, error) {
+
 	return DroppableObject{
 		SomeId:      bcs.SomeId,
 		SomeNumber:  bcs.SomeNumber,
@@ -196,7 +164,7 @@ func convertDroppableObjectFromBCS(bcs bcsDroppableObject) DroppableObject {
 			}
 			return addrs
 		}(),
-	}
+	}, nil
 }
 
 func init() {
@@ -207,7 +175,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertSampleObjectFromBCS(temp)
+		result, err := convertSampleObjectFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("test::complex::DroppableObject", func(data []byte) (interface{}, error) {
@@ -217,7 +188,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertDroppableObjectFromBCS(temp)
+		result, err := convertDroppableObjectFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }
@@ -295,6 +269,26 @@ func (c *ComplexContract) CheckWithObjectRef(ctx context.Context, opts *bind.Cal
 // CheckWithMutObjectRef executes the check_with_mut_object_ref Move function.
 func (c *ComplexContract) CheckWithMutObjectRef(ctx context.Context, opts *bind.CallOpts, obj bind.Object, newNumber uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.complexEncoder.CheckWithMutObjectRef(obj, newNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CheckString executes the check_string Move function.
+func (c *ComplexContract) CheckString(ctx context.Context, opts *bind.CallOpts, input string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.complexEncoder.CheckString(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// FlattenString executes the flatten_string Move function.
+func (c *ComplexContract) FlattenString(ctx context.Context, opts *bind.CallOpts, input [][]string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.complexEncoder.FlattenString(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -452,6 +446,50 @@ func (d *ComplexDevInspect) CheckWithMutObjectRef(ctx context.Context, opts *bin
 	result, ok := results[0].(uint64)
 	if !ok {
 		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+	}
+	return result, nil
+}
+
+// CheckString executes the check_string Move function using DevInspect to get return values.
+//
+// Returns: 0x1::string::String
+func (d *ComplexDevInspect) CheckString(ctx context.Context, opts *bind.CallOpts, input string) (string, error) {
+	encoded, err := d.contract.complexEncoder.CheckString(input)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// FlattenString executes the flatten_string Move function using DevInspect to get return values.
+//
+// Returns: vector<String>
+func (d *ComplexDevInspect) FlattenString(ctx context.Context, opts *bind.CallOpts, input [][]string) ([]string, error) {
+	encoded, err := d.contract.complexEncoder.FlattenString(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
 	}
 	return result, nil
 }
@@ -717,5 +755,65 @@ func (c complexEncoder) CheckWithMutObjectRefWithArgs(args ...any) (*bind.Encode
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("check_with_mut_object_ref", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"u64",
+	})
+}
+
+// CheckString encodes a call to the check_string Move function.
+func (c complexEncoder) CheckString(input string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("check_string", typeArgsList, typeParamsList, []string{
+		"0x1::string::String",
+	}, []any{
+		input,
+	}, []string{
+		"0x1::string::String",
+	})
+}
+
+// CheckStringWithArgs encodes a call to the check_string Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c complexEncoder) CheckStringWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"0x1::string::String",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("check_string", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::string::String",
+	})
+}
+
+// FlattenString encodes a call to the flatten_string Move function.
+func (c complexEncoder) FlattenString(input [][]string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("flatten_string", typeArgsList, typeParamsList, []string{
+		"vector<vector<0x1::string::String>>",
+	}, []any{
+		input,
+	}, []string{
+		"vector<0x1::string::String>",
+	})
+}
+
+// FlattenStringWithArgs encodes a call to the flatten_string Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c complexEncoder) FlattenStringWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"vector<vector<0x1::string::String>>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("flatten_string", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<0x1::string::String>",
 	})
 }

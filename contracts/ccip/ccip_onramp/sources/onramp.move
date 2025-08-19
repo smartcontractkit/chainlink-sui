@@ -37,6 +37,7 @@ module ccip_onramp::onramp {
         dest_chain_configs: Table<u64, DestChainConfig>,
         // coin metadata address -> Coin
         fee_tokens: Bag,
+        // provided when initializing the nonce manager in CCIP package
         nonce_manager_cap: Option<NonceManagerCap>,
         source_transfer_cap: Option<osh::SourceTransferCap>,
         ownable_state: OwnableState,
@@ -720,7 +721,7 @@ module ccip_onramp::onramp {
         dest_chain_selector: u64,
         receiver: vector<u8>,
         data: vector<u8>,
-        token_params: vector<osh::TokenTransferParams>,
+        token_params: osh::TokenTransferParams,
         fee_token_metadata: &CoinMetadata<T>,
         fee_token: &mut Coin<T>,
         extra_args: vector<u8>,
@@ -735,7 +736,7 @@ module ccip_onramp::onramp {
         let mut dest_pool_datas = vector[];
         let mut token_transfers = vector[];
         let mut i = 0;
-        let tokens_len = token_params.length();
+        let tokens_len = osh::get_params_len(&token_params);
         let mut coin_metadata_addresses = vec_set::empty<address>();
 
         while (i < tokens_len) {

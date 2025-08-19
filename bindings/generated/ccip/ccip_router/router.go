@@ -11,7 +11,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/block-vision/sui-go-sdk/sui"
-	"github.com/block-vision/sui-go-sdk/transaction"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
@@ -137,47 +136,6 @@ func (c *RouterContract) DevInspect() IRouterDevInspect {
 	return c.devInspect
 }
 
-func (c *RouterContract) BuildPTB(ctx context.Context, ptb *transaction.Transaction, encoded *bind.EncodedCall) (*transaction.Argument, error) {
-	var callArgManager *bind.CallArgManager
-	if ptb.Data.V1 != nil && ptb.Data.V1.Kind.ProgrammableTransaction != nil &&
-		ptb.Data.V1.Kind.ProgrammableTransaction.Inputs != nil {
-		callArgManager = bind.NewCallArgManagerWithExisting(ptb.Data.V1.Kind.ProgrammableTransaction.Inputs)
-	} else {
-		callArgManager = bind.NewCallArgManager()
-	}
-
-	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(encoded.CallArgs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
-	}
-
-	ptb.Data.V1.Kind.ProgrammableTransaction.Inputs = callArgManager.GetInputs()
-
-	typeTagValues := make([]transaction.TypeTag, len(encoded.TypeArgs))
-	for i, tag := range encoded.TypeArgs {
-		if tag != nil {
-			typeTagValues[i] = *tag
-		}
-	}
-
-	argumentValues := make([]transaction.Argument, len(arguments))
-	for i, arg := range arguments {
-		if arg != nil {
-			argumentValues[i] = *arg
-		}
-	}
-
-	result := ptb.MoveCall(
-		models.SuiAddress(encoded.Module.PackageID),
-		encoded.Module.ModuleName,
-		encoded.Function,
-		typeTagValues,
-		argumentValues,
-	)
-
-	return &result, nil
-}
-
 type ROUTER struct {
 }
 
@@ -205,11 +163,16 @@ type bcsOnRampSet struct {
 	OnRampInfo        bcsOnRampInfo
 }
 
-func convertOnRampSetFromBCS(bcs bcsOnRampSet) OnRampSet {
+func convertOnRampSetFromBCS(bcs bcsOnRampSet) (OnRampSet, error) {
+	OnRampInfoField, err := convertOnRampInfoFromBCS(bcs.OnRampInfo)
+	if err != nil {
+		return OnRampSet{}, fmt.Errorf("failed to convert nested struct OnRampInfo: %w", err)
+	}
+
 	return OnRampSet{
 		DestChainSelector: bcs.DestChainSelector,
-		OnRampInfo:        convertOnRampInfoFromBCS(bcs.OnRampInfo),
-	}
+		OnRampInfo:        OnRampInfoField,
+	}, nil
 }
 
 type bcsOnRampInfo struct {
@@ -217,11 +180,12 @@ type bcsOnRampInfo struct {
 	OnrampVersion []byte
 }
 
-func convertOnRampInfoFromBCS(bcs bcsOnRampInfo) OnRampInfo {
+func convertOnRampInfoFromBCS(bcs bcsOnRampInfo) (OnRampInfo, error) {
+
 	return OnRampInfo{
 		OnrampAddress: fmt.Sprintf("0x%x", bcs.OnrampAddress),
 		OnrampVersion: bcs.OnrampVersion,
-	}
+	}, nil
 }
 
 func init() {
@@ -240,7 +204,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOnRampSetFromBCS(temp)
+		result, err := convertOnRampSetFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_router::router::OnRampInfo", func(data []byte) (interface{}, error) {
@@ -250,7 +217,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertOnRampInfoFromBCS(temp)
+		result, err := convertOnRampInfoFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_router::router::RouterState", func(data []byte) (interface{}, error) {
@@ -812,7 +782,7 @@ func (c routerEncoder) GetOnRampInfos(router bind.Object, destChainSelectors []u
 		router,
 		destChainSelectors,
 	}, []string{
-		"vector<OnRampInfo>",
+		"vector<ccip_router::router::OnRampInfo>",
 	})
 }
 
@@ -830,7 +800,7 @@ func (c routerEncoder) GetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, e
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_on_ramp_infos", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<OnRampInfo>",
+		"vector<ccip_router::router::OnRampInfo>",
 	})
 }
 
@@ -839,7 +809,7 @@ func (c routerEncoder) GetOnRampVersion(info OnRampInfo) (*bind.EncodedCall, err
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_on_ramp_version", typeArgsList, typeParamsList, []string{
-		"OnRampInfo",
+		"ccip_router::router::OnRampInfo",
 	}, []any{
 		info,
 	}, []string{
@@ -851,7 +821,7 @@ func (c routerEncoder) GetOnRampVersion(info OnRampInfo) (*bind.EncodedCall, err
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c routerEncoder) GetOnRampVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OnRampInfo",
+		"ccip_router::router::OnRampInfo",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -869,7 +839,7 @@ func (c routerEncoder) GetOnRampAddress(info OnRampInfo) (*bind.EncodedCall, err
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_on_ramp_address", typeArgsList, typeParamsList, []string{
-		"OnRampInfo",
+		"ccip_router::router::OnRampInfo",
 	}, []any{
 		info,
 	}, []string{
@@ -881,7 +851,7 @@ func (c routerEncoder) GetOnRampAddress(info OnRampInfo) (*bind.EncodedCall, err
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c routerEncoder) GetOnRampAddressWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"OnRampInfo",
+		"ccip_router::router::OnRampInfo",
 	}
 
 	if len(args) != len(expectedParams) {
