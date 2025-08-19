@@ -276,6 +276,7 @@ public fun get_package_auth_caller<TypeProof: drop>(): address {
 
 public fun lock_or_burn<T: drop>(
     ref: &CCIPObjectRef,
+    token_transfer_params: &mut onramp_sh::TokenTransferParams,
     c: Coin<T>,
     remote_chain_selector: u64,
     receiver: address, // TODO: verify this is possible
@@ -286,7 +287,7 @@ public fun lock_or_burn<T: drop>(
     message_transmitter_state: &mut MessageTransmitterState,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext
-): onramp_sh::TokenTransferParams {
+) {
     let amount = c.value();
     let sender = ctx.sender();
     let mint_recipient = receiver;
@@ -332,21 +333,22 @@ public fun lock_or_burn<T: drop>(
 
     token_pool::emit_locked_or_burned(&mut pool.token_pool_state, amount, remote_chain_selector);
 
-    onramp_sh::create_token_transfer_params(
+    onramp_sh::add_token_transfer_param(
         ref,
+        token_transfer_params,
         remote_chain_selector,
         amount,
-        pool.token_pool_state.get_token(),
+        get_token(pool),
         dest_token_address,
         source_pool_data,
-        TypeProof {},
+        TypeProof {}
     )
 }
 
 public fun release_or_mint<T: drop>(
     ref: &CCIPObjectRef,
     receiver_params: &mut offramp_sh::ReceiverParams,
-    index: u64,
+    token_transfer: offramp_sh::DestTokenTransfer,
     clock: &Clock,
     deny_list: &DenyList,
     pool: &mut USDCTokenPoolState,
@@ -354,9 +356,8 @@ public fun release_or_mint<T: drop>(
     message_transmitter_state: &mut MessageTransmitterState,
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext,
-): offramp_sh::CompletedDestTokenTransfer {
-    let remote_chain_selector = offramp_sh::get_source_chain_selector(receiver_params);
-    let (receiver, _, dest_token_address, source_pool_address, source_pool_data, offchain_token_data) = offramp_sh::get_token_param_data(receiver_params, index);
+) {
+    let (receiver, remote_chain_selector, _, dest_token_address, _, source_pool_address, source_pool_data, offchain_token_data) = offramp_sh::get_dest_token_transfer_data(token_transfer);
     let (message_bytes, attestation) =
         parse_message_and_attestation(offchain_token_data);
 
@@ -414,9 +415,11 @@ public fun release_or_mint<T: drop>(
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
-        index,
+        receiver,
+        dest_token_address,
+        object::id(pool),
         TypeProof {},
-    )
+    );
 }
 
 fun parse_message_and_attestation(payload: vector<u8>): (vector<u8>, vector<u8>) {
