@@ -853,7 +853,7 @@ public fun test_lock_or_burn_comprehensive() {
         let initial_coin_value = coin::value(&test_coin);
         assert!(initial_coin_value == 1000);
         
-        let mut token_transfer_params = onramp_sh::create_token_transfer_params();
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params(@0x456); // Use the test user address as token receiver
 
         // Perform lock_or_burn operation (this burns the coin)
         burn_mint_token_pool::lock_or_burn(

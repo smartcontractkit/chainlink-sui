@@ -6,7 +6,6 @@ use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
 
 const ETypeProofMismatch: u64 = 1;
-const EInvalidIndex: u64 = 2;
 
 public struct ONRAMP_STATE_HELPER has drop {}
 
@@ -17,10 +16,15 @@ public struct SourceTransferCap has key, store {
 
 public struct TokenTransferParams {
     params: vector<TokenTransferMetadata>,
+    token_receiver: address,
 }
 
 public fun get_params_len(params: &TokenTransferParams): u64 {
     params.params.length()
+}
+
+public fun get_token_receiver(params: &TokenTransferParams): address {
+    params.token_receiver
 }
 
 public struct TokenTransferMetadata {
@@ -40,9 +44,10 @@ fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
     transfer::transfer(source_cap, ctx.sender());
 }
 
-public fun create_token_transfer_params(): TokenTransferParams {
+public fun create_token_transfer_params(token_receiver: address): TokenTransferParams {
     TokenTransferParams {
         params: vector[],
+        token_receiver,
     }
 }
 
@@ -78,15 +83,15 @@ public fun add_token_transfer_param<TypeProof: drop>(
 
 
 public fun deconstruct_token_params(_: &SourceTransferCap, token_transfer_params: TokenTransferParams) {
-    let TokenTransferParams { params: mut params } = token_transfer_params;
+    let TokenTransferParams { params: mut params, token_receiver: _ } = token_transfer_params;
     while (!params.is_empty()) {
         let TokenTransferMetadata {
-            remote_chain_selector,
-            token_pool_package_id,
-            amount,
-            source_token_coin_metadata_address,
-            dest_token_address,
-            extra_data,
+            remote_chain_selector: _,
+            token_pool_package_id: _,
+            amount: _,
+            source_token_coin_metadata_address: _,
+            dest_token_address: _,
+            extra_data: _,
         } = params.pop_back();
     };
     params.destroy_empty();

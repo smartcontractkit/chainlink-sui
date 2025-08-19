@@ -78,7 +78,7 @@ public fun test_create_token_transfer_params() {
     );
     
     // Test creating token transfer params with valid data
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,
@@ -128,7 +128,7 @@ public fun test_create_token_transfer_params_basic() {
     
     // Try to create token transfer params - this test now just creates empty params
     // since type proof validation was removed from the helper
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,
@@ -164,7 +164,7 @@ public fun test_get_remote_chain_selector() {
     );
     
     // Test creating token transfer params with different chain selectors
-    let mut token_params1 = onramp_state_helper::create_token_transfer_params();
+    let mut token_params1 = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params1,
@@ -177,7 +177,7 @@ public fun test_get_remote_chain_selector() {
     );
     
     let different_chain = 2000;
-    let mut token_params2 = onramp_state_helper::create_token_transfer_params();
+    let mut token_params2 = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params2,
@@ -225,7 +225,7 @@ public fun test_create_and_verify_token_transfer() {
     );
     
     // Create source token transfer
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,
@@ -288,7 +288,7 @@ public fun test_multiple_token_transfers() {
     );
     
     // Create token transfer params with both transfers
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     
     // Add first token transfer
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
@@ -346,7 +346,7 @@ public fun test_deconstruct_empty_params_vector() {
     let (scenario, owner_cap, ref, source_cap) = setup_test();
     
     // Create empty params and test deconstruct
-    let empty_params = onramp_state_helper::create_token_transfer_params();
+    let empty_params = onramp_state_helper::create_token_transfer_params(@0x456);
     
     // Deconstruct should work with empty params
     onramp_state_helper::deconstruct_token_params(&source_cap, empty_params);
@@ -374,7 +374,7 @@ public fun test_get_source_token_transfer_data() {
     );
     
     // Create token transfer with specific data
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,
@@ -424,7 +424,7 @@ public fun test_edge_case_large_amounts() {
     
     // Test with maximum u64 value
     let max_amount = 18446744073709551615; // u64::MAX
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,
@@ -466,7 +466,7 @@ public fun test_edge_case_empty_data() {
     );
     
     // Test with empty destination address and extra data
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,
@@ -514,7 +514,7 @@ public fun test_different_destination_chains() {
     let mut i = 0;
     
     // Create single token params object and add all transfers
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     
     while (i < chains.length()) {
         let chain = chains[i];
@@ -561,7 +561,7 @@ public fun test_zero_amount_transfer() {
     );
     
     // Test with zero amount - should be allowed
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,
@@ -603,7 +603,7 @@ public fun test_source_transfer_cap_permission() {
     );
     
     // Create a source token transfer
-    let mut token_params = onramp_state_helper::create_token_transfer_params();
+    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
         &mut token_params,

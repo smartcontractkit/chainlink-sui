@@ -445,7 +445,7 @@ public fun test_lock_or_burn_functionality() {
         let initial_coin_value = test_coin.value();
         assert!(initial_coin_value == 1000);
         
-        let mut token_transfer_params = onramp_sh::create_token_transfer_params();
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params(@0x456); // Use the test user address as token receiver
         
         // Actually call lock_or_burn function
         managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(

@@ -1027,7 +1027,7 @@ public fun test_lock_or_burn_functionality() {
         
         let initial_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
 
-        let mut token_transfer_params = onramp_sh::create_token_transfer_params();
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params(@0x456); // Use the test user address as token receiver
 
         // Call the actual lock_or_burn function
         lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(

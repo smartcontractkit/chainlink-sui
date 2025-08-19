@@ -100,6 +100,7 @@ func BuildOffRampExecutePTB(
 			offrampArgs.ReportContext[1][:],
 		},
 		offrampArgs.Report,
+		"0x1234",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (init_execute) using bindings: %w", err)

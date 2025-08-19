@@ -39,6 +39,7 @@ func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config cwCon
 	}, nil
 }
 
+//nolint:unused
 func convertFunctionParams(argMap map[string]any, params []codec.SuiFunctionParam) ([]string, []any, error) {
 	types := make([]string, len(params))
 	values := make([]any, len(params))
