@@ -160,8 +160,8 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		return nil, err
 	}
 
-	// If the function is CCIPExecuteReport, then we need to built the PTB using bespoke code rather than using the configs to programmatically build the PTB commands.
-	if function == cwConfig.CCIPExecuteReportFunctionName {
+	// If the function is Execute, then we need to build the PTB using bespoke code rather than using the configs to programmatically build the PTB commands.
+	if function == cwConfig.CCIPExecute {
 		addressMappings, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
 		if err != nil {
 			p.log.Errorw("Error setting up address mappings", "error", err)
@@ -176,6 +176,19 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		}
 
 		return ptb, nil
+	} else if function == cwConfig.CCIPCommit {
+		// If it's just a commit, then we just need to get the address mappings and use the regular
+		// PTB builder to build the PTB.
+		addressMappings, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
+		if err != nil {
+			p.log.Errorw("Error setting up address mappings", "error", err)
+			return nil, err
+		}
+		// Add values from address mappings to the arguments received from core to enable the regualar
+		// PTB building flow for commit.
+		arguments.Args["ccip_object_ref"] = addressMappings.CcipObjectRef
+		arguments.Args["state"] = addressMappings.OffRampState
+		arguments.Args["clock"] = addressMappings.ClockObject
 	}
 
 	// Create a map for caching objects
