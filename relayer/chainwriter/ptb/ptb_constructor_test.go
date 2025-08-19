@@ -310,7 +310,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_id_prereq", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_id_prereq", args, packageId)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -327,7 +327,7 @@ func TestPTBConstructor_PrereqObjectFill(t *testing.T) {
 		// pass no args as it should be populated by the pre-requisites
 		args := config.Arguments{Args: map[string]any{}}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_count_with_object_keys_prereq", args, packageId)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -623,7 +623,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -639,7 +639,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, packageId)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -650,7 +650,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, packageId)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -659,7 +659,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	t.Run("Missing Required Argument", func(t *testing.T) {
 		args := config.Arguments{Args: map[string]any{}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, packageId)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -669,7 +669,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		// Start by creating a Counter and its counter manager
 		args := config.Arguments{Args: map[string]any{}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -693,7 +693,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"manager_object": managerObjectId,
 		}}
 
-		ptb, cError = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, nil)
+		ptb, cError = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -721,7 +721,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, nil)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, packageId)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -761,7 +761,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		}
 
 		// Use the constructor to build PTB commands for the generic function
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_coin_value_ptb", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_coin_value_ptb", args, packageId)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
