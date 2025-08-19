@@ -29,7 +29,6 @@ const TOKEN_ADDRESS_2: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d
 const TOKEN_POOL_ADDRESS_1: address = @0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270;
 const TOKEN_POOL_ADDRESS_2: address = @0xd8908c165dee785924e7421a0fd0418a19d5daeec395fd505a92a0fd3117e428;
 const SOURCE_CHAIN_SELECTOR: u64 = 1000;
-const RANDOM_ID: address = @0x11234;
 
 fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, DestTransferCap) {
     let mut scenario = ts::begin(OWNER);
