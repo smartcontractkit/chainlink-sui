@@ -4,6 +4,8 @@ use std::string::{Self, String};
 
 use sui::event;
 use sui::clock::Clock;
+use sui::coin::Coin;
+use sui::transfer::Receiving;
 
 use ccip::client;
 use ccip::receiver_registry;
@@ -89,8 +91,22 @@ public fun get_token_amount_amount(token_amount: &TokenAmount): u64 {
     token_amount.amount
 }
 
-public fun echo(ref: &CCIPObjectRef, message: vector<u8>): vector<u8> {
-    message
+public fun receive_and_send_coin<T>(state: &mut CCIPReceiverState, _: &OwnerCap, coin_receiving: Receiving<Coin<T>>, recipient: address) {
+    let c = transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving);
+    transfer::public_transfer(c, recipient);
+}
+
+public fun receive_coin<T>(state: &mut CCIPReceiverState, _: &OwnerCap, coin_receiving: Receiving<Coin<T>>): Coin<T> {
+    transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
+}
+
+public fun receive_and_send_coin_no_owner_cap<T>(state: &mut CCIPReceiverState, coin_receiving: Receiving<Coin<T>>, recipient: address) {
+    let c = transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving);
+    transfer::public_transfer(c, recipient);
+}
+
+public fun receive_coin_no_owner_cap<T>(state: &mut CCIPReceiverState, coin_receiving: Receiving<Coin<T>>): Coin<T> {
+    transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
 // any ccip receiver must implement this function with the same signature
@@ -100,7 +116,6 @@ public fun ccip_receive(
     message: client::Any2SuiMessage,
     _: &Clock, // this is a precompile, but remain the same across all messages
     state: &mut CCIPReceiverState, // this is a singleton, but remain the same across all messages
-    // _: &mut 0x2::coin::Coin<0x2::sui::SUI>, // the object which can be different from message to message. TODO: decide if implement this.
 ) {
     let (
         message_id,

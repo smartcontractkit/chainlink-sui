@@ -1032,11 +1032,11 @@ public fun test_lock_or_burn_functionality() {
         // Call the actual lock_or_burn function
         lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
+            &mut token_transfer_params,
             test_coin, // This coin gets locked in the pool
             DefaultRemoteChain,
             &clock,
             &mut pool_state,
-            &mut token_transfer_params,
             &mut ctx
         );
 

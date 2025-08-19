@@ -450,13 +450,13 @@ public fun test_lock_or_burn_functionality() {
         // Actually call lock_or_burn function
         managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
             &ccip_ref,        // ref parameter
+            &mut token_transfer_params,
             test_coin,        // c parameter (coin)
             DefaultRemoteChain, // remote_chain_selector parameter
             &clock,           // clock parameter
             &deny_list,       // deny_list parameter
             &mut token_state, // token_state parameter
             &mut pool_state,  // state parameter
-            &mut token_transfer_params,
             &mut ctx          // context parameter
         );
         

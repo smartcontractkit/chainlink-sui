@@ -19,6 +19,7 @@ public struct ReceiverConfig has store, copy, drop {
 // TODO: rethink the use of vec_map here, as it is O(N) for lookups. consider a bag or other map-like structure.
 public struct ReceiverRegistry has key, store {
     id: UID,
+    // receiver package id -> receiver config
     receiver_configs: VecMap<address, ReceiverConfig>
 }
 

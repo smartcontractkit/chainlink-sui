@@ -26,7 +26,10 @@ type IDummyReceiver interface {
 	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
 	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
-	Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) (*models.SuiTransactionBlockResponse, error)
+	ReceiveAndSendCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
+	ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ReceiveAndSendCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
+	ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error)
 	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
@@ -38,7 +41,8 @@ type IDummyReceiverDevInspect interface {
 	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]TokenAmount, error)
 	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (string, error)
 	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (uint64, error)
-	Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) ([]byte, error)
+	ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (any, error)
+	ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (any, error)
 }
 
 type DummyReceiverEncoder interface {
@@ -54,8 +58,14 @@ type DummyReceiverEncoder interface {
 	GetTokenAmountTokenWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenAmountAmount(tokenAmount TokenAmount) (*bind.EncodedCall, error)
 	GetTokenAmountAmountWithArgs(args ...any) (*bind.EncodedCall, error)
-	Echo(ref bind.Object, message []byte) (*bind.EncodedCall, error)
-	EchoWithArgs(args ...any) (*bind.EncodedCall, error)
+	ReceiveAndSendCoin(typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object, recipient string) (*bind.EncodedCall, error)
+	ReceiveAndSendCoinWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	ReceiveCoin(typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (*bind.EncodedCall, error)
+	ReceiveCoinWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	ReceiveAndSendCoinNoOwnerCap(typeArgs []string, state bind.Object, coinReceiving bind.Object, recipient string) (*bind.EncodedCall, error)
+	ReceiveAndSendCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	ReceiveCoinNoOwnerCap(typeArgs []string, state bind.Object, coinReceiving bind.Object) (*bind.EncodedCall, error)
+	ReceiveCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	CcipReceive(expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	CcipReceiveWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -267,9 +277,39 @@ func (c *DummyReceiverContract) GetTokenAmountAmount(ctx context.Context, opts *
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// Echo executes the echo Move function.
-func (c *DummyReceiverContract) Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.dummyReceiverEncoder.Echo(ref, message)
+// ReceiveAndSendCoin executes the receive_and_send_coin Move function.
+func (c *DummyReceiverContract) ReceiveAndSendCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.ReceiveAndSendCoin(typeArgs, state, param, coinReceiving, recipient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ReceiveCoin executes the receive_coin Move function.
+func (c *DummyReceiverContract) ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.ReceiveCoin(typeArgs, state, param, coinReceiving)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ReceiveAndSendCoinNoOwnerCap executes the receive_and_send_coin_no_owner_cap Move function.
+func (c *DummyReceiverContract) ReceiveAndSendCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.ReceiveAndSendCoinNoOwnerCap(typeArgs, state, coinReceiving, recipient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// ReceiveCoinNoOwnerCap executes the receive_coin_no_owner_cap Move function.
+func (c *DummyReceiverContract) ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.ReceiveCoinNoOwnerCap(typeArgs, state, coinReceiving)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -397,11 +437,11 @@ func (d *DummyReceiverDevInspect) GetTokenAmountAmount(ctx context.Context, opts
 	return result, nil
 }
 
-// Echo executes the echo Move function using DevInspect to get return values.
+// ReceiveCoin executes the receive_coin Move function using DevInspect to get return values.
 //
-// Returns: vector<u8>
-func (d *DummyReceiverDevInspect) Echo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, message []byte) ([]byte, error) {
-	encoded, err := d.contract.dummyReceiverEncoder.Echo(ref, message)
+// Returns: Coin<T>
+func (d *DummyReceiverDevInspect) ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (any, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.ReceiveCoin(typeArgs, state, param, coinReceiving)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -412,11 +452,25 @@ func (d *DummyReceiverDevInspect) Echo(ctx context.Context, opts *bind.CallOpts,
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
+	return results[0], nil
+}
+
+// ReceiveCoinNoOwnerCap executes the receive_coin_no_owner_cap Move function using DevInspect to get return values.
+//
+// Returns: Coin<T>
+func (d *DummyReceiverDevInspect) ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (any, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.ReceiveCoinNoOwnerCap(typeArgs, state, coinReceiving)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return result, nil
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	return results[0], nil
 }
 
 type dummyReceiverEncoder struct {
@@ -593,36 +647,155 @@ func (c dummyReceiverEncoder) GetTokenAmountAmountWithArgs(args ...any) (*bind.E
 	})
 }
 
-// Echo encodes a call to the echo Move function.
-func (c dummyReceiverEncoder) Echo(ref bind.Object, message []byte) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("echo", typeArgsList, typeParamsList, []string{
-		"&CCIPObjectRef",
-		"vector<u8>",
+// ReceiveAndSendCoin encodes a call to the receive_and_send_coin Move function.
+func (c dummyReceiverEncoder) ReceiveAndSendCoin(typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object, recipient string) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_and_send_coin", typeArgsList, typeParamsList, []string{
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+		"Receiving<Coin<T>>",
+		"address",
 	}, []any{
-		ref,
-		message,
-	}, []string{
-		"vector<u8>",
-	})
+		state,
+		param,
+		coinReceiving,
+		recipient,
+	}, nil)
 }
 
-// EchoWithArgs encodes a call to the echo Move function using arbitrary arguments.
+// ReceiveAndSendCoinWithArgs encodes a call to the receive_and_send_coin Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c dummyReceiverEncoder) EchoWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c dummyReceiverEncoder) ReceiveAndSendCoinWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&CCIPObjectRef",
-		"vector<u8>",
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+		"Receiving<Coin<T>>",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
 	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("echo", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<u8>",
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_and_send_coin", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// ReceiveCoin encodes a call to the receive_coin Move function.
+func (c dummyReceiverEncoder) ReceiveCoin(typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_coin", typeArgsList, typeParamsList, []string{
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+		"Receiving<Coin<T>>",
+	}, []any{
+		state,
+		param,
+		coinReceiving,
+	}, []string{
+		"Coin<T>",
+	})
+}
+
+// ReceiveCoinWithArgs encodes a call to the receive_coin Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) ReceiveCoinWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPReceiverState",
+		"&OwnerCap",
+		"Receiving<Coin<T>>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_coin", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"Coin<T>",
+	})
+}
+
+// ReceiveAndSendCoinNoOwnerCap encodes a call to the receive_and_send_coin_no_owner_cap Move function.
+func (c dummyReceiverEncoder) ReceiveAndSendCoinNoOwnerCap(typeArgs []string, state bind.Object, coinReceiving bind.Object, recipient string) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_and_send_coin_no_owner_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPReceiverState",
+		"Receiving<Coin<T>>",
+		"address",
+	}, []any{
+		state,
+		coinReceiving,
+		recipient,
+	}, nil)
+}
+
+// ReceiveAndSendCoinNoOwnerCapWithArgs encodes a call to the receive_and_send_coin_no_owner_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) ReceiveAndSendCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPReceiverState",
+		"Receiving<Coin<T>>",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_and_send_coin_no_owner_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// ReceiveCoinNoOwnerCap encodes a call to the receive_coin_no_owner_cap Move function.
+func (c dummyReceiverEncoder) ReceiveCoinNoOwnerCap(typeArgs []string, state bind.Object, coinReceiving bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_coin_no_owner_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPReceiverState",
+		"Receiving<Coin<T>>",
+	}, []any{
+		state,
+		coinReceiving,
+	}, []string{
+		"Coin<T>",
+	})
+}
+
+// ReceiveCoinNoOwnerCapWithArgs encodes a call to the receive_coin_no_owner_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) ReceiveCoinNoOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPReceiverState",
+		"Receiving<Coin<T>>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("receive_coin_no_owner_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"Coin<T>",
 	})
 }
 

@@ -858,11 +858,11 @@ public fun test_lock_or_burn_comprehensive() {
         // Perform lock_or_burn operation (this burns the coin)
         burn_mint_token_pool::lock_or_burn(
             &ccip_ref,
+            &mut token_transfer_params,
             test_coin, // This coin gets burned
             DefaultRemoteChain,
             &clock,
             &mut pool_state,
-            &mut token_transfer_params,
             &mut ctx
         );
 

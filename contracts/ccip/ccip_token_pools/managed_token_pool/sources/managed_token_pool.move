@@ -270,13 +270,13 @@ public struct TypeProof has drop {}
 
 public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
+    token_transfer_params: &mut onramp_sh::TokenTransferParams,
     c: Coin<T>,
     remote_chain_selector: u64,
     clock: &Clock,
     deny_list: &DenyList,
     token_state: &mut TokenState<T>,
     state: &mut ManagedTokenPoolState<T>,
-    token_transfer_params: &mut onramp_sh::TokenTransferParams,
     ctx: &mut TxContext
 ) {
     let amount = c.value();

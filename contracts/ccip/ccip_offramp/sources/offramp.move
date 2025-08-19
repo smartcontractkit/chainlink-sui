@@ -84,7 +84,7 @@ module ccip_offramp::offramp {
         header: RampMessageHeader,
         sender: vector<u8>,
         data: vector<u8>,
-        receiver: address,
+        receiver: address, // this is the message receiver 
         gas_limit: u256,
         token_amounts: vector<Any2SuiTokenTransfer>
     }
@@ -228,6 +228,7 @@ module ccip_offramp::offramp {
     const EDestTransferCapNotSet: u64 = 25;
     const ECalculateMessageHashInvalidArguments: u64 = 26;
     const EInvalidFunction: u64 = 27;
+    const EInvalidTokenReceiver: u64 = 28;
 
     public fun type_and_version(): String {
         string::utf8(b"OffRamp 1.6.0")
@@ -422,6 +423,7 @@ module ccip_offramp::offramp {
         clock: &clock::Clock,
         report_context: vector<vector<u8>>,
         report: vector<u8>,
+        token_receiver: address,
         ctx: &mut TxContext
     ): osh::ReceiverParams {
         let reports = deserialize_execution_report(report);
@@ -436,7 +438,7 @@ module ccip_offramp::offramp {
             ctx
         );
 
-        pre_execute_single_report(ref, state, clock, reports, false)
+        pre_execute_single_report(ref, state, clock, reports, false, token_receiver)
     }
 
     public fun finish_execute(
@@ -452,11 +454,12 @@ module ccip_offramp::offramp {
         ref: &CCIPObjectRef,
         state: &mut OffRampState,
         clock: &clock::Clock,
-        report_bytes: vector<u8>
+        report_bytes: vector<u8>,
+        token_receiver: address
     ): osh::ReceiverParams {
         let reports = deserialize_execution_report(report_bytes);
 
-        pre_execute_single_report(ref, state, clock, reports, true)
+        pre_execute_single_report(ref, state, clock, reports, true, token_receiver)
     }
 
     public fun get_execution_state(
@@ -549,7 +552,8 @@ module ccip_offramp::offramp {
         state: &mut OffRampState,
         clock: &clock::Clock,
         execution_report: ExecutionReport,
-        manual_execution: bool
+        manual_execution: bool,
+        token_receiver: address
     ): osh::ReceiverParams {
         let source_chain_selector = execution_report.source_chain_selector;
 
@@ -614,9 +618,15 @@ module ccip_offramp::offramp {
         assert!(message.header.nonce == 0, EMustBeOutOfOrderExec);
 
         let number_of_tokens_in_msg = message.token_amounts.length();
+        let has_valid_message_receiver = (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
         assert!(
             number_of_tokens_in_msg == execution_report.offchain_token_data.length(),
             ETokenDataMismatch
+        );
+        assert!(
+            (token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
+            (token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
+            EInvalidTokenReceiver
         );
         assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
 
@@ -639,7 +649,7 @@ module ccip_offramp::offramp {
             osh::add_dest_token_transfer(
                 state.dest_transfer_cap.borrow(),
                 &mut receiver_params,
-                message.receiver,
+                message.receiver, // need to change to token receiver
                 source_chain_selector,
                 amount,
                 message.token_amounts[i].dest_token_address,
@@ -653,10 +663,8 @@ module ccip_offramp::offramp {
             i = i + 1;
         };
 
-        // if the message has data or gas limit, and the receiver is registered,
-        // fill the any2sui message for the receiver to execute
-        if ((!message.data.is_empty() || message.gas_limit != 0) &&
-            receiver_registry::is_registered_receiver(ref, message.receiver)) {
+        // if the message has a valid message receiver and proper data & gas limit
+        if (has_valid_message_receiver) {
             let dest_token_amounts =
                 client::new_dest_token_amounts(token_addresses, token_amounts);
             let any2sui_message =
