@@ -323,7 +323,7 @@ var updateTokenPrices = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQ
 		b.GetContext(),
 		opts,
 		bind.Object{Id: input.CCIPObjectRef},
-		bind.Object{Id: input.FeeQuoterCapId},
+		// bind.Object{Id: input.FeeQuoterCapId},
 		bind.Object{Id: "0x6"}, // Clock object
 		input.SourceTokens,
 		input.SourceUsdPerToken,
