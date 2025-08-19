@@ -300,7 +300,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			args: config.Arguments{Args: map[string]any{
 				"counter": objectID,
 			}},
-			expectError:      errors.New("txn already exists"),
+			expectError:      errors.New("transaction already exists"),
 			expectedResult:   "",
 			status:           commonTypes.Failed,
 			numberAttemps:    1,
