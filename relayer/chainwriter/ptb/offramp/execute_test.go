@@ -141,7 +141,7 @@ func SetupOffRamp(t *testing.T,
 
 	// Get the main account's public key first
 	keystoreInstance := testutils.NewTestKeystore(t)
-	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	_, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 	accountAddressBytes, err := hex.DecodeString(strings.TrimPrefix(accountAddress, "0x"))
 	require.NoError(t, err)
 
@@ -173,15 +173,17 @@ func SetupOffRamp(t *testing.T,
 
 		// Extract the public key (32 bytes) for OCR3
 		publicKey := pk.Public().(ed25519.PublicKey)
-		signerPublicKeys = append(signerPublicKeys, []byte(publicKey))
+		signerPublicKeys = append(signerPublicKeys, publicKey)
 
 		signerPrivateKeys = append(signerPrivateKeys, pk)
 	}
 
 	// the 4th signer is the account that will call the OffRamp
 	signerAddresses = append(signerAddresses, accountAddress)
+	//nolint:ineffassign,staticcheck
 	signerAddrBytes = append(signerAddrBytes, accountAddressBytes)
 	signerPublicKeys = append(signerPublicKeys, publicKeyBytes)
+	//nolint:ineffassign,staticcheck
 	signerPrivateKeys = append(signerPrivateKeys, privateKey)
 
 	lggr.Infow("signer addresses", "signerAddresses", signerAddresses)
@@ -671,12 +673,14 @@ func TestExecuteOffRamp(t *testing.T) {
 		}
 
 		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr)
-		txManager.Start(ctx)
+		err = txManager.Start(ctx)
+		require.NoError(t, err)
 
 		txID := "execute-offramp-test"
 		txMetadata := &commontypes.TxMeta{}
 
-		txManager.EnqueuePTB(ctx, txID, txMetadata, publicKeyBytes, ptb, false)
+		_, err = txManager.EnqueuePTB(ctx, txID, txMetadata, publicKeyBytes, ptb, false)
+		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
 			status, statusErr := txManager.GetTransactionStatus(ctx, txID)

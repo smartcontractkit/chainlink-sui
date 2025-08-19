@@ -286,7 +286,6 @@ func AppendPTBCommandForTokenPool(
 
 	typeArgsList = []string{tokenType}
 	typeParamsList = []string{}
-	paramTypes = []string{}
 	// The fixed arguments that must be present for every token pool call.
 	paramValues = []any{
 		bind.Object{Id: addressMappings.CcipObjectRef},
@@ -485,7 +484,6 @@ func AppendPTBCommandForReceiver(
 
 	typeArgsList = []string{}
 	typeParamsList = []string{}
-	paramTypes = []string{}
 	paramValues = []any{
 		messageID,
 		bind.Object{Id: addressMappings.CcipObjectRef},
