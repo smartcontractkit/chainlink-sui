@@ -1,3 +1,5 @@
+//go:build integration
+
 package offramp_test
 
 import (
