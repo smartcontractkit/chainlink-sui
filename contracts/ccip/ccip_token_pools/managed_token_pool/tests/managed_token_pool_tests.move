@@ -639,8 +639,9 @@ public fun test_release_or_mint_functionality() {
         let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
 
         // Actually call release_or_mint function
-        let completed_transfer = managed_token_pool::release_or_mint(
+        managed_token_pool::release_or_mint(
             &ccip_ref,
+            &mut receiver_params,
             token_transfer,
             &clock,
             &deny_list,
@@ -648,11 +649,10 @@ public fun test_release_or_mint_functionality() {
             &mut pool_state,
             &mut ctx
         );
-        
-        // Clean up receiver params with completed transfers
-        let completed_transfers = vector[completed_transfer];
-        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params, completed_transfers);
-        
+
+        // Clean up receiver params
+        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
+
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, @managed_token_pool);
         test_scenario::return_shared(pool_state);

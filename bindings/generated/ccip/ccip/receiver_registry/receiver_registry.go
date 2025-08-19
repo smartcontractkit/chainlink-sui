@@ -126,7 +126,7 @@ func convertReceiverRegisteredFromBCS(bcs bcsReceiverRegistered) (ReceiverRegist
 		ReceiverPackageId:  fmt.Sprintf("0x%x", bcs.ReceiverPackageId),
 		ReceiverModuleName: bcs.ReceiverModuleName,
 		ProofTypename:      bcs.ProofTypename,
-	}
+	}, nil
 }
 
 type bcsReceiverUnregistered struct {

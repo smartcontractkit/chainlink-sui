@@ -1234,21 +1234,21 @@ public fun test_release_or_mint_functionality() {
         let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
 
         // Call the actual release_or_mint function
-        let completed_transfer = lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
+        lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
+            &mut receiver_params,
             token_transfer,
             &clock,
             &mut pool_state,
             &mut ctx
         );
-        
+
         // Verify pool balance decreased by the released amount
         let new_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(&pool_state);
         assert!(new_pool_balance == initial_pool_balance - source_amount);
-        
-        // Clean up receiver params with completed transfers
-        let completed_transfers = vector[completed_transfer];
-        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params, completed_transfers);
+
+        // Clean up receiver params
+        offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
         
         clock.destroy_for_testing();
         transfer::public_transfer(dest_transfer_cap, TOKEN_ADMIN);

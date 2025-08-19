@@ -146,11 +146,12 @@ type bcsTokenAmount struct {
 	Amount uint64
 }
 
-func convertTokenAmountFromBCS(bcs bcsTokenAmount) TokenAmount {
+func convertTokenAmountFromBCS(bcs bcsTokenAmount) (TokenAmount, error) {
+
 	return TokenAmount{
 		Token:  fmt.Sprintf("0x%x", bcs.Token),
 		Amount: bcs.Amount,
-	}
+	}, nil
 }
 
 func init() {
@@ -198,7 +199,10 @@ func init() {
 			return nil, err
 		}
 
-		result := convertTokenAmountFromBCS(temp)
+		result, err := convertTokenAmountFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
 		return result, nil
 	})
 }

@@ -250,7 +250,7 @@ func convertPoolRegisteredFromBCS(bcs bcsPoolRegistered) (PoolRegistered, error)
 		TokenPoolPackageId:  fmt.Sprintf("0x%x", bcs.TokenPoolPackageId),
 		Administrator:       fmt.Sprintf("0x%x", bcs.Administrator),
 		TokenPoolTypeProof:  bcs.TokenPoolTypeProof,
-	}
+	}, nil
 }
 
 type bcsPoolUnregistered struct {

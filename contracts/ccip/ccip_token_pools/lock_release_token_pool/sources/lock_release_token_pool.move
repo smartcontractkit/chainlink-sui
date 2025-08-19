@@ -341,13 +341,12 @@ public fun release_or_mint<T>(
     );
     transfer::public_transfer(c, receiver);
 
-    let token_pool_id = object::id(state);
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
         receiver,
         dest_token_address,
-        token_pool_id,
+         object::id(state),
         TypeProof {},
     );
 }
