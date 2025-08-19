@@ -5,7 +5,7 @@ module lock_release_token_pool::lock_release_token_pool_ownable_test {
 
     use ccip::state_object::{Self, CCIPObjectRef};
     use ccip::ownable::OwnerCap as CCIPOwnerCap;
-    use ccip::dynamic_dispatcher;
+    use ccip::onramp_state_helper;
     use ccip::offramp_state_helper;
     use ccip::rmn_remote;
     use ccip::token_admin_registry;
@@ -43,7 +43,7 @@ module lock_release_token_pool::lock_release_token_pool_ownable_test {
         // Initialize required CCIP modules
         rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
         token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
-        dynamic_dispatcher::test_init(scenario.ctx());
+        onramp_state_helper::test_init(scenario.ctx());
         offramp_state_helper::test_init(scenario.ctx());
 
         // Initialize token pool using the existing test token from the main test module

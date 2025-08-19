@@ -391,7 +391,7 @@ func TestTransactionsIndexer(t *testing.T) {
 				"report_context": [][]byte{},
 				"report":         reportBytes,
 			},
-		}, nil)
+		}, "")
 		require.NoError(t, err)
 
 		// Execute the PTB command using the PTB client, we don't check errors because we expect a failure

@@ -33,7 +33,6 @@ import (
 	chainwriter "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/expander"
-	offramp "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
@@ -62,6 +61,79 @@ type ReceivedMessageEvent struct {
 
 func AnyPointer[T any](v T) *T {
 	return &v
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+func GenerateCommitPTB(
+	offRampPackageId string,
+	signerPublicKey []byte,
+) *config.ChainWriterFunction {
+	return &config.ChainWriterFunction{
+		Name:      config.CCIPCommit,
+		PublicKey: signerPublicKey,
+		Params:    []codec.SuiFunctionParam{},
+		PTBCommands: []config.ChainWriterPTBCommand{
+			{
+				Type:      codec.SuiPTBCommandMoveCall,
+				PackageId: strPtr(offRampPackageId),
+				ModuleId:  strPtr("offramp"),
+				Function:  strPtr("commit"),
+				Params: []codec.SuiFunctionParam{
+					{
+						Name:      "ccip_object_ref",
+						Type:      "object_id",
+						Required:  true,
+						IsMutable: boolPtr(true),
+					},
+					{
+						Name:      "state",
+						Type:      "object_id",
+						Required:  true,
+						IsMutable: boolPtr(true),
+					},
+					{
+						Name:      "clock",
+						Type:      "object_id",
+						Required:  true,
+						IsMutable: boolPtr(false),
+					},
+					{
+						Name:     "report_context",
+						Type:     "vector<vector<u8>>",
+						Required: true,
+					},
+					{
+						Name:     "report",
+						Type:     "vector<u8>",
+						Required: true,
+					},
+					{
+						Name:     "signatures",
+						Type:     "vector<vector<u8>>",
+						Required: true,
+					},
+				},
+			},
+		},
+	}
+}
+
+func GenerateExecutePTB(
+	signerPublicKey []byte,
+) *config.ChainWriterFunction {
+	return &config.ChainWriterFunction{
+		Name:        config.CCIPExecute,
+		PublicKey:   signerPublicKey,
+		Params:      []codec.SuiFunctionParam{},
+		PTBCommands: []config.ChainWriterPTBCommand{},
+	}
 }
 
 type EnvironmentSettings struct {
@@ -590,8 +662,8 @@ func setupChainWriter(t *testing.T, envSettings *EnvironmentSettings) (*chainwri
 							},
 						},
 					},
-					"ccip_commit":                          offramp.GenerateCommitPTB(lggr, offRampPackageId, publicKeyBytes),
-					cwConfig.CCIPExecuteReportFunctionName: offramp.GenerateExecutePTB(lggr, offRampPackageId, publicKeyBytes),
+					cwConfig.CCIPCommit:  GenerateCommitPTB(lggr, offRampPackageId, publicKeyBytes),
+					cwConfig.CCIPExecute: GenerateExecutePTB(lggr, offRampPackageId, publicKeyBytes),
 				},
 			},
 		},

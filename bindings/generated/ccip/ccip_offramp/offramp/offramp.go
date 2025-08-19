@@ -23,9 +23,9 @@ type IOfframp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error)
+	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
 	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error)
+	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
@@ -64,8 +64,8 @@ type IOfframp interface {
 type IOfframpDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bind.Object, error)
-	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error)
-	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error)
+	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error)
+	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (byte, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error)
@@ -94,11 +94,11 @@ type OfframpEncoder interface {
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOcr3Base(state bind.Object) (*bind.EncodedCall, error)
 	GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, error)
-	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error)
+	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error)
 	InitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	FinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
 	FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
-	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error)
+	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*bind.EncodedCall, error)
 	ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*bind.EncodedCall, error)
 	GetExecutionStateWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -815,8 +815,8 @@ func (c *OfframpContract) GetOcr3Base(ctx context.Context, opts *bind.CallOpts, 
 }
 
 // InitExecute executes the init_execute Move function.
-func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.InitExecute(ref, state, clock, reportContext, report)
+func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.InitExecute(ref, state, clock, reportContext, report, tokenReceiver)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -835,8 +835,8 @@ func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts
 }
 
 // ManuallyInitExecute executes the manually_init_execute Move function.
-func (c *OfframpContract) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes)
+func (c *OfframpContract) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes, tokenReceiver)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1201,8 +1201,8 @@ func (d *OfframpDevInspect) GetOcr3Base(ctx context.Context, opts *bind.CallOpts
 // InitExecute executes the init_execute Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error) {
-	encoded, err := d.contract.offrampEncoder.InitExecute(ref, state, clock, reportContext, report)
+func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.InitExecute(ref, state, clock, reportContext, report, tokenReceiver)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1223,8 +1223,8 @@ func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts
 // ManuallyInitExecute executes the manually_init_execute Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *OfframpDevInspect) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error) {
-	encoded, err := d.contract.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes)
+func (d *OfframpDevInspect) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes, tokenReceiver)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1745,7 +1745,7 @@ func (c offrampEncoder) GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, err
 }
 
 // InitExecute encodes a call to the init_execute Move function.
-func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("init_execute", typeArgsList, typeParamsList, []string{
@@ -1754,12 +1754,14 @@ func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bi
 		"&clock::Clock",
 		"vector<vector<u8>>",
 		"vector<u8>",
+		"address",
 	}, []any{
 		ref,
 		state,
 		clock,
 		reportContext,
 		report,
+		tokenReceiver,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -1774,6 +1776,7 @@ func (c offrampEncoder) InitExecuteWithArgs(args ...any) (*bind.EncodedCall, err
 		"&clock::Clock",
 		"vector<vector<u8>>",
 		"vector<u8>",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1816,7 +1819,7 @@ func (c offrampEncoder) FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, e
 }
 
 // ManuallyInitExecute encodes a call to the manually_init_execute Move function.
-func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("manually_init_execute", typeArgsList, typeParamsList, []string{
@@ -1824,11 +1827,13 @@ func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, 
 		"&mut OffRampState",
 		"&clock::Clock",
 		"vector<u8>",
+		"address",
 	}, []any{
 		ref,
 		state,
 		clock,
 		reportBytes,
+		tokenReceiver,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -1842,6 +1847,7 @@ func (c offrampEncoder) ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedC
 		"&mut OffRampState",
 		"&clock::Clock",
 		"vector<u8>",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
