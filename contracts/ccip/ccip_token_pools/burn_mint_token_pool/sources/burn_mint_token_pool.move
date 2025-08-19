@@ -260,8 +260,9 @@ public fun lock_or_burn<T>(
     remote_chain_selector: u64,
     clock: &Clock,
     state: &mut BurnMintTokenPoolState<T>,
+    token_transfer_params: &mut onramp_sh::TokenTransferParams,
     ctx: &mut TxContext
-): onramp_sh::TokenTransferParams {
+) {
     let amount = c.value();
     let sender = ctx.sender();
 
@@ -283,14 +284,15 @@ public fun lock_or_burn<T>(
 
     token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
 
-    onramp_sh::create_token_transfer_params(
+    onramp_sh::add_token_transfer_param(
         ref,
+        token_transfer_params,
         remote_chain_selector,
         amount,
-        state.token_pool_state.get_token(),
+        get_token(state),
         dest_token_address,
         extra_data,
-        TypeProof {},
+        TypeProof {}
     )
 }
 

@@ -445,10 +445,10 @@ public fun test_lock_or_burn_functionality() {
         let initial_coin_value = test_coin.value();
         assert!(initial_coin_value == 1000);
         
-        let mut token_transfer_params = vector[];
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params();
         
         // Actually call lock_or_burn function
-        let token_transfer_param = managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
+        managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
             &ccip_ref,        // ref parameter
             test_coin,        // c parameter (coin)
             DefaultRemoteChain, // remote_chain_selector parameter
@@ -456,17 +456,18 @@ public fun test_lock_or_burn_functionality() {
             &deny_list,       // deny_list parameter
             &mut token_state, // token_state parameter
             &mut pool_state,  // state parameter
+            &mut token_transfer_params,
             &mut ctx          // context parameter
         );
-        token_transfer_params.push_back(token_transfer_param);
         
         // Clean up token params
         let source_transfer_cap = scenario.take_from_address<onramp_sh::SourceTransferCap>(@managed_token_pool);
         
         // Verify transfer data
-        let (chain_selector, _source_pool_package_id, amount, _source_token_address, dest_token_address, extra_data) = 
+        let (chain_selector, token_pool_package_id, amount, _, dest_token_address, extra_data) = 
             onramp_sh::get_source_token_transfer_data(&token_transfer_params, 0);
         assert!(chain_selector == DefaultRemoteChain);
+        assert!(token_pool_package_id == @managed_token_pool);
         assert!(amount == initial_coin_value);
         // Note: source_pool should be the token address (coin metadata address), not the package address
         // This is different from the burn mint token pool due to different implementation

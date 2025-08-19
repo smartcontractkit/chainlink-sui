@@ -828,7 +828,7 @@ module ccip_onramp::onramp_test {
         env.scenario.next_tx(@0x999); // Not in allowlist for DEST_CHAIN_SELECTOR_1
         
         // Create empty token params for testing (this test is about sender authorization, not token handling)
-        let token_params = vector[];
+        let token_params = osh::create_token_transfer_params();
 
         // Test ccip_send function - this will fail on fee quoter validation first
         // before reaching the sender allowlist check
