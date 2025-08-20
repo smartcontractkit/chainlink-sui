@@ -268,6 +268,27 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	cachedArgs *map[string]transaction.Argument,
 ) ([]transaction.Argument, error) {
 	processedArgs := make([]transaction.Argument, 0, len(params))
+
+	// if someone passed the wrapper here
+	if wrap, ok := arguments.Args["Args"].(map[string]any); ok {
+		// try to pull ArgTypes from the same wrapper map (or however it was passed)
+		if rawAT, ok := arguments.Args["ArgTypes"]; ok {
+			switch m := rawAT.(type) {
+			case map[string]string:
+				arguments.ArgTypes = m
+			case map[string]any:
+				at := make(map[string]string, len(m))
+				for k, v := range m {
+					if s, ok := v.(string); ok {
+						at[k] = s
+					}
+				}
+				arguments.ArgTypes = at
+			}
+		}
+		arguments.Args = wrap
+	}
+
 	for _, param := range params {
 		p.log.Debugw("Processing PTB parameter", "Param", param)
 
