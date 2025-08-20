@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chainlink SUI - CCIP Integration</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="description" content="Comprehensive documentation for Chainlink SUI CCIP integration">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/prismjs@1/themes/prism.css">
+  <style>
+    :root {
+      --theme-color: #2563eb;
+      --theme-color-secondary: #1e40af;
+      --code-theme-background: #f8fafc;
+      --code-theme-text: #1e293b;
+    }
+    
+    .sidebar {
+      border-right: 1px solid #e2e8f0;
+    }
+    
+    .sidebar-nav li > a {
+      font-weight: 500;
+    }
+    
+    .sidebar-nav li.active > a {
+      color: var(--theme-color);
+      font-weight: 600;
+    }
+    
+    .markdown-section {
+      max-width: 1200px;
+    }
+    
+    .markdown-section h1 {
+      border-bottom: 2px solid var(--theme-color);
+      padding-bottom: 10px;
+    }
+    
+    .markdown-section h2 {
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 8px;
+    }
+    
+    .markdown-section blockquote {
+      border-left: 4px solid var(--theme-color);
+      background: #f8fafc;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .markdown-section code {
+      background: var(--code-theme-background);
+      color: var(--code-theme-text);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    
+    .markdown-section pre {
+      background: var(--code-theme-background);
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    
+    .docsify-tabs__tab {
+      font-weight: 500;
+    }
+    
+    .docsify-tabs__tab--active {
+      color: var(--theme-color);
+    }
+    
+    .alert {
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 6px;
+      border-left: 4px solid;
+    }
+    
+    .alert.info {
+      background: #dbeafe;
+      border-color: #2563eb;
+      color: #1e40af;
+    }
+    
+    .alert.warning {
+      background: #fef3c7;
+      border-color: #d97706;
+      color: #92400e;
+    }
+    
+    .alert.error {
+      background: #fecaca;
+      border-color: #dc2626;
+      color: #991b1b;
+    }
+    
+    .alert.success {
+      background: #d1fae5;
+      border-color: #059669;
+      color: #065f46;
+    }
+    
+    /* Mermaid diagram styling */
+    .mermaid {
+      text-align: center;
+      margin: 1rem 0;
+    }
+    
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    pre[data-lang="mermaid"] {
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    window.$docsify = {
+      name: 'Chainlink SUI',
+      repo: 'https://github.com/smartcontractkit/chainlink-sui',
+      loadSidebar: true,
+      loadNavbar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      coverpage: false,
+      themeColor: '#2563eb',
+      
+      // Search configuration
+      search: {
+        paths: 'auto',
+        placeholder: 'Search documentation...',
+        noData: 'No results found',
+        depth: 3,
+        maxAge: 86400000,
+      },
+      
+      // Copy code configuration
+      copyCode: {
+        buttonText: 'Copy',
+        errorText: 'Error',
+        successText: 'Copied!'
+      },
+      
+      // Tabs configuration
+      tabs: {
+        persist: true,
+        sync: true,
+        theme: 'classic',
+        tabComments: true,
+        tabHeadings: true
+      },
+      
+      // Pagination
+      pagination: {
+        previousText: 'Previous',
+        nextText: 'Next',
+        crossChapter: true,
+        crossChapterText: true,
+      },
+      
+      // Custom plugins
+      plugins: [
+        function (hook, vm) {
+          hook.beforeEach(function (html) {
+            // Add edit on GitHub link
+            var url = 'https://github.com/smartcontractkit/chainlink-sui/blob/main/documentation/' + vm.route.file;
+            var editHtml = '[📝 Edit on GitHub](' + url + ')\n';
+            return editHtml + html;
+          });
+          
+          hook.doneEach(function () {
+            // Add alert classes
+            var alerts = document.querySelectorAll('blockquote');
+            alerts.forEach(function(alert) {
+              var content = alert.innerText.toLowerCase();
+              if (content.startsWith('info:') || content.startsWith('ℹ️')) {
+                alert.className = 'alert info';
+              } else if (content.startsWith('warning:') || content.startsWith('⚠️')) {
+                alert.className = 'alert warning';
+              } else if (content.startsWith('error:') || content.startsWith('❌')) {
+                alert.className = 'alert error';
+              } else if (content.startsWith('success:') || content.startsWith('✅')) {
+                alert.className = 'alert success';
+              }
+            });
+            
+            // Render Mermaid diagrams
+            var mermaidElements = document.querySelectorAll('pre[data-lang="mermaid"]');
+            mermaidElements.forEach(function(element, index) {
+              var graphDefinition = element.textContent.trim();
+              var graphId = 'mermaid-graph-' + index + '-' + Date.now();
+              
+              // Create container with proper styling
+              var container = document.createElement('div');
+              container.className = 'mermaid';
+              container.id = graphId;
+              
+              // Replace the pre element with our container
+              element.parentNode.replaceChild(container, element);
+              
+              // Render the diagram
+              try {
+                mermaid.render(graphId + '-svg', graphDefinition).then(function(result) {
+                  document.getElementById(graphId).innerHTML = result.svg;
+                }).catch(function(error) {
+                  console.error('Mermaid rendering error:', error);
+                  document.getElementById(graphId).innerHTML = 
+                    '<div style="background: #fee2e2; color: #dc2626; padding: 1rem; border-radius: 6px; border: 1px solid #fca5a5;">' +
+                    '<strong>Diagram Rendering Error</strong><br>' +
+                    'Failed to render Mermaid diagram. Check console for details.' +
+                    '</div>';
+                });
+              } catch (error) {
+                console.error('Mermaid setup error:', error);
+                document.getElementById(graphId).innerHTML = 
+                  '<div style="background: #fee2e2; color: #dc2626; padding: 1rem; border-radius: 6px; border: 1px solid #fca5a5;">' +
+                  '<strong>Diagram Setup Error</strong><br>' +
+                  'Failed to initialize Mermaid diagram renderer.' +
+                  '</div>';
+              }
+            });
+          });
+        }
+      ]
+    }
+  </script>
+  
+  <!-- Docsify core -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  
+  <!-- Plugins -->
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-tabs@1"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+  
+  <!-- Language highlighting -->
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-go.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-rust.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-toml.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+  
+  <!-- Mermaid for diagrams -->
+  <script src="//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ 
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      fontFamily: 'inherit',
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true
+      }
+    });
+  </script>
+  
+  <!-- Custom Move language highlighting -->
+  <script>
+    Prism.languages.move = {
+      'comment': [
+        {
+          pattern: /(^|[^\\])\/\*[\s\S]*?(?:\*\/|$)/,
+          lookbehind: true
+        },
+        {
+          pattern: /(^|[^\\:])\/\/.*/,
+          lookbehind: true
+        }
+      ],
+      'string': {
+        pattern: /b?"(?:\\.|[^\\"])*"/,
+        greedy: true
+      },
+      'keyword': /\b(?:module|public|fun|struct|has|copy|drop|store|key|move_to|move_from|borrow_global|borrow_global_mut|exists|acquires|script|use|const|let|mut|if|else|while|loop|return|break|continue|abort|assert|entry|friend|native|spec|pragma|global|local|invariant|ensures|requires|aborts_if|aborts_with|succeeds_if|modifies|reads|address|signer|u8|u16|u32|u64|u128|u256|bool|vector)\b/,
+      'function': /\b[a-zA-Z_][a-zA-Z0-9_]*(?=\s*\()/,
+      'number': /\b0x[a-fA-F0-9]+\b|\b\d+\b/,
+      'operator': /[+\-*/%=<>!&|^~?:]/,
+      'punctuation': /[{}[\];(),]/
+    };
+  </script>
+</body>
+</html> 
