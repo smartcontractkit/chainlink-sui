@@ -13,6 +13,7 @@ import (
 
 type ManagedToken interface {
 	Address() string
+	ManagedToken() module_managed_token.IManagedToken
 }
 
 var _ ManagedToken = CCIPManagedTokenPackage{}
@@ -25,6 +26,10 @@ type CCIPManagedTokenPackage struct {
 
 func (p CCIPManagedTokenPackage) Address() string {
 	return p.address
+}
+
+func (p CCIPManagedTokenPackage) ManagedToken() module_managed_token.IManagedToken {
+	return p.managedToken
 }
 
 func NewCCIPManagedToken(address string, client sui.ISuiAPI) (ManagedToken, error) {

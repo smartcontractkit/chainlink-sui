@@ -147,7 +147,7 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 
 	output, err := cmd.Output()
 	if err != nil {
-		return PackageArtifact{}, fmt.Errorf("sui move build failed: %w\nOutput:\n%s", err, output)
+		return PackageArtifact{}, fmt.Errorf("sui move build failed (%s): %w\nOutput:\n%s", cmd.Dir, err, output)
 	}
 
 	return ToArtifact(string(output))

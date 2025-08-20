@@ -44,8 +44,8 @@ type DeployManagedTokenPoolObjects struct {
 }
 
 type DeployManagedTokenPoolOutput struct {
-	CCIPPackageId string
-	Objects       DeployManagedTokenPoolObjects
+	ManagedTPPackageId string
+	Objects            DeployManagedTokenPoolObjects
 }
 
 var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
@@ -125,7 +125,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 		}
 
 		return DeployManagedTokenPoolOutput{
-			CCIPPackageId: deployReport.Output.PackageId,
+			ManagedTPPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenPoolObjects{
 				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:    initReport.Output.Objects.StateObjectId,

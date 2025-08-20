@@ -4,7 +4,7 @@ module ccip_onramp::onramp_test {
     use ccip_onramp::ownable::{OwnerCap};
     use ccip::state_object::{Self, CCIPObjectRef};
     use sui::test_scenario::{Self as ts, Scenario};
-    use ccip::dynamic_dispatcher as dd;
+    use ccip::onramp_state_helper as osh;
     use ccip::nonce_manager::{Self, NonceManagerCap};
     use ccip::token_admin_registry;
     use ccip::rmn_remote;
@@ -47,6 +47,9 @@ module ccip_onramp::onramp_test {
     // Test token for fee testing - using proper one-time witness pattern
     public struct ONRAMP_TEST has drop {}
 
+    // Type proof for token transfers in tests
+    public struct TypeProof has drop {}
+
     // Helper function to create test token with proper one-time witness
     #[test_only]
     public fun create_test_token(ctx: &mut TxContext): (coin::TreasuryCap<ONRAMP_TEST>, CoinMetadata<ONRAMP_TEST>) {
@@ -69,7 +72,7 @@ module ccip_onramp::onramp_test {
         clock: sui::clock::Clock,
     }
 
-    fun setup(): (Env, NonceManagerCap, dd::SourceTransferCap) {
+    fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
         let mut scenario = ts::begin(OWNER);
         let ctx = scenario.ctx();
         let mut clock = sui::clock::create_for_testing(ctx);
@@ -80,7 +83,7 @@ module ccip_onramp::onramp_test {
         mcms_deployer::test_init(ctx);
 
         state_object::test_init(ctx);
-        dd::test_init(ctx);
+        osh::test_init(ctx);
 
         onramp::test_init(ctx);
 
@@ -106,7 +109,7 @@ module ccip_onramp::onramp_test {
 
         scenario.next_tx(OWNER);
         
-        let source_transfer_cap = ts::take_from_sender<dd::SourceTransferCap>(&scenario);
+        let source_transfer_cap = ts::take_from_sender<osh::SourceTransferCap>(&scenario);
         let nonce_manager_cap = ts::take_from_sender<NonceManagerCap>(&scenario);
 
         ts::return_to_address(OWNER, ccip_owner_cap);
@@ -138,7 +141,7 @@ module ccip_onramp::onramp_test {
         env: &mut Env,
         onramp_owner_cap: &OwnerCap,
         nonce_manager_cap: NonceManagerCap,
-        source_transfer_cap: dd::SourceTransferCap,
+        source_transfer_cap: osh::SourceTransferCap,
     ) {
         let ctx = env.scenario.ctx();
         onramp::initialize(
@@ -259,7 +262,7 @@ module ccip_onramp::onramp_test {
         mcms_registry::test_init(ctx);
         mcms_deployer::test_init(ctx);
         state_object::test_init(ctx);
-        dd::test_init(ctx);
+        osh::test_init(ctx);
         onramp::test_init(ctx);
 
         scenario.next_tx(OWNER);
@@ -287,7 +290,7 @@ module ccip_onramp::onramp_test {
 
         scenario.next_tx(OWNER);
         
-        let source_transfer_cap = ts::take_from_sender<dd::SourceTransferCap>(&scenario);
+        let source_transfer_cap = ts::take_from_sender<osh::SourceTransferCap>(&scenario);
         let nonce_manager_cap = ts::take_from_sender<NonceManagerCap>(&scenario);
 
         // Initialize onramp
@@ -824,8 +827,8 @@ module ccip_onramp::onramp_test {
         // Switch to unauthorized sender
         env.scenario.next_tx(@0x999); // Not in allowlist for DEST_CHAIN_SELECTOR_1
         
-        // Create empty token params for testing
-        let token_params = dd::create_token_params(DEST_CHAIN_SELECTOR_1, EVM_RECEIVER_ADDRESS);
+        // Create empty token params for testing (this test is about sender authorization, not token handling)
+        let token_params = osh::create_token_transfer_params(@0x456);
 
         // Test ccip_send function - this will fail on fee quoter validation first
         // before reaching the sender allowlist check
@@ -836,6 +839,8 @@ module ccip_onramp::onramp_test {
             ref,
             state,
             clock,
+            DEST_CHAIN_SELECTOR_1,
+            EVM_RECEIVER_ADDRESS,
             b"data",
             token_params,
             &coin_metadata,

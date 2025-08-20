@@ -50,7 +50,7 @@ public fun encode_svm_extra_args_v1(
     extra_args
 }
 
-public struct Any2SuiMessage has store, drop, copy {
+public struct Any2SuiMessage {
     message_id: vector<u8>,
     source_chain_selector: u64,
     sender: vector<u8>,
@@ -77,6 +77,18 @@ public fun new_any2sui_message(
         data,
         dest_token_amounts
     }
+}
+
+public(package) fun consume_any2sui_message(message: Any2SuiMessage): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
+    let Any2SuiMessage {
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts
+    } = message;
+
+    (message_id, source_chain_selector, sender, data, dest_token_amounts)
 }
 
 public fun new_dest_token_amounts(
@@ -116,4 +128,8 @@ public fun get_token(input: &Any2SuiTokenAmount): address {
 
 public fun get_amount(input: &Any2SuiTokenAmount): u64 {
     input.amount
+}
+
+public fun get_token_and_amount(input: &Any2SuiTokenAmount): (address, u64) {
+    (input.token, input.amount)
 }

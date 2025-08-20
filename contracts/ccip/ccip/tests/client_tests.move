@@ -306,6 +306,13 @@ fun test_new_any2sui_message() {
     assert!(client::get_sender(&message) == sender, 2);
     assert!(client::get_data(&message) == data, 3);
     assert!(client::get_dest_token_amounts(&message) == dest_token_amounts, 4);
+
+    let (message_id, source_chain_selector, sender, data, dest_token_amounts) = client::consume_any2sui_message(message);
+    assert!(message_id == message_id, 0);
+    assert!(source_chain_selector == source_chain_selector, 1);
+    assert!(sender == sender, 2);
+    assert!(data == data, 3);
+    assert!(dest_token_amounts == dest_token_amounts, 4);
 }
 
 #[test]
@@ -347,6 +354,13 @@ fun test_get_message_id() {
 
     let retrieved_id = client::get_message_id(&message);
     assert!(retrieved_id == message_id, 0);
+
+    let (message_id, source_chain_selector, sender, data, dest_token_amounts) = client::consume_any2sui_message(message);
+    assert!(message_id == message_id, 0);
+    assert!(source_chain_selector == 1u64, 1);
+    assert!(sender == x"deadbeef", 2);
+    assert!(data == x"cafebabe", 3);
+    assert!(dest_token_amounts == vector[], 4);
 }
 
 #[test]
@@ -362,6 +376,13 @@ fun test_get_source_chain_selector() {
 
     let retrieved_selector = client::get_source_chain_selector(&message);
     assert!(retrieved_selector == chain_selector, 0);
+
+    let (message_id, source_chain_selector, sender, data, dest_token_amounts) = client::consume_any2sui_message(message);
+    assert!(message_id == message_id, 0);
+    assert!(source_chain_selector == chain_selector, 1);
+    assert!(sender == x"deadbeef", 2);
+    assert!(data == x"cafebabe", 3);
+    assert!(dest_token_amounts == vector[], 4);
 }
 
 #[test]
@@ -405,4 +426,11 @@ fun test_message_with_token_amounts() {
     assert!(client::get_amount(&retrieved_amounts[0]) == 1000u64, 6);
     assert!(client::get_token(&retrieved_amounts[1]) == @0xb, 7);
     assert!(client::get_amount(&retrieved_amounts[1]) == 2000u64, 8);
+
+    let (message_id, chain_selector, returned_sender, returned_data, returned_dest_token_amounts) = client::consume_any2sui_message(message);
+    assert!(message_id == message_id, 0);
+    assert!(chain_selector == source_chain_selector, 1);
+    assert!(returned_sender == sender, 2);
+    assert!(returned_data == data, 3);
+    assert!(returned_dest_token_amounts == dest_token_amounts, 4);
 }

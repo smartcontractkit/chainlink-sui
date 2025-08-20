@@ -8,7 +8,7 @@ module ccip_onramp::onramp_mcms_test {
     use ccip_onramp::onramp::{Self, OnRampState};
     use ccip_onramp::ownable::OwnerCap;
     use ccip::state_object::{Self, CCIPObjectRef};
-    use ccip::dynamic_dispatcher as dd;
+    use ccip::onramp_state_helper as osh;
     use ccip::nonce_manager::{Self, NonceManagerCap};
 
     use mcms::mcms_registry::{Self, Registry};
@@ -32,7 +32,7 @@ module ccip_onramp::onramp_mcms_test {
         clock: sui::clock::Clock,
     }
 
-    fun setup(): (Env, NonceManagerCap, dd::SourceTransferCap) {
+    fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
         let mut scenario = ts::begin(OWNER);
         let ctx = scenario.ctx();
         let mut clock = sui::clock::create_for_testing(ctx);
@@ -43,7 +43,7 @@ module ccip_onramp::onramp_mcms_test {
         mcms_deployer::test_init(ctx);
 
         state_object::test_init(ctx);
-        dd::test_init(ctx);
+        osh::test_init(ctx);
 
         onramp::test_init(ctx);
 
@@ -59,7 +59,7 @@ module ccip_onramp::onramp_mcms_test {
 
         scenario.next_tx(OWNER);
         
-        let source_transfer_cap = ts::take_from_sender<dd::SourceTransferCap>(&scenario);
+        let source_transfer_cap = ts::take_from_sender<osh::SourceTransferCap>(&scenario);
         let nonce_manager_cap = ts::take_from_sender<NonceManagerCap>(&scenario);
 
         let env = Env {
@@ -86,7 +86,7 @@ module ccip_onramp::onramp_mcms_test {
         env: &mut Env,
         onramp_owner_cap: &OwnerCap,
         nonce_manager_cap: NonceManagerCap,
-        source_transfer_cap: dd::SourceTransferCap,
+        source_transfer_cap: osh::SourceTransferCap,
     ) {
         let ctx = env.scenario.ctx();
         onramp::initialize(
