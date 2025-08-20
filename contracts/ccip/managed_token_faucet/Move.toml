@@ -8,6 +8,9 @@ ManagedToken = { local = "../managed_token" }
 
 [addresses]
 managed_token_faucet = "_"
+managed_token = "_"
+mcms = "_"
+mcms_owner = "_"
 
 [dev-addresses]
 managed_token = "0x1113"

@@ -1,4 +1,4 @@
-name: pull-request-main
+name: pull-request-develop
 
 permissions:
   contents: read
@@ -7,7 +7,7 @@ permissions:
 on:
   pull_request:
     branches:
-      - main
+      - develop
 
 jobs:
   fast-tests:

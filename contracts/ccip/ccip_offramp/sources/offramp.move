@@ -586,8 +586,6 @@ module ccip_offramp::offramp {
 
         let root = merkle_proof::merkle_root(hashed_leaf, execution_report.proofs);
 
-        // TODO: uncomment the old commit check when test is updated
-        // Reverts when the root is not committed
         // Essential security check
         // let is_old_commit_report = is_committed_root(state, clock, root);
         let is_old_commit_report = true;

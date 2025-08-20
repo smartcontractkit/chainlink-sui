@@ -13,11 +13,13 @@ public struct FaucetState<phantom T> has key, store {
 public fun initialize<T>(
     mint_cap: MintCap<T>,
     ctx: &mut TxContext
-): FaucetState<T> {
-    FaucetState<T> {
+) {
+    let faucet_state = FaucetState<T> {
         id: object::new(ctx),
         mint_cap,
-    }
+    };
+
+    transfer::share_object(faucet_state);
 }
 
 public fun drip<T>(
