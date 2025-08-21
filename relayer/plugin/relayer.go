@@ -114,6 +114,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*chainreaderConfig.ChainReaderEvent{},
 	)
+
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		loggerInstance,
@@ -123,6 +124,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,
 		time.Duration(*cfg.EventsIndexer.SyncTimeoutSecs)*time.Second,
 	)
+
 	indexerInstance := indexer.NewIndexer(
 		loggerInstance,
 		evIndexer,

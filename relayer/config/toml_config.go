@@ -45,6 +45,16 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 	}
 	cfg.BalanceMonitor.setDefaults()
 
+	if cfg.TransactionsIndexer == nil {
+		cfg.TransactionsIndexer = &IndexerConfig{}
+	}
+	cfg.TransactionsIndexer.setDefaults()
+
+	if cfg.EventsIndexer == nil {
+		cfg.EventsIndexer = &IndexerConfig{}
+	}
+	cfg.EventsIndexer.setDefaults()
+
 	return &cfg, nil
 }
 
@@ -154,6 +164,17 @@ type TransactionManagerConfig struct {
 type IndexerConfig struct {
 	PollingIntervalSecs *uint64
 	SyncTimeoutSecs     *uint64
+}
+
+func (i *IndexerConfig) setDefaults() {
+	if i.PollingIntervalSecs == nil {
+		v := DefaultIndexerPollIntervalSecs
+		i.PollingIntervalSecs = &v
+	}
+	if i.SyncTimeoutSecs == nil {
+		v := DefaultIndexerSyncTimeoutSecs
+		i.SyncTimeoutSecs = &v
+	}
 }
 
 func (t *TransactionManagerConfig) setDefaults() {
