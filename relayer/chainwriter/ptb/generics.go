@@ -7,7 +7,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
@@ -21,80 +20,56 @@ func NewTypeTagBuilder() *TypeTagBuilder {
 
 func (p *PTBConstructor) ResolveGenericTypeTags(
 	params []codec.SuiFunctionParam,
-	arguments config.Arguments,
 ) ([]transaction.TypeTag, error) {
 	if len(params) == 0 {
 		return []transaction.TypeTag{}, nil
 	}
 
+	builder := NewTypeTagBuilder()
+	// Use a map to track unique type tags by their string representation
+	uniqueTags := make(map[string]transaction.TypeTag)
+	// Track the order in which unique keys are first encountered
+	keyOrder := make([]string, 0)
+
 	// Filter generic parameters
-	genericParams := make([]codec.SuiFunctionParam, 0)
 	for _, param := range params {
-		if param.IsGeneric {
-			genericParams = append(genericParams, param)
+		if param.GenericType != nil {
+			// Build the appropriate TypeTag
+			var typeTag transaction.TypeTag
+			var err error
+
+			typeTag, err = builder.createTypeTag(*param.GenericType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create type tag for param %q with type %q: %w",
+					param.Name, *param.GenericType, err)
+			}
+
+			// Only add to keyOrder if this is the first time we see this genericType
+			if _, exists := uniqueTags[*param.GenericType]; !exists {
+				keyOrder = append(keyOrder, *param.GenericType)
+			}
+
+			// Use the genericType as the deduplication key
+			uniqueTags[*param.GenericType] = typeTag
+
+			p.log.Debugw("Created type tag",
+				"param", param.Name,
+				"genericType", *param.GenericType,
+				"isVector", isVectorType(*param.GenericType))
 		}
 	}
 
-	if len(genericParams) == 0 {
+	if len(uniqueTags) == 0 {
 		return []transaction.TypeTag{}, nil
 	}
 
-	// Use a map to track unique type tags by their string representation
-	uniqueTags := make(map[string]transaction.TypeTag)
-
-	builder := NewTypeTagBuilder()
-
-	p.log.Debugw("Resolving generic type tags",
-		"genericParamCount", len(genericParams),
-		"arguments", arguments)
-
-	for _, param := range genericParams {
-		if param.Name == "" {
-			return nil, fmt.Errorf("generic parameter missing name: %+v", param)
-		}
-
-		// Get the actual generic type from ArgTypes
-		genericType, exists := arguments.ArgTypes[param.Name]
-		if !exists {
-			return nil, fmt.Errorf("generic parameter %q not found in ArgTypes", param.Name)
-		}
-
-		// Build the appropriate TypeTag
-		var typeTag transaction.TypeTag
-		var err error
-
-		typeTag, err = builder.createTypeTag(genericType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create type tag for param %q with type %q: %w",
-				param.Name, genericType, err)
-		}
-
-		// Use the genericType as the deduplication key
-		uniqueTags[genericType] = typeTag
-
-		p.log.Debugw("Created type tag",
-			"param", param.Name,
-			"genericType", genericType,
-			"isVector", isVectorType(param.Type))
-	}
-
-	// Convert map to slice maintaining order by re-iterating over genericParams
+	// Return type tags in the order they first appeared
 	result := make([]transaction.TypeTag, 0, len(uniqueTags))
-	seen := make(map[string]bool)
-
-	for _, param := range genericParams {
-		if genericType, exists := arguments.ArgTypes[param.Name]; exists {
-			if !seen[genericType] {
-				if typeTag, exists := uniqueTags[genericType]; exists {
-					result = append(result, typeTag)
-					seen[genericType] = true
-				}
-			}
-		}
+	for _, k := range keyOrder {
+		result = append(result, uniqueTags[k])
 	}
 
 	p.log.Debugw("Resolved type tags", "count", len(result))
-
 	return result, nil
 }
 

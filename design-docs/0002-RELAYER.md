@@ -412,23 +412,15 @@ config := chainwriter.ChainWriterConfig{
 ### Calling a PTB in a ChainWriter instance
 
 
-You can combine these different argument types in a single PTB. The recommended way to pass arguments to PTB commands is using the `chainwriter.Arguments` struct. This approach simplifies argument handling by automatically mapping the arguments to the appropriate parameters in your PTB commands based on their names.
-
-The `Arguments` struct has two fields:
-- `Args`: A map of argument names to their values
-- `ArgTypes`: A map of argument names to their generic types (for handling generic type parameters). By default this is empty.
-
-Here's how to use the `chainwriter.Arguments` approach:
+You can combine these different argument types in a single PTB. The recommended way to pass arguments to PTB commands is using a map of argument names to their values.
 
 ```go
 // Create an Arguments struct with your argument values
-args := chainwriter.Arguments{
-    Args: map[string]any{
+args := map[string]any{
         "counter":      "0x123...", // Object ID for a counter object
         "increment_by": uint64(10), // Value to increment by
         "description":  "metadata", // String metadata
         "signers":      [][]byte{signerA, signerB, signerC}, // Vector/array argument
-    },
 }
 
 // Submit the transaction with the Arguments struct
@@ -452,7 +444,7 @@ This approach has several advantages:
 
 #### Handling Generic Types in PTBs
 
-When working with generic types in Sui Move functions, you need to specify both the value arguments and the type arguments. The `chainwriter.Arguments` struct supports this through the `ArgTypes` field.
+When working with generic types in Sui Move functions, you specify the concrete types directly in the PTB command configuration using the `GenericType` field. This approach eliminates the need for runtime type resolution and makes configurations self-documenting.
 
 **⚠️ Important Limitation**: The current implementation only supports parametrizing generic types as SUI objects (e.g., `Coin<T>`, `TokenPool<T>`, custom struct types). Native types like `u64`, `string`, `address`, `bool`, and primitive vectors are **not supported** as generic type parameters. Generic type arguments must resolve to Sui struct types with a valid package address, module name, and struct name format (e.g., `0x2::coin::Coin`, `0x123::my_module::MyStruct`).
 
@@ -511,7 +503,7 @@ func configureChainWriterForCCIP(addresses ContractAddresses, publicKeyBytes []b
 										Name:     "c",
 										Type:     "object_id",
 										Required: true,
-										IsGeneric: true,
+										GenericType: strPtr("0x123::link_token::LINK_TOKEN"),
 									},
 									{
 										Name:     "remote_chain_selector",
@@ -589,7 +581,7 @@ func configureChainWriterForCCIP(addresses ContractAddresses, publicKeyBytes []b
 										Name:     "fee_token",
 										Type:     "object_id",
 										Required: true,
-										IsGeneric: true,
+										GenericType: strPtr("0x123::link_token::LINK_TOKEN"),
 									},
 									{
 										Name:     "extra_args",
@@ -605,14 +597,12 @@ func configureChainWriterForCCIP(addresses ContractAddresses, publicKeyBytes []b
     }
 }
 
-// Create Arguments with generic type information for the CCIP send operation
-func createCCIPSendArguments(addresses ContractAddresses) chainwriter.Arguments {
+// Create Arguments for the CCIP send operation (simplified with new approach)
+func createCCIPSendArguments(addresses ContractAddresses) map[string]any {
 	// Define a destination chain selector (e.g., Ethereum Sepolia)
 	destChainSelector := uint64(2)
-	linkTokenTypeTag := "0xe3c005c4195ec60a3468ce01238df650e4fedbd36e517bf75b9d2ee90cce8a8b::link_token::LINK_TOKEN"
 
-	return chainwriter.Arguments{
-		Args: map[string]any{
+	return map[string]any{
 			"ref":                   addresses.CCIPStateRef,
 			"clock":                 addresses.ClockObject,
 			"remote_chain_selector": destChainSelector,
@@ -625,22 +615,42 @@ func createCCIPSendArguments(addresses ContractAddresses) chainwriter.Arguments 
 			"fee_token_metadata":    addresses.LinkTokenCoinMetadata,
 			"fee_token":             addresses.LinkCoinObjects[1],
 			"extra_args":            []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		},
-		ArgTypes: map[string]string{
-			"c":         linkTokenTypeTag,
-			"fee_token": linkTokenTypeTag,
+	}
+	
+}
+
+// Example PTB command configuration with explicit generic types
+func configureCCIPCommand() config.ChainWriterPTBCommand {
+	linkTokenTypeTag := "0xe3c005c4195ec60a3468ce01238df650e4fedbd36e517bf75b9d2ee90cce8a8b::link_token::LINK_TOKEN"
+	
+	return config.ChainWriterPTBCommand{
+		Type:      codec.SuiPTBCommandMoveCall,
+		PackageId: strPtr("0x123"),
+		ModuleId:  strPtr("ccip"),
+		Function:  strPtr("send_message"),
+		Params: []codec.SuiFunctionParam{
+			{
+				Name:        "c",
+				Type:        "Coin<T>",
+				GenericType: &linkTokenTypeTag, // Explicit type specification in config
+				Required:    true,
+			},
+			{
+				Name:        "fee_token",
+				Type:        "Coin<T>",
+				GenericType: &linkTokenTypeTag, // Same type, will be deduplicated
+				Required:    true,
+			},
+			// ... other parameters
 		},
 	}
 }
 ```
 
-When the PTB is executed:
-
-1. The first command creates token parameters with no generic types
-2. The `c` argument is passed as a generic type to the second command. That command will receive the `c` argument as a `Coin<T>` object.
-3. In the third command, the `fee_token` argument is passed as a generic type. That command will receive the `fee_token` argument as a `Coin<T>` object.
-
-This allows the same PTB configuration to work with different token types by simply changing the values in the `ArgTypes` map, making your code more flexible and reusable. Because the generic types are the same, only one argtype will be passed to the PTB execution engine.
+This approach provides several benefits:
+- **Configuration Clarity**: Generic types are explicit in the configuration, making them self-documenting
+- **Early Validation**: Type mismatches are caught at configuration time, not runtime
+- **Deterministic Ordering**: Type tags are always returned in first-appearance order
 
 ## Closing Resources
 
