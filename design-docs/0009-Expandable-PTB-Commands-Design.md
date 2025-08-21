@@ -1,3 +1,7 @@
+# DEPRECATION NOTICE
+
+The design mentioned in this document is deprecated. A new design was developed and implemented that creates a customized code path specific for the execute flow on the offRamp. A design doc will be created and linked in another PR
+
 ## ADR: Enhancing ChainWriter for Expandable PTB Commands
 
 - [Design Document: Enhancing ChainWriter for Expandable PTB Commands](#design-document-enhancing-chainwriter-for-expandable-ptb-commands)
@@ -19,6 +23,7 @@
         - [4.4 PTB Generation Logic Update](#44-ptb-generation-logic-update)
         - [4.5 Implementing Command Expanders](#45-implementing-command-expanders)
     - [5. Key Requirements Addressed](#5-key-requirements-addressed)
+
 
 **1. Introduction**
 

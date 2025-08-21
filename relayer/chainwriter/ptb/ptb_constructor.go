@@ -246,7 +246,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 		return nil, err
 	}
 
-	processedArgTypes, err := p.ResolveGenericTypeTags(cmd.Params, *arguments)
+	processedArgTypes, err := p.ResolveGenericTypeTags(cmd.Params)
 	if err != nil {
 		return nil, err
 	}

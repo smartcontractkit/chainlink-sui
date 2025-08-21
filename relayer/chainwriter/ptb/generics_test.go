@@ -10,13 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
+
+func strPtr(s string) *string {
+	return &s
+}
 
 func TestResolveGenericTypeTags(t *testing.T) {
 	t.Parallel()
@@ -43,7 +46,6 @@ func TestResolveGenericTypeTags(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      []codec.SuiFunctionParam
-		arguments   cwConfig.Arguments
 		expectError bool
 		errorMsg    string
 		expectedLen int
@@ -52,28 +54,21 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name:        "no parameters",
 			params:      []codec.SuiFunctionParam{},
-			arguments:   cwConfig.Arguments{},
 			expectError: false,
 			expectedLen: 0,
 		},
 		{
 			name: "no generic parameters",
 			params: []codec.SuiFunctionParam{
-				{Name: "value", Type: "u64", IsGeneric: false},
+				{Name: "value", Type: "u64", GenericType: nil},
 			},
-			arguments:   cwConfig.Arguments{},
 			expectError: false,
 			expectedLen: 0,
 		},
 		{
 			name: "single generic parameter",
 			params: []codec.SuiFunctionParam{
-				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"coin": "0x2::sui::SUI",
-				},
+				{Name: "coin", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")},
 			},
 			expectError: false,
 			expectedLen: 1,
@@ -88,14 +83,8 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "multiple generic parameters with same type",
 			params: []codec.SuiFunctionParam{
-				{Name: "coin1", Type: "Coin<T>", IsGeneric: true},
-				{Name: "coin2", Type: "Coin<T>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"coin1": "0x2::sui::SUI",
-					"coin2": "0x2::sui::SUI",
-				},
+				{Name: "coin1", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")},
+				{Name: "coin2", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")},
 			},
 			expectError: false,
 			expectedLen: 1, // Should deduplicate
@@ -103,49 +92,16 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "multiple generic parameters with different types",
 			params: []codec.SuiFunctionParam{
-				{Name: "coin1", Type: "Coin<T>", IsGeneric: true},
-				{Name: "coin2", Type: "Coin<U>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"coin1": "0x2::sui::SUI",
-					"coin2": "0x2::coin::Coin",
-				},
+				{Name: "coin1", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")},
+				{Name: "coin2", Type: "Coin<U>", GenericType: strPtr("0x2::coin::Coin")},
 			},
 			expectError: false,
 			expectedLen: 2,
 		},
 		{
-			name: "generic parameter with empty name",
-			params: []codec.SuiFunctionParam{
-				{Name: "", Type: "Coin<T>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{},
-			},
-			expectError: true,
-			errorMsg:    "generic parameter missing name",
-		},
-		{
-			name: "missing type in ArgTypes",
-			params: []codec.SuiFunctionParam{
-				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{},
-			},
-			expectError: true,
-			errorMsg:    "generic parameter \"coin\" not found in ArgTypes",
-		},
-		{
 			name: "invalid type format",
 			params: []codec.SuiFunctionParam{
-				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"coin": "invalid_type",
-				},
+				{Name: "coin", Type: "Coin<T>", GenericType: strPtr("invalid_type")},
 			},
 			expectError: true,
 			errorMsg:    "failed to create type tag",
@@ -153,12 +109,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "vector type parameter",
 			params: []codec.SuiFunctionParam{
-				{Name: "coins", Type: "vector<Coin<T>>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"coins": "vector<0x2::sui::SUI>",
-				},
+				{Name: "coins", Type: "vector<Coin<T>>", GenericType: strPtr("vector<0x2::sui::SUI>")},
 			},
 			expectError: false,
 			expectedLen: 1,
@@ -174,14 +125,9 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "mixed generic and non-generic parameters",
 			params: []codec.SuiFunctionParam{
-				{Name: "value", Type: "u64", IsGeneric: false},
-				{Name: "coin", Type: "Coin<T>", IsGeneric: true},
-				{Name: "amount", Type: "u64", IsGeneric: false},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"coin": "0x2::sui::SUI",
-				},
+				{Name: "value", Type: "u64", GenericType: nil},
+				{Name: "coin", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")},
+				{Name: "amount", Type: "u64", GenericType: nil},
 			},
 			expectError: false,
 			expectedLen: 1,
@@ -189,12 +135,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "empty vector type parameter",
 			params: []codec.SuiFunctionParam{
-				{Name: "items", Type: "vector<T>", IsGeneric: true},
-			},
-			arguments: config.Arguments{
-				ArgTypes: map[string]string{
-					"items": "vector<>",
-				},
+				{Name: "items", Type: "vector<T>", GenericType: strPtr("vector<>")},
 			},
 			expectError: true,
 			errorMsg:    "failed to extract vector inner type",
@@ -202,12 +143,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "nested generic types",
 			params: []codec.SuiFunctionParam{
-				{Name: "nested_coins", Type: "vector<Coin<T>>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"nested_coins": "vector<0x2::coin::Coin>",
-				},
+				{Name: "nested_coins", Type: "vector<Coin<T>>", GenericType: strPtr("vector<0x2::coin::Coin>")},
 			},
 			expectError: false,
 			expectedLen: 1,
@@ -222,16 +158,9 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "multiple different generic types complex",
 			params: []codec.SuiFunctionParam{
-				{Name: "sui_coin", Type: "Coin<T>", IsGeneric: true},
-				{Name: "link_coin", Type: "Coin<U>", IsGeneric: true},
-				{Name: "coin_vector", Type: "vector<Coin<V>>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"sui_coin":    "0x2::sui::SUI",
-					"link_coin":   "0x2::link::LINK",
-					"coin_vector": "vector<0x2::coin::Coin>",
-				},
+				{Name: "sui_coin", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")},
+				{Name: "link_coin", Type: "Coin<U>", GenericType: strPtr("0x2::link::LINK")},
+				{Name: "coin_vector", Type: "vector<Coin<V>>", GenericType: strPtr("vector<0x2::coin::Coin>")},
 			},
 			expectError: false,
 			expectedLen: 3,
@@ -258,12 +187,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 		{
 			name: "invalid address format",
 			params: []codec.SuiFunctionParam{
-				{Name: "token", Type: "Token<T>", IsGeneric: true},
-			},
-			arguments: cwConfig.Arguments{
-				ArgTypes: map[string]string{
-					"token": "0xZZZ::token::Token",
-				},
+				{Name: "token", Type: "Token<T>", GenericType: strPtr("0xZZZ::token::Token")},
 			},
 			expectError: true,
 			errorMsg:    "failed to convert package address",
@@ -273,7 +197,7 @@ func TestResolveGenericTypeTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := ptbService.ResolveGenericTypeTags(tt.params, tt.arguments)
+			result, err := ptbService.ResolveGenericTypeTags(tt.params)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -314,24 +238,14 @@ func TestResolveGenericTypeTags_OrderingAndDeduplication(t *testing.T) {
 
 	// Test that type tags are deduplicated but order is preserved
 	params := []codec.SuiFunctionParam{
-		{Name: "coin1", Type: "Coin<T>", IsGeneric: true},
-		{Name: "coin2", Type: "Coin<U>", IsGeneric: true},
-		{Name: "coin3", Type: "Coin<T>", IsGeneric: true}, // Same as coin1
-		{Name: "coin4", Type: "Coin<V>", IsGeneric: true},
-		{Name: "coin5", Type: "Coin<U>", IsGeneric: true}, // Same as coin2
+		{Name: "coin1", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")},
+		{Name: "coin2", Type: "Coin<U>", GenericType: strPtr("0x2::coin::Coin")},
+		{Name: "coin3", Type: "Coin<T>", GenericType: strPtr("0x2::sui::SUI")}, // Same as coin1
+		{Name: "coin4", Type: "Coin<V>", GenericType: strPtr("0x2::link::LINK")},
+		{Name: "coin5", Type: "Coin<U>", GenericType: strPtr("0x2::coin::Coin")}, // Same as coin2
 	}
 
-	arguments := cwConfig.Arguments{
-		ArgTypes: map[string]string{
-			"coin1": "0x2::sui::SUI",
-			"coin2": "0x2::coin::Coin",
-			"coin3": "0x2::sui::SUI", // Duplicate
-			"coin4": "0x2::link::LINK",
-			"coin5": "0x2::coin::Coin", // Duplicate
-		},
-	}
-
-	result, err := ptbService.ResolveGenericTypeTags(params, arguments)
+	result, err := ptbService.ResolveGenericTypeTags(params)
 	require.NoError(t, err)
 
 	// Should have 3 unique types in the order they first appeared
@@ -351,41 +265,4 @@ func TestResolveGenericTypeTags_OrderingAndDeduplication(t *testing.T) {
 	assert.NotNil(t, result[2].Struct)
 	assert.Equal(t, "link", result[2].Struct.Module)
 	assert.Equal(t, "LINK", result[2].Struct.Name)
-}
-
-func TestResolveGenericTypeTags_EmptyArgTypes(t *testing.T) {
-	t.Parallel()
-
-	// Create a dummy config for testing
-	writerConfig := cwConfig.ChainWriterConfig{
-		Modules: map[string]*cwConfig.ChainWriterModule{},
-	}
-
-	// Create a mock client
-	mockClient := &testutils.FakeSuiPTBClient{
-		Status: client.TransactionResult{
-			Status: "success",
-			Error:  "",
-		},
-	}
-
-	// Create a test logger
-	log := logger.Test(t)
-
-	// Create PTBConstructor using NewPTBConstructor
-	ptbService := ptb.NewPTBConstructor(writerConfig, mockClient, log)
-
-	params := []codec.SuiFunctionParam{
-		{Name: "coin", Type: "Coin<T>", IsGeneric: true},
-	}
-
-	// Test with nil ArgTypes
-	arguments := cwConfig.Arguments{
-		ArgTypes: nil,
-	}
-
-	result, err := ptbService.ResolveGenericTypeTags(params, arguments)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "generic parameter \"coin\" not found in ArgTypes")
-	assert.Nil(t, result)
 }

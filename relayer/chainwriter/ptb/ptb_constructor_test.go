@@ -468,10 +468,10 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 								Function:  stringPointer("get_coin_value"),
 								Params: []codec.SuiFunctionParam{
 									{
-										Name:      "coin",
-										Type:      "object_id",
-										Required:  true,
-										IsGeneric: true,
+										Name:        "coin",
+										Type:        "object_id",
+										Required:    true,
+										GenericType: stringPointer("0x2::sui::SUI"),
 									},
 								},
 							},

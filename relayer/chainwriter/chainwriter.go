@@ -13,7 +13,6 @@ import (
 
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
@@ -37,31 +36,6 @@ func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config cwCon
 		simulate:   simulate,
 		ptbFactory: ptb.NewPTBConstructor(config, suiClient, lggr),
 	}, nil
-}
-
-//nolint:unused
-func convertFunctionParams(argMap map[string]any, params []codec.SuiFunctionParam) ([]string, []any, error) {
-	types := make([]string, len(params))
-	values := make([]any, len(params))
-
-	if len(argMap) != len(params) {
-		return nil, nil, errors.New("argument count mismatch")
-	}
-
-	for i, paramConfig := range params {
-		argValue, ok := argMap[paramConfig.Name]
-		if !ok {
-			if paramConfig.Required {
-				return nil, nil, fmt.Errorf("missing argument: %s", paramConfig.Name)
-			}
-			argValue = paramConfig.DefaultValue
-		}
-
-		types[i] = paramConfig.Type
-		values[i] = argValue
-	}
-
-	return types, values, nil
 }
 
 // SubmitTransaction is the primary entry point for submitting transactions via the SuiChainWriter.
@@ -113,7 +87,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
-	// Setup args into PTB constructor args to include types
+	// Setup args into PTB constructor args to include types from function config
 	ptbArgsInput := cwConfig.Arguments{
 		Args:     arguments,
 		ArgTypes: make(map[string]string),
