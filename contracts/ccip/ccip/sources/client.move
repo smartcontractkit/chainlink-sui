@@ -4,9 +4,12 @@ use std::bcs;
 
 const GENERIC_EXTRA_ARGS_V2_TAG: vector<u8> = x"181dcf10";
 const SVM_EXTRA_ARGS_V1_TAG: vector<u8> = x"1f3b3aba";
+const SUI_EXTRA_ARGS_V1_TAG: vector<u8> = x"21ea4ca9";
 
 const EInvalidSVMTokenReceiverLength: u64 = 1;
 const EInvalidSVMAccountLength: u64 = 2;
+const EInvalidSUITokenReceiverLength: u64 = 3;
+const EInvalidSUIReceiverObjectIdLength: u64 = 4;
 
 public fun generic_extra_args_v2_tag(): vector<u8> {
     GENERIC_EXTRA_ARGS_V2_TAG
@@ -14,6 +17,31 @@ public fun generic_extra_args_v2_tag(): vector<u8> {
 
 public fun svm_extra_args_v1_tag(): vector<u8> {
     SVM_EXTRA_ARGS_V1_TAG
+}
+
+public fun sui_extra_args_v1_tag(): vector<u8> {
+    SUI_EXTRA_ARGS_V1_TAG
+}
+
+public fun encode_sui_extra_args_v1(
+    gas_limit: u64,
+    allow_out_of_order_execution: bool,
+    token_receiver: vector<u8>,
+    receiver_object_ids: vector<vector<u8>>
+): vector<u8> {
+    let mut extra_args = vector[];
+    extra_args.append(SUI_EXTRA_ARGS_V1_TAG);
+    extra_args.append(bcs::to_bytes(&gas_limit));
+    extra_args.append(bcs::to_bytes(&allow_out_of_order_execution));
+
+    assert!(token_receiver.length() == 32, EInvalidSUITokenReceiverLength);
+    extra_args.append(bcs::to_bytes(&token_receiver));
+
+    receiver_object_ids.do_ref!(|receiver_object_id| {
+        assert!(receiver_object_id.length() == 32, EInvalidSUIReceiverObjectIdLength);
+    });
+    extra_args.append(bcs::to_bytes(&receiver_object_ids));
+    extra_args
 }
 
 public fun encode_generic_extra_args_v2(

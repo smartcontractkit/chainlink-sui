@@ -157,3 +157,18 @@ jobs:
       - name: Run Integration Tests (Testnet)
         run: |
           nix develop --command task test:integration-testnet
+
+  check-tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: smartcontractkit/.github/actions/setup-nix@01d931b0455a754d12e7143cc54a5a3521a8f6f6 # setup-nix@0.3.2
+
+      - name: Ensure modules are tidy
+        run: |
+          nix develop -c go run github.com/jmank88/gomods@v0.1.6 tidy
+          git add --all
+          git diff --minimal --cached --exit-code
