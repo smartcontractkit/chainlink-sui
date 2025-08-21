@@ -54,6 +54,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	countContract := testState.Contracts[0]
 	packageId := countContract.ModuleID
 	objectID := countContract.Objects[0].ObjectID
+
 	// ChainWriter configuration
 	chainWriterConfig := config.ChainWriterConfig{
 		Modules: map[string]*config.ChainWriterModule{
@@ -99,27 +100,6 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 							},
 						},
 					},
-					"get_coin_value_ptb": {
-						Name:      "get_coin_value_ptb",
-						PublicKey: publicKeyBytes,
-						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []config.ChainWriterPTBCommand{
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  strPtr("counter"),
-								Function:  strPtr("get_coin_value"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:      "coin",
-										Type:      "object_id",
-										Required:  true,
-										IsGeneric: true,
-									},
-								},
-							},
-						},
-					},
 				},
 			},
 		},
@@ -134,6 +114,11 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
+	// Get coins to use - need at least 2 coins (one for function arg, one for gas)
+	coins, err := testState.SuiGateway.GetCoinsByAddress(ctx, testState.AccountAddress)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(coins), 2, "Need at least 2 coins for this test")
+
 	err = chainWriter.Start(ctx)
 	require.NoError(t, err)
 	err = testState.TxManager.Start(ctx)
@@ -146,14 +131,6 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 	simpleArgs := map[string]any{
 		"counter": objectID,
 	}
-
-	// Get coins to use - need at least 2 coins (one for function arg, one for gas)
-	coins, err := testState.SuiGateway.GetCoinsByAddress(ctx, testState.AccountAddress)
-	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(coins), 2, "Need at least 2 coins for this test")
-
-	// Use the first coin as the test input
-	//testCoin := coins[1]
 
 	// Common validation functions
 	getCounterValue := func() (string, error) {
@@ -271,25 +248,6 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			numberAttemps:    1,
 			getExpectedValue: getErrorValue,
 		},
-		//{
-		//	name:         "Test ChainWriter with invalid arguments",
-		//	txID:         "wrong-args-txID",
-		//	txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-		//	sender:       testState.AccountAddress,
-		//	contractName: "counter",
-		//	functionName: "increment",
-		//	args: map[string]any{
-		//		"counter":     objectID,
-		//		"invalid_arg": "invalid_value",
-		//		"extra_arg":   "extra_value",
-		//		"extra_arg2":  123,
-		//	},
-		//	expectError:      errors.New("argument count mismatch"),
-		//	expectedResult:   "",
-		//	status:           commonTypes.Failed,
-		//	numberAttemps:    1,
-		//	getExpectedValue: getErrorValue,
-		//},
 		{
 			name:         "Test ChainWriter with the same transaction ID",
 			txID:         "test-txID",
@@ -306,22 +264,6 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			numberAttemps:    1,
 			getExpectedValue: getErrorValue,
 		},
-		//{
-		//	name:         "Test ChainWriter with generic function",
-		//	txID:         "test-get-coin-value-txID",
-		//	txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-		//	sender:       testState.AccountAddress,
-		//	contractName: config.PTBChainWriterModuleName,
-		//	functionName: "get_coin_value_ptb",
-		//	args: map[string]any{
-		//		"coin": testCoin.CoinObjectId,
-		//	},
-		//	expectError:      nil,
-		//	expectedResult:   testCoin.Balance,
-		//	status:           commonTypes.Finalized,
-		//	numberAttemps:    1,
-		//	getExpectedValue: getCoinBalance,
-		//},
 	}
 
 	//nolint:paralleltest

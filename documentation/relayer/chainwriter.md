@@ -369,7 +369,7 @@ The ChainWriter has sophisticated support for generic types in Move functions, a
 
 ### Generic Parameter Configuration
 
-Generic parameters are defined in the function configuration using the `IsGeneric` flag:
+Generic parameters are now defined directly in the function configuration using the `GenericType` field, which explicitly specifies the concrete type to use:
 
 ```go
 // File: /relayer/codec/types.go
@@ -377,56 +377,23 @@ Generic parameters are defined in the function configuration using the `IsGeneri
 type SuiFunctionParam struct {
     Name         string
     Type         string
-    IsGeneric    bool    // Marks this parameter as requiring generic type resolution
+    GenericType  *string  // Explicit generic type specification (e.g., "0x2::sui::SUI")
     Required     bool
     DefaultValue any
     // ... other fields
 }
 ```
 
+This approach provides several advantages:
+- **Explicit Type Declaration**: Generic types are specified directly in the configuration, making them self-documenting
+- **No Runtime Type Resolution**: Eliminates the need for `ArgTypes` mapping during transaction submission
+- **Better Type Safety**: Configuration validation can catch type mismatches at startup
+- **Simplified API**: No need to provide separate type mappings in arguments
+
 ### Generic Type Resolution Process
 
-When building PTB commands, the ChainWriter resolves generic types through the `ResolveGenericTypeTags` method:
+When building PTB commands, the ChainWriter resolves generic types through the `ResolveGenericTypeTags` method, which now preserves first-appearance order:
 
-```go
-// File: /relayer/chainwriter/ptb/generics.go
-
-func (p *PTBConstructor) ResolveGenericTypeTags(
-    params []codec.SuiFunctionParam,
-    arguments config.Arguments,
-) ([]transaction.TypeTag, error) {
-    // Filter generic parameters
-    genericParams := make([]codec.SuiFunctionParam, 0)
-    for _, param := range params {
-        if param.IsGeneric {
-            genericParams = append(genericParams, param)
-        }
-    }
-
-    // Use ArgTypes to resolve actual types
-    uniqueTags := make(map[string]transaction.TypeTag)
-    builder := NewTypeTagBuilder()
-
-    for _, param := range genericParams {
-        // Get the actual generic type from ArgTypes
-        genericType, exists := arguments.ArgTypes[param.Name]
-        if !exists {
-            return nil, fmt.Errorf("generic parameter %q not found in ArgTypes", param.Name)
-        }
-
-        // Build the appropriate TypeTag
-        typeTag, err := builder.createTypeTag(genericType)
-        if err != nil {
-            return nil, fmt.Errorf("failed to create type tag for param %q with type %q: %w",
-                param.Name, genericType, err)
-        }
-
-        uniqueTags[genericType] = typeTag
-    }
-
-    return result, nil
-}
-```
 
 ### Type Tag Construction
 
@@ -476,10 +443,10 @@ if strings.HasPrefix(typeStr, "vector<") && strings.HasSuffix(typeStr, ">") {
 
 ### Usage Example
 
-Here's how to use generics in a PTB configuration:
+Here's how to use generics in a PTB configuration with the new explicit approach:
 
 ```go
-// PTB Command configuration with generic parameter
+// PTB Command configuration with explicit generic type
 ptbCommand := ChainWriterPTBCommand{
     Type:      codec.SuiPTBCommandMoveCall,
     PackageId: "0x123",
@@ -487,10 +454,10 @@ ptbCommand := ChainWriterPTBCommand{
     Function:  "deposit",
     Params: []codec.SuiFunctionParam{
         {
-            Name:      "coin",
-            Type:      "Coin<T>",
-            IsGeneric: true,
-            Required:  true,
+            Name:        "coin",
+            Type:        "Coin<T>",
+            GenericType: strPtr("0x2::sui::SUI"), // Explicit type specification
+            Required:    true,
         },
         {
             Name:     "amount",
@@ -500,41 +467,24 @@ ptbCommand := ChainWriterPTBCommand{
     },
 }
 
-// Arguments with type specification
+// Arguments - no need for ArgTypes mapping anymore
 arguments := config.Arguments{
     Args: map[string]any{
         "coin":   "0xabc123...", // Object ID of the coin
         "amount": 1000000,
     },
-    ArgTypes: map[string]string{
-        "coin": "0x2::sui::SUI", // Specify the actual type for the generic parameter
-    },
+    // ArgTypes field is no longer needed for generic type resolution
+}
+
+// Helper function for string pointer
+func strPtr(s string) *string {
+    return &s
 }
 ```
 
-### Type Deduplication
+### Type Deduplication and Ordering
 
-The generics system deduplicates identical types to avoid redundant type tags:
-
-```go
-// File: /relayer/chainwriter/ptb/generics.go
-
-// Use a map to track unique type tags by their string representation
-uniqueTags := make(map[string]transaction.TypeTag)
-
-// For each generic parameter, create type tag only once per unique type
-for _, param := range genericParams {
-    genericType, exists := arguments.ArgTypes[param.Name]
-    if !exists {
-        continue
-    }
-    
-    if _, alreadyProcessed := uniqueTags[genericType]; !alreadyProcessed {
-        typeTag, err := builder.createTypeTag(genericType)
-        uniqueTags[genericType] = typeTag
-    }
-}
-```
+The generics system deduplicates identical types to avoid redundant type tags while preserving first-appearance order. This ensures deterministic ordering where type tags are returned in the order they first appear in the parameter list, with identical types only included once in the result. This provides cross-platform consistency across different environments (local, CI/CD, etc.).
 
 ### Limitations and Considerations
 
@@ -544,8 +494,10 @@ for _, param := range genericParams {
 - Only struct types and vector inner types are fully supported
 
 **Best Practices:**
-- Always provide `ArgTypes` mapping for parameters marked with `IsGeneric: true`
+- Always provide `GenericType` values for parameters that require generic type resolution
 - Use the standard Sui type format: `package::module::name` for struct types
 - Ensure vector types follow the `vector<inner_type>` format
+- Configuration validation happens at startup, catching type mismatches early
+- No need to provide `ArgTypes` mappings at runtime - all type information is in the configuration
 
 **NOTE**: The ChainWriter supports both simulation mode for testing and production mode for actual transaction submission, controlled by the `simulate` flag during initialization.

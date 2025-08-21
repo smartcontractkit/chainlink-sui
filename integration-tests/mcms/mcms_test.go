@@ -129,7 +129,7 @@ func setupTestEnvironment(t *testing.T) (
 //nolint:paralleltest
 func TestMCMS(t *testing.T) {
 	// Set up the test environment
-	log, _, ptbClient, outputs, _, signer := setupTestEnvironment(t)
+	log, _, ptbClient, outputs, publicKeyBytes, signer := setupTestEnvironment(t)
 
 	// Extract relevant IDs
 	ownerCapObjId, err := testutils.QueryCreatedObjectID(outputs.mcmsPublishOutput.ObjectChanges, outputs.mcmsPackageId, "mcms_account", "OwnerCap")
@@ -380,20 +380,23 @@ func TestMCMS(t *testing.T) {
 				ModuleID: "0x123",
 				Functions: map[string]*cwConfig.ChainWriterFunction{
 					"set_config": {
-						Name: "set_config",
+						Name:      "set_config",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []cwConfig.ChainWriterPTBCommand{
 							setConfigOnlyPTBFunc,
 						},
 					},
 					"set_config_and_root": {
-						Name: "set_config_and_root",
+						Name:      "set_config_and_root",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []cwConfig.ChainWriterPTBCommand{
 							setConfigOnlyPTBFunc,
 							setRootPTBFunc,
 						},
 					},
 					"timelock_execute": {
-						Name: "timelock_execute",
+						Name:      "timelock_execute",
+						PublicKey: publicKeyBytes,
 						PTBCommands: []cwConfig.ChainWriterPTBCommand{
 							// set_config
 							setConfigOnlyPTBFunc,
@@ -451,7 +454,7 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "")
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -498,7 +501,7 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "")
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -565,7 +568,7 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args, "")
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -746,7 +749,7 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args, nil)
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args, "")
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
