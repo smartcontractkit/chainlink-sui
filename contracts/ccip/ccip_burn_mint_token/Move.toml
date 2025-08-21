@@ -1,0 +1,12 @@
+[package]
+name = "ccip_burn_mint_token"
+edition = "2024.beta"
+
+[dependencies]
+
+[addresses]
+ccip_burn_mint_token = "0x0"
+
+[dev-dependencies]
+
+[dev-addresses]
