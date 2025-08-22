@@ -34,7 +34,7 @@ public struct TokenTransferMetadata {
     source_token_coin_metadata_address: address,
     dest_token_address: vector<u8>,
     extra_data: vector<u8>,
-} 
+}
 
 fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
     let source_cap = SourceTransferCap {
@@ -81,8 +81,10 @@ public fun add_token_transfer_param<TypeProof: drop>(
     })
 }
 
-
-public fun deconstruct_token_params(_: &SourceTransferCap, token_transfer_params: TokenTransferParams) {
+public fun deconstruct_token_params(
+    _: &SourceTransferCap,
+    token_transfer_params: TokenTransferParams,
+) {
     let TokenTransferParams { params: mut params, token_receiver: _ } = token_transfer_params;
     while (!params.is_empty()) {
         let TokenTransferMetadata {
@@ -97,7 +99,17 @@ public fun deconstruct_token_params(_: &SourceTransferCap, token_transfer_params
     params.destroy_empty();
 }
 
-public fun get_source_token_transfer_data(token_transfer_params: &TokenTransferParams, index: u64): (u64, address, u64, address, vector<u8>, vector<u8>) {
+public fun get_source_token_transfer_data(
+    token_transfer_params: &TokenTransferParams,
+    index: u64,
+): (
+    u64,
+    address,
+    u64,
+    address,
+    vector<u8>,
+    vector<u8>,
+) {
     (
         token_transfer_params.params[index].remote_chain_selector,
         token_transfer_params.params[index].token_pool_package_id,

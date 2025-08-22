@@ -199,7 +199,7 @@ module ccip_onramp::onramp {
         dest_chain_selectors: vector<u64>,
         dest_chain_enabled: vector<bool>,
         dest_chain_allowlist_enabled: vector<bool>,
-        _ctx: &mut TxContext
+        _ctx: &mut TxContext,
     ) {
         assert!(chain_selector != 0, EZeroChainSelector);
         state.chain_selector = chain_selector;
@@ -224,11 +224,17 @@ module ccip_onramp::onramp {
         );
     }
 
-    public fun is_chain_supported(state: &OnRampState, dest_chain_selector: u64): bool {
+    public fun is_chain_supported(
+        state: &OnRampState,
+        dest_chain_selector: u64,
+    ): bool {
         state.dest_chain_configs.contains(dest_chain_selector)
     }
 
-    public fun get_expected_next_sequence_number(state: &OnRampState, dest_chain_selector: u64): u64 {
+    public fun get_expected_next_sequence_number(
+        state: &OnRampState,
+        dest_chain_selector: u64,
+    ): u64 {
         assert!(
             state.dest_chain_configs.contains(dest_chain_selector),
             EUnknownDestChainSelector
@@ -241,7 +247,7 @@ module ccip_onramp::onramp {
     public fun withdraw_fee_tokens<T>(
         state: &mut OnRampState,
         _: &OwnerCap,
-        fee_token_metadata: &CoinMetadata<T>
+        fee_token_metadata: &CoinMetadata<T>,
     ) {
         assert!(state.fee_aggregator != @0x0, EFeeAggregatorNotSet);
 
@@ -343,7 +349,7 @@ module ccip_onramp::onramp {
         token_addresses: vector<address>, // the token's coin metadata object ids
         token_amounts: vector<u64>,
         fee_token: &CoinMetadata<T>,
-        extra_args: vector<u8>
+        extra_args: vector<u8>,
     ): u64 {
         get_fee_internal(
             ref,
@@ -390,7 +396,7 @@ module ccip_onramp::onramp {
         state: &mut OnRampState,
         _: &OwnerCap,
         fee_aggregator: address,
-        allowlist_admin: address
+        allowlist_admin: address,
     ) {
         set_dynamic_config_internal(state, fee_aggregator, allowlist_admin);
     }
@@ -400,7 +406,7 @@ module ccip_onramp::onramp {
         _: &OwnerCap,
         dest_chain_selectors: vector<u64>,
         dest_chain_enabled: vector<bool>,
-        dest_chain_allowlist_enabled: vector<bool>
+        dest_chain_allowlist_enabled: vector<bool>,
     ) {
         apply_dest_chain_config_updates_internal(
             state,
@@ -567,7 +573,9 @@ module ccip_onramp::onramp {
     }
 
     public fun get_outbound_nonce(
-        ref: &CCIPObjectRef, dest_chain_selector: u64, sender: address
+        ref: &CCIPObjectRef,
+        dest_chain_selector: u64,
+        sender: address,
     ): u64 {
         nonce_manager::get_outbound_nonce(ref, dest_chain_selector, sender)
     }
@@ -958,7 +966,7 @@ module ccip_onramp::onramp {
         ownable::pending_transfer_accepted(&state.ownable_state)
     }
 
-    public entry fun transfer_ownership(
+    public fun transfer_ownership(
         state: &mut OnRampState,
         owner_cap: &OwnerCap,
         new_owner: address,
@@ -967,7 +975,7 @@ module ccip_onramp::onramp {
         ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
     }
 
-    public entry fun accept_ownership(
+    public fun accept_ownership(
         state: &mut OnRampState,
         ctx: &mut TxContext,
     ) {
@@ -1007,7 +1015,7 @@ module ccip_onramp::onramp {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public entry fun execute_ownership_transfer_to_mcms(
+    public fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
         state: &mut OnRampState,
         registry: &mut Registry,

@@ -36,7 +36,12 @@ public fun function_one(
     user_data.b = arg2;
 }
 
-public fun function_two(user_data: &mut UserData, owner_cap: &OwnerCap, arg1: address, arg2: u128) {
+public fun function_two(
+    user_data: &mut UserData,
+    owner_cap: &OwnerCap,
+    arg1: address,
+    arg2: u128,
+) {
     assert_valid_owner_cap(user_data, owner_cap);
 
     user_data.invocations = user_data.invocations + 1;
@@ -162,7 +167,10 @@ public fun test_init(ctx: &mut TxContext) {
 }
 
 #[test_only]
-public fun test_create_user_data(ctx: &mut TxContext, owner_cap: ID): UserData {
+public fun test_create_user_data(
+    ctx: &mut TxContext,
+    owner_cap: ID,
+): UserData {
     UserData {
         id: object::new(ctx),
         invocations: 0,

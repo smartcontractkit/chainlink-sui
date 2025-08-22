@@ -105,7 +105,7 @@ public fun set_ocr3_config(
     big_f: u8,
     is_signature_verification_enabled: bool,
     signers: vector<vector<u8>>,
-    transmitters: vector<address>
+    transmitters: vector<address>,
 ) {
     assert!(big_f != 0, EBigFMustBePositive);
     assert!(
@@ -297,7 +297,8 @@ public(package) fun transmit(
 }
 
 public fun latest_config_details(
-    state: &OCR3BaseState, ocr_plugin_type: u8
+    state: &OCR3BaseState,
+    ocr_plugin_type: u8,
 ): OCRConfig {
     assert!(
         state.ocr3_configs.contains(ocr_plugin_type),
@@ -309,7 +310,7 @@ public fun latest_config_details(
 
 // equivalent of uint64(uint256(reportContext[1]))
 public fun deserialize_sequence_bytes(
-    sequence_bytes: vector<u8>
+    sequence_bytes: vector<u8>,
 ): u64 {
     let len = sequence_bytes.length();
     let mut result: u64 = 0;
@@ -397,8 +398,15 @@ fun new_unvalidated_public_key_from_bytes(bytes: vector<u8>): UnvalidatedPublicK
 }
 
 public fun latest_config_details_fields(
-    ocr_config: OCRConfig
-): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
+    ocr_config: OCRConfig,
+): (
+    vector<u8>,
+    u8,
+    u8,
+    bool,
+    vector<vector<u8>>,
+    vector<address>,
+) {
     (
         ocr_config.config_info.config_digest,
         ocr_config.config_info.big_f,

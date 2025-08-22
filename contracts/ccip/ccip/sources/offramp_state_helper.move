@@ -136,7 +136,18 @@ public fun create_dest_token_transfer(
     }
 }
 
-public fun get_dest_token_transfer_data(d: DestTokenTransfer): (address, u64, u64, address, address, vector<u8>, vector<u8>, vector<u8>) {
+public fun get_dest_token_transfer_data(
+    d: DestTokenTransfer,
+): (
+    address,
+    u64,
+    u64,
+    address,
+    address,
+    vector<u8>,
+    vector<u8>,
+    vector<u8>,
+) {
     (
         d.receiver,
         d.remote_chain_selector,
@@ -162,8 +173,16 @@ public fun get_dest_token_transfer(
 }
 
 public fun get_token_param_data(
-    receiver_params: &ReceiverParams, index: u64
-): (address, u64, address, vector<u8>, vector<u8>, vector<u8>) {
+    receiver_params: &ReceiverParams,
+    index: u64,
+): (
+    address,
+    u64,
+    address,
+    vector<u8>,
+    vector<u8>,
+    vector<u8>,
+) {
     assert!(
         index < receiver_params.params.length(),
         EWrongIndexInReceiverParams
@@ -191,7 +210,7 @@ public fun complete_token_transfer<TypeProof: drop>(
     _: TypeProof,
 ) {
     let token_config = registry::get_token_config(ref, dest_token_address);
-    let (_,  _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
+    let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
 
     let proof_tn = type_name::get<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
@@ -221,7 +240,13 @@ public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
     _: TypeProof,
-): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
+): (
+    vector<u8>,
+    u64,
+    vector<u8>,
+    vector<u8>,
+    vector<Any2SuiTokenAmount>,
+) {
     let proof_tn = type_name::get<TypeProof>();
     let address_str = type_name::get_address(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
@@ -296,8 +321,8 @@ public fun deconstruct_receiver_params_for_test(
         let completed_transfer = r.pop_back();
         let CompletedDestTokenTransfer {
             token_pool_id: _,
-            receiver,
-            dest_token_address,
+            receiver: _,
+            dest_token_address: _,
         } = completed_transfer;
     };
 
@@ -322,8 +347,8 @@ public fun deconstruct_receiver_params_with_message_for_test(
         let completed_transfer = r.pop_back();
         let CompletedDestTokenTransfer {
             token_pool_id: _,
-            receiver,
-            dest_token_address,
+            receiver: _,
+            dest_token_address: _,
         } = completed_transfer;
     };
 

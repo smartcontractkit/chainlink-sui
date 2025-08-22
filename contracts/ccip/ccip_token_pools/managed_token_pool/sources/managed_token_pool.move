@@ -474,7 +474,7 @@ public fun pending_transfer_accepted<T>(state: &ManagedTokenPoolState<T>): Optio
     ownable::pending_transfer_accepted(&state.ownable_state)
 }
 
-public entry fun transfer_ownership<T>(
+public fun transfer_ownership<T>(
     state: &mut ManagedTokenPoolState<T>,
     owner_cap: &OwnerCap,
     new_owner: address,
@@ -483,7 +483,7 @@ public entry fun transfer_ownership<T>(
     ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
 }
 
-public entry fun accept_ownership<T>(
+public fun accept_ownership<T>(
     state: &mut ManagedTokenPoolState<T>,
     ctx: &mut TxContext,
 ) {
@@ -523,7 +523,7 @@ public fun execute_ownership_transfer(
     ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
 
-public entry fun execute_ownership_transfer_to_mcms<T>(
+public fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap,
     state: &mut ManagedTokenPoolState<T>,
     registry: &mut Registry,

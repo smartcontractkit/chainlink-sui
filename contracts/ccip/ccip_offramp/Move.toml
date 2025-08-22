@@ -1,6 +1,6 @@
 [package]
 name = "ChainlinkCCIPOfframp"
-edition = "2024.beta"
+edition = "2024"
 
 [addresses]
 ccip = "_"

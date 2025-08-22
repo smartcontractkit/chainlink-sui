@@ -95,8 +95,8 @@ public fun initialize(
 
 public fun get_pools(
     ref: &CCIPObjectRef,
-    coin_metadata_addresses: vector<address>
-): vector<address>{
+    coin_metadata_addresses: vector<address>,
+): vector<address> {
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     let mut token_pool_package_ids: vector<address> = vector[];

@@ -1,6 +1,6 @@
 [package]
 name = "ManagedTokenFaucet"
-edition = "2024.beta"
+edition = "2024"
 
 [dependencies]
 ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }

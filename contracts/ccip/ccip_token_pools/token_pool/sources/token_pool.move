@@ -96,7 +96,7 @@ module ccip_token_pool::token_pool {
         coin_metadata_address: address,
         local_decimals: u8,
         allowlist: vector<address>,
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ): TokenPoolState {
         TokenPoolState {
             allowlist_state: allowlist::new(allowlist, ctx),

@@ -48,7 +48,8 @@ public fun encode_bool(out: &mut vector<u8>, value: bool) {
 }
 
 public fun encode_left_padded_bytes32(
-    out: &mut vector<u8>, value: vector<u8>
+    out: &mut vector<u8>,
+    value: vector<u8>,
 ) {
     assert!(value.length() <= 32, EInvalidU256Length);
 
@@ -63,7 +64,8 @@ public fun encode_left_padded_bytes32(
 
 /// For byte array types (bytes32, bytes4, etc.) - right padded with zeros
 public fun encode_right_padded_bytes32(
-    out: &mut vector<u8>, value: vector<u8>
+    out: &mut vector<u8>,
+    value: vector<u8>,
 ) {
     assert!(value.length() <= 32, EInvalidBytes32Length);
 

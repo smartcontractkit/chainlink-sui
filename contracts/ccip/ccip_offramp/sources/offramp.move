@@ -1308,7 +1308,7 @@ module ccip_offramp::offramp {
         ownable::pending_transfer_accepted(&state.ownable_state)
     }
 
-    public entry fun transfer_ownership(
+    public fun transfer_ownership(
         state: &mut OffRampState,
         owner_cap: &OwnerCap,
         new_owner: address,
@@ -1317,7 +1317,7 @@ module ccip_offramp::offramp {
         ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
     }
 
-    public entry fun accept_ownership(
+    public fun accept_ownership(
         state: &mut OffRampState,
         ctx: &mut TxContext,
     ) {
@@ -1357,7 +1357,7 @@ module ccip_offramp::offramp {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public entry fun execute_ownership_transfer_to_mcms(
+    public fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
         state: &mut OffRampState,
         registry: &mut Registry,

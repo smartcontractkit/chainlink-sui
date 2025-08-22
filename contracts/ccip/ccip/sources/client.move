@@ -27,7 +27,7 @@ public fun encode_sui_extra_args_v1(
     gas_limit: u64,
     allow_out_of_order_execution: bool,
     token_receiver: vector<u8>,
-    receiver_object_ids: vector<vector<u8>>
+    receiver_object_ids: vector<vector<u8>>,
 ): vector<u8> {
     let mut extra_args = vector[];
     extra_args.append(SUI_EXTRA_ARGS_V1_TAG);
@@ -45,7 +45,8 @@ public fun encode_sui_extra_args_v1(
 }
 
 public fun encode_generic_extra_args_v2(
-    gas_limit: u256, allow_out_of_order_execution: bool
+    gas_limit: u256,
+    allow_out_of_order_execution: bool,
 ): vector<u8> {
     let mut extra_args = vector[];
     extra_args.append(GENERIC_EXTRA_ARGS_V2_TAG);
@@ -59,7 +60,7 @@ public fun encode_svm_extra_args_v1(
     account_is_writable_bitmap: u64,
     allow_out_of_order_execution: bool,
     token_receiver: vector<u8>,
-    accounts: vector<vector<u8>>
+    accounts: vector<vector<u8>>,
 ): vector<u8> {
     let mut extra_args = vector[];
     extra_args.append(SVM_EXTRA_ARGS_V1_TAG);
@@ -96,7 +97,7 @@ public fun new_any2sui_message(
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
-    dest_token_amounts: vector<Any2SuiTokenAmount>
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
     Any2SuiMessage {
         message_id,
@@ -107,7 +108,15 @@ public fun new_any2sui_message(
     }
 }
 
-public(package) fun consume_any2sui_message(message: Any2SuiMessage): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
+public(package) fun consume_any2sui_message(
+    message: Any2SuiMessage,
+): (
+    vector<u8>,
+    u64,
+    vector<u8>,
+    vector<u8>,
+    vector<Any2SuiTokenAmount>,
+) {
     let Any2SuiMessage {
         message_id,
         source_chain_selector,
@@ -120,7 +129,8 @@ public(package) fun consume_any2sui_message(message: Any2SuiMessage): (vector<u8
 }
 
 public fun new_dest_token_amounts(
-    token_addresses: vector<address>, token_amounts: vector<u64>
+    token_addresses: vector<address>,
+    token_amounts: vector<u64>,
 ): vector<Any2SuiTokenAmount> {
     token_addresses.zip_map_ref!(
         &token_amounts,

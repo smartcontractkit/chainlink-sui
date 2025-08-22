@@ -142,7 +142,10 @@ fun initialize_internal<T>(
     transfer::public_transfer(owner_cap, ctx.sender());
 }
 
-public fun mint_allowance<T>(state: &TokenState<T>, mint_cap: ID): (u64, bool) {
+public fun mint_allowance<T>(
+    state: &TokenState<T>,
+    mint_cap: ID,
+): (u64, bool) {
     if (!state.is_authorized_mint_cap(mint_cap)) return (0, false);
     state.mint_allowances_map.get(&mint_cap).allowance_info()
 }
@@ -259,7 +262,7 @@ public fun mint_and_transfer<T>(
     deny_list: &DenyList,
     amount: u64,
     recipient: address,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     validate_mint(state, deny_list, mint_cap, amount, recipient, ctx);
 
@@ -541,7 +544,7 @@ public fun execute_ownership_transfer<T>(
     ownable::execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
-public entry fun execute_ownership_transfer_to_mcms<T>(
+public fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap<T>,
     state: &mut TokenState<T>,
     registry: &mut Registry,

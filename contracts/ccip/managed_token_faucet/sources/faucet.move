@@ -12,7 +12,7 @@ public struct FaucetState<phantom T> has key, store {
 
 public fun initialize<T>(
     mint_cap: MintCap<T>,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     let faucet_state = FaucetState<T> {
         id: object::new(ctx),
@@ -27,7 +27,7 @@ public fun drip<T>(
     state: &FaucetState<T>,
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ): Coin<T> {
     drip_internal(metadata, state, token_state, deny_list, ctx)
 }
@@ -38,7 +38,7 @@ public fun drip_and_send<T>(
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
     recipient: address,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     let coin = drip_internal(metadata, state, token_state, deny_list, ctx);
     transfer::public_transfer(coin, recipient);
@@ -49,7 +49,7 @@ fun drip_internal<T>(
     state: &FaucetState<T>,
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ): Coin<T> {
     let decimals = metadata.get_decimals();
     let mut i = 0;

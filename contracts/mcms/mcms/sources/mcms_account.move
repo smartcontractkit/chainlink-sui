@@ -83,16 +83,25 @@ module mcms::mcms_account {
         transfer_ownership(owner_cap, state, mcms_registry::get_multisig_address(), ctx);
     }
 
-    public fun accept_ownership(state: &mut AccountState, ctx: &mut TxContext) {
+    public fun accept_ownership(
+        state: &mut AccountState,
+        ctx: &mut TxContext,
+    ) {
         accept_ownership_internal(state, ctx.sender());
     }
 
-    public(package) fun accept_ownership_as_timelock(state: &mut AccountState, _ctx: &mut TxContext) {
+    public(package) fun accept_ownership_as_timelock(
+        state: &mut AccountState,
+        _ctx: &mut TxContext,
+    ) {
         accept_ownership_internal(state, mcms_registry::get_multisig_address());
     }
 
     /// UID is a privileged type that is only accessible by the object owner.
-    public fun accept_ownership_from_object(state: &mut AccountState, from: &mut UID) {
+    public fun accept_ownership_from_object(
+        state: &mut AccountState,
+        from: &mut UID,
+    ) {
         accept_ownership_internal(state, from.to_address());
     }
 
