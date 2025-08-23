@@ -73,6 +73,13 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		return commonTypes.ErrNotFound
 	}
 
+	// Look up the transaction
+	txnConfig, ok := moduleConfig.Functions[method]
+	if !ok {
+		s.lggr.Errorw("missing function config not found in module", "function", method, "moduleName", ptbName)
+		return commonTypes.ErrNotFound
+	}
+
 	if moduleConfig.Name != "" {
 		ptbName = moduleConfig.Name
 	}
@@ -93,7 +100,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		ArgTypes: make(map[string]string),
 	}
 
-	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, ptbArgsInput, toAddress)
+	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, ptbArgsInput, toAddress, txnConfig)
 
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)

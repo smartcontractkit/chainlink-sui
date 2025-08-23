@@ -135,20 +135,8 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments cwConfig.Arguments, toAddress string) (*transaction.Transaction, error) {
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments cwConfig.Arguments, toAddress string, txnConfig *cwConfig.ChainWriterFunction) (*transaction.Transaction, error) {
 	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
-
-	// Look up the module
-	module, ok := p.config.Modules[moduleName]
-	if !ok {
-		return nil, fmt.Errorf("missing module %s not found in configuration", moduleName)
-	}
-
-	// Look up the transaction
-	txnConfig, ok := module.Functions[function]
-	if !ok {
-		return nil, fmt.Errorf("missing function config (%s) not found in module (%s)", function, moduleName)
-	}
 
 	// Create a new transaction builder
 	sdkClient := p.client.GetClient()
