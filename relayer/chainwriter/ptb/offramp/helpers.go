@@ -330,20 +330,27 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 }
 
 func ConvertFunctionParams(argMap map[string]interface{}, params []codec.SuiFunctionParam) ([]string, []any, error) {
-	types := make([]string, len(params))
-	values := make([]any, len(params))
+	var types []string
+	var values []any
 
-	for i, paramConfig := range params {
+	for _, paramConfig := range params {
 		argValue, ok := argMap[paramConfig.Name]
 		if !ok {
+			// If it's required and has no default, it's an error
 			if paramConfig.Required {
 				return nil, nil, fmt.Errorf("missing argument: %s", paramConfig.Name)
 			}
-			argValue = paramConfig.DefaultValue
+			// If default is set, use it
+			if paramConfig.DefaultValue != nil {
+				argValue = paramConfig.DefaultValue
+			} else {
+				// Otherwise, skip this param — assume it will be appended later
+				continue
+			}
 		}
 
-		types[i] = paramConfig.Type
-		values[i] = argValue
+		types = append(types, paramConfig.Type)
+		values = append(values, argValue)
 	}
 
 	return types, values, nil
