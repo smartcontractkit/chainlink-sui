@@ -82,11 +82,19 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 
 	paramTypes := []string{}
 	paramValues := []any{}
-	if functionConfig.PTBCommands[0].Params != nil {
-		paramTypes, paramValues, err = suiofframphelpers.ConvertFunctionParams(argMap, functionConfig.Params)
-		if err != nil {
-			return fmt.Errorf("failed to encode params: %+w", err)
+
+	for _, cmd := range functionConfig.PTBCommands {
+		if cmd.Params == nil {
+			continue
 		}
+
+		pt, pv, err := suiofframphelpers.ConvertFunctionParams(argMap, cmd.Params)
+		if err != nil {
+			return fmt.Errorf("failed to encode params for PTBCommand: %+w", err)
+		}
+
+		paramTypes = append(paramTypes, pt...)
+		paramValues = append(paramValues, pv...)
 	}
 
 	s.lggr.Info("PARAMTYPES: ", paramTypes, "PARAMVALUE: ", paramValues)
