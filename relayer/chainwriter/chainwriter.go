@@ -82,7 +82,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 
 	paramTypes := []string{}
 	paramValues := []any{}
-	if functionConfig.Params != nil {
+	if functionConfig.PTBCommands[0].Params != nil {
 		paramTypes, paramValues, err = suiofframphelpers.ConvertFunctionParams(argMap, functionConfig.Params)
 		if err != nil {
 			return fmt.Errorf("failed to encode params: %+w", err)
@@ -110,6 +110,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		ArgTypes: make(map[string]string),
 	}
 
+	s.lggr.Info("UPDATED ARGS: ", updatedArgs)
 	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, ptbArgsInput, toAddress, functionConfig)
 
 	if err != nil {
