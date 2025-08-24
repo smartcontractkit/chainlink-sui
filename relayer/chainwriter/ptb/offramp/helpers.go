@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
@@ -329,17 +330,12 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 	return paramTypes, nil
 }
 
-func ConvertFunctionParams(argMap map[string]interface{}, params []codec.SuiFunctionParam) ([]string, []any, error) {
+func ConvertFunctionParams(argMap cwConfig.Arguments, params []codec.SuiFunctionParam) ([]string, []any, error) {
 	var types []string
 	var values []any
 
-	argsSection, ok := argMap["Args"].(map[string]interface{})
-	if !ok {
-		return nil, nil, fmt.Errorf("argMap missing or invalid 'Args' section")
-	}
-
 	for _, paramConfig := range params {
-		argValue, ok := argsSection[paramConfig.Name]
+		argValue, ok := argMap.Args[paramConfig.Name]
 		fmt.Println("LOOKUP:", paramConfig.Name, "ARGVALUE:", argValue)
 
 		if !ok {

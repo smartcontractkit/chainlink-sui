@@ -74,8 +74,8 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		return commonTypes.ErrNotFound
 	}
 
-	argMap := make(map[string]any)
-	err := mapstructure.Decode(args, &argMap)
+	var arguments cwConfig.Arguments
+	err := mapstructure.Decode(args, &arguments)
 	if err != nil {
 		return fmt.Errorf("failed to parse arguments: %+w", err)
 	}
@@ -88,7 +88,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 			continue
 		}
 
-		pt, pv, err := suiofframphelpers.ConvertFunctionParams(argMap, cmd.Params)
+		pt, pv, err := suiofframphelpers.ConvertFunctionParams(arguments, cmd.Params)
 		if err != nil {
 			return fmt.Errorf("failed to encode params for PTBCommand: %+w", err)
 		}
