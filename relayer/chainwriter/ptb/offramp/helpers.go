@@ -8,9 +8,7 @@ import (
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 func AnyPointer[T any](v T) *T {
@@ -328,27 +326,4 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 	}
 
 	return paramTypes, nil
-}
-
-func ConvertFunctionParams(argMap cwConfig.Arguments, params []codec.SuiFunctionParam) ([]string, []any, error) {
-	var types []string
-	var values []any
-
-	for _, paramConfig := range params {
-		argValue, ok := argMap.Args[paramConfig.Name]
-		fmt.Println("LOOKUP:", paramConfig.Name, "ARGVALUE:", argValue)
-
-		if !ok {
-			if paramConfig.DefaultValue != nil {
-				argValue = paramConfig.DefaultValue
-			} else {
-				continue // skip optional params
-			}
-		}
-
-		types = append(types, paramConfig.Name)
-		values = append(values, argValue)
-	}
-
-	return types, values, nil
 }

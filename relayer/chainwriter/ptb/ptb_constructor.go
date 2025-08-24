@@ -165,18 +165,30 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 
 		return ptb, nil
 	} else if function == cwConfig.CCIPCommit {
-		// If it's just a commit, then we just need to get the address mappings and use the regular
-		// PTB builder to build the PTB.
-		addressMappings, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
+		// unwrap if core wrapped with Args
+		if inner, ok := arguments.Args["Args"].(map[string]any); ok {
+			arguments.Args = inner
+		}
+
+		// fetch address mappings
+		am, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
 		if err != nil {
-			p.log.Errorw("Error setting up address mappings", "error", err)
 			return nil, err
 		}
-		// Add values from address mappings to the arguments received from core to enable the regualar
-		// PTB building flow for commit.
-		arguments.Args["ref"] = addressMappings.CcipObjectRef
-		arguments.Args["state"] = addressMappings.OffRampState
-		arguments.Args["clock"] = addressMappings.ClockObject
+
+		// inject object_ids if missing
+		if arguments.Args == nil {
+			arguments.Args = map[string]any{}
+		}
+		if _, ok := arguments.Args["ref"]; !ok {
+			arguments.Args["ref"] = am.CcipObjectRef
+		}
+		if _, ok := arguments.Args["state"]; !ok {
+			arguments.Args["state"] = am.OffRampState
+		}
+		if _, ok := arguments.Args["clock"]; !ok {
+			arguments.Args["clock"] = am.ClockObject
+		}
 	}
 
 	// Create a map for caching objects
@@ -213,6 +225,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 	arguments *cwConfig.Arguments,
 	cachedArgs *map[string]transaction.Argument,
 ) (*transaction.Argument, error) {
+	fmt.Println("PROCESSING MOVE CALL")
 	p.log.Debugw("Processing move call", "Command", cmd, "Args", arguments)
 
 	// All three fields below are required for a successful move call
@@ -257,26 +270,6 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	cachedArgs *map[string]transaction.Argument,
 ) ([]transaction.Argument, error) {
 	processedArgs := make([]transaction.Argument, 0, len(params))
-
-	// if someone passed the wrapper here
-	if wrap, ok := arguments.Args["Args"].(map[string]any); ok {
-		// try to pull ArgTypes from the same wrapper map (or however it was passed)
-		if rawAT, ok := arguments.Args["ArgTypes"]; ok {
-			switch m := rawAT.(type) {
-			case map[string]string:
-				arguments.ArgTypes = m
-			case map[string]any:
-				at := make(map[string]string, len(m))
-				for k, v := range m {
-					if s, ok := v.(string); ok {
-						at[k] = s
-					}
-				}
-				arguments.ArgTypes = at
-			}
-		}
-		arguments.Args = wrap
-	}
 
 	for _, param := range params {
 		p.log.Debugw("Processing PTB parameter", "Param", param)

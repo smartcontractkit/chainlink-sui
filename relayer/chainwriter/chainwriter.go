@@ -13,7 +13,6 @@ import (
 
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
-	suiofframphelpers "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
@@ -75,30 +74,13 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 	}
 
 	var arguments cwConfig.Arguments
-	err := mapstructure.Decode(args, &arguments)
-	if err != nil {
-		return fmt.Errorf("failed to parse arguments: %+w", err)
+	if err := mapstructure.Decode(args, &arguments.Args); err != nil {
+		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
-	paramTypes := []string{}
-	paramValues := []any{}
+	s.lggr.Info("ARGUMENTS: ", arguments.Args, "PARAMS: ", functionConfig.Params, "DECODED ARGS: ", arguments)
 
-	for _, cmd := range functionConfig.PTBCommands {
-		if cmd.Params == nil {
-			continue
-		}
-
-		pt, pv, err := suiofframphelpers.ConvertFunctionParams(arguments, cmd.Params)
-		if err != nil {
-			return fmt.Errorf("failed to encode params for PTBCommand: %+w", err)
-		}
-
-		paramTypes = append(paramTypes, pt...)
-		paramValues = append(paramValues, pv...)
-	}
-
-	s.lggr.Info("PARAMTYPES: ", paramTypes, "PARAMVALUE: ", paramValues)
-
+	// overwrite ptbName
 	if moduleConfig.Name != "" {
 		ptbName = moduleConfig.Name
 	}
@@ -107,19 +89,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		method = functionConfig.Name
 	}
 
-	updatedArgs := make(map[string]any, len(paramTypes))
-	for i := range paramTypes {
-		updatedArgs[paramTypes[i]] = paramValues[i]
-	}
-
-	// Setup args into PTB constructor args to include types from function config
-	ptbArgsInput := cwConfig.Arguments{
-		Args:     updatedArgs,
-		ArgTypes: make(map[string]string),
-	}
-
-	s.lggr.Info("UPDATED ARGS: ", updatedArgs)
-	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, ptbArgsInput, toAddress, functionConfig)
+	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, toAddress, functionConfig)
 
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
