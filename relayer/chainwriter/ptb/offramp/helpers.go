@@ -336,10 +336,6 @@ func ConvertFunctionParams(argMap map[string]interface{}, params []codec.SuiFunc
 	for _, paramConfig := range params {
 		argValue, ok := argMap[paramConfig.Name]
 		if !ok {
-			// If it's required and has no default, it's an error
-			if paramConfig.Required {
-				return nil, nil, fmt.Errorf("missing argument: %s", paramConfig.Name)
-			}
 			// If default is set, use it
 			if paramConfig.DefaultValue != nil {
 				argValue = paramConfig.DefaultValue
