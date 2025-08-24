@@ -109,7 +109,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 
 	updatedArgs := make(map[string]any, len(paramTypes))
 	for i := range paramTypes {
-		argMap[paramTypes[i]] = paramValues[i]
+		updatedArgs[paramTypes[i]] = paramValues[i]
 	}
 
 	// Setup args into PTB constructor args to include types from function config

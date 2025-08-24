@@ -333,19 +333,24 @@ func ConvertFunctionParams(argMap map[string]interface{}, params []codec.SuiFunc
 	var types []string
 	var values []any
 
+	argsSection, ok := argMap["Args"].(map[string]interface{})
+	if !ok {
+		return nil, nil, fmt.Errorf("argMap missing or invalid 'Args' section")
+	}
+
 	for _, paramConfig := range params {
-		argValue, ok := argMap[paramConfig.Name]
+		argValue, ok := argsSection[paramConfig.Name]
+		fmt.Println("LOOKUP:", paramConfig.Name, "ARGVALUE:", argValue)
+
 		if !ok {
-			// If default is set, use it
 			if paramConfig.DefaultValue != nil {
 				argValue = paramConfig.DefaultValue
 			} else {
-				// Otherwise, skip this param — assume it will be appended later
-				continue
+				continue // skip optional params
 			}
 		}
 
-		types = append(types, paramConfig.Type)
+		types = append(types, paramConfig.Name)
 		values = append(values, argValue)
 	}
 
