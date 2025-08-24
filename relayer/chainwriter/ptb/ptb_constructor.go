@@ -174,7 +174,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		}
 		// Add values from address mappings to the arguments received from core to enable the regualar
 		// PTB building flow for commit.
-		arguments.Args["ccip_object_ref"] = addressMappings.CcipObjectRef
+		arguments.Args["ref"] = addressMappings.CcipObjectRef
 		arguments.Args["state"] = addressMappings.OffRampState
 		arguments.Args["clock"] = addressMappings.ClockObject
 	}
