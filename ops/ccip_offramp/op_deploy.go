@@ -15,13 +15,13 @@ import (
 
 type DeployCCIPOffRampObjects struct {
 	// State Object
-	OwnerCapObjectId         string
-	CCIPOffRampStateObjectId string
+	OwnerCapObjectID         string
+	CCIPOffRampStateObjectID string
 }
 
 type DeployCCIPOffRampInput struct {
-	CCIPPackageId string
-	MCMSPackageId string
+	CCIPPackageID string
+	MCMSPackageID string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPOffRampInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
@@ -31,8 +31,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.CCIPPackageId,
-		input.MCMSPackageId,
+		input.CCIPPackageID,
+		input.MCMSPackageID,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
@@ -50,18 +50,18 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		Digest:    tx.Digest,
 		PackageId: offRampPackage.Address(),
 		Objects: DeployCCIPOffRampObjects{
-			OwnerCapObjectId:         obj1,
-			CCIPOffRampStateObjectId: obj2,
+			OwnerCapObjectID:         obj1,
+			CCIPOffRampStateObjectID: obj2,
 		},
 	}, err
 }
 
 type InitializeOffRampInput struct {
-	OffRampPackageId                      string
-	OffRampStateId                        string
-	OwnerCapObjectId                      string
-	FeeQuoterCapId                        string
-	DestTransferCapId                     string
+	OffRampPackageID                      string
+	OffRampStateID                        string
+	OwnerCapObjectID                      string
+	FeeQuoterCapID                        string
+	DestTransferCapID                     string
 	ChainSelector                         uint64
 	PremissionExecThresholdSeconds        uint32
 	SourceChainSelectors                  []uint64
@@ -71,7 +71,7 @@ type InitializeOffRampInput struct {
 }
 
 var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitializeOffRampInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
@@ -81,10 +81,10 @@ var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 	tx, err := offRampPackage.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.OffRampStateId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.FeeQuoterCapId},
-		bind.Object{Id: input.DestTransferCapId},
+		bind.Object{Id: input.OffRampStateID},
+		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.FeeQuoterCapID},
+		bind.Object{Id: input.DestTransferCapID},
 		input.ChainSelector,
 		input.PremissionExecThresholdSeconds,
 		input.SourceChainSelectors,
@@ -98,15 +98,15 @@ var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OffRampPackageId,
+		PackageId: input.OffRampPackageID,
 		Objects:   DeployCCIPOffRampObjects{},
 	}, err
 }
 
 type SetOCR3ConfigInput struct {
-	OffRampPackageId               string
-	OffRampStateId                 string
-	OwnerCapObjectId               string
+	OffRampPackageID               string
+	OffRampStateID                 string
+	OwnerCapObjectID               string
 	ConfigDigest                   []byte
 	OCRPluginType                  byte
 	BigF                           byte
@@ -116,7 +116,7 @@ type SetOCR3ConfigInput struct {
 }
 
 var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetOCR3ConfigInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
 	}
@@ -126,8 +126,8 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 	tx, err := offRampPackage.SetOcr3Config(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.OffRampStateId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.OffRampStateID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.ConfigDigest,
 		input.OCRPluginType,
 		input.BigF,
@@ -141,7 +141,7 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OffRampPackageId,
+		PackageId: input.OffRampPackageID,
 		Objects:   DeployCCIPOffRampObjects{},
 	}, err
 }

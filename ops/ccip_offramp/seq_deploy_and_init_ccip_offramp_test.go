@@ -72,7 +72,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageId,
 		McmsOwner:     signerAddress,
 	}
 
@@ -85,11 +85,11 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Initialize feeQuoter
 	feeQuoterInit := ccip_ops.InitFeeQuoterInput{
-		CCIPPackageId:                 reportCCIP.Output.PackageId,
-		StateObjectId:                 reportCCIP.Output.Objects.CCIPObjectRefObjectId,
-		OwnerCapObjectId:              reportCCIP.Output.Objects.OwnerCapObjectId,
+		CCIPPackageID:                 reportCCIP.Output.PackageId,
+		StateObjectID:                 reportCCIP.Output.Objects.CCIPObjectRefObjectID,
+		OwnerCapObjectID:              reportCCIP.Output.Objects.OwnerCapObjectID,
 		MaxFeeJuelsPerMsg:             "100000000",
-		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
+		LinkTokenCoinMetadataObjectID: linkReport.Output.Objects.CoinMetadataObjectId,
 		TokenPriceStalenessThreshold:  60,
 	}
 
@@ -99,12 +99,12 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 	// Run OffRamp Sequence
 	seqOffRampInput := DeployAndInitCCIPOffRampSeqInput{
 		DeployCCIPOffRampInput: DeployCCIPOffRampInput{
-			CCIPPackageId: reportCCIP.Output.PackageId,
-			MCMSPackageId: reportMCMs.Output.PackageId,
+			CCIPPackageID: reportCCIP.Output.PackageId,
+			MCMSPackageID: reportMCMs.Output.PackageId,
 		},
 		InitializeOffRampInput: InitializeOffRampInput{
-			DestTransferCapId:                     reportCCIP.Output.Objects.DestTransferCapObjectId,
-			FeeQuoterCapId:                        reportFeeQuoterInit.Output.Objects.FeeQuoterCapObjectId,
+			DestTransferCapID:                     reportCCIP.Output.Objects.DestTransferCapObjectID,
+			FeeQuoterCapID:                        reportFeeQuoterInit.Output.Objects.FeeQuoterCapObjectID,
 			ChainSelector:                         2,
 			PremissionExecThresholdSeconds:        10,
 			SourceChainSelectors:                  []uint64{1},

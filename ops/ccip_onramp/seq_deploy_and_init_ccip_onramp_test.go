@@ -50,7 +50,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 	require.NoError(t, err, "failed to deploy MCMS Package")
 
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageId,
 		McmsOwner:     signerAddress,
 	}
 
@@ -59,9 +59,9 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 
 	// report from CCIP
 	nonceManagerInput := ccip_ops.InitNMInput{
-		CCIPPackageId:    report.Output.PackageId,
-		StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
-		OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
+		CCIPPackageID:    report.Output.PackageId,
+		StateObjectID:    report.Output.Objects.CCIPObjectRefObjectID,
+		OwnerCapObjectID: report.Output.Objects.OwnerCapObjectID,
 	}
 
 	reportNonceManagerInit, err := cld_ops.ExecuteOperation(bundle, ccip_ops.NonceManagerInitializeOp, deps, nonceManagerInput)
@@ -69,13 +69,13 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 
 	inputOnRamp := DeployAndInitCCIPOnRampSeqInput{
 		DeployCCIPOnRampInput: DeployCCIPOnRampInput{
-			CCIPPackageId:      report.Output.PackageId,
-			MCMSPackageId:      reportMCMs.Output.PackageId,
-			MCMSOwnerPackageId: signerAddress,
+			CCIPPackageID:      report.Output.PackageId,
+			MCMSPackageID:      reportMCMs.Output.PackageId,
+			MCMSOwnerPackageID: signerAddress,
 		},
 		OnRampInitializeInput: OnRampInitializeInput{
-			NonceManagerCapId:         reportNonceManagerInit.Output.Objects.NonceManagerCapObjectId, // this is from NonceManager init Op
-			SourceTransferCapId:       report.Output.Objects.SourceTransferCapObjectId,               // this is from CCIP package publish
+			NonceManagerCapID:         reportNonceManagerInit.Output.Objects.NonceManagerCapObjectID, // this is from NonceManager init Op
+			SourceTransferCapID:       report.Output.Objects.SourceTransferCapObjectID,               // this is from CCIP package publish
 			ChainSelector:             909606746561742123,
 			FeeAggregator:             signerAddress,
 			AllowListAdmin:            signerAddress,
@@ -102,8 +102,8 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 
 	// success case
 	isChainSupportedInput := IsChainSupportedInput{
-		OnRampPackageId:   reportOnRamp.Output.CCIPOnRampPackageId,
-		StateObjectId:     reportOnRamp.Output.Objects.StateObjectId,
+		OnRampPackageID:   reportOnRamp.Output.CCIPOnRampPackageID,
+		StateObjectID:     reportOnRamp.Output.Objects.StateObjectID,
 		DestChainSelector: 909606746561742123,
 	}
 
