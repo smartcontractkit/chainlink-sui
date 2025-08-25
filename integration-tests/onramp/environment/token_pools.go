@@ -50,7 +50,7 @@ func SetupEthTokenPoolBurnMint(
 
 	// Deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageID,
+		CCIPPackageID:    reportCCIP.Output.CCIPPackageID,
 		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
@@ -59,16 +59,16 @@ func SetupEthTokenPoolBurnMint(
 	// Deploy and initialize the burn mint token pool
 	seqBurnMintDeployInput := burnmintops.DeployAndInitBurnMintTokenPoolInput{
 		BurnMintTokenPoolDeployInput: burnmintops.BurnMintTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.CCIPPackageID,
-			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
+			CCIPPackageID:          reportCCIP.Output.CCIPPackageID,
+			CCIPTokenPoolPackageID: ccipTokenPoolReport.Output.PackageId,
 			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      tokenType,
-		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		CoinMetadataObjectId:   reportMockEthToken.Output.Objects.CoinMetadataObjectId,
-		TreasuryCapObjectId:    reportMockEthToken.Output.Objects.TreasuryCapObjectId,
+		CCIPObjectRefObjectID:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
+		CoinMetadataObjectID:   reportMockEthToken.Output.Objects.CoinMetadataObjectID,
+		TreasuryCapObjectID:    reportMockEthToken.Output.Objects.TreasuryCapObjectID,
 		TokenPoolAdministrator: accountAddress,
 
 		// Chain updates - adding the destination chain
@@ -124,7 +124,7 @@ func SetupManagedTokenPool(
 
 	// First, deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageID,
+		CCIPPackageID:    reportCCIP.Output.CCIPPackageID,
 		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
@@ -133,12 +133,12 @@ func SetupManagedTokenPool(
 	// Deploy and initialize the managed token first
 	seqManagedTokenDeployInput := managedtokenops.DeployAndInitManagedTokenInput{
 		ManagedTokenDeployInput: managedtokenops.ManagedTokenDeployInput{
-			MCMSAddress:      reportMCMs.Output.PackageId,
+			MCMSAddress:      reportMCMs.Output.PackageID,
 			MCMSOwnerAddress: accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:   tokenType,
-		TreasuryCapObjectId: reportMockEthToken.Output.Objects.TreasuryCapObjectId,
+		TreasuryCapObjectID: reportMockEthToken.Output.Objects.TreasuryCapObjectID,
 		DenyCapObjectId:     "", // Optional - not using deny cap for this example
 		// Configure a new minter
 		MinterAddress: signerAddr,

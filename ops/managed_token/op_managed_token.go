@@ -15,19 +15,19 @@ import (
 
 // MANAGED_TOKEN -- INITIALIZE
 type ManagedTokenInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectID string
+	StateObjectID    string
 }
 
 type ManagedTokenInitializeInput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	CoinObjectTypeArg     string
-	TreasuryCapObjectId   string
-	DenyCapObjectId       string // Optional - can be empty
+	TreasuryCapObjectID   string
+	DenyCapObjectID       string // Optional - can be empty
 }
 
 var initManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenInitializeInput) (output sui_ops.OpTxResult[ManagedTokenInitializeObjects], err error) {
-	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenInitializeObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
@@ -36,20 +36,20 @@ var initManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	opts.Signer = deps.Signer
 
 	var tx *models.SuiTransactionBlockResponse
-	if input.DenyCapObjectId != "" {
+	if input.DenyCapObjectID != "" {
 		tx, err = contract.InitializeWithDenyCap(
 			b.GetContext(),
 			opts,
 			[]string{input.CoinObjectTypeArg},
-			bind.Object{Id: input.TreasuryCapObjectId},
-			bind.Object{Id: input.DenyCapObjectId},
+			bind.Object{Id: input.TreasuryCapObjectID},
+			bind.Object{Id: input.DenyCapObjectID},
 		)
 	} else {
 		tx, err = contract.Initialize(
 			b.GetContext(),
 			opts,
 			[]string{input.CoinObjectTypeArg},
-			bind.Object{Id: input.TreasuryCapObjectId},
+			bind.Object{Id: input.TreasuryCapObjectID},
 		)
 	}
 
@@ -67,10 +67,10 @@ var initManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 
 	return sui_ops.OpTxResult[ManagedTokenInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPackageId,
+		PackageId: input.ManagedTokenPackageID,
 		Objects: ManagedTokenInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			OwnerCapObjectID: obj1,
+			StateObjectID:    obj2,
 		},
 	}, nil
 }
@@ -87,17 +87,17 @@ type NoObjects struct {
 }
 
 type ManagedTokenConfigureNewMinterInput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	CoinObjectTypeArg     string
-	StateObjectId         string
-	OwnerCapObjectId      string
+	StateObjectID         string
+	OwnerCapObjectID      string
 	MinterAddress         string
 	Allowance             uint64
 	IsUnlimited           bool
 }
 
 var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenConfigureNewMinterInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
@@ -108,8 +108,8 @@ var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.MinterAddress,
 		input.Allowance,
 		input.IsUnlimited,
@@ -118,11 +118,11 @@ var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token configure new minter: %w", err)
 	}
 
-	b.Logger.Infow("ConfigureNewMinter on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId, "Minter:", input.MinterAddress)
+	b.Logger.Infow("ConfigureNewMinter on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "Minter:", input.MinterAddress)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageId,
+		PackageId: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -136,17 +136,17 @@ var ManagedTokenConfigureNewMinterOp = cld_ops.NewOperation(
 
 // MANAGED_TOKEN -- increment_mint_allowance
 type ManagedTokenIncrementMintAllowanceInput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	CoinObjectTypeArg     string
-	StateObjectId         string
-	OwnerCapObjectId      string
-	MintCapObjectId       string
-	DenyListObjectId      string
+	StateObjectID         string
+	OwnerCapObjectID      string
+	MintCapObjectID       string
+	DenyListObjectID      string
 	AllowanceIncrement    uint64
 }
 
 var incrementMintAllowanceHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenIncrementMintAllowanceInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
@@ -157,21 +157,21 @@ var incrementMintAllowanceHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.MintCapObjectId},
-		bind.Object{Id: input.DenyListObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.MintCapObjectID},
+		bind.Object{Id: input.DenyListObjectID},
 		input.AllowanceIncrement,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token increment mint allowance: %w", err)
 	}
 
-	b.Logger.Infow("IncrementMintAllowance on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId, "Increment:", input.AllowanceIncrement)
+	b.Logger.Infow("IncrementMintAllowance on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "Increment:", input.AllowanceIncrement)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageId,
+		PackageId: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -185,17 +185,17 @@ var ManagedTokenIncrementMintAllowanceOp = cld_ops.NewOperation(
 
 // MANAGED_TOKEN -- mint
 type ManagedTokenMintInput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	CoinObjectTypeArg     string
-	StateObjectId         string
-	MintCapObjectId       string
-	DenyListObjectId      string
+	StateObjectID         string
+	MintCapObjectID       string
+	DenyListObjectID      string
 	Amount                uint64
 	Recipient             string
 }
 
 var mintHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenMintInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
@@ -206,9 +206,9 @@ var mintHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTok
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.MintCapObjectId},
-		bind.Object{Id: input.DenyListObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.MintCapObjectID},
+		bind.Object{Id: input.DenyListObjectID},
 		input.Amount,
 		input.Recipient,
 	)
@@ -216,11 +216,11 @@ var mintHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTok
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token mint: %w", err)
 	}
 
-	b.Logger.Infow("Mint on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId, "Amount:", input.Amount, "Recipient:", input.Recipient)
+	b.Logger.Infow("Mint on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "Amount:", input.Amount, "Recipient:", input.Recipient)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageId,
+		PackageId: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -234,17 +234,17 @@ var ManagedTokenMintOp = cld_ops.NewOperation(
 
 // MANAGED_TOKEN -- burn
 type ManagedTokenBurnInput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	CoinObjectTypeArg     string
-	StateObjectId         string
-	MintCapObjectId       string
-	DenyListObjectId      string
-	CoinObjectId          string
+	StateObjectID         string
+	MintCapObjectID       string
+	DenyListObjectID      string
+	CoinObjectID          string
 	FromAddress           string
 }
 
 var burnHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenBurnInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
@@ -255,21 +255,21 @@ var burnHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTok
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.MintCapObjectId},
-		bind.Object{Id: input.DenyListObjectId},
-		bind.Object{Id: input.CoinObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.MintCapObjectID},
+		bind.Object{Id: input.DenyListObjectID},
+		bind.Object{Id: input.CoinObjectID},
 		input.FromAddress,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token burn: %w", err)
 	}
 
-	b.Logger.Infow("Burn on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId, "From:", input.FromAddress)
+	b.Logger.Infow("Burn on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "From:", input.FromAddress)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageId,
+		PackageId: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -283,15 +283,15 @@ var ManagedTokenBurnOp = cld_ops.NewOperation(
 
 // MANAGED_TOKEN -- pause
 type ManagedTokenPauseInput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	CoinObjectTypeArg     string
-	StateObjectId         string
-	OwnerCapObjectId      string
-	DenyListObjectId      string
+	StateObjectID         string
+	OwnerCapObjectID      string
+	DenyListObjectID      string
 }
 
 var pauseHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPauseInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
@@ -302,19 +302,19 @@ var pauseHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTo
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.DenyListObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.DenyListObjectID},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pause: %w", err)
 	}
 
-	b.Logger.Infow("Pause on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId)
+	b.Logger.Infow("Pause on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageId,
+		PackageId: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -328,15 +328,15 @@ var ManagedTokenPauseOp = cld_ops.NewOperation(
 
 // MANAGED_TOKEN -- unpause
 type ManagedTokenUnpauseInput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	CoinObjectTypeArg     string
-	StateObjectId         string
-	OwnerCapObjectId      string
-	DenyListObjectId      string
+	StateObjectID         string
+	OwnerCapObjectID      string
+	DenyListObjectID      string
 }
 
 var unpauseHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenUnpauseInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageId, deps.Client)
+	contract, err := module_managed_token.NewManagedToken(input.ManagedTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token contract: %w", err)
 	}
@@ -347,19 +347,19 @@ var unpauseHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.DenyListObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.DenyListObjectID},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token unpause: %w", err)
 	}
 
-	b.Logger.Infow("Unpause on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageId)
+	b.Logger.Infow("Unpause on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageId,
+		PackageId: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }

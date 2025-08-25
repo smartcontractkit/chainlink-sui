@@ -9,12 +9,12 @@ import (
 )
 
 type DeployManagedTokenObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectID string
+	StateObjectID    string
 }
 
 type DeployManagedTokenOutput struct {
-	ManagedTokenPackageId string
+	ManagedTokenPackageID string
 	Objects               DeployManagedTokenObjects
 }
 
@@ -22,8 +22,8 @@ type DeployAndInitManagedTokenInput struct {
 	ManagedTokenDeployInput
 	// init
 	CoinObjectTypeArg   string
-	TreasuryCapObjectId string
-	DenyCapObjectId     string // Optional - can be empty
+	TreasuryCapObjectID string
+	DenyCapObjectID     string // Optional - can be empty
 	// configure_new_minter
 	MinterAddress string
 	Allowance     uint64
@@ -45,10 +45,10 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			ManagedTokenInitializeOp,
 			deps,
 			ManagedTokenInitializeInput{
-				ManagedTokenPackageId: deployReport.Output.PackageId,
+				ManagedTokenPackageID: deployReport.Output.PackageId,
 				CoinObjectTypeArg:     input.CoinObjectTypeArg,
-				TreasuryCapObjectId:   input.TreasuryCapObjectId,
-				DenyCapObjectId:       input.DenyCapObjectId,
+				TreasuryCapObjectID:   input.TreasuryCapObjectID,
+				DenyCapObjectID:       input.DenyCapObjectID,
 			},
 		)
 		if err != nil {
@@ -62,10 +62,10 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 				ManagedTokenConfigureNewMinterOp,
 				deps,
 				ManagedTokenConfigureNewMinterInput{
-					ManagedTokenPackageId: deployReport.Output.PackageId,
+					ManagedTokenPackageID: deployReport.Output.PackageId,
 					CoinObjectTypeArg:     input.CoinObjectTypeArg,
-					StateObjectId:         initReport.Output.Objects.StateObjectId,
-					OwnerCapObjectId:      initReport.Output.Objects.OwnerCapObjectId,
+					StateObjectID:         initReport.Output.Objects.StateObjectID,
+					OwnerCapObjectID:      initReport.Output.Objects.OwnerCapObjectID,
 					MinterAddress:         input.MinterAddress,
 					Allowance:             input.Allowance,
 					IsUnlimited:           input.IsUnlimited,
@@ -77,10 +77,10 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 		}
 
 		return DeployManagedTokenOutput{
-			ManagedTokenPackageId: deployReport.Output.PackageId,
+			ManagedTokenPackageID: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectID: initReport.Output.Objects.OwnerCapObjectID,
+				StateObjectID:    initReport.Output.Objects.StateObjectID,
 			},
 		}, nil
 	},
