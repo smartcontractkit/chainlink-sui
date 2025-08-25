@@ -33,7 +33,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 
 	return sui_ops.OpTxResult[ManagedTokenDeployOutput]{
 		Digest:    tx.Digest,
-		PackageId: managedTokenPackage.Address(),
+		PackageID: managedTokenPackage.Address(),
 	}, err
 }
 

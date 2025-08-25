@@ -53,7 +53,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageID,
 		McmsOwner:     signerAddress,
 	}
 
@@ -62,8 +62,8 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// deploy CCIP Token Pool
 	inputTokenPool := ccip_tokenpoolops.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.PackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
+		CCIPPackageID:    reportCCIP.Output.PackageID,
+		MCMSAddress:      reportMCMs.Output.PackageID,
 		MCMSOwnerAddress: signerAddress,
 	}
 
@@ -76,7 +76,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
-		CCIPPackageID:      reportCCIP.Output.PackageId,
+		CCIPPackageID:      reportCCIP.Output.PackageID,
 		StateObjectID:      reportCCIP.Output.Objects.CCIPObjectRefObjectID,
 		OwnerCapObjectID:   reportCCIP.Output.Objects.OwnerCapObjectID,
 		LocalChainSelector: 10,
@@ -88,14 +88,14 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	// Run BurnMintTokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
-			CCIPPackageID:          reportCCIP.Output.PackageId,
-			CCIPTokenPoolPackageID: reportCCIPTokenPool.Output.PackageId,
-			MCMSAddress:            reportMCMs.Output.PackageId,
+			CCIPPackageID:          reportCCIP.Output.PackageID,
+			CCIPTokenPoolPackageID: reportCCIPTokenPool.Output.PackageID,
+			MCMSAddress:            reportMCMs.Output.PackageID,
 			MCMSOwnerAddress:       signerAddress,
 		},
 
 		// initialize
-		CoinObjectTypeArg:      linkReport.Output.PackageId + "::mock_link_token::MOCK_LINK_TOKEN",
+		CoinObjectTypeArg:      linkReport.Output.PackageID + "::mock_link_token::MOCK_LINK_TOKEN",
 		CCIPObjectRefObjectID:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
 		CoinMetadataObjectID:   linkReport.Output.Objects.CoinMetadataObjectId,
 		TreasuryCapObjectID:    linkReport.Output.Objects.TreasuryCapObjectId,

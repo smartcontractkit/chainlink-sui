@@ -48,7 +48,7 @@ var initTarHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitTAR
 
 	return sui_ops.OpTxResult[InitTARObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 		Objects: InitTARObjects{
 			TARStateObjectID: obj1,
 		},

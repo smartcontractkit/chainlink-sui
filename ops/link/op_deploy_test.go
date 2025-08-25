@@ -46,7 +46,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Mint Link Token
 	_, err = cld_ops.ExecuteOperation(bundle, MintLinkOp, deps, MintLinkTokenInput{
-		LinkTokenPackageId: linkReport.Output.PackageId,
+		LinkTokenPackageID: linkReport.Output.PackageID,
 		TreasuryCapId:      linkReport.Output.Objects.TreasuryCapObjectId,
 		Amount:             10,
 	})

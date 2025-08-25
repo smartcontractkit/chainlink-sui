@@ -67,7 +67,7 @@ var initManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 
 	return sui_ops.OpTxResult[ManagedTokenInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPackageID,
+		PackageID: input.ManagedTokenPackageID,
 		Objects: ManagedTokenInitializeObjects{
 			OwnerCapObjectID: obj1,
 			StateObjectID:    obj2,
@@ -118,11 +118,11 @@ var configureNewMinterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token configure new minter: %w", err)
 	}
 
-	b.Logger.Infow("ConfigureNewMinter on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "Minter:", input.MinterAddress)
+	b.Logger.Infow("ConfigureNewMinter on ManagedToken", "ManagedToken PackageID:", input.ManagedTokenPackageID, "Minter:", input.MinterAddress)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageID,
+		PackageID: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -167,11 +167,11 @@ var incrementMintAllowanceHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token increment mint allowance: %w", err)
 	}
 
-	b.Logger.Infow("IncrementMintAllowance on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "Increment:", input.AllowanceIncrement)
+	b.Logger.Infow("IncrementMintAllowance on ManagedToken", "ManagedToken PackageID:", input.ManagedTokenPackageID, "Increment:", input.AllowanceIncrement)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageID,
+		PackageID: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -216,11 +216,11 @@ var mintHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTok
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token mint: %w", err)
 	}
 
-	b.Logger.Infow("Mint on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "Amount:", input.Amount, "Recipient:", input.Recipient)
+	b.Logger.Infow("Mint on ManagedToken", "ManagedToken PackageID:", input.ManagedTokenPackageID, "Amount:", input.Amount, "Recipient:", input.Recipient)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageID,
+		PackageID: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -265,11 +265,11 @@ var burnHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTok
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token burn: %w", err)
 	}
 
-	b.Logger.Infow("Burn on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID, "From:", input.FromAddress)
+	b.Logger.Infow("Burn on ManagedToken", "ManagedToken PackageID:", input.ManagedTokenPackageID, "From:", input.FromAddress)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageID,
+		PackageID: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -310,11 +310,11 @@ var pauseHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTo
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pause: %w", err)
 	}
 
-	b.Logger.Infow("Pause on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID)
+	b.Logger.Infow("Pause on ManagedToken", "ManagedToken PackageID:", input.ManagedTokenPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageID,
+		PackageID: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -355,11 +355,11 @@ var unpauseHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token unpause: %w", err)
 	}
 
-	b.Logger.Infow("Unpause on ManagedToken", "ManagedToken PackageId:", input.ManagedTokenPackageID)
+	b.Logger.Infow("Unpause on ManagedToken", "ManagedToken PackageID:", input.ManagedTokenPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    "", // tx.Digest when available
-		PackageId: input.ManagedTokenPackageID,
+		PackageID: input.ManagedTokenPackageID,
 		Objects:   NoObjects{},
 	}, err
 }

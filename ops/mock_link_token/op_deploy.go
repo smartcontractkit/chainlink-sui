@@ -14,9 +14,9 @@ import (
 )
 
 type DeployMockLinkTokenObjects struct {
-	CoinMetadataObjectId string
-	TreasuryCapObjectId  string
-	UpgradeCapObjectId   string
+	CoinMetadataObjectID string
+	TreasuryCapObjectID  string
+	UpgradeCapObjectID   string
 }
 
 var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyInput) (output sui_ops.OpTxResult[DeployMockLinkTokenObjects], err error) {
@@ -30,7 +30,7 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 		return sui_ops.OpTxResult[DeployMockLinkTokenObjects]{}, err
 	}
 
-	packageId, tx, err := bind.PublishPackage(b.GetContext(), opts, deps.Client, bind.PublishRequest{
+	packageID, tx, err := bind.PublishPackage(b.GetContext(), opts, deps.Client, bind.PublishRequest{
 		CompiledModules: artifact.Modules,
 		Dependencies:    artifact.Dependencies,
 	})
@@ -55,27 +55,27 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 
 	return sui_ops.OpTxResult[DeployMockLinkTokenObjects]{
 		Digest:    tx.Digest,
-		PackageId: packageId,
+		PackageID: packageID,
 		Objects: DeployMockLinkTokenObjects{
-			CoinMetadataObjectId: obj1,
-			TreasuryCapObjectId:  obj2,
-			UpgradeCapObjectId:   obj3,
+			CoinMetadataObjectID: obj1,
+			TreasuryCapObjectID:  obj2,
+			UpgradeCapObjectID:   obj3,
 		},
 	}, err
 }
 
 type MintMockLinkTokenInput struct {
-	MockLinkTokenPackageId string
-	TreasuryCapId          string
+	MockLinkTokenPackageID string
+	TreasuryCapID          string
 	Amount                 uint64
 }
 
 type MintMockLinkTokenOutput struct {
-	MintedMockLinkTokenObjectId string
+	MintedMockLinkTokenObjectID string
 }
 
 var handlerMint = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MintMockLinkTokenInput) (output sui_ops.OpTxResult[MintMockLinkTokenOutput], err error) {
-	mockLinkToken, err := mocklinktoken.NewMockLinkToken(input.MockLinkTokenPackageId, deps.Client)
+	mockLinkToken, err := mocklinktoken.NewMockLinkToken(input.MockLinkTokenPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[MintMockLinkTokenOutput]{}, err
 	}
@@ -90,13 +90,13 @@ var handlerMint = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MintMockLi
 	}
 
 	// Use MintAndTransfer instead of Mint to ensure the coin is transferred and visible
-	tx, err := mockLinkToken.MintAndTransfer(b.GetContext(), opts, bind.Object{Id: input.TreasuryCapId}, input.Amount, signerAddress)
+	tx, err := mockLinkToken.MintAndTransfer(b.GetContext(), opts, bind.Object{Id: input.TreasuryCapID}, input.Amount, signerAddress)
 	if err != nil {
 		return sui_ops.OpTxResult[MintMockLinkTokenOutput]{}, fmt.Errorf("failed to execute MintAndTransfer on MockLinkToken: %w", err)
 	}
 
 	// Use the correct function for finding coin objects and provide the coin type
-	coinType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", input.MockLinkTokenPackageId)
+	coinType := input.MockLinkTokenPackageID + "::mock_link_token::MOCK_LINK_TOKEN"
 	obj1, err1 := bind.FindCoinObjectIdFromTx(*tx, coinType)
 	if err1 != nil {
 		return sui_ops.OpTxResult[MintMockLinkTokenOutput]{}, fmt.Errorf("failed to find minted coin object: %w", err1)
@@ -104,9 +104,9 @@ var handlerMint = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MintMockLi
 
 	return sui_ops.OpTxResult[MintMockLinkTokenOutput]{
 		Digest:    tx.Digest,
-		PackageId: input.MockLinkTokenPackageId,
+		PackageID: input.MockLinkTokenPackageID,
 		Objects: MintMockLinkTokenOutput{
-			MintedMockLinkTokenObjectId: obj1,
+			MintedMockLinkTokenObjectID: obj1,
 		},
 	}, err
 }

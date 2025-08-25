@@ -35,7 +35,7 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		}
 
 		// Prepare updated input for initialization
-		input.OnRampInitializeInput.OnRampPackageID = deployReport.Output.PackageId
+		input.OnRampInitializeInput.OnRampPackageID = deployReport.Output.PackageID
 		input.OnRampInitializeInput.OnRampStateID = deployReport.Output.Objects.CCIPOnrampStateObjectID
 		input.OnRampInitializeInput.OwnerCapObjectID = deployReport.Output.Objects.OwnerCapObjectID
 
@@ -45,7 +45,7 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		}
 
 		applyDestChainConfigUpdateInput := ApplyDestChainConfigureOnRampInput{
-			OnRampPackageID:           deployReport.Output.PackageId,
+			OnRampPackageID:           deployReport.Output.PackageID,
 			OwnerCapObjectID:          deployReport.Output.Objects.OwnerCapObjectID,
 			StateObjectID:             deployReport.Output.Objects.CCIPOnrampStateObjectID,
 			DestChainSelector:         input.ApplyDestChainConfigureOnRampInput.DestChainSelector,
@@ -59,7 +59,7 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		}
 
 		return DeployCCIPOnRampSeqOutput{
-			CCIPOnRampPackageID: deployReport.Output.PackageId,
+			CCIPOnRampPackageID: deployReport.Output.PackageID,
 			Objects: DeployCCIPOnRampSeqObjects{
 				StateObjectID: deployReport.Output.Objects.CCIPOnrampStateObjectID,
 			},

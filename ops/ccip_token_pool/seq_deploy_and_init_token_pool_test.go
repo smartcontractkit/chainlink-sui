@@ -52,7 +52,7 @@ func TestDeployAndInitTokenPoolSeq(t *testing.T) {
 	require.NoError(t, err, "failed to get signer address")
 
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: mcmsReport.Output.PackageId,
+		McmsPackageID: mcmsReport.Output.PackageID,
 		McmsOwner:     signerAddress,
 	}
 
@@ -62,8 +62,8 @@ func TestDeployAndInitTokenPoolSeq(t *testing.T) {
 
 	// deploy CCIP Token Pool
 	inputTokenPool := TokenPoolDeployInput{
-		CCIPPackageID:    reportCCIP.Output.PackageId,
-		MCMSAddress:      mcmsReport.Output.PackageId,
+		CCIPPackageID:    reportCCIP.Output.PackageID,
+		MCMSAddress:      mcmsReport.Output.PackageID,
 		MCMSOwnerAddress: signerAddress,
 	}
 

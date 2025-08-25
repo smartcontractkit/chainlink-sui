@@ -45,7 +45,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			ManagedTokenInitializeOp,
 			deps,
 			ManagedTokenInitializeInput{
-				ManagedTokenPackageID: deployReport.Output.PackageId,
+				ManagedTokenPackageID: deployReport.Output.PackageID,
 				CoinObjectTypeArg:     input.CoinObjectTypeArg,
 				TreasuryCapObjectID:   input.TreasuryCapObjectID,
 				DenyCapObjectID:       input.DenyCapObjectID,
@@ -62,7 +62,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 				ManagedTokenConfigureNewMinterOp,
 				deps,
 				ManagedTokenConfigureNewMinterInput{
-					ManagedTokenPackageID: deployReport.Output.PackageId,
+					ManagedTokenPackageID: deployReport.Output.PackageID,
 					CoinObjectTypeArg:     input.CoinObjectTypeArg,
 					StateObjectID:         initReport.Output.Objects.StateObjectID,
 					OwnerCapObjectID:      initReport.Output.Objects.OwnerCapObjectID,
@@ -77,7 +77,7 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 		}
 
 		return DeployManagedTokenOutput{
-			ManagedTokenPackageID: deployReport.Output.PackageId,
+			ManagedTokenPackageID: deployReport.Output.PackageID,
 			Objects: DeployManagedTokenObjects{
 				OwnerCapObjectID: initReport.Output.Objects.OwnerCapObjectID,
 				StateObjectID:    initReport.Output.Objects.StateObjectID,

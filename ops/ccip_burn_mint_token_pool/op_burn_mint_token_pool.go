@@ -57,7 +57,7 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 
 	return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.BurnMintPackageID,
+		PackageID: input.BurnMintPackageID,
 		Objects: BurnMintTokenPoolInitializeObjects{
 			OwnerCapObjectID: obj1,
 			StateObjectID:    obj2,
@@ -114,7 +114,7 @@ var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 
 	return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.BurnMintPackageID,
+		PackageID: input.BurnMintPackageID,
 		Objects: BurnMintTokenPoolInitializeObjects{
 			OwnerCapObjectID: obj1,
 			StateObjectID:    obj2,
@@ -182,11 +182,11 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool apply chain updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyChainUpdates on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintPackageID)
+	b.Logger.Infow("ApplyChainUpdates on BurnMintTokenPool", "BurnMintTokenPool PackageID:", input.BurnMintPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.BurnMintPackageID,
+		PackageID: input.BurnMintPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -240,11 +240,11 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool set configs rate limiter: %w", err)
 	}
 
-	b.Logger.Infow("SetChainRateLimiter on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintPackageID)
+	b.Logger.Infow("SetChainRateLimiter on BurnMintTokenPool", "BurnMintTokenPool PackageID:", input.BurnMintPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.BurnMintPackageID,
+		PackageID: input.BurnMintPackageID,
 		Objects:   NoObjects{},
 	}, err
 }

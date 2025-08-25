@@ -47,7 +47,7 @@ var registerDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	return sui_ops.OpTxResult[RegisterDummyReceiverObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.DummyReceiverPackageID,
+		PackageID: input.DummyReceiverPackageID,
 		Objects:   RegisterDummyReceiverObjects{},
 	}, nil
 }

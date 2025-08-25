@@ -47,7 +47,7 @@ var initRecRegHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 
 	return sui_ops.OpTxResult[InitRecRegObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 		Objects: InitRecRegObjects{
 			ReceiverRegistryStateObjectID: obj1,
 		},

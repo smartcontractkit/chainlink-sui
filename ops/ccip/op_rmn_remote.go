@@ -49,7 +49,7 @@ var initRMNRemoteHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input I
 
 	return sui_ops.OpTxResult[InitRMNRemoteObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 		Objects: InitRMNRemoteObjects{
 			RMNRemoteStateObjectID: obj1,
 		},
@@ -97,7 +97,7 @@ var handlerSetconfig = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRe
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 		Objects:   NoObjects{},
 	}, err
 }

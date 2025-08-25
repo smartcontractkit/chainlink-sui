@@ -57,7 +57,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			deps,
 			BurnMintTokenPoolInitializeInput{
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
-				BurnMintPackageID:      deployReport.Output.PackageId,
+				BurnMintPackageID:      deployReport.Output.PackageID,
 				StateObjectID:          input.CCIPObjectRefObjectID,
 				CoinMetadataObjectID:   input.CoinMetadataObjectID,
 				TreasuryCapObjectID:    input.TreasuryCapObjectID,
@@ -73,7 +73,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			BurnMintTokenPoolApplyChainUpdatesOp,
 			deps,
 			BurnMintTokenPoolApplyChainUpdatesInput{
-				BurnMintPackageID:            deployReport.Output.PackageId,
+				BurnMintPackageID:            deployReport.Output.PackageID,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
 				StateObjectID:                initReport.Output.Objects.StateObjectID,
 				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectID,
@@ -92,7 +92,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			BurnMintTokenPoolSetChainRateLimiterOp,
 			deps,
 			BurnMintTokenPoolSetChainRateLimiterInput{
-				BurnMintPackageID:    deployReport.Output.PackageId,
+				BurnMintPackageID:    deployReport.Output.PackageID,
 				CoinObjectTypeArg:    input.CoinObjectTypeArg,
 				StateObjectID:        initReport.Output.Objects.StateObjectID,
 				OwnerCap:             initReport.Output.Objects.OwnerCapObjectID,
@@ -110,7 +110,7 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 		}
 
 		return DeployBurnMintTokenPoolOutput{
-			BurnMintTPPackageID: deployReport.Output.PackageId,
+			BurnMintTPPackageID: deployReport.Output.PackageID,
 			Objects: DeployBurnMintTokenPoolObjects{
 				OwnerCapObjectID: initReport.Output.Objects.OwnerCapObjectID,
 				StateObjectID:    initReport.Output.Objects.StateObjectID,

@@ -48,7 +48,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: offRampPackage.Address(),
+		PackageID: offRampPackage.Address(),
 		Objects: DeployCCIPOffRampObjects{
 			OwnerCapObjectID:         obj1,
 			CCIPOffRampStateObjectID: obj2,
@@ -98,7 +98,7 @@ var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OffRampPackageID,
+		PackageID: input.OffRampPackageID,
 		Objects:   DeployCCIPOffRampObjects{},
 	}, err
 }
@@ -141,7 +141,7 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 
 	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OffRampPackageID,
+		PackageID: input.OffRampPackageID,
 		Objects:   DeployCCIPOffRampObjects{},
 	}, err
 }

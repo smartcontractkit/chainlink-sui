@@ -50,7 +50,7 @@ var initNMHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitNMIn
 
 	return sui_ops.OpTxResult[InitNMObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 		Objects: InitNMObjects{
 			NonceManagerStateObjectID: obj1,
 			NonceManagerCapObjectID:   obj2,

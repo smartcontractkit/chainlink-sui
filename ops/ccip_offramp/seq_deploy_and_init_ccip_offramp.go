@@ -40,7 +40,7 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 			return DeployCCIPOffRampSeqOutput{}, err
 		}
 
-		input.InitializeOffRampInput.OffRampPackageID = deployReport.Output.PackageId
+		input.InitializeOffRampInput.OffRampPackageID = deployReport.Output.PackageID
 		input.InitializeOffRampInput.OwnerCapObjectID = deployReport.Output.Objects.OwnerCapObjectID
 		input.InitializeOffRampInput.OffRampStateID = deployReport.Output.Objects.CCIPOffRampStateObjectID
 
@@ -50,7 +50,7 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 		}
 
 		lggr.Infow("SetOCR3Config for COMMIT")
-		input.CommitOCR3Config.OffRampPackageID = deployReport.Output.PackageId
+		input.CommitOCR3Config.OffRampPackageID = deployReport.Output.PackageID
 		input.CommitOCR3Config.OwnerCapObjectID = deployReport.Output.Objects.OwnerCapObjectID
 		input.CommitOCR3Config.OffRampStateID = deployReport.Output.Objects.CCIPOffRampStateObjectID
 		_, err = cld_ops.ExecuteOperation(env, SetOCR3ConfigOp, deps, input.CommitOCR3Config)
@@ -59,7 +59,7 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 		}
 
 		lggr.Infow("SetOCR3Config for EXECUTION")
-		input.ExecutionOCR3Config.OffRampPackageID = deployReport.Output.PackageId
+		input.ExecutionOCR3Config.OffRampPackageID = deployReport.Output.PackageID
 		input.ExecutionOCR3Config.OwnerCapObjectID = deployReport.Output.Objects.OwnerCapObjectID
 		input.ExecutionOCR3Config.OffRampStateID = deployReport.Output.Objects.CCIPOffRampStateObjectID
 		_, err = cld_ops.ExecuteOperation(env, SetOCR3ConfigOp, deps, input.ExecutionOCR3Config)
@@ -68,7 +68,7 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 		}
 
 		return DeployCCIPOffRampSeqOutput{
-			CCIPOffRampPackageID: deployReport.Output.PackageId,
+			CCIPOffRampPackageID: deployReport.Output.PackageID,
 			Objects: DeployCCIPOffRampSeqObjects{
 				StateObjectID: deployReport.Output.Objects.CCIPOffRampStateObjectID,
 				OwnerCapID:    deployReport.Output.Objects.OwnerCapObjectID,

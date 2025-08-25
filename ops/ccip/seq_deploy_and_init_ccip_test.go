@@ -80,7 +80,7 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput: DeployCCIPInput{
-			McmsPackageID: mcmsReport.Output.PackageId,
+			McmsPackageID: mcmsReport.Output.PackageID,
 			McmsOwner:     signerAddress,
 		},
 		MaxFeeJuelsPerMsg:            "100000000",

@@ -51,7 +51,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageID,
 		McmsOwner:     signerAddress,
 	}
 
@@ -60,8 +60,8 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// deploy CCIP Token Pool
 	inputTokenPool := ccip_tokenpoolops.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.PackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
+		CCIPPackageID:    reportCCIP.Output.PackageID,
+		MCMSAddress:      reportMCMs.Output.PackageID,
 		MCMSOwnerAddress: signerAddress,
 	}
 
@@ -70,14 +70,14 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// deploy managed token
 	reportManagedToken, err := cld_ops.ExecuteOperation(bundle, managedtokenops.DeployCCIPManagedTokenOp, deps, managedtokenops.ManagedTokenDeployInput{
-		MCMSAddress:      reportMCMs.Output.PackageId,
+		MCMSAddress:      reportMCMs.Output.PackageID,
 		MCMSOwnerAddress: signerAddress,
 	})
 	require.NoError(t, err, "failed to deploy ManagedToken Package")
 
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
-		CCIPPackageID:      reportCCIP.Output.PackageId,
+		CCIPPackageID:      reportCCIP.Output.PackageID,
 		StateObjectID:      reportCCIP.Output.Objects.CCIPObjectRefObjectID,
 		OwnerCapObjectID:   reportCCIP.Output.Objects.OwnerCapObjectID,
 		LocalChainSelector: 10,
@@ -88,10 +88,10 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Test just the package deployment for now
 	managedTokenPoolInput := ManagedTokenPoolDeployInput{
-		CCIPPackageID:          reportCCIP.Output.PackageId,
-		CCIPTokenPoolPackageID: reportCCIPTokenPool.Output.PackageId,
-		ManagedTokenPackageID:  reportManagedToken.Output.PackageId,
-		MCMSAddress:            reportMCMs.Output.PackageId,
+		CCIPPackageID:          reportCCIP.Output.PackageID,
+		CCIPTokenPoolPackageID: reportCCIPTokenPool.Output.PackageID,
+		ManagedTokenPackageID:  reportManagedToken.Output.PackageID,
+		MCMSAddress:            reportMCMs.Output.PackageID,
 		MCMSOwnerAddress:       signerAddress,
 	}
 

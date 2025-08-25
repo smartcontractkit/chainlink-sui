@@ -50,7 +50,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 	require.NoError(t, err, "failed to deploy MCMS Package")
 
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageID,
 		McmsOwner:     signerAddress,
 	}
 
@@ -59,7 +59,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 
 	// report from CCIP
 	nonceManagerInput := ccip_ops.InitNMInput{
-		CCIPPackageID:    report.Output.PackageId,
+		CCIPPackageID:    report.Output.PackageID,
 		StateObjectID:    report.Output.Objects.CCIPObjectRefObjectID,
 		OwnerCapObjectID: report.Output.Objects.OwnerCapObjectID,
 	}
@@ -69,8 +69,8 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 
 	inputOnRamp := DeployAndInitCCIPOnRampSeqInput{
 		DeployCCIPOnRampInput: DeployCCIPOnRampInput{
-			CCIPPackageID:      report.Output.PackageId,
-			MCMSPackageID:      reportMCMs.Output.PackageId,
+			CCIPPackageID:      report.Output.PackageID,
+			MCMSPackageID:      reportMCMs.Output.PackageID,
 			MCMSOwnerPackageID: signerAddress,
 		},
 		OnRampInitializeInput: OnRampInitializeInput{

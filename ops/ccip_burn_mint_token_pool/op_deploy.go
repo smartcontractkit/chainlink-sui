@@ -37,7 +37,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMint
 
 	return sui_ops.OpTxResult[BurnMintTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
-		PackageId: tokenPoolPackage.Address(),
+		PackageID: tokenPoolPackage.Address(),
 	}, err
 }
 

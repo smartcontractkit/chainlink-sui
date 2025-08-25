@@ -66,7 +66,7 @@ var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQ
 
 	return sui_ops.OpTxResult[InitFeeQuoterObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 		Objects: InitFeeQuoterObjects{
 			// FeeQuoterCapObjectID:   obj1,
 			FeeQuoterStateObjectID: obj2,
@@ -114,7 +114,7 @@ var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Fe
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 	}, err
 }
 
@@ -170,7 +170,7 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 	}, err
 }
 
@@ -248,7 +248,7 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 	}, err
 }
 
@@ -290,7 +290,7 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 	}, err
 }
 
@@ -337,7 +337,7 @@ var updateTokenPrices = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQ
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 	}, err
 }
 
@@ -382,7 +382,7 @@ var issueFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	return sui_ops.OpTxResult[IssueFeeQuoterCapObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageID,
+		PackageID: input.CCIPPackageID,
 		Objects: IssueFeeQuoterCapObjects{
 			FeeQuoterCapObjectID: obj1,
 		},

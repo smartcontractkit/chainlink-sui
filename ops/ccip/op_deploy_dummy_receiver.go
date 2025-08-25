@@ -68,7 +68,7 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 
 	return sui_ops.OpTxResult[DeployDummyReceiverObjects]{
 		Digest:    tx.Digest,
-		PackageId: packageID,
+		PackageID: packageID,
 		Objects: DeployDummyReceiverObjects{
 			OwnerCapObjectID:          ownerCapObjectID,
 			CCIPReceiverStateObjectID: receiverStateObjectID,

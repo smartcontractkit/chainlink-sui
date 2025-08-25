@@ -59,7 +59,7 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 
 	return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.LockReleasePackageID,
+		PackageID: input.LockReleasePackageID,
 		Objects: LockReleaseTokenPoolInitializeObjects{
 			OwnerCapObjectID: obj1,
 			StateObjectID:    obj2,
@@ -116,7 +116,7 @@ var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 
 	return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.LockReleasePackageID,
+		PackageID: input.LockReleasePackageID,
 		Objects: LockReleaseTokenPoolInitializeObjects{
 			OwnerCapObjectID: obj1,
 			StateObjectID:    obj2,
@@ -184,11 +184,11 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool apply chain updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyChainUpdates on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleasePackageID)
+	b.Logger.Infow("ApplyChainUpdates on LockReleaseTokenPool", "LockReleaseTokenPool PackageID:", input.LockReleasePackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.LockReleasePackageID,
+		PackageID: input.LockReleasePackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -242,11 +242,11 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool set configs rate limiter: %w", err)
 	}
 
-	b.Logger.Infow("SetChainRateLimiter on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleasePackageID)
+	b.Logger.Infow("SetChainRateLimiter on LockReleaseTokenPool", "LockReleaseTokenPool PackageID:", input.LockReleasePackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.LockReleasePackageID,
+		PackageID: input.LockReleasePackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -287,7 +287,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.LockReleaseTokenPoolPackageID,
+		PackageID: input.LockReleaseTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }

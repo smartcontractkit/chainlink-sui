@@ -49,7 +49,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Deploy Router
 	_, err = cld_ops.ExecuteOperation(bundle, DeployCCIPRouterOp, deps, DeployCCIPRouterInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageID,
 		McmsOwner:     signerAddress,
 	})
 	require.NoError(t, err, "failed to deploy LINK token")

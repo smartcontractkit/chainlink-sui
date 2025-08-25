@@ -72,7 +72,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageID,
 		McmsOwner:     signerAddress,
 	}
 
@@ -85,7 +85,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Initialize feeQuoter
 	feeQuoterInit := ccip_ops.InitFeeQuoterInput{
-		CCIPPackageID:                 reportCCIP.Output.PackageId,
+		CCIPPackageID:                 reportCCIP.Output.PackageID,
 		StateObjectID:                 reportCCIP.Output.Objects.CCIPObjectRefObjectID,
 		OwnerCapObjectID:              reportCCIP.Output.Objects.OwnerCapObjectID,
 		MaxFeeJuelsPerMsg:             "100000000",
@@ -98,7 +98,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Issue fee quoter cap
 	issueFeeQuoterCapInput := ccip_ops.IssueFeeQuoterCapInput{
-		CCIPPackageID:    reportCCIP.Output.PackageId,
+		CCIPPackageID:    reportCCIP.Output.PackageID,
 		OwnerCapObjectID: reportCCIP.Output.Objects.OwnerCapObjectID,
 	}
 
@@ -108,8 +108,8 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 	// Run OffRamp Sequence
 	seqOffRampInput := DeployAndInitCCIPOffRampSeqInput{
 		DeployCCIPOffRampInput: DeployCCIPOffRampInput{
-			CCIPPackageID: reportCCIP.Output.PackageId,
-			MCMSPackageID: reportMCMs.Output.PackageId,
+			CCIPPackageID: reportCCIP.Output.PackageID,
+			MCMSPackageID: reportMCMs.Output.PackageID,
 		},
 		InitializeOffRampInput: InitializeOffRampInput{
 			DestTransferCapID:                     reportCCIP.Output.Objects.DestTransferCapObjectID,

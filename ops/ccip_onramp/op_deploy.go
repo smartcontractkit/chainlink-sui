@@ -1,6 +1,7 @@
 package onrampops
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -51,7 +52,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: onRampPackage.Address(),
+		PackageID: onRampPackage.Address(),
 		Objects: DeployCCIPOnRampObjects{
 			OwnerCapObjectID:        obj1,
 			CCIPOnrampStateObjectID: obj2,
@@ -101,7 +102,7 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OnRampPackageID,
+		PackageID: input.OnRampPackageID,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
 }
@@ -138,7 +139,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OnRampPackageID,
+		PackageID: input.OnRampPackageID,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
 }
@@ -177,7 +178,7 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.OnRampPackageID,
+		PackageID: input.OnRampPackageID,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
 }
@@ -207,7 +208,7 @@ var IsChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
-		PackageId: input.OnRampPackageID,
+		PackageID: input.OnRampPackageID,
 		Objects: IsChainSupportedOutput{
 			IsChainSupported: isSupported,
 		},
@@ -232,12 +233,12 @@ var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	// The first return value is isEnabled (bool)
 	isEnabled, ok := config[0].(bool)
 	if !ok {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to parse isEnabled from config")
+		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, errors.New("failed to parse isEnabled from config")
 	}
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
-		PackageId: input.OnRampPackageID,
+		PackageID: input.OnRampPackageID,
 		Objects: IsChainSupportedOutput{
 			IsChainSupported: isEnabled,
 		},
@@ -274,7 +275,7 @@ var GetFee = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFeeInput) (o
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
-		PackageId: input.OnRampPackageID,
+		PackageID: input.OnRampPackageID,
 		Objects:   IsChainSupportedOutput{},
 	}, err
 }

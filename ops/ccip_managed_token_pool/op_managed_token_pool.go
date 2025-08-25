@@ -61,7 +61,7 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 
 	return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects: ManagedTokenPoolInitializeObjects{
 			OwnerCapObjectID: obj1,
 			StateObjectID:    obj2,
@@ -120,7 +120,7 @@ var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 
 	return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects: ManagedTokenPoolInitializeObjects{
 			OwnerCapObjectID: obj1,
 			StateObjectID:    obj2,
@@ -188,11 +188,11 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Mana
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool apply chain updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyChainUpdates on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID)
+	b.Logger.Infow("ApplyChainUpdates on ManagedTokenPool", "ManagedTokenPool PackageID:", input.ManagedTokenPoolPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -235,11 +235,11 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool add remote pool: %w", err)
 	}
 
-	b.Logger.Infow("AddRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Chain:", input.RemoteChainSelector)
+	b.Logger.Infow("AddRemotePool on ManagedTokenPool", "ManagedTokenPool PackageID:", input.ManagedTokenPoolPackageID, "Chain:", input.RemoteChainSelector)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -282,11 +282,11 @@ var removeRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool remove remote pool: %w", err)
 	}
 
-	b.Logger.Infow("RemoveRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Chain:", input.RemoteChainSelector)
+	b.Logger.Infow("RemoveRemotePool on ManagedTokenPool", "ManagedTokenPool PackageID:", input.ManagedTokenPoolPackageID, "Chain:", input.RemoteChainSelector)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -340,11 +340,11 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set configs rate limiter: %w", err)
 	}
 
-	b.Logger.Infow("SetChainRateLimiter on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID)
+	b.Logger.Infow("SetChainRateLimiter on ManagedTokenPool", "ManagedTokenPool PackageID:", input.ManagedTokenPoolPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -385,11 +385,11 @@ var setAllowlistEnabledHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set allowlist enabled: %w", err)
 	}
 
-	b.Logger.Infow("SetAllowlistEnabled on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Enabled:", input.Enabled)
+	b.Logger.Infow("SetAllowlistEnabled on ManagedTokenPool", "ManagedTokenPool PackageID:", input.ManagedTokenPoolPackageID, "Enabled:", input.Enabled)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -432,11 +432,11 @@ var applyAllowlistUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool apply allowlist updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyAllowlistUpdates on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Removes:", len(input.Removes), "Adds:", len(input.Adds))
+	b.Logger.Infow("ApplyAllowlistUpdates on ManagedTokenPool", "ManagedTokenPool PackageID:", input.ManagedTokenPoolPackageID, "Removes:", len(input.Removes), "Adds:", len(input.Adds))
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageID,
+		PackageID: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }

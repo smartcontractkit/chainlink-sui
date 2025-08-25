@@ -57,7 +57,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	return sui_ops.OpTxResult[DeployCCIPObjects]{
 		Digest:    tx.Digest,
-		PackageId: ccipPackage.Address(),
+		PackageID: ccipPackage.Address(),
 		Objects: DeployCCIPObjects{
 			OwnerCapObjectID:             obj1,
 			CCIPObjectRefPointerObjectID: obj2,

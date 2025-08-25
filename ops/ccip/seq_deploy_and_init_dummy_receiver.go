@@ -41,7 +41,7 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 		}
 
 		env.Logger.Infow("Dummy receiver deployed successfully",
-			"packageId", deployReport.Output.PackageId,
+			"packageId", deployReport.Output.PackageID,
 			"receiverStateId", deployReport.Output.Objects.CCIPReceiverStateObjectID,
 		)
 
@@ -52,7 +52,7 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 			deps,
 			RegisterDummyReceiverInput{
 				CCIPObjectRefObjectID:  input.CCIPObjectRefObjectID,
-				DummyReceiverPackageID: deployReport.Output.PackageId,
+				DummyReceiverPackageID: deployReport.Output.PackageID,
 			},
 		)
 		if err != nil {
@@ -62,7 +62,7 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 		env.Logger.Infow("Dummy receiver registered successfully with receiver registry")
 
 		return DeployDummyReceiverSeqOutput{
-			DummyReceiverPackageID: deployReport.Output.PackageId,
+			DummyReceiverPackageID: deployReport.Output.PackageID,
 			Objects: DeployDummyReceiverSeqObjects{
 				OwnerCapObjectID:          deployReport.Output.Objects.OwnerCapObjectID,
 				CCIPReceiverStateObjectID: deployReport.Output.Objects.CCIPReceiverStateObjectID,

@@ -53,7 +53,7 @@ func getLinkCoins_OLD_DELETE_ME(t *testing.T, envSettings *environment.Environme
 	}
 
 	// Create LINK token contract instance
-	linkContract, err := mocklinktoken.NewMockLinkToken(envSettings.MockLinkReport.Output.PackageId, envSettings.Client)
+	linkContract, err := mocklinktoken.NewMockLinkToken(envSettings.MockLinkReport.Output.PackageID, envSettings.Client)
 	require.NoError(t, err, "failed to create LINK token contract")
 
 	// Use MintAndTransfer to mint directly to the transaction account
@@ -194,8 +194,8 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
-	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
+	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageID)
+	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageID)
 
 	_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr)
 
@@ -258,7 +258,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			linkCoins,
 			envSettings.EthCoins,
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
-			environment.ClockObjectId,
+			environment.ClockObjectID,
 			envSettings.OnRampReport.Output.Objects.StateObjectID,
 			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectID,
 			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
@@ -334,7 +334,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			linkCoins,
 			envSettings.EthCoins,
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
-			environment.ClockObjectId,
+			environment.ClockObjectID,
 			envSettings.OnRampReport.Output.Objects.StateObjectID,
 			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectID,
 			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
@@ -409,8 +409,8 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 		TokenPoolType:      testutils.TokenPoolTypeManaged,
 	}
 
-	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
-	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
+	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageID)
+	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageID)
 
 	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
 		envSettings.CCIPReport.Output.CCIPPackageID,
@@ -460,7 +460,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 			mintedCoinId0,
 			envSettings.EthCoins[0],
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
-			environment.ClockObjectId,
+			environment.ClockObjectID,
 			envSettings.OnRampReport.Output.Objects.StateObjectID,
 			envSettings.ManagedTokenReport.Output.Objects.StateObjectId,
 			envSettings.ManagedTokenPoolReport.Output.Objects.StateObjectId,
@@ -517,7 +517,7 @@ func createCCIPSendPTBArgsForBMAndLRTokenPools(
 	return map[string]any{
 		"ccip_object_ref":                    ccipObjectRef,
 		"ccip_object_ref_mutable":            ccipObjectRef, // Same object, different parameter name
-		"clock":                              environment.ClockObjectId,
+		"clock":                              environment.ClockObjectID,
 		"destination_chain_selector":         destChainSelector,
 		"link_lock_release_token_pool_state": tokenPoolState,
 		"eth_burn_mint_token_pool_state":     ethTokenPoolState,
@@ -559,7 +559,7 @@ func createCCIPSendPTBArgsForManagedTokenPool(
 	return map[string]any{
 		"ccip_object_ref":              ccipObjectRef,
 		"ccip_object_ref_mutable":      ccipObjectRef, // Same object, different parameter name
-		"clock":                        environment.ClockObjectId,
+		"clock":                        environment.ClockObjectID,
 		"destination_chain_selector":   destChainSelector,
 		"eth_managed_token_state":      ethManagedTokenState,
 		"eth_managed_token_pool_state": ethManagedTokenPoolState,
@@ -570,7 +570,7 @@ func createCCIPSendPTBArgsForManagedTokenPool(
 		"fee_token_metadata":           linkTokenMetadata,
 		"fee_token":                    linkTokenCoinObject,
 		"extra_args":                   []byte{}, // Empty array to use default gas limit
-		"deny_list":                    environment.DenyListObjectId,
+		"deny_list":                    environment.DenyListObjectID,
 		"token_receiver":               testutils.ZeroAddress,
 	}
 }
