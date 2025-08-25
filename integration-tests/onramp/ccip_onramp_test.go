@@ -260,7 +260,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
 			envSettings.OnRampReport.Output.Objects.StateObjectId,
-			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectId,
+			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectID,
 			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
 			environment.EthereumAddress,
 		)
@@ -336,7 +336,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
 			envSettings.OnRampReport.Output.Objects.StateObjectId,
-			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectId,
+			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectID,
 			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
 			environment.EthereumAddress,
 		)

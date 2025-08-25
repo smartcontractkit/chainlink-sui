@@ -360,16 +360,16 @@ func SetupTokenPool(
 	// Deploy and initialize the lock release token pool
 	seqLockReleaseDeployInput := lockreleaseops.DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: lockreleaseops.LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.CCIPPackageID,
-			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
+			CCIPPackageID:          reportCCIP.Output.CCIPPackageID,
+			CCIPTokenPoolPackageID: ccipTokenPoolReport.Output.PackageId,
 			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      linkTokenType,
-		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		CoinMetadataObjectId:   mockLinkReport.Output.Objects.CoinMetadataObjectId,
-		TreasuryCapObjectId:    mockLinkReport.Output.Objects.TreasuryCapObjectId,
+		CCIPObjectRefObjectID:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
+		CoinMetadataObjectID:   mockLinkReport.Output.Objects.CoinMetadataObjectId,
+		TreasuryCapObjectID:    mockLinkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: accountAddress,
 		Rebalancer:             signerAddr,
 
@@ -420,8 +420,8 @@ func SetupTokenPool(
 
 	// Provide the minted tokens as liquidity to the pool
 	provideLiquidityInput := lockreleaseops.LockReleaseTokenPoolProviderLiquidityInput{
-		LockReleaseTokenPoolPackageId: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
-		StateObjectId:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectId,
+		LockReleaseTokenPoolPackageID: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
+		StateObjectID:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectID,
 		Coin:                          mintedCoinId,
 		CoinObjectTypeArg:             linkTokenType,
 	}
