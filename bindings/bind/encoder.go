@@ -113,6 +113,15 @@ func (c *BoundContract) EncodeCallArgsWithGenerics(function string, typeArgs []s
 		case *transaction.Argument:
 			encodedArgs[i] = NewEncodedCallArgFromArgumentWithType(v, typeName)
 		default:
+			if typeName == "vector<u8>" {
+				switch v := typeValue.(type) {
+				case [32]byte:
+					typeValue = v[:]
+				case *[32]byte:
+					typeValue = v[:]
+				}
+			}
+
 			callArg, err := ConvertToCallArg(typeName, typeValue)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert parameter %d (%s): %w", i, typeName, err)

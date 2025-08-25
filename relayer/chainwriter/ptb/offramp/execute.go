@@ -142,6 +142,7 @@ func BuildOffRampExecutePTB(
 		callOpts,
 		coinMetadataAddresses,
 		initExecuteResult,
+		offrampArgs.ExtraData.ExtraArgsDecoded,
 	)
 	if err != nil {
 		return err
@@ -159,6 +160,7 @@ func BuildOffRampExecutePTB(
 		&addressMappings,
 		callOpts,
 		initExecuteResult,
+		offrampArgs.ExtraData.ExtraArgsDecoded,
 	)
 	if err != nil {
 		return err
@@ -187,6 +189,7 @@ func ProcessTokenPools(
 	callOpts *bind.CallOpts,
 	coinMetadataAddresses []string,
 	receiverParams *transaction.Argument,
+	extraArgs map[string]any,
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
@@ -363,6 +366,7 @@ func ProcessReceivers(
 	addressMappings *OffRampAddressMappings,
 	callOpts *bind.CallOpts,
 	receiverParams *transaction.Argument,
+	extraArgs map[string]any,
 ) ([]transaction.Argument, error) {
 	sdkClient := ptbClient.GetClient()
 
@@ -387,7 +391,10 @@ func ProcessReceivers(
 			continue
 		}
 
-		receiverPackageId := string(message.Receiver)
+		// Trim the 0x prefix if present
+		receiverPackageId := hex.EncodeToString(message.Receiver)
+		fmt.Println("RECEIVER PACKAGE ID:", "0x"+receiverPackageId)
+
 		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
@@ -415,6 +422,7 @@ func ProcessReceivers(
 			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
 		}
 
+		fmt.Println("MESSAGE: ", message)
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
 			ctx,
 			lggr,
@@ -426,9 +434,9 @@ func ProcessReceivers(
 			"ccip_receive",
 			addressMappings,
 			message.Header.MessageID,
-			&receiverConfig,
 			&receiverNormalizedModule,
 			receiverParams,
+			extraArgs,
 		)
 		if err != nil {
 			return nil, err
@@ -450,9 +458,9 @@ func AppendPTBCommandForReceiver(
 	functionName string,
 	addressMappings *OffRampAddressMappings,
 	messageID [32]byte,
-	receiverConfig *receiver_registry.ReceiverConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
+	extraArgs map[string]any,
 ) (*transaction.Argument, error) {
 	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
 	if err != nil {
@@ -497,18 +505,36 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
 	}
 
+	// Append extra args to the paramValues for the receiver call.
+	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
+	if !ok {
+		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
+	}
+	extraArgsValues := receiverObjectIds.([][]byte)
+
+	for _, value := range extraArgsValues {
+		objectId := hex.EncodeToString(value)
+		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
+	}
+
+	clockObj := hex.EncodeToString(extraArgsValues[0])
+	recieverState := hex.EncodeToString(extraArgsValues[1])
+
+	fmt.Println("RECIEVER OBJ: ", clockObj, recieverState)
 	typeArgsList = []string{}
 	typeParamsList = []string{}
 	paramValues = []any{
 		messageID,
 		bind.Object{Id: addressMappings.CcipObjectRef},
 		extractedAny2SuiMessageResult,
+		bind.Object{Id: "0x" + clockObj},
+		bind.Object{Id: "0x" + recieverState},
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
-	functionSignature, ok := normalizedModule.ExposedFunctions[OfframpTokenPoolFunctionName]
+	functionSignature, ok := normalizedModule.ExposedFunctions[functionName]
 	if !ok {
-		return nil, fmt.Errorf("missing function signature for token pool function not found in module (%s)", OfframpTokenPoolFunctionName)
+		return nil, fmt.Errorf("missing function signature for receiver function not found in module (%s)", functionName)
 	}
 
 	// Figure out the parameter types from the normalized module of the token pool
@@ -517,14 +543,7 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
 
-	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
-
-	// TODO: replace this with the decoded extraArgs from core
-	// Append dynamic values (addresses) to the paramValues for the receiver call.
-	// This is used for state references for the receiver (similar to the token pool call).
-	//for _, value := range receiverConfig.ReceiverStateParams {
-	//	paramValues = append(paramValues, value)
-	//}
+	fmt.Println("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
 		functionName,
