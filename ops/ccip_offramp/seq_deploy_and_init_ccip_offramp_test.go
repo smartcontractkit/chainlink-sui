@@ -93,8 +93,17 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		TokenPriceStalenessThreshold:  60,
 	}
 
-	reportFeeQuoterInit, err := cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterInitializeOp, deps, feeQuoterInit)
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterInitializeOp, deps, feeQuoterInit)
 	require.NoError(t, err, "failed to initialize Fee Quoter Package")
+
+	// Issue fee quoter cap
+	issueFeeQuoterCapInput := ccip_ops.IssueFeeQuoterCapInput{
+		CCIPPackageID:    reportCCIP.Output.PackageId,
+		OwnerCapObjectID: reportCCIP.Output.Objects.OwnerCapObjectID,
+	}
+
+	reportIssueFeeQuoterCap, err := cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterIssueFeeQuoterCapOp, deps, issueFeeQuoterCapInput)
+	require.NoError(t, err, "failed to issue Fee Quoter Cap")
 
 	// Run OffRamp Sequence
 	seqOffRampInput := DeployAndInitCCIPOffRampSeqInput{
@@ -104,7 +113,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		},
 		InitializeOffRampInput: InitializeOffRampInput{
 			DestTransferCapID:                     reportCCIP.Output.Objects.DestTransferCapObjectID,
-			FeeQuoterCapID:                        reportFeeQuoterInit.Output.Objects.FeeQuoterCapObjectID,
+			FeeQuoterCapID:                        reportIssueFeeQuoterCap.Output.Objects.FeeQuoterCapObjectID,
 			ChainSelector:                         2,
 			PremissionExecThresholdSeconds:        10,
 			SourceChainSelectors:                  []uint64{1},

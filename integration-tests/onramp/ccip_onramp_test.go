@@ -210,7 +210,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 
 	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
 		envSettings.CCIPReport.Output.CCIPPackageID,
-		envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+		envSettings.OnRampReport.Output.CCIPOnRampPackageID,
 		[]testutils.TokenToolDetails{tokenPoolDetails, ethTokenPoolDetails},
 		publicKeyBytes,
 		linkTokenType,
@@ -259,7 +259,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			envSettings.EthCoins,
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
-			envSettings.OnRampReport.Output.Objects.StateObjectId,
+			envSettings.OnRampReport.Output.Objects.StateObjectID,
 			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectID,
 			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
 			environment.EthereumAddress,
@@ -300,7 +300,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 
 		// Query for ReceivedMessage events emitted by the dummy receiver
 		eventFilter := client.EventFilterByMoveEventModule{
-			Package: envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+			Package: envSettings.OnRampReport.Output.CCIPOnRampPackageID,
 			Module:  "onramp",
 			Event:   "CCIPMessageSent",
 		}
@@ -335,7 +335,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			envSettings.EthCoins,
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
-			envSettings.OnRampReport.Output.Objects.StateObjectId,
+			envSettings.OnRampReport.Output.Objects.StateObjectID,
 			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectID,
 			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
 			environment.EthereumAddress,
@@ -414,7 +414,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 
 	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
 		envSettings.CCIPReport.Output.CCIPPackageID,
-		envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+		envSettings.OnRampReport.Output.CCIPOnRampPackageID,
 		[]testutils.TokenToolDetails{ethManagedTokenPoolDetails},
 		publicKeyBytes,
 		linkTokenType,
@@ -461,7 +461,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 			envSettings.EthCoins[0],
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
-			envSettings.OnRampReport.Output.Objects.StateObjectId,
+			envSettings.OnRampReport.Output.Objects.StateObjectID,
 			envSettings.ManagedTokenReport.Output.Objects.StateObjectId,
 			envSettings.ManagedTokenPoolReport.Output.Objects.StateObjectId,
 			environment.EthereumAddress,
