@@ -22,6 +22,7 @@ var (
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
+	IssueFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error)
@@ -75,6 +76,8 @@ type FeeQuoterEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	IssueFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error)
+	IssueFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error)
 	GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTimestampedPriceFields(tp TimestampedPrice) (*bind.EncodedCall, error)
@@ -647,6 +650,16 @@ func (c *FeeQuoterContract) TypeAndVersion(ctx context.Context, opts *bind.CallO
 // Initialize executes the initialize Move function.
 func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.Initialize(ref, ownerCap, maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold, feeTokens)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// IssueFeeQuoterCap executes the issue_fee_quoter_cap Move function.
+func (c *FeeQuoterContract) IssueFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.IssueFeeQuoterCap(param)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1323,6 +1336,32 @@ func (c feeQuoterEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, er
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// IssueFeeQuoterCap encodes a call to the issue_fee_quoter_cap Move function.
+func (c feeQuoterEncoder) IssueFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("issue_fee_quoter_cap", typeArgsList, typeParamsList, []string{
+		"&OwnerCap",
+	}, []any{
+		param,
+	}, nil)
+}
+
+// IssueFeeQuoterCapWithArgs encodes a call to the issue_fee_quoter_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) IssueFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OwnerCap",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("issue_fee_quoter_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetTokenPrice encodes a call to the get_token_price Move function.

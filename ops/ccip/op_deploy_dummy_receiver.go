@@ -13,13 +13,13 @@ import (
 )
 
 type DeployDummyReceiverObjects struct {
-	OwnerCapObjectId          string
-	CCIPReceiverStateObjectId string
+	OwnerCapObjectID          string
+	CCIPReceiverStateObjectID string
 }
 
 type DeployDummyReceiverInput struct {
-	CCIPPackageId string
-	McmsPackageId string
+	CCIPPackageID string
+	McmsPackageID string
 	McmsOwner     string
 }
 
@@ -29,9 +29,9 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 
 	// Compile the dummy receiver package
 	artifact, err := bind.CompilePackage(contracts.CCIPDummyReceiver, map[string]string{
-		"ccip":                input.CCIPPackageId,
+		"ccip":                input.CCIPPackageID,
 		"ccip_dummy_receiver": "0x0",
-		"mcms":                input.McmsPackageId,
+		"mcms":                input.McmsPackageID,
 		"mcms_owner":          input.McmsOwner,
 	})
 	if err != nil {
@@ -39,7 +39,7 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	}
 
 	// Publish the package
-	packageId, tx, err := bind.PublishPackage(
+	packageID, tx, err := bind.PublishPackage(
 		b.GetContext(),
 		opts,
 		deps.Client,
@@ -56,22 +56,22 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	// The init function creates:
 	// 1. CCIPReceiverState (shared object)
 	// 2. OwnerCap (transferred to sender)
-	ownerCapObjectId, err1 := bind.FindObjectIdFromPublishTx(*tx, "dummy_receiver", "OwnerCap")
+	ownerCapObjectID, err1 := bind.FindObjectIdFromPublishTx(*tx, "dummy_receiver", "OwnerCap")
 	if err1 != nil {
 		return sui_ops.OpTxResult[DeployDummyReceiverObjects]{}, fmt.Errorf("failed to find OwnerCap object ID in publish tx: %w", err1)
 	}
 
-	receiverStateObjectId, err2 := bind.FindObjectIdFromPublishTx(*tx, "dummy_receiver", "CCIPReceiverState")
+	receiverStateObjectID, err2 := bind.FindObjectIdFromPublishTx(*tx, "dummy_receiver", "CCIPReceiverState")
 	if err2 != nil {
 		return sui_ops.OpTxResult[DeployDummyReceiverObjects]{}, fmt.Errorf("failed to find CCIPReceiverState object ID in publish tx: %w", err2)
 	}
 
 	return sui_ops.OpTxResult[DeployDummyReceiverObjects]{
 		Digest:    tx.Digest,
-		PackageId: packageId,
+		PackageId: packageID,
 		Objects: DeployDummyReceiverObjects{
-			OwnerCapObjectId:          ownerCapObjectId,
-			CCIPReceiverStateObjectId: receiverStateObjectId,
+			OwnerCapObjectID:          ownerCapObjectID,
+			CCIPReceiverStateObjectID: receiverStateObjectID,
 		},
 	}, nil
 }

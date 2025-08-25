@@ -15,22 +15,22 @@ import (
 
 // FEE QUOTER -- INITIALIZE
 type InitFeeQuoterObjects struct {
-	FeeQuoterCapObjectId   string
-	FeeQuoterStateObjectId string
+	// FeeQuoterCapObjectID   string
+	FeeQuoterStateObjectID string
 }
 
 type InitFeeQuoterInput struct {
-	CCIPPackageId                 string
-	StateObjectId                 string
-	OwnerCapObjectId              string
+	CCIPPackageID                 string
+	StateObjectID                 string
+	OwnerCapObjectID              string
 	MaxFeeJuelsPerMsg             string
-	LinkTokenCoinMetadataObjectId string
+	LinkTokenCoinMetadataObjectID string
 	TokenPriceStalenessThreshold  uint64
 	FeeTokens                     []string
 }
 
 var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQuoterInput) (output sui_ops.OpTxResult[InitFeeQuoterObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -46,10 +46,10 @@ var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQ
 	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		maxFeeJuels,
-		input.LinkTokenCoinMetadataObjectId,
+		input.LinkTokenCoinMetadataObjectID,
 		input.TokenPriceStalenessThreshold,
 		input.FeeTokens,
 	)
@@ -57,19 +57,19 @@ var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQ
 		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterCap")
+	// obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterState")
 
-	if err1 != nil || err2 != nil {
+	if err2 != nil {
 		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
 	return sui_ops.OpTxResult[InitFeeQuoterObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 		Objects: InitFeeQuoterObjects{
-			FeeQuoterCapObjectId:   obj1,
-			FeeQuoterStateObjectId: obj2,
+			// FeeQuoterCapObjectID:   obj1,
+			FeeQuoterStateObjectID: obj2,
 		},
 	}, err
 }
@@ -85,15 +85,15 @@ var FeeQuoterInitializeOp = cld_ops.NewOperation(
 type NoObjects struct{}
 
 type FeeQuoterApplyFeeTokenUpdatesInput struct {
-	CCIPPackageId     string
-	StateObjectId     string
-	OwnerCapObjectId  string
+	CCIPPackageID     string
+	StateObjectID     string
+	OwnerCapObjectID  string
 	FeeTokensToRemove []string
 	FeeTokensToAdd    []string
 }
 
 var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterApplyFeeTokenUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -103,8 +103,8 @@ var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Fe
 	tx, err := contract.ApplyFeeTokenUpdates(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.FeeTokensToRemove,
 		input.FeeTokensToAdd,
 	)
@@ -114,7 +114,7 @@ var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Fe
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 	}, err
 }
 
@@ -127,9 +127,9 @@ var FeeQuoterApplyFeeTokenUpdatesOp = cld_ops.NewOperation(
 
 // FEE QUOTER -- apply_token_transfer_fee_config_updates
 type FeeQuoterApplyTokenTransferFeeConfigUpdatesInput struct {
-	CCIPPackageId        string
-	StateObjectId        string
-	OwnerCapObjectId     string
+	CCIPPackageID        string
+	StateObjectID        string
+	OwnerCapObjectID     string
 	DestChainSelector    uint64
 	AddTokens            []string
 	AddMinFeeUsdCents    []uint32
@@ -142,7 +142,7 @@ type FeeQuoterApplyTokenTransferFeeConfigUpdatesInput struct {
 }
 
 var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterApplyTokenTransferFeeConfigUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -152,8 +152,8 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	tx, err := contract.ApplyTokenTransferFeeConfigUpdates(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.DestChainSelector,
 		input.AddTokens,
 		input.AddMinFeeUsdCents,
@@ -170,7 +170,7 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 	}, err
 }
 
@@ -183,9 +183,9 @@ var FeeQuoterApplyTokenTransferFeeConfigUpdatesOp = cld_ops.NewOperation(
 
 // FEE QUOTER -- apply_dest_chain_config_updates
 type FeeQuoterApplyDestChainConfigUpdatesInput struct {
-	CCIPPackageId                     string
-	StateObjectId                     string
-	OwnerCapObjectId                  string
+	CCIPPackageID                     string
+	StateObjectID                     string
+	OwnerCapObjectID                  string
 	DestChainSelector                 uint64
 	IsEnabled                         bool
 	MaxNumberOfTokensPerMsg           uint16
@@ -209,7 +209,7 @@ type FeeQuoterApplyDestChainConfigUpdatesInput struct {
 }
 
 var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterApplyDestChainConfigUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -219,8 +219,8 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	tx, err := contract.ApplyDestChainConfigUpdates(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.DestChainSelector,
 		input.IsEnabled,
 		input.MaxNumberOfTokensPerMsg,
@@ -248,7 +248,7 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 	}, err
 }
 
@@ -261,15 +261,15 @@ var FeeQuoterApplyDestChainConfigUpdatesOp = cld_ops.NewOperation(
 
 // FEE QUOTER -- apply_premium_multiplier_wei_per_eth_updates
 type FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput struct {
-	CCIPPackageId              string
-	StateObjectId              string
-	OwnerCapObjectId           string
+	CCIPPackageID              string
+	StateObjectID              string
+	OwnerCapObjectID           string
 	Tokens                     []string
 	PremiumMultiplierWeiPerEth []uint64
 }
 
 var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -279,8 +279,8 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 	tx, err := contract.ApplyPremiumMultiplierWeiPerEthUpdates(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.Tokens,
 		input.PremiumMultiplierWeiPerEth,
 	)
@@ -290,7 +290,7 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 	}, err
 }
 
@@ -302,9 +302,9 @@ var FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp = cld_ops.NewOperation(
 )
 
 type FeeQuoterUpdateTokenPricesInput struct {
-	CCIPPackageId         string
+	CCIPPackageID         string
 	CCIPObjectRef         string
-	FeeQuoterCapId        string
+	FeeQuoterCapID        string
 	SourceTokens          []string
 	SourceUsdPerToken     []*big.Int
 	GasDestChainSelectors []uint64
@@ -312,7 +312,7 @@ type FeeQuoterUpdateTokenPricesInput struct {
 }
 
 var updateTokenPrices = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterUpdateTokenPricesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -323,7 +323,7 @@ var updateTokenPrices = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQ
 		b.GetContext(),
 		opts,
 		bind.Object{Id: input.CCIPObjectRef},
-		bind.Object{Id: input.FeeQuoterCapId},
+		bind.Object{Id: input.FeeQuoterCapID},
 		bind.Object{Id: "0x6"}, // Clock object
 		input.SourceTokens,
 		input.SourceUsdPerToken,
@@ -337,7 +337,7 @@ var updateTokenPrices = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQ
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 	}, err
 }
 
@@ -346,4 +346,52 @@ var FeeQuoterUpdateTokenPricesOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Apply update prices in CCIP Fee Quoter contract",
 	updateTokenPrices,
+)
+
+// FEE QUOTER -- issue_fee_quoter_cap
+type IssueFeeQuoterCapObjects struct {
+	FeeQuoterCapObjectID string
+}
+
+type IssueFeeQuoterCapInput struct {
+	CCIPPackageID    string
+	OwnerCapObjectID string
+}
+
+var issueFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IssueFeeQuoterCapInput) (output sui_ops.OpTxResult[IssueFeeQuoterCapObjects], err error) {
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageID, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[IssueFeeQuoterCapObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.IssueFeeQuoterCap(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.OwnerCapObjectID},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[IssueFeeQuoterCapObjects]{}, fmt.Errorf("failed to execute fee quoter issue_fee_quoter_cap: %w", err)
+	}
+
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterCap")
+	if err1 != nil {
+		return sui_ops.OpTxResult[IssueFeeQuoterCapObjects]{}, fmt.Errorf("failed to find FeeQuoterCap object ID in tx: %w", err1)
+	}
+
+	return sui_ops.OpTxResult[IssueFeeQuoterCapObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageID,
+		Objects: IssueFeeQuoterCapObjects{
+			FeeQuoterCapObjectID: obj1,
+		},
+	}, err
+}
+
+var FeeQuoterIssueFeeQuoterCapOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "fee_quoter", "issue_fee_quoter_cap"),
+	semver.MustParse("0.1.0"),
+	"Issue a new fee quoter cap in the CCIP Fee Quoter contract",
+	issueFeeQuoterCapHandler,
 )

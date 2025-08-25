@@ -13,18 +13,18 @@ import (
 )
 
 type InitNMObjects struct {
-	NonceManagerStateObjectId string
-	NonceManagerCapObjectId   string
+	NonceManagerStateObjectID string
+	NonceManagerCapObjectID   string
 }
 
 type InitNMInput struct {
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
+	CCIPPackageID    string
+	StateObjectID    string
+	OwnerCapObjectID string
 }
 
 var initNMHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitNMInput) (output sui_ops.OpTxResult[InitNMObjects], err error) {
-	contract, err := module_nonce_manager.NewNonceManager(input.CCIPPackageId, deps.Client)
+	contract, err := module_nonce_manager.NewNonceManager(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitNMObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -34,8 +34,8 @@ var initNMHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitNMIn
 	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[InitNMObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
@@ -50,10 +50,10 @@ var initNMHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitNMIn
 
 	return sui_ops.OpTxResult[InitNMObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 		Objects: InitNMObjects{
-			NonceManagerStateObjectId: obj1,
-			NonceManagerCapObjectId:   obj2,
+			NonceManagerStateObjectID: obj1,
+			NonceManagerCapObjectID:   obj2,
 		},
 	}, err
 }

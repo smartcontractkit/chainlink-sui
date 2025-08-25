@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -43,10 +44,10 @@ const (
 	bitShift            = 8
 )
 
-// DecodeSuiJsonValue decodes Sui JSON-RPC response data into the provided target
-func DecodeSuiJsonValue(data any, target any) error {
+// DecodeSuiJSONValue decodes Sui JSON-RPC response data into the provided target
+func DecodeSuiJSONValue(data any, target any) error {
 	if target == nil {
-		return fmt.Errorf("target cannot be nil")
+		return errors.New("target cannot be nil")
 	}
 
 	// unwrap raw JSON bytes / RawMessage
@@ -56,7 +57,7 @@ func DecodeSuiJsonValue(data any, target any) error {
 			return fmt.Errorf("json unmarshal failed: %w", err)
 		}
 
-		return DecodeSuiJsonValue(intermediate, target)
+		return DecodeSuiJSONValue(intermediate, target)
 	}
 	// direct type‐match optimization
 	if reflect.TypeOf(data) == reflect.TypeOf(target).Elem() {
@@ -91,7 +92,6 @@ func DecodeSuiJsonValue(data any, target any) error {
 		return nil
 	}
 
-	//nolint:exhaustive
 	switch targetType.Kind() {
 	case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		return decodeNumeric(data, targetValue)
@@ -188,7 +188,7 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType any, normal
 	case string:
 		// Primitive vector type like "U8", "Address"
 		switch v {
-		//nolint:goconst
+		//nolint:goconst // BCS type names are repeated but should remain as string literals
 		case "U8":
 			// This is vector<u8> - read as bytes
 			bytes := make([]byte, vectorLength)
@@ -197,7 +197,7 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType any, normal
 			}
 
 			return bytes, nil
-		//nolint:goconst
+		//nolint:goconst // BCS type names are repeated but should remain as string literals
 		case "Address":
 			// This is vector<address>
 			addresses := make([]any, vectorLength)
@@ -240,11 +240,11 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType any, normal
 			structVector := make([]any, vectorLength)
 			structMap, ok := structType.(map[string]any)
 			if !ok {
-				return nil, fmt.Errorf("invalid struct type in vector")
+				return nil, errors.New("invalid struct type in vector")
 			}
 			structName, ok := structMap["name"].(string)
 			if !ok {
-				return nil, fmt.Errorf("struct name not found in vector element")
+				return nil, errors.New("struct name not found in vector element")
 			}
 
 			// this is a special case where strings are defined as a struct in Sui normalized module structs definition
@@ -274,28 +274,28 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType any, normal
 
 func DecodeSuiPrimative(bcsDecoder *aptosBCS.Deserializer, primativeType string) (any, error) {
 	switch primativeType {
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "U8", "u8":
 		return bcsDecoder.U8(), nil
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "U16", "u16":
 		return bcsDecoder.U16(), nil
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "U32", "u32":
 		return bcsDecoder.U32(), nil
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "U64", "u64":
 		return bcsDecoder.U64(), nil
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "U128", "u128":
 		return bcsDecoder.U128(), nil
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "U256", "u256":
 		return bcsDecoder.U256(), nil
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "Bool", "bool":
 		return bcsDecoder.Bool(), nil
-	//nolint:goconst
+	//nolint:goconst // BCS type names are repeated but should remain as string literals
 	case "Address", "address":
 		addressBytesLen := 32
 		return bcsDecoder.ReadFixedBytes(addressBytesLen), nil
@@ -396,7 +396,6 @@ func decodeGeneric(data any, target any) error {
 
 // decodeNumeric handles numeric types (u64, u32, etc.)
 func decodeNumeric(data any, targetValue reflect.Value) error {
-	//nolint:exhaustive
 	switch v := data.(type) {
 	case float64:
 		return setNumericValue(targetValue, uint64(v))
@@ -433,7 +432,6 @@ func decodeNumeric(data any, targetValue reflect.Value) error {
 
 // setNumericValue sets a numeric value on the target based on its kind
 func setNumericValue(targetValue reflect.Value, value uint64) error {
-	//nolint:exhaustive
 	switch targetValue.Kind() {
 	case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8:
 		targetValue.SetUint(value)
@@ -446,7 +444,7 @@ func setNumericValue(targetValue reflect.Value, value uint64) error {
 // decodeNumericFromBytes converts a byte array to a numeric value (little-endian)
 func decodeNumericFromBytes(bytes []byte, targetValue reflect.Value) error {
 	if len(bytes) == 0 {
-		return fmt.Errorf("empty byte array cannot be converted to numeric value")
+		return errors.New("empty byte array cannot be converted to numeric value")
 	}
 
 	var result uint64
@@ -536,7 +534,7 @@ func decodeSliceElements(sourceSlice []any, targetValue reflect.Value) error {
 
 	for i, item := range sourceSlice {
 		elemValue := reflect.New(elemType)
-		if err := DecodeSuiJsonValue(item, elemValue.Interface()); err != nil {
+		if err := DecodeSuiJSONValue(item, elemValue.Interface()); err != nil {
 			return fmt.Errorf("failed to decode slice element at index %d: %w", i, err)
 		}
 		slice.Index(i).Set(elemValue.Elem())
@@ -551,7 +549,6 @@ func decodeSliceElements(sourceSlice []any, targetValue reflect.Value) error {
 func AnySliceToBytes(src []any) ([]byte, error) {
 	dst := make([]byte, len(src))
 	for i, v := range src {
-		//nolint:exhaustive
 		switch x := v.(type) {
 		case uint8:
 			dst[i] = x
@@ -601,7 +598,6 @@ func ParseSuiResponseValue(rawResponse any) (any, error) {
 
 // parseValueByType parses response value based on its Sui type
 func parseValueByType(responseValue any, responseType string) (any, error) {
-	//nolint:exhaustive
 	switch {
 	case isUintType(responseType):
 		return parseUintValue(responseValue, responseType)
@@ -804,7 +800,7 @@ func convertTupleToMap(tupleArray []any, types []string) (map[string]any, error)
 	result := make(map[string]any)
 
 	for i, item := range tupleArray {
-		key := fmt.Sprintf("%d", i)
+		key := strconv.Itoa(i)
 
 		if i < len(types) {
 			elemType := strings.TrimSpace(types[i])
@@ -864,7 +860,7 @@ func hexStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
+		return handleSingleFieldStruct(t, data, DecodeSuiJSONValue)
 	}
 
 	return processHexConversion(str, t)
@@ -886,7 +882,6 @@ func handleSingleFieldStruct(t reflect.Type, data any, decodeFn func(any, any) e
 
 // processHexConversion handles hex string conversion based on target type
 func processHexConversion(hexStr string, t reflect.Type) (any, error) {
-	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.String:
 		return hexStr, nil
@@ -977,7 +972,7 @@ func base64StringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
+		return handleSingleFieldStruct(t, data, DecodeSuiJSONValue)
 	}
 
 	// Try base64 decoding for byte-slices AND byte-arrays that's fixed length
@@ -1003,7 +998,7 @@ func numericStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
+		return handleSingleFieldStruct(t, data, DecodeSuiJSONValue)
 	}
 
 	return processNumericString(str, t)
@@ -1011,7 +1006,6 @@ func numericStringHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 // processNumericString handles numeric string conversion based on target type
 func processNumericString(str string, t reflect.Type) (any, error) {
-	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.String:
 		return str, nil
@@ -1102,7 +1096,7 @@ func booleanHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
+		return handleSingleFieldStruct(t, data, DecodeSuiJSONValue)
 	}
 
 	return processBooleanConversion(boolValue, t)
@@ -1110,7 +1104,7 @@ func booleanHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 // processBooleanConversion handles boolean conversion based on target type
 func processBooleanConversion(boolValue bool, t reflect.Type) (any, error) {
-	//nolint:exhaustive
+	//nolint:exhaustive // Only handling specific reflect.Kind cases relevant to boolean conversion
 	switch t.Kind() {
 	case reflect.Bool:
 		return boolValue, nil
@@ -1143,7 +1137,7 @@ func arrayHook(f reflect.Type, t reflect.Type, data any) (any, error) {
 
 	// Handle single-field struct case
 	if t.Kind() == reflect.Struct && t.NumField() == 1 {
-		return handleSingleFieldStruct(t, data, DecodeSuiJsonValue)
+		return handleSingleFieldStruct(t, data, DecodeSuiJSONValue)
 	}
 
 	if t.Kind() != reflect.Slice {
@@ -1162,7 +1156,7 @@ func processArrayConversion(data any, t reflect.Type) (any, error) {
 		sourceElem := sourceSlice.Index(i).Interface()
 		targetElem := reflect.New(t.Elem()).Interface()
 
-		if err := DecodeSuiJsonValue(sourceElem, targetElem); err != nil {
+		if err := DecodeSuiJSONValue(sourceElem, targetElem); err != nil {
 			return nil, fmt.Errorf("failed to decode array element at index %d: %w", i, err)
 		}
 
@@ -1174,7 +1168,6 @@ func processArrayConversion(data any, t reflect.Type) (any, error) {
 
 // Overflow checking functions
 func overflowFloat(t reflect.Type, x float64) bool {
-	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.Float32:
 		return overflowFloat32(x)
@@ -1194,7 +1187,6 @@ func overflowFloat32(x float64) bool {
 }
 
 func overflowInt(t reflect.Type, x int64) bool {
-	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		bitSize := t.Size() * uint8Bits
@@ -1207,7 +1199,6 @@ func overflowInt(t reflect.Type, x int64) bool {
 }
 
 func overflowUint(t reflect.Type, x uint64) bool {
-	//nolint:exhaustive
 	switch t.Kind() {
 	case reflect.Uint, reflect.Uintptr, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		bitSize := t.Size() * uint8Bits

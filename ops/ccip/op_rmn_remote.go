@@ -13,18 +13,18 @@ import (
 )
 
 type InitRMNRemoteObjects struct {
-	RMNRemoteStateObjectId string
+	RMNRemoteStateObjectID string
 }
 
 type InitRMNRemoteInput struct {
-	CCIPPackageId      string
-	StateObjectId      string
-	OwnerCapObjectId   string
+	CCIPPackageID      string
+	StateObjectID      string
+	OwnerCapObjectID   string
 	LocalChainSelector uint64
 }
 
 var initRMNRemoteHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitRMNRemoteInput) (output sui_ops.OpTxResult[InitRMNRemoteObjects], err error) {
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitRMNRemoteObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -34,8 +34,8 @@ var initRMNRemoteHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input I
 	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.LocalChainSelector,
 	)
 	if err != nil {
@@ -49,9 +49,9 @@ var initRMNRemoteHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input I
 
 	return sui_ops.OpTxResult[InitRMNRemoteObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 		Objects: InitRMNRemoteObjects{
-			RMNRemoteStateObjectId: obj1,
+			RMNRemoteStateObjectID: obj1,
 		},
 	}, err
 }
@@ -64,9 +64,9 @@ var RMNRemoteInitializeOp = cld_ops.NewOperation(
 )
 
 type RMNRemoteSetConfigInput struct {
-	CCIPPackageId               string
-	StateObjectId               string
-	OwnerCapObjectId            string
+	CCIPPackageID               string
+	StateObjectID               string
+	OwnerCapObjectID            string
 	RmnHomeContractConfigDigest []byte
 	SignerOnchainPublicKeys     [][]byte
 	NodeIndexes                 []uint64
@@ -74,7 +74,7 @@ type RMNRemoteSetConfigInput struct {
 }
 
 var handlerSetconfig = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRemoteSetConfigInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageId, deps.Client)
+	contract, err := module_rmn_remote.NewRmnRemote(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create RMN Remote contract: %w", err)
 	}
@@ -84,8 +84,8 @@ var handlerSetconfig = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRe
 	tx, err := contract.SetConfig(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 		input.RmnHomeContractConfigDigest,
 		input.SignerOnchainPublicKeys,
 		input.NodeIndexes,
@@ -97,7 +97,7 @@ var handlerSetconfig = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RMNRe
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 		Objects:   NoObjects{},
 	}, err
 }

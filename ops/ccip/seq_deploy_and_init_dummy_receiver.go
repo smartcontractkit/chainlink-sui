@@ -12,17 +12,16 @@ type DeployAndInitDummyReceiverInput struct {
 	// For deployment
 	DeployDummyReceiverInput
 	// For registration
-	CCIPObjectRefObjectId string
-	ReceiverStateParams   []string
+	CCIPObjectRefObjectID string
 }
 
 type DeployDummyReceiverSeqObjects struct {
-	OwnerCapObjectId          string
-	CCIPReceiverStateObjectId string
+	OwnerCapObjectID          string
+	CCIPReceiverStateObjectID string
 }
 
 type DeployDummyReceiverSeqOutput struct {
-	DummyReceiverPackageId string
+	DummyReceiverPackageID string
 	Objects                DeployDummyReceiverSeqObjects
 }
 
@@ -43,7 +42,7 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 
 		env.Logger.Infow("Dummy receiver deployed successfully",
 			"packageId", deployReport.Output.PackageId,
-			"receiverStateId", deployReport.Output.Objects.CCIPReceiverStateObjectId,
+			"receiverStateId", deployReport.Output.Objects.CCIPReceiverStateObjectID,
 		)
 
 		// Step 2: Register the dummy receiver with the receiver registry
@@ -52,9 +51,8 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 			RegisterDummyReceiverOp,
 			deps,
 			RegisterDummyReceiverInput{
-				CCIPObjectRefObjectId:  input.CCIPObjectRefObjectId,
-				DummyReceiverPackageId: deployReport.Output.PackageId,
-				ReceiverStateParams:    input.ReceiverStateParams,
+				CCIPObjectRefObjectID:  input.CCIPObjectRefObjectID,
+				DummyReceiverPackageID: deployReport.Output.PackageId,
 			},
 		)
 		if err != nil {
@@ -64,10 +62,10 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 		env.Logger.Infow("Dummy receiver registered successfully with receiver registry")
 
 		return DeployDummyReceiverSeqOutput{
-			DummyReceiverPackageId: deployReport.Output.PackageId,
+			DummyReceiverPackageID: deployReport.Output.PackageId,
 			Objects: DeployDummyReceiverSeqObjects{
-				OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
-				CCIPReceiverStateObjectId: deployReport.Output.Objects.CCIPReceiverStateObjectId,
+				OwnerCapObjectID:          deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPReceiverStateObjectID: deployReport.Output.Objects.CCIPReceiverStateObjectID,
 			},
 		}, nil
 	},

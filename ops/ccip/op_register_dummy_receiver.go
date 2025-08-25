@@ -13,9 +13,8 @@ import (
 )
 
 type RegisterDummyReceiverInput struct {
-	CCIPObjectRefObjectId  string
-	DummyReceiverPackageId string
-	ReceiverStateParams    []string
+	CCIPObjectRefObjectID  string
+	DummyReceiverPackageID string
 }
 
 type RegisterDummyReceiverObjects struct {
@@ -24,7 +23,7 @@ type RegisterDummyReceiverObjects struct {
 
 var registerDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RegisterDummyReceiverInput) (output sui_ops.OpTxResult[RegisterDummyReceiverObjects], err error) {
 	// Create a CCIP dummy receiver contract instance using the generated binding
-	contract, err := module_dummy_receiver.NewDummyReceiver(input.DummyReceiverPackageId, deps.Client)
+	contract, err := module_dummy_receiver.NewDummyReceiver(input.DummyReceiverPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[RegisterDummyReceiverObjects]{}, fmt.Errorf("failed to create dummy receiver contract: %w", err)
 	}
@@ -38,21 +37,17 @@ var registerDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	tx, err := contract.RegisterReceiver(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		//input.ReceiverStateParams,
+		bind.Object{Id: input.CCIPObjectRefObjectID},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[RegisterDummyReceiverObjects]{}, fmt.Errorf("failed to execute dummy receiver registration: %w", err)
 	}
 
-	b.Logger.Infow("Dummy receiver registered",
-		"dummyReceiverPackageId", input.DummyReceiverPackageId,
-		"receiverStateParams", input.ReceiverStateParams,
-	)
+	b.Logger.Infow("Dummy receiver registered", "dummyReceiverPackageID", input.DummyReceiverPackageID)
 
 	return sui_ops.OpTxResult[RegisterDummyReceiverObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.DummyReceiverPackageId,
+		PackageId: input.DummyReceiverPackageID,
 		Objects:   RegisterDummyReceiverObjects{},
 	}, nil
 }

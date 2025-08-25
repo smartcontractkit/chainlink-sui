@@ -54,26 +54,26 @@ type NestedStruct struct {
 	} `json:"inner"`
 }
 
-func TestDecodeSuiJsonValue_NilTarget(t *testing.T) {
+func TestDecodeSuiJSONValue_NilTarget(t *testing.T) {
 	t.Parallel()
 
-	err := DecodeSuiJsonValue("test", nil)
+	err := DecodeSuiJSONValue("test", nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "target cannot be nil")
 }
 
-func TestDecodeSuiJsonValue_DirectAssignment(t *testing.T) {
+func TestDecodeSuiJSONValue_DirectAssignment(t *testing.T) {
 	t.Parallel()
 
 	var target string
 	data := "test_value"
 
-	err := DecodeSuiJsonValue(data, &target)
+	err := DecodeSuiJSONValue(data, &target)
 	require.NoError(t, err)
 	require.Equal(t, "test_value", target)
 }
 
-func TestDecodeSuiJsonValue_NumericTypes(t *testing.T) {
+func TestDecodeSuiJSONValue_NumericTypes(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -158,7 +158,7 @@ func TestDecodeSuiJsonValue_NumericTypes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := DecodeSuiJsonValue(tt.data, tt.target)
+			err := DecodeSuiJSONValue(tt.data, tt.target)
 			require.NoError(t, err)
 
 			targetValue := reflect.ValueOf(tt.target).Elem().Interface()
@@ -167,7 +167,7 @@ func TestDecodeSuiJsonValue_NumericTypes(t *testing.T) {
 	}
 }
 
-func TestDecodeSuiJsonValue_NumericErrors(t *testing.T) {
+func TestDecodeSuiJSONValue_NumericErrors(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -201,27 +201,27 @@ func TestDecodeSuiJsonValue_NumericErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := DecodeSuiJsonValue(tt.data, tt.target)
+			err := DecodeSuiJSONValue(tt.data, tt.target)
 			require.Error(t, err)
 		})
 	}
 }
 
-func TestDecodeSuiJsonValue_StringType(t *testing.T) {
+func TestDecodeSuiJSONValue_StringType(t *testing.T) {
 	t.Parallel()
 
 	var target string
-	err := DecodeSuiJsonValue("test_string", &target)
+	err := DecodeSuiJSONValue("test_string", &target)
 	require.NoError(t, err)
 	require.Equal(t, "test_string", target)
 
 	// Test error case
-	err = DecodeSuiJsonValue(123, &target)
+	err = DecodeSuiJSONValue(123, &target)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "expected string")
 }
 
-func TestDecodeSuiJsonValue_SliceTypes(t *testing.T) {
+func TestDecodeSuiJSONValue_SliceTypes(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -280,7 +280,7 @@ func TestDecodeSuiJsonValue_SliceTypes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := DecodeSuiJsonValue(tt.data, tt.target)
+			err := DecodeSuiJSONValue(tt.data, tt.target)
 			require.NoError(t, err)
 
 			targetValue := reflect.ValueOf(tt.target).Elem().Interface()
@@ -289,7 +289,7 @@ func TestDecodeSuiJsonValue_SliceTypes(t *testing.T) {
 	}
 }
 
-func TestDecodeSuiJsonValue_SliceErrors(t *testing.T) {
+func TestDecodeSuiJSONValue_SliceErrors(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -318,13 +318,13 @@ func TestDecodeSuiJsonValue_SliceErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := DecodeSuiJsonValue(tt.data, tt.target)
+			err := DecodeSuiJSONValue(tt.data, tt.target)
 			require.Error(t, err)
 		})
 	}
 }
 
-func TestDecodeSuiJsonValue_StructTypes(t *testing.T) {
+func TestDecodeSuiJSONValue_StructTypes(t *testing.T) {
 	t.Parallel()
 
 	// Test complex struct
@@ -337,7 +337,7 @@ func TestDecodeSuiJsonValue_StructTypes(t *testing.T) {
 	}
 
 	var target ComplexStruct
-	err := DecodeSuiJsonValue(data, &target)
+	err := DecodeSuiJSONValue(data, &target)
 	require.NoError(t, err)
 
 	require.Equal(t, uint64(123), target.ID)
@@ -355,7 +355,7 @@ func TestDecodeSuiJsonValue_StructTypes(t *testing.T) {
 	}
 
 	var nestedTarget NestedStruct
-	err = DecodeSuiJsonValue(nestedData, &nestedTarget)
+	err = DecodeSuiJSONValue(nestedData, &nestedTarget)
 	require.NoError(t, err)
 
 	require.Equal(t, uint64(123), nestedTarget.Outer.ID)
@@ -868,7 +868,7 @@ func TestDecodeBase64(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestDecodeSuiJsonValue_EdgeCases(t *testing.T) {
+func TestDecodeSuiJSONValue_EdgeCases(t *testing.T) {
 	t.Parallel()
 
 	// Test with very large numbers
@@ -876,7 +876,7 @@ func TestDecodeSuiJsonValue_EdgeCases(t *testing.T) {
 		t.Parallel()
 
 		var target uint64
-		err := DecodeSuiJsonValue("18446744073709551615", &target) // max uint64
+		err := DecodeSuiJSONValue("18446744073709551615", &target) // max uint64
 		require.NoError(t, err)
 		require.Equal(t, uint64(18446744073709551615), target)
 	})
@@ -886,7 +886,7 @@ func TestDecodeSuiJsonValue_EdgeCases(t *testing.T) {
 		t.Parallel()
 
 		var target uint64
-		err := DecodeSuiJsonValue(float64(0), &target)
+		err := DecodeSuiJSONValue(float64(0), &target)
 		require.NoError(t, err)
 		require.Equal(t, uint64(0), target)
 	})
@@ -897,7 +897,7 @@ func TestDecodeSuiJsonValue_EdgeCases(t *testing.T) {
 
 		type EmptyStruct struct{}
 		var target EmptyStruct
-		err := DecodeSuiJsonValue(map[string]any{}, &target)
+		err := DecodeSuiJSONValue(map[string]any{}, &target)
 		require.NoError(t, err)
 	})
 
@@ -909,13 +909,13 @@ func TestDecodeSuiJsonValue_EdgeCases(t *testing.T) {
 			Value *string `json:"value"`
 		}
 		var target StructWithPointer
-		err := DecodeSuiJsonValue(map[string]any{}, &target)
+		err := DecodeSuiJSONValue(map[string]any{}, &target)
 		require.NoError(t, err)
 		require.Nil(t, target.Value)
 	})
 }
 
-func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
+func TestDecodeSuiJSONValue_SuiSpecificCases(t *testing.T) {
 	t.Parallel()
 
 	// TODO: add test for Sui object ID format (hex string)
@@ -926,7 +926,7 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 
 		var target uint64
 		balance := "1000000000" // 1 SUI in MIST
-		err := DecodeSuiJsonValue(balance, &target)
+		err := DecodeSuiJSONValue(balance, &target)
 		require.NoError(t, err)
 		require.Equal(t, uint64(1000000000), target)
 	})
@@ -937,7 +937,7 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 
 		var target []byte
 		digest := base64.StdEncoding.EncodeToString([]byte("transaction_digest"))
-		err := DecodeSuiJsonValue(digest, &target)
+		err := DecodeSuiJSONValue(digest, &target)
 		require.NoError(t, err)
 		require.Equal(t, []byte("transaction_digest"), target)
 	})
@@ -971,7 +971,7 @@ func TestDecodeSuiJsonValue_SuiSpecificCases(t *testing.T) {
 		}
 
 		var target SuiEvent
-		err := DecodeSuiJsonValue(eventData, &target)
+		err := DecodeSuiJSONValue(eventData, &target)
 		require.NoError(t, err)
 
 		require.Equal(t, "0xabcd1234", target.ID)

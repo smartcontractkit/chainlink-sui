@@ -13,17 +13,17 @@ import (
 )
 
 type InitRecRegObjects struct {
-	ReceiverRegistryStateObjectId string
+	ReceiverRegistryStateObjectID string
 }
 
 type InitRecRegInput struct {
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
+	CCIPPackageID    string
+	StateObjectID    string
+	OwnerCapObjectID string
 }
 
 var initRecRegHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitRecRegInput) (output sui_ops.OpTxResult[InitRecRegObjects], err error) {
-	contract, err := module_receiver_registry.NewReceiverRegistry(input.CCIPPackageId, deps.Client)
+	contract, err := module_receiver_registry.NewReceiverRegistry(input.CCIPPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitRecRegObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -33,8 +33,8 @@ var initRecRegHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[InitRecRegObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
@@ -47,9 +47,9 @@ var initRecRegHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 
 	return sui_ops.OpTxResult[InitRecRegObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
+		PackageId: input.CCIPPackageID,
 		Objects: InitRecRegObjects{
-			ReceiverRegistryStateObjectId: obj1,
+			ReceiverRegistryStateObjectID: obj1,
 		},
 	}, err
 }
