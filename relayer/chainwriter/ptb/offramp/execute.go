@@ -60,7 +60,7 @@ func BuildOffRampExecutePTB(
 		return fmt.Errorf("failed to decode args for offramp execute PTB: %w", err)
 	}
 
-	fmt.Println("OFFRAMP ARGS: ", offrampArgs)
+	lggr.Info("OFFRAMP ARGS: ", offrampArgs)
 	coinMetadataAddresses := make([]string, 0)
 	messages := make([]ccipocr3.Message, 0)
 
@@ -98,7 +98,7 @@ func BuildOffRampExecutePTB(
 	offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
 	offrampEncoder := offrampContract.Encoder()
 
-	fmt.Println("TOKENRECIEVER", offrampArgs.ExtraData.ExtraArgsDecoded)
+	lggr.Info("TOKENRECIEVER", offrampArgs.ExtraData.ExtraArgsDecoded)
 
 	val, ok := offrampArgs.ExtraData.ExtraArgsDecoded["tokenReceiver"]
 	if !ok {
@@ -108,6 +108,7 @@ func BuildOffRampExecutePTB(
 	b := val.([]byte) // or []uint8
 	hexStr := "0x" + hex.EncodeToString(b)
 
+	lggr.Info("TOKENRECIEVER HEX STR: ", hexStr)
 	// Create an encoder for the `init_execute` offramp method to be attached to the PTB.
 	// This is being done using the bindings to re-use code but can otherwise be done using the SDK directly.
 	encodedInitExecute, err := offrampEncoder.InitExecute(
