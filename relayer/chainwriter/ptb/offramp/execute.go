@@ -33,6 +33,14 @@ type SuiOffRampExecCallArgs struct {
 	ReportContext [2][32]byte                `mapstructure:"ReportContext"`
 	Report        []byte                     `mapstructure:"Report"`
 	Info          ccipocr3.ExecuteReportInfo `mapstructure:"Info"`
+	ExtraData     ExtraDataDecoded           `mapstructure:"ExtraData"`
+}
+
+type ExtraDataDecoded struct {
+	// ExtraArgsDecoded contain message specific extra args.
+	ExtraArgsDecoded map[string]any
+	// DestExecDataDecoded contain token transfer specific extra args.
+	DestExecDataDecoded []map[string]any
 }
 
 // BuildOffRampExecutePTB builds the PTB for the OffRampExecute operation
@@ -47,11 +55,12 @@ func BuildOffRampExecutePTB(
 ) (err error) {
 	sdkClient := ptbClient.GetClient()
 	offrampArgs := &SuiOffRampExecCallArgs{}
-	err = mapstructure.Decode(args.Args, &offrampArgs)
+	err = mapstructure.Decode(args.Args, offrampArgs)
 	if err != nil {
 		return fmt.Errorf("failed to decode args for offramp execute PTB: %w", err)
 	}
 
+	fmt.Println("OFFRAMP ARGS: ", offrampArgs)
 	coinMetadataAddresses := make([]string, 0)
 	messages := make([]ccipocr3.Message, 0)
 
@@ -89,6 +98,16 @@ func BuildOffRampExecutePTB(
 	offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
 	offrampEncoder := offrampContract.Encoder()
 
+	fmt.Println("TOKENRECIEVER", offrampArgs.ExtraData.ExtraArgsDecoded)
+
+	val, ok := offrampArgs.ExtraData.ExtraArgsDecoded["tokenReceiver"]
+	if !ok {
+		return fmt.Errorf("tokenReceiver not found in ExtraArgsDecoded")
+	}
+
+	b := val.([]byte) // or []uint8
+	hexStr := "0x" + hex.EncodeToString(b)
+
 	// Create an encoder for the `init_execute` offramp method to be attached to the PTB.
 	// This is being done using the bindings to re-use code but can otherwise be done using the SDK directly.
 	encodedInitExecute, err := offrampEncoder.InitExecute(
@@ -100,7 +119,7 @@ func BuildOffRampExecutePTB(
 			offrampArgs.ReportContext[1][:],
 		},
 		offrampArgs.Report,
-		"0x1234",
+		hexStr,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (init_execute) using bindings: %w", err)

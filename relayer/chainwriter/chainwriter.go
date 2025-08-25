@@ -80,7 +80,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		return fmt.Errorf("failed to decode args: %w", err)
 	}
 
-	s.lggr.Info("ARGUMENTS: ", arguments.Args, "PARAMS: ", functionConfig.Params, "DECODED ARGS: ", arguments)
+	s.lggr.Info("ARGUMENTS: ", arguments.Args, "PARAMS: ", functionConfig.Params)
 
 	// overwrite ptbName
 	if moduleConfig.Name != "" {
