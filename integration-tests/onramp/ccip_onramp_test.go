@@ -209,7 +209,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	}
 
 	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
-		envSettings.CCIPReport.Output.CCIPPackageId,
+		envSettings.CCIPReport.Output.CCIPPackageID,
 		envSettings.OnRampReport.Output.CCIPOnRampPackageId,
 		[]testutils.TokenToolDetails{tokenPoolDetails, ethTokenPoolDetails},
 		publicKeyBytes,
@@ -257,7 +257,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			envSettings.MockEthTokenReport.Output.Objects.CoinMetadataObjectId,
 			linkCoins,
 			envSettings.EthCoins,
-			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
 			envSettings.OnRampReport.Output.Objects.StateObjectId,
 			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectId,
@@ -333,7 +333,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			envSettings.MockEthTokenReport.Output.Objects.CoinMetadataObjectId,
 			linkCoins,
 			envSettings.EthCoins,
-			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
 			envSettings.OnRampReport.Output.Objects.StateObjectId,
 			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectId,
@@ -413,7 +413,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
 	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
-		envSettings.CCIPReport.Output.CCIPPackageId,
+		envSettings.CCIPReport.Output.CCIPPackageID,
 		envSettings.OnRampReport.Output.CCIPOnRampPackageId,
 		[]testutils.TokenToolDetails{ethManagedTokenPoolDetails},
 		publicKeyBytes,
@@ -459,7 +459,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 			envSettings.MockEthTokenReport.Output.Objects.CoinMetadataObjectId,
 			mintedCoinId0,
 			envSettings.EthCoins[0],
-			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectID,
 			environment.ClockObjectId,
 			envSettings.OnRampReport.Output.Objects.StateObjectId,
 			envSettings.ManagedTokenReport.Output.Objects.StateObjectId,

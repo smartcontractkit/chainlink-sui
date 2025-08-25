@@ -50,7 +50,7 @@ func SetupEthTokenPoolBurnMint(
 
 	// Deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+		CCIPPackageId:    reportCCIP.Output.CCIPPackageID,
 		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
@@ -59,14 +59,14 @@ func SetupEthTokenPoolBurnMint(
 	// Deploy and initialize the burn mint token pool
 	seqBurnMintDeployInput := burnmintops.DeployAndInitBurnMintTokenPoolInput{
 		BurnMintTokenPoolDeployInput: burnmintops.BurnMintTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
+			CCIPPackageId:          reportCCIP.Output.CCIPPackageID,
 			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
 			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      tokenType,
-		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
 		CoinMetadataObjectId:   reportMockEthToken.Output.Objects.CoinMetadataObjectId,
 		TreasuryCapObjectId:    reportMockEthToken.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: accountAddress,
@@ -124,7 +124,7 @@ func SetupManagedTokenPool(
 
 	// First, deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+		CCIPPackageId:    reportCCIP.Output.CCIPPackageID,
 		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
@@ -168,14 +168,14 @@ func SetupManagedTokenPool(
 	// Now deploy and initialize the managed token pool
 	seqManagedTokenPoolDeployInput := managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput{
 		// Deploy inputs
-		CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
+		CCIPPackageId:          reportCCIP.Output.CCIPPackageID,
 		CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
 		ManagedTokenPackageId:  managedTokenReport.Output.ManagedTokenPackageId,
 		MCMSAddress:            reportMCMs.Output.PackageId,
 		MCMSOwnerAddress:       accountAddress,
 		// Initialize inputs
 		CoinObjectTypeArg:         tokenType,
-		CCIPObjectRefObjectId:     reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		CCIPObjectRefObjectId:     reportCCIP.Output.Objects.CCIPObjectRefObjectID,
 		ManagedTokenStateObjectId: managedTokenReport.Output.Objects.StateObjectId,
 		ManagedTokenOwnerCapId:    managedTokenReport.Output.Objects.OwnerCapObjectId,
 		CoinMetadataObjectId:      reportMockEthToken.Output.Objects.CoinMetadataObjectId,
@@ -351,7 +351,7 @@ func SetupTokenPool(
 
 	// Deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+		CCIPPackageId:    reportCCIP.Output.CCIPPackageID,
 		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
@@ -360,14 +360,14 @@ func SetupTokenPool(
 	// Deploy and initialize the lock release token pool
 	seqLockReleaseDeployInput := lockreleaseops.DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: lockreleaseops.LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
+			CCIPPackageId:          reportCCIP.Output.CCIPPackageID,
 			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
 			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      linkTokenType,
-		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
 		CoinMetadataObjectId:   mockLinkReport.Output.Objects.CoinMetadataObjectId,
 		TreasuryCapObjectId:    mockLinkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: accountAddress,

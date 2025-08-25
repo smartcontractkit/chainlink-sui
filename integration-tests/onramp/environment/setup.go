@@ -140,9 +140,9 @@ func UpdatePrices(
 	gasPrice := big.NewInt(20000000000) // 20 gwei in wei
 
 	updatePricesInput := ccipops.FeeQuoterUpdateTokenPricesInput{
-		CCIPPackageId:         reportCCIP.Output.CCIPPackageId,
-		CCIPObjectRef:         reportCCIP.Output.Objects.CCIPObjectRefObjectId,
-		FeeQuoterCapId:        reportCCIP.Output.Objects.FeeQuoterCapObjectId,
+		CCIPPackageID:         reportCCIP.Output.CCIPPackageID,
+		CCIPObjectRef:         reportCCIP.Output.Objects.CCIPObjectRefObjectID,
+		FeeQuoterCapID:        reportCCIP.Output.Objects.FeeQuoterCapObjectID,
 		SourceTokens:          []string{reportMockLink.Output.Objects.CoinMetadataObjectId},
 		SourceUsdPerToken:     []*big.Int{linkTokenPrice},
 		GasDestChainSelectors: []uint64{destChainSelector},
@@ -203,11 +203,11 @@ func DeployCCIPAndOnrampAndTokens(
 	require.NoError(t, err, "failed to decode eth address 3")
 
 	reportCCIP, err := cld_ops.ExecuteSequence(bundle, ccipops.DeployAndInitCCIPSequence, deps, ccipops.DeployAndInitCCIPSeqInput{
-		LinkTokenCoinMetadataObjectId: mockLinkReport.Output.Objects.CoinMetadataObjectId,
+		LinkTokenCoinMetadataObjectID: mockLinkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            localChainSelector,
 		DestChainSelector:             destChainSelector,
 		DeployCCIPInput: ccipops.DeployCCIPInput{
-			McmsPackageId: reportMCMs.Output.PackageId,
+			McmsPackageID: reportMCMs.Output.PackageId,
 			McmsOwner:     signerAddr,
 		},
 		MaxFeeJuelsPerMsg:            "100000000",
@@ -249,17 +249,17 @@ func DeployCCIPAndOnrampAndTokens(
 		FSign:                       uint64(1),
 	})
 	require.NoError(t, err, "failed to execute CCIP deploy sequence")
-	require.NotEmpty(t, reportCCIP.Output.CCIPPackageId, "CCIP package ID should not be empty")
+	require.NotEmpty(t, reportCCIP.Output.CCIPPackageID, "CCIP package ID should not be empty")
 
 	seqOnrampInput := onrampops.DeployAndInitCCIPOnRampSeqInput{
 		DeployCCIPOnRampInput: onrampops.DeployCCIPOnRampInput{
-			CCIPPackageId:      reportCCIP.Output.CCIPPackageId,
+			CCIPPackageId:      reportCCIP.Output.CCIPPackageID,
 			MCMSPackageId:      reportMCMs.Output.PackageId,
 			MCMSOwnerPackageId: signerAddr,
 		},
 		OnRampInitializeInput: onrampops.OnRampInitializeInput{
-			NonceManagerCapId:         reportCCIP.Output.Objects.NonceManagerCapObjectId,   // this is from NonceManager init Op
-			SourceTransferCapId:       reportCCIP.Output.Objects.SourceTransferCapObjectId, // this is from CCIP package publish
+			NonceManagerCapId:         reportCCIP.Output.Objects.NonceManagerCapObjectID,   // this is from NonceManager init Op
+			SourceTransferCapId:       reportCCIP.Output.Objects.SourceTransferCapObjectID, // this is from CCIP package publish
 			ChainSelector:             destChainSelector,
 			FeeAggregator:             signerAddr,
 			AllowListAdmin:            signerAddr,
