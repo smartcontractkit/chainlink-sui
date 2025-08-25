@@ -59,6 +59,8 @@ func NewSuiChainWriter(lggr logger.Logger, txManager txm.TxManager, config cwCon
 //   - error: An error if the configuration is missing, argument processing fails, or the underlying
 //     transaction enqueue operation in the TxManager fails.
 func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName string, method string, args any, transactionID string, toAddress string, meta *commonTypes.TxMeta, _ *big.Int) error {
+	s.lggr.Info("RECIEVED ARGS: ", args)
+
 	ptbName := contractName
 
 	moduleConfig, exists := s.config.Modules[ptbName]
