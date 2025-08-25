@@ -10,8 +10,8 @@ import (
 )
 
 type BurnMintTokenPoolDeployInput struct {
-	CCIPPackageId          string
-	CCIPTokenPoolPackageId string
+	CCIPPackageID          string
+	CCIPTokenPoolPackageID string
 	MCMSAddress            string
 	MCMSOwnerAddress       string
 }
@@ -26,8 +26,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMint
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.CCIPPackageId,
-		input.CCIPTokenPoolPackageId,
+		input.CCIPPackageID,
+		input.CCIPTokenPoolPackageID,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,
 	)

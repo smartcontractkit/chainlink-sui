@@ -10,9 +10,9 @@ import (
 )
 
 type ManagedTokenPoolDeployInput struct {
-	CCIPPackageId          string
-	CCIPTokenPoolPackageId string
-	ManagedTokenPackageId  string
+	CCIPPackageID          string
+	CCIPTokenPoolPackageID string
+	ManagedTokenPackageID  string
 	MCMSAddress            string
 	MCMSOwnerAddress       string
 }
@@ -27,9 +27,9 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedT
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.CCIPPackageId,
-		input.CCIPTokenPoolPackageId,
-		input.ManagedTokenPackageId,
+		input.CCIPPackageID,
+		input.CCIPTokenPoolPackageID,
+		input.ManagedTokenPackageID,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,
 	)

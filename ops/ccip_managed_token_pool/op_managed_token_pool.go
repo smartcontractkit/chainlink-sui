@@ -14,23 +14,23 @@ import (
 
 // MTP -- INITIALIZE_WITH_MANAGED_TOKEN
 type ManagedTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectID string
+	StateObjectID    string
 }
 
 type ManagedTokenPoolInitializeInput struct {
-	ManagedTokenPoolPackageId string
+	ManagedTokenPoolPackageID string
 	CoinObjectTypeArg         string
-	CCIPObjectRefObjectId     string
-	ManagedTokenStateObjectId string
-	ManagedTokenOwnerCapId    string
-	CoinMetadataObjectId      string
-	MintCapObjectId           string
+	CCIPObjectRefObjectID     string
+	ManagedTokenStateObjectID string
+	ManagedTokenOwnerCapID    string
+	CoinMetadataObjectID      string
+	MintCapObjectID           string
 	TokenPoolAdministrator    string
 }
 
 var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -41,11 +41,11 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.ManagedTokenStateObjectId},
-		bind.Object{Id: input.ManagedTokenOwnerCapId},
-		bind.Object{Id: input.CoinMetadataObjectId},
-		bind.Object{Id: input.MintCapObjectId},
+		bind.Object{Id: input.CCIPObjectRefObjectID},
+		bind.Object{Id: input.ManagedTokenStateObjectID},
+		bind.Object{Id: input.ManagedTokenOwnerCapID},
+		bind.Object{Id: input.CoinMetadataObjectID},
+		bind.Object{Id: input.MintCapObjectID},
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {
@@ -61,10 +61,10 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 
 	return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects: ManagedTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			OwnerCapObjectID: obj1,
+			StateObjectID:    obj2,
 		},
 	}, err
 }
@@ -78,18 +78,18 @@ var ManagedTokenPoolInitializeOp = cld_ops.NewOperation(
 
 // MTP -- INITIALIZE BY CCIP ADMIN
 type ManagedTokenPoolInitializeByCcipAdminInput struct {
-	ManagedTokenPoolPackageId string
+	ManagedTokenPoolPackageID string
 	CoinObjectTypeArg         string
-	CCIPObjectRefObjectId     string
-	OwnerCapObjectId          string
-	CoinMetadataObjectId      string
-	MintCapObjectId           string
-	ManagedTokenStateObjectId string
+	CCIPObjectRefObjectID     string
+	OwnerCapObjectID          string
+	CoinMetadataObjectID      string
+	MintCapObjectID           string
+	ManagedTokenStateObjectID string
 	TokenPoolAdministrator    string
 }
 
 var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -100,11 +100,11 @@ var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.CoinMetadataObjectId},
-		bind.Object{Id: input.MintCapObjectId},
-		input.ManagedTokenStateObjectId,
+		bind.Object{Id: input.CCIPObjectRefObjectID},
+		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.CoinMetadataObjectID},
+		bind.Object{Id: input.MintCapObjectID},
+		input.ManagedTokenStateObjectID,
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {
@@ -120,10 +120,10 @@ var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 
 	return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects: ManagedTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			OwnerCapObjectID: obj1,
+			StateObjectID:    obj2,
 		},
 	}, err
 }
@@ -140,9 +140,9 @@ type NoObjects struct {
 }
 
 type ManagedTokenPoolApplyChainUpdatesInput struct {
-	ManagedTokenPoolPackageId    string
+	ManagedTokenPoolPackageID    string
 	CoinObjectTypeArg            string
-	StateObjectId                string
+	StateObjectID                string
 	OwnerCap                     string
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -151,7 +151,7 @@ type ManagedTokenPoolApplyChainUpdatesInput struct {
 }
 
 var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolApplyChainUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -177,7 +177,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Mana
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectID},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelectorsToRemove,
 		input.RemoteChainSelectorsToAdd,
@@ -188,11 +188,11 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Mana
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool apply chain updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyChainUpdates on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId)
+	b.Logger.Infow("ApplyChainUpdates on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -206,16 +206,16 @@ var ManagedTokenPoolApplyChainUpdatesOp = cld_ops.NewOperation(
 
 // MTP -- add_remote_pool
 type ManagedTokenPoolAddRemotePoolInput struct {
-	ManagedTokenPoolPackageId string
+	ManagedTokenPoolPackageID string
 	CoinObjectTypeArg         string
-	StateObjectId             string
+	StateObjectID             string
 	OwnerCap                  string
 	RemoteChainSelector       uint64
 	RemotePoolAddress         string
 }
 
 var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolAddRemotePoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -226,7 +226,7 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectID},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelector,
 		[]byte(input.RemotePoolAddress),
@@ -235,11 +235,11 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool add remote pool: %w", err)
 	}
 
-	b.Logger.Infow("AddRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId, "Chain:", input.RemoteChainSelector)
+	b.Logger.Infow("AddRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Chain:", input.RemoteChainSelector)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -253,16 +253,16 @@ var ManagedTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
 
 // MTP -- remove_remote_pool
 type ManagedTokenPoolRemoveRemotePoolInput struct {
-	ManagedTokenPoolPackageId string
+	ManagedTokenPoolPackageID string
 	CoinObjectTypeArg         string
-	StateObjectId             string
+	StateObjectID             string
 	OwnerCap                  string
 	RemoteChainSelector       uint64
 	RemotePoolAddress         string
 }
 
 var removeRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolRemoveRemotePoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -273,7 +273,7 @@ var removeRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectID},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelector,
 		[]byte(input.RemotePoolAddress),
@@ -282,11 +282,11 @@ var removeRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool remove remote pool: %w", err)
 	}
 
-	b.Logger.Infow("RemoveRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId, "Chain:", input.RemoteChainSelector)
+	b.Logger.Infow("RemoveRemotePool on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Chain:", input.RemoteChainSelector)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -300,9 +300,9 @@ var ManagedTokenPoolRemoveRemotePoolOp = cld_ops.NewOperation(
 
 // MTP -- set_chain_rate_limiter_configs
 type ManagedTokenPoolSetChainRateLimiterInput struct {
-	ManagedTokenPoolPackageId string
+	ManagedTokenPoolPackageID string
 	CoinObjectTypeArg         string
-	StateObjectId             string
+	StateObjectID             string
 	OwnerCap                  string
 	RemoteChainSelectors      []uint64
 	OutboundIsEnableds        []bool
@@ -314,7 +314,7 @@ type ManagedTokenPoolSetChainRateLimiterInput struct {
 }
 
 var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolSetChainRateLimiterInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -325,7 +325,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectID},
 		bind.Object{Id: input.OwnerCap},
 		bind.Object{Id: "0x6"}, // Clock object
 		input.RemoteChainSelectors,
@@ -340,11 +340,11 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set configs rate limiter: %w", err)
 	}
 
-	b.Logger.Infow("SetChainRateLimiter on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId)
+	b.Logger.Infow("SetChainRateLimiter on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -358,15 +358,15 @@ var ManagedTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 
 // MTP -- set_allowlist_enabled
 type ManagedTokenPoolSetAllowlistEnabledInput struct {
-	ManagedTokenPoolPackageId string
+	ManagedTokenPoolPackageID string
 	CoinObjectTypeArg         string
-	StateObjectId             string
+	StateObjectID             string
 	OwnerCap                  string
 	Enabled                   bool
 }
 
 var setAllowlistEnabledHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolSetAllowlistEnabledInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -377,7 +377,7 @@ var setAllowlistEnabledHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectID},
 		bind.Object{Id: input.OwnerCap},
 		input.Enabled,
 	)
@@ -385,11 +385,11 @@ var setAllowlistEnabledHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool set allowlist enabled: %w", err)
 	}
 
-	b.Logger.Infow("SetAllowlistEnabled on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId, "Enabled:", input.Enabled)
+	b.Logger.Infow("SetAllowlistEnabled on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Enabled:", input.Enabled)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -403,16 +403,16 @@ var ManagedTokenPoolSetAllowlistEnabledOp = cld_ops.NewOperation(
 
 // MTP -- apply_allowlist_updates
 type ManagedTokenPoolApplyAllowlistUpdatesInput struct {
-	ManagedTokenPoolPackageId string
+	ManagedTokenPoolPackageID string
 	CoinObjectTypeArg         string
-	StateObjectId             string
+	StateObjectID             string
 	OwnerCap                  string
 	Removes                   []string
 	Adds                      []string
 }
 
 var applyAllowlistUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolApplyAllowlistUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageId, deps.Client)
+	contract, err := module_managed_token_pool.NewManagedTokenPool(input.ManagedTokenPoolPackageID, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create managed token pool contract: %w", err)
 	}
@@ -423,7 +423,7 @@ var applyAllowlistUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectID},
 		bind.Object{Id: input.OwnerCap},
 		input.Removes,
 		input.Adds,
@@ -432,11 +432,11 @@ var applyAllowlistUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute managed token pool apply allowlist updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyAllowlistUpdates on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageId, "Removes:", len(input.Removes), "Adds:", len(input.Adds))
+	b.Logger.Infow("ApplyAllowlistUpdates on ManagedTokenPool", "ManagedTokenPool PackageId:", input.ManagedTokenPoolPackageID, "Removes:", len(input.Removes), "Adds:", len(input.Adds))
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageId: input.ManagedTokenPoolPackageId,
+		PackageId: input.ManagedTokenPoolPackageID,
 		Objects:   NoObjects{},
 	}, err
 }
