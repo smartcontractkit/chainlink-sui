@@ -1,7 +1,6 @@
 package onrampops
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -17,14 +16,14 @@ import (
 
 type DeployCCIPOnRampObjects struct {
 	// State Object
-	OwnerCapObjectID        string
-	CCIPOnrampStateObjectID string
+	OwnerCapObjectId        string
+	CCIPOnrampStateObjectId string
 }
 
 type DeployCCIPOnRampInput struct {
-	CCIPPackageID      string
-	MCMSPackageID      string
-	MCMSOwnerPackageID string
+	CCIPPackageId      string
+	MCMSPackageId      string
+	MCMSOwnerPackageId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPOnRampInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
@@ -34,9 +33,9 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.CCIPPackageID,
-		input.MCMSPackageID,
-		input.MCMSOwnerPackageID,
+		input.CCIPPackageId,
+		input.MCMSPackageId,
+		input.MCMSOwnerPackageId,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
@@ -52,20 +51,20 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageID: onRampPackage.Address(),
+		PackageId: onRampPackage.Address(),
 		Objects: DeployCCIPOnRampObjects{
-			OwnerCapObjectID:        obj1,
-			CCIPOnrampStateObjectID: obj2,
+			OwnerCapObjectId:        obj1,
+			CCIPOnrampStateObjectId: obj2,
 		},
 	}, err
 }
 
 type OnRampInitializeInput struct {
-	OnRampPackageID           string
-	OnRampStateID             string
-	OwnerCapObjectID          string
-	NonceManagerCapID         string
-	SourceTransferCapID       string
+	OnRampPackageId           string
+	OnRampStateId             string
+	OwnerCapObjectId          string
+	NonceManagerCapId         string
+	SourceTransferCapId       string
 	ChainSelector             uint64
 	FeeAggregator             string
 	AllowListAdmin            string
@@ -75,7 +74,7 @@ type OnRampInitializeInput struct {
 }
 
 var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRampInitializeInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageID, deps.Client)
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
@@ -85,10 +84,10 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 	tx, err := onRampPackage.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.OnRampStateID},
-		bind.Object{Id: input.OwnerCapObjectID},
-		bind.Object{Id: input.NonceManagerCapID},
-		bind.Object{Id: input.SourceTransferCapID},
+		bind.Object{Id: input.OnRampStateId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.NonceManagerCapId},
+		bind.Object{Id: input.SourceTransferCapId},
 		input.ChainSelector,
 		input.FeeAggregator,
 		input.AllowListAdmin,
@@ -102,22 +101,22 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.OnRampPackageID,
+		PackageId: input.OnRampPackageId,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
 }
 
 type ApplyDestChainConfigureOnRampInput struct {
-	OnRampPackageID           string
-	OwnerCapObjectID          string
-	StateObjectID             string
+	OnRampPackageId           string
+	OwnerCapObjectId          string
+	StateObjectId             string
 	DestChainSelector         []uint64
 	DestChainEnabled          []bool
 	DestChainAllowListEnabled []bool
 }
 
 var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplyDestChainConfigureOnRampInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageID, deps.Client)
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
@@ -127,8 +126,8 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	tx, err := onRampPackage.ApplyDestChainConfigUpdates(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectID},
-		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
 		input.DestChainEnabled,
 		input.DestChainAllowListEnabled,
@@ -139,15 +138,15 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.OnRampPackageID,
+		PackageId: input.OnRampPackageId,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
 }
 
 type ApplyAllowListUpdatesInput struct {
-	OnRampPackageID               string
-	OwnerCapObjectID              string
-	StateObjectID                 string
+	OnRampPackageId               string
+	OwnerCapObjectId              string
+	StateObjectId                 string
 	DestChainSelector             []uint64
 	DestChainAllowListEnabled     []bool
 	DestChainAddAllowedSenders    [][]string
@@ -155,7 +154,7 @@ type ApplyAllowListUpdatesInput struct {
 }
 
 var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplyAllowListUpdatesInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageID, deps.Client)
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
@@ -165,8 +164,8 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	tx, err := onRampPackage.ApplyAllowlistUpdates(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectID},
-		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
 		input.DestChainAllowListEnabled,
 		input.DestChainAddAllowedSenders,
@@ -178,14 +177,14 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 
 	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.OnRampPackageID,
+		PackageId: input.OnRampPackageId,
 		Objects:   DeployCCIPOnRampObjects{},
 	}, err
 }
 
 type IsChainSupportedInput struct {
-	OnRampPackageID   string
-	StateObjectID     string
+	OnRampPackageId   string
+	StateObjectId     string
 	DestChainSelector uint64
 }
 
@@ -194,21 +193,21 @@ type IsChainSupportedOutput struct {
 }
 
 var IsChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsChainSupportedInput) (output sui_ops.OpTxResult[IsChainSupportedOutput], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageID, deps.Client)
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, err
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	isSupported, err := onRampPackage.DevInspect().IsChainSupported(b.GetContext(), opts, bind.Object{Id: input.StateObjectID}, input.DestChainSelector)
+	isSupported, err := onRampPackage.DevInspect().IsChainSupported(b.GetContext(), opts, bind.Object{Id: input.StateObjectId}, input.DestChainSelector)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
-		PackageID: input.OnRampPackageID,
+		PackageId: input.OnRampPackageId,
 		Objects: IsChainSupportedOutput{
 			IsChainSupported: isSupported,
 		},
@@ -218,14 +217,14 @@ var IsChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 // Note: Shares the same input as IsChainSupported
 // TODO: maybe rename the input to make it more generic
 var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsChainSupportedInput) (output sui_ops.OpTxResult[IsChainSupportedOutput], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageID, deps.Client)
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, err
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	config, err := onRampPackage.DevInspect().GetDestChainConfig(b.GetContext(), opts, bind.Object{Id: input.StateObjectID}, input.DestChainSelector)
+	config, err := onRampPackage.DevInspect().GetDestChainConfig(b.GetContext(), opts, bind.Object{Id: input.StateObjectId}, input.DestChainSelector)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
@@ -233,12 +232,12 @@ var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	// The first return value is isEnabled (bool)
 	isEnabled, ok := config[0].(bool)
 	if !ok {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, errors.New("failed to parse isEnabled from config")
+		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to parse isEnabled from config")
 	}
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
-		PackageID: input.OnRampPackageID,
+		PackageId: input.OnRampPackageId,
 		Objects: IsChainSupportedOutput{
 			IsChainSupported: isEnabled,
 		},
@@ -246,7 +245,7 @@ var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 }
 
 type GetFeeInput struct {
-	OnRampPackageID   string
+	OnRampPackageId   string
 	TypeArgs          string
 	CCIPObjectRef     string
 	DestChainSelector uint64
@@ -259,7 +258,7 @@ type GetFeeInput struct {
 }
 
 var GetFee = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFeeInput) (output sui_ops.OpTxResult[IsChainSupportedOutput], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageID, deps.Client)
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, err
 	}
@@ -275,7 +274,7 @@ var GetFee = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFeeInput) (o
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
-		PackageID: input.OnRampPackageID,
+		PackageId: input.OnRampPackageId,
 		Objects:   IsChainSupportedOutput{},
 	}, err
 }

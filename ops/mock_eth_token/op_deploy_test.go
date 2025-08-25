@@ -46,8 +46,8 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Mint Mock ETH Token
 	_, err = cld_ops.ExecuteOperation(bundle, MintMockEthTokenOp, deps, MintMockEthTokenInput{
-		MockEthTokenPackageID: mockEthReport.Output.PackageID,
-		TreasuryCapID:         mockEthReport.Output.Objects.TreasuryCapObjectID,
+		MockEthTokenPackageId: mockEthReport.Output.PackageId,
+		TreasuryCapId:         mockEthReport.Output.Objects.TreasuryCapObjectId,
 		Amount:                10,
 	})
 	require.NoError(t, err, "failed to mint Mock ETH token")

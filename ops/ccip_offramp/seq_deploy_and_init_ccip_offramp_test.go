@@ -72,7 +72,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: reportMCMs.Output.PackageID,
+		McmsPackageId: reportMCMs.Output.PackageId,
 		McmsOwner:     signerAddress,
 	}
 
@@ -85,35 +85,26 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Initialize feeQuoter
 	feeQuoterInit := ccip_ops.InitFeeQuoterInput{
-		CCIPPackageID:                 reportCCIP.Output.PackageID,
-		StateObjectID:                 reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		OwnerCapObjectID:              reportCCIP.Output.Objects.OwnerCapObjectID,
+		CCIPPackageId:                 reportCCIP.Output.PackageId,
+		StateObjectId:                 reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId:              reportCCIP.Output.Objects.OwnerCapObjectId,
 		MaxFeeJuelsPerMsg:             "100000000",
-		LinkTokenCoinMetadataObjectID: linkReport.Output.Objects.CoinMetadataObjectId,
+		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
 		TokenPriceStalenessThreshold:  60,
 	}
 
-	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterInitializeOp, deps, feeQuoterInit)
+	reportFeeQuoterInit, err := cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterInitializeOp, deps, feeQuoterInit)
 	require.NoError(t, err, "failed to initialize Fee Quoter Package")
-
-	// Issue fee quoter cap
-	issueFeeQuoterCapInput := ccip_ops.IssueFeeQuoterCapInput{
-		CCIPPackageID:    reportCCIP.Output.PackageID,
-		OwnerCapObjectID: reportCCIP.Output.Objects.OwnerCapObjectID,
-	}
-
-	reportIssueFeeQuoterCap, err := cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterIssueFeeQuoterCapOp, deps, issueFeeQuoterCapInput)
-	require.NoError(t, err, "failed to issue Fee Quoter Cap")
 
 	// Run OffRamp Sequence
 	seqOffRampInput := DeployAndInitCCIPOffRampSeqInput{
 		DeployCCIPOffRampInput: DeployCCIPOffRampInput{
-			CCIPPackageID: reportCCIP.Output.PackageID,
-			MCMSPackageID: reportMCMs.Output.PackageID,
+			CCIPPackageId: reportCCIP.Output.PackageId,
+			MCMSPackageId: reportMCMs.Output.PackageId,
 		},
 		InitializeOffRampInput: InitializeOffRampInput{
-			DestTransferCapID:                     reportCCIP.Output.Objects.DestTransferCapObjectID,
-			FeeQuoterCapID:                        reportIssueFeeQuoterCap.Output.Objects.FeeQuoterCapObjectID,
+			DestTransferCapId:                     reportCCIP.Output.Objects.DestTransferCapObjectId,
+			FeeQuoterCapId:                        reportFeeQuoterInit.Output.Objects.FeeQuoterCapObjectId,
 			ChainSelector:                         2,
 			PremissionExecThresholdSeconds:        10,
 			SourceChainSelectors:                  []uint64{1},

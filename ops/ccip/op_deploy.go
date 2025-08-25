@@ -14,17 +14,17 @@ import (
 
 type DeployCCIPObjects struct {
 	// State Object
-	OwnerCapObjectID             string
-	CCIPObjectRefPointerObjectID string
-	CCIPObjectRefObjectID        string
+	OwnerCapObjectId             string
+	CCIPObjectRefPointerObjectId string
+	CCIPObjectRefObjectId        string
 	// onramp_state_helper
-	SourceTransferCapObjectID string
+	SourceTransferCapObjectId string
 	// offramp_state_helper
-	DestTransferCapObjectID string
+	DestTransferCapObjectId string
 }
 
 type DeployCCIPInput struct {
-	McmsPackageID string
+	McmsPackageId string
 	McmsOwner     string
 }
 
@@ -35,7 +35,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.McmsPackageID,
+		input.McmsPackageId,
 		input.McmsOwner,
 	)
 	if err != nil {
@@ -57,13 +57,13 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	return sui_ops.OpTxResult[DeployCCIPObjects]{
 		Digest:    tx.Digest,
-		PackageID: ccipPackage.Address(),
+		PackageId: ccipPackage.Address(),
 		Objects: DeployCCIPObjects{
-			OwnerCapObjectID:             obj1,
-			CCIPObjectRefPointerObjectID: obj2,
-			CCIPObjectRefObjectID:        obj3,
-			SourceTransferCapObjectID:    obj4,
-			DestTransferCapObjectID:      obj5,
+			OwnerCapObjectId:             obj1,
+			CCIPObjectRefPointerObjectId: obj2,
+			CCIPObjectRefObjectId:        obj3,
+			SourceTransferCapObjectId:    obj4,
+			DestTransferCapObjectId:      obj5,
 		},
 	}, err
 }

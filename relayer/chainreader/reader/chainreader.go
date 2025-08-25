@@ -200,7 +200,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			return s.encodeLoopResult(structResult, returnVal)
 		}
 
-		return codec.DecodeSuiJSONValue(structResult, returnVal)
+		return codec.DecodeSuiJsonValue(structResult, returnVal)
 	}
 
 	// otherwise, no tuple to struct specification, just a slice of values
@@ -211,7 +211,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
 
 	// handle multiple results for non-loop plugin mode
-	return codec.DecodeSuiJSONValue(results[0], returnVal)
+	return codec.DecodeSuiJsonValue(results[0], returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -742,7 +742,7 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 				return nil, fmt.Errorf("failed to marshal data for LOOP: %w", err)
 			}
 			eventData = &jsonData
-		} else if err := codec.DecodeSuiJSONValue(record.Data, eventData); err != nil {
+		} else if err := codec.DecodeSuiJsonValue(record.Data, eventData); err != nil {
 			return nil, fmt.Errorf("failed to decode event data: %w", err)
 		}
 

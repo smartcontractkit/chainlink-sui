@@ -518,7 +518,7 @@ func (tIndexer *TransactionsIndexer) getTransmitters(ctx context.Context) ([]mod
 	}
 
 	var configSet codec.ConfigSet
-	if err := codec.DecodeSuiJSONValue(events[0].Data, &configSet); err != nil {
+	if err := codec.DecodeSuiJsonValue(events[0].Data, &configSet); err != nil {
 		tIndexer.logger.Errorw("Failed to decode ConfigSet event", "error", err)
 		return nil, fmt.Errorf("failed to decode ConfigSet event: %w", err)
 	}
@@ -583,7 +583,7 @@ func (tIndexer *TransactionsIndexer) getSourceChainConfig(ctx context.Context, s
 	}
 
 	var configEvent codec.SourceChainConfigSet
-	if err := codec.DecodeSuiJSONValue(events[0].Data, &configEvent); err != nil {
+	if err := codec.DecodeSuiJsonValue(events[0].Data, &configEvent); err != nil {
 		return nil, fmt.Errorf("failed to decode SourceChainConfigSet event: %w", err)
 	}
 

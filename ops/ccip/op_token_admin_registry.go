@@ -13,18 +13,18 @@ import (
 )
 
 type InitTARObjects struct {
-	TARStateObjectID string
+	TARStateObjectId string
 }
 
 type InitTARInput struct {
-	CCIPPackageID      string
-	StateObjectID      string
-	OwnerCapObjectID   string
+	CCIPPackageId      string
+	StateObjectId      string
+	OwnerCapObjectId   string
 	LocalChainSelector uint64
 }
 
 var initTarHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitTARInput) (output sui_ops.OpTxResult[InitTARObjects], err error) {
-	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageID, deps.Client)
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[InitTARObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
@@ -34,8 +34,8 @@ var initTarHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitTAR
 	tx, err := contract.Initialize(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectID},
-		bind.Object{Id: input.OwnerCapObjectID},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[InitTARObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
@@ -48,9 +48,9 @@ var initTarHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitTAR
 
 	return sui_ops.OpTxResult[InitTARObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.CCIPPackageID,
+		PackageId: input.CCIPPackageId,
 		Objects: InitTARObjects{
-			TARStateObjectID: obj1,
+			TARStateObjectId: obj1,
 		},
 	}, err
 }

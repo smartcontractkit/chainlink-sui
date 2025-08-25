@@ -50,8 +50,8 @@ func SetupEthTokenPoolBurnMint(
 
 	// Deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageID:    reportCCIP.Output.CCIPPackageID,
-		MCMSAddress:      reportMCMs.Output.PackageID,
+		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
 	require.NoError(t, err, "failed to deploy CCIP Token Pool")
@@ -59,16 +59,16 @@ func SetupEthTokenPoolBurnMint(
 	// Deploy and initialize the burn mint token pool
 	seqBurnMintDeployInput := burnmintops.DeployAndInitBurnMintTokenPoolInput{
 		BurnMintTokenPoolDeployInput: burnmintops.BurnMintTokenPoolDeployInput{
-			CCIPPackageID:          reportCCIP.Output.CCIPPackageID,
-			CCIPTokenPoolPackageID: ccipTokenPoolReport.Output.PackageID,
-			MCMSAddress:            reportMCMs.Output.PackageID,
+			CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
+			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
+			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      tokenType,
-		CCIPObjectRefObjectID:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		CoinMetadataObjectID:   reportMockEthToken.Output.Objects.CoinMetadataObjectID,
-		TreasuryCapObjectID:    reportMockEthToken.Output.Objects.TreasuryCapObjectID,
+		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		CoinMetadataObjectId:   reportMockEthToken.Output.Objects.CoinMetadataObjectId,
+		TreasuryCapObjectId:    reportMockEthToken.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: accountAddress,
 
 		// Chain updates - adding the destination chain
@@ -124,8 +124,8 @@ func SetupManagedTokenPool(
 
 	// First, deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageID:    reportCCIP.Output.CCIPPackageID,
-		MCMSAddress:      reportMCMs.Output.PackageID,
+		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
 	require.NoError(t, err, "failed to deploy CCIP Token Pool")
@@ -133,13 +133,13 @@ func SetupManagedTokenPool(
 	// Deploy and initialize the managed token first
 	seqManagedTokenDeployInput := managedtokenops.DeployAndInitManagedTokenInput{
 		ManagedTokenDeployInput: managedtokenops.ManagedTokenDeployInput{
-			MCMSAddress:      reportMCMs.Output.PackageID,
+			MCMSAddress:      reportMCMs.Output.PackageId,
 			MCMSOwnerAddress: accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:   tokenType,
-		TreasuryCapObjectID: reportMockEthToken.Output.Objects.TreasuryCapObjectID,
-		DenyCapObjectID:     "", // Optional - not using deny cap for this example
+		TreasuryCapObjectId: reportMockEthToken.Output.Objects.TreasuryCapObjectId,
+		DenyCapObjectId:     "", // Optional - not using deny cap for this example
 		// Configure a new minter
 		MinterAddress: signerAddr,
 		Allowance:     1000000, // 1M tokens allowance
@@ -151,14 +151,14 @@ func SetupManagedTokenPool(
 
 	lggr.Debugw("Managed Token deployment report", "output", managedTokenReport.Output)
 
-	mintCapObjectID := configureNewMinter(
+	mintCapObjectId := configureNewMinter(
 		t,
 		client,
 		deps.Signer,
-		managedTokenReport.Output.ManagedTokenPackageID,
+		managedTokenReport.Output.ManagedTokenPackageId,
 		tokenType,
-		managedTokenReport.Output.Objects.StateObjectID,
-		managedTokenReport.Output.Objects.OwnerCapObjectID,
+		managedTokenReport.Output.Objects.StateObjectId,
+		managedTokenReport.Output.Objects.OwnerCapObjectId,
 		signerAddr,
 		0,
 		true,
@@ -168,18 +168,18 @@ func SetupManagedTokenPool(
 	// Now deploy and initialize the managed token pool
 	seqManagedTokenPoolDeployInput := managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput{
 		// Deploy inputs
-		CCIPPackageID:          reportCCIP.Output.CCIPPackageID,
-		CCIPTokenPoolPackageID: ccipTokenPoolReport.Output.PackageID,
-		ManagedTokenPackageID:  managedTokenReport.Output.ManagedTokenPackageID,
-		MCMSAddress:            reportMCMs.Output.PackageID,
+		CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
+		CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
+		ManagedTokenPackageId:  managedTokenReport.Output.ManagedTokenPackageId,
+		MCMSAddress:            reportMCMs.Output.PackageId,
 		MCMSOwnerAddress:       accountAddress,
 		// Initialize inputs
 		CoinObjectTypeArg:         tokenType,
-		CCIPObjectRefObjectID:     reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		ManagedTokenStateObjectID: managedTokenReport.Output.Objects.StateObjectID,
-		ManagedTokenOwnerCapID:    managedTokenReport.Output.Objects.OwnerCapObjectID,
-		CoinMetadataObjectID:      reportMockEthToken.Output.Objects.CoinMetadataObjectID,
-		MintCapObjectID:           mintCapObjectID,
+		CCIPObjectRefObjectId:     reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		ManagedTokenStateObjectId: managedTokenReport.Output.Objects.StateObjectId,
+		ManagedTokenOwnerCapId:    managedTokenReport.Output.Objects.OwnerCapObjectId,
+		CoinMetadataObjectId:      reportMockEthToken.Output.Objects.CoinMetadataObjectId,
+		MintCapObjectId:           mintCapObjectId,
 		TokenPoolAdministrator:    accountAddress,
 		// Chain updates - adding the destination chain
 		RemoteChainSelectorsToRemove: []uint64{},
@@ -209,20 +209,20 @@ func SetupManagedTokenPool(
 // which allows the specified address to mint tokens up to the given allowance.
 //
 // Parameters:
-// - managedTokenPackageID: The package ID of the deployed managed token
+// - managedTokenPackageId: The package ID of the deployed managed token
 // - tokenType: The fully qualified token type (e.g., "package_id::token::TOKEN_TYPE")
-// - stateObjectID: The state object ID of the managed token
-// - ownerCapObjectID: The owner capability object ID for authorization
+// - stateObjectId: The state object ID of the managed token
+// - ownerCapObjectId: The owner capability object ID for authorization
 // - minterAddress: The address that will be granted minting permissions
 // - allowance: Maximum number of tokens this minter can mint
 // - isUnlimited: If true, the minter has unlimited minting capability
 func ConfigureManagedTokenMinter(
 	t *testing.T,
 	deps sui_ops.OpTxDeps,
-	managedTokenPackageID string,
+	managedTokenPackageId string,
 	tokenType string,
-	stateObjectID string,
-	ownerCapObjectID string,
+	stateObjectId string,
+	ownerCapObjectId string,
 	minterAddress string,
 	allowance uint64,
 	isUnlimited bool,
@@ -232,16 +232,16 @@ func ConfigureManagedTokenMinter(
 	t.Helper()
 
 	lggr.Debugw("Configuring managed token minter",
-		"packageID", managedTokenPackageID,
+		"packageId", managedTokenPackageId,
 		"minterAddress", minterAddress,
 		"allowance", allowance,
 		"isUnlimited", isUnlimited)
 
 	configureInput := managedtokenops.ManagedTokenConfigureNewMinterInput{
-		ManagedTokenPackageID: managedTokenPackageID,
+		ManagedTokenPackageId: managedTokenPackageId,
 		CoinObjectTypeArg:     tokenType,
-		StateObjectID:         stateObjectID,
-		OwnerCapObjectID:      ownerCapObjectID,
+		StateObjectId:         stateObjectId,
+		OwnerCapObjectId:      ownerCapObjectId,
 		MinterAddress:         minterAddress,
 		Allowance:             allowance,
 		IsUnlimited:           isUnlimited,
@@ -262,10 +262,10 @@ func configureNewMinter(
 	t *testing.T,
 	client sui.ISuiAPI,
 	signer rel.SuiSigner,
-	managedTokenPackageID string,
+	managedTokenPackageId string,
 	tokenType string,
-	stateObjectID string,
-	ownerCapObjectID string,
+	stateObjectId string,
+	ownerCapObjectId string,
 	minterAddress string,
 	allowance uint64,
 	isUnlimited bool,
@@ -274,7 +274,7 @@ func configureNewMinter(
 	t.Helper()
 
 	lggr.Debugw("Configuring managed token minter",
-		"packageID", managedTokenPackageID,
+		"packageId", managedTokenPackageId,
 		"minterAddress", minterAddress,
 		"allowance", allowance,
 		"isUnlimited", isUnlimited)
@@ -294,7 +294,7 @@ func configureNewMinter(
 	}
 
 	// Create managed token contract instance
-	managedTokenContract, err := managedtoken.NewCCIPManagedToken(managedTokenPackageID, client)
+	managedTokenContract, err := managedtoken.NewCCIPManagedToken(managedTokenPackageId, client)
 	require.NoError(t, err, "failed to create managed token contract")
 
 	// Call ConfigureNewMinter directly on the contract
@@ -302,8 +302,8 @@ func configureNewMinter(
 		context.Background(),
 		deps.GetCallOpts(),
 		[]string{tokenType},
-		bind.Object{Id: stateObjectID},
-		bind.Object{Id: ownerCapObjectID},
+		bind.Object{Id: stateObjectId},
+		bind.Object{Id: ownerCapObjectId},
 		minterAddress,
 		allowance,
 		isUnlimited,
@@ -311,16 +311,16 @@ func configureNewMinter(
 	require.NoError(t, err, "failed to configure new minter for managed token")
 
 	// Find the mint cap object ID that was transferred to the minter
-	mintCapObjectID, err := bind.FindObjectIdFromPublishTx(*configureTx, "managed_token", "MintCap")
+	mintCapObjectId, err := bind.FindObjectIdFromPublishTx(*configureTx, "managed_token", "MintCap")
 	require.NoError(t, err, "failed to find mint cap object ID from configure minter transaction")
 
 	lggr.Infow("Successfully configured managed token minter",
 		"minter", minterAddress,
 		"allowance", allowance,
 		"isUnlimited", isUnlimited,
-		"mintCapObjectID", mintCapObjectID)
+		"mintCapObjectId", mintCapObjectId)
 
-	return mintCapObjectID
+	return mintCapObjectId
 }
 
 // SetupTokenPool sets up a lock/release token pool for LINK tokens.
@@ -351,8 +351,8 @@ func SetupTokenPool(
 
 	// Deploy CCIP token pool
 	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageID:    reportCCIP.Output.CCIPPackageID,
-		MCMSAddress:      reportMCMs.Output.PackageID,
+		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: accountAddress,
 	})
 	require.NoError(t, err, "failed to deploy CCIP Token Pool")
@@ -360,16 +360,16 @@ func SetupTokenPool(
 	// Deploy and initialize the lock release token pool
 	seqLockReleaseDeployInput := lockreleaseops.DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: lockreleaseops.LockReleaseTokenPoolDeployInput{
-			CCIPPackageID:          reportCCIP.Output.CCIPPackageID,
-			CCIPTokenPoolPackageID: ccipTokenPoolReport.Output.PackageID,
-			MCMSAddress:            reportMCMs.Output.PackageID,
+			CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
+			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
+			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      linkTokenType,
-		CCIPObjectRefObjectID:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		CoinMetadataObjectID:   mockLinkReport.Output.Objects.CoinMetadataObjectID,
-		TreasuryCapObjectID:    mockLinkReport.Output.Objects.TreasuryCapObjectID,
+		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		CoinMetadataObjectId:   mockLinkReport.Output.Objects.CoinMetadataObjectId,
+		TreasuryCapObjectId:    mockLinkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: accountAddress,
 		Rebalancer:             signerAddr,
 
@@ -398,14 +398,14 @@ func SetupTokenPool(
 	liquidityAmount := uint64(1000000) // 1M tokens for liquidity
 
 	// Create LINK token contract instance
-	linkContract, err := mocklinktoken.NewMockLinkToken(mockLinkReport.Output.PackageID, client)
+	linkContract, err := mocklinktoken.NewMockLinkToken(mockLinkReport.Output.PackageId, client)
 	require.NoError(t, err, "failed to create LINK token contract")
 
 	// Mint LINK tokens to the signer's address
 	mintTx, err := linkContract.MockLinkToken().Mint(
 		ctx,
 		deps.GetCallOpts(),
-		bind.Object{Id: mockLinkReport.Output.Objects.TreasuryCapObjectID},
+		bind.Object{Id: mockLinkReport.Output.Objects.TreasuryCapObjectId},
 		liquidityAmount,
 	)
 	require.NoError(t, err, "failed to mint LINK tokens for liquidity")
@@ -413,16 +413,16 @@ func SetupTokenPool(
 	lggr.Debugw("Minted LINK tokens for liquidity", "amount", liquidityAmount, "txDigest", mintTx.Digest)
 
 	// Find the minted coin object ID from the transaction
-	mintedCoinID, err := bind.FindCoinObjectIdFromTx(*mintTx, linkTokenType)
+	mintedCoinId, err := bind.FindCoinObjectIdFromTx(*mintTx, linkTokenType)
 	require.NoError(t, err, "failed to find minted coin object ID")
 
-	lggr.Debugw("Minted coin ID", "mintedCoinID", mintedCoinID)
+	lggr.Debugw("Minted coin ID", "mintedCoinId", mintedCoinId)
 
 	// Provide the minted tokens as liquidity to the pool
 	provideLiquidityInput := lockreleaseops.LockReleaseTokenPoolProviderLiquidityInput{
-		LockReleaseTokenPoolPackageID: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
-		StateObjectID:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectID,
-		Coin:                          mintedCoinID,
+		LockReleaseTokenPoolPackageId: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
+		StateObjectId:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectId,
+		Coin:                          mintedCoinId,
 		CoinObjectTypeArg:             linkTokenType,
 	}
 
@@ -440,7 +440,7 @@ func MintTestTokens(
 	t *testing.T,
 	client sui.ISuiAPI,
 	signer rel.SuiSigner,
-	packageID, treasuryCapID, tokenType, recipient string,
+	packageId, treasuryCapId, tokenType, recipient string,
 	transferAmount, feeAmount uint64,
 	lggr logger.Logger,
 ) (transferCoin, feeCoin string) {
@@ -464,14 +464,14 @@ func MintTestTokens(
 	var err error
 
 	// Check if this is a LINK token or ETH token based on the package structure
-	if packageID != "" {
+	if packageId != "" {
 		// Try LINK token first
-		if linkContract, linkErr := mocklinktoken.NewMockLinkToken(packageID, client); linkErr == nil {
+		if linkContract, linkErr := mocklinktoken.NewMockLinkToken(packageId, client); linkErr == nil {
 			// Mint transfer token
 			mintTransferTx, err = linkContract.MockLinkToken().MintAndTransfer(
 				context.Background(),
 				deps.GetCallOpts(),
-				bind.Object{Id: treasuryCapID},
+				bind.Object{Id: treasuryCapId},
 				transferAmount,
 				recipient,
 			)
@@ -481,21 +481,21 @@ func MintTestTokens(
 			mintFeeTx, err = linkContract.MockLinkToken().MintAndTransfer(
 				context.Background(),
 				deps.GetCallOpts(),
-				bind.Object{Id: treasuryCapID},
+				bind.Object{Id: treasuryCapId},
 				feeAmount,
 				recipient,
 			)
 			require.NoError(t, err, "failed to mint and transfer LINK tokens for fee")
 		} else {
 			// Try ETH token
-			ethContract, ethErr := mockethtoken.NewMockEthToken(packageID, client)
+			ethContract, ethErr := mockethtoken.NewMockEthToken(packageId, client)
 			require.NoError(t, ethErr, "failed to create token contract")
 
 			// Mint transfer token
 			mintTransferTx, err = ethContract.MockEthToken().MintAndTransfer(
 				context.Background(),
 				deps.GetCallOpts(),
-				bind.Object{Id: treasuryCapID},
+				bind.Object{Id: treasuryCapId},
 				transferAmount,
 				recipient,
 			)
@@ -505,7 +505,7 @@ func MintTestTokens(
 			mintFeeTx, err = ethContract.MockEthToken().MintAndTransfer(
 				context.Background(),
 				deps.GetCallOpts(),
-				bind.Object{Id: treasuryCapID},
+				bind.Object{Id: treasuryCapId},
 				feeAmount,
 				recipient,
 			)
@@ -514,18 +514,18 @@ func MintTestTokens(
 	}
 
 	// Find coin object IDs from transactions
-	transferCoinID, err := bind.FindCoinObjectIdFromTx(*mintTransferTx, tokenType)
+	transferCoinId, err := bind.FindCoinObjectIdFromTx(*mintTransferTx, tokenType)
 	require.NoError(t, err, "failed to find transfer coin object ID")
 
-	feeCoinID, err := bind.FindCoinObjectIdFromTx(*mintFeeTx, tokenType)
+	feeCoinId, err := bind.FindCoinObjectIdFromTx(*mintFeeTx, tokenType)
 	require.NoError(t, err, "failed to find fee coin object ID")
 
 	lggr.Infow("Successfully minted test tokens",
-		"transferCoin", transferCoinID,
-		"feeCoin", feeCoinID,
+		"transferCoin", transferCoinId,
+		"feeCoin", feeCoinId,
 		"transferAmount", transferAmount,
 		"feeAmount", feeAmount,
 		"recipient", recipient)
 
-	return transferCoinID, feeCoinID
+	return transferCoinId, feeCoinId
 }

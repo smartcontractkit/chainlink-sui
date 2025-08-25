@@ -45,12 +45,12 @@ func TestDeployMCMSSeq(t *testing.T) {
 	require.NoError(t, err, "failed to execute MCMS deploy sequence")
 
 	objects := report.Output.Objects
-	require.NotEmpty(t, objects.McmsMultisigStateObjectID, "MCMS Multisig State Object ID should not be empty")
-	require.NotEmpty(t, objects.TimelockObjectID, "MCMS Timelock Object ID should not be empty")
-	require.NotEmpty(t, objects.McmsDeployerObjectID, "MCMS Deployer Object ID should not be empty")
-	require.NotEmpty(t, objects.McmsRegistryObjectID, "MCMS Registry Object ID should not be empty")
-	require.NotEmpty(t, objects.McmsAccountStateObjectID, "MCMS Account State Object ID should not be empty")
-	require.NotEmpty(t, objects.McmsAccountOwnerCapObjectID, "MCMS Account Owner Cap Object ID should not be empty")
+	require.NotEmpty(t, objects.McmsMultisigStateObjectId, "MCMS Multisig State Object ID should not be empty")
+	require.NotEmpty(t, objects.TimelockObjectId, "MCMS Timelock Object ID should not be empty")
+	require.NotEmpty(t, objects.McmsDeployerObjectId, "MCMS Deployer Object ID should not be empty")
+	require.NotEmpty(t, objects.McmsRegistryObjectId, "MCMS Registry Object ID should not be empty")
+	require.NotEmpty(t, objects.McmsAccountStateObjectId, "MCMS Account State Object ID should not be empty")
+	require.NotEmpty(t, objects.McmsAccountOwnerCapObjectId, "MCMS Account Owner Cap Object ID should not be empty")
 	require.NotEmpty(t, report.Output.Digest, "Transaction digest should not be empty")
-	require.NotEmpty(t, report.Output.PackageID, "Package ID should not be empty")
+	require.NotEmpty(t, report.Output.PackageId, "Package ID should not be empty")
 }

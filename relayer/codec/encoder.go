@@ -140,8 +140,9 @@ func encodeUint(typeName string, value any) (any, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot convert json.Number %s to %s: %w", v, typeName, err)
 			}
+			//nolint:gosec
 			// we assume safe conversion without negative numbers
-			baseValue = i
+			baseValue = uint64(i)
 		}
 	case string:
 		// Handle big numbers that might come as strings

@@ -53,7 +53,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: reportMCMs.Output.PackageID,
+		McmsPackageId: reportMCMs.Output.PackageId,
 		McmsOwner:     signerAddress,
 	}
 
@@ -62,8 +62,8 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// deploy CCIP Token Pool
 	inputTokenPool := ccip_tokenpoolops.TokenPoolDeployInput{
-		CCIPPackageID:    reportCCIP.Output.PackageID,
-		MCMSAddress:      reportMCMs.Output.PackageID,
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: signerAddress,
 	}
 
@@ -76,9 +76,9 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
-		CCIPPackageID:      reportCCIP.Output.PackageID,
-		StateObjectID:      reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		OwnerCapObjectID:   reportCCIP.Output.Objects.OwnerCapObjectID,
+		CCIPPackageId:      reportCCIP.Output.PackageId,
+		StateObjectId:      reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId:   reportCCIP.Output.Objects.OwnerCapObjectId,
 		LocalChainSelector: 10,
 	}
 
@@ -88,17 +88,17 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	// Run BurnMintTokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
-			CCIPPackageID:          reportCCIP.Output.PackageID,
-			CCIPTokenPoolPackageID: reportCCIPTokenPool.Output.PackageID,
-			MCMSAddress:            reportMCMs.Output.PackageID,
+			CCIPPackageId:          reportCCIP.Output.PackageId,
+			CCIPTokenPoolPackageId: reportCCIPTokenPool.Output.PackageId,
+			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       signerAddress,
 		},
 
 		// initialize
-		CoinObjectTypeArg:      linkReport.Output.PackageID + "::mock_link_token::MOCK_LINK_TOKEN",
-		CCIPObjectRefObjectID:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		CoinMetadataObjectID:   linkReport.Output.Objects.CoinMetadataObjectId,
-		TreasuryCapObjectID:    linkReport.Output.Objects.TreasuryCapObjectId,
+		CoinObjectTypeArg:      linkReport.Output.PackageId + "::mock_link_token::MOCK_LINK_TOKEN",
+		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		CoinMetadataObjectId:   linkReport.Output.Objects.CoinMetadataObjectId,
+		TreasuryCapObjectId:    linkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: signerAddress,
 		Rebalancer:             "0x0",
 

@@ -10,8 +10,8 @@ import (
 )
 
 type LockReleaseTokenPoolDeployInput struct {
-	CCIPPackageID          string
-	CCIPTokenPoolPackageID string
+	CCIPPackageId          string
+	CCIPTokenPoolPackageId string
 	MCMSAddress            string
 	MCMSOwnerAddress       string
 }
@@ -26,8 +26,8 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.CCIPPackageID,
-		input.CCIPTokenPoolPackageID,
+		input.CCIPPackageId,
+		input.CCIPTokenPoolPackageId,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,
 	)
@@ -37,7 +37,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRele
 
 	return sui_ops.OpTxResult[LockReleaseTokenPoolDeployOutput]{
 		Digest:    tx.Digest,
-		PackageID: tokenPoolPackage.Address(),
+		PackageId: tokenPoolPackage.Address(),
 	}, err
 }
 

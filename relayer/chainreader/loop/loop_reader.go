@@ -178,7 +178,7 @@ func (s *loopChainReader) QueryKey(ctx context.Context, contract types.BoundCont
 		}
 
 		eventData := reflect.New(reflect.TypeOf(sequenceDataType).Elem()).Interface()
-		err = codec.DecodeSuiJSONValue(jsonData, eventData)
+		err = codec.DecodeSuiJsonValue(jsonData, eventData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode LOOP sourced event data (`%s`) into a Sui value: %+w", string(*jsonBytes), err)
 		}
@@ -233,7 +233,7 @@ func (s *loopChainReader) decodeGLVReturnValue(label string, jsonBytes []byte, r
 		return fmt.Errorf("failed to unmarshal %s GetLatestValue result (`%s`): %w", label, string(jsonBytes), err)
 	}
 
-	err = codec.DecodeSuiJSONValue(result, returnVal)
+	err = codec.DecodeSuiJsonValue(result, returnVal)
 	if err != nil {
 		return fmt.Errorf("failed to decode %s GetLatestValue JSON value (`%s`) to %T: %w", label, string(jsonBytes), returnVal, err)
 	}

@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -33,8 +34,8 @@ import (
 const (
 	EvmReceiverAddress = "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"
 	EthereumAddress    = "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"
-	ClockObjectID      = "0x6"
-	DenyListObjectID   = "0x403"
+	ClockObjectId      = "0x6"
+	DenyListObjectId   = "0x403"
 )
 
 // EnvironmentSettings holds all the deployed contract information and client settings
@@ -139,10 +140,10 @@ func UpdatePrices(
 	gasPrice := big.NewInt(20000000000) // 20 gwei in wei
 
 	updatePricesInput := ccipops.FeeQuoterUpdateTokenPricesInput{
-		CCIPPackageID:         reportCCIP.Output.CCIPPackageID,
-		CCIPObjectRef:         reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		FeeQuoterCapID:        reportCCIP.Output.Objects.FeeQuoterCapObjectID,
-		SourceTokens:          []string{reportMockLink.Output.Objects.CoinMetadataObjectID},
+		CCIPPackageId:         reportCCIP.Output.CCIPPackageId,
+		CCIPObjectRef:         reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		FeeQuoterCapId:        reportCCIP.Output.Objects.FeeQuoterCapObjectId,
+		SourceTokens:          []string{reportMockLink.Output.Objects.CoinMetadataObjectId},
 		SourceUsdPerToken:     []*big.Int{linkTokenPrice},
 		GasDestChainSelectors: []uint64{destChainSelector},
 		GasUsdPerUnitGas:      []*big.Int{gasPrice},
@@ -202,11 +203,11 @@ func DeployCCIPAndOnrampAndTokens(
 	require.NoError(t, err, "failed to decode eth address 3")
 
 	reportCCIP, err := cld_ops.ExecuteSequence(bundle, ccipops.DeployAndInitCCIPSequence, deps, ccipops.DeployAndInitCCIPSeqInput{
-		LinkTokenCoinMetadataObjectID: mockLinkReport.Output.Objects.CoinMetadataObjectID,
+		LinkTokenCoinMetadataObjectId: mockLinkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            localChainSelector,
 		DestChainSelector:             destChainSelector,
 		DeployCCIPInput: ccipops.DeployCCIPInput{
-			McmsPackageID: reportMCMs.Output.PackageID,
+			McmsPackageId: reportMCMs.Output.PackageId,
 			McmsOwner:     signerAddr,
 		},
 		MaxFeeJuelsPerMsg:            "100000000",
@@ -248,17 +249,17 @@ func DeployCCIPAndOnrampAndTokens(
 		FSign:                       uint64(1),
 	})
 	require.NoError(t, err, "failed to execute CCIP deploy sequence")
-	require.NotEmpty(t, reportCCIP.Output.CCIPPackageID, "CCIP package ID should not be empty")
+	require.NotEmpty(t, reportCCIP.Output.CCIPPackageId, "CCIP package ID should not be empty")
 
 	seqOnrampInput := onrampops.DeployAndInitCCIPOnRampSeqInput{
 		DeployCCIPOnRampInput: onrampops.DeployCCIPOnRampInput{
-			CCIPPackageID:      reportCCIP.Output.CCIPPackageID,
-			MCMSPackageID:      reportMCMs.Output.PackageID,
-			MCMSOwnerPackageID: signerAddr,
+			CCIPPackageId:      reportCCIP.Output.CCIPPackageId,
+			MCMSPackageId:      reportMCMs.Output.PackageId,
+			MCMSOwnerPackageId: signerAddr,
 		},
 		OnRampInitializeInput: onrampops.OnRampInitializeInput{
-			NonceManagerCapID:         reportCCIP.Output.Objects.NonceManagerCapObjectID,   // this is from NonceManager init Op
-			SourceTransferCapID:       reportCCIP.Output.Objects.SourceTransferCapObjectID, // this is from CCIP package publish
+			NonceManagerCapId:         reportCCIP.Output.Objects.NonceManagerCapObjectId,   // this is from NonceManager init Op
+			SourceTransferCapId:       reportCCIP.Output.Objects.SourceTransferCapObjectId, // this is from CCIP package publish
 			ChainSelector:             destChainSelector,
 			FeeAggregator:             signerAddr,
 			AllowListAdmin:            signerAddr,
@@ -299,8 +300,8 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 
 	reportCCIP, reportOnRamp, reportMockLinkToken, reportMockEthToken, reportMCMs := DeployCCIPAndOnrampAndTokens(t, localChainSelector, destChainSelector, keystoreInstance, signerAddr, bundle, deps, lggr)
 
-	linkTokenType := reportMockLinkToken.Output.PackageID + "::mock_link_token::MOCK_LINK_TOKEN"
-	ethTokenType := reportMockEthToken.Output.PackageID + "::mock_eth_token::MOCK_ETH_TOKEN"
+	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", reportMockLinkToken.Output.PackageId)
+	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", reportMockEthToken.Output.PackageId)
 
 	ethereumPoolAddressString := string(NormalizeTo32Bytes(EvmReceiverAddress))
 	remoteTokenAddressString := string(NormalizeTo32Bytes(EvmReceiverAddress))
@@ -322,7 +323,7 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 		lggr,
 	)
 
-	ethCoins := GetEthCoins(t, client, signer, reportMockEthToken.Output.PackageID, reportMockEthToken.Output.Objects.TreasuryCapObjectID, ethTokenType, accountAddress, lggr, 1000000, 1000000)
+	ethCoins := GetEthCoins(t, client, signer, reportMockEthToken.Output.PackageId, reportMockEthToken.Output.Objects.TreasuryCapObjectId, ethTokenType, accountAddress, lggr, 1000000, 1000000)
 
 	ethTokenPoolReport := SetupEthTokenPoolBurnMint(
 		t,
@@ -369,8 +370,8 @@ func SetupTestEnvironmentForManagedTokenPool(t *testing.T, client sui.ISuiAPI, s
 
 	reportCCIP, reportOnRamp, reportMockLinkToken, reportMockEthToken, reportMCMs := DeployCCIPAndOnrampAndTokens(t, localChainSelector, destChainSelector, keystoreInstance, signerAddr, bundle, deps, lggr)
 
-	ethTokenType := reportMockEthToken.Output.PackageID + "::mock_eth_token::MOCK_ETH_TOKEN"
-	ethCoins := GetEthCoins(t, client, signer, reportMockEthToken.Output.PackageID, reportMockEthToken.Output.Objects.TreasuryCapObjectID, ethTokenType, accountAddress, lggr, 1000000, 1000000)
+	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", reportMockEthToken.Output.PackageId)
+	ethCoins := GetEthCoins(t, client, signer, reportMockEthToken.Output.PackageId, reportMockEthToken.Output.Objects.TreasuryCapObjectId, ethTokenType, accountAddress, lggr, 1000000, 1000000)
 
 	ethereumPoolAddressString := string(NormalizeTo32Bytes(EvmReceiverAddress))
 	remoteTokenAddressString := string(NormalizeTo32Bytes(EvmReceiverAddress))
@@ -433,7 +434,7 @@ func GetLinkCoins(t *testing.T, envSettings *EnvironmentSettings, linkTokenType 
 	}
 
 	// Create LINK token contract instance
-	linkContract, err := mocklinktoken.NewMockLinkToken(envSettings.MockLinkReport.Output.PackageID, envSettings.Client)
+	linkContract, err := mocklinktoken.NewMockLinkToken(envSettings.MockLinkReport.Output.PackageId, envSettings.Client)
 	require.NoError(t, err, "failed to create LINK token contract")
 
 	// Use MintAndTransfer to mint directly to the transaction account
@@ -443,7 +444,7 @@ func GetLinkCoins(t *testing.T, envSettings *EnvironmentSettings, linkTokenType 
 	mintTx1, err := linkContract.MockLinkToken().MintAndTransfer(
 		context.Background(),
 		deps.GetCallOpts(),
-		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectID},
+		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectId},
 		tokenAmount,
 		accountAddress, // Mint directly to transaction account
 	)
@@ -452,15 +453,15 @@ func GetLinkCoins(t *testing.T, envSettings *EnvironmentSettings, linkTokenType 
 	lggr.Debugw("Minted and transferred LINK tokens for transfer", "amount", tokenAmount, "txDigest", mintTx1.Digest, "recipient", accountAddress)
 
 	// Find the first minted coin object ID from the transaction
-	mintedCoinID1, err := bind.FindCoinObjectIdFromTx(*mintTx1, linkTokenType)
+	mintedCoinId1, err := bind.FindCoinObjectIdFromTx(*mintTx1, linkTokenType)
 	require.NoError(t, err, "failed to find first minted coin object ID")
-	lggr.Infow("First mintedCoinId", "coin", mintedCoinID1)
+	lggr.Infow("First mintedCoinId", "coin", mintedCoinId1)
 
 	// Mint second coin for fee payment directly to transaction account
 	mintTx2, err := linkContract.MockLinkToken().MintAndTransfer(
 		context.Background(),
 		deps.GetCallOpts(),
-		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectID},
+		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectId},
 		feeAmount,
 		accountAddress, // Mint directly to transaction account
 	)
@@ -469,22 +470,22 @@ func GetLinkCoins(t *testing.T, envSettings *EnvironmentSettings, linkTokenType 
 	lggr.Debugw("Minted and transferred LINK tokens for fee", "amount", feeAmount, "txDigest", mintTx2.Digest, "recipient", accountAddress)
 
 	// Find the second minted coin object ID from the transaction
-	mintedCoinID2, err := bind.FindCoinObjectIdFromTx(*mintTx2, linkTokenType)
+	mintedCoinId2, err := bind.FindCoinObjectIdFromTx(*mintTx2, linkTokenType)
 	require.NoError(t, err, "failed to find second minted coin object ID")
-	lggr.Infow("Second mintedCoinId", "coin", mintedCoinID2)
+	lggr.Infow("Second mintedCoinId", "coin", mintedCoinId2)
 
-	return mintedCoinID1, mintedCoinID2
+	return mintedCoinId1, mintedCoinId2
 }
 
 // GetEthCoins mints ETH tokens for testing CCIP operations.
 // Returns an array of coin IDs for use in testing.
-func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethTokenPackageID string, treasuryCapObjectID string, ethTokenType string, accountAddress string, lggr logger.Logger, tokenAmount uint64, feeAmount uint64) []string {
+func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethTokenPackageId string, treasuryCapObjectId string, ethTokenType string, accountAddress string, lggr logger.Logger, tokenAmount uint64, feeAmount uint64) []string {
 	t.Helper()
 
 	// Mint ETH tokens for the CCIP send operation
 	// We need two separate coins: one for the token transfer and one for the fee payment
 
-	// Use the setup account to mint tokens (since it owns the TreasuryCapObjectID)
+	// Use the setup account to mint tokens (since it owns the TreasuryCapObjectId)
 	// but then transfer them to the transaction account
 	deps := sui_ops.OpTxDeps{
 		Client: client,
@@ -500,7 +501,7 @@ func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethToke
 	}
 
 	// Create ETH token contract instance
-	ethContract, err := mockethtoken.NewMockEthToken(ethTokenPackageID, client)
+	ethContract, err := mockethtoken.NewMockEthToken(ethTokenPackageId, client)
 	require.NoError(t, err, "failed to create ETH token contract")
 
 	// Use MintAndTransfer to mint directly to the transaction account
@@ -510,7 +511,7 @@ func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethToke
 	mintTx1, err := ethContract.MockEthToken().MintAndTransfer(
 		context.Background(),
 		deps.GetCallOpts(),
-		bind.Object{Id: treasuryCapObjectID},
+		bind.Object{Id: treasuryCapObjectId},
 		tokenAmount,
 		accountAddress, // Mint directly to transaction account
 	)
@@ -519,15 +520,15 @@ func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethToke
 	lggr.Debugw("Minted and transferred ETH tokens for transfer", "amount", tokenAmount, "txDigest", mintTx1.Digest, "recipient", accountAddress)
 
 	// Find the first minted coin object ID from the transaction
-	mintedCoinID1, err := bind.FindCoinObjectIdFromTx(*mintTx1, ethTokenType)
+	mintedCoinId1, err := bind.FindCoinObjectIdFromTx(*mintTx1, ethTokenType)
 	require.NoError(t, err, "failed to find first minted coin object ID")
-	lggr.Infow("First ETH mintedCoinId", "coin", mintedCoinID1)
+	lggr.Infow("First ETH mintedCoinId", "coin", mintedCoinId1)
 
 	// Mint second coin for fee payment directly to transaction account
 	mintTx2, err := ethContract.MockEthToken().MintAndTransfer(
 		context.Background(),
 		deps.GetCallOpts(),
-		bind.Object{Id: treasuryCapObjectID},
+		bind.Object{Id: treasuryCapObjectId},
 		feeAmount,
 		accountAddress, // Mint directly to transaction account
 	)
@@ -536,11 +537,11 @@ func GetEthCoins(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethToke
 	lggr.Debugw("Minted and transferred ETH tokens for fee", "amount", feeAmount, "txDigest", mintTx2.Digest, "recipient", accountAddress)
 
 	// Find the second minted coin object ID from the transaction
-	mintedCoinID2, err := bind.FindCoinObjectIdFromTx(*mintTx2, ethTokenType)
+	mintedCoinId2, err := bind.FindCoinObjectIdFromTx(*mintTx2, ethTokenType)
 	require.NoError(t, err, "failed to find second minted coin object ID")
-	lggr.Infow("Second ETH mintedCoinId", "coin", mintedCoinID2)
+	lggr.Infow("Second ETH mintedCoinId", "coin", mintedCoinId2)
 
-	return []string{mintedCoinID1, mintedCoinID2}
+	return []string{mintedCoinId1, mintedCoinId2}
 }
 
 // NormalizeTo32Bytes converts an address string to a 32-byte representation.
@@ -557,8 +558,7 @@ func NormalizeTo32Bytes(address string) []byte {
 	} else if len(addressBytesFull) < 32 {
 		// pad left with zeros
 		padding := make([]byte, 32-len(addressBytesFull))
-		padding = append(padding, addressBytesFull...)
-		addressBytes = padding
+		addressBytes = append(padding, addressBytesFull...)
 	}
 	return addressBytes
 }

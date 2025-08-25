@@ -9,26 +9,26 @@ import (
 )
 
 type DeployCCIPSeqObjects struct {
-	CCIPObjectRefObjectID           string
-	OwnerCapObjectID                string
-	FeeQuoterCapObjectID            string
-	FeeQuoterStateObjectID          string
-	NonceManagerStateObjectID       string
-	NonceManagerCapObjectID         string
-	ReceiverRegistryStateObjectID   string
-	RMNRemoteStateObjectID          string
-	TokenAdminRegistryStateObjectID string
-	SourceTransferCapObjectID       string
-	DestTransferCapObjectID         string
+	CCIPObjectRefObjectId           string
+	OwnerCapObjectId                string
+	FeeQuoterCapObjectId            string
+	FeeQuoterStateObjectId          string
+	NonceManagerStateObjectId       string
+	NonceManagerCapObjectId         string
+	ReceiverRegistryStateObjectId   string
+	RMNRemoteStateObjectId          string
+	TokenAdminRegistryStateObjectId string
+	SourceTransferCapObjectId       string
+	DestTransferCapObjectId         string
 }
 
 type DeployCCIPSeqOutput struct {
-	CCIPPackageID string
+	CCIPPackageId string
 	Objects       DeployCCIPSeqObjects
 }
 
 type DeployAndInitCCIPSeqInput struct {
-	LinkTokenCoinMetadataObjectID string
+	LinkTokenCoinMetadataObjectId string
 	LocalChainSelector            uint64
 	DestChainSelector             uint64
 	DeployCCIPInput
@@ -89,26 +89,13 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			FeeQuoterInitializeOp,
 			deps,
 			InitFeeQuoterInput{
-				CCIPPackageID:                 deployReport.Output.PackageID,
-				StateObjectID:                 deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:              deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPPackageId:                 deployReport.Output.PackageId,
+				StateObjectId:                 deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:              deployReport.Output.Objects.OwnerCapObjectId,
 				MaxFeeJuelsPerMsg:             input.MaxFeeJuelsPerMsg,
-				LinkTokenCoinMetadataObjectID: input.LinkTokenCoinMetadataObjectID,
+				LinkTokenCoinMetadataObjectId: input.LinkTokenCoinMetadataObjectId,
 				TokenPriceStalenessThreshold:  input.TokenPriceStalenessThreshold,
-				FeeTokens:                     []string{input.LinkTokenCoinMetadataObjectID},
-			},
-		)
-		if err != nil {
-			return DeployCCIPSeqOutput{}, err
-		}
-
-		issueFQCapReport, err := cld_ops.ExecuteOperation(
-			env,
-			FeeQuoterIssueFeeQuoterCapOp,
-			deps,
-			IssueFeeQuoterCapInput{
-				CCIPPackageID:    deployReport.Output.PackageID,
-				OwnerCapObjectID: deployReport.Output.Objects.OwnerCapObjectID,
+				FeeTokens:                     []string{input.LinkTokenCoinMetadataObjectId},
 			},
 		)
 		if err != nil {
@@ -120,9 +107,9 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			NonceManagerInitializeOp,
 			deps,
 			InitNMInput{
-				CCIPPackageID:    deployReport.Output.PackageID,
-				StateObjectID:    deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID: deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPPackageId:    deployReport.Output.PackageId,
+				StateObjectId:    deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 			},
 		)
 		if err != nil {
@@ -134,9 +121,9 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			ReceiverRegistryInitializeOp,
 			deps,
 			InitRecRegInput{
-				CCIPPackageID:    deployReport.Output.PackageID,
-				StateObjectID:    deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID: deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPPackageId:    deployReport.Output.PackageId,
+				StateObjectId:    deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 			},
 		)
 		if err != nil {
@@ -148,9 +135,9 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			RMNRemoteInitializeOp,
 			deps,
 			InitRMNRemoteInput{
-				CCIPPackageID:      deployReport.Output.PackageID,
-				StateObjectID:      deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:   deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPPackageId:      deployReport.Output.PackageId,
+				StateObjectId:      deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:   deployReport.Output.Objects.OwnerCapObjectId,
 				LocalChainSelector: input.LocalChainSelector,
 			},
 		)
@@ -163,9 +150,9 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			TokenAdminRegistryInitializeOp,
 			deps,
 			InitTARInput{
-				CCIPPackageID:      deployReport.Output.PackageID,
-				StateObjectID:      deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:   deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPPackageId:      deployReport.Output.PackageId,
+				StateObjectId:      deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:   deployReport.Output.Objects.OwnerCapObjectId,
 				LocalChainSelector: input.LocalChainSelector,
 			},
 		)
@@ -179,10 +166,10 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			FeeQuoterApplyTokenTransferFeeConfigUpdatesOp,
 			deps,
 			FeeQuoterApplyTokenTransferFeeConfigUpdatesInput{
-				CCIPPackageID:        deployReport.Output.PackageID,
-				StateObjectID:        deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:     deployReport.Output.Objects.OwnerCapObjectID,
-				AddTokens:            []string{input.LinkTokenCoinMetadataObjectID},
+				CCIPPackageId:        deployReport.Output.PackageId,
+				StateObjectId:        deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:     deployReport.Output.Objects.OwnerCapObjectId,
+				AddTokens:            []string{input.LinkTokenCoinMetadataObjectId},
 				AddMinFeeUsdCents:    input.AddMinFeeUsdCents,
 				AddMaxFeeUsdCents:    input.AddMaxFeeUsdCents,
 				AddDeciBps:           input.AddDeciBps,
@@ -202,9 +189,9 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			FeeQuoterApplyDestChainConfigUpdatesOp,
 			deps,
 			FeeQuoterApplyDestChainConfigUpdatesInput{
-				CCIPPackageID:                     deployReport.Output.PackageID,
-				StateObjectID:                     deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:                  deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPPackageId:                     deployReport.Output.PackageId,
+				StateObjectId:                     deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:                  deployReport.Output.Objects.OwnerCapObjectId,
 				DestChainSelector:                 input.DestChainSelector,
 				IsEnabled:                         input.IsEnabled,
 				MaxNumberOfTokensPerMsg:           input.MaxNumberOfTokensPerMsg,
@@ -237,10 +224,10 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp,
 			deps,
 			FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput{
-				CCIPPackageID:              deployReport.Output.PackageID,
-				StateObjectID:              deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:           deployReport.Output.Objects.OwnerCapObjectID,
-				Tokens:                     []string{input.LinkTokenCoinMetadataObjectID},
+				CCIPPackageId:              deployReport.Output.PackageId,
+				StateObjectId:              deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:           deployReport.Output.Objects.OwnerCapObjectId,
+				Tokens:                     []string{input.LinkTokenCoinMetadataObjectId},
 				PremiumMultiplierWeiPerEth: input.PremiumMultiplierWeiPerEth,
 			},
 		)
@@ -254,9 +241,9 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			RMNRemoteSetConfigOp,
 			deps,
 			RMNRemoteSetConfigInput{
-				CCIPPackageID:               deployReport.Output.PackageID,
-				StateObjectID:               deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:            deployReport.Output.Objects.OwnerCapObjectID,
+				CCIPPackageId:               deployReport.Output.PackageId,
+				StateObjectId:               deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:            deployReport.Output.Objects.OwnerCapObjectId,
 				RmnHomeContractConfigDigest: input.RmnHomeContractConfigDigest,
 				SignerOnchainPublicKeys:     input.SignerOnchainPublicKeys,
 				NodeIndexes:                 input.NodeIndexes,
@@ -268,19 +255,19 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 		}
 
 		return DeployCCIPSeqOutput{
-			CCIPPackageID: deployReport.Output.PackageID,
+			CCIPPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPSeqObjects{
-				CCIPObjectRefObjectID:           deployReport.Output.Objects.CCIPObjectRefObjectID,
-				OwnerCapObjectID:                deployReport.Output.Objects.OwnerCapObjectID,
-				FeeQuoterCapObjectID:            issueFQCapReport.Output.Objects.FeeQuoterCapObjectID,
-				FeeQuoterStateObjectID:          initFQReport.Output.Objects.FeeQuoterStateObjectID,
-				NonceManagerStateObjectID:       initNMReport.Output.Objects.NonceManagerStateObjectID,
-				NonceManagerCapObjectID:         initNMReport.Output.Objects.NonceManagerCapObjectID,
-				ReceiverRegistryStateObjectID:   initRecRegReport.Output.Objects.ReceiverRegistryStateObjectID,
-				RMNRemoteStateObjectID:          initRMNRemoteReport.Output.Objects.RMNRemoteStateObjectID,
-				TokenAdminRegistryStateObjectID: initTARReport.Output.Objects.TARStateObjectID,
-				SourceTransferCapObjectID:       deployReport.Output.Objects.SourceTransferCapObjectID,
-				DestTransferCapObjectID:         deployReport.Output.Objects.DestTransferCapObjectID,
+				CCIPObjectRefObjectId:           deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:                deployReport.Output.Objects.OwnerCapObjectId,
+				FeeQuoterCapObjectId:            initFQReport.Output.Objects.FeeQuoterCapObjectId,
+				FeeQuoterStateObjectId:          initFQReport.Output.Objects.FeeQuoterStateObjectId,
+				NonceManagerStateObjectId:       initNMReport.Output.Objects.NonceManagerStateObjectId,
+				NonceManagerCapObjectId:         initNMReport.Output.Objects.NonceManagerCapObjectId,
+				ReceiverRegistryStateObjectId:   initRecRegReport.Output.Objects.ReceiverRegistryStateObjectId,
+				RMNRemoteStateObjectId:          initRMNRemoteReport.Output.Objects.RMNRemoteStateObjectId,
+				TokenAdminRegistryStateObjectId: initTARReport.Output.Objects.TARStateObjectId,
+				SourceTransferCapObjectId:       deployReport.Output.Objects.SourceTransferCapObjectId,
+				DestTransferCapObjectId:         deployReport.Output.Objects.DestTransferCapObjectId,
 			},
 		}, nil
 	},

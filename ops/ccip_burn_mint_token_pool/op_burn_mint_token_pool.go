@@ -14,21 +14,21 @@ import (
 
 // BMTP -- INITIALIZE
 type BurnMintTokenPoolInitializeObjects struct {
-	OwnerCapObjectID string
-	StateObjectID    string
+	OwnerCapObjectId string
+	StateObjectId    string
 }
 
 type BurnMintTokenPoolInitializeInput struct {
-	BurnMintPackageID      string
+	BurnMintPackageId      string
 	CoinObjectTypeArg      string
-	StateObjectID          string
-	CoinMetadataObjectID   string
-	TreasuryCapObjectID    string
+	StateObjectId          string
+	CoinMetadataObjectId   string
+	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
 }
 
 var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
-	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageID, deps.Client)
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create burn mint contract: %w", err)
 	}
@@ -39,9 +39,9 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
-		bind.Object{Id: input.CoinMetadataObjectID},
-		bind.Object{Id: input.TreasuryCapObjectID},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CoinMetadataObjectId},
+		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {
@@ -57,10 +57,10 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 
 	return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.BurnMintPackageID,
+		PackageId: input.BurnMintPackageId,
 		Objects: BurnMintTokenPoolInitializeObjects{
-			OwnerCapObjectID: obj1,
-			StateObjectID:    obj2,
+			OwnerCapObjectId: obj1,
+			StateObjectId:    obj2,
 		},
 	}, err
 }
@@ -74,17 +74,17 @@ var BurnMintTokenPoolInitializeOp = cld_ops.NewOperation(
 
 // BMTP -- INITIALIZE BY CCIP ADMIN
 type BurnMintTokenPoolInitializeByCcipAdminInput struct {
-	BurnMintPackageID      string
+	BurnMintPackageId      string
 	CoinObjectTypeArg      string
-	StateObjectID          string
-	CoinMetadataObjectID   string
-	OwnerCapObjectID       string
-	TreasuryCapObjectID    string
+	StateObjectId          string
+	CoinMetadataObjectId   string
+	OwnerCapObjectId       string
+	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
 }
 
 var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
-	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageID, deps.Client)
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create burn mint contract: %w", err)
 	}
@@ -95,10 +95,10 @@ var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
-		bind.Object{Id: input.OwnerCapObjectID},
-		bind.Object{Id: input.CoinMetadataObjectID},
-		bind.Object{Id: input.TreasuryCapObjectID},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.CoinMetadataObjectId},
+		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
 	)
 	if err != nil {
@@ -114,10 +114,10 @@ var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 
 	return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.BurnMintPackageID,
+		PackageId: input.BurnMintPackageId,
 		Objects: BurnMintTokenPoolInitializeObjects{
-			OwnerCapObjectID: obj1,
-			StateObjectID:    obj2,
+			OwnerCapObjectId: obj1,
+			StateObjectId:    obj2,
 		},
 	}, err
 }
@@ -134,9 +134,9 @@ type NoObjects struct {
 }
 
 type BurnMintTokenPoolApplyChainUpdatesInput struct {
-	BurnMintPackageID            string
+	BurnMintPackageId            string
 	CoinObjectTypeArg            string
-	StateObjectID                string
+	StateObjectId                string
 	OwnerCap                     string
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -145,7 +145,7 @@ type BurnMintTokenPoolApplyChainUpdatesInput struct {
 }
 
 var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolApplyChainUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageID, deps.Client)
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint contract: %w", err)
 	}
@@ -171,7 +171,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelectorsToRemove,
 		input.RemoteChainSelectorsToAdd,
@@ -182,11 +182,11 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool apply chain updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyChainUpdates on BurnMintTokenPool", "BurnMintTokenPool PackageID:", input.BurnMintPackageID)
+	b.Logger.Infow("ApplyChainUpdates on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintPackageId)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.BurnMintPackageID,
+		PackageId: input.BurnMintPackageId,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -200,9 +200,9 @@ var BurnMintTokenPoolApplyChainUpdatesOp = cld_ops.NewOperation(
 
 // BMTP -- set_chain_rate_limiter_configs
 type BurnMintTokenPoolSetChainRateLimiterInput struct {
-	BurnMintPackageID    string
+	BurnMintPackageId    string
 	CoinObjectTypeArg    string
-	StateObjectID        string
+	StateObjectId        string
 	OwnerCap             string
 	RemoteChainSelectors []uint64
 	OutboundIsEnableds   []bool
@@ -214,7 +214,7 @@ type BurnMintTokenPoolSetChainRateLimiterInput struct {
 }
 
 var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolSetChainRateLimiterInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageID, deps.Client)
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint contract: %w", err)
 	}
@@ -225,7 +225,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		bind.Object{Id: "0x6"}, // Clock object
 		input.RemoteChainSelectors,
@@ -240,11 +240,11 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool set configs rate limiter: %w", err)
 	}
 
-	b.Logger.Infow("SetChainRateLimiter on BurnMintTokenPool", "BurnMintTokenPool PackageID:", input.BurnMintPackageID)
+	b.Logger.Infow("SetChainRateLimiter on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintPackageId)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.BurnMintPackageID,
+		PackageId: input.BurnMintPackageId,
 		Objects:   NoObjects{},
 	}, err
 }

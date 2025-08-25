@@ -16,11 +16,11 @@ type DeployAndInitCCIPOnRampSeqInput struct {
 }
 
 type DeployCCIPOnRampSeqObjects struct {
-	StateObjectID string
+	StateObjectId string
 }
 
 type DeployCCIPOnRampSeqOutput struct {
-	CCIPOnRampPackageID string
+	CCIPOnRampPackageId string
 	Objects             DeployCCIPOnRampSeqObjects
 }
 
@@ -35,9 +35,9 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		}
 
 		// Prepare updated input for initialization
-		input.OnRampInitializeInput.OnRampPackageID = deployReport.Output.PackageID
-		input.OnRampInitializeInput.OnRampStateID = deployReport.Output.Objects.CCIPOnrampStateObjectID
-		input.OnRampInitializeInput.OwnerCapObjectID = deployReport.Output.Objects.OwnerCapObjectID
+		input.OnRampInitializeInput.OnRampPackageId = deployReport.Output.PackageId
+		input.OnRampInitializeInput.OnRampStateId = deployReport.Output.Objects.CCIPOnrampStateObjectId
+		input.OnRampInitializeInput.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
 
 		_, err = cld_ops.ExecuteOperation(env, OnRampInitializeOP, deps, input.OnRampInitializeInput)
 		if err != nil {
@@ -45,9 +45,9 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		}
 
 		applyDestChainConfigUpdateInput := ApplyDestChainConfigureOnRampInput{
-			OnRampPackageID:           deployReport.Output.PackageID,
-			OwnerCapObjectID:          deployReport.Output.Objects.OwnerCapObjectID,
-			StateObjectID:             deployReport.Output.Objects.CCIPOnrampStateObjectID,
+			OnRampPackageId:           deployReport.Output.PackageId,
+			OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
+			StateObjectId:             deployReport.Output.Objects.CCIPOnrampStateObjectId,
 			DestChainSelector:         input.ApplyDestChainConfigureOnRampInput.DestChainSelector,
 			DestChainEnabled:          input.ApplyDestChainConfigureOnRampInput.DestChainEnabled,
 			DestChainAllowListEnabled: input.ApplyDestChainConfigureOnRampInput.DestChainAllowListEnabled,
@@ -59,9 +59,9 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		}
 
 		return DeployCCIPOnRampSeqOutput{
-			CCIPOnRampPackageID: deployReport.Output.PackageID,
+			CCIPOnRampPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPOnRampSeqObjects{
-				StateObjectID: deployReport.Output.Objects.CCIPOnrampStateObjectID,
+				StateObjectId: deployReport.Output.Objects.CCIPOnrampStateObjectId,
 			},
 		}, nil
 	},

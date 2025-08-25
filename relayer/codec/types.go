@@ -105,7 +105,7 @@ type Any2SuiRampMessage struct {
 type ExecutionStateChanged struct {
 	SourceChainSelector uint64 `json:"source_chain_selector"`
 	SequenceNumber      uint64 `json:"sequence_number"`
-	MessageID           []byte `json:"message_id"`
+	MessageId           []byte `json:"message_id"`
 	MessageHash         []byte `json:"message_hash"`
 	State               byte   `json:"state"`
 }

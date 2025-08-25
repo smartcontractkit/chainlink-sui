@@ -10,7 +10,7 @@ import (
 )
 
 type TokenPoolDeployInput struct {
-	CCIPPackageID    string
+	CCIPPackageId    string
 	MCMSAddress      string
 	MCMSOwnerAddress string
 }
@@ -25,7 +25,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TokenPoo
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.CCIPPackageID,
+		input.CCIPPackageId,
 		input.MCMSAddress,
 		input.MCMSOwnerAddress,
 	)
@@ -35,7 +35,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TokenPoo
 
 	return sui_ops.OpTxResult[TokenPoolDeployOutput]{
 		Digest:    tx.Digest,
-		PackageID: tokenPoolPackage.Address(),
+		PackageId: tokenPoolPackage.Address(),
 	}, err
 }
 

@@ -51,7 +51,7 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageID: reportMCMs.Output.PackageID,
+		McmsPackageId: reportMCMs.Output.PackageId,
 		McmsOwner:     signerAddress,
 	}
 
@@ -60,8 +60,8 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// deploy CCIP Token Pool
 	inputTokenPool := ccip_tokenpoolops.TokenPoolDeployInput{
-		CCIPPackageID:    reportCCIP.Output.PackageID,
-		MCMSAddress:      reportMCMs.Output.PackageID,
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: signerAddress,
 	}
 
@@ -70,16 +70,16 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// deploy managed token
 	reportManagedToken, err := cld_ops.ExecuteOperation(bundle, managedtokenops.DeployCCIPManagedTokenOp, deps, managedtokenops.ManagedTokenDeployInput{
-		MCMSAddress:      reportMCMs.Output.PackageID,
+		MCMSAddress:      reportMCMs.Output.PackageId,
 		MCMSOwnerAddress: signerAddress,
 	})
 	require.NoError(t, err, "failed to deploy ManagedToken Package")
 
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
-		CCIPPackageID:      reportCCIP.Output.PackageID,
-		StateObjectID:      reportCCIP.Output.Objects.CCIPObjectRefObjectID,
-		OwnerCapObjectID:   reportCCIP.Output.Objects.OwnerCapObjectID,
+		CCIPPackageId:      reportCCIP.Output.PackageId,
+		StateObjectId:      reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId:   reportCCIP.Output.Objects.OwnerCapObjectId,
 		LocalChainSelector: 10,
 	}
 
@@ -88,10 +88,10 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Test just the package deployment for now
 	managedTokenPoolInput := ManagedTokenPoolDeployInput{
-		CCIPPackageID:          reportCCIP.Output.PackageID,
-		CCIPTokenPoolPackageID: reportCCIPTokenPool.Output.PackageID,
-		ManagedTokenPackageID:  reportManagedToken.Output.PackageID,
-		MCMSAddress:            reportMCMs.Output.PackageID,
+		CCIPPackageId:          reportCCIP.Output.PackageId,
+		CCIPTokenPoolPackageId: reportCCIPTokenPool.Output.PackageId,
+		ManagedTokenPackageId:  reportManagedToken.Output.PackageId,
+		MCMSAddress:            reportMCMs.Output.PackageId,
 		MCMSOwnerAddress:       signerAddress,
 	}
 

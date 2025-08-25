@@ -46,8 +46,8 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Mint Mock Link Token
 	_, err = cld_ops.ExecuteOperation(bundle, MintMockLinkTokenOp, deps, MintMockLinkTokenInput{
-		MockLinkTokenPackageID: mockLinkReport.Output.PackageID,
-		TreasuryCapID:          mockLinkReport.Output.Objects.TreasuryCapObjectID,
+		MockLinkTokenPackageId: mockLinkReport.Output.PackageId,
+		TreasuryCapId:          mockLinkReport.Output.Objects.TreasuryCapObjectId,
 		Amount:                 10,
 	})
 	require.NoError(t, err, "failed to mint Mock LINK token")

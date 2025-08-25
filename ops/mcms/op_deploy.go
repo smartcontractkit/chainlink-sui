@@ -14,15 +14,15 @@ import (
 
 type DeployMCMSObjects struct {
 	// MCMS
-	McmsMultisigStateObjectID string
-	TimelockObjectID          string
+	McmsMultisigStateObjectId string
+	TimelockObjectId          string
 	// MCMS Deployer
-	McmsDeployerObjectID string
+	McmsDeployerObjectId string
 	// MCMS Registry
-	McmsRegistryObjectID string
+	McmsRegistryObjectId string
 	// MCMS Account
-	McmsAccountStateObjectID    string
-	McmsAccountOwnerCapObjectID string
+	McmsAccountStateObjectId    string
+	McmsAccountOwnerCapObjectId string
 }
 
 var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyInput) (output sui_ops.OpTxResult[DeployMCMSObjects], err error) {
@@ -51,14 +51,14 @@ var handler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input cld_ops.EmptyI
 
 	return sui_ops.OpTxResult[DeployMCMSObjects]{
 		Digest:    tx.Digest,
-		PackageID: mcmsPackage.Address(),
+		PackageId: mcmsPackage.Address(),
 		Objects: DeployMCMSObjects{
-			McmsMultisigStateObjectID:   mcmsObject,
-			TimelockObjectID:            timelockObj,
-			McmsDeployerObjectID:        depState,
-			McmsRegistryObjectID:        reg,
-			McmsAccountStateObjectID:    acc,
-			McmsAccountOwnerCapObjectID: ownCap,
+			McmsMultisigStateObjectId:   mcmsObject,
+			TimelockObjectId:            timelockObj,
+			McmsDeployerObjectId:        depState,
+			McmsRegistryObjectId:        reg,
+			McmsAccountStateObjectId:    acc,
+			McmsAccountOwnerCapObjectId: ownCap,
 		},
 	}, err
 }

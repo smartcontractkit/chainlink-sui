@@ -15,7 +15,7 @@ type OpTxInput[I any] struct {
 
 type OpTxResult[O any] struct {
 	Digest    string
-	PackageID string
+	PackageId string
 	Objects   O
 }
 

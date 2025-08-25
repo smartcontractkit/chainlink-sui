@@ -76,11 +76,11 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 	require.NoError(t, err, "failed to get signer address")
 
 	report, err := cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPSequence, deps, DeployAndInitCCIPSeqInput{
-		LinkTokenCoinMetadataObjectID: linkReport.Output.Objects.CoinMetadataObjectId,
+		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
 		DeployCCIPInput: DeployCCIPInput{
-			McmsPackageID: mcmsReport.Output.PackageID,
+			McmsPackageId: mcmsReport.Output.PackageId,
 			McmsOwner:     signerAddress,
 		},
 		MaxFeeJuelsPerMsg:            "100000000",
@@ -122,5 +122,5 @@ func TestDeployAndInitCCIPSeq(t *testing.T) {
 		FSign:                       uint64(1),
 	})
 	require.NoError(t, err, "failed to execute CCIP deploy sequence")
-	require.NotEmpty(t, report.Output.CCIPPackageID, "CCIP package ID should not be empty")
+	require.NotEmpty(t, report.Output.CCIPPackageId, "CCIP package ID should not be empty")
 }

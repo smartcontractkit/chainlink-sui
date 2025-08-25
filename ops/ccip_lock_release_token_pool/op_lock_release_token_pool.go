@@ -14,22 +14,22 @@ import (
 
 // LRTP -- INITIALIZE
 type LockReleaseTokenPoolInitializeObjects struct {
-	OwnerCapObjectID string
-	StateObjectID    string
+	OwnerCapObjectId string
+	StateObjectId    string
 }
 
 type LockReleaseTokenPoolInitializeInput struct {
-	LockReleasePackageID   string
+	LockReleasePackageId   string
 	CoinObjectTypeArg      string
-	StateObjectID          string
-	CoinMetadataObjectID   string
-	TreasuryCapObjectID    string
+	StateObjectId          string
+	CoinMetadataObjectId   string
+	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
 	Rebalancer             string
 }
 
 var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolInitializeInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageID, deps.Client)
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
@@ -40,9 +40,9 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
-		bind.Object{Id: input.CoinMetadataObjectID},
-		bind.Object{Id: input.TreasuryCapObjectID},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CoinMetadataObjectId},
+		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
 	)
@@ -59,10 +59,10 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 
 	return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.LockReleasePackageID,
+		PackageId: input.LockReleasePackageId,
 		Objects: LockReleaseTokenPoolInitializeObjects{
-			OwnerCapObjectID: obj1,
-			StateObjectID:    obj2,
+			OwnerCapObjectId: obj1,
+			StateObjectId:    obj2,
 		},
 	}, err
 }
@@ -76,17 +76,17 @@ var LockReleaseTokenPoolInitializeOp = cld_ops.NewOperation(
 
 // LRTP -- INITIALIZE BY CCIP ADMIN
 type LockReleaseTokenPoolInitializeByCcipAdminInput struct {
-	LockReleasePackageID   string
+	LockReleasePackageId   string
 	CoinObjectTypeArg      string
-	StateObjectID          string
-	CoinMetadataObjectID   string
-	OwnerCapObjectID       string
+	StateObjectId          string
+	CoinMetadataObjectId   string
+	OwnerCapObjectId       string
 	TokenPoolAdministrator string
 	Rebalancer             string
 }
 
 var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageID, deps.Client)
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
@@ -97,9 +97,9 @@ var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
-		bind.Object{Id: input.OwnerCapObjectID},
-		bind.Object{Id: input.CoinMetadataObjectID},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.CoinMetadataObjectId},
 		input.TokenPoolAdministrator,
 		input.Rebalancer,
 	)
@@ -116,10 +116,10 @@ var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 
 	return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.LockReleasePackageID,
+		PackageId: input.LockReleasePackageId,
 		Objects: LockReleaseTokenPoolInitializeObjects{
-			OwnerCapObjectID: obj1,
-			StateObjectID:    obj2,
+			OwnerCapObjectId: obj1,
+			StateObjectId:    obj2,
 		},
 	}, err
 }
@@ -136,9 +136,9 @@ type NoObjects struct {
 }
 
 type LockReleaseTokenPoolApplyChainUpdatesInput struct {
-	LockReleasePackageID         string
+	LockReleasePackageId         string
 	CoinObjectTypeArg            string
-	StateObjectID                string
+	StateObjectId                string
 	OwnerCap                     string
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -147,7 +147,7 @@ type LockReleaseTokenPoolApplyChainUpdatesInput struct {
 }
 
 var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolApplyChainUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageID, deps.Client)
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
@@ -173,7 +173,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		input.RemoteChainSelectorsToRemove,
 		input.RemoteChainSelectorsToAdd,
@@ -184,11 +184,11 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Lock
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool apply chain updates: %w", err)
 	}
 
-	b.Logger.Infow("ApplyChainUpdates on LockReleaseTokenPool", "LockReleaseTokenPool PackageID:", input.LockReleasePackageID)
+	b.Logger.Infow("ApplyChainUpdates on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleasePackageId)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.LockReleasePackageID,
+		PackageId: input.LockReleasePackageId,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -202,9 +202,9 @@ var LockReleaseTokenPoolApplyChainUpdatesOp = cld_ops.NewOperation(
 
 // LRTP -- set_chain_rate_limiter_configs
 type LockReleaseTokenPoolSetChainRateLimiterInput struct {
-	LockReleasePackageID string
+	LockReleasePackageId string
 	CoinObjectTypeArg    string
-	StateObjectID        string
+	StateObjectId        string
 	OwnerCap             string
 	RemoteChainSelectors []uint64
 	OutboundIsEnableds   []bool
@@ -216,7 +216,7 @@ type LockReleaseTokenPoolSetChainRateLimiterInput struct {
 }
 
 var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolSetChainRateLimiterInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageID, deps.Client)
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleasePackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
@@ -227,7 +227,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
 		bind.Object{Id: "0x6"}, // Clock object
 		input.RemoteChainSelectors,
@@ -242,11 +242,11 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool set configs rate limiter: %w", err)
 	}
 
-	b.Logger.Infow("SetChainRateLimiter on LockReleaseTokenPool", "LockReleaseTokenPool PackageID:", input.LockReleasePackageID)
+	b.Logger.Infow("SetChainRateLimiter on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleasePackageId)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.LockReleasePackageID,
+		PackageId: input.LockReleasePackageId,
 		Objects:   NoObjects{},
 	}, err
 }
@@ -260,14 +260,14 @@ var LockReleaseTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 
 // LRTP -- provide_liquidity
 type LockReleaseTokenPoolProviderLiquidityInput struct {
-	LockReleaseTokenPoolPackageID string
+	LockReleaseTokenPoolPackageId string
 	CoinObjectTypeArg             string
-	StateObjectID                 string
+	StateObjectId                 string
 	Coin                          string
 }
 
 var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProviderLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleaseTokenPoolPackageID, deps.Client)
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleaseTokenPoolPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
 	}
@@ -278,7 +278,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		b.GetContext(),
 		opts,
 		[]string{input.CoinObjectTypeArg},
-		bind.Object{Id: input.StateObjectID},
+		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.Coin},
 	)
 	if err != nil {
@@ -287,7 +287,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
-		PackageID: input.LockReleaseTokenPoolPackageID,
+		PackageId: input.LockReleaseTokenPoolPackageId,
 		Objects:   NoObjects{},
 	}, err
 }

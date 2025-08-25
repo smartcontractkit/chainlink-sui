@@ -13,12 +13,12 @@ import (
 )
 
 type DeployCCIPRouterInput struct {
-	McmsPackageID string
+	McmsPackageId string
 	McmsOwner     string
 }
 type DeployCCIPRouterObjects struct {
-	OwnerCapObjectID    string
-	RouterStateObjectID string
+	OwnerCapObjectId    string
+	RouterStateObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPRouterInput) (output sui_ops.OpTxResult[DeployCCIPRouterObjects], err error) {
@@ -28,7 +28,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		b.GetContext(),
 		opts,
 		deps.Client,
-		input.McmsPackageID,
+		input.McmsPackageId,
 		input.McmsOwner,
 	)
 	if err != nil {
@@ -43,10 +43,10 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	return sui_ops.OpTxResult[DeployCCIPRouterObjects]{
 		Digest:    tx.Digest,
-		PackageID: routerPackage.Address(),
+		PackageId: routerPackage.Address(),
 		Objects: DeployCCIPRouterObjects{
-			OwnerCapObjectID:    obj1,
-			RouterStateObjectID: obj2,
+			OwnerCapObjectId:    obj1,
+			RouterStateObjectId: obj2,
 		},
 	}, err
 }
