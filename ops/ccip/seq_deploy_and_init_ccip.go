@@ -102,6 +102,19 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			return DeployCCIPSeqOutput{}, err
 		}
 
+		issueFQCapReport, err := cld_ops.ExecuteOperation(
+			env,
+			FeeQuoterIssueFeeQuoterCapOp,
+			deps,
+			IssueFeeQuoterCapInput{
+				CCIPPackageId:    deployReport.Output.PackageId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
+			},
+		)
+		if err != nil {
+			return DeployCCIPSeqOutput{}, err
+		}
+
 		initNMReport, err := cld_ops.ExecuteOperation(
 			env,
 			NonceManagerInitializeOp,
@@ -259,7 +272,7 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			Objects: DeployCCIPSeqObjects{
 				CCIPObjectRefObjectId:           deployReport.Output.Objects.CCIPObjectRefObjectId,
 				OwnerCapObjectId:                deployReport.Output.Objects.OwnerCapObjectId,
-				FeeQuoterCapObjectId:            initFQReport.Output.Objects.FeeQuoterCapObjectId,
+				FeeQuoterCapObjectId:            issueFQCapReport.Output.Objects.FeeQuoterCapObjectId,
 				FeeQuoterStateObjectId:          initFQReport.Output.Objects.FeeQuoterStateObjectId,
 				NonceManagerStateObjectId:       initNMReport.Output.Objects.NonceManagerStateObjectId,
 				NonceManagerCapObjectId:         initNMReport.Output.Objects.NonceManagerCapObjectId,
