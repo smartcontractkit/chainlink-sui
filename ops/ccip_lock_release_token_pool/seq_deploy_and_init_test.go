@@ -53,7 +53,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// Deploy CCIP
 	inputCCIP := ccip_ops.DeployCCIPInput{
-		McmsPackageId: reportMCMs.Output.PackageId,
+		McmsPackageID: reportMCMs.Output.PackageId,
 		McmsOwner:     signerAddress,
 	}
 
@@ -76,9 +76,9 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
-		CCIPPackageId:      reportCCIP.Output.PackageId,
-		StateObjectId:      reportCCIP.Output.Objects.CCIPObjectRefObjectId,
-		OwnerCapObjectId:   reportCCIP.Output.Objects.OwnerCapObjectId,
+		CCIPPackageID:      reportCCIP.Output.PackageId,
+		StateObjectID:      reportCCIP.Output.Objects.CCIPObjectRefObjectID,
+		OwnerCapObjectID:   reportCCIP.Output.Objects.OwnerCapObjectID,
 		LocalChainSelector: 10,
 	}
 
@@ -88,17 +88,17 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	// Run BurnMintTokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.PackageId,
-			CCIPTokenPoolPackageId: reportCCIPTokenPool.Output.PackageId,
+			CCIPPackageID:          reportCCIP.Output.PackageId,
+			CCIPTokenPoolPackageID: reportCCIPTokenPool.Output.PackageId,
 			MCMSAddress:            reportMCMs.Output.PackageId,
 			MCMSOwnerAddress:       signerAddress,
 		},
 
 		// initialize
 		CoinObjectTypeArg:      linkReport.Output.PackageId + "::mock_link_token::MOCK_LINK_TOKEN",
-		CCIPObjectRefObjectId:  reportCCIP.Output.Objects.CCIPObjectRefObjectId,
-		CoinMetadataObjectId:   linkReport.Output.Objects.CoinMetadataObjectId,
-		TreasuryCapObjectId:    linkReport.Output.Objects.TreasuryCapObjectId,
+		CCIPObjectRefObjectID:  reportCCIP.Output.Objects.CCIPObjectRefObjectID,
+		CoinMetadataObjectID:   linkReport.Output.Objects.CoinMetadataObjectId,
+		TreasuryCapObjectID:    linkReport.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: signerAddress,
 		Rebalancer:             "0x0",
 

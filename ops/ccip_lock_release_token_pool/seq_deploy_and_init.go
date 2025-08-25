@@ -9,8 +9,8 @@ import (
 )
 
 type DeployLockReleaseTokenPoolObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectID string
+	StateObjectID    string
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
@@ -22,9 +22,9 @@ type DeployAndInitLockReleaseTokenPoolInput struct {
 	LockReleaseTokenPoolDeployInput
 	// init
 	CoinObjectTypeArg      string
-	CCIPObjectRefObjectId  string
-	CoinMetadataObjectId   string
-	TreasuryCapObjectId    string
+	CCIPObjectRefObjectID  string
+	CoinMetadataObjectID   string
+	TreasuryCapObjectID    string
 	TokenPoolAdministrator string
 	Rebalancer             string
 	// apply chain updates
@@ -58,10 +58,10 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			deps,
 			LockReleaseTokenPoolInitializeInput{
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
-				LockReleasePackageId:   deployReport.Output.PackageId,
-				StateObjectId:          input.CCIPObjectRefObjectId,
-				CoinMetadataObjectId:   input.CoinMetadataObjectId,
-				TreasuryCapObjectId:    input.TreasuryCapObjectId,
+				LockReleasePackageID:   deployReport.Output.PackageId,
+				StateObjectID:          input.CCIPObjectRefObjectID,
+				CoinMetadataObjectID:   input.CoinMetadataObjectID,
+				TreasuryCapObjectID:    input.TreasuryCapObjectID,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				Rebalancer:             input.Rebalancer,
 			},
@@ -75,10 +75,10 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolApplyChainUpdatesOp,
 			deps,
 			LockReleaseTokenPoolApplyChainUpdatesInput{
-				LockReleasePackageId:         deployReport.Output.PackageId,
+				LockReleasePackageID:         deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
-				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectID:                initReport.Output.Objects.StateObjectID,
+				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectID,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
 				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
 				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
@@ -94,10 +94,10 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolSetChainRateLimiterOp,
 			deps,
 			LockReleaseTokenPoolSetChainRateLimiterInput{
-				LockReleasePackageId: deployReport.Output.PackageId,
+				LockReleasePackageID: deployReport.Output.PackageId,
 				CoinObjectTypeArg:    input.CoinObjectTypeArg,
-				StateObjectId:        initReport.Output.Objects.StateObjectId,
-				OwnerCap:             initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectID:        initReport.Output.Objects.StateObjectID,
+				OwnerCap:             initReport.Output.Objects.OwnerCapObjectID,
 				RemoteChainSelectors: input.RemoteChainSelectors,
 				OutboundIsEnableds:   input.OutboundIsEnableds,
 				OutboundCapacities:   input.OutboundCapacities,
@@ -114,8 +114,8 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 		return DeployLockReleaseTokenPoolOutput{
 			LockReleaseTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectID: initReport.Output.Objects.OwnerCapObjectID,
+				StateObjectID:    initReport.Output.Objects.StateObjectID,
 			},
 		}, nil
 	},
@@ -126,9 +126,9 @@ type DeployAndInitLockReleaseTokenPoolByCcipAdminInput struct {
 	LockReleaseTokenPoolDeployInput
 	// init by ccip admin
 	CoinObjectTypeArg      string
-	CCIPObjectRefObjectId  string
-	CoinMetadataObjectId   string
-	OwnerCapObjectId       string
+	CCIPObjectRefObjectID  string
+	CoinMetadataObjectID   string
+	OwnerCapObjectID       string
 	TokenPoolAdministrator string
 	Rebalancer             string
 	// apply chain updates
@@ -162,10 +162,10 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 			deps,
 			LockReleaseTokenPoolInitializeByCcipAdminInput{
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
-				LockReleasePackageId:   deployReport.Output.PackageId,
-				StateObjectId:          input.CCIPObjectRefObjectId,
-				CoinMetadataObjectId:   input.CoinMetadataObjectId,
-				OwnerCapObjectId:       input.OwnerCapObjectId,
+				LockReleasePackageID:   deployReport.Output.PackageId,
+				StateObjectID:          input.CCIPObjectRefObjectID,
+				CoinMetadataObjectID:   input.CoinMetadataObjectID,
+				OwnerCapObjectID:       input.OwnerCapObjectID,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
 				Rebalancer:             input.Rebalancer,
 			},
@@ -179,10 +179,10 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolApplyChainUpdatesOp,
 			deps,
 			LockReleaseTokenPoolApplyChainUpdatesInput{
-				LockReleasePackageId:         deployReport.Output.PackageId,
+				LockReleasePackageID:         deployReport.Output.PackageId,
 				CoinObjectTypeArg:            input.CoinObjectTypeArg,
-				StateObjectId:                initReport.Output.Objects.StateObjectId,
-				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectID:                initReport.Output.Objects.StateObjectID,
+				OwnerCap:                     initReport.Output.Objects.OwnerCapObjectID,
 				RemoteChainSelectorsToRemove: input.RemoteChainSelectorsToRemove,
 				RemoteChainSelectorsToAdd:    input.RemoteChainSelectorsToAdd,
 				RemotePoolAddressesToAdd:     input.RemotePoolAddressesToAdd,
@@ -198,10 +198,10 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 			LockReleaseTokenPoolSetChainRateLimiterOp,
 			deps,
 			LockReleaseTokenPoolSetChainRateLimiterInput{
-				LockReleasePackageId: deployReport.Output.PackageId,
+				LockReleasePackageID: deployReport.Output.PackageId,
 				CoinObjectTypeArg:    input.CoinObjectTypeArg,
-				StateObjectId:        initReport.Output.Objects.StateObjectId,
-				OwnerCap:             initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectID:        initReport.Output.Objects.StateObjectID,
+				OwnerCap:             initReport.Output.Objects.OwnerCapObjectID,
 				RemoteChainSelectors: input.RemoteChainSelectors,
 				OutboundIsEnableds:   input.OutboundIsEnableds,
 				OutboundCapacities:   input.OutboundCapacities,
@@ -218,8 +218,8 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 		return DeployLockReleaseTokenPoolOutput{
 			LockReleaseTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectID: initReport.Output.Objects.OwnerCapObjectID,
+				StateObjectID:    initReport.Output.Objects.StateObjectID,
 			},
 		}, nil
 	},
