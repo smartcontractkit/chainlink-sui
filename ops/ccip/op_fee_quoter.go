@@ -56,17 +56,17 @@ var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQ
 		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
 	
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterState")
+	obj, err := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterState")
 
-	if err2 != nil {
-		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to find FeeQuoterState object ID in tx: %w", err2)
+	if err != nil {
+		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to find FeeQuoterState object ID in tx: %w", err)
 	}
 
 	return sui_ops.OpTxResult[InitFeeQuoterObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects: InitFeeQuoterObjects{	
-			FeeQuoterStateObjectId: obj2,
+			FeeQuoterStateObjectId: obj,
 		},
 	}, nil
 }
