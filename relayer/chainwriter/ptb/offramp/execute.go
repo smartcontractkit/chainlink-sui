@@ -387,20 +387,14 @@ func ProcessReceivers(
 			continue
 		}
 
-		// Parse the receiver string into `packageID::moduleID::functionName` format
-		// receiverParts := strings.Split(string(message.Receiver), "::")
-		// if len(receiverParts) != 3 {
-		// 	return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
-		// }
-
-		receiverPackageId, receiverModule, receiverFunction := string(message.Receiver), "dummy_receiver", "ccip_recieve"
+		receiverPackageId := string(message.Receiver)
 		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
 		}
 		// If the receiver is not registered, fail the entire execution
 		if !isRegistered {
-			return nil, fmt.Errorf("receiver is not registered in offramp execution. error: %s", message.Receiver)
+			return nil, fmt.Errorf("receiver is not registered in offramp execution: %s", message.Receiver)
 		}
 
 		// Get the receiver config via the receiver registry binding
@@ -411,12 +405,12 @@ func ProcessReceivers(
 			receiverPackageId,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get receiver config for offramp execution: %w", err)
+			return nil, fmt.Errorf("failed to get receiver config in offramp execution: %w", err)
 		}
 
 		lggr.Debugw("fetched receiver config via dev inspect call", "receiverConfig", receiverConfig)
 
-		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverModule)
+		receiverNormalizedModule, err := ptbClient.GetNormalizedModule(ctx, receiverPackageId, receiverConfig.ModuleName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
 		}
@@ -428,8 +422,8 @@ func ProcessReceivers(
 			ptb,
 			callOpts,
 			receiverPackageId,
-			receiverModule,
-			receiverFunction,
+			receiverConfig.ModuleName,
+			"ccip_receive",
 			addressMappings,
 			message.Header.MessageID,
 			&receiverConfig,
