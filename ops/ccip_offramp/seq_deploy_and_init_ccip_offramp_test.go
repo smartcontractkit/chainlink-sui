@@ -93,7 +93,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		TokenPriceStalenessThreshold:  60,
 	}
 
-	reportFeeQuoterInit, err := cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterInitializeOp, deps, feeQuoterInit)
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.FeeQuoterInitializeOp, deps, feeQuoterInit)
 	require.NoError(t, err, "failed to initialize Fee Quoter Package")
 
 	// Issue FeeQuoterCap
