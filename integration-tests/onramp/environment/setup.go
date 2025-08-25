@@ -253,13 +253,13 @@ func DeployCCIPAndOnrampAndTokens(
 
 	seqOnrampInput := onrampops.DeployAndInitCCIPOnRampSeqInput{
 		DeployCCIPOnRampInput: onrampops.DeployCCIPOnRampInput{
-			CCIPPackageId:      reportCCIP.Output.CCIPPackageID,
-			MCMSPackageId:      reportMCMs.Output.PackageId,
-			MCMSOwnerPackageId: signerAddr,
+			CCIPPackageID:      reportCCIP.Output.CCIPPackageID,
+			MCMSPackageID:      reportMCMs.Output.PackageId,
+			MCMSOwnerPackageID: signerAddr,
 		},
 		OnRampInitializeInput: onrampops.OnRampInitializeInput{
-			NonceManagerCapId:         reportCCIP.Output.Objects.NonceManagerCapObjectID,   // this is from NonceManager init Op
-			SourceTransferCapId:       reportCCIP.Output.Objects.SourceTransferCapObjectID, // this is from CCIP package publish
+			NonceManagerCapID:         reportCCIP.Output.Objects.NonceManagerCapObjectID,   // this is from NonceManager init Op
+			SourceTransferCapID:       reportCCIP.Output.Objects.SourceTransferCapObjectID, // this is from CCIP package publish
 			ChainSelector:             destChainSelector,
 			FeeAggregator:             signerAddr,
 			AllowListAdmin:            signerAddr,
