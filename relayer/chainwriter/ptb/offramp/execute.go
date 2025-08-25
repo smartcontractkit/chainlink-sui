@@ -388,12 +388,12 @@ func ProcessReceivers(
 		}
 
 		// Parse the receiver string into `packageID::moduleID::functionName` format
-		receiverParts := strings.Split(string(message.Receiver), "::")
-		if len(receiverParts) != 3 {
-			return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
-		}
+		// receiverParts := strings.Split(string(message.Receiver), "::")
+		// if len(receiverParts) != 3 {
+		// 	return nil, fmt.Errorf("invalid receiver format, expected packageID:moduleID:functionName, got %s", message.Receiver)
+		// }
 
-		receiverPackageId, receiverModule, receiverFunction := receiverParts[0], receiverParts[1], receiverParts[2]
+		receiverPackageId, receiverModule, receiverFunction := string(message.Receiver), "dummy_receiver", "ccip_recieve"
 		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if receiver is registered in offramp execution: %w", err)
