@@ -1610,6 +1610,8 @@ public fun mcms_entrypoint(
             premium_multiplier_wei_per_eth,
             ctx,
         );
+    } else if (function_bytes == b"issue_fee_quoter_cap") {
+        issue_fee_quoter_cap(owner_cap, ctx);
     } else {
         abort EInvalidFunction
     }
