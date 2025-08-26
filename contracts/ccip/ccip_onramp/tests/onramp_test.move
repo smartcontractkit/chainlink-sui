@@ -231,10 +231,7 @@ fun setup_fee_token_and_prices(
     );
 
     // Set up price updates
-    let ctx = scenario.ctx();
-    fee_quoter::issue_fee_quoter_cap(ccip_owner_cap, ctx);
-
-    scenario.next_tx(OWNER);
+    // Note: fee_quoter_cap is automatically issued during initialize
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
     let ctx = scenario.ctx();
 

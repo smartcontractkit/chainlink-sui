@@ -267,6 +267,7 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
+    issue_fee_quoter_cap(owner_cap, ctx);
     state_object::add(ref, owner_cap, state, ctx);
 }
 

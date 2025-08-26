@@ -320,7 +320,6 @@ public fun test_update_prices() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -455,8 +454,6 @@ public fun test_get_validated_fee() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
-
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
     let ctx = scenario.ctx();
@@ -552,7 +549,6 @@ public fun test_get_timestamped_price_fields() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -579,7 +575,6 @@ public fun test_get_token_prices() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -609,7 +604,6 @@ public fun test_get_token_and_gas_prices() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -641,7 +635,6 @@ public fun test_convert_token_amount() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -781,7 +774,6 @@ public fun test_get_token_and_gas_prices_chain_not_enabled() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -838,7 +830,6 @@ public fun test_update_prices_token_update_mismatch() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -870,8 +861,6 @@ public fun test_get_validated_fee_invalid_extra_args_data_too_short() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -910,8 +899,6 @@ public fun test_get_validated_fee_invalid_token_receiver_svm() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -1092,8 +1079,6 @@ public fun test_get_validated_fee_svm_empty_extra_args() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
-
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
     let ctx = scenario.ctx();
@@ -1156,7 +1141,6 @@ public fun test_update_prices_gas_update_mismatch() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -1216,8 +1200,6 @@ public fun test_get_validated_fee_unsupported_fee_token() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
-
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
     let ctx = scenario.ctx();
@@ -1257,8 +1239,6 @@ public fun test_get_validated_fee_out_of_order_execution_required() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
@@ -1302,8 +1282,6 @@ public fun test_get_validated_fee_invalid_extra_args_tag() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
-
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
     let ctx = scenario.ctx();
@@ -1342,8 +1320,6 @@ public fun test_get_validated_fee_compute_unit_limit_too_high() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-
-    fee_quoter::issue_fee_quoter_cap(&owner_cap, ctx);
 
     scenario.next_tx(@0x1);
     let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
