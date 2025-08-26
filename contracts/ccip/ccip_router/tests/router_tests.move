@@ -1,8 +1,8 @@
 #[test_only]
 module ccip_router::router_tests;
 
-use ccip_router::router::{Self, RouterState};
 use ccip_router::ownable::OwnerCap;
+use ccip_router::router::{Self, RouterState};
 use sui::test_scenario::{Self as ts, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -56,13 +56,16 @@ fun test_set_and_get_on_ramp_infos() {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         let dest_chain_selectors = vector[ETH_CHAIN_SELECTOR, AVAX_CHAIN_SELECTOR];
-        let on_ramp_addresses = vector[
-            ETH_ON_RAMP_ADDRESS,
-            AVAX_ON_RAMP_ADDRESS,
-        ];
+        let on_ramp_addresses = vector[ETH_ON_RAMP_ADDRESS, AVAX_ON_RAMP_ADDRESS];
         let on_ramp_versions = vector[VERSION_1_6_0, VERSION_1_6_0];
 
-        router::set_on_ramp_infos(&owner_cap, &mut router, dest_chain_selectors, on_ramp_addresses, on_ramp_versions);
+        router::set_on_ramp_infos(
+            &owner_cap,
+            &mut router,
+            dest_chain_selectors,
+            on_ramp_addresses,
+            on_ramp_versions,
+        );
 
         let infos = router::get_on_ramp_infos(&router, dest_chain_selectors);
         assert!(infos.length() == 2);
@@ -118,12 +121,15 @@ fun test_remove_on_ramp_info() {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         let dest_chain_selectors = vector[ETH_CHAIN_SELECTOR, AVAX_CHAIN_SELECTOR];
-        let on_ramp_addresses = vector[
-            ETH_ON_RAMP_ADDRESS,
-            AVAX_ON_RAMP_ADDRESS,
-        ];
+        let on_ramp_addresses = vector[ETH_ON_RAMP_ADDRESS, AVAX_ON_RAMP_ADDRESS];
         let on_ramp_versions = vector[VERSION_1_6_0, VERSION_1_6_0];
-        router::set_on_ramp_infos(&owner_cap, &mut router, dest_chain_selectors, on_ramp_addresses, on_ramp_versions);
+        router::set_on_ramp_infos(
+            &owner_cap,
+            &mut router,
+            dest_chain_selectors,
+            on_ramp_addresses,
+            on_ramp_versions,
+        );
 
         // Verify they were added
         assert!(router::is_chain_supported(&router, ETH_CHAIN_SELECTOR));
@@ -138,12 +144,15 @@ fun test_remove_on_ramp_info() {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
 
         let dest_chain_selectors = vector[ETH_CHAIN_SELECTOR, AVAX_CHAIN_SELECTOR];
-        let on_ramp_addresses = vector[
-            ETH_ON_RAMP_ADDRESS,
-            AVAX_ON_RAMP_ADDRESS,
-        ];
+        let on_ramp_addresses = vector[ETH_ON_RAMP_ADDRESS, AVAX_ON_RAMP_ADDRESS];
         let on_ramp_versions = vector[VERSION_1_6_0, VERSION_1_6_0];
-        router::set_on_ramp_infos(&owner_cap, &mut router, dest_chain_selectors, on_ramp_addresses, on_ramp_versions);
+        router::set_on_ramp_infos(
+            &owner_cap,
+            &mut router,
+            dest_chain_selectors,
+            on_ramp_addresses,
+            on_ramp_versions,
+        );
 
         // Verify they were added
         assert!(router::is_chain_supported(&router, ETH_CHAIN_SELECTOR));
@@ -152,7 +161,13 @@ fun test_remove_on_ramp_info() {
         // Now remove one of them by setting an empty version
         let remove_selectors = vector[ETH_CHAIN_SELECTOR];
         let remove_versions = vector[vector[]]; // Empty version removes the chain
-        router::set_on_ramp_infos(&owner_cap, &mut router, remove_selectors, vector[@0x0], remove_versions);
+        router::set_on_ramp_infos(
+            &owner_cap,
+            &mut router,
+            remove_selectors,
+            vector[@0x0],
+            remove_versions,
+        );
 
         // Verify it was removed
         assert!(!router::is_chain_supported(&router, ETH_CHAIN_SELECTOR));

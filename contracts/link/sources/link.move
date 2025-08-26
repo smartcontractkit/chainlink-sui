@@ -1,6 +1,6 @@
 module link::link;
 
-use sui::coin::{Coin, Self, TreasuryCap};
+use sui::coin::{Self, Coin, TreasuryCap};
 use sui::url;
 
 public struct LINK has drop {}
@@ -12,7 +12,11 @@ fun init(witness: LINK, ctx: &mut TxContext) {
         b"LINK",
         b"ChainLink Token",
         b"The native token of the Chainlink Network",
-        option::some(url::new_unsafe_from_bytes(b"https://d2f70xi62kby8n.cloudfront.net/tokens/link.webp?auto=compress%2Cformat")),
+        option::some(
+            url::new_unsafe_from_bytes(
+                b"https://d2f70xi62kby8n.cloudfront.net/tokens/link.webp?auto=compress%2Cformat",
+            ),
+        ),
         ctx,
     );
 

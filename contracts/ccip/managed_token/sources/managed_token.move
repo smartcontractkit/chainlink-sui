@@ -10,24 +10,24 @@
 /// 9. provide the functionality to get the total supply of the token
 module managed_token::managed_token;
 
-use std::string::{Self, String};
-
-use sui::coin::{
-    Self, Coin, DenyCapV2, TreasuryCap,
-    deny_list_v2_is_global_pause_enabled_next_epoch as is_paused,
-    deny_list_v2_contains_next_epoch as is_blocklisted,
-};
-use sui::deny_list::{DenyList};
-use sui::event;
-use sui::vec_map::{Self, VecMap};
-use sui::package::UpgradeCap;
-
 use managed_token::mint_allowance::{Self, MintAllowance};
 use managed_token::ownable::{Self, OwnerCap, OwnableState};
-
-use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
-use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::bcs_stream;
+use mcms::mcms_deployer::{Self, DeployerState};
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use std::string::{Self, String};
+use sui::coin::{
+    Self,
+    Coin,
+    DenyCapV2,
+    TreasuryCap,
+    deny_list_v2_is_global_pause_enabled_next_epoch as is_paused,
+    deny_list_v2_contains_next_epoch as is_blocklisted
+};
+use sui::deny_list::DenyList;
+use sui::event;
+use sui::package::UpgradeCap;
+use sui::vec_map::{Self, VecMap};
 
 public struct TokenState<phantom T> has key, store {
     id: UID,
@@ -72,11 +72,11 @@ public struct Burnt has copy, drop {
 }
 
 public struct Blocklisted<phantom T> has copy, drop {
-    address: address
+    address: address,
 }
 
 public struct Unblocklisted<phantom T> has copy, drop {
-    address: address
+    address: address,
 }
 
 public struct Paused<phantom T> has copy, drop {}
@@ -107,10 +107,7 @@ public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
 }
 
-public fun initialize<T>(
-    treasury_cap: TreasuryCap<T>,
-    ctx: &mut TxContext,
-) {
+public fun initialize<T>(treasury_cap: TreasuryCap<T>, ctx: &mut TxContext) {
     initialize_internal(treasury_cap, option::none(), ctx);
 }
 
@@ -142,10 +139,7 @@ fun initialize_internal<T>(
     transfer::public_transfer(owner_cap, ctx.sender());
 }
 
-public fun mint_allowance<T>(
-    state: &TokenState<T>,
-    mint_cap: ID,
-): (u64, bool) {
+public fun mint_allowance<T>(state: &TokenState<T>, mint_cap: ID): (u64, bool) {
     if (!state.is_authorized_mint_cap(mint_cap)) return (0, false);
     state.mint_allowances_map.get(&mint_cap).allowance_info()
 }
@@ -174,10 +168,10 @@ public fun configure_new_minter<T>(
     ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
-    
+
     let mint_cap = MintCap<T> { id: object::new(ctx) };
     event::emit(MintCapCreated<T> {
-        mint_cap: object::id(&mint_cap)
+        mint_cap: object::id(&mint_cap),
     });
 
     let mut mint_allowance = mint_allowance::new<T>();
@@ -210,7 +204,10 @@ public fun increment_mint_allowance<T>(
     assert!(allowance_increment > 0, EZeroAmount);
     assert!(state.is_authorized_mint_cap(mint_cap_id), EUnauthorizedMintCap);
 
-    assert!(!state.mint_allowances_map.get(&mint_cap_id).is_unlimited(), ECannotIncreaseUnlimitedAllowance);
+    assert!(
+        !state.mint_allowances_map.get(&mint_cap_id).is_unlimited(),
+        ECannotIncreaseUnlimitedAllowance,
+    );
     state.mint_allowances_map.get_mut(&mint_cap_id).increase(allowance_increment);
 
     let new_allowance = state.mint_allowances_map.get(&mint_cap_id).value();
@@ -244,9 +241,7 @@ public fun set_unlimited_mint_allowances<T>(
     });
 }
 
-public fun get_all_mint_caps<T>(
-    state: &TokenState<T>,
-): vector<ID> {
+public fun get_all_mint_caps<T>(state: &TokenState<T>): vector<ID> {
     state.mint_allowances_map.keys()
 }
 
@@ -314,7 +309,10 @@ fun validate_mint<T>(
     assert!(amount > 0, EZeroAmount);
 
     let mint_allowance = state.mint_allowances_map.get_mut(&mint_cap_id);
-    assert!(mint_allowance.is_unlimited() || mint_allowance.value() >= amount, EInsufficientAllowance);
+    assert!(
+        mint_allowance.is_unlimited() || mint_allowance.value() >= amount,
+        EInsufficientAllowance,
+    );
     if (!mint_allowance.is_unlimited()) {
         mint_allowance.decrease(amount);
     };
@@ -345,7 +343,7 @@ public fun burn<T>(
         mint_cap: mint_cap_id,
         burner: ctx.sender(),
         from,
-        amount
+        amount,
     });
 }
 
@@ -357,7 +355,7 @@ public fun blocklist<T>(
     owner_cap: &OwnerCap<T>,
     deny_list: &mut DenyList,
     addr: address,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
@@ -377,14 +375,14 @@ public fun unblocklist<T>(
     owner_cap: &OwnerCap<T>,
     deny_list: &mut DenyList,
     addr: address,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
     if (is_blocklisted<T>(deny_list, addr)) {
         coin::deny_list_v2_remove<T>(deny_list, borrow_deny_cap_mut(state), addr, ctx);
         event::emit(Unblocklisted<T> {
-            address: addr
+            address: addr,
         })
     };
 }
@@ -395,7 +393,7 @@ public fun pause<T>(
     state: &mut TokenState<T>,
     owner_cap: &OwnerCap<T>,
     deny_list: &mut DenyList,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
 
@@ -428,7 +426,10 @@ public fun destroy_managed_token<T>(
     state: TokenState<T>,
     ctx: &mut TxContext,
 ): (TreasuryCap<T>, Option<DenyCapV2<T>>) {
-    assert!(object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+    assert!(
+        object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state),
+        EInvalidOwnerCap,
+    );
 
     let TokenState<T> {
         id: state_id,
@@ -505,10 +506,7 @@ public fun transfer_ownership<T>(
     ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
 }
 
-public fun accept_ownership<T>(
-    state: &mut TokenState<T>,
-    ctx: &mut TxContext,
-) {
+public fun accept_ownership<T>(state: &mut TokenState<T>, ctx: &mut TxContext) {
     ownable::accept_ownership(&mut state.ownable_state, ctx);
 }
 
@@ -525,7 +523,10 @@ public fun accept_ownership_as_mcms<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(params, McmsCallback {});
+    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(
+        params,
+        McmsCallback {},
+    );
     assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
@@ -588,12 +589,9 @@ public fun mcms_entrypoint<T>(
     params: ExecutingCallbackParams, // hot potato
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<
-        McmsCallback,
-        OwnerCap<T>,
-    >(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
         registry,
-        McmsCallback{},
+        McmsCallback {},
         params,
     );
 
@@ -610,12 +608,26 @@ public fun mcms_entrypoint<T>(
         let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
         let allowance_increment = bcs_stream::deserialize_u64(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        increment_mint_allowance(state, owner_cap, mint_cap_address.to_id(), deny_list, allowance_increment, ctx);
+        increment_mint_allowance(
+            state,
+            owner_cap,
+            mint_cap_address.to_id(),
+            deny_list,
+            allowance_increment,
+            ctx,
+        );
     } else if (function_bytes == b"set_unlimited_mint_allowances") {
         let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
         let is_unlimited = bcs_stream::deserialize_bool(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        set_unlimited_mint_allowances(state, owner_cap, mint_cap_address.to_id(), deny_list, is_unlimited, ctx);
+        set_unlimited_mint_allowances(
+            state,
+            owner_cap,
+            mint_cap_address.to_id(),
+            deny_list,
+            is_unlimited,
+            ctx,
+        );
     } else if (function_bytes == b"blocklist") {
         let addr = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
