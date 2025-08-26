@@ -2,12 +2,12 @@ module ccip_token_pool::rate_limiter;
 
 use sui::clock::Clock;
 
-public struct TokenBucket has store, drop {
+public struct TokenBucket has drop, store {
     tokens: u64,
     last_updated: u64,
     is_enabled: bool,
     capacity: u64,
-    rate: u64
+    rate: u64,
 }
 
 const ETokenMaxCapacityExceeded: u64 = 1;
@@ -19,19 +19,20 @@ public fun new(clock: &Clock, is_enabled: bool, capacity: u64, rate: u64): Token
         last_updated: clock.timestamp_ms() / 1000,
         is_enabled,
         capacity,
-        rate
+        rate,
     }
 }
 
 public fun get_current_token_bucket_state(clock: &Clock, state: &TokenBucket): TokenBucket {
     TokenBucket {
         tokens: calculate_refill(
-            state, clock.timestamp_ms() / 1000 - state.last_updated
+            state,
+            clock.timestamp_ms() / 1000 - state.last_updated,
         ),
         last_updated: clock.timestamp_ms() / 1000,
         is_enabled: state.is_enabled,
         capacity: state.capacity,
-        rate: state.rate
+        rate: state.rate,
     }
 }
 
@@ -40,15 +41,9 @@ public fun consume(clock: &Clock, bucket: &mut TokenBucket, requested_tokens: u6
 
     update_bucket(clock, bucket);
 
-    assert!(
-        requested_tokens <= bucket.capacity,
-        ETokenMaxCapacityExceeded
-    );
+    assert!(requested_tokens <= bucket.capacity, ETokenMaxCapacityExceeded);
 
-    assert!(
-        requested_tokens <= bucket.tokens,
-        ETokenRateLimitReached
-    );
+    assert!(requested_tokens <= bucket.tokens, ETokenRateLimitReached);
 
     bucket.tokens = bucket.tokens - requested_tokens;
 }
@@ -59,7 +54,7 @@ public fun set_token_bucket_config(
     bucket: &mut TokenBucket,
     is_enabled: bool,
     capacity: u64,
-    rate: u64
+    rate: u64,
 ) {
     update_bucket(clock, bucket);
 
@@ -82,7 +77,7 @@ fun update_bucket(clock: &Clock, bucket: &mut TokenBucket) {
 fun calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
     min(
         bucket.capacity,
-        bucket.tokens + time_diff * bucket.rate
+        bucket.tokens + time_diff * bucket.rate,
     )
 }
 

@@ -1,12 +1,11 @@
 #[test_only]
 module ccip_token_pool::token_pool_test;
 
+use ccip_token_pool::token_pool::{Self, TokenPoolState};
 use std::bcs;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
-
-use ccip_token_pool::token_pool::{Self, TokenPoolState};
 
 public struct TOKEN_POOL_TEST has drop {}
 
@@ -31,10 +30,15 @@ fun set_up_test(): (Scenario, TokenPoolState) {
         b"TestToken",
         b"test_token",
         option::none(),
-        ctx
+        ctx,
     );
 
-    let mut state = token_pool::initialize(object::id_to_address(&object::id(&coin_metadata)), Decimals, vector[], ctx);
+    let mut state = token_pool::initialize(
+        object::id_to_address(&object::id(&coin_metadata)),
+        Decimals,
+        vector[],
+        ctx,
+    );
 
     // Set state in the pool
     set_up_default_remote_chain(&mut state);
@@ -45,7 +49,12 @@ fun set_up_test(): (Scenario, TokenPoolState) {
     (scenario, state)
 }
 
-fun set_up_token_pool_test_with_ccip(): (Scenario, ccip::ownable::OwnerCap, ccip::state_object::CCIPObjectRef, TokenPoolState) {
+fun set_up_token_pool_test_with_ccip(): (
+    Scenario,
+    ccip::ownable::OwnerCap,
+    ccip::state_object::CCIPObjectRef,
+    TokenPoolState,
+) {
     let mut scenario = test_scenario::begin(@ccip_token_pool);
 
     ccip::state_object::test_init(scenario.ctx());
@@ -71,10 +80,15 @@ fun set_up_token_pool_test_with_ccip(): (Scenario, ccip::ownable::OwnerCap, ccip
         b"TestToken",
         b"test_token",
         option::none(),
-        ctx
+        ctx,
     );
 
-    let mut state = token_pool::initialize(object::id_to_address(&object::id(&coin_metadata)), Decimals, vector[], ctx);
+    let mut state = token_pool::initialize(
+        object::id_to_address(&object::id(&coin_metadata)),
+        Decimals,
+        vector[],
+        ctx,
+    );
 
     // Set up default remote chain
     set_up_default_remote_chain(&mut state);
@@ -91,7 +105,7 @@ fun set_up_default_remote_chain(state: &mut TokenPoolState) {
         vector[],
         vector[DefaultRemoteChain],
         vector[vector[DefaultRemotePool]],
-        vector[DefaultRemoteToken]
+        vector[DefaultRemoteToken],
     )
 }
 
@@ -151,7 +165,7 @@ fun apply_chain_updates() {
         vector[],
         vector[new_remote_chain],
         vector[vector[NewRemotePool, new_remote_pool_2]],
-        vector[new_remote_token]
+        vector[new_remote_token],
     );
     assert!(token_pool::is_supported_chain(&state, new_remote_chain));
     assert!(token_pool::get_remote_pools(&state, new_remote_chain).length() == 2);
@@ -162,7 +176,7 @@ fun apply_chain_updates() {
         vector[new_remote_chain],
         vector[],
         vector[],
-        vector[]
+        vector[],
     );
     assert!(!token_pool::is_supported_chain(&state, new_remote_chain));
 
@@ -177,10 +191,11 @@ fun test_calculate_local_amount_same_decimals() {
     let remote_decimals: u8 = 8;
     let local_decimals: u8 = 8;
 
-    let local_amount =
-        token_pool::calculate_local_amount(
-            remote_amount, remote_decimals, local_decimals
-        );
+    let local_amount = token_pool::calculate_local_amount(
+        remote_amount,
+        remote_decimals,
+        local_decimals,
+    );
     assert!(local_amount == 1000000);
 }
 
@@ -191,10 +206,11 @@ fun test_calculate_local_amount_more_decimals() {
     let remote_decimals: u8 = 6; // 6 decimals
     let local_decimals: u8 = 8; // 8 decimals (2 more)
 
-    let local_amount =
-        token_pool::calculate_local_amount(
-            remote_amount, remote_decimals, local_decimals
-        );
+    let local_amount = token_pool::calculate_local_amount(
+        remote_amount,
+        remote_decimals,
+        local_decimals,
+    );
     assert!(local_amount == 100000000); // 1000000 * 10^2
 }
 
@@ -205,10 +221,11 @@ fun test_calculate_local_amount_fewer_decimals() {
     let remote_decimals: u8 = 8; // 8 decimals
     let local_decimals: u8 = 6; // 6 decimals (2 fewer)
 
-    let local_amount =
-        token_pool::calculate_local_amount(
-            remote_amount, remote_decimals, local_decimals
-        );
+    let local_amount = token_pool::calculate_local_amount(
+        remote_amount,
+        remote_decimals,
+        local_decimals,
+    );
     assert!(local_amount == 10000); // 1000000 / 10^2
 }
 
@@ -220,10 +237,11 @@ fun test_decimal_overflow_protection() {
     let remote_decimals: u8 = 1; // 1 decimal
     let local_decimals: u8 = 100; // 100 decimals (99 more - exceeds the limit of 77)
 
-    let _local_amount =
-        token_pool::calculate_local_amount(
-            remote_amount, remote_decimals, local_decimals
-        );
+    let _local_amount = token_pool::calculate_local_amount(
+        remote_amount,
+        remote_decimals,
+        local_decimals,
+    );
 }
 
 #[test]
@@ -233,10 +251,11 @@ fun test_local_amount_u64_overflow() {
     let remote_decimals: u8 = 0;
     let local_decimals: u8 = 18;
 
-    let _local_amount =
-        token_pool::calculate_local_amount(
-            remote_amount, remote_decimals, local_decimals
-        );
+    let _local_amount = token_pool::calculate_local_amount(
+        remote_amount,
+        remote_decimals,
+        local_decimals,
+    );
 }
 
 #[test]
@@ -277,7 +296,40 @@ fun test_enable_and_update_and_disable_allowlist() {
 
 #[test]
 fun test_parse_remote_decimals() {
-    let source_pool_data = vector[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9];
+    let source_pool_data = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        9,
+    ];
 
     let decimal = token_pool::parse_remote_decimals(source_pool_data, 1);
     assert!(decimal == 9);
@@ -287,7 +339,8 @@ fun test_parse_remote_decimals() {
 #[expected_failure(abort_code = token_pool::EInvalidRemoteChainDecimals)]
 fun test_parse_remote_decimals_overflow() {
     // 256
-    let source_pool_data = x"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100";
+    let source_pool_data =
+        x"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100";
 
     let _decimal = token_pool::parse_remote_decimals(source_pool_data, 1);
 }
@@ -346,7 +399,7 @@ fun test_apply_chain_updates_pool_addresses_length_mismatch() {
         vector[], // remove nothing
         vector[5000], // add 1 chain
         vector[vector[b"pool1"], vector[b"pool2"]], // but 2 pool address vectors
-        vector[b"token1"] // and 1 token address
+        vector[b"token1"], // and 1 token address
     );
 
     token_pool::destroy_token_pool(state);
@@ -364,7 +417,7 @@ fun test_apply_chain_updates_token_addresses_length_mismatch() {
         vector[], // remove nothing
         vector[5000], // add 1 chain
         vector[vector[b"pool1"]], // 1 pool address vector
-        vector[b"token1", b"token2"] // but 2 token addresses
+        vector[b"token1", b"token2"], // but 2 token addresses
     );
 
     token_pool::destroy_token_pool(state);
@@ -401,7 +454,7 @@ fun test_validate_lock_or_burn_success() {
         &mut state,
         sender,
         remote_chain_selector,
-        local_amount
+        local_amount,
     );
 
     assert!(remote_token == DefaultRemoteToken);
@@ -416,22 +469,22 @@ fun test_validate_lock_or_burn_success() {
 #[test]
 #[expected_failure(abort_code = token_pool::ECursedChain)]
 fun test_validate_lock_or_burn_cursed_chain() {
-    let (scenario, owner_cap,mut ref, mut state) = set_up_token_pool_test_with_ccip();
+    let (scenario, owner_cap, mut ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let clock = clock::create_for_testing(&mut ctx);
-    
+
     // Curse the remote chain
     ccip::rmn_remote::curse_multiple(
         &mut ref,
         &owner_cap,
-        vector[x"00000000000000000000000000000000"] // curse chain selector 0, but we'll test with DefaultRemoteChain
+        vector[x"00000000000000000000000000000000"], // curse chain selector 0, but we'll test with DefaultRemoteChain
     );
-    
+
     // Actually curse the DefaultRemoteChain (2000)
     let mut subject_bytes = bcs::to_bytes(&(DefaultRemoteChain as u128));
     subject_bytes.reverse();
     ccip::rmn_remote::curse(&mut ref, &owner_cap, subject_bytes);
-    
+
     let sender = @0x123;
     let local_amount = 1000;
 
@@ -442,7 +495,7 @@ fun test_validate_lock_or_burn_cursed_chain() {
         &mut state,
         sender,
         DefaultRemoteChain,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -458,11 +511,11 @@ fun test_validate_lock_or_burn_allowlist_not_allowed() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let clock = clock::create_for_testing(&mut ctx);
-    
+
     // Enable allowlist but don't add sender
     token_pool::set_allowlist_enabled(&mut state, true);
     token_pool::apply_allowlist_updates(&mut state, vector[], vector[@0x456]); // Add different address
-    
+
     let sender = @0x123; // This address is not in allowlist
     let local_amount = 1000;
 
@@ -473,7 +526,7 @@ fun test_validate_lock_or_burn_allowlist_not_allowed() {
         &mut state,
         sender,
         DefaultRemoteChain,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -489,7 +542,7 @@ fun test_validate_lock_or_burn_unknown_chain() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let clock = clock::create_for_testing(&mut ctx);
-    
+
     let sender = @0x123;
     let unknown_chain = 9999; // Chain not configured
     let local_amount = 1000;
@@ -501,7 +554,7 @@ fun test_validate_lock_or_burn_unknown_chain() {
         &mut state,
         sender,
         unknown_chain,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -529,13 +582,13 @@ fun test_validate_lock_or_burn_with_allowlist_success() {
     );
     // we need to advance the clock in order for the bucket in the rate limiter to be updated
     clock.increment_for_testing(1000000);
-    
+
     let sender = @0x123;
-    
+
     // Enable allowlist and add sender
     token_pool::set_allowlist_enabled(&mut state, true);
     token_pool::apply_allowlist_updates(&mut state, vector[], vector[sender]);
-    
+
     let local_amount = 1000;
 
     // Should succeed because sender is in allowlist
@@ -545,7 +598,7 @@ fun test_validate_lock_or_burn_with_allowlist_success() {
         &mut state,
         sender,
         DefaultRemoteChain,
-        local_amount
+        local_amount,
     );
 
     assert!(remote_token == DefaultRemoteToken);
@@ -562,7 +615,7 @@ fun test_validate_release_or_mint_success() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let mut clock = clock::create_for_testing(&mut ctx);
-    
+
     // Set up rate limiter config
     token_pool::set_chain_rate_limiter_config(
         &clock,
@@ -588,7 +641,7 @@ fun test_validate_release_or_mint_success() {
         DefaultRemoteChain,
         dest_token_address,
         DefaultRemotePool,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -616,7 +669,7 @@ fun test_validate_release_or_mint_unknown_token() {
         DefaultRemoteChain,
         wrong_token_address,
         DefaultRemotePool,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -632,12 +685,12 @@ fun test_validate_release_or_mint_cursed_chain() {
     let (scenario, owner_cap, mut ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let clock = clock::create_for_testing(&mut ctx);
-    
+
     // Curse the remote chain
     let mut subject_bytes = bcs::to_bytes(&(DefaultRemoteChain as u128));
     subject_bytes.reverse();
     ccip::rmn_remote::curse(&mut ref, &owner_cap, subject_bytes);
-    
+
     let dest_token_address = token_pool::get_token(&state);
     let local_amount = 1000;
 
@@ -649,7 +702,7 @@ fun test_validate_release_or_mint_cursed_chain() {
         DefaultRemoteChain,
         dest_token_address,
         DefaultRemotePool,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -665,7 +718,7 @@ fun test_validate_release_or_mint_unknown_remote_pool() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let clock = clock::create_for_testing(&mut ctx);
-    
+
     let dest_token_address = token_pool::get_token(&state);
     let unknown_pool_address = b"unknown_pool"; // Pool not configured
     let local_amount = 1000;
@@ -678,7 +731,7 @@ fun test_validate_release_or_mint_unknown_remote_pool() {
         DefaultRemoteChain,
         dest_token_address,
         unknown_pool_address,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -694,7 +747,7 @@ fun test_validate_release_or_mint_unknown_chain() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let clock = clock::create_for_testing(&mut ctx);
-    
+
     let unknown_chain_selector = 9999; // Chain not configured
     let dest_token_address = token_pool::get_token(&state);
     let local_amount = 1000;
@@ -708,7 +761,7 @@ fun test_validate_release_or_mint_unknown_chain() {
         unknown_chain_selector,
         dest_token_address,
         DefaultRemotePool,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -723,11 +776,11 @@ fun test_validate_release_or_mint_with_different_pool() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let mut clock = clock::create_for_testing(&mut ctx);
-    
+
     // Add another remote pool to the default chain
     let additional_pool = b"additional_pool";
     token_pool::add_remote_pool(&mut state, DefaultRemoteChain, additional_pool);
-    
+
     // Set up rate limiter config
     token_pool::set_chain_rate_limiter_config(
         &clock,
@@ -753,7 +806,7 @@ fun test_validate_release_or_mint_with_different_pool() {
         DefaultRemoteChain,
         dest_token_address,
         additional_pool,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -769,7 +822,7 @@ fun test_validate_lock_or_burn_rate_limit_max_capacity_exceeded() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let mut clock = clock::create_for_testing(&mut ctx);
-    
+
     // Set up rate limiter with small capacity
     let small_capacity = 500;
     token_pool::set_chain_rate_limiter_config(
@@ -784,7 +837,7 @@ fun test_validate_lock_or_burn_rate_limit_max_capacity_exceeded() {
         4000,
     );
     clock.increment_for_testing(1000000);
-    
+
     let sender = @0x123;
     let local_amount = 1000; // Request more than capacity (500)
 
@@ -795,7 +848,7 @@ fun test_validate_lock_or_burn_rate_limit_max_capacity_exceeded() {
         &mut state,
         sender,
         DefaultRemoteChain,
-        local_amount
+        local_amount,
     );
 
     token_pool::destroy_token_pool(state);
@@ -811,7 +864,7 @@ fun test_validate_lock_or_burn_rate_limit_reached() {
     let (scenario, owner_cap, ref, mut state) = set_up_token_pool_test_with_ccip();
     let mut ctx = tx_context::dummy();
     let mut clock = clock::create_for_testing(&mut ctx);
-    
+
     // Set up rate limiter with low rate and capacity
     let capacity = 1000;
     let rate = 1; // Very low rate (1 token per second)
@@ -826,12 +879,12 @@ fun test_validate_lock_or_burn_rate_limit_reached() {
         4000,
         4000,
     );
-    
+
     // Advance clock to allow some tokens to accumulate
     clock.increment_for_testing(100_000); // 100 seconds = 100 tokens at rate 1/sec
-    
+
     let sender = @0x123;
-    
+
     // First request should succeed (consume 50 tokens)
     let _remote_token1 = token_pool::validate_lock_or_burn(
         &ref,
@@ -839,9 +892,9 @@ fun test_validate_lock_or_burn_rate_limit_reached() {
         &mut state,
         sender,
         DefaultRemoteChain,
-        50
+        50,
     );
-    
+
     // Second request should succeed (consume another 50 tokens, total 100)
     let _remote_token2 = token_pool::validate_lock_or_burn(
         &ref,
@@ -849,9 +902,9 @@ fun test_validate_lock_or_burn_rate_limit_reached() {
         &mut state,
         sender,
         DefaultRemoteChain,
-        50
+        50,
     );
-    
+
     // Third request should fail - trying to consume more tokens than available
     // Available tokens should be 0 after consuming 100 tokens
     let _remote_token3 = token_pool::validate_lock_or_burn(
@@ -860,7 +913,7 @@ fun test_validate_lock_or_burn_rate_limit_reached() {
         &mut state,
         sender,
         DefaultRemoteChain,
-        1 // Even 1 token should fail
+        1, // Even 1 token should fail
     );
 
     token_pool::destroy_token_pool(state);

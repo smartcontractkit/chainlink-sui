@@ -1,14 +1,13 @@
 #[test_only]
 module managed_token::managed_token_test;
 
+use managed_token::managed_token::{Self, TokenState, MintCap};
+use managed_token::ownable::OwnerCap;
 use std::string;
 use sui::coin::{Self, CoinMetadata};
 use sui::deny_list;
 use sui::test_scenario::{Self, Scenario};
 use sui::test_utils;
-
-use managed_token::managed_token::{Self, TokenState, MintCap};
-use managed_token::ownable::OwnerCap;
 
 // Test token types - each test gets its own unique witness type
 public struct MANAGED_TOKEN_TEST has drop {}
@@ -21,7 +20,12 @@ const OTHER_USER: address = @0x4;
 // === Helper Functions ===
 
 // Generic setup function that takes a witness type
-fun setup_managed_token_test(): (Scenario, TokenState<MANAGED_TOKEN_TEST>, OwnerCap<MANAGED_TOKEN_TEST>, CoinMetadata<MANAGED_TOKEN_TEST>) {
+fun setup_managed_token_test(): (
+    Scenario,
+    TokenState<MANAGED_TOKEN_TEST>,
+    OwnerCap<MANAGED_TOKEN_TEST>,
+    CoinMetadata<MANAGED_TOKEN_TEST>,
+) {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
 
@@ -33,7 +37,7 @@ fun setup_managed_token_test(): (Scenario, TokenState<MANAGED_TOKEN_TEST>, Owner
         b"Test Token",
         b"A test token for managed token tests",
         option::none(),
-        ctx
+        ctx,
     );
 
     // Initialize managed token
@@ -47,7 +51,12 @@ fun setup_managed_token_test(): (Scenario, TokenState<MANAGED_TOKEN_TEST>, Owner
     (scenario, state, owner_cap, coin_metadata)
 }
 
-fun setup_regulated_token_test(): (Scenario, TokenState<MANAGED_TOKEN_TEST>, OwnerCap<MANAGED_TOKEN_TEST>, CoinMetadata<MANAGED_TOKEN_TEST>) {
+fun setup_regulated_token_test(): (
+    Scenario,
+    TokenState<MANAGED_TOKEN_TEST>,
+    OwnerCap<MANAGED_TOKEN_TEST>,
+    CoinMetadata<MANAGED_TOKEN_TEST>,
+) {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
 
@@ -60,7 +69,7 @@ fun setup_regulated_token_test(): (Scenario, TokenState<MANAGED_TOKEN_TEST>, Own
         b"A test token for managed token tests",
         option::none(),
         true,
-        ctx
+        ctx,
     );
 
     // Initialize with deny cap
@@ -77,7 +86,7 @@ fun cleanup_managed_token_test<T>(
     scenario: Scenario,
     state: TokenState<T>,
     owner_cap: OwnerCap<T>,
-    coin_metadata: CoinMetadata<T>
+    coin_metadata: CoinMetadata<T>,
 ) {
     transfer::public_transfer(owner_cap, OWNER);
     transfer::public_freeze_object(coin_metadata);
@@ -91,7 +100,7 @@ fun setup_minter_with_allowance(
     minter: address,
     allowance: u64,
     is_unlimited: bool,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     managed_token::configure_new_minter(
         state,
@@ -99,7 +108,7 @@ fun setup_minter_with_allowance(
         minter,
         allowance,
         is_unlimited,
-        ctx
+        ctx,
     );
 }
 
@@ -152,12 +161,19 @@ fun test_treasury_cap_access_and_total_supply() {
     scenario.next_tx(MINTER);
     let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_TEST>>();
     let deny_list = deny_list::new_for_testing(scenario.ctx());
-    
+
     // Mint tokens and verify supply tracking
     let amount = 300;
-    let coin = managed_token::mint(&mut state, &mint_cap, &deny_list, amount, RECIPIENT, scenario.ctx());
+    let coin = managed_token::mint(
+        &mut state,
+        &mint_cap,
+        &deny_list,
+        amount,
+        RECIPIENT,
+        scenario.ctx(),
+    );
     assert!(managed_token::total_supply(&state) == amount);
-    
+
     let treasury_cap_ref = managed_token::borrow_treasury_cap(&state, &owner_cap);
     assert!(treasury_cap_ref.total_supply() == amount);
 
@@ -180,21 +196,38 @@ fun test_mint_operations_with_sufficient_allowance() {
     scenario.next_tx(MINTER);
     let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_TEST>>();
     let deny_list = deny_list::new_for_testing(scenario.ctx());
-    
+
     // Test mint function
     let mint_amount = 500;
-    let coin = managed_token::mint(&mut state, &mint_cap, &deny_list, mint_amount, RECIPIENT, scenario.ctx());
+    let coin = managed_token::mint(
+        &mut state,
+        &mint_cap,
+        &deny_list,
+        mint_amount,
+        RECIPIENT,
+        scenario.ctx(),
+    );
     assert!(coin.value() == mint_amount);
     assert!(managed_token::total_supply(&state) == mint_amount);
 
     // Verify remaining allowance
-    let (remaining_allowance, is_unlimited) = managed_token::mint_allowance(&state, object::id(&mint_cap));
+    let (remaining_allowance, is_unlimited) = managed_token::mint_allowance(
+        &state,
+        object::id(&mint_cap),
+    );
     assert!(remaining_allowance == allowance - mint_amount);
     assert!(!is_unlimited);
 
     // Test mint_and_transfer function
     let transfer_amount = 200;
-    managed_token::mint_and_transfer(&mut state, &mint_cap, &deny_list, transfer_amount, RECIPIENT, scenario.ctx());
+    managed_token::mint_and_transfer(
+        &mut state,
+        &mint_cap,
+        &deny_list,
+        transfer_amount,
+        RECIPIENT,
+        scenario.ctx(),
+    );
     assert!(managed_token::total_supply(&state) == mint_amount + transfer_amount);
 
     // Verify final allowance
@@ -230,10 +263,17 @@ fun test_unlimited_allowance_operations() {
     let mut i = 0;
     while (i < amounts.length()) {
         let amount = amounts[i];
-        let coin = managed_token::mint(&mut state, &mint_cap, &deny_list, amount, RECIPIENT, scenario.ctx());
+        let coin = managed_token::mint(
+            &mut state,
+            &mint_cap,
+            &deny_list,
+            amount,
+            RECIPIENT,
+            scenario.ctx(),
+        );
         assert!(coin.value() == amount);
         total_minted = total_minted + amount;
-        
+
         // Test burning
         managed_token::burn(&mut state, &mint_cap, &deny_list, coin, RECIPIENT, scenario.ctx());
         i = i + 1;
@@ -255,7 +295,14 @@ fun test_allowance_management_comprehensive() {
     let (mut scenario, mut state, owner_cap, coin_metadata) = setup_managed_token_test();
 
     let initial_allowance = 1000;
-    setup_minter_with_allowance(&mut state, &owner_cap, MINTER, initial_allowance, false, scenario.ctx());
+    setup_minter_with_allowance(
+        &mut state,
+        &owner_cap,
+        MINTER,
+        initial_allowance,
+        false,
+        scenario.ctx(),
+    );
 
     scenario.next_tx(MINTER);
     let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_TEST>>();
@@ -265,19 +312,40 @@ fun test_allowance_management_comprehensive() {
     // Test increment_mint_allowance
     scenario.next_tx(OWNER);
     let increment_amount = 500;
-    managed_token::increment_mint_allowance(&mut state, &owner_cap, mint_cap_id, &deny_list, increment_amount, scenario.ctx());
+    managed_token::increment_mint_allowance(
+        &mut state,
+        &owner_cap,
+        mint_cap_id,
+        &deny_list,
+        increment_amount,
+        scenario.ctx(),
+    );
 
     let (new_allowance, is_unlimited) = managed_token::mint_allowance(&state, mint_cap_id);
     assert!(new_allowance == initial_allowance + increment_amount);
     assert!(!is_unlimited);
 
     // Test set_unlimited_mint_allowances to unlimited
-    managed_token::set_unlimited_mint_allowances(&mut state, &owner_cap, mint_cap_id, &deny_list, true, scenario.ctx());
+    managed_token::set_unlimited_mint_allowances(
+        &mut state,
+        &owner_cap,
+        mint_cap_id,
+        &deny_list,
+        true,
+        scenario.ctx(),
+    );
     let (_allowance, is_unlimited) = managed_token::mint_allowance(&state, mint_cap_id);
     assert!(is_unlimited);
 
     // Test set back to limited
-    managed_token::set_unlimited_mint_allowances(&mut state, &owner_cap, mint_cap_id, &deny_list, false, scenario.ctx());
+    managed_token::set_unlimited_mint_allowances(
+        &mut state,
+        &owner_cap,
+        mint_cap_id,
+        &deny_list,
+        false,
+        scenario.ctx(),
+    );
     let (limited_allowance, is_unlimited) = managed_token::mint_allowance(&state, mint_cap_id);
     assert!(limited_allowance == 0);
     assert!(!is_unlimited);
@@ -293,7 +361,14 @@ fun test_multiple_allowance_increments() {
     let (mut scenario, mut state, owner_cap, coin_metadata) = setup_managed_token_test();
 
     let initial_allowance = 1000;
-    setup_minter_with_allowance(&mut state, &owner_cap, MINTER, initial_allowance, false, scenario.ctx());
+    setup_minter_with_allowance(
+        &mut state,
+        &owner_cap,
+        MINTER,
+        initial_allowance,
+        false,
+        scenario.ctx(),
+    );
 
     scenario.next_tx(MINTER);
     let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_TEST>>();
@@ -308,9 +383,16 @@ fun test_multiple_allowance_increments() {
     let mut i = 0;
     while (i < increments.length()) {
         let increment = increments[i];
-        managed_token::increment_mint_allowance(&mut state, &owner_cap, mint_cap_id, &deny_list, increment, scenario.ctx());
+        managed_token::increment_mint_allowance(
+            &mut state,
+            &owner_cap,
+            mint_cap_id,
+            &deny_list,
+            increment,
+            scenario.ctx(),
+        );
         expected_allowance = expected_allowance + increment;
-        
+
         let (current_allowance, is_unlimited) = managed_token::mint_allowance(&state, mint_cap_id);
         assert!(current_allowance == expected_allowance);
         assert!(!is_unlimited);
@@ -320,7 +402,14 @@ fun test_multiple_allowance_increments() {
     // Test minting with final allowance
     scenario.next_tx(MINTER);
     let mint_amount = 1500; // More than initial but less than final allowance
-    let coin = managed_token::mint(&mut state, &mint_cap, &deny_list, mint_amount, RECIPIENT, scenario.ctx());
+    let coin = managed_token::mint(
+        &mut state,
+        &mint_cap,
+        &deny_list,
+        mint_amount,
+        RECIPIENT,
+        scenario.ctx(),
+    );
     assert!(coin.value() == mint_amount);
 
     // Clean up
@@ -380,10 +469,22 @@ fun test_blocklist_and_unblocklist_operations() {
     let address_to_block = @0x123;
 
     // Test blocklist function
-    managed_token::blocklist(&mut state, &owner_cap, &mut deny_list, address_to_block, scenario.ctx());
+    managed_token::blocklist(
+        &mut state,
+        &owner_cap,
+        &mut deny_list,
+        address_to_block,
+        scenario.ctx(),
+    );
 
     // Test unblocklist function
-    managed_token::unblocklist(&mut state, &owner_cap, &mut deny_list, address_to_block, scenario.ctx());
+    managed_token::unblocklist(
+        &mut state,
+        &owner_cap,
+        &mut deny_list,
+        address_to_block,
+        scenario.ctx(),
+    );
 
     // Clean up
     test_utils::destroy(deny_list);
@@ -442,10 +543,24 @@ fun test_burn_operations_comprehensive() {
 
     // Both minters mint tokens
     scenario.next_tx(MINTER);
-    let coin1 = managed_token::mint(&mut state, &mint_cap1, &deny_list, 300, MINTER, scenario.ctx());
+    let coin1 = managed_token::mint(
+        &mut state,
+        &mint_cap1,
+        &deny_list,
+        300,
+        MINTER,
+        scenario.ctx(),
+    );
 
     scenario.next_tx(OTHER_USER);
-    let coin2 = managed_token::mint(&mut state, &mint_cap2, &deny_list, 400, OTHER_USER, scenario.ctx());
+    let coin2 = managed_token::mint(
+        &mut state,
+        &mint_cap2,
+        &deny_list,
+        400,
+        OTHER_USER,
+        scenario.ctx(),
+    );
 
     // Verify total supply
     assert!(managed_token::total_supply(&state) == 700);
@@ -489,7 +604,11 @@ fun test_managed_token_destruction_scenarios() {
 
     // Destroy the managed token
     scenario.next_tx(OWNER);
-    let (treasury_cap, deny_cap_option) = managed_token::destroy_managed_token(owner_cap, state, scenario.ctx());
+    let (treasury_cap, deny_cap_option) = managed_token::destroy_managed_token(
+        owner_cap,
+        state,
+        scenario.ctx(),
+    );
 
     // Verify results
     assert!(deny_cap_option.is_none());
@@ -517,12 +636,23 @@ fun test_destruction_with_regulated_token() {
 
     // Mint tokens to increase supply
     let mint_amount = 500;
-    let coin = managed_token::mint(&mut state, &mint_cap, &deny_list, mint_amount, RECIPIENT, scenario.ctx());
+    let coin = managed_token::mint(
+        &mut state,
+        &mint_cap,
+        &deny_list,
+        mint_amount,
+        RECIPIENT,
+        scenario.ctx(),
+    );
     assert!(managed_token::total_supply(&state) == mint_amount);
 
     // Destroy the managed token
     scenario.next_tx(OWNER);
-    let (treasury_cap, deny_cap_option) = managed_token::destroy_managed_token(owner_cap, state, scenario.ctx());
+    let (treasury_cap, deny_cap_option) = managed_token::destroy_managed_token(
+        owner_cap,
+        state,
+        scenario.ctx(),
+    );
 
     // Verify results
     assert!(deny_cap_option.is_some());
@@ -553,7 +683,7 @@ fun test_zero_amount_mint_failure() {
     scenario.next_tx(MINTER);
     let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_TEST>>();
     let deny_list = deny_list::new_for_testing(scenario.ctx());
-    
+
     // Try to mint zero amount - should fail
     let coin = managed_token::mint(&mut state, &mint_cap, &deny_list, 0, RECIPIENT, scenario.ctx());
     transfer::public_transfer(coin, RECIPIENT);
@@ -568,7 +698,7 @@ fun test_zero_amount_mint_failure() {
 #[expected_failure(abort_code = managed_token::EInsufficientAllowance)]
 fun test_insufficient_allowance_failure() {
     let (mut scenario, mut state, owner_cap, coin_metadata) = setup_managed_token_test();
-    
+
     let allowance = 500;
     setup_minter_with_allowance(&mut state, &owner_cap, MINTER, allowance, false, scenario.ctx());
 
@@ -577,7 +707,14 @@ fun test_insufficient_allowance_failure() {
     let deny_list = deny_list::new_for_testing(scenario.ctx());
 
     // Try to mint more than allowance - should fail
-    managed_token::mint_and_transfer(&mut state, &mint_cap, &deny_list, allowance + 1, RECIPIENT, scenario.ctx());
+    managed_token::mint_and_transfer(
+        &mut state,
+        &mint_cap,
+        &deny_list,
+        allowance + 1,
+        RECIPIENT,
+        scenario.ctx(),
+    );
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
@@ -618,7 +755,14 @@ fun test_increment_allowance_zero_amount_failure() {
 
     // Try to increment with zero amount - should fail
     scenario.next_tx(OWNER);
-    managed_token::increment_mint_allowance(&mut state, &owner_cap, mint_cap_id, &deny_list, 0, scenario.ctx());
+    managed_token::increment_mint_allowance(
+        &mut state,
+        &owner_cap,
+        mint_cap_id,
+        &deny_list,
+        0,
+        scenario.ctx(),
+    );
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
@@ -639,7 +783,14 @@ fun test_increment_unlimited_allowance_failure() {
 
     // Try to increment unlimited allowance - should fail
     scenario.next_tx(OWNER);
-    managed_token::increment_mint_allowance(&mut state, &owner_cap, mint_cap_id, &deny_list, 500, scenario.ctx());
+    managed_token::increment_mint_allowance(
+        &mut state,
+        &owner_cap,
+        mint_cap_id,
+        &deny_list,
+        500,
+        scenario.ctx(),
+    );
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
@@ -658,7 +809,14 @@ fun test_unauthorized_mint_cap_operations() {
 
     // Try various operations with unauthorized mint cap - should fail
     scenario.next_tx(OWNER);
-    managed_token::increment_mint_allowance(&mut state, &owner_cap, fake_mint_cap_id, &deny_list, 500, scenario.ctx());
+    managed_token::increment_mint_allowance(
+        &mut state,
+        &owner_cap,
+        fake_mint_cap_id,
+        &deny_list,
+        500,
+        scenario.ctx(),
+    );
 
     // Cleanup (should not be reached)
     test_utils::destroy(deny_list);
@@ -682,7 +840,14 @@ fun test_operations_while_paused() {
     managed_token::pause(&mut state, &owner_cap, &mut deny_list, scenario.ctx());
 
     // Try to increment allowance while paused - should fail
-    managed_token::increment_mint_allowance(&mut state, &owner_cap, mint_cap_id, &deny_list, 500, scenario.ctx());
+    managed_token::increment_mint_allowance(
+        &mut state,
+        &owner_cap,
+        mint_cap_id,
+        &deny_list,
+        500,
+        scenario.ctx(),
+    );
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
@@ -707,7 +872,14 @@ fun test_operations_with_blocklisted_addresses() {
 
     // Try to mint while minter is blocklisted - should fail
     scenario.next_tx(MINTER);
-    managed_token::mint_and_transfer(&mut state, &mint_cap, &deny_list, 500, RECIPIENT, scenario.ctx());
+    managed_token::mint_and_transfer(
+        &mut state,
+        &mint_cap,
+        &deny_list,
+        500,
+        RECIPIENT,
+        scenario.ctx(),
+    );
 
     // Cleanup (should not be reached)
     transfer::public_transfer(mint_cap, MINTER);
@@ -730,7 +902,7 @@ fun test_invalid_owner_cap_operations() {
         b"Fake Token",
         b"A fake token",
         option::none(),
-        ctx
+        ctx,
     );
     managed_token::initialize(fake_treasury_cap, ctx);
 
@@ -738,15 +910,19 @@ fun test_invalid_owner_cap_operations() {
     let fake_state = scenario.take_shared<TokenState<MANAGED_TOKEN_TEST>>();
     let fake_owner_cap = scenario.take_from_sender<OwnerCap<MANAGED_TOKEN_TEST>>();
 
-         // Try to destroy with wrong owner cap - should fail
-     let (treasury_cap_result, mut deny_cap_result) = managed_token::destroy_managed_token(fake_owner_cap, state, scenario.ctx());
-     
-     // This code should not be reached due to expected failure
-     transfer::public_transfer(treasury_cap_result, OTHER_USER);
-     if (deny_cap_result.is_some()) {
-         transfer::public_transfer(deny_cap_result.extract(), OTHER_USER);
-     };
-     deny_cap_result.destroy_none();
+    // Try to destroy with wrong owner cap - should fail
+    let (treasury_cap_result, mut deny_cap_result) = managed_token::destroy_managed_token(
+        fake_owner_cap,
+        state,
+        scenario.ctx(),
+    );
+
+    // This code should not be reached due to expected failure
+    transfer::public_transfer(treasury_cap_result, OTHER_USER);
+    if (deny_cap_result.is_some()) {
+        transfer::public_transfer(deny_cap_result.extract(), OTHER_USER);
+    };
+    deny_cap_result.destroy_none();
 
     // Cleanup (should not be reached)
     transfer::public_transfer(owner_cap, OWNER);

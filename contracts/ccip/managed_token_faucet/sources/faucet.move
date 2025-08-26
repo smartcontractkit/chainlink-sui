@@ -1,19 +1,15 @@
 module managed_token_faucet::faucet;
 
-use sui::deny_list::DenyList;
-use sui::coin::{Coin, CoinMetadata};
-
 use managed_token::managed_token::{Self, MintCap, TokenState};
+use sui::coin::{Coin, CoinMetadata};
+use sui::deny_list::DenyList;
 
 public struct FaucetState<phantom T> has key, store {
     id: UID,
     mint_cap: MintCap<T>,
 }
 
-public fun initialize<T>(
-    mint_cap: MintCap<T>,
-    ctx: &mut TxContext,
-) {
+public fun initialize<T>(mint_cap: MintCap<T>, ctx: &mut TxContext) {
     let faucet_state = FaucetState<T> {
         id: object::new(ctx),
         mint_cap,
