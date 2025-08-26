@@ -209,6 +209,10 @@ type ChainAdded struct {
 	RemoteTokenAddress  []byte `move:"vector<u8>"`
 }
 
+type ChainRemoved struct {
+	RemoteChainSelector uint64 `move:"u64"`
+}
+
 type LiquidityAdded struct {
 	LocalToken string `move:"address"`
 	Provider   string `move:"address"`
@@ -389,6 +393,14 @@ func init() {
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::ChainAdded", func(data []byte) (interface{}, error) {
 		var result ChainAdded
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip_token_pool::token_pool::ChainRemoved", func(data []byte) (interface{}, error) {
+		var result ChainRemoved
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
