@@ -1,16 +1,14 @@
 module ccip_dummy_receiver::dummy_receiver;
 
-use std::string::{Self, String};
-
-use sui::event;
-use sui::clock::Clock;
-use sui::coin::Coin;
-use sui::transfer::Receiving;
-
 use ccip::client;
+use ccip::offramp_state_helper as osh;
 use ccip::receiver_registry;
 use ccip::state_object::CCIPObjectRef;
-use ccip::offramp_state_helper::{Self as osh};
+use std::string::{Self, String};
+use sui::clock::Clock;
+use sui::coin::Coin;
+use sui::event;
+use sui::transfer::Receiving;
 
 const EMessageIdMismatch: u64 = 0;
 
@@ -141,10 +139,7 @@ public fun ccip_receive(
         dest_token_amounts,
     ) = osh::consume_any2sui_message(ref, message, DummyReceiverProof {});
 
-    assert!(
-        message_id == expected_message_id,
-        EMessageIdMismatch
-    );
+    assert!(message_id == expected_message_id, EMessageIdMismatch);
 
     state.counter = state.counter + 1;
     state.message_id = message_id;
@@ -161,14 +156,12 @@ public fun ccip_receive(
         i = i + 1;
     };
 
-    event::emit(
-        ReceivedMessage {
-            message_id,
-            source_chain_selector,
-            sender,
-            data,
-            dest_token_transfer_length: state.dest_token_transfer_length,
-            dest_token_amounts: state.dest_token_amounts,
-        }
-    );
+    event::emit(ReceivedMessage {
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_transfer_length: state.dest_token_transfer_length,
+        dest_token_amounts: state.dest_token_amounts,
+    });
 }

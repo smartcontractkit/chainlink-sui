@@ -7,11 +7,11 @@ public struct CCIP_BURN_MINT_TOKEN has drop {}
 fun init(witness: CCIP_BURN_MINT_TOKEN, ctx: &mut TxContext) {
     let (treasury, metadata) = coin::create_currency(
         witness,
-        9,                  // decimals
-        b"CCIP BnM",         // symbol
-        b"CCIP Burn Mint Token",                // name
-        b"CCIP Burn Mint Token for testing",                // description
-        option::none(),     // icon_url
+        9, // decimals
+        b"CCIP BnM", // symbol
+        b"CCIP Burn Mint Token", // name
+        b"CCIP Burn Mint Token for testing", // description
+        option::none(), // icon_url
         ctx,
     );
     transfer::public_freeze_object(metadata);

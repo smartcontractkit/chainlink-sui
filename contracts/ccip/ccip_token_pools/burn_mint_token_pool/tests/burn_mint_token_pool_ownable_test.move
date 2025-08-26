@@ -1,256 +1,284 @@
 #[test_only]
-module burn_mint_token_pool::burn_mint_token_pool_ownable_test {
-    use sui::test_scenario::{Self as ts, Scenario};
-    use sui::coin;
-    use ccip::state_object::{Self, CCIPObjectRef};
-    use ccip::token_admin_registry;
-    use ccip::rmn_remote;
+module burn_mint_token_pool::burn_mint_token_pool_ownable_test;
 
-    use burn_mint_token_pool::burn_mint_token_pool::{Self, BurnMintTokenPoolState};
-    use ccip_token_pool::ownable::{Self, OwnerCap};
+use burn_mint_token_pool::burn_mint_token_pool::{Self, BurnMintTokenPoolState};
+use ccip::rmn_remote;
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::token_admin_registry;
+use ccip_token_pool::ownable::{Self, OwnerCap};
+use sui::coin;
+use sui::test_scenario::{Self as ts, Scenario};
 
-    public struct BURN_MINT_TOKEN_POOL_OWNABLE_TEST has drop {}
+public struct BURN_MINT_TOKEN_POOL_OWNABLE_TEST has drop {}
 
-    const OWNER: address = @0x123;
-    const NEW_OWNER: address = @0x456;
-    const OTHER_USER: address = @0x789;
-    const Decimals: u8 = 8;
+const OWNER: address = @0x123;
+const NEW_OWNER: address = @0x456;
+const OTHER_USER: address = @0x789;
+const Decimals: u8 = 8;
 
-    public struct TestEnv {
-        scenario: Scenario,
-        state: BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>,
-        ccip_ref: CCIPObjectRef,
-    }
+public struct TestEnv {
+    scenario: Scenario,
+    state: BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>,
+    ccip_ref: CCIPObjectRef,
+}
 
-    fun setup(): (TestEnv, OwnerCap) {
-        let mut scenario = ts::begin(OWNER);
-        let ctx = scenario.ctx();
+fun setup(): (TestEnv, OwnerCap) {
+    let mut scenario = ts::begin(OWNER);
+    let ctx = scenario.ctx();
 
-        // Setup CCIP environment
-        state_object::test_init(ctx);
-        
-        scenario.next_tx(OWNER);
-        let ccip_owner_cap = scenario.take_from_sender<ccip::ownable::OwnerCap>();
-        let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
-        
-        // Initialize required CCIP modules
-        token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
-        rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
-        
-        // Create token and initialize pool in the same transaction
-        let (treasury_cap, coin_metadata) = coin::create_currency(
-            BURN_MINT_TOKEN_POOL_OWNABLE_TEST {},
-            Decimals,
-            b"BMTP",
-            b"BurnMintTestToken",
-            b"burn_mint_test_token",
-            option::none(),
-            scenario.ctx()
-        );
-        
-        burn_mint_token_pool::initialize_by_ccip_admin(
-            &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
-            treasury_cap,
-            @0x123,
-            scenario.ctx()
-        );
-        
-        transfer::public_freeze_object(coin_metadata);
-        transfer::public_transfer(ccip_owner_cap, @0x0);
+    // Setup CCIP environment
+    state_object::test_init(ctx);
 
-        scenario.next_tx(OWNER);
-        let state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
-        let owner_cap = scenario.take_from_sender<OwnerCap>();
+    scenario.next_tx(OWNER);
+    let ccip_owner_cap = scenario.take_from_sender<ccip::ownable::OwnerCap>();
+    let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
-        let env = TestEnv {
-            scenario,
-            state,
-            ccip_ref,
-        };
+    // Initialize required CCIP modules
+    token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
+    rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
 
-        (env, owner_cap)
-    }
+    // Create token and initialize pool in the same transaction
+    let (treasury_cap, coin_metadata) = coin::create_currency(
+        BURN_MINT_TOKEN_POOL_OWNABLE_TEST {},
+        Decimals,
+        b"BMTP",
+        b"BurnMintTestToken",
+        b"burn_mint_test_token",
+        option::none(),
+        scenario.ctx(),
+    );
 
-    fun tear_down(env: TestEnv) {
-        let TestEnv { scenario, state, ccip_ref } = env;
+    burn_mint_token_pool::initialize_by_ccip_admin(
+        &mut ccip_ref,
+        state_object::create_ccip_admin_proof_for_test(),
+        &coin_metadata,
+        treasury_cap,
+        @0x123,
+        scenario.ctx(),
+    );
 
-        ts::return_shared(state);
-        ts::return_shared(ccip_ref);
-        ts::end(scenario);
-    }
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
 
-    #[test]
-    public fun test_basic_ownable_functionality() {
-        let (env, owner_cap) = setup();
+    scenario.next_tx(OWNER);
+    let state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_OWNABLE_TEST>>();
+    let owner_cap = scenario.take_from_sender<OwnerCap>();
 
-        // Test basic ownership queries
-        assert!(burn_mint_token_pool::owner(&env.state) == OWNER);
-        assert!(!burn_mint_token_pool::has_pending_transfer(&env.state));
-        assert!(burn_mint_token_pool::pending_transfer_from(&env.state).is_none());
-        assert!(burn_mint_token_pool::pending_transfer_to(&env.state).is_none());
-        assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).is_none());
+    let env = TestEnv {
+        scenario,
+        state,
+        ccip_ref,
+    };
 
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
+    (env, owner_cap)
+}
 
-    #[test]
-    public fun test_ownership_transfer_flow() {
-        let (mut env, owner_cap) = setup();
+fun tear_down(env: TestEnv) {
+    let TestEnv { scenario, state, ccip_ref } = env;
 
-        // Transfer ownership
-        burn_mint_token_pool::transfer_ownership(&mut env.state, &owner_cap, NEW_OWNER, env.scenario.ctx());
+    ts::return_shared(state);
+    ts::return_shared(ccip_ref);
+    ts::end(scenario);
+}
 
-        // Verify pending transfer
-        assert!(burn_mint_token_pool::has_pending_transfer(&env.state));
-        assert!(burn_mint_token_pool::pending_transfer_from(&env.state).extract() == OWNER);
-        assert!(burn_mint_token_pool::pending_transfer_to(&env.state).extract() == NEW_OWNER);
-        assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).extract() == false);
+#[test]
+public fun test_basic_ownable_functionality() {
+    let (env, owner_cap) = setup();
 
-        // Accept ownership as new owner
-        env.scenario.next_tx(NEW_OWNER);
-        burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
+    // Test basic ownership queries
+    assert!(burn_mint_token_pool::owner(&env.state) == OWNER);
+    assert!(!burn_mint_token_pool::has_pending_transfer(&env.state));
+    assert!(burn_mint_token_pool::pending_transfer_from(&env.state).is_none());
+    assert!(burn_mint_token_pool::pending_transfer_to(&env.state).is_none());
+    assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).is_none());
 
-        // Verify acceptance
-        assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).extract() == true);
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
 
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
+#[test]
+public fun test_ownership_transfer_flow() {
+    let (mut env, owner_cap) = setup();
 
-    #[test]
-    public fun test_accept_ownership_from_object() {
-        let (mut env, owner_cap) = setup();
+    // Transfer ownership
+    burn_mint_token_pool::transfer_ownership(
+        &mut env.state,
+        &owner_cap,
+        NEW_OWNER,
+        env.scenario.ctx(),
+    );
 
-        // Create a UID object for testing
-        let mut uid_object = object::new(env.scenario.ctx());
-        let uid_address = uid_object.to_address();
+    // Verify pending transfer
+    assert!(burn_mint_token_pool::has_pending_transfer(&env.state));
+    assert!(burn_mint_token_pool::pending_transfer_from(&env.state).extract() == OWNER);
+    assert!(burn_mint_token_pool::pending_transfer_to(&env.state).extract() == NEW_OWNER);
+    assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).extract() == false);
 
-        // Transfer ownership to the UID object's address
-        burn_mint_token_pool::transfer_ownership(&mut env.state, &owner_cap, uid_address, env.scenario.ctx());
+    // Accept ownership as new owner
+    env.scenario.next_tx(NEW_OWNER);
+    burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
 
-        // Accept ownership from the UID object
-        burn_mint_token_pool::accept_ownership_from_object(&mut env.state, &mut uid_object, env.scenario.ctx());
+    // Verify acceptance
+    assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).extract() == true);
 
-        // Verify acceptance
-        assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).extract() == true);
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
 
-        object::delete(uid_object);
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
+#[test]
+public fun test_accept_ownership_from_object() {
+    let (mut env, owner_cap) = setup();
 
-    #[test]
-    #[expected_failure(abort_code = ownable::EInvalidOwnerCap)]
-    public fun test_transfer_ownership_unauthorized() {
-        let (mut env, owner_cap) = setup();
+    // Create a UID object for testing
+    let mut uid_object = object::new(env.scenario.ctx());
+    let uid_address = uid_object.to_address();
 
-        // Try to transfer ownership from unauthorized user
-        env.scenario.next_tx(OTHER_USER);
-        let other_user_owner_cap = ownable::create_test_owner_cap(env.scenario.ctx());
-        burn_mint_token_pool::transfer_ownership(&mut env.state, &other_user_owner_cap, NEW_OWNER, env.scenario.ctx());
+    // Transfer ownership to the UID object's address
+    burn_mint_token_pool::transfer_ownership(
+        &mut env.state,
+        &owner_cap,
+        uid_address,
+        env.scenario.ctx(),
+    );
 
-        ownable::destroy_owner_cap(other_user_owner_cap, env.scenario.ctx());
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
+    // Accept ownership from the UID object
+    burn_mint_token_pool::accept_ownership_from_object(
+        &mut env.state,
+        &mut uid_object,
+        env.scenario.ctx(),
+    );
 
-    #[test]
-    #[expected_failure(abort_code = ownable::EMustBeProposedOwner)]
-    public fun test_accept_ownership_unauthorized() {
-        let (mut env, owner_cap) = setup();
+    // Verify acceptance
+    assert!(burn_mint_token_pool::pending_transfer_accepted(&env.state).extract() == true);
 
-        // Transfer ownership
-        burn_mint_token_pool::transfer_ownership(&mut env.state, &owner_cap, NEW_OWNER, env.scenario.ctx());
+    object::delete(uid_object);
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
 
-        // Try to accept ownership from unauthorized user
-        env.scenario.next_tx(OTHER_USER);
-        burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
+#[test]
+#[expected_failure(abort_code = ownable::EInvalidOwnerCap)]
+public fun test_transfer_ownership_unauthorized() {
+    let (mut env, owner_cap) = setup();
 
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
+    // Try to transfer ownership from unauthorized user
+    env.scenario.next_tx(OTHER_USER);
+    let other_user_owner_cap = ownable::create_test_owner_cap(env.scenario.ctx());
+    burn_mint_token_pool::transfer_ownership(
+        &mut env.state,
+        &other_user_owner_cap,
+        NEW_OWNER,
+        env.scenario.ctx(),
+    );
 
-    #[test]
-    #[expected_failure(abort_code = ownable::ENoPendingTransfer)]
-    public fun test_accept_ownership_no_pending_transfer() {
-        let (mut env, owner_cap) = setup();
+    ownable::destroy_owner_cap(other_user_owner_cap, env.scenario.ctx());
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
 
-        // Try to accept ownership without pending transfer
-        env.scenario.next_tx(NEW_OWNER);
-        burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
+#[test]
+#[expected_failure(abort_code = ownable::EMustBeProposedOwner)]
+public fun test_accept_ownership_unauthorized() {
+    let (mut env, owner_cap) = setup();
 
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
+    // Transfer ownership
+    burn_mint_token_pool::transfer_ownership(
+        &mut env.state,
+        &owner_cap,
+        NEW_OWNER,
+        env.scenario.ctx(),
+    );
 
-    #[test]
-    #[expected_failure(abort_code = ownable::ETransferAlreadyAccepted)]
-    public fun test_accept_ownership_already_accepted() {
-        let (mut env, owner_cap) = setup();
+    // Try to accept ownership from unauthorized user
+    env.scenario.next_tx(OTHER_USER);
+    burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
 
-        // Transfer ownership
-        burn_mint_token_pool::transfer_ownership(&mut env.state, &owner_cap, NEW_OWNER, env.scenario.ctx());
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
 
-        // Accept ownership
-        env.scenario.next_tx(NEW_OWNER);
-        burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
+#[test]
+#[expected_failure(abort_code = ownable::ENoPendingTransfer)]
+public fun test_accept_ownership_no_pending_transfer() {
+    let (mut env, owner_cap) = setup();
 
-        // Try to accept again
-        burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
+    // Try to accept ownership without pending transfer
+    env.scenario.next_tx(NEW_OWNER);
+    burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
 
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
 
-    #[test]
-    public fun test_ownable_functions_with_owner_cap_validation() {
-        let (mut env, owner_cap) = setup();
+#[test]
+#[expected_failure(abort_code = ownable::ETransferAlreadyAccepted)]
+public fun test_accept_ownership_already_accepted() {
+    let (mut env, owner_cap) = setup();
 
-        // Test that ownable functions work with proper owner cap validation
-        // These should succeed because we have the correct owner cap
+    // Transfer ownership
+    burn_mint_token_pool::transfer_ownership(
+        &mut env.state,
+        &owner_cap,
+        NEW_OWNER,
+        env.scenario.ctx(),
+    );
 
-        // First, configure a chain so we can add remote pools
-        burn_mint_token_pool::apply_chain_updates(
-            &mut env.state,
-            &owner_cap,
-            vector[], // remove nothing
-            vector[1000], // add chain 1000
-            vector[vector[b"test_remote_pool"]], // pool addresses
-            vector[b"test_remote_token"] // token addresses
-        );
+    // Accept ownership
+    env.scenario.next_tx(NEW_OWNER);
+    burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
 
-        // Test add_remote_pool (now that chain is configured)
-        burn_mint_token_pool::add_remote_pool(
-            &mut env.state,
-            &owner_cap,
-            1000,
-            b"additional_remote_pool"
-        );
+    // Try to accept again
+    burn_mint_token_pool::accept_ownership(&mut env.state, env.scenario.ctx());
 
-        // Test set_allowlist_enabled
-        burn_mint_token_pool::set_allowlist_enabled(&mut env.state, &owner_cap, true);
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
 
-        // Test apply_allowlist_updates
-        burn_mint_token_pool::apply_allowlist_updates(
-            &mut env.state,
-            &owner_cap,
-            vector[], // removes
-            vector[@0x123] // adds
-        );
+#[test]
+public fun test_ownable_functions_with_owner_cap_validation() {
+    let (mut env, owner_cap) = setup();
 
-        // Verify the changes were applied
-        assert!(burn_mint_token_pool::get_allowlist_enabled(&env.state));
-        let allowlist = burn_mint_token_pool::get_allowlist(&env.state);
-        assert!(allowlist.length() == 1);
-        assert!(allowlist[0] == @0x123);
+    // Test that ownable functions work with proper owner cap validation
+    // These should succeed because we have the correct owner cap
 
-        // Verify remote pool was added
-        assert!(burn_mint_token_pool::is_remote_pool(&env.state, 1000, b"additional_remote_pool"));
+    // First, configure a chain so we can add remote pools
+    burn_mint_token_pool::apply_chain_updates(
+        &mut env.state,
+        &owner_cap,
+        vector[], // remove nothing
+        vector[1000], // add chain 1000
+        vector[vector[b"test_remote_pool"]], // pool addresses
+        vector[b"test_remote_token"], // token addresses
+    );
 
-        tear_down(env);
-        ts::return_to_address(OWNER, owner_cap);
-    }
-} 
+    // Test add_remote_pool (now that chain is configured)
+    burn_mint_token_pool::add_remote_pool(
+        &mut env.state,
+        &owner_cap,
+        1000,
+        b"additional_remote_pool",
+    );
+
+    // Test set_allowlist_enabled
+    burn_mint_token_pool::set_allowlist_enabled(&mut env.state, &owner_cap, true);
+
+    // Test apply_allowlist_updates
+    burn_mint_token_pool::apply_allowlist_updates(
+        &mut env.state,
+        &owner_cap,
+        vector[], // removes
+        vector[@0x123], // adds
+    );
+
+    // Verify the changes were applied
+    assert!(burn_mint_token_pool::get_allowlist_enabled(&env.state));
+    let allowlist = burn_mint_token_pool::get_allowlist(&env.state);
+    assert!(allowlist.length() == 1);
+    assert!(allowlist[0] == @0x123);
+
+    // Verify remote pool was added
+    assert!(burn_mint_token_pool::is_remote_pool(&env.state, 1000, b"additional_remote_pool"));
+
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
