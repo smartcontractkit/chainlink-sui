@@ -1,9 +1,8 @@
 module ccip::onramp_state_helper;
 
-use std::type_name;
-
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry as registry;
+use std::type_name;
 
 const ETypeProofMismatch: u64 = 1;
 
@@ -34,7 +33,7 @@ public struct TokenTransferMetadata {
     source_token_coin_metadata_address: address,
     dest_token_address: vector<u8>,
     extra_data: vector<u8>,
-} 
+}
 
 fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
     let source_cap = SourceTransferCap {
@@ -63,26 +62,31 @@ public fun add_token_transfer_param<TypeProof: drop>(
     extra_data: vector<u8>,
     _: TypeProof,
 ) {
-
     let token_config = registry::get_token_config(ref, source_token_coin_metadata_address);
-    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
+    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+        token_config,
+    );
 
     let proof_tn = type_name::get<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
-    token_transfer_params.params.push_back(TokenTransferMetadata {
-        remote_chain_selector,
-        token_pool_package_id,
-        amount,
-        source_token_coin_metadata_address,
-        dest_token_address,
-        extra_data,
-    })
+    token_transfer_params
+        .params
+        .push_back(TokenTransferMetadata {
+            remote_chain_selector,
+            token_pool_package_id,
+            amount,
+            source_token_coin_metadata_address,
+            dest_token_address,
+            extra_data,
+        })
 }
 
-
-public fun deconstruct_token_params(_: &SourceTransferCap, token_transfer_params: TokenTransferParams) {
+public fun deconstruct_token_params(
+    _: &SourceTransferCap,
+    token_transfer_params: TokenTransferParams,
+) {
     let TokenTransferParams { params: mut params, token_receiver: _ } = token_transfer_params;
     while (!params.is_empty()) {
         let TokenTransferMetadata {
@@ -97,7 +101,10 @@ public fun deconstruct_token_params(_: &SourceTransferCap, token_transfer_params
     params.destroy_empty();
 }
 
-public fun get_source_token_transfer_data(token_transfer_params: &TokenTransferParams, index: u64): (u64, address, u64, address, vector<u8>, vector<u8>) {
+public fun get_source_token_transfer_data(
+    token_transfer_params: &TokenTransferParams,
+    index: u64,
+): (u64, address, u64, address, vector<u8>, vector<u8>) {
     (
         token_transfer_params.params[index].remote_chain_selector,
         token_transfer_params.params[index].token_pool_package_id,

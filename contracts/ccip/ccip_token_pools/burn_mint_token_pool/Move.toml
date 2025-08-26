@@ -1,6 +1,6 @@
 [package]
 name = "BurnMintTokenPool"
-edition = "2024.beta"
+edition = "2024"
 
 [dependencies]
 CCIPTokenPool = { local = "../token_pool" }

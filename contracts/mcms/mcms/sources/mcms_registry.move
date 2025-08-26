@@ -2,7 +2,7 @@ module mcms::mcms_registry {
 
     use mcms::params;
     use std::string::String;
-    use std::type_name::{Self, TypeName};
+    use std::type_name;
     use sui::bag::{Self, Bag};
     use sui::event;
     use sui::address;
@@ -89,7 +89,10 @@ module mcms::mcms_registry {
         (package_cap, function_name, data)
     }
 
-    public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _witness: T): C {
+    public fun release_cap<T: drop, C: key + store>(
+        registry: &mut Registry,
+        _witness: T,
+    ): C {
         let proof_type = type_name::get<T>();
         let (proof_account_address, _) = params::get_account_address_and_module_name(
             proof_type,

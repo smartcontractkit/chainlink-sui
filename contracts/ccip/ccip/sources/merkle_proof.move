@@ -2,8 +2,10 @@ module ccip::merkle_proof;
 
 use sui::hash;
 
-const LEAF_DOMAIN_SEPARATOR: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000000";
-const INTERNAL_DOMAIN_SEPARATOR: vector<u8> = x"0000000000000000000000000000000000000000000000000000000000000001";
+const LEAF_DOMAIN_SEPARATOR: vector<u8> =
+    x"0000000000000000000000000000000000000000000000000000000000000000";
+const INTERNAL_DOMAIN_SEPARATOR: vector<u8> =
+    x"0000000000000000000000000000000000000000000000000000000000000001";
 
 const EVectorLengthMismatch: u64 = 1;
 
@@ -17,9 +19,7 @@ public fun merkle_root(leaf: vector<u8>, proofs: vector<vector<u8>>): vector<u8>
 
 public fun vector_u8_gt(a: &vector<u8>, b: &vector<u8>): bool {
     let len = a.length();
-    assert!(
-        len == b.length(), EVectorLengthMismatch
-    );
+    assert!(len == b.length(), EVectorLengthMismatch);
 
     let mut i = 0;
     // compare each byte until not equal

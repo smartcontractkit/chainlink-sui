@@ -91,21 +91,37 @@ public fun get_token_amount_amount(token_amount: &TokenAmount): u64 {
     token_amount.amount
 }
 
-public fun receive_and_send_coin<T>(state: &mut CCIPReceiverState, _: &OwnerCap, coin_receiving: Receiving<Coin<T>>, recipient: address) {
+public fun receive_and_send_coin<T>(
+    state: &mut CCIPReceiverState,
+    _: &OwnerCap,
+    coin_receiving: Receiving<Coin<T>>,
+    recipient: address,
+) {
     let c = transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving);
     transfer::public_transfer(c, recipient);
 }
 
-public fun receive_coin<T>(state: &mut CCIPReceiverState, _: &OwnerCap, coin_receiving: Receiving<Coin<T>>): Coin<T> {
+public fun receive_coin<T>(
+    state: &mut CCIPReceiverState,
+    _: &OwnerCap,
+    coin_receiving: Receiving<Coin<T>>,
+): Coin<T> {
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 
-public fun receive_and_send_coin_no_owner_cap<T>(state: &mut CCIPReceiverState, coin_receiving: Receiving<Coin<T>>, recipient: address) {
+public fun receive_and_send_coin_no_owner_cap<T>(
+    state: &mut CCIPReceiverState,
+    coin_receiving: Receiving<Coin<T>>,
+    recipient: address,
+) {
     let c = transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving);
     transfer::public_transfer(c, recipient);
 }
 
-public fun receive_coin_no_owner_cap<T>(state: &mut CCIPReceiverState, coin_receiving: Receiving<Coin<T>>): Coin<T> {
+public fun receive_coin_no_owner_cap<T>(
+    state: &mut CCIPReceiverState,
+    coin_receiving: Receiving<Coin<T>>,
+): Coin<T> {
     transfer::public_receive<Coin<T>>(&mut state.id, coin_receiving)
 }
 

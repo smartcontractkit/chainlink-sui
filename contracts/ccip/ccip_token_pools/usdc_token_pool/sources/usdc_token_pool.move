@@ -1,40 +1,33 @@
 module usdc_token_pool::usdc_token_pool;
 
+use ccip::eth_abi;
+use ccip::offramp_state_helper as offramp_sh;
+use ccip::onramp_state_helper as onramp_sh;
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::token_admin_registry;
+use ccip_token_pool::ownable::{Self, OwnerCap, OwnableState};
+use ccip_token_pool::token_pool::{Self, TokenPoolState};
+use mcms::bcs_stream;
+use mcms::mcms_deployer::{Self, DeployerState};
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use message_transmitter::auth::auth_caller_identifier;
+use message_transmitter::message;
+use message_transmitter::receive_message::{Self, Receipt, ReceiveMessageTicket};
+use message_transmitter::state::State as MessageTransmitterState;
+use stablecoin::treasury::Treasury;
 use std::string::{Self, String};
 use std::type_name;
-
 use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
-use sui::deny_list::{DenyList};
+use sui::deny_list::DenyList;
 use sui::event;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
-
-use ccip::eth_abi;
-use ccip::onramp_state_helper as onramp_sh;
-use ccip::offramp_state_helper as offramp_sh;
-use ccip::state_object::{Self, CCIPObjectRef};
-use ccip::token_admin_registry;
-
-use ccip_token_pool::token_pool::{Self, TokenPoolState};
-use ccip_token_pool::ownable::{Self, OwnerCap, OwnableState};
-
-use stablecoin::treasury::Treasury;
-
-use message_transmitter::message;
-use message_transmitter::receive_message::{Self, Receipt, ReceiveMessageTicket};
-use message_transmitter::state::{State as MessageTransmitterState};
-use message_transmitter::auth::auth_caller_identifier;
-
 use token_messenger_minter::burn_message;
 use token_messenger_minter::deposit_for_burn::{Self, DepositForBurnWithCallerTicket};
 use token_messenger_minter::handle_receive_message;
 use token_messenger_minter::state::State as MinterState;
-
-use mcms::bcs_stream;
-use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
-use mcms::mcms_deployer::{Self, DeployerState};
 
 // We restrict to the first version. New pool may be required for subsequent versions.
 const SUPPORTED_USDC_VERSION_U64: u64 = 0;
@@ -48,7 +41,7 @@ const DENY_LIST_ADDRESS: address = @0x403;
 /// @dev The allowedCaller represents the contract authorized to call receiveMessage on the destination CCTP message transmitter.
 /// For EVM dest pool version 1.6.1, this is the MessageTransmitterProxy of the destination chain.
 /// For EVM dest pool version 1.5.1, this is the destination chain's token pool.
-public struct Domain has store, drop, copy {
+public struct Domain has copy, drop, store {
     allowed_caller: vector<u8>, //  Address allowed to mint on the domain
     domain_identifier: u32, // Unique domain ID
     enabled: bool,
@@ -81,7 +74,6 @@ const EDomainNotFound: u64 = 10;
 const EDomainDisabled: u64 = 11;
 const ETokenAmountOverflow: u64 = 12;
 
-
 // ================================================================
 // |                             Init                             |
 // ================================================================
@@ -102,16 +94,18 @@ public fun initialize<T: drop>(
     ctx: &mut TxContext,
 ) {
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    assert!(
-        coin_metadata_address == @usdc_coin_metadata_object_id,
-        EInvalidCoinMetadata
-    );
+    assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 
     let (ownable_state, token_pool_owner_cap) = ownable::new(ctx);
 
     let usdc_token_pool = USDCTokenPoolState {
         id: object::new(ctx),
-        token_pool_state: token_pool::initialize(coin_metadata_address, coin_metadata.get_decimals(), vector[], ctx),
+        token_pool_state: token_pool::initialize(
+            coin_metadata_address,
+            coin_metadata.get_decimals(),
+            vector[],
+            ctx,
+        ),
         chain_to_domain: table::new(ctx),
         local_domain_identifier,
         ownable_state,
@@ -131,8 +125,22 @@ public fun initialize<T: drop>(
         token_pool_administrator,
         proof_type.into_string(),
         // these addresses match the lock_or_burn and release_or_mint functions' last 6 arguments, excluding the ctx
-        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, token_pool_state_address, @token_messenger_minter_state, @message_transmitter_state, @treasury],
-        vector[CLOCK_ADDRESS, DENY_LIST_ADDRESS, token_pool_state_address, @token_messenger_minter_state, @message_transmitter_state, @treasury],
+        vector[
+            CLOCK_ADDRESS,
+            DENY_LIST_ADDRESS,
+            token_pool_state_address,
+            @token_messenger_minter_state,
+            @message_transmitter_state,
+            @treasury,
+        ],
+        vector[
+            CLOCK_ADDRESS,
+            DENY_LIST_ADDRESS,
+            token_pool_state_address,
+            @token_messenger_minter_state,
+            @message_transmitter_state,
+            @treasury,
+        ],
         ctx,
     );
 
@@ -155,7 +163,7 @@ public fun get_token_decimals(state: &USDCTokenPoolState): u8 {
 
 public fun get_remote_pools(
     state: &USDCTokenPoolState,
-    remote_chain_selector: u64
+    remote_chain_selector: u64,
 ): vector<vector<u8>> {
     token_pool::get_remote_pools(&state.token_pool_state, remote_chain_selector)
 }
@@ -163,18 +171,16 @@ public fun get_remote_pools(
 public fun is_remote_pool(
     state: &USDCTokenPoolState,
     remote_chain_selector: u64,
-    remote_pool_address: vector<u8>
+    remote_pool_address: vector<u8>,
 ): bool {
     token_pool::is_remote_pool(
         &state.token_pool_state,
         remote_chain_selector,
-        remote_pool_address
+        remote_pool_address,
     )
 }
 
-public fun get_remote_token(
-    state: &USDCTokenPoolState, remote_chain_selector: u64
-): vector<u8> {
+public fun get_remote_token(state: &USDCTokenPoolState, remote_chain_selector: u64): vector<u8> {
     token_pool::get_remote_token(&state.token_pool_state, remote_chain_selector)
 }
 
@@ -186,7 +192,9 @@ public fun add_remote_pool(
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     token_pool::add_remote_pool(
-        &mut state.token_pool_state, remote_chain_selector, remote_pool_address
+        &mut state.token_pool_state,
+        remote_chain_selector,
+        remote_pool_address,
     );
 }
 
@@ -198,14 +206,13 @@ public fun remove_remote_pool(
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     token_pool::remove_remote_pool(
-        &mut state.token_pool_state, remote_chain_selector, remote_pool_address
+        &mut state.token_pool_state,
+        remote_chain_selector,
+        remote_pool_address,
     );
 }
 
-public fun is_supported_chain(
-    state: &USDCTokenPoolState,
-    remote_chain_selector: u64
-): bool {
+public fun is_supported_chain(state: &USDCTokenPoolState, remote_chain_selector: u64): bool {
     token_pool::is_supported_chain(&state.token_pool_state, remote_chain_selector)
 }
 
@@ -219,7 +226,7 @@ public fun apply_chain_updates(
     remote_chain_selectors_to_remove: vector<u64>,
     remote_chain_selectors_to_add: vector<u64>,
     remote_pool_addresses_to_add: vector<vector<vector<u8>>>,
-    remote_token_addresses_to_add: vector<vector<u8>>
+    remote_token_addresses_to_add: vector<vector<u8>>,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     token_pool::apply_chain_updates(
@@ -227,7 +234,7 @@ public fun apply_chain_updates(
         remote_chain_selectors_to_remove,
         remote_chain_selectors_to_add,
         remote_pool_addresses_to_add,
-        remote_token_addresses_to_add
+        remote_token_addresses_to_add,
     );
 }
 
@@ -242,7 +249,7 @@ public fun get_allowlist(state: &USDCTokenPoolState): vector<address> {
 public fun set_allowlist_enabled(
     state: &mut USDCTokenPoolState,
     owner_cap: &OwnerCap,
-    enabled: bool
+    enabled: bool,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     token_pool::set_allowlist_enabled(&mut state.token_pool_state, enabled);
@@ -252,7 +259,7 @@ public fun apply_allowlist_updates(
     state: &mut USDCTokenPoolState,
     owner_cap: &OwnerCap,
     removes: vector<address>,
-    adds: vector<address>
+    adds: vector<address>,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     token_pool::apply_allowlist_updates(&mut state.token_pool_state, removes, adds);
@@ -279,39 +286,37 @@ public fun lock_or_burn<T: drop>(
     token_transfer_params: &mut onramp_sh::TokenTransferParams,
     c: Coin<T>,
     remote_chain_selector: u64,
-    receiver: address, // TODO: verify this is possible
     clock: &Clock,
     deny_list: &DenyList,
     pool: &mut USDCTokenPoolState,
     state: &MinterState,
     message_transmitter_state: &mut MessageTransmitterState,
     treasury: &mut Treasury<T>,
-    ctx: &mut TxContext
+    ctx: &mut TxContext,
 ) {
     let amount = c.value();
     let sender = ctx.sender();
-    let mint_recipient = receiver;
+    let mint_recipient = onramp_sh::get_token_receiver(token_transfer_params);
 
-    assert!(
-        pool.chain_to_domain.contains(remote_chain_selector),
-        EDomainNotFound
-    );
+    assert!(pool.chain_to_domain.contains(remote_chain_selector), EDomainNotFound);
     let remote_domain_info = pool.chain_to_domain.borrow(remote_chain_selector);
     assert!(remote_domain_info.enabled, EDomainDisabled);
 
     // This metod validates various aspects of the lock or burn operation. If any of the
     // validations fail, the transaction will abort.
-    let dest_token_address =
-        token_pool::validate_lock_or_burn(
-            ref,
-            clock,
-            &mut pool.token_pool_state,
-            sender,
-            remote_chain_selector,
-            amount,
-        );
+    let dest_token_address = token_pool::validate_lock_or_burn(
+        ref,
+        clock,
+        &mut pool.token_pool_state,
+        sender,
+        remote_chain_selector,
+        amount,
+    );
 
-    let ticket: DepositForBurnWithCallerTicket<T, TypeProof> = deposit_for_burn::create_deposit_for_burn_with_caller_ticket(
+    let ticket: DepositForBurnWithCallerTicket<
+        T,
+        TypeProof,
+    > = deposit_for_burn::create_deposit_for_burn_with_caller_ticket(
         TypeProof {},
         c,
         remote_domain_info.domain_identifier,
@@ -341,7 +346,7 @@ public fun lock_or_burn<T: drop>(
         get_token(pool),
         dest_token_address,
         source_pool_data,
-        TypeProof {}
+        TypeProof {},
     )
 }
 
@@ -357,12 +362,24 @@ public fun release_or_mint<T: drop>(
     treasury: &mut Treasury<T>,
     ctx: &mut TxContext,
 ) {
-    let (receiver, remote_chain_selector, _, dest_token_address, _, source_pool_address, source_pool_data, offchain_token_data) = offramp_sh::get_dest_token_transfer_data(token_transfer);
-    let (message_bytes, attestation) =
-        parse_message_and_attestation(offchain_token_data);
+    let (
+        receiver,
+        remote_chain_selector,
+        _,
+        dest_token_address,
+        _,
+        source_pool_address,
+        source_pool_data,
+        offchain_token_data,
+    ) = offramp_sh::get_dest_token_transfer_data(token_transfer);
+    let (message_bytes, attestation) = parse_message_and_attestation(offchain_token_data);
 
     // Prepare the ReceiveMessageTicket by calling create_receive_message_ticket() from within your package.
-    let ticket: ReceiveMessageTicket<TypeProof> = receive_message::create_receive_message_ticket(TypeProof {}, message_bytes, attestation);
+    let ticket: ReceiveMessageTicket<TypeProof> = receive_message::create_receive_message_ticket(
+        TypeProof {},
+        message_bytes,
+        attestation,
+    );
 
     // Receive the message on MessageTransmitter.
     let receipt: Receipt = receive_message::receive_message_with_package_auth(
@@ -382,10 +399,18 @@ public fun release_or_mint<T: drop>(
         ctx,
     );
 
-    let (stamp_receipt_ticket, burn_message) = handle_receive_message::deconstruct_stamp_receipt_ticket_with_burn_message(ticket_with_burn_message);
+    let (
+        stamp_receipt_ticket,
+        burn_message,
+    ) = handle_receive_message::deconstruct_stamp_receipt_ticket_with_burn_message(
+        ticket_with_burn_message,
+    );
 
     // Stamp the receipt
-    let stamped_receipt = receive_message::stamp_receipt(stamp_receipt_ticket, message_transmitter_state);
+    let stamped_receipt = receive_message::stamp_receipt(
+        stamp_receipt_ticket,
+        message_transmitter_state,
+    );
 
     // Complete the message and destroy the StampedReceipt
     receive_message::complete_receive_message(stamped_receipt, message_transmitter_state);
@@ -431,9 +456,7 @@ fun parse_message_and_attestation(payload: vector<u8>): (vector<u8>, vector<u8>)
     (message, attestation)
 }
 
-fun encode_source_pool_data(
-    local_domain_identifier: u32, nonce: u64
-): vector<u8> {
+fun encode_source_pool_data(local_domain_identifier: u32, nonce: u64): vector<u8> {
     let mut source_pool_data = vector[];
     eth_abi::encode_u64(&mut source_pool_data, nonce);
     eth_abi::encode_u32(&mut source_pool_data, local_domain_identifier);
@@ -448,29 +471,16 @@ fun decode_source_pool_data(source_pool_data: vector<u8>): (u32, u64) {
     (local_domain_identifier, nonce)
 }
 
-fun validate_receipt(
-    receipt: &Receipt,
-    expected_source_domain: u32,
-    expected_nonce: u64,
-) {
+fun validate_receipt(receipt: &Receipt, expected_source_domain: u32, expected_nonce: u64) {
     let version = receive_message::current_version(receipt);
-    assert!(
-        version == SUPPORTED_USDC_VERSION_U64,
-        EInvalidMessageVersion
-    );
+    assert!(version == SUPPORTED_USDC_VERSION_U64, EInvalidMessageVersion);
 
     let source_domain = receive_message::source_domain(receipt);
     let nonce = receive_message::nonce(receipt);
 
-    assert!(
-        source_domain == expected_source_domain,
-        EDomainMismatch
-    );
+    assert!(source_domain == expected_source_domain, EDomainMismatch);
 
-    assert!(
-        nonce == expected_nonce,
-        ENonceMismatch
-    );
+    assert!(nonce == expected_nonce, ENonceMismatch);
 }
 
 // ================================================================
@@ -497,7 +507,7 @@ public fun set_domains(
         number_of_chains == remote_domain_identifiers.length()
             && number_of_chains == allowed_remote_callers.length()
             && number_of_chains == enableds.length(),
-        EInvalidArguments
+        EInvalidArguments,
     );
 
     let mut i = 0;
@@ -507,32 +517,26 @@ public fun set_domains(
         let remote_chain_selector = remote_chain_selectors[i];
         let enabled = enableds[i];
 
-        assert!(
-            remote_chain_selector != 0,
-            EZeroChainSelector
-        );
+        assert!(remote_chain_selector != 0, EZeroChainSelector);
 
-        assert!(
-            allowed_caller.length() != 0,
-            EEmptyAllowedCaller
-        );
+        assert!(allowed_caller.length() != 0, EEmptyAllowedCaller);
 
         if (pool.chain_to_domain.contains(remote_chain_selector)) {
             pool.chain_to_domain.remove(remote_chain_selector);
         };
-        pool.chain_to_domain.add(
-            remote_chain_selector,
-            Domain { allowed_caller, domain_identifier, enabled }
-        );
-
-        event::emit(
-            DomainsSet {
-                allowed_caller,
-                domain_identifier,
+        pool
+            .chain_to_domain
+            .add(
                 remote_chain_selector,
-                enabled
-            }
-        );
+                Domain { allowed_caller, domain_identifier, enabled },
+            );
+
+        event::emit(DomainsSet {
+            allowed_caller,
+            domain_identifier,
+            remote_chain_selector,
+            enabled,
+        });
         i = i + 1;
     };
 }
@@ -551,7 +555,7 @@ public fun set_chain_rate_limiter_configs(
     outbound_rates: vector<u64>,
     inbound_is_enableds: vector<bool>,
     inbound_capacities: vector<u64>,
-    inbound_rates: vector<u64>
+    inbound_rates: vector<u64>,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     let number_of_chains = remote_chain_selectors.length();
@@ -563,7 +567,7 @@ public fun set_chain_rate_limiter_configs(
             && number_of_chains == inbound_is_enableds.length()
             && number_of_chains == inbound_capacities.length()
             && number_of_chains == inbound_rates.length(),
-        EInvalidArguments
+        EInvalidArguments,
     );
 
     let mut i = 0;
@@ -577,7 +581,7 @@ public fun set_chain_rate_limiter_configs(
             outbound_rates[i],
             inbound_is_enableds[i],
             inbound_capacities[i],
-            inbound_rates[i]
+            inbound_rates[i],
         );
         i = i + 1;
     };
@@ -593,7 +597,7 @@ public fun set_chain_rate_limiter_config(
     outbound_rate: u64,
     inbound_is_enabled: bool,
     inbound_capacity: u64,
-    inbound_rate: u64
+    inbound_rate: u64,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     token_pool::set_chain_rate_limiter_config(
@@ -605,7 +609,7 @@ public fun set_chain_rate_limiter_config(
         outbound_rate,
         inbound_is_enabled,
         inbound_capacity,
-        inbound_rate
+        inbound_rate,
     );
 }
 
@@ -633,7 +637,7 @@ public fun pending_transfer_accepted(state: &USDCTokenPoolState): Option<bool> {
     ownable::pending_transfer_accepted(&state.ownable_state)
 }
 
-public entry fun transfer_ownership(
+public fun transfer_ownership(
     state: &mut USDCTokenPoolState,
     owner_cap: &OwnerCap,
     new_owner: address,
@@ -642,10 +646,7 @@ public entry fun transfer_ownership(
     ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
 }
 
-public entry fun accept_ownership(
-    state: &mut USDCTokenPoolState,
-    ctx: &mut TxContext,
-) {
+public fun accept_ownership(state: &mut USDCTokenPoolState, ctx: &mut TxContext) {
     ownable::accept_ownership(&mut state.ownable_state, ctx);
 }
 
@@ -666,7 +667,7 @@ public fun execute_ownership_transfer(
     ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
 
-public entry fun execute_ownership_transfer_to_mcms(
+public fun execute_ownership_transfer_to_mcms(
     owner_cap: OwnerCap,
     state: &mut USDCTokenPoolState,
     registry: &mut Registry,
@@ -678,7 +679,7 @@ public entry fun execute_ownership_transfer_to_mcms(
         &mut state.ownable_state,
         registry,
         to,
-        McmsCallback{},
+        McmsCallback {},
         ctx,
     );
 }
@@ -709,12 +710,9 @@ public fun mcms_entrypoint(
     params: ExecutingCallbackParams, // hot potato
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<
-        McmsCallback,
-        OwnerCap,
-    >(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
         registry,
-        McmsCallback{},
+        McmsCallback {},
         params,
     );
 
@@ -724,19 +722,19 @@ public fun mcms_entrypoint(
     if (function_bytes == b"set_domains") {
         let remote_chain_selectors = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream)
+            |stream| bcs_stream::deserialize_u64(stream),
         );
         let remote_domain_identifiers = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_u32(stream)
+            |stream| bcs_stream::deserialize_u32(stream),
         );
         let allowed_remote_callers = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_vector_u8(stream)
+            |stream| bcs_stream::deserialize_vector_u8(stream),
         );
         let enableds = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_bool(stream)
+            |stream| bcs_stream::deserialize_bool(stream),
         );
         bcs_stream::assert_is_consumed(&stream);
         set_domains(
@@ -754,33 +752,33 @@ public fun mcms_entrypoint(
     } else if (function_bytes == b"apply_allowlist_updates") {
         let removes = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_address(stream)
+            |stream| bcs_stream::deserialize_address(stream),
         );
         let adds = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_address(stream)
+            |stream| bcs_stream::deserialize_address(stream),
         );
         bcs_stream::assert_is_consumed(&stream);
         apply_allowlist_updates(state, owner_cap, removes, adds);
     } else if (function_bytes == b"apply_chain_updates") {
         let remote_chain_selectors_to_remove = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream)
+            |stream| bcs_stream::deserialize_u64(stream),
         );
         let remote_chain_selectors_to_add = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream)
+            |stream| bcs_stream::deserialize_u64(stream),
         );
         let remote_pool_addresses_to_add = bcs_stream::deserialize_vector!(
             &mut stream,
             |stream| bcs_stream::deserialize_vector!(
                 stream,
-                |stream| bcs_stream::deserialize_vector_u8(stream)
-            )
+                |stream| bcs_stream::deserialize_vector_u8(stream),
+            ),
         );
         let remote_token_addresses_to_add = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| bcs_stream::deserialize_vector_u8(stream)
+            |stream| bcs_stream::deserialize_vector_u8(stream),
         );
         bcs_stream::assert_is_consumed(&stream);
         apply_chain_updates(
@@ -789,7 +787,7 @@ public fun mcms_entrypoint(
             remote_chain_selectors_to_remove,
             remote_chain_selectors_to_add,
             remote_pool_addresses_to_add,
-            remote_token_addresses_to_add
+            remote_token_addresses_to_add,
         );
     } else if (function_bytes == b"transfer_ownership") {
         let to = bcs_stream::deserialize_address(&mut stream);
@@ -802,7 +800,7 @@ public fun mcms_entrypoint(
     } else if (function_bytes == b"execute_ownership_transfer") {
         let to = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, McmsCallback{});
+        let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
         execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
     } else {
         abort EInvalidFunction
@@ -813,12 +811,11 @@ const EInvalidFunction: u64 = 13;
 
 /// destroy the USDC token pool state and the owner cap
 /// this should only be called after unregistering the pool from the token admin registry
-public fun destroy_token_pool(
-    state: USDCTokenPoolState,
-    owner_cap: OwnerCap,
-    ctx: &mut TxContext,
-) {
-    assert!(object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+public fun destroy_token_pool(state: USDCTokenPoolState, owner_cap: OwnerCap, ctx: &mut TxContext) {
+    assert!(
+        object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state),
+        EInvalidOwnerCap,
+    );
 
     let USDCTokenPoolState {
         id: state_id,

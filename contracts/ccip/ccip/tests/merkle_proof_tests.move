@@ -54,7 +54,7 @@ public fun merkle_root_1() {
         x"39e257ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e",
         x"0c953e71f82ab62f985124c40a73e91d863fb54c27905ed8127fa349e0268db7",
         x"65ac31f84ab56d238940e71cd692580fa47b4d853cf61ab27e09d45b832c970e",
-        x"e259ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e39"
+        x"e259ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e39",
     ];
     let res: vector<u8> = merkle_proof::merkle_root(leaf, proofs);
 
@@ -99,7 +99,7 @@ public fun merkle_root_2() {
         x"39e257ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e",
         x"0c953e71f82ab62f985124c40a73e91d863fb54c27905ed8127fa349e0268db7",
         x"65ac31f84ab56d238940e71cd692580fa47b4d853cf61ab27e09d45b832c970e",
-        x"e259ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e39"
+        x"e259ac841bd56f039a42c8157eb029f48d36a15c02eb741d863fb54c27905e39",
     ];
 
     let res: vector<u8> = merkle_proof::merkle_root(leaf, proofs);

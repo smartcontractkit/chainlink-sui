@@ -6,10 +6,8 @@ use ccip::client;
 use ccip::eth_abi;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
-
-use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use mcms::bcs_stream;
-
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
 use std::string::{Self, String};
 use sui::clock;
@@ -683,7 +681,7 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
     tokens: vector<address>,
     premium_multiplier_wei_per_eth: vector<u64>,
     _ctx: &mut TxContext,
-) {   
+) {
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -1411,8 +1409,8 @@ fun validate_dest_family_address(
 }
 
 fun validate_evm_address(encoded_address: vector<u8>) {
-   let encoded_address_len = encoded_address.length();
-   assert!(encoded_address_len == 32, EInvalid32BytesAddress);
+    let encoded_address_len = encoded_address.length();
+    assert!(encoded_address_len == 32, EInvalid32BytesAddress);
 
     let encoded_address_uint = eth_abi::decode_u256_value(encoded_address);
 
@@ -1456,7 +1454,6 @@ fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
     new_vec
 }
 
-
 // ================================================================
 // |                      MCMS Entrypoint                         |
 // ================================================================
@@ -1484,11 +1481,11 @@ public fun mcms_entrypoint(
     if (function_bytes == b"apply_fee_token_updates") {
         let fee_tokens_to_remove = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_address(stream) }
+            |stream| { bcs_stream::deserialize_address(stream) },
         );
         let fee_tokens_to_add = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_address(stream) }
+            |stream| { bcs_stream::deserialize_address(stream) },
         );
         bcs_stream::assert_is_consumed(&stream);
 
@@ -1517,63 +1514,63 @@ public fun mcms_entrypoint(
         bcs_stream::assert_is_consumed(&stream);
 
         apply_dest_chain_config_updates(
-            ref, 
-            owner_cap, 
-            dest_chain_selector, 
-            is_enabled, 
-            max_number_of_tokens_per_msg, 
-            max_data_bytes, 
-            max_per_msg_gas_limit, 
-            dest_gas_overhead, 
-            dest_gas_per_payload_byte_base, 
-            dest_gas_per_payload_byte_high, 
-            dest_gas_per_payload_byte_threshold, 
-            dest_data_availability_overhead_gas, 
-            dest_gas_per_data_availability_byte, 
-            dest_data_availability_multiplier_bps, 
-            chain_family_selector, 
-            enforce_out_of_order, 
-            default_token_fee_usd_cents, 
-            default_token_dest_gas_overhead, 
-            default_tx_gas_limit, 
-            gas_multiplier_wei_per_eth, 
-            gas_price_staleness_threshold, 
-            network_fee_usd_cents, 
+            ref,
+            owner_cap,
+            dest_chain_selector,
+            is_enabled,
+            max_number_of_tokens_per_msg,
+            max_data_bytes,
+            max_per_msg_gas_limit,
+            dest_gas_overhead,
+            dest_gas_per_payload_byte_base,
+            dest_gas_per_payload_byte_high,
+            dest_gas_per_payload_byte_threshold,
+            dest_data_availability_overhead_gas,
+            dest_gas_per_data_availability_byte,
+            dest_data_availability_multiplier_bps,
+            chain_family_selector,
+            enforce_out_of_order,
+            default_token_fee_usd_cents,
+            default_token_dest_gas_overhead,
+            default_tx_gas_limit,
+            gas_multiplier_wei_per_eth,
+            gas_price_staleness_threshold,
+            network_fee_usd_cents,
             ctx,
         );
     } else if (function_bytes == b"apply_token_transfer_fee_config_updates") {
         let dest_chain_selector = bcs_stream::deserialize_u64(&mut stream);
         let add_tokens = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_address(stream) }
+            |stream| { bcs_stream::deserialize_address(stream) },
         );
         let add_min_fee_usd_cents = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_u32(stream) }
+            |stream| { bcs_stream::deserialize_u32(stream) },
         );
         let add_max_fee_usd_cents = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_u32(stream) }
+            |stream| { bcs_stream::deserialize_u32(stream) },
         );
         let add_deci_bps = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_u16(stream) }
+            |stream| { bcs_stream::deserialize_u16(stream) },
         );
         let add_dest_gas_overhead = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_u32(stream) }
+            |stream| { bcs_stream::deserialize_u32(stream) },
         );
         let add_dest_bytes_overhead = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_u32(stream) }
+            |stream| { bcs_stream::deserialize_u32(stream) },
         );
         let add_is_enabled = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_bool(stream) }
+            |stream| { bcs_stream::deserialize_bool(stream) },
         );
         let remove_tokens = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_address(stream) }
+            |stream| { bcs_stream::deserialize_address(stream) },
         );
         bcs_stream::assert_is_consumed(&stream);
 
@@ -1594,11 +1591,11 @@ public fun mcms_entrypoint(
     } else if (function_bytes == b"apply_premium_multiplier_wei_per_eth_updates") {
         let tokens = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_address(stream) }
+            |stream| { bcs_stream::deserialize_address(stream) },
         );
         let premium_multiplier_wei_per_eth = bcs_stream::deserialize_vector!(
             &mut stream,
-            |stream| { bcs_stream::deserialize_u64(stream) }
+            |stream| { bcs_stream::deserialize_u64(stream) },
         );
         bcs_stream::assert_is_consumed(&stream);
 

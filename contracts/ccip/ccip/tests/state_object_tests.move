@@ -1,8 +1,8 @@
 #[test_only]
 module ccip::state_object_test;
 
-use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::ownable::OwnerCap;
+use ccip::state_object::{Self, CCIPObjectRef};
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -13,16 +13,16 @@ fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef, TestObject) {
     let ctx = scenario.ctx();
 
     state_object::test_init(ctx);
-    
+
     // Advance to next transaction to retrieve the created objects
     scenario.next_tx(SENDER_1);
-    
+
     // Retrieve the OwnerCap that was transferred to SENDER_1
     let owner_cap = scenario.take_from_sender<OwnerCap>();
-    
+
     // Retrieve the shared CCIPObjectRef
     let ref = scenario.take_shared<CCIPObjectRef>();
-    
+
     let obj = TestObject {
         id: object::new(scenario.ctx()),
     };
@@ -43,7 +43,7 @@ public struct TestObject has key, store {
 
 #[test]
 public fun test_add() {
-    let (mut scenario, owner_cap,  mut ref, obj) = set_up_test();
+    let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
     let ctx = scenario.ctx();
 
     state_object::add(&mut ref, &owner_cap, obj, ctx);
@@ -171,7 +171,11 @@ public fun test_accept_and_execute_ownership() {
     let mut scenario_4 = test_scenario::begin(SENDER_2);
     let owner_cap_2 = scenario_4.take_from_sender<OwnerCap>();
 
-    let obj2: TestObject = state_object::remove<TestObject>(&mut ref, &owner_cap_2, scenario_4.ctx());
+    let obj2: TestObject = state_object::remove<TestObject>(
+        &mut ref,
+        &owner_cap_2,
+        scenario_4.ctx(),
+    );
     assert!(!state_object::contains<TestObject>(&ref));
     let TestObject { id } = obj2;
     object::delete(id);

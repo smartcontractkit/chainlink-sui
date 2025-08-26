@@ -52,11 +52,17 @@ module ccip_router::router {
         string::utf8(b"Router 1.6.0")
     }
 
-    public fun is_chain_supported(router: &RouterState, dest_chain_selector: u64): bool {
+    public fun is_chain_supported(
+        router: &RouterState,
+        dest_chain_selector: u64,
+    ): bool {
         router.on_ramp_infos.contains(dest_chain_selector)
     }
 
-    public fun get_on_ramp_info(router: &RouterState, dest_chain_selector: u64): (address, vector<u8>) {
+    public fun get_on_ramp_info(
+        router: &RouterState,
+        dest_chain_selector: u64,
+    ): (address, vector<u8>) {
         assert!(
             router.on_ramp_infos.contains(dest_chain_selector),
             EOnrampInfoNotFound
@@ -69,7 +75,8 @@ module ccip_router::router {
 
     /// Returns the onRamp versions for the given destination chains.
     public fun get_on_ramp_infos(
-        router: &RouterState, dest_chain_selectors: vector<u64>
+        router: &RouterState,
+        dest_chain_selectors: vector<u64>,
     ): vector<OnRampInfo> {
         dest_chain_selectors.map!(
             |dest_chain_selector| {
@@ -180,7 +187,7 @@ module ccip_router::router {
         ownable::pending_transfer_accepted(&state.ownable_state)
     }
 
-    public entry fun transfer_ownership(
+    public fun transfer_ownership(
         state: &mut RouterState,
         owner_cap: &OwnerCap,
         new_owner: address,
@@ -189,7 +196,7 @@ module ccip_router::router {
         ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
     }
 
-    public entry fun accept_ownership(
+    public fun accept_ownership(
         state: &mut RouterState,
         ctx: &mut TxContext,
     ) {
@@ -229,7 +236,7 @@ module ccip_router::router {
         ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
     }
 
-    public entry fun execute_ownership_transfer_to_mcms(
+    public fun execute_ownership_transfer_to_mcms(
         owner_cap: OwnerCap,
         state: &mut RouterState,
         registry: &mut Registry,

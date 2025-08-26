@@ -756,9 +756,7 @@ public fun execute_dispatch_to_deployer(
 
     if (function_name_bytes == b"authorize_upgrade") {
         let policy = bcs_stream::deserialize_u8(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
         let digest = bcs_stream::deserialize_vector_u8(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
         let code_address = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
 
