@@ -111,16 +111,18 @@ fun transfer_to_mcms(
     // Step 1: transfer_ownership
     onramp::transfer_ownership(state, &owner_cap, mcms_registry::get_multisig_address(), ctx);
 
-    // Step 2: accept_ownership_as_mcms
+    // Step 2: mcms_accept_ownership
     let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(state)));
     data.append(bcs::to_bytes(&mcms_registry::get_multisig_address()));
+
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip_onramp,
         string::utf8(MODULE_NAME),
-        string::utf8(b"accept_ownership_as_mcms"),
+        string::utf8(b"mcms_accept_ownership"),
         data,
     );
-    onramp::accept_ownership_as_mcms(
+    onramp::mcms_accept_ownership(
         state,
         params,
         ctx,
@@ -141,6 +143,8 @@ public fun test_mcms_set_dynamic_config() {
     transfer_to_mcms(&mut env.state, &mut env.registry, owner_cap, env.scenario.ctx());
 
     let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&env.state)));
+    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
     data.append(bcs::to_bytes(&@0x123));
     data.append(bcs::to_bytes(&@0x456));
 
@@ -151,11 +155,10 @@ public fun test_mcms_set_dynamic_config() {
         data,
     );
 
-    onramp::mcms_entrypoint(
+    onramp::mcms_set_dynamic_config(
         &mut env.state,
         &mut env.registry,
         params,
-        env.scenario.ctx(),
     );
 
     let (fee_aggregator, allowlist_admin) = onramp::get_dynamic_config_fields(
@@ -177,8 +180,10 @@ public fun test_mcms_apply_dest_chain_config_updates() {
     // Initialize owner_cap with MCMS
     transfer_to_mcms(&mut env.state, &mut env.registry, owner_cap, env.scenario.ctx());
 
-    // Prepare data: dest_chain_selectors, dest_chain_enabled, dest_chain_allowlist_enabled
+    // Prepare data: state_address, registry_address, dest_chain_selectors, dest_chain_enabled, dest_chain_allowlist_enabled
     let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&env.state)));
+    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
     data.append(bcs::to_bytes(&vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2])); // dest_chain_selectors
     data.append(bcs::to_bytes(&vector[true, false])); // dest_chain_enabled
     data.append(bcs::to_bytes(&vector[false, true])); // dest_chain_allowlist_enabled
@@ -190,11 +195,10 @@ public fun test_mcms_apply_dest_chain_config_updates() {
         data,
     );
 
-    onramp::mcms_entrypoint(
+    onramp::mcms_apply_dest_chain_config_updates(
         &mut env.state,
         &mut env.registry,
         params,
-        env.scenario.ctx(),
     );
 
     let (
@@ -228,6 +232,8 @@ public fun test_mcms_apply_allowlist_updates() {
     transfer_to_mcms(&mut env.state, &mut env.registry, owner_cap, env.scenario.ctx());
 
     let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&env.state)));
+    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
     data.append(bcs::to_bytes(&vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2])); // dest_chain_selectors
     data.append(bcs::to_bytes(&vector[true, true])); // dest_chain_allowlist_enabled
     data.append(
@@ -244,7 +250,7 @@ public fun test_mcms_apply_allowlist_updates() {
         data,
     );
 
-    onramp::mcms_entrypoint(
+    onramp::mcms_apply_allowlist_updates(
         &mut env.state,
         &mut env.registry,
         params,
@@ -280,6 +286,8 @@ public fun test_mcms_transfer_ownership_e2e() {
 
     let new_owner = @0x999;
     let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&env.state)));
+    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
     data.append(bcs::to_bytes(&new_owner));
 
     // Transfer ownership to `new_owner` via MCMS
@@ -290,7 +298,7 @@ public fun test_mcms_transfer_ownership_e2e() {
         data,
     );
 
-    onramp::mcms_entrypoint(
+    onramp::mcms_transfer_ownership(
         &mut env.state,
         &mut env.registry,
         params,
@@ -303,6 +311,8 @@ public fun test_mcms_transfer_ownership_e2e() {
 
     // Execute ownership transfer as MCMS to `new_owner`
     let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&env.state)));
+    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
     data.append(bcs::to_bytes(&new_owner));
 
     let params = mcms_registry::test_create_executing_callback_params(
@@ -312,7 +322,7 @@ public fun test_mcms_transfer_ownership_e2e() {
         data,
     );
 
-    onramp::mcms_entrypoint(
+    onramp::mcms_execute_ownership_transfer(
         &mut env.state,
         &mut env.registry,
         params,

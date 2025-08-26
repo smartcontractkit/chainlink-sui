@@ -49,7 +49,7 @@ type IOnramp interface {
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	AcceptOwnershipAsMcms(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -144,8 +144,8 @@ type OnrampEncoder interface {
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
-	AcceptOwnershipAsMcms(state bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	AcceptOwnershipAsMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
@@ -994,9 +994,9 @@ func (c *OnrampContract) AcceptOwnershipFromObject(ctx context.Context, opts *bi
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// AcceptOwnershipAsMcms executes the accept_ownership_as_mcms Move function.
-func (c *OnrampContract) AcceptOwnershipAsMcms(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.AcceptOwnershipAsMcms(state, params)
+// McmsAcceptOwnership executes the mcms_accept_ownership Move function.
+func (c *OnrampContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsAcceptOwnership(state, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2563,11 +2563,11 @@ func (c onrampEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.Enc
 	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// AcceptOwnershipAsMcms encodes a call to the accept_ownership_as_mcms Move function.
-func (c onrampEncoder) AcceptOwnershipAsMcms(state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsAcceptOwnership encodes a call to the mcms_accept_ownership Move function.
+func (c onrampEncoder) McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("accept_ownership_as_mcms", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_accept_ownership", typeArgsList, typeParamsList, []string{
 		"&mut OnRampState",
 		"ExecutingCallbackParams",
 	}, []any{
@@ -2576,9 +2576,9 @@ func (c onrampEncoder) AcceptOwnershipAsMcms(state bind.Object, params bind.Obje
 	}, nil)
 }
 
-// AcceptOwnershipAsMcmsWithArgs encodes a call to the accept_ownership_as_mcms Move function using arbitrary arguments.
+// McmsAcceptOwnershipWithArgs encodes a call to the mcms_accept_ownership Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c onrampEncoder) AcceptOwnershipAsMcmsWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut OnRampState",
 		"ExecutingCallbackParams",
@@ -2589,7 +2589,7 @@ func (c onrampEncoder) AcceptOwnershipAsMcmsWithArgs(args ...any) (*bind.Encoded
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("accept_ownership_as_mcms", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_accept_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.

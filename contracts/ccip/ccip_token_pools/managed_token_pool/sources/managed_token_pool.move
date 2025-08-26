@@ -543,23 +543,25 @@ public fun accept_ownership_from_object<T>(
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
-/// Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
-public fun accept_ownership_as_mcms<T>(
+public fun mcms_accept_ownership<T>(
     state: &mut ManagedTokenPoolState<T>,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
         params,
         McmsCallback<T> {},
     );
-    assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
+    let state_address = bcs_stream::deserialize_address(&mut stream);
+    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+
     let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
 public fun execute_ownership_transfer(
@@ -736,7 +738,7 @@ public fun mcms_transfer_ownership<T>(
     transfer_ownership(state, owner_cap, to, ctx);
 }
 
-public fun mcms_accept_ownership_as_mcms<T>(
+public fun mcms_mcms_accept_ownership<T>(
     state: &mut ManagedTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -750,7 +752,7 @@ public fun mcms_accept_ownership_as_mcms<T>(
         McmsCallback<T> {},
         params,
     );
-    assert!(function == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     validate_shared_objects(state, registry, &mut stream);
@@ -758,7 +760,7 @@ public fun mcms_accept_ownership_as_mcms<T>(
     let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
 public fun mcms_execute_ownership_transfer<T>(

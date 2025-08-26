@@ -135,7 +135,7 @@ public fun accept_ownership_from_object(
     accept_ownership_internal(state, from.to_address());
 }
 
-public fun accept_ownership_as_mcms(state: &mut OwnableState, mcms: address, _ctx: &mut TxContext) {
+public fun mcms_accept_ownership(state: &mut OwnableState, mcms: address, _ctx: &mut TxContext) {
     accept_ownership_internal(state, mcms);
 }
 

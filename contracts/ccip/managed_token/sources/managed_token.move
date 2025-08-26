@@ -521,7 +521,7 @@ public fun accept_ownership_from_object<T>(
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
-public fun accept_ownership_as_mcms<T>(
+public fun mcms_accept_ownership<T>(
     state: &mut TokenState<T>,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
@@ -530,13 +530,16 @@ public fun accept_ownership_as_mcms<T>(
         params,
         McmsCallback {},
     );
-    assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+    assert!(function_name == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
+    let state_address = bcs_stream::deserialize_address(&mut stream);
+    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+
     let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
 public fun execute_ownership_transfer<T>(
