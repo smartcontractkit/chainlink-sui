@@ -160,13 +160,7 @@ public fun test_initialize() {
     let _state = state_object::borrow<FeeQuoterState>(&ref);
 
     let fee_tokens = fee_quoter::get_fee_tokens(&ref);
-    assert!(
-        fee_tokens == vector[
-        MOCK_ADDRESS_1,
-        MOCK_ADDRESS_2,
-        MOCK_ADDRESS_3
-    ],
-    );
+    assert!(fee_tokens == vector[ MOCK_ADDRESS_1, MOCK_ADDRESS_2, MOCK_ADDRESS_3]);
 
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
