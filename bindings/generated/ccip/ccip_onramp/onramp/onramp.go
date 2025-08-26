@@ -53,7 +53,11 @@ type IOnramp interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOnrampDevInspect
 	Encoder() OnrampEncoder
 }
@@ -148,8 +152,16 @@ type OnrampEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsEntrypoint(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsApplyDestChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsApplyAllowlistUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type OnrampContract struct {
@@ -1022,9 +1034,49 @@ func (c *OnrampContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsEntrypoint executes the mcms_entrypoint Move function.
-func (c *OnrampContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsEntrypoint(state, registry, params)
+// McmsSetDynamicConfig executes the mcms_set_dynamic_config Move function.
+func (c *OnrampContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsSetDynamicConfig(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplyDestChainConfigUpdates executes the mcms_apply_dest_chain_config_updates Move function.
+func (c *OnrampContract) McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsApplyDestChainConfigUpdates(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplyAllowlistUpdates executes the mcms_apply_allowlist_updates Move function.
+func (c *OnrampContract) McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsApplyAllowlistUpdates(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsTransferOwnership executes the mcms_transfer_ownership Move function.
+func (c *OnrampContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsTransferOwnership(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
+func (c *OnrampContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsExecuteOwnershipTransfer(state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2639,11 +2691,11 @@ func (c onrampEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.Encode
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsEntrypoint encodes a call to the mcms_entrypoint Move function.
-func (c onrampEncoder) McmsEntrypoint(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsSetDynamicConfig encodes a call to the mcms_set_dynamic_config Move function.
+func (c onrampEncoder) McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_set_dynamic_config", typeArgsList, typeParamsList, []string{
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2654,9 +2706,9 @@ func (c onrampEncoder) McmsEntrypoint(state bind.Object, registry bind.Object, p
 	}, nil)
 }
 
-// McmsEntrypointWithArgs encodes a call to the mcms_entrypoint Move function using arbitrary arguments.
+// McmsSetDynamicConfigWithArgs encodes a call to the mcms_set_dynamic_config Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c onrampEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut OnRampState",
 		"&mut Registry",
@@ -2668,5 +2720,133 @@ func (c onrampEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, e
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_set_dynamic_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplyDestChainConfigUpdates encodes a call to the mcms_apply_dest_chain_config_updates Move function.
+func (c onrampEncoder) McmsApplyDestChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_dest_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplyDestChainConfigUpdatesWithArgs encodes a call to the mcms_apply_dest_chain_config_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_dest_chain_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplyAllowlistUpdates encodes a call to the mcms_apply_allowlist_updates Move function.
+func (c onrampEncoder) McmsApplyAllowlistUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_allowlist_updates", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplyAllowlistUpdatesWithArgs encodes a call to the mcms_apply_allowlist_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) McmsApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_allowlist_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
+func (c onrampEncoder) McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsTransferOwnershipWithArgs encodes a call to the mcms_transfer_ownership Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
+func (c onrampEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsExecuteOwnershipTransferWithArgs encodes a call to the mcms_execute_ownership_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

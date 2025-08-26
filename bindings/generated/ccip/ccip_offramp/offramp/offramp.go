@@ -56,7 +56,11 @@ type IOfframp interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetOcr3Config(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOfframpDevInspect
 	Encoder() OfframpEncoder
 }
@@ -160,8 +164,16 @@ type OfframpEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsEntrypoint(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsApplySourceChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplySourceChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsSetOcr3Config(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type OfframpContract struct {
@@ -1144,9 +1156,49 @@ func (c *OfframpContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsEntrypoint executes the mcms_entrypoint Move function.
-func (c *OfframpContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsEntrypoint(state, registry, params)
+// McmsSetDynamicConfig executes the mcms_set_dynamic_config Move function.
+func (c *OfframpContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsSetDynamicConfig(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplySourceChainConfigUpdates executes the mcms_apply_source_chain_config_updates Move function.
+func (c *OfframpContract) McmsApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsApplySourceChainConfigUpdates(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsSetOcr3Config executes the mcms_set_ocr3_config Move function.
+func (c *OfframpContract) McmsSetOcr3Config(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsSetOcr3Config(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsTransferOwnership executes the mcms_transfer_ownership Move function.
+func (c *OfframpContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsTransferOwnership(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
+func (c *OfframpContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsExecuteOwnershipTransfer(state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2878,11 +2930,11 @@ func (c offrampEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.Encod
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsEntrypoint encodes a call to the mcms_entrypoint Move function.
-func (c offrampEncoder) McmsEntrypoint(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsSetDynamicConfig encodes a call to the mcms_set_dynamic_config Move function.
+func (c offrampEncoder) McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_set_dynamic_config", typeArgsList, typeParamsList, []string{
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2893,9 +2945,9 @@ func (c offrampEncoder) McmsEntrypoint(state bind.Object, registry bind.Object, 
 	}, nil)
 }
 
-// McmsEntrypointWithArgs encodes a call to the mcms_entrypoint Move function using arbitrary arguments.
+// McmsSetDynamicConfigWithArgs encodes a call to the mcms_set_dynamic_config Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c offrampEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut OffRampState",
 		"&mut Registry",
@@ -2907,5 +2959,133 @@ func (c offrampEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, 
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_set_dynamic_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplySourceChainConfigUpdates encodes a call to the mcms_apply_source_chain_config_updates Move function.
+func (c offrampEncoder) McmsApplySourceChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_source_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplySourceChainConfigUpdatesWithArgs encodes a call to the mcms_apply_source_chain_config_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) McmsApplySourceChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_source_chain_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsSetOcr3Config encodes a call to the mcms_set_ocr3_config Move function.
+func (c offrampEncoder) McmsSetOcr3Config(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_set_ocr3_config", typeArgsList, typeParamsList, []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsSetOcr3ConfigWithArgs encodes a call to the mcms_set_ocr3_config Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) McmsSetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_set_ocr3_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
+func (c offrampEncoder) McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsTransferOwnershipWithArgs encodes a call to the mcms_transfer_ownership Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
+func (c offrampEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsExecuteOwnershipTransferWithArgs encodes a call to the mcms_execute_ownership_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OffRampState",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

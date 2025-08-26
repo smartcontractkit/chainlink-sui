@@ -223,6 +223,8 @@ const ECalculateMessageHashInvalidArguments: u64 = 26;
 const EInvalidFunction: u64 = 27;
 const EInvalidTokenReceiver: u64 = 28;
 const ETokenTransferLimitExceeded: u64 = 29;
+const EInvalidStateAddress: u64 = 30;
+const EInvalidRegistryAddress: u64 = 31;
 
 public fun type_and_version(): String {
     string::utf8(b"OffRamp 1.6.0")
@@ -1288,10 +1290,42 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-public fun mcms_entrypoint(
+fun validate_shared_objects(
+    state: &OffRampState,
+    registry: &Registry,
+    stream: &mut bcs_stream::BCSStream,
+) {
+    let state_address = bcs_stream::deserialize_address(stream);
+    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+    let registry_address = bcs_stream::deserialize_address(stream);
+    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
+}
+
+public fun mcms_set_dynamic_config(
     state: &mut OffRampState,
     registry: &mut Registry,
-    params: ExecutingCallbackParams, // hot potato
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_dynamic_config"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let permissionless_execution_threshold_seconds = bcs_stream::deserialize_u32(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_dynamic_config(state, owner_cap, permissionless_execution_threshold_seconds);
+}
+
+public fun mcms_apply_source_chain_config_updates(
+    state: &mut OffRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
@@ -1299,77 +1333,124 @@ public fun mcms_entrypoint(
         McmsCallback {},
         params,
     );
+    assert!(function == string::utf8(b"apply_source_chain_config_updates"), EInvalidFunction);
 
-    let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
 
-    if (function_bytes == b"set_dynamic_config") {
-        let permissionless_execution_threshold_seconds = bcs_stream::deserialize_u32(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        set_dynamic_config(state, owner_cap, permissionless_execution_threshold_seconds);
-    } else if (function_bytes == b"apply_source_chain_config_updates") {
-        let source_chains_selector = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let source_chains_is_enabled = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_bool(stream),
-        );
-        let source_chains_is_rmn_verification_disabled = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_bool(stream),
-        );
-        let source_chains_on_ramp = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_vector_u8(stream),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        apply_source_chain_config_updates(
-            state,
-            owner_cap,
-            source_chains_selector,
-            source_chains_is_enabled,
-            source_chains_is_rmn_verification_disabled,
-            source_chains_on_ramp,
-            ctx,
-        );
-    } else if (function_bytes == b"set_ocr3_config") {
-        let config_digest = bcs_stream::deserialize_fixed_vector_u8(&mut stream, 32);
-        let ocr_plugin_type = bcs_stream::deserialize_u8(&mut stream);
-        let big_f = bcs_stream::deserialize_u8(&mut stream);
-        let is_signature_verification_enabled = bcs_stream::deserialize_bool(&mut stream);
-        let signers = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_fixed_vector_u8(stream, 32),
-        );
-        let transmitters = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_address(stream),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        set_ocr3_config(
-            state,
-            owner_cap,
-            config_digest,
-            ocr_plugin_type,
-            big_f,
-            is_signature_verification_enabled,
-            signers,
-            transmitters,
-        );
-    } else if (function_bytes == b"transfer_ownership") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        transfer_ownership(state, owner_cap, to, ctx);
-    } else if (function_bytes == b"execute_ownership_transfer") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-        execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
-    } else {
-        abort EInvalidFunction
-    };
+    let source_chains_selector = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let source_chains_is_enabled = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let source_chains_is_rmn_verification_disabled = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let source_chains_on_ramp = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    apply_source_chain_config_updates(
+        state,
+        owner_cap,
+        source_chains_selector,
+        source_chains_is_enabled,
+        source_chains_is_rmn_verification_disabled,
+        source_chains_on_ramp,
+        ctx,
+    );
+}
+
+public fun mcms_set_ocr3_config(
+    state: &mut OffRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_ocr3_config"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let config_digest = bcs_stream::deserialize_fixed_vector_u8(&mut stream, 32);
+    let ocr_plugin_type = bcs_stream::deserialize_u8(&mut stream);
+    let big_f = bcs_stream::deserialize_u8(&mut stream);
+    let is_signature_verification_enabled = bcs_stream::deserialize_bool(&mut stream);
+    let signers = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_fixed_vector_u8(stream, 32),
+    );
+    let transmitters = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_ocr3_config(
+        state,
+        owner_cap,
+        config_digest,
+        ocr_plugin_type,
+        big_f,
+        is_signature_verification_enabled,
+        signers,
+        transmitters,
+    );
+}
+
+public fun mcms_transfer_ownership(
+    state: &mut OffRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(state, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer(
+    state: &mut OffRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
 // ============================== Test Functions ============================== //

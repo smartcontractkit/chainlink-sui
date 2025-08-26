@@ -4,6 +4,7 @@ use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
+use std::string;
 use std::type_name;
 use sui::address;
 use sui::dynamic_object_field as dof;
@@ -12,6 +13,8 @@ const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
+const EInvalidRefAddress: u64 = 5;
+const EInvalidRegistryAddress: u64 = 6;
 
 public struct CCIPObjectRef has key, store {
     id: UID,
@@ -162,7 +165,18 @@ public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
 
-public fun mcms_entrypoint(
+fun validate_shared_objects(
+    ref: &CCIPObjectRef,
+    registry: &Registry,
+    stream: &mut bcs_stream::BCSStream,
+) {
+    let ref_address = bcs_stream::deserialize_address(stream);
+    assert!(ref_address == object::id_address(ref), EInvalidRefAddress);
+    let registry_address = bcs_stream::deserialize_address(stream);
+    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
+}
+
+public fun mcms_transfer_ownership(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -173,22 +187,38 @@ public fun mcms_entrypoint(
         McmsCallback {},
         params,
     );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
-    let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
+    validate_shared_objects(ref, registry, &mut stream);
 
-    if (function_bytes == b"transfer_ownership") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        transfer_ownership(ref, owner_cap, to, ctx);
-    } else if (function_bytes == b"execute_ownership_transfer") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-        execute_ownership_transfer(ref, owner_cap, to, ctx);
-    } else {
-        abort EInvalidFunction
-    };
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(ref, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(ref, registry, &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+    execute_ownership_transfer(ref, owner_cap, to, ctx);
 }
 
 public fun mcms_proof_entrypoint(

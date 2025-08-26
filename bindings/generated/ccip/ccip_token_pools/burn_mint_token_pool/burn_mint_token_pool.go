@@ -54,7 +54,11 @@ type IBurnMintTokenPool interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyChainUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IBurnMintTokenPoolDevInspect
 	Encoder() BurnMintTokenPoolEncoder
 }
@@ -147,8 +151,16 @@ type BurnMintTokenPoolEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsEntrypoint(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsSetAllowlistEnabled(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsApplyAllowlistUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsApplyChainUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
 
 type BurnMintTokenPoolContract struct {
@@ -566,9 +578,49 @@ func (c *BurnMintTokenPoolContract) McmsRegisterUpgradeCap(ctx context.Context, 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsEntrypoint executes the mcms_entrypoint Move function.
-func (c *BurnMintTokenPoolContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.McmsEntrypoint(typeArgs, state, registry, params)
+// McmsSetAllowlistEnabled executes the mcms_set_allowlist_enabled Move function.
+func (c *BurnMintTokenPoolContract) McmsSetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.McmsSetAllowlistEnabled(typeArgs, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplyAllowlistUpdates executes the mcms_apply_allowlist_updates Move function.
+func (c *BurnMintTokenPoolContract) McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.McmsApplyAllowlistUpdates(typeArgs, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplyChainUpdates executes the mcms_apply_chain_updates Move function.
+func (c *BurnMintTokenPoolContract) McmsApplyChainUpdates(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.McmsApplyChainUpdates(typeArgs, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsTransferOwnership executes the mcms_transfer_ownership Move function.
+func (c *BurnMintTokenPoolContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.McmsTransferOwnership(typeArgs, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
+func (c *BurnMintTokenPoolContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.McmsExecuteOwnershipTransfer(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2192,13 +2244,13 @@ func (c burnMintTokenPoolEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsEntrypoint encodes a call to the mcms_entrypoint Move function.
-func (c burnMintTokenPoolEncoder) McmsEntrypoint(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsSetAllowlistEnabled encodes a call to the mcms_set_allowlist_enabled Move function.
+func (c burnMintTokenPoolEncoder) McmsSetAllowlistEnabled(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_set_allowlist_enabled", typeArgsList, typeParamsList, []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2209,9 +2261,9 @@ func (c burnMintTokenPoolEncoder) McmsEntrypoint(typeArgs []string, state bind.O
 	}, nil)
 }
 
-// McmsEntrypointWithArgs encodes a call to the mcms_entrypoint Move function using arbitrary arguments.
+// McmsSetAllowlistEnabledWithArgs encodes a call to the mcms_set_allowlist_enabled Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) McmsEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) McmsSetAllowlistEnabledWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut BurnMintTokenPoolState<T>",
 		"&mut Registry",
@@ -2225,5 +2277,149 @@ func (c burnMintTokenPoolEncoder) McmsEntrypointWithArgs(typeArgs []string, args
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_set_allowlist_enabled", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplyAllowlistUpdates encodes a call to the mcms_apply_allowlist_updates Move function.
+func (c burnMintTokenPoolEncoder) McmsApplyAllowlistUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_allowlist_updates", typeArgsList, typeParamsList, []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplyAllowlistUpdatesWithArgs encodes a call to the mcms_apply_allowlist_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c burnMintTokenPoolEncoder) McmsApplyAllowlistUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_allowlist_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplyChainUpdates encodes a call to the mcms_apply_chain_updates Move function.
+func (c burnMintTokenPoolEncoder) McmsApplyChainUpdates(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_chain_updates", typeArgsList, typeParamsList, []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplyChainUpdatesWithArgs encodes a call to the mcms_apply_chain_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c burnMintTokenPoolEncoder) McmsApplyChainUpdatesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_chain_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
+func (c burnMintTokenPoolEncoder) McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsTransferOwnershipWithArgs encodes a call to the mcms_transfer_ownership Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c burnMintTokenPoolEncoder) McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
+func (c burnMintTokenPoolEncoder) McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsExecuteOwnershipTransferWithArgs encodes a call to the mcms_execute_ownership_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c burnMintTokenPoolEncoder) McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut BurnMintTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

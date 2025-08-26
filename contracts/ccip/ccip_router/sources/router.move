@@ -32,6 +32,8 @@ const EOnrampInfoNotFound: u64 = 2;
 const EInvalidOnrampVersion: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
+const EInvalidStateAddress: u64 = 6;
+const EInvalidRegistryAddress: u64 = 7;
 
 fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let (ownable_state, owner_cap) = ownable::new(ctx);
@@ -255,10 +257,62 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-public fun mcms_entrypoint(
+fun validate_shared_objects(
+    state: &RouterState,
+    registry: &Registry,
+    stream: &mut bcs_stream::BCSStream,
+) {
+    let state_address = bcs_stream::deserialize_address(stream);
+    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+    let registry_address = bcs_stream::deserialize_address(stream);
+    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
+}
+
+public fun mcms_set_on_ramp_infos(
     state: &mut RouterState,
     registry: &mut Registry,
-    params: ExecutingCallbackParams, // hot potato
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_on_ramp_infos"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let dest_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let on_ramp_addresses = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    let on_ramp_versions = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector!(
+            stream,
+            |stream| bcs_stream::deserialize_u8(stream),
+        ),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_on_ramp_infos(
+        owner_cap,
+        state,
+        dest_chain_selectors,
+        on_ramp_addresses,
+        on_ramp_versions,
+    );
+}
+
+public fun mcms_transfer_ownership(
+    state: &mut RouterState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
@@ -266,46 +320,38 @@ public fun mcms_entrypoint(
         McmsCallback {},
         params,
     );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
-    let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
 
-    if (function_bytes == b"set_on_ramp_infos") {
-        let dest_chain_selectors = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let on_ramp_addresses = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_address(stream),
-        );
-        let on_ramp_versions = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_vector!(
-                stream,
-                |stream| bcs_stream::deserialize_u8(stream),
-            ),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        set_on_ramp_infos(
-            owner_cap,
-            state,
-            dest_chain_selectors,
-            on_ramp_addresses,
-            on_ramp_versions,
-        );
-    } else if (function_bytes == b"transfer_ownership") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        transfer_ownership(state, owner_cap, to, ctx);
-    } else if (function_bytes == b"execute_ownership_transfer") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-        execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
-    } else {
-        abort EInvalidFunction
-    };
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(state, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer(
+    state: &mut RouterState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
 // ===================== TESTS =====================

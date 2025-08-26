@@ -31,7 +31,8 @@ public struct BurnMintTokenPoolState<phantom T> has key {
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
-const EUnknownFunction: u64 = 4;
+const EInvalidStateAddress: u64 = 4;
+const EInvalidRegistryAddress: u64 = 5;
 
 const CLOCK_ADDRESS: address = @0x6;
 
@@ -582,10 +583,115 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback<phantom T> has drop {}
 
-public fun mcms_entrypoint<T>(
+fun validate_shared_objects<T>(
+    state: &BurnMintTokenPoolState<T>,
+    registry: &Registry,
+    stream: &mut bcs_stream::BCSStream,
+) {
+    let state_address = bcs_stream::deserialize_address(stream);
+    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+    let registry_address = bcs_stream::deserialize_address(stream);
+    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
+}
+
+public fun mcms_set_allowlist_enabled<T>(
     state: &mut BurnMintTokenPoolState<T>,
     registry: &mut Registry,
-    params: ExecutingCallbackParams, // hot potato
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_allowlist_enabled"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+    let enabled = bcs_stream::deserialize_bool(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_allowlist_enabled(state, owner_cap, enabled);
+}
+
+public fun mcms_apply_allowlist_updates<T>(
+    state: &mut BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"apply_allowlist_updates"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let removes = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    let adds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    apply_allowlist_updates(state, owner_cap, removes, adds);
+}
+
+public fun mcms_apply_chain_updates<T>(
+    state: &mut BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"apply_chain_updates"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let remote_chain_selectors_to_remove = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let remote_chain_selectors_to_add = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let remote_pool_addresses_to_add = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector!(
+            stream,
+            |stream| bcs_stream::deserialize_vector_u8(stream),
+        ),
+    );
+    let remote_token_addresses_to_add = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    apply_chain_updates(
+        state,
+        owner_cap,
+        remote_chain_selectors_to_remove,
+        remote_chain_selectors_to_add,
+        remote_pool_addresses_to_add,
+        remote_token_addresses_to_add,
+    );
+}
+
+public fun mcms_transfer_ownership<T>(
+    state: &mut BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
@@ -593,64 +699,39 @@ public fun mcms_entrypoint<T>(
         McmsCallback<T> {},
         params,
     );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
-    let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
 
-    if (function_bytes == b"set_allowlist_enabled") {
-        let enabled = bcs_stream::deserialize_bool(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        set_allowlist_enabled(state, owner_cap, enabled);
-    } else if (function_bytes == b"apply_allowlist_updates") {
-        let removes = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_address(stream),
-        );
-        let adds = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_address(stream),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        apply_allowlist_updates(state, owner_cap, removes, adds);
-    } else if (function_bytes == b"apply_chain_updates") {
-        let remote_chain_selectors_to_remove = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let remote_chain_selectors_to_add = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let remote_pool_addresses_to_add = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_vector!(
-                stream,
-                |stream| bcs_stream::deserialize_vector_u8(stream),
-            ),
-        );
-        let remote_token_addresses_to_add = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_vector_u8(stream),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        apply_chain_updates(
-            state,
-            owner_cap,
-            remote_chain_selectors_to_remove,
-            remote_chain_selectors_to_add,
-            remote_pool_addresses_to_add,
-            remote_token_addresses_to_add,
-        );
-    } else if (function_bytes == b"transfer_ownership") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        transfer_ownership(state, owner_cap, to, ctx);
-    } else if (function_bytes == b"execute_ownership_transfer") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback<T> {});
-        execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
-    } else {
-        abort EUnknownFunction
-    };
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(state, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer<T>(
+    state: &mut BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, &mut stream);
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback<T> {});
+    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }

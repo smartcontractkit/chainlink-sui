@@ -102,6 +102,9 @@ const EUnauthorizedMintCap: u64 = 6;
 const EZeroAmount: u64 = 7;
 const ECannotIncreaseUnlimitedAllowance: u64 = 8;
 const EInvalidFunction: u64 = 9;
+const EInvalidStateAddress: u64 = 10;
+const EInvalidRegistryAddress: u64 = 11;
+const EInvalidDenyListAddress: u64 = 12;
 
 public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
@@ -582,11 +585,25 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-public fun mcms_entrypoint<T>(
+fun validate_shared_objects<T>(
+    state: &TokenState<T>,
+    registry: &Registry,
+    deny_list: &DenyList,
+    stream: &mut bcs_stream::BCSStream,
+) {
+    let state_address = bcs_stream::deserialize_address(stream);
+    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+    let registry_address = bcs_stream::deserialize_address(stream);
+    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
+    let deny_list_address = bcs_stream::deserialize_address(stream);
+    assert!(deny_list_address == object::id_address(deny_list), EInvalidDenyListAddress);
+}
+
+public fun mcms_configure_new_minter<T>(
     state: &mut TokenState<T>,
     registry: &mut Registry,
     deny_list: &mut DenyList,
-    params: ExecutingCallbackParams, // hot potato
+    params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
@@ -594,55 +611,165 @@ public fun mcms_entrypoint<T>(
         McmsCallback {},
         params,
     );
+    assert!(function == string::utf8(b"configure_new_minter"), EInvalidFunction);
 
-    let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, deny_list, &mut stream);
 
-    if (function_bytes == b"configure_new_minter") {
-        let minter = bcs_stream::deserialize_address(&mut stream);
-        let allowance = bcs_stream::deserialize_u64(&mut stream);
-        let is_unlimited = bcs_stream::deserialize_bool(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        configure_new_minter(state, owner_cap, minter, allowance, is_unlimited, ctx);
-    } else if (function_bytes == b"increment_mint_allowance") {
-        let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
-        let allowance_increment = bcs_stream::deserialize_u64(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        increment_mint_allowance(
-            state,
-            owner_cap,
-            mint_cap_address.to_id(),
-            deny_list,
-            allowance_increment,
-            ctx,
-        );
-    } else if (function_bytes == b"set_unlimited_mint_allowances") {
-        let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
-        let is_unlimited = bcs_stream::deserialize_bool(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        set_unlimited_mint_allowances(
-            state,
-            owner_cap,
-            mint_cap_address.to_id(),
-            deny_list,
-            is_unlimited,
-            ctx,
-        );
-    } else if (function_bytes == b"blocklist") {
-        let addr = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        blocklist(state, owner_cap, deny_list, addr, ctx);
-    } else if (function_bytes == b"unblocklist") {
-        let addr = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        unblocklist(state, owner_cap, deny_list, addr, ctx);
-    } else if (function_bytes == b"pause") {
-        bcs_stream::assert_is_consumed(&stream);
-        pause(state, owner_cap, deny_list, ctx);
-    } else if (function_bytes == b"unpause") {
-        bcs_stream::assert_is_consumed(&stream);
-        unpause(state, owner_cap, deny_list, ctx);
-    } else {
-        abort EInvalidFunction
-    }
+    let minter = bcs_stream::deserialize_address(&mut stream);
+    let allowance = bcs_stream::deserialize_u64(&mut stream);
+    let is_unlimited = bcs_stream::deserialize_bool(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    configure_new_minter(state, owner_cap, minter, allowance, is_unlimited, ctx);
+}
+
+public fun mcms_increment_mint_allowance<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deny_list: &mut DenyList,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"increment_mint_allowance"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, deny_list, &mut stream);
+
+    let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
+    let allowance_increment = bcs_stream::deserialize_u64(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    increment_mint_allowance(
+        state,
+        owner_cap,
+        mint_cap_address.to_id(),
+        deny_list,
+        allowance_increment,
+        ctx,
+    );
+}
+
+public fun mcms_set_unlimited_mint_allowances<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deny_list: &mut DenyList,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_unlimited_mint_allowances"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, deny_list, &mut stream);
+
+    let mint_cap_address = bcs_stream::deserialize_address(&mut stream);
+    let is_unlimited = bcs_stream::deserialize_bool(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_unlimited_mint_allowances(
+        state,
+        owner_cap,
+        mint_cap_address.to_id(),
+        deny_list,
+        is_unlimited,
+        ctx,
+    );
+}
+
+public fun mcms_blocklist<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deny_list: &mut DenyList,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"blocklist"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, deny_list, &mut stream);
+
+    let addr = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    blocklist(state, owner_cap, deny_list, addr, ctx);
+}
+
+public fun mcms_unblocklist<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deny_list: &mut DenyList,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"unblocklist"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, deny_list, &mut stream);
+
+    let addr = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    unblocklist(state, owner_cap, deny_list, addr, ctx);
+}
+
+public fun mcms_pause<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deny_list: &mut DenyList,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"pause"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, deny_list, &mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    pause(state, owner_cap, deny_list, ctx);
+}
+
+public fun mcms_unpause<T>(
+    state: &mut TokenState<T>,
+    registry: &mut Registry,
+    deny_list: &mut DenyList,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"unpause"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    validate_shared_objects(state, registry, deny_list, &mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    unpause(state, owner_cap, deny_list, ctx);
 }
