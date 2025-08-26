@@ -1617,15 +1617,7 @@ public fun mcms_entrypoint(
     }
 }
 
-#[test_only]
-public fun create_fee_quoter_cap(ctx: &mut TxContext): FeeQuoterCap {
-    FeeQuoterCap {
-        id: object::new(ctx),
-    }
-}
-
-#[test_only]
-public fun destroy_fee_quoter_cap(cap: FeeQuoterCap) {
+public fun destroy_fee_quoter_cap(_: &OwnerCap, cap: FeeQuoterCap) {
     let FeeQuoterCap { id } = cap;
     object::delete(id);
 }
