@@ -2,9 +2,9 @@
 #[allow(implicit_const_copy)]
 module ccip::rmn_remote_test;
 
-use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::ownable::OwnerCap;
 use ccip::rmn_remote::{Self, RMNRemoteState};
+use ccip::state_object::{Self, CCIPObjectRef};
 use sui::test_scenario::{Self, Scenario};
 
 // === Constants ===
@@ -40,8 +40,10 @@ const MERKLE_ROOT_VALUE_2: vector<u8> = b"merkle_root_value_32_bytes_lon2";
 const ONRAMP_ADDRESS: vector<u8> = b"onramp_addr";
 
 // Signature test data (64 bytes each)
-const VALID_SIGNATURE_1: vector<u8> = b"signature_64_bytes_long_signature_64_bytes_long_signature_64_by";
-const VALID_SIGNATURE_2: vector<u8> = b"signature_64_bytes_long_signature_64_bytes_long_signature_64_b2";
+const VALID_SIGNATURE_1: vector<u8> =
+    b"signature_64_bytes_long_signature_64_bytes_long_signature_64_by";
+const VALID_SIGNATURE_2: vector<u8> =
+    b"signature_64_bytes_long_signature_64_bytes_long_signature_64_b2";
 const INVALID_SHORT_SIGNATURE: vector<u8> = b"invalid_signature_too_short"; // 28 bytes
 
 // Numerical constants
@@ -67,13 +69,13 @@ fun set_up_test(): (Scenario, OwnerCap, CCIPObjectRef) {
 
     // Advance to next transaction to retrieve the created objects
     scenario.next_tx(ADMIN_ADDRESS);
-    
+
     // Retrieve the OwnerCap that was transferred to the sender
     let owner_cap = scenario.take_from_sender<OwnerCap>();
-    
+
     // Retrieve the shared CCIPObjectRef
     let ref = scenario.take_shared<CCIPObjectRef>();
-    
+
     (scenario, owner_cap, ref)
 }
 
@@ -85,7 +87,12 @@ fun tear_down_test(scenario: Scenario, owner_cap: OwnerCap, ref: CCIPObjectRef) 
     test_scenario::end(scenario);
 }
 
-fun initialize_rmn_remote(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, chain_selector: u64, ctx: &mut TxContext) {
+fun initialize_rmn_remote(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    chain_selector: u64,
+    ctx: &mut TxContext,
+) {
     rmn_remote::initialize(ref, owner_cap, chain_selector, ctx);
 }
 
@@ -118,7 +125,7 @@ fun create_basic_verify_params(): (
     vector<u64>, // merkle_root_min_seq_nrs
     vector<u64>, // merkle_root_max_seq_nrs
     vector<vector<u8>>, // merkle_root_values
-    vector<vector<u8>> // signatures
+    vector<vector<u8>>, // signatures
 ) {
     (
         OFFRAMP_STATE_ADDRESS,
@@ -127,7 +134,7 @@ fun create_basic_verify_params(): (
         vector[SEQ_NR_1],
         vector[SEQ_NR_10],
         vector[MERKLE_ROOT_VALUE_1],
-        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2]
+        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2],
     )
 }
 
@@ -158,7 +165,7 @@ public fun test_get_report_digest_header() {
     let header = rmn_remote::get_report_digest_header();
     // The header should be the keccak256 hash of "RMN_V1_6_ANY2SUI_REPORT"
     assert!(header.length() == 32); // keccak256 produces 32 bytes
-    
+
     // We can't easily test the exact hash value without keccak256 implementation,
     // but we can verify it's not empty and has correct length
     assert!(header != vector<u8>[]);
@@ -168,7 +175,7 @@ public fun test_get_report_digest_header() {
 public fun test_get_arm_with_deployed_package() {
     use std::type_name;
     use sui::address;
-    
+
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
 
@@ -220,14 +227,14 @@ public fun test_get_config_function() {
     // Get the config and test the get_config helper function
     let (version, config) = rmn_remote::get_versioned_config(&ref);
     assert!(version == VERSION_1);
-    
+
     let (digest, signers, f_sign) = rmn_remote::get_config(&config);
-    
+
     // Verify all config fields
     assert!(digest.length() == VALID_DIGEST.length());
     assert!(signers.length() == 3);
     assert!(f_sign == F_SIGN_VALUE);
-    
+
     // Note: We can't directly access signer fields without getter functions,
     // but we can verify the length which confirms the structure is correct
     assert!(signers.length() == 3);
@@ -328,21 +335,21 @@ public fun test_global_curse_affects_regular_subjects() {
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    
+
     // First verify a regular subject is not cursed
     assert!(!rmn_remote::is_cursed(&ref, SUBJECT_1));
-    
+
     // Curse globally
     rmn_remote::curse(&mut ref, &owner_cap, GLOBAL_CURSE_SUBJECT);
-    
+
     // Now any subject should be considered cursed due to global curse
     assert!(rmn_remote::is_cursed(&ref, SUBJECT_1));
     assert!(rmn_remote::is_cursed(&ref, SUBJECT_2));
     assert!(rmn_remote::is_cursed_global(&ref));
-    
+
     // Uncurse globally
     rmn_remote::uncurse(&mut ref, &owner_cap, GLOBAL_CURSE_SUBJECT);
-    
+
     // Now regular subjects should not be cursed anymore
     assert!(!rmn_remote::is_cursed(&ref, SUBJECT_1));
     assert!(!rmn_remote::is_cursed_global(&ref));
@@ -378,7 +385,7 @@ public fun test_initialize_already_initialized() {
 #[test]
 #[expected_failure(abort_code = rmn_remote::EInvalidDigestLength)]
 public fun test_set_config_invalid_digest_length() {
-    let( mut scenario, owner_cap, mut ref) = set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
@@ -397,7 +404,7 @@ public fun test_set_config_invalid_digest_length() {
 #[test]
 #[expected_failure(abort_code = rmn_remote::EZeroValueNotAllowed)]
 public fun test_set_config_zero_digest() {
-    let(mut scenario, owner_cap, mut ref) = set_up_test();
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
@@ -477,7 +484,7 @@ public fun test_set_config_duplicate_signer() {
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    
+
     // Try to set config with duplicate signer public keys
     rmn_remote::set_config(
         &mut ref,
@@ -498,7 +505,7 @@ public fun test_set_config_invalid_public_key_length() {
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    
+
     // Try to set config with invalid public key length (not 20 bytes)
     rmn_remote::set_config(
         &mut ref,
@@ -544,7 +551,7 @@ public fun test_uncurse_multiple_not_cursed() {
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    
+
     // Try to uncurse subjects that were never cursed
     rmn_remote::uncurse_multiple(
         &mut ref,
@@ -562,7 +569,7 @@ public fun test_verify_config_not_set() {
     let ctx = scenario.ctx();
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    
+
     // Try to verify without setting config first
     let (
         off_ramp_state_address,
@@ -571,9 +578,9 @@ public fun test_verify_config_not_set() {
         merkle_root_min_seq_nrs,
         merkle_root_max_seq_nrs,
         merkle_root_values,
-        signatures
+        signatures,
     ) = create_basic_verify_params();
-    
+
     let _result = rmn_remote::verify(
         &ref,
         off_ramp_state_address,
@@ -582,7 +589,7 @@ public fun test_verify_config_not_set() {
         merkle_root_min_seq_nrs,
         merkle_root_max_seq_nrs,
         merkle_root_values,
-        signatures
+        signatures,
     );
 
     tear_down_test(scenario, owner_cap, ref);
@@ -596,7 +603,7 @@ public fun test_verify_threshold_not_met() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     setup_high_threshold_config(&mut ref, &owner_cap);
-    
+
     // Try to verify with only 2 signatures (less than f_sign + 1)
     let _result = rmn_remote::verify(
         &ref,
@@ -606,7 +613,7 @@ public fun test_verify_threshold_not_met() {
         vector[SEQ_NR_1],
         vector[SEQ_NR_10],
         vector[MERKLE_ROOT_VALUE_1],
-        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2] // only 2 signatures
+        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2], // only 2 signatures
     );
 
     tear_down_test(scenario, owner_cap, ref);
@@ -620,7 +627,7 @@ public fun test_verify_merkle_root_length_mismatch() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     setup_basic_config(&mut ref, &owner_cap);
-    
+
     // Mismatched array lengths for merkle root components
     let _result = rmn_remote::verify(
         &ref,
@@ -630,7 +637,7 @@ public fun test_verify_merkle_root_length_mismatch() {
         vector[SEQ_NR_1, SEQ_NR_2], // 2 elements
         vector[SEQ_NR_10, SEQ_NR_20], // 2 elements
         vector[MERKLE_ROOT_VALUE_1, MERKLE_ROOT_VALUE_2], // 2 elements
-        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2]
+        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2],
     );
 
     tear_down_test(scenario, owner_cap, ref);
@@ -644,7 +651,7 @@ public fun test_verify_invalid_signature_length() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
     setup_basic_config(&mut ref, &owner_cap);
-    
+
     // Try to verify with invalid signature length (not 64 bytes)
     let _result = rmn_remote::verify(
         &ref,
@@ -654,7 +661,7 @@ public fun test_verify_invalid_signature_length() {
         vector[SEQ_NR_1],
         vector[SEQ_NR_10],
         vector[MERKLE_ROOT_VALUE_1],
-        vector[INVALID_SHORT_SIGNATURE, VALID_SIGNATURE_2] // only 28 bytes, should be 64
+        vector[INVALID_SHORT_SIGNATURE, VALID_SIGNATURE_2], // only 28 bytes, should be 64
     );
 
     tear_down_test(scenario, owner_cap, ref);

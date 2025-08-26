@@ -1,12 +1,10 @@
 #[test_only]
 module ccip::client_test;
 
-use sui::bcs;
-
 use ccip::client;
 use ccip::eth_abi;
-
 use mcms::bcs_stream;
+use sui::bcs;
 
 #[test]
 fun test_encode_decode_vector_u8() {
@@ -49,21 +47,19 @@ fun test_svm_extra_args_v1_encoding() {
     let compute_units = 100000u32;
     let bitmap = 255u64;
     let allow_ooo = true;
-    let token_receiver =
-        x"1234567890123456789012345678901234567890123456789012345678901234";
+    let token_receiver = x"1234567890123456789012345678901234567890123456789012345678901234";
     let accounts = vector[
         x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1a",
-        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1b"
+        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1b",
     ];
 
-    let encoded =
-        client::encode_svm_extra_args_v1(
-            compute_units,
-            bitmap,
-            allow_ooo,
-            token_receiver,
-            accounts
-        );
+    let encoded = client::encode_svm_extra_args_v1(
+        compute_units,
+        bitmap,
+        allow_ooo,
+        token_receiver,
+        accounts,
+    );
 
     // Verify tag
     let tag = eth_abi::slice(&encoded, 0, 4);
@@ -80,19 +76,17 @@ fun test_bcs_u256_consistency() {
         100000u256,
         1000000u256,
         18446744073709551615u256, // Max u64
-        115792089237316195423570985008687907853269984665640564039457584007913129639935u256 // Max u256
+        115792089237316195423570985008687907853269984665640564039457584007913129639935u256, // Max u256
     ];
 
-    large_values.do_ref!(
-        |value| {
-            let encoded = client::encode_generic_extra_args_v2(*value, true);
-            assert!(encoded.length() == 37);
+    large_values.do_ref!(|value| {
+        let encoded = client::encode_generic_extra_args_v2(*value, true);
+        assert!(encoded.length() == 37);
 
-            // Extract the encoded u256 bytes (skip tag, take 32 bytes)
-            let u256_bytes = eth_abi::slice(&encoded, 4, 32);
-            assert!(u256_bytes.length() == 32);
-        }
-    );
+        // Extract the encoded u256 bytes (skip tag, take 32 bytes)
+        let u256_bytes = eth_abi::slice(&encoded, 4, 32);
+        assert!(u256_bytes.length() == 32);
+    });
 }
 
 #[test]
@@ -118,32 +112,31 @@ fun test_empty_accounts_svm_args() {
     let compute_units = 50000u32;
     let bitmap = 0u64;
     let allow_ooo = false;
-    let token_receiver =
-        x"0000000000000000000000000000000000000000000000000000000000000000";
+    let token_receiver = x"0000000000000000000000000000000000000000000000000000000000000000";
     let empty_accounts = vector[];
 
-    let encoded =
-        client::encode_svm_extra_args_v1(
-            compute_units,
-            bitmap,
-            allow_ooo,
-            token_receiver,
-            empty_accounts
-        );
+    let encoded = client::encode_svm_extra_args_v1(
+        compute_units,
+        bitmap,
+        allow_ooo,
+        token_receiver,
+        empty_accounts,
+    );
 
     // Should encode successfully
     assert!(encoded.length() >= 4 + 4 + 8 + 1 + 32);
 
     // Test with single account
-    let single_account = vector[x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1a"];
-    let encoded_with_account =
-        client::encode_svm_extra_args_v1(
-            compute_units,
-            bitmap,
-            allow_ooo,
-            token_receiver,
-            single_account
-        );
+    let single_account = vector[
+        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1a",
+    ];
+    let encoded_with_account = client::encode_svm_extra_args_v1(
+        compute_units,
+        bitmap,
+        allow_ooo,
+        token_receiver,
+        single_account,
+    );
 
     // Should be larger than empty accounts version
     assert!(encoded_with_account.length() > encoded.length());
@@ -164,22 +157,22 @@ fun test_encode_svm_extra_args_v1_basic() {
     let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1c";
     let accounts = vector[
         x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1a",
-        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1b"
+        x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1b",
     ];
 
-    let result =
-        client::encode_svm_extra_args_v1(
-            1000u32, 0u64, true, token_receiver, accounts
-        );
+    let result = client::encode_svm_extra_args_v1(
+        1000u32,
+        0u64,
+        true,
+        token_receiver,
+        accounts,
+    );
 
     // Verify the result starts with the correct tag
     let tag_len = client::svm_extra_args_v1_tag().length();
     let mut i = 0;
     while (i < tag_len) {
-        assert!(
-            *result.borrow(i) == *client::svm_extra_args_v1_tag().borrow(i),
-            0
-        );
+        assert!(*result.borrow(i) == *client::svm_extra_args_v1_tag().borrow(i), 0);
         i = i + 1;
     };
 
@@ -192,10 +185,13 @@ fun test_encode_svm_extra_args_v1_empty_accounts() {
     let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1d";
     let accounts = vector[];
 
-    let result =
-        client::encode_svm_extra_args_v1(
-            500u32, 0u64, false, token_receiver, accounts
-        );
+    let result = client::encode_svm_extra_args_v1(
+        500u32,
+        0u64,
+        false,
+        token_receiver,
+        accounts,
+    );
 
     // Should not fail and should contain the tag
     let tag_len = client::svm_extra_args_v1_tag().length();
@@ -219,14 +215,13 @@ fun test_encode_svm_extra_args_v1_32_byte_addresses() {
 
     let accounts = vector[account1, account2];
 
-    let result =
-        client::encode_svm_extra_args_v1(
-            2000u32,
-            0xFFFFFFFFFFFFFFFFu64,
-            true,
-            token_receiver,
-            accounts
-        );
+    let result = client::encode_svm_extra_args_v1(
+        2000u32,
+        0xFFFFFFFFFFFFFFFFu64,
+        true,
+        token_receiver,
+        accounts,
+    );
 
     let tag_len = client::svm_extra_args_v1_tag().length();
     assert!(result.length() > tag_len, 0);
@@ -238,7 +233,8 @@ fun test_encode_svm_extra_args_v1_invalid_token_receiver_length() {
     // This test should fail because we're creating a token_receiver that's longer than 32 bytes
     let mut token_receiver = vector[];
     let mut i = 0;
-    while (i < 33) { // 33 bytes - too long
+    while (i < 33) {
+        // 33 bytes - too long
         token_receiver.push_back((i as u8));
         i = i + 1;
     };
@@ -251,7 +247,9 @@ fun test_encode_svm_extra_args_v1_invalid_token_receiver_length() {
 fun test_encode_svm_extra_args_v1_invalid_account_length() {
     // This test should fail because we're creating an account that's longer than 32 bytes
     let token_receiver = x"8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1e";
-    let accounts = vector[x"aaaaaaaa8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1f"];
+    let accounts = vector[
+        x"aaaaaaaa8f2a9c4b7d6e1f3a5c8b9e2d4f7a1c6b8e5d2f9a4c7b1e6d3f8a5c2b9e4d7f1f",
+    ];
 
     client::encode_svm_extra_args_v1(1000u32, 0u64, true, token_receiver, accounts);
 }
@@ -297,7 +295,7 @@ fun test_new_any2sui_message() {
         source_chain_selector,
         sender,
         data,
-        dest_token_amounts
+        dest_token_amounts,
     );
 
     // Verify the message was created correctly by checking its fields
@@ -307,7 +305,13 @@ fun test_new_any2sui_message() {
     assert!(client::get_data(&message) == data, 3);
     assert!(client::get_dest_token_amounts(&message) == dest_token_amounts, 4);
 
-    let (message_id, source_chain_selector, sender, data, dest_token_amounts) = client::consume_any2sui_message(message);
+    let (
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts,
+    ) = client::consume_any2sui_message(message);
     assert!(message_id == message_id, 0);
     assert!(source_chain_selector == source_chain_selector, 1);
     assert!(sender == sender, 2);
@@ -349,13 +353,19 @@ fun test_get_message_id() {
         1u64,
         x"deadbeef",
         x"cafebabe",
-        vector[]
+        vector[],
     );
 
     let retrieved_id = client::get_message_id(&message);
     assert!(retrieved_id == message_id, 0);
 
-    let (message_id, source_chain_selector, sender, data, dest_token_amounts) = client::consume_any2sui_message(message);
+    let (
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts,
+    ) = client::consume_any2sui_message(message);
     assert!(message_id == message_id, 0);
     assert!(source_chain_selector == 1u64, 1);
     assert!(sender == x"deadbeef", 2);
@@ -371,13 +381,19 @@ fun test_get_source_chain_selector() {
         chain_selector,
         x"deadbeef",
         x"cafebabe",
-        vector[]
+        vector[],
     );
 
     let retrieved_selector = client::get_source_chain_selector(&message);
     assert!(retrieved_selector == chain_selector, 0);
 
-    let (message_id, source_chain_selector, sender, data, dest_token_amounts) = client::consume_any2sui_message(message);
+    let (
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts,
+    ) = client::consume_any2sui_message(message);
     assert!(message_id == message_id, 0);
     assert!(source_chain_selector == chain_selector, 1);
     assert!(sender == x"deadbeef", 2);
@@ -400,7 +416,7 @@ fun test_message_with_token_amounts() {
     let source_chain_selector = 555u64;
     let sender = x"9999999999999999999999999999999999999999";
     let data = x"cafebabe";
-    
+
     // Create some token amounts
     let token_addresses = vector[@0xa, @0xb];
     let token_amounts = vector[1000u64, 2000u64];
@@ -411,7 +427,7 @@ fun test_message_with_token_amounts() {
         source_chain_selector,
         sender,
         data,
-        dest_token_amounts
+        dest_token_amounts,
     );
 
     // Verify all fields
@@ -419,7 +435,7 @@ fun test_message_with_token_amounts() {
     assert!(client::get_source_chain_selector(&message) == source_chain_selector, 1);
     assert!(client::get_sender(&message) == sender, 2);
     assert!(client::get_data(&message) == data, 3);
-    
+
     let retrieved_amounts = client::get_dest_token_amounts(&message);
     assert!(retrieved_amounts.length() == 2, 4);
     assert!(client::get_token(&retrieved_amounts[0]) == @0xa, 5);
@@ -427,7 +443,13 @@ fun test_message_with_token_amounts() {
     assert!(client::get_token(&retrieved_amounts[1]) == @0xb, 7);
     assert!(client::get_amount(&retrieved_amounts[1]) == 2000u64, 8);
 
-    let (message_id, chain_selector, returned_sender, returned_data, returned_dest_token_amounts) = client::consume_any2sui_message(message);
+    let (
+        message_id,
+        chain_selector,
+        returned_sender,
+        returned_data,
+        returned_dest_token_amounts,
+    ) = client::consume_any2sui_message(message);
     assert!(message_id == message_id, 0);
     assert!(chain_selector == source_chain_selector, 1);
     assert!(returned_sender == sender, 2);

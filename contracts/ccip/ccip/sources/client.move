@@ -84,12 +84,12 @@ public struct Any2SuiMessage {
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
-    dest_token_amounts: vector<Any2SuiTokenAmount>
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
 }
 
-public struct Any2SuiTokenAmount has store, drop, copy {
+public struct Any2SuiTokenAmount has copy, drop, store {
     token: address,
-    amount: u64
+    amount: u64,
 }
 
 public fun new_any2sui_message(
@@ -104,25 +104,19 @@ public fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
-        dest_token_amounts
+        dest_token_amounts,
     }
 }
 
 public(package) fun consume_any2sui_message(
     message: Any2SuiMessage,
-): (
-    vector<u8>,
-    u64,
-    vector<u8>,
-    vector<u8>,
-    vector<Any2SuiTokenAmount>,
-) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
     let Any2SuiMessage {
         message_id,
         source_chain_selector,
         sender,
         data,
-        dest_token_amounts
+        dest_token_amounts,
     } = message;
 
     (message_id, source_chain_selector, sender, data, dest_token_amounts)
@@ -132,12 +126,9 @@ public fun new_dest_token_amounts(
     token_addresses: vector<address>,
     token_amounts: vector<u64>,
 ): vector<Any2SuiTokenAmount> {
-    token_addresses.zip_map_ref!(
-        &token_amounts,
-        |token_address, token_amount| {
-            Any2SuiTokenAmount { token: *token_address, amount: *token_amount }
-        }
-    )
+    token_addresses.zip_map_ref!(&token_amounts, |token_address, token_amount| {
+        Any2SuiTokenAmount { token: *token_address, amount: *token_amount }
+    })
 }
 
 public fun get_message_id(input: &Any2SuiMessage): vector<u8> {

@@ -60,11 +60,9 @@ public fun apply_allowlist_updates(
         let (found, j) = vector::index_of(&state.allowlist, remove_address);
         if (found) {
             vector::swap_remove(&mut state.allowlist, j);
-            event::emit(
-                AllowlistRemove {
-                    sender: *remove_address
-                }
-            );
+            event::emit(AllowlistRemove {
+                sender: *remove_address,
+            });
         };
         i = i + 1;
     };
@@ -79,11 +77,9 @@ public fun apply_allowlist_updates(
             let (found, _) = vector::index_of(&state.allowlist, add_address);
             if (add_address != @0x0 && !found) {
                 state.allowlist.push_back(*add_address);
-                event::emit(
-                    AllowlistAdd {
-                        sender: *add_address
-                    }
-                );
+                event::emit(AllowlistAdd {
+                    sender: *add_address,
+                });
             };
             i = i + 1;
         };

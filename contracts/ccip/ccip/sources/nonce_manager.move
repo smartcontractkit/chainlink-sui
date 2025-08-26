@@ -1,11 +1,9 @@
 module ccip::nonce_manager;
 
-use std::string::{Self, String};
-
-use sui::table::{Self, Table};
-
-use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::ownable::OwnerCap;
+use ccip::state_object::{Self, CCIPObjectRef};
+use std::string::{Self, String};
+use sui::table::{Self, Table};
 
 // store this cap to onramp
 public struct NonceManagerCap has key, store {
@@ -39,11 +37,7 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
     transfer::transfer(cap, ctx.sender());
 }
 
-public fun get_outbound_nonce(
-    ref: &CCIPObjectRef,
-    dest_chain_selector: u64,
-    sender: address,
-): u64 {
+public fun get_outbound_nonce(ref: &CCIPObjectRef, dest_chain_selector: u64, sender: address): u64 {
     let state = state_object::borrow<NonceManagerState>(ref);
 
     if (!state.outbound_nonces.contains(dest_chain_selector)) {
@@ -67,10 +61,12 @@ public fun get_incremented_outbound_nonce(
     let state = state_object::borrow_mut<NonceManagerState>(ref);
 
     if (!state.outbound_nonces.contains(dest_chain_selector)) {
-        state.outbound_nonces.add(
-            dest_chain_selector,
-            table::new(ctx),
-        );
+        state
+            .outbound_nonces
+            .add(
+                dest_chain_selector,
+                table::new(ctx),
+            );
     };
     let dest_chain_nonces = table::borrow_mut(&mut state.outbound_nonces, dest_chain_selector);
     if (!dest_chain_nonces.contains(sender)) {
