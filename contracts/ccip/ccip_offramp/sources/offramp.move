@@ -3,6 +3,7 @@
 /// during upgrades.
 module ccip_offramp::offramp;
 
+use ccip::bcs_helper;
 use ccip::client;
 use ccip::eth_abi;
 use ccip::fee_quoter::{Self, FeeQuoterCap};
@@ -223,8 +224,6 @@ const ECalculateMessageHashInvalidArguments: u64 = 26;
 const EInvalidFunction: u64 = 27;
 const EInvalidTokenReceiver: u64 = 28;
 const ETokenTransferLimitExceeded: u64 = 29;
-const EInvalidStateAddress: u64 = 30;
-const EInvalidRegistryAddress: u64 = 31;
 
 public fun type_and_version(): String {
     string::utf8(b"OffRamp 1.6.0")
@@ -1237,12 +1236,11 @@ public fun mcms_accept_ownership(
     assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    let state_address = bcs_stream::deserialize_address(&mut stream);
-    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+    bcs_helper::validate_obj_addr(object::id_address(state), &mut stream);
 
-    let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
+    let mcms = mcms_registry::get_multisig_address();
     ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
@@ -1292,16 +1290,6 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-fun validate_shared_objects(
-    state: &OffRampState,
-    registry: &Registry,
-    stream: &mut bcs_stream::BCSStream,
-) {
-    let state_address = bcs_stream::deserialize_address(stream);
-    assert!(state_address == object::id_address(state), EInvalidStateAddress);
-    let registry_address = bcs_stream::deserialize_address(stream);
-    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
-}
 
 public fun mcms_set_dynamic_config(
     state: &mut OffRampState,
@@ -1316,7 +1304,10 @@ public fun mcms_set_dynamic_config(
     assert!(function == string::utf8(b"set_dynamic_config"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let permissionless_execution_threshold_seconds = bcs_stream::deserialize_u32(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -1338,7 +1329,10 @@ public fun mcms_apply_source_chain_config_updates(
     assert!(function == string::utf8(b"apply_source_chain_config_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let source_chains_selector = bcs_stream::deserialize_vector!(
         &mut stream,
@@ -1382,7 +1376,10 @@ public fun mcms_set_ocr3_config(
     assert!(function == string::utf8(b"set_ocr3_config"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let config_digest = bcs_stream::deserialize_fixed_vector_u8(&mut stream, 32);
     let ocr_plugin_type = bcs_stream::deserialize_u8(&mut stream);
@@ -1424,7 +1421,10 @@ public fun mcms_transfer_ownership(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -1446,7 +1446,10 @@ public fun mcms_execute_ownership_transfer(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);

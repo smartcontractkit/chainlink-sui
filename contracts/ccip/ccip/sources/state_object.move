@@ -1,5 +1,6 @@
 module ccip::state_object;
 
+use ccip::bcs_helper;
 use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -13,8 +14,6 @@ const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
-const EInvalidRefAddress: u64 = 5;
-const EInvalidRegistryAddress: u64 = 6;
 
 public struct CCIPObjectRef has key, store {
     id: UID,
@@ -165,17 +164,6 @@ public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
 
-fun validate_shared_objects(
-    ref: &CCIPObjectRef,
-    registry: &Registry,
-    stream: &mut bcs_stream::BCSStream,
-) {
-    let ref_address = bcs_stream::deserialize_address(stream);
-    assert!(ref_address == object::id_address(ref), EInvalidRefAddress);
-    let registry_address = bcs_stream::deserialize_address(stream);
-    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
-}
-
 public fun mcms_transfer_ownership(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
@@ -190,7 +178,10 @@ public fun mcms_transfer_ownership(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(ref, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -212,7 +203,10 @@ public fun mcms_execute_ownership_transfer(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(ref, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);

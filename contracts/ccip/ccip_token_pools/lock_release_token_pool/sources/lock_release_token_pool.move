@@ -1,5 +1,6 @@
 module lock_release_token_pool::lock_release_token_pool;
 
+use ccip::bcs_helper;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
@@ -623,17 +624,6 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback<phantom T> has drop {}
 
-fun validate_shared_objects<T>(
-    state: &LockReleaseTokenPoolState<T>,
-    registry: &Registry,
-    stream: &mut bcs_stream::BCSStream,
-) {
-    let state_address = bcs_stream::deserialize_address(stream);
-    assert!(state_address == object::id_address(state), EInvalidStateAddress);
-    let registry_address = bcs_stream::deserialize_address(stream);
-    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
-}
-
 public fun mcms_set_rebalancer<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
@@ -647,7 +637,10 @@ public fun mcms_set_rebalancer<T>(
     assert!(function == string::utf8(b"set_rebalancer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let rebalancer = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -668,7 +661,10 @@ public fun mcms_set_allowlist_enabled<T>(
     assert!(function == string::utf8(b"set_allowlist_enabled"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let enabled = bcs_stream::deserialize_bool(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -689,7 +685,10 @@ public fun mcms_apply_allowlist_updates<T>(
     assert!(function == string::utf8(b"apply_allowlist_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let removes = bcs_stream::deserialize_vector!(
         &mut stream,
@@ -717,7 +716,10 @@ public fun mcms_apply_chain_updates<T>(
     assert!(function == string::utf8(b"apply_chain_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let remote_chain_selectors_to_remove = bcs_stream::deserialize_vector!(
         &mut stream,
@@ -750,6 +752,158 @@ public fun mcms_apply_chain_updates<T>(
     );
 }
 
+public fun mcms_add_remote_pool<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"add_remote_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+    let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let remote_pool_address = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    add_remote_pool(state, owner_cap, remote_chain_selector, remote_pool_address);
+}
+
+public fun mcms_remove_remote_pool<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"remove_remote_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+    let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let remote_pool_address = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    remove_remote_pool(state, owner_cap, remote_chain_selector, remote_pool_address);
+}
+
+public fun mcms_set_chain_rate_limiter_configs<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    clock: &Clock,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_chain_rate_limiter_configs"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let remote_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let outbound_is_enableds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let outbound_capacities = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let outbound_rates = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let inbound_is_enableds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let inbound_capacities = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let inbound_rates = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_chain_rate_limiter_configs(
+        state,
+        owner_cap,
+        clock,
+        remote_chain_selectors,
+        outbound_is_enableds,
+        outbound_capacities,
+        outbound_rates,
+        inbound_is_enableds,
+        inbound_capacities,
+        inbound_rates,
+    );
+}
+
+public fun mcms_set_chain_rate_limiter_config<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    clock: &Clock,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_chain_rate_limiter_config"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+    let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let outbound_is_enabled = bcs_stream::deserialize_bool(&mut stream);
+    let outbound_capacity = bcs_stream::deserialize_u64(&mut stream);
+    let outbound_rate = bcs_stream::deserialize_u64(&mut stream);
+    let inbound_is_enabled = bcs_stream::deserialize_bool(&mut stream);
+    let inbound_capacity = bcs_stream::deserialize_u64(&mut stream);
+    let inbound_rate = bcs_stream::deserialize_u64(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_chain_rate_limiter_config(
+        state,
+        owner_cap,
+        clock,
+        remote_chain_selector,
+        outbound_is_enabled,
+        outbound_capacity,
+        outbound_rate,
+        inbound_is_enabled,
+        inbound_capacity,
+        inbound_rate,
+    );
+}
+
 public fun mcms_transfer_ownership<T>(
     state: &mut LockReleaseTokenPoolState<T>,
     registry: &mut Registry,
@@ -764,7 +918,10 @@ public fun mcms_transfer_ownership<T>(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -789,7 +946,10 @@ public fun mcms_execute_ownership_transfer<T>(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);

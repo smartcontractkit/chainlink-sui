@@ -58,6 +58,8 @@ type IOnramp interface {
 	McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsInitialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsWithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOnrampDevInspect
 	Encoder() OnrampEncoder
 }
@@ -162,6 +164,10 @@ type OnrampEncoder interface {
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsInitialize(state bind.Object, registry bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsWithdrawFeeTokens(typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsWithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
 
 type OnrampContract struct {
@@ -1077,6 +1083,26 @@ func (c *OnrampContract) McmsTransferOwnership(ctx context.Context, opts *bind.C
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
 func (c *OnrampContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.onrampEncoder.McmsExecuteOwnershipTransfer(state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsInitialize executes the mcms_initialize Move function.
+func (c *OnrampContract) McmsInitialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsInitialize(state, registry, nonceManagerCap, sourceTransferCap, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsWithdrawFeeTokens executes the mcms_withdraw_fee_tokens Move function.
+func (c *OnrampContract) McmsWithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsWithdrawFeeTokens(typeArgs, state, registry, feeTokenMetadata, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2849,4 +2875,81 @@ func (c onrampEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsInitialize encodes a call to the mcms_initialize Move function.
+func (c onrampEncoder) McmsInitialize(state bind.Object, registry bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"NonceManagerCap",
+		"osh::SourceTransferCap",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		nonceManagerCap,
+		sourceTransferCap,
+		params,
+	}, nil)
+}
+
+// McmsInitializeWithArgs encodes a call to the mcms_initialize Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"NonceManagerCap",
+		"osh::SourceTransferCap",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsWithdrawFeeTokens encodes a call to the mcms_withdraw_fee_tokens Move function.
+func (c onrampEncoder) McmsWithdrawFeeTokens(typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_withdraw_fee_tokens", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"&CoinMetadata<T>",
+		"ExecutingCallbackParams",
+	}, []any{
+		state,
+		registry,
+		feeTokenMetadata,
+		params,
+	}, nil)
+}
+
+// McmsWithdrawFeeTokensWithArgs encodes a call to the mcms_withdraw_fee_tokens Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) McmsWithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+		"&mut Registry",
+		"&CoinMetadata<T>",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_withdraw_fee_tokens", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

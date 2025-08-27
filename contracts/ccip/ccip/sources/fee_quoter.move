@@ -2,6 +2,7 @@
 /// information and pricing.
 module ccip::fee_quoter;
 
+use ccip::bcs_helper;
 use ccip::client;
 use ccip::eth_abi;
 use ccip::ownable::OwnerCap;
@@ -238,8 +239,6 @@ const EInvalidSvmAccountLength: u64 = 35;
 const ETokenAmountMismatch: u64 = 36;
 const EInvalidOwnerCap: u64 = 37;
 const EInvalidFunction: u64 = 38;
-const EInvalidRefAddress: u64 = 39;
-const EInvalidRegistryAddress: u64 = 40;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -1465,17 +1464,6 @@ public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
 
-fun validate_shared_objects(
-    ref: &CCIPObjectRef,
-    registry: &Registry,
-    stream: &mut bcs_stream::BCSStream,
-) {
-    let ref_address = bcs_stream::deserialize_address(stream);
-    assert!(ref_address == object::id_address(ref), EInvalidRefAddress);
-    let registry_address = bcs_stream::deserialize_address(stream);
-    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
-}
-
 public fun mcms_apply_fee_token_updates(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
@@ -1490,7 +1478,10 @@ public fun mcms_apply_fee_token_updates(
     assert!(function == string::utf8(b"apply_fee_token_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(ref, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
 
     let fee_tokens_to_remove = bcs_stream::deserialize_vector!(
         &mut stream,
@@ -1519,7 +1510,10 @@ public fun mcms_apply_dest_chain_config_updates(
     assert!(function == string::utf8(b"apply_dest_chain_config_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(ref, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
 
     let dest_chain_selector = bcs_stream::deserialize_u64(&mut stream);
     let is_enabled = bcs_stream::deserialize_bool(&mut stream);
@@ -1584,7 +1578,10 @@ public fun mcms_apply_token_transfer_fee_config_updates(
     assert!(function == string::utf8(b"apply_token_transfer_fee_config_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(ref, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
 
     let dest_chain_selector = bcs_stream::deserialize_u64(&mut stream);
     let add_tokens = bcs_stream::deserialize_vector!(
@@ -1654,7 +1651,10 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     );
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(ref, registry, &mut stream);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
 
     let tokens = bcs_stream::deserialize_vector!(
         &mut stream,

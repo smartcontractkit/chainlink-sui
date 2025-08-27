@@ -1,7 +1,7 @@
 module ccip_router::router;
 
 use ccip_router::ownable::{Self, OwnerCap, OwnableState};
-use mcms::bcs_stream;
+use mcms::bcs_stream::{Self, BCSStream};
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::string::{Self, String};
@@ -33,7 +33,7 @@ const EInvalidOnrampVersion: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
 const EInvalidStateAddress: u64 = 6;
-const EInvalidRegistryAddress: u64 = 7;
+const EInvalidObjectAddress: u64 = 7;
 
 fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let (ownable_state, owner_cap) = ownable::new(ctx);
@@ -259,17 +259,6 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-fun validate_shared_objects(
-    state: &RouterState,
-    registry: &Registry,
-    stream: &mut bcs_stream::BCSStream,
-) {
-    let state_address = bcs_stream::deserialize_address(stream);
-    assert!(state_address == object::id_address(state), EInvalidStateAddress);
-    let registry_address = bcs_stream::deserialize_address(stream);
-    assert!(registry_address == object::id_address(registry), EInvalidRegistryAddress);
-}
-
 public fun mcms_set_on_ramp_infos(
     state: &mut RouterState,
     registry: &mut Registry,
@@ -283,7 +272,10 @@ public fun mcms_set_on_ramp_infos(
     assert!(function == string::utf8(b"set_on_ramp_infos"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let dest_chain_selectors = bcs_stream::deserialize_vector!(
         &mut stream,
@@ -325,7 +317,10 @@ public fun mcms_transfer_ownership(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -347,13 +342,25 @@ public fun mcms_execute_ownership_transfer(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    validate_shared_objects(state, registry, &mut stream);
+    validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
     execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+}
+
+fun validate_obj_addrs(addrs: vector<address>, stream: &mut BCSStream) {
+    let mut i = 0;
+    while (i < addrs.length()) {
+        let deserialized_address = bcs_stream::deserialize_address(stream);
+        assert!(deserialized_address == addrs[i], EInvalidObjectAddress);
+        i = i + 1;
+    }
 }
 
 // ===================== TESTS =====================

@@ -114,7 +114,6 @@ fun transfer_to_mcms(
     // Step 2: mcms_accept_ownership
     let mut data = vector::empty<u8>();
     data.append(bcs::to_bytes(&object::id_address(state)));
-    data.append(bcs::to_bytes(&mcms_registry::get_multisig_address()));
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip_onramp,
