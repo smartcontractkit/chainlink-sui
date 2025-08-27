@@ -4,15 +4,15 @@ const (
 	// DefaultBroadcastChanSize is the default size of the broadcast channel.
 	DefaultBroadcastChanSize = 100
 	// DefaultConfirmPollSecs is the default period for the confirmer pool.
-	DefaultConfirmPollSecs = 2
+	DefaultConfirmPollSecs = 10
 
 	// DefaultRequestType is the default request type for transactions.
 	DefaultRequestType = "WaitForLocalExecution"
 
 	DefaultMaxGasAmount          = 200000
 	DefaultMaxTxRetryAttempts    = 5
-	DefaultTransactionTimeout    = "10s"
-	DefaultMaxConcurrentRequests = 5
+	DefaultTransactionTimeout    = "30s"
+	DefaultMaxConcurrentRequests = 100
 )
 
 type Config struct {
