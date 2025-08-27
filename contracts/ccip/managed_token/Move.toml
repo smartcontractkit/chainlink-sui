@@ -1,0 +1,16 @@
+[package]
+name = "ManagedToken"
+edition = "2024"
+
+[addresses]
+managed_token = "_"
+mcms = "_"
+mcms_owner = "_"
+
+[dev-addresses]
+managed_token = "0x1113"
+mcms = "0x4000"
+mcms_owner = "0x4010"
+
+[dependencies]
+ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }

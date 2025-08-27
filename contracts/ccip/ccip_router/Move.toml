@@ -1,0 +1,18 @@
+[package]
+name = "ChainlinkCCIPRouter"
+edition = "2024"
+
+[addresses]
+ccip_router = "_"
+mcms = "_"
+mcms_owner = "_"
+mcms_register_entrypoints = "_"
+
+[dev-addresses]
+ccip_router = "0x1001"
+mcms = "0x4000"
+mcms_owner = "0x4010"
+mcms_register_entrypoints = "0x4001"
+
+[dependencies]
+ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }

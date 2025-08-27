@@ -1,0 +1,341 @@
+{{- /*gotype: github.com/smartcontractkit/chainlink-sui/bindgen/template.tmplData*/ -}}
+// Code generated - DO NOT EDIT.
+// This file is a generated binding and any manual changes will be lost.
+
+package module_{{.Module}}
+
+import (
+	"context"
+	"fmt"
+	"math/big"
+
+	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+
+{{- range .Imports}}
+  {{.PackageName}} "{{.Path}}"
+{{- end}}
+)
+
+var (
+  _ = big.NewInt
+)
+
+type I{{toUpperCamel .Module}} interface {
+{{ range .Funcs}}
+  {{.Name}}(ctx context.Context, opts *bind.CallOpts, {{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) (*models.SuiTransactionBlockResponse, error)
+{{- end}}
+  DevInspect() I{{toUpperCamel .Module}}DevInspect
+  Encoder() {{toUpperCamel .Module}}Encoder
+}
+
+type I{{toUpperCamel .Module}}DevInspect interface {
+{{ range .Funcs}}
+{{- if .HasReturnValues}}
+{{- if .HasSingleReturn}}
+  {{.Name}}(ctx context.Context, opts *bind.CallOpts, {{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) ({{.GetSingleReturnGoTypeForDevInspect}}, error)
+{{- else}}
+  {{.Name}}(ctx context.Context, opts *bind.CallOpts, {{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) ([]any, error)
+{{- end}}
+{{- end}}
+{{- end}}
+}
+
+type {{toUpperCamel .Module}}Encoder interface {
+{{- range .Funcs}}
+  {{.Name}}({{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) (*bind.EncodedCall, error)
+  {{.Name}}WithArgs({{if .HasTypeParams}}typeArgs []string, {{end}}args ...any) (*bind.EncodedCall, error)
+{{- end}}
+}
+
+type {{toUpperCamel .Module}}Contract struct {
+	*bind.BoundContract
+	{{toLowerCamel .Module}}Encoder
+	devInspect *{{toUpperCamel .Module}}DevInspect
+}
+
+type {{toUpperCamel .Module}}DevInspect struct {
+	contract *{{toUpperCamel .Module}}Contract
+}
+
+var _ I{{toUpperCamel .Module}} = (*{{toUpperCamel .Module}}Contract)(nil)
+var _ I{{toUpperCamel .Module}}DevInspect = (*{{toUpperCamel .Module}}DevInspect)(nil)
+
+func New{{toUpperCamel .Module}}(packageID string, client sui.ISuiAPI) (*{{toUpperCamel .Module}}Contract, error) {
+	contract, err := bind.NewBoundContract(packageID, "{{.Package}}", "{{.Module}}", client)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &{{toUpperCamel .Module}}Contract{
+		BoundContract: contract,
+		{{toLowerCamel .Module}}Encoder: {{toLowerCamel .Module}}Encoder{BoundContract: contract},
+	}
+	c.devInspect = &{{toUpperCamel .Module}}DevInspect{contract: c}
+	return c, nil
+}
+
+func (c *{{toUpperCamel .Module}}Contract) Encoder() {{toUpperCamel .Module}}Encoder {
+	return c.{{toLowerCamel .Module}}Encoder
+}
+
+func (c *{{toUpperCamel .Module}}Contract) DevInspect() I{{toUpperCamel .Module}}DevInspect {
+	return c.devInspect
+}
+
+{{$structs := .Structs}}
+{{range $structs}}
+type {{.Name}} struct { {{range $field := .Fields}}
+  {{$field.Name}} {{$field.Type.GoType}} `move:"{{$field.Type.MoveType}}"` {{end}}
+}
+{{end}}
+
+{{range $structs}}
+{{- if needsCustomDecoder .Name}}
+type bcs{{.Name}} struct { {{range $field := .Fields}}
+  {{$field.Name}} {{getBCSType $field}} {{end}}
+}
+
+func convert{{.Name}}FromBCS(bcs bcs{{.Name}}) ({{.Name}}, error) {
+	{{- $structName := .Name}}
+	{{- range .Fields}}
+	{{- if eq .Type.MoveType "u256"}}
+	{{.Name}}Field, err := bind.DecodeU256Value(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to decode u256 field {{.Name}}: %w", err)
+	}
+	{{- else if eq .Type.MoveType "u128"}}
+	{{.Name}}Field, err := bind.DecodeU128Value(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to decode u128 field {{.Name}}: %w", err)
+	}
+	{{- else if isNestedStructWithDecoder .Type.MoveType}}
+	{{.Name}}Field, err := convert{{.Type.MoveType}}FromBCS(bcs.{{.Name}})
+	if err != nil {
+		return {{$structName}}{}, fmt.Errorf("failed to convert nested struct {{.Name}}: %w", err)
+	}
+	{{- end}}
+	{{- end}}
+
+	return {{.Name}}{
+	{{- range .Fields}}
+		{{- if eq .Type.MoveType "address"}}
+		{{.Name}}: fmt.Sprintf("0x%x", bcs.{{.Name}}),
+		{{- else if eq .Type.MoveType "vector<address>"}}
+		{{.Name}}: func() []string {
+			addrs := make([]string, len(bcs.{{.Name}}))
+			for i, addr := range bcs.{{.Name}} {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		{{- else if eq .Type.MoveType "vector<vector<address>>"}}
+		{{.Name}}: func() [][]string {
+			addrs := make([][]string, len(bcs.{{.Name}}))
+			for i, a := range bcs.{{.Name}} {
+        subAddrs := make([]string, len(a))
+        for j, addr := range a {
+          subAddrs[j] = fmt.Sprintf("0x%x", addr)
+        }
+        addrs[i] = subAddrs
+			}
+			return addrs
+		}(),
+		{{- else if eq .Type.MoveType "u256"}}
+		{{.Name}}: {{.Name}}Field,
+		{{- else if eq .Type.MoveType "u128"}}
+		{{.Name}}: {{.Name}}Field,
+		{{- else if isNestedStructWithDecoder .Type.MoveType}}
+		{{.Name}}: {{.Name}}Field,
+		{{- else}}
+		{{.Name}}: bcs.{{.Name}},
+		{{- end}}
+	{{- end}}
+	}, nil
+}
+{{end}}
+{{- end}}
+
+func init() {
+{{- range $structs}}
+	{{- if needsCustomDecoder .Name}}
+	bind.RegisterStructDecoder("{{$.Package}}::{{$.Module}}::{{.Name}}", func(data []byte) (interface{}, error) {
+		var temp bcs{{.Name}}
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convert{{.Name}}FromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	{{- else}}
+	bind.RegisterStructDecoder("{{$.Package}}::{{$.Module}}::{{.Name}}", func(data []byte) (interface{}, error) {
+		var result {{.Name}}
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	{{- end}}
+{{- end}}
+}
+
+{{range .Funcs}}
+// {{.Name}} executes the {{.MoveName}} Move function.
+func (c *{{toUpperCamel $.Module}}Contract) {{.Name}}(ctx context.Context, opts *bind.CallOpts, {{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.{{toLowerCamel $.Module}}Encoder.{{.Name}}({{if .HasTypeParams}}typeArgs, {{end}}{{range .Params}}{{.Name}}, {{end}})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+{{end}}
+
+{{range .Funcs}}
+{{- if .HasReturnValues}}
+
+// {{.Name}} executes the {{.MoveName}} Move function using DevInspect to get return values.
+{{- if .HasMultipleReturns}}
+//
+// Returns:
+{{- range $i, $ret := .Returns}}
+//   [{{$i}}]: {{$ret.MoveType}}
+{{- end}}
+{{- else if .HasSingleReturn}}
+//
+// Returns: {{(index .Returns 0).MoveType}}
+{{- end}}
+{{- if .HasSingleReturn}}
+func (d *{{toUpperCamel $.Module}}DevInspect) {{.Name}}(ctx context.Context, opts *bind.CallOpts, {{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) ({{.GetSingleReturnGoTypeForDevInspect}}, error) {
+{{- else}}
+func (d *{{toUpperCamel $.Module}}DevInspect) {{.Name}}(ctx context.Context, opts *bind.CallOpts, {{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) ([]any, error) {
+{{- end}}
+	encoded, err := d.contract.{{toLowerCamel $.Module}}Encoder.{{.Name}}({{if .HasTypeParams}}typeArgs, {{end}}{{range .Params}}{{.Name}}, {{end}})
+	if err != nil {
+		return {{if .HasSingleReturn}}{{getZeroValue .GetSingleReturnGoTypeForDevInspect}}{{else}}nil{{end}}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+{{- if .HasSingleReturn}}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return {{getZeroValue .GetSingleReturnGoTypeForDevInspect}}, err
+	}
+	if len(results) == 0 {
+		return {{getZeroValue .GetSingleReturnGoTypeForDevInspect}}, fmt.Errorf("no return value")
+	}
+{{- if .HasGenericReturns}}
+	return results[0], nil
+{{- else}}
+	result, ok := results[0].({{.GetSingleReturnGoTypeForDevInspect}})
+	if !ok {
+		return {{getZeroValue .GetSingleReturnGoTypeForDevInspect}}, fmt.Errorf("unexpected return type: expected {{.GetSingleReturnGoTypeForDevInspect}}, got %T", results[0])
+	}
+	return result, nil
+{{- end}}
+{{- else}}
+	return d.contract.Call(ctx, opts, encoded)
+{{- end}}
+}
+{{- end}}
+{{end}}
+
+type {{toLowerCamel .Module}}Encoder struct {
+	*bind.BoundContract
+}
+
+{{range .Funcs}}
+// {{.Name}} encodes a call to the {{.MoveName}} Move function.
+func (c {{toLowerCamel $.Module}}Encoder) {{.Name}}({{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) (*bind.EncodedCall, error) {
+	{{- if .HasTypeParams }}
+	typeArgsList := typeArgs
+	{{- else }}
+	typeArgsList := []string{}
+	{{- end }}
+
+	{{- if .HasTypeParams }}
+	typeParamsList := []string{
+	{{- range .TypeParams}}
+		"{{.}}",
+	{{- end}}
+	}
+	{{- else }}
+	typeParamsList := []string{}
+	{{- end }}
+
+	{{- if .HasReturnValues }}
+	return c.EncodeCallArgsWithGenerics("{{.MoveName}}", typeArgsList, typeParamsList, []string{
+	{{- range .Params}}
+		"{{getFullyQualifiedType .Type.OriginalType $.Package $.Module}}",
+	{{- end}}
+	}, []any{
+	{{- range .Params}}
+		{{.Name}},
+	{{- end}}
+	}, []string{
+	{{- range .Returns}}
+		"{{getFullyQualifiedType .MoveType $.Package $.Module}}",
+	{{- end}}
+	})
+	{{- else }}
+	return c.EncodeCallArgsWithGenerics("{{.MoveName}}", typeArgsList, typeParamsList, []string{
+	{{- range .Params}}
+		"{{getFullyQualifiedType .Type.OriginalType $.Package $.Module}}",
+	{{- end}}
+	}, []any{
+	{{- range .Params}}
+		{{.Name}},
+	{{- end}}
+	}, nil)
+	{{- end }}
+}
+
+// {{.Name}}WithArgs encodes a call to the {{.MoveName}} Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c {{toLowerCamel $.Module}}Encoder) {{.Name}}WithArgs({{if .HasTypeParams}}typeArgs []string, {{end}}args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+	{{- range .Params}}
+		"{{getFullyQualifiedType .Type.OriginalType $.Package $.Module}}",
+	{{- end}}
+	}
+	
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+
+	{{- if .HasTypeParams }}
+	typeArgsList := typeArgs
+	{{- else }}
+	typeArgsList := []string{}
+	{{- end }}
+
+	{{- if .HasTypeParams }}
+	typeParamsList := []string{
+	{{- range .TypeParams}}
+		"{{.}}",
+	{{- end}}
+	}
+	{{- else }}
+	typeParamsList := []string{}
+	{{- end }}
+
+	{{- if .HasReturnValues }}
+	return c.EncodeCallArgsWithGenerics("{{.MoveName}}", typeArgsList, typeParamsList, expectedParams, args, []string{
+	{{- range .Returns}}
+		"{{getFullyQualifiedType .MoveType $.Package $.Module}}",
+	{{- end}}
+	})
+	{{- else }}
+	return c.EncodeCallArgsWithGenerics("{{.MoveName}}", typeArgsList, typeParamsList, expectedParams, args, nil)
+	{{- end }}
+}
+{{end}}

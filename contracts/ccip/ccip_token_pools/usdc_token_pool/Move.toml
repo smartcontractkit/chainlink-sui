@@ -1,0 +1,30 @@
+[package]
+name = "USDCTokenPool"
+edition = "2024"
+
+[dependencies]
+CCIPTokenPool = { local = "../token_pool" }
+
+# Circle CCTP Imports
+MessageTransmitter = { local = "../../../vendored/circlefin/sui-cctp/packages/message_transmitter" }
+TokenMessengerMinter = { local = "../../../vendored/circlefin/sui-cctp/packages/token_messenger_minter" }
+
+[addresses]
+ccip = "_"
+ccip_token_pool = "_"
+usdc_token_pool = "_"
+usdc_local_token = "_"
+token_messenger_minter = "_"
+message_transmitter = "_"
+mcms = "_"
+mcms_owner = "_"
+
+[dev-addresses]
+ccip = "0x1000"
+ccip_token_pool = "0x2000"
+usdc_token_pool = "0x2003"
+usdc_local_token = "0x9000"
+token_messenger_minter = "0x31cc14d80c175ae39777c0238f20594c6d4869cfab199f40b69f3319956b8beb"
+message_transmitter = "0x4931e06dce648b3931f890035bd196920770e913e43e45990b383f6486fdd0a5"
+mcms = "0x4000"
+mcms_owner = "0x4010"

@@ -1,0 +1,20 @@
+version: "3"
+
+tasks:
+  default:
+    desc: "Run Go lint checks"
+    cmds:
+      - golangci-lint run
+      - cd relayer && golangci-lint run && cd ..
+
+  fix:
+    desc: "Fix Go lint issues"
+    cmds:
+      - |
+        echo "Fixing Go lint issues..."
+        pushd relayer
+          gofmt -s -w .
+          golangci-lint run --fix
+        popd
+        gofmt -s -w .
+        golangci-lint run --fix

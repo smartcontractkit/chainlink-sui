@@ -1,0 +1,20 @@
+[package]
+name = "ManagedTokenFaucet"
+edition = "2024"
+
+[dependencies]
+ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }
+ManagedToken = { local = "../managed_token" }
+
+[addresses]
+managed_token_faucet = "_"
+managed_token = "_"
+mcms = "_"
+mcms_owner = "_"
+
+[dev-addresses]
+managed_token = "0x1113"
+mcms = "0x4000"
+mcms_owner = "0x4010"
+managed_token_faucet = "0x0"
+

@@ -1,0 +1,1428 @@
+#[test_only]
+module ccip::eth_abi_tests;
+
+use ccip::eth_abi;
+
+#[test]
+public fun test_encode_u256() {
+    let mut out = vector[];
+    let value: u256 = 0xaaaaee;
+    eth_abi::encode_u256(&mut out, value);
+
+    assert!(out.length() == 32);
+
+    // Ensure the output is in big-endian format
+    assert!(out[31] == 0xee, 1110000);
+    assert!(out[30] == 0xaa, 1110001);
+    assert!(out[29] == 0xaa, 1110002);
+    assert!(out[28] == 0x00, 1110004);
+    assert!(out[0] == 0x00, 1110005);
+}
+
+#[test]
+public fun test_encode_empty() {
+    let mut out = vector[];
+    let value = vector[];
+    eth_abi::encode_bytes(&mut out, value);
+    assert!(out.length() == 32);
+}
+
+#[test]
+public fun test_encode_bytes() {
+    let mut out = vector[];
+    let value = vector[0x01];
+    eth_abi::encode_bytes(&mut out, value);
+
+    assert!(out.length() == 64);
+}
+
+#[test]
+public fun test_encode_bytes_exactly_32_bytes() {
+    let mut out = vector[];
+
+    let mut value = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+    ];
+
+    // Length 32 should be 64 bytes
+    assert!(value.length() == 32);
+
+    eth_abi::encode_bytes(&mut out, value);
+
+    assert!(out.length() == 64);
+
+    // If we add one more byte, it should be 33 bytes which takes three 32-byte slots
+    out = vector[];
+    value.push_back(0x01);
+
+    // Length 33 should be 96 bytes
+    assert!(value.length() == 33);
+
+    eth_abi::encode_bytes(&mut out, value);
+
+    assert!(out.length() == 96);
+}
+
+#[test]
+public fun encode_eth_bool() {
+    let mut v = vector[];
+    let encoded_bool_true: vector<u8> = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+    ];
+
+    eth_abi::encode_bool(&mut v, true);
+
+    assert!(v == encoded_bool_true);
+}
+
+#[test]
+public fun encode_eth_u256() {
+    let mut v = vector[];
+    // 256 is 0x100 in hex
+    let value: u256 = 256;
+
+    eth_abi::encode_u256(&mut v, value);
+
+    let encoded_uint256: vector<u8> = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+    ];
+    assert!(v == encoded_uint256);
+}
+
+#[test]
+public fun encode_eth_u64() {
+    let mut v = vector[];
+    // 99 is 0x63 in hex
+    let value: u64 = 99;
+
+    eth_abi::encode_u64(&mut v, value);
+
+    let encoded_u64: vector<u8> = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0x63,
+    ];
+    assert!(v == encoded_u64);
+}
+
+#[test]
+public fun encode_eth_u32() {
+    let mut v = vector[];
+    let value: u32 = 4294967295; // 0xFFFFFFFF max u32
+
+    eth_abi::encode_u32(&mut v, value);
+
+    let encoded_u32: vector<u8> = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xFF,
+        0xFF,
+        0xFF,
+        0xFF,
+    ];
+    assert!(v == encoded_u32);
+}
+
+#[test]
+public fun encode_eth_u8() {
+    let mut v = vector[];
+    let value: u8 = 0;
+
+    eth_abi::encode_u8(&mut v, value);
+
+    let encode_u8: vector<u8> = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ];
+    assert!(v == encode_u8);
+}
+
+#[test]
+public fun encode_eth_address() {
+    let mut v = vector[];
+    let value: address = @0xADa80b6ae7F00960C3020b5E97AAACCc3a4674f9;
+
+    eth_abi::encode_address(&mut v, value);
+
+    let encode_address: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0xAD,
+        0xa8,
+        0x0b,
+        0x6a,
+        0xe7,
+        0xF0,
+        0x09,
+        0x60,
+        0xC3,
+        0x02,
+        0x0b,
+        0x5E,
+        0x97,
+        0xAA,
+        0xAC,
+        0xCc,
+        0x3a,
+        0x46,
+        0x74,
+        0xf9,
+    ];
+    assert!(v == encode_address);
+}
+
+#[test]
+public fun encode_right_padded_bytes32() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[0x01, 0x02, 0x03, 0x04];
+
+    eth_abi::encode_right_padded_bytes32(&mut v, value);
+    let encode_bytes32: vector<u8> = vector[
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ];
+    assert!(v == encode_bytes32);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EInvalidBytes32Length)]
+public fun encode_right_padded_bytes32_failed() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+    ];
+
+    eth_abi::encode_right_padded_bytes32(&mut v, value);
+}
+
+#[test]
+public fun encode_bytes() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[0x01, 0x02, 0x03, 0x04, 0x05];
+    eth_abi::encode_bytes(&mut v, value);
+
+    let encoded_bytes: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x05,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ];
+
+    assert!(v == encoded_bytes);
+}
+
+#[test]
+public fun encode_selector() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[0x01, 0x02, 0x03, 0x04];
+    eth_abi::encode_selector(&mut v, value);
+
+    let encoded_selector: vector<u8> = vector[0x01, 0x02, 0x03, 0x04];
+
+    assert!(v == encoded_selector);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EInvalidSelector)]
+public fun encode_selector_failed() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[0x01, 0x02, 0x03, 0x04, 0x05];
+    eth_abi::encode_selector(&mut v, value);
+}
+
+#[test]
+public fun encode_packed_bytes32() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[0x01, 0x02, 0x03, 0x04, 0x05];
+
+    eth_abi::encode_packed_bytes32(&mut v, value);
+    let encoded_packed_bytes32: vector<u8> = vector[
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ];
+    assert!(v == encoded_packed_bytes32);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EInvalidBytes32Length)]
+public fun encode_packed_bytes32_failed() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x05,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x00,
+        0x00,
+        0x00,
+    ];
+
+    eth_abi::encode_packed_bytes32(&mut v, value);
+}
+
+#[test]
+public fun encode_packed_bytes() {
+    let mut v = vector[];
+    let value: vector<u8> = vector[0x01, 0x02, 0x03, 0x04, 0x05];
+    eth_abi::encode_packed_bytes(&mut v, value);
+
+    let encoded_bytes: vector<u8> = vector[0x01, 0x02, 0x03, 0x04, 0x05];
+
+    assert!(v == encoded_bytes);
+}
+
+#[test]
+public fun encode_packed_u32() {
+    let mut v = vector[];
+    let value: u32 = 4294967295; // 0xFFFFFFFF max u32
+
+    eth_abi::encode_packed_u32(&mut v, value);
+
+    let encoded_packed_u32: vector<u8> = vector[0xFF, 0xFF, 0xFF, 0xFF];
+    assert!(v == encoded_packed_u32);
+}
+
+#[test]
+public fun encode_packed_u64() {
+    let mut v = vector[];
+    let value: u64 = 99;
+
+    eth_abi::encode_packed_u64(&mut v, value);
+
+    let encoded_packed_u64: vector<u8> = vector[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x63];
+    assert!(v == encoded_packed_u64);
+}
+
+#[test]
+public fun encode_packed_u256() {
+    let mut v = vector[];
+    let value: u256 = 256;
+
+    eth_abi::encode_packed_u256(&mut v, value);
+
+    let encoded_packed_u256: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x00,
+    ];
+    assert!(v == encoded_packed_u256);
+}
+
+#[test]
+public fun decode_address() {
+    let addr: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0xAD,
+        0xa8,
+        0x0b,
+        0x6a,
+        0xe7,
+        0xF0,
+        0x09,
+        0x60,
+        0xC3,
+        0x02,
+        0x0b,
+        0x5E,
+        0x97,
+        0xAA,
+        0xAC,
+        0xCc,
+        0x3a,
+        0x46,
+        0x74,
+        0xf9,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(addr);
+
+    let decoded_addr: address = eth_abi::decode_address(&mut stream);
+
+    assert!(decoded_addr == @0xADa80b6ae7F00960C3020b5E97AAACCc3a4674f9);
+    assert!(eth_abi::get_cur(&stream) == 32);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
+public fun decode_address_failed() {
+    let addr: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0xAD,
+        0xa8,
+        0x0b,
+        0x6a,
+        0xe7,
+        0xF0,
+        0x09,
+        0x60,
+        0xC3,
+        0x02,
+        0x0b,
+        0x5E,
+        0x97,
+        0xAA,
+        0xAC,
+        0xCc,
+        0x3a,
+        0x46,
+        0x74,
+        0xf9,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(addr);
+
+    eth_abi::decode_address(&mut stream);
+}
+
+#[test]
+public fun decode_u256_value() {
+    let encoded_uint256: vector<u8> = vector[
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+    ];
+
+    let value: u256 = eth_abi::decode_u256_value(encoded_uint256);
+
+    assert!(value == 256);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EInvalidU256Length)]
+public fun decode_u256_value_failed() {
+    let encoded_uint256: vector<u8> = vector[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
+
+    eth_abi::decode_u256_value(encoded_uint256);
+}
+
+#[test]
+public fun decode_u256() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x00,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    let value: u256 = eth_abi::decode_u256(&mut stream);
+    assert!(value == 256);
+    assert!(eth_abi::get_cur(&stream) == 32);
+}
+
+#[test]
+public fun decode_u32() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x00,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    let value: u64 = eth_abi::decode_u64(&mut stream);
+    assert!(value == 256);
+    assert!(eth_abi::get_cur(&stream) == 32);
+}
+
+#[test]
+public fun decode_bool() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    let value: bool = eth_abi::decode_bool(&mut stream);
+    assert!(value == true);
+    assert!(eth_abi::get_cur(&stream) == 32);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EInvalidBool)]
+public fun decode_bool_failed_invalid_bool() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x02,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    eth_abi::decode_bool(&mut stream);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
+public fun decode_bool_failed_out_of_bytes() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x02,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    eth_abi::decode_bool(&mut stream);
+}
+
+#[test]
+public fun decode_bytes32() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x02,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    let b32: vector<u8> = eth_abi::decode_bytes32(&mut stream);
+
+    assert!(data == b32);
+    assert!(eth_abi::get_cur(&stream) == 32);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
+public fun decode_bytes32_failed() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x02,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    eth_abi::decode_bytes32(&mut stream);
+}
+
+#[test]
+public fun decode_bytes() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x02,
+        0xFF,
+        0xAA,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    let bytes: vector<u8> = eth_abi::decode_bytes(&mut stream);
+
+    assert!(bytes == vector[0xFF, 0xAA]);
+    assert!(eth_abi::get_cur(&stream) == 64);
+}
+
+#[test]
+public fun decode_bytes_long() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x21,
+        0xFF,
+        0xAA,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0xFF,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    let bytes: vector<u8> = eth_abi::decode_bytes(&mut stream);
+
+    assert!(
+        bytes == vector[
+        0xFF, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xFF
+    ],
+    );
+    assert!(eth_abi::get_cur(&stream) == 96);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
+public fun decode_bytes_failed() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x04,
+        0xFF,
+        0xAA,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    eth_abi::decode_bytes(&mut stream);
+}
+
+#[test]
+#[expected_failure(abort_code = eth_abi::EOutOfBytes)]
+public fun decode_bytes_failed_padding() {
+    let data: vector<u8> = vector[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x04,
+        0xFF,
+        0xAA,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ];
+
+    let mut stream: eth_abi::ABIStream = eth_abi::new_stream(data);
+
+    eth_abi::decode_bytes(&mut stream);
+}

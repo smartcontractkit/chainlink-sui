@@ -1,0 +1,6 @@
+[package]
+name = "LinkToken"
+edition = "2024"
+
+[addresses]
+link = "0x0"

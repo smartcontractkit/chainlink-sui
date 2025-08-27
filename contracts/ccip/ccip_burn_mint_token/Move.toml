@@ -1,0 +1,6 @@
+[package]
+name = "ccip_burn_mint_token"
+edition = "2024"
+
+[addresses]
+ccip_burn_mint_token = "0x0"

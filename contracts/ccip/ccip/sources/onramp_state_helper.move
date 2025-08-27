@@ -1,0 +1,123 @@
+module ccip::onramp_state_helper;
+
+use ccip::state_object::CCIPObjectRef;
+use ccip::token_admin_registry as registry;
+use std::type_name;
+
+const ETypeProofMismatch: u64 = 1;
+
+public struct ONRAMP_STATE_HELPER has drop {}
+
+/// the cap to be stored in the onramp state to control the source token transfer
+public struct SourceTransferCap has key, store {
+    id: UID,
+}
+
+public struct TokenTransferParams {
+    params: vector<TokenTransferMetadata>,
+    token_receiver: address,
+}
+
+public fun get_params_len(params: &TokenTransferParams): u64 {
+    params.params.length()
+}
+
+public fun get_token_receiver(params: &TokenTransferParams): address {
+    params.token_receiver
+}
+
+public struct TokenTransferMetadata {
+    remote_chain_selector: u64,
+    token_pool_package_id: address,
+    amount: u64,
+    source_token_coin_metadata_address: address,
+    dest_token_address: vector<u8>,
+    extra_data: vector<u8>,
+}
+
+fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
+    let source_cap = SourceTransferCap {
+        id: object::new(ctx),
+    };
+
+    transfer::transfer(source_cap, ctx.sender());
+}
+
+public fun create_token_transfer_params(token_receiver: address): TokenTransferParams {
+    TokenTransferParams {
+        params: vector[],
+        token_receiver,
+    }
+}
+
+/// add a new token transfer to the TokenTransferParams object, which is done within onramp.
+/// this is permissioned by the SourceTransferCap, which is stored in the onramp state.
+public fun add_token_transfer_param<TypeProof: drop>(
+    ref: &CCIPObjectRef,
+    token_transfer_params: &mut TokenTransferParams,
+    remote_chain_selector: u64,
+    amount: u64,
+    source_token_coin_metadata_address: address,
+    dest_token_address: vector<u8>,
+    extra_data: vector<u8>,
+    _: TypeProof,
+) {
+    let token_config = registry::get_token_config(ref, source_token_coin_metadata_address);
+    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+        token_config,
+    );
+
+    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn_str = type_name::into_string(proof_tn);
+    assert!(type_proof == proof_tn_str, ETypeProofMismatch);
+
+    token_transfer_params
+        .params
+        .push_back(TokenTransferMetadata {
+            remote_chain_selector,
+            token_pool_package_id,
+            amount,
+            source_token_coin_metadata_address,
+            dest_token_address,
+            extra_data,
+        })
+}
+
+public fun deconstruct_token_params(
+    _: &SourceTransferCap,
+    token_transfer_params: TokenTransferParams,
+) {
+    let TokenTransferParams { params: mut params, token_receiver: _ } = token_transfer_params;
+    while (!params.is_empty()) {
+        let TokenTransferMetadata {
+            remote_chain_selector: _,
+            token_pool_package_id: _,
+            amount: _,
+            source_token_coin_metadata_address: _,
+            dest_token_address: _,
+            extra_data: _,
+        } = params.pop_back();
+    };
+    params.destroy_empty();
+}
+
+public fun get_source_token_transfer_data(
+    token_transfer_params: &TokenTransferParams,
+    index: u64,
+): (u64, address, u64, address, vector<u8>, vector<u8>) {
+    (
+        token_transfer_params.params[index].remote_chain_selector,
+        token_transfer_params.params[index].token_pool_package_id,
+        token_transfer_params.params[index].amount,
+        token_transfer_params.params[index].source_token_coin_metadata_address,
+        token_transfer_params.params[index].dest_token_address,
+        token_transfer_params.params[index].extra_data,
+    )
+}
+
+// =========================== Test Functions =========================== //
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(ONRAMP_STATE_HELPER {}, ctx);
+}

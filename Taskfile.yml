@@ -1,0 +1,18 @@
+# https://taskfile.dev
+
+version: "3"
+
+includes:
+  lint:
+    taskfile: ./taskfiles/lint/Taskfile.yml
+
+  test:
+    taskfile: ./taskfiles/test/Taskfile.yml
+
+  sui_test:
+    taskfile: ./taskfiles/sui_test/Taskfile.yml
+
+  bindings:
+    taskfile: ./taskfiles/bindings/Taskfile.yml
+
+  # Keep adding as needed
