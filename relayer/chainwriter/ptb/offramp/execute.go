@@ -166,7 +166,7 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
-	lggr.Debugw("finished processing recievers offramp exec")
+	lggr.Info("finished processing recievers offramp exec")
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
@@ -174,7 +174,7 @@ func BuildOffRampExecutePTB(
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
 	}
 
-	lggr.Debugw("finished processing encodedFinishExecute")
+	lggr.Info("finished processing encodedFinishExecute")
 
 	_, err = offrampContract.AppendPTB(ctx, callOpts, ptb, encodedFinishExecute)
 	if err != nil {
@@ -397,7 +397,7 @@ func ProcessReceivers(
 
 		// Trim the 0x prefix if present
 		receiverPackageId := hex.EncodeToString(message.Receiver)
-		fmt.Println("RECEIVER PACKAGE ID:", "0x"+receiverPackageId)
+		lggr.Info("RECEIVER PACKAGE ID:", "0x"+receiverPackageId)
 
 		isRegistered, err := receiverRegistryDevInspect.IsRegisteredReceiver(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, receiverPackageId)
 		if err != nil {
@@ -426,7 +426,7 @@ func ProcessReceivers(
 			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
 		}
 
-		fmt.Println("MESSAGE: ", message)
+		lggr.Info("MESSAGE: ", message)
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
 			ctx,
 			lggr,
@@ -504,6 +504,8 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to encode get_token_param_data call: %w", err)
 	}
 
+	lggr.Info("Encoded callargs with generics")
+
 	extractedAny2SuiMessageResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedAny2SuiExtractCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
@@ -524,7 +526,7 @@ func AppendPTBCommandForReceiver(
 	clockObj := hex.EncodeToString(extraArgsValues[0])
 	recieverState := hex.EncodeToString(extraArgsValues[1])
 
-	fmt.Println("RECIEVER OBJ: ", clockObj, recieverState)
+	lggr.Info("RECIEVER OBJ: ", clockObj, recieverState)
 	typeArgsList = []string{}
 	typeParamsList = []string{}
 	paramValues = []any{
@@ -547,7 +549,7 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to decode parameters for token pool function: %w", err)
 	}
 
-	fmt.Println("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
+	lggr.Info("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
 		functionName,
@@ -560,6 +562,8 @@ func AppendPTBCommandForReceiver(
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode receiver call: %w", err)
 	}
+
+	lggr.Info("Encoded reciever call with generics")
 
 	receiverCommandResult, err := boundReceiverContract.AppendPTB(ctx, callOpts, ptb, encodedReceiverCall)
 	if err != nil {
