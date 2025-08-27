@@ -92,7 +92,6 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 	}
 
 	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, toAddress, functionConfig)
-
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err

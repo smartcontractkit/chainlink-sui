@@ -163,6 +163,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 			return nil, err
 		}
 
+		p.log.Info("OFFRAMP COMPLETE PTB: ", ptb.Data)
 		return ptb, nil
 	} else if function == cwConfig.CCIPCommit {
 		// unwrap if core wrapped with Args

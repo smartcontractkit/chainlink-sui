@@ -166,11 +166,15 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
+	lggr.Debugw("finished processing recievers offramp exec")
+
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
 	}
+
+	lggr.Debugw("finished processing encodedFinishExecute")
 
 	_, err = offrampContract.AppendPTB(ctx, callOpts, ptb, encodedFinishExecute)
 	if err != nil {
