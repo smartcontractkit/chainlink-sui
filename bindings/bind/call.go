@@ -10,6 +10,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 )
 
@@ -312,6 +313,9 @@ func parseVersionString(version string) (uint64, error) {
 
 // AppendPTB adds an EncodedCall to an existing PTB and returns the result argument
 func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *transaction.Transaction, encoded *EncodedCall) (*transaction.Argument, error) {
+	lggr, _ := logger.New()
+
+	lggr.Info("APPENDING PTB FOR EXECUTE", opts.ObjectResolver)
 	if opts.ObjectResolver == nil {
 		opts.ObjectResolver = NewObjectResolver(c.client)
 	}
@@ -320,6 +324,7 @@ func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *tran
 	resolvedEncodedArgs := make([]*EncodedCallArgument, len(encoded.CallArgs))
 	for i, encArg := range encoded.CallArgs {
 		if encArg == nil {
+			lggr.Info("ENCODED CALL ARGS EMPTY")
 			return nil, fmt.Errorf("nil EncodedCallArgument at index %d", i)
 		}
 
@@ -328,6 +333,7 @@ func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *tran
 		} else if encArg.IsCallArg() {
 			resolved, resolveErr := opts.ObjectResolver.ResolveCallArg(ctx, encArg.CallArg, encArg.TypeName)
 			if resolveErr != nil {
+				lggr.Info("FAILED TO RESOLVE CALLARG EXECUTE", resolveErr)
 				return nil, fmt.Errorf("failed to resolve CallArg at index %d: %w", i, resolveErr)
 			}
 			resolvedEncodedArg := NewEncodedCallArgFromCallArgWithType(resolved, encArg.TypeName)
@@ -347,11 +353,13 @@ func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *tran
 
 	arguments, err := callArgManager.ConvertEncodedCallArgsToArguments(resolvedEncodedArgs)
 	if err != nil {
+		lggr.Info("FAILED TO CONVERT ENCODEDCALLARGS TO ARGS: ", err)
 		return nil, fmt.Errorf("failed to convert EncodedCallArguments to Arguments: %w", err)
 	}
 
 	inputs := callArgManager.GetInputs()
 	if ptb.Data.V1 == nil || ptb.Data.V1.Kind == nil || ptb.Data.V1.Kind.ProgrammableTransaction == nil {
+		lggr.Info("FAILED TO CONVERT ENCODEDCALLARGS TO ARGS: ", err)
 		return nil, errors.New("unexpected PTB with missing fields")
 	}
 	// Always replace inputs with deduplicated inputs (similar to BuildPTB)
@@ -372,6 +380,7 @@ func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *tran
 		}
 	}
 
+	lggr.Info("RUNNING MOVECALL EXECUTE")
 	arg := ptb.MoveCall(
 		models.SuiAddress(encoded.Module.PackageID),
 		encoded.Module.ModuleName,
