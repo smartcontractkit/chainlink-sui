@@ -939,7 +939,7 @@ public fun test_lock_or_burn_comprehensive() {
             source_token_address,
             dest_token_address,
             extra_data,
-        ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params, 0);
+        ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params);
         assert!(remote_chain == DefaultRemoteChain);
 
         assert!(amount == initial_coin_value);
@@ -1065,14 +1065,10 @@ public fun test_release_or_mint_comprehensive() {
         let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
         assert!(source_chain == DefaultRemoteChain);
 
-        // Get the token transfer from receiver params
-        let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
-
         // Perform release_or_mint operation
         burn_mint_token_pool::release_or_mint(
             &ccip_ref,
             &mut receiver_params,
-            token_transfer,
             &clock,
             &mut pool_state,
             &mut ctx,

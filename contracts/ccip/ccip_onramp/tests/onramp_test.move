@@ -208,8 +208,10 @@ fun setup_fee_token_and_prices(
     clock: &sui::clock::Clock,
     coin_metadata_addr: address,
     dest_chain_selector: u64,
-    ctx: &mut TxContext,
+    scenario: &mut ts::Scenario,
 ): fee_quoter::FeeQuoterCap {
+    let ctx = scenario.ctx();
+
     // Add the test token as a fee token
     fee_quoter::apply_fee_token_updates(
         ref,
@@ -229,7 +231,10 @@ fun setup_fee_token_and_prices(
     );
 
     // Set up price updates
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    // Note: fee_quoter_cap is automatically issued during initialize
+    let fee_quoter_cap = scenario.take_from_sender<fee_quoter::FeeQuoterCap>();
+    let ctx = scenario.ctx();
+
     fee_quoter::update_prices(
         ref,
         &fee_quoter_cap,
@@ -346,7 +351,7 @@ fun cleanup_standalone_fee_test_env(
     coin_metadata: CoinMetadata<ONRAMP_TEST>,
     fee_quoter_cap: fee_quoter::FeeQuoterCap,
 ) {
-    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(&ccip_owner_cap, fee_quoter_cap);
     transfer::public_transfer(treasury_cap, OWNER);
     transfer::public_freeze_object(coin_metadata);
 
@@ -724,7 +729,7 @@ public fun test_get_fee_success() {
         &clock,
         coin_metadata_addr,
         DEST_CHAIN_SELECTOR_1,
-        scenario.ctx(),
+        &mut scenario,
     );
 
     // Test get_fee function - this should succeed
@@ -788,7 +793,7 @@ public fun test_get_fee_success_svm() {
         &clock,
         coin_metadata_addr,
         DEST_CHAIN_SELECTOR_1,
-        scenario.ctx(),
+        &mut scenario,
     );
 
     // Create SVM-specific extra args

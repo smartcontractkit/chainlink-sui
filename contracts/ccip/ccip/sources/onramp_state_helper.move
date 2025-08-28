@@ -5,6 +5,8 @@ use ccip::token_admin_registry as registry;
 use std::type_name;
 
 const ETypeProofMismatch: u64 = 1;
+const ETokenTransferAlreadyExists: u64 = 2;
+const ETokenTransferDoesNotExist: u64 = 3;
 
 public struct ONRAMP_STATE_HELPER has drop {}
 
@@ -14,12 +16,8 @@ public struct SourceTransferCap has key, store {
 }
 
 public struct TokenTransferParams {
-    params: vector<TokenTransferMetadata>,
+    token_transfer: Option<TokenTransferMetadata>,
     token_receiver: address,
-}
-
-public fun get_params_len(params: &TokenTransferParams): u64 {
-    params.params.length()
 }
 
 public fun get_token_receiver(params: &TokenTransferParams): address {
@@ -45,7 +43,7 @@ fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
 
 public fun create_token_transfer_params(token_receiver: address): TokenTransferParams {
     TokenTransferParams {
-        params: vector[],
+        token_transfer: option::none(),
         token_receiver,
     }
 }
@@ -71,9 +69,11 @@ public fun add_token_transfer_param<TypeProof: drop>(
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
+    assert!(token_transfer_params.token_transfer.is_none(), ETokenTransferAlreadyExists);
+
     token_transfer_params
-        .params
-        .push_back(TokenTransferMetadata {
+        .token_transfer
+        .fill(TokenTransferMetadata {
             remote_chain_selector,
             token_pool_package_id,
             amount,
@@ -83,12 +83,17 @@ public fun add_token_transfer_param<TypeProof: drop>(
         })
 }
 
+public fun has_token_transfer(token_transfer_params: &TokenTransferParams): bool {
+    token_transfer_params.token_transfer.is_some()
+}
+
 public fun deconstruct_token_params(
     _: &SourceTransferCap,
     token_transfer_params: TokenTransferParams,
 ) {
-    let TokenTransferParams { params: mut params, token_receiver: _ } = token_transfer_params;
-    while (!params.is_empty()) {
+    let TokenTransferParams { token_transfer: mut token_transfer, token_receiver: _ } =
+        token_transfer_params;
+    if (option::is_some(&token_transfer)) {
         let TokenTransferMetadata {
             remote_chain_selector: _,
             token_pool_package_id: _,
@@ -96,22 +101,23 @@ public fun deconstruct_token_params(
             source_token_coin_metadata_address: _,
             dest_token_address: _,
             extra_data: _,
-        } = params.pop_back();
+        } = token_transfer.extract();
     };
-    params.destroy_empty();
+    token_transfer.destroy_none();
 }
 
 public fun get_source_token_transfer_data(
     token_transfer_params: &TokenTransferParams,
-    index: u64,
 ): (u64, address, u64, address, vector<u8>, vector<u8>) {
+    assert!(token_transfer_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
+    let token_transfer = token_transfer_params.token_transfer.borrow();
     (
-        token_transfer_params.params[index].remote_chain_selector,
-        token_transfer_params.params[index].token_pool_package_id,
-        token_transfer_params.params[index].amount,
-        token_transfer_params.params[index].source_token_coin_metadata_address,
-        token_transfer_params.params[index].dest_token_address,
-        token_transfer_params.params[index].extra_data,
+        token_transfer.remote_chain_selector,
+        token_transfer.token_pool_package_id,
+        token_transfer.amount,
+        token_transfer.source_token_coin_metadata_address,
+        token_transfer.dest_token_address,
+        token_transfer.extra_data,
     )
 }
 

@@ -38,7 +38,7 @@ type IManagedTokenPool interface {
 	IsRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
 	GetRemoteToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	LockOrBurn(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, tokenTransferParams bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*models.SuiTransactionBlockResponse, error)
 	SetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelector uint64, outboundIsEnabled bool, outboundCapacity uint64, outboundRate uint64, inboundIsEnabled bool, inboundCapacity uint64, inboundRate uint64) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -115,7 +115,7 @@ type ManagedTokenPoolEncoder interface {
 	GetRemoteTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	LockOrBurn(typeArgs []string, ref bind.Object, tokenTransferParams bind.Object, c_ bind.Object, remoteChainSelector uint64, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	LockOrBurnWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	ReleaseOrMintWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigs(typeArgs []string, state bind.Object, ownerCap bind.Object, clock bind.Object, remoteChainSelectors []uint64, outboundIsEnableds []bool, outboundCapacities []uint64, outboundRates []uint64, inboundIsEnableds []bool, inboundCapacities []uint64, inboundRates []uint64) (*bind.EncodedCall, error)
 	SetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -407,8 +407,8 @@ func (c *ManagedTokenPoolContract) LockOrBurn(ctx context.Context, opts *bind.Ca
 }
 
 // ReleaseOrMint executes the release_or_mint Move function.
-func (c *ManagedTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, tokenTransfer, clock, denyList, tokenState, state)
+func (c *ManagedTokenPoolContract) ReleaseOrMint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.ReleaseOrMint(typeArgs, ref, receiverParams, clock, denyList, tokenState, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1613,7 +1613,7 @@ func (c managedTokenPoolEncoder) LockOrBurnWithArgs(typeArgs []string, args ...a
 }
 
 // ReleaseOrMint encodes a call to the release_or_mint Move function.
-func (c managedTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, tokenTransfer bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Object, receiverParams bind.Object, clock bind.Object, denyList bind.Object, tokenState bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1621,7 +1621,6 @@ func (c managedTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Objec
 	return c.EncodeCallArgsWithGenerics("release_or_mint", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"&mut offramp_sh::ReceiverParams",
-		"offramp_sh::DestTokenTransfer",
 		"&Clock",
 		"&DenyList",
 		"&mut TokenState<T>",
@@ -1629,7 +1628,6 @@ func (c managedTokenPoolEncoder) ReleaseOrMint(typeArgs []string, ref bind.Objec
 	}, []any{
 		ref,
 		receiverParams,
-		tokenTransfer,
 		clock,
 		denyList,
 		tokenState,
@@ -1643,7 +1641,6 @@ func (c managedTokenPoolEncoder) ReleaseOrMintWithArgs(typeArgs []string, args .
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"&mut offramp_sh::ReceiverParams",
-		"offramp_sh::DestTokenTransfer",
 		"&Clock",
 		"&DenyList",
 		"&mut TokenState<T>",

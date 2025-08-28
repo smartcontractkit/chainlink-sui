@@ -492,7 +492,7 @@ public fun test_lock_or_burn_functionality() {
             _,
             dest_token_address,
             extra_data,
-        ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params, 0);
+        ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params);
         assert!(chain_selector == DefaultRemoteChain);
         assert!(token_pool_package_id == @managed_token_pool);
         assert!(amount == initial_coin_value);
@@ -676,14 +676,10 @@ public fun test_release_or_mint_functionality() {
         let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
         assert!(source_chain == DefaultRemoteChain);
 
-        // Get the token transfer from receiver params
-        let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
-
         // Actually call release_or_mint function
         managed_token_pool::release_or_mint(
             &ccip_ref,
             &mut receiver_params,
-            token_transfer,
             &clock,
             &deny_list,
             &mut token_state,

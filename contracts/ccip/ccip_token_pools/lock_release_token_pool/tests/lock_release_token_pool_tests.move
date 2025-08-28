@@ -1157,7 +1157,7 @@ public fun test_lock_or_burn_functionality() {
             source_token_address,
             dest_token_address,
             extra_data,
-        ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params, 0);
+        ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params);
         // TODO: add token package ID to omnramp state helper to continue with this test
         // assert!(actual_package_id == object::id_from_address(token_pool_package_id));
         assert!(chain_selector == DefaultRemoteChain);
@@ -1352,14 +1352,10 @@ public fun test_release_or_mint_functionality() {
         let source_chain = offramp_sh::get_source_chain_selector(&receiver_params);
         assert!(source_chain == DefaultRemoteChain);
 
-        // Get the token transfer from receiver params
-        let token_transfer = offramp_sh::get_dest_token_transfer(&receiver_params, 0);
-
         // Call the actual release_or_mint function
         lock_release_token_pool::release_or_mint<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &ccip_ref,
             &mut receiver_params,
-            token_transfer,
             &clock,
             &mut pool_state,
             &mut ctx,
