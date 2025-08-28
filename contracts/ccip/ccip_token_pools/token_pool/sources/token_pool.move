@@ -56,6 +56,10 @@ public struct ChainAdded has copy, drop {
     remote_token_address: vector<u8>,
 }
 
+public struct ChainRemoved has copy, drop {
+    remote_chain_selector: u64,
+}
+
 public struct LiquidityAdded has copy, drop {
     local_token: address,
     provider: address,
@@ -139,6 +143,9 @@ public fun apply_chain_updates(
             EUnknownRemoteChainSelector,
         );
         state.remote_chain_configs.remove(remote_chain_selector);
+        event::emit(ChainRemoved {
+            remote_chain_selector: *remote_chain_selector,
+        });
     });
 
     let add_len = remote_chain_selectors_to_add.length();
@@ -414,7 +421,7 @@ fun calculate_local_amount_internal(
     local_decimals: u8,
 ): u256 {
     if (remote_decimals == local_decimals) {
-        return remote_amount
+        remote_amount
     } else if (remote_decimals > local_decimals) {
         let decimals_diff = remote_decimals - local_decimals;
         let mut current_amount = remote_amount;
@@ -423,7 +430,7 @@ fun calculate_local_amount_internal(
             current_amount = current_amount / 10;
             i = i + 1;
         };
-        return current_amount
+        current_amount
     } else {
         let decimals_diff = local_decimals - remote_decimals;
         // This is a safety check to prevent overflow in the next calculation.
@@ -440,7 +447,7 @@ fun calculate_local_amount_internal(
         };
         assert!(remote_amount <= (MAX_U256 / multiplier), EDecimalOverflow);
 
-        return remote_amount * multiplier
+        remote_amount * multiplier
     }
 }
 
