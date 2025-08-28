@@ -353,7 +353,6 @@ public fun lock_or_burn<T: drop>(
 public fun release_or_mint<T: drop>(
     ref: &CCIPObjectRef,
     receiver_params: &mut offramp_sh::ReceiverParams,
-    token_transfer: offramp_sh::DestTokenTransfer,
     clock: &Clock,
     deny_list: &DenyList,
     pool: &mut USDCTokenPoolState,
@@ -371,7 +370,7 @@ public fun release_or_mint<T: drop>(
         source_pool_address,
         source_pool_data,
         offchain_token_data,
-    ) = offramp_sh::get_dest_token_transfer_data(token_transfer);
+    ) = offramp_sh::get_dest_token_transfer_data(receiver_params);
     let (message_bytes, attestation) = parse_message_and_attestation(offchain_token_data);
 
     // Prepare the ReceiveMessageTicket by calling create_receive_message_ticket() from within your package.
@@ -442,7 +441,6 @@ public fun release_or_mint<T: drop>(
         receiver_params,
         receiver,
         dest_token_address,
-        object::id(pool),
         TypeProof {},
     );
 }
