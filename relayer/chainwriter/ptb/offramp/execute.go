@@ -506,6 +506,7 @@ func AppendPTBCommandForReceiver(
 
 	lggr.Info("Encoded callargs with generics")
 
+	lggr.Info("ABOUT TO CALL APPENDPTB EXECUTE", ptb.Data, encodedAny2SuiExtractCall.Function)
 	extractedAny2SuiMessageResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedAny2SuiExtractCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)

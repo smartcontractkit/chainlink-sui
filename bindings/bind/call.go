@@ -313,7 +313,10 @@ func parseVersionString(version string) (uint64, error) {
 
 // AppendPTB adds an EncodedCall to an existing PTB and returns the result argument
 func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *transaction.Transaction, encoded *EncodedCall) (*transaction.Argument, error) {
-	lggr, _ := logger.New()
+	lggr, err := logger.New()
+	if err != nil {
+		return nil, err
+	}
 
 	lggr.Info("APPENDING PTB FOR EXECUTE", opts.ObjectResolver)
 	if opts.ObjectResolver == nil {
