@@ -183,7 +183,11 @@ func ProcessTokenPools(
 	// Generate N token pool commands and attach them to the PTB, each command must return a result
 	// that will subsequently be used to make a vector of hot potatoes before finishing execution.
 	tokenPoolCommandsResults := make([]transaction.Argument, 0)
-	for idx, coinMetadataAddress := range coinMetadataAddresses {
+
+	// NOTE: there will only ever be one token pool per offramp execution, but we loop over the addresses
+	// as they are provided in the form of an array from the core node. We can alternatively simply read
+	// the first index but we do this to allow for simplified future updates.
+	for _, coinMetadataAddress := range coinMetadataAddresses {
 		tokenConfig, err := tokenAdminRegistryDevInspect.GetTokenConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get token configs for offramp execution: %w", err)
@@ -207,7 +211,6 @@ func ProcessTokenPools(
 			&tokenConfig,
 			&tokenPoolNormalizedModule,
 			receiverParams,
-			idx,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append token pool command to PTB: %w", err)
@@ -229,7 +232,6 @@ func AppendPTBCommandForTokenPool(
 	tokenPoolConfigs *module_token_admin_registry.TokenConfig,
 	normalizedModule *models.GetNormalizedMoveModuleResponse,
 	receiverParams *transaction.Argument,
-	index int,
 ) (*transaction.Argument, error) {
 	poolBoundContract, err := bind.NewBoundContract(
 		tokenPoolConfigs.TokenPoolPackageId,
@@ -241,57 +243,18 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
 	}
 
-	// TODO: replace this call with generated bindings call once ready
-	offrampStateHelperContract, err := bind.NewBoundContract(
-		addressMappings.CcipPackageId,
-		addressMappings.CcipPackageId,
-		"offramp_state_helper",
-		sdkClient,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)
-	}
-
 	tokenType := tokenPoolConfigs.TokenType
 	if !strings.HasPrefix(tokenType, "0x") {
 		tokenType = "0x" + tokenType
 	}
 
-	typeArgsList := []string{}
+	typeArgsList := []string{tokenType}
 	typeParamsList := []string{}
-	paramTypes := []string{
-		"&mut ReceiverParams",
-		"u64",
-	}
-	paramValues := []any{
-		receiverParams,
-		index,
-	}
-
-	encodedGetTokenParamDataCall, err := offrampStateHelperContract.EncodeCallArgsWithGenerics(
-		"get_dest_token_transfer",
-		typeArgsList,
-		typeParamsList,
-		paramTypes,
-		paramValues,
-		nil,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode get_token_param_data call: %w", err)
-	}
-
-	getTokenParamDataCommandResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedGetTokenParamDataCall)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
-	}
-
-	typeArgsList = []string{tokenType}
-	typeParamsList = []string{}
+	paramTypes := []string{}
 	// The fixed arguments that must be present for every token pool call.
-	paramValues = []any{
+	paramValues := []any{
 		bind.Object{Id: addressMappings.CcipObjectRef},
 		receiverParams,
-		getTokenParamDataCommandResult,
 	}
 
 	// Append dynamic values (addresses) to the paramValues for the token pool call.
