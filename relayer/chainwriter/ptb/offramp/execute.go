@@ -531,30 +531,48 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("missing receiverObjectIds/recieverObjectIds")
 	}
 
-	lggr.Infow("receiverObjectIds raw lookup",
-		"found", ok,
-		"goType", fmt.Sprintf("%T", idsRaw),
-	)
-	ids, err := normalizeBytesList(idsRaw)
+	// Correctly perform the type assertion here
+	idsSlice, ok := idsRaw.([]interface{})
+	if !ok {
+		lggr.Info("Error: receiverObjectIds is not a []interface{}")
+		return nil, fmt.Errorf("error converting recieverobjectIds to interface")
+	}
+
+	// Now you can pass idsSlice to the function without error
+	converted, err := convertToByteSlice(idsSlice)
 	if err != nil {
-		return nil, err
+		lggr.Info("ERROR DURING CONVERSION: ", err)
+		fmt.Println("Error during conversion:", err)
+	} else {
+		lggr.Info("SUCCESSFUL CONVERSION: ", converted)
+		fmt.Printf("Successfully converted: %#v\n", converted)
 	}
 
-	lggr.Info("IDSS: ", ids)
-	if len(ids) < 2 {
-		return nil, fmt.Errorf("need at least 2 ids, got %d", len(ids))
-	}
+	// lggr.Infow("receiverObjectIds raw lookup",
+	// 	"found", ok,
+	// 	"goType", fmt.Sprintf("%T", idsRaw),
+	// )
+	// ids, err := normalizeBytesList(idsRaw)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	// build params + log
-	for _, b := range ids {
-		if len(b) == 0 {
-			continue
-		}
-		paramValues = append(paramValues, bind.Object{Id: "0x" + hex.EncodeToString(b)})
-	}
-	clockObj := "0x" + hex.EncodeToString(ids[0])
-	receiverState := "0x" + hex.EncodeToString(ids[1])
-	lggr.Infow("receiverObjectIds normalized", "count", len(ids), "clockObj", clockObj, "receiverState", receiverState)
+	// lggr.Info("IDSS: ", ids)
+	// if len(ids) < 2 {
+	// 	return nil, fmt.Errorf("need at least 2 ids, got %d", len(ids))
+	// }
+
+	// // build params + log
+	// for _, b := range ids {
+	// 	if len(b) == 0 {
+	// 		continue
+	// 	}
+	// 	paramValues = append(paramValues, bind.Object{Id: "0x" + hex.EncodeToString(b)})
+	// }
+
+	clockObj := "0x" + hex.EncodeToString(converted[0])
+	receiverState := "0x" + hex.EncodeToString(converted[1])
+	lggr.Infow("receiverObjectIds normalized", "count", len(converted), "clockObj", clockObj, "receiverState", receiverState)
 
 	typeArgsList = []string{}
 	typeParamsList = []string{}
@@ -630,4 +648,21 @@ func normalizeBytesList(x any) ([][]byte, error) {
 		}
 	}
 	return out, nil
+}
+
+func convertToByteSlice(input []interface{}) ([][]byte, error) {
+	result := make([][]byte, 0, len(input))
+
+	for i, item := range input {
+		// Type assertion to check if the item is a []byte.
+		// The `ok` variable will be true if the assertion is successful.
+		if byteSlice, ok := item.([]byte); ok {
+			result = append(result, byteSlice)
+		} else {
+			// If the item is not a []byte, return an error.
+			return nil, fmt.Errorf("item at index %d is not a []byte, but a %T", i, item)
+		}
+	}
+
+	return result, nil
 }
