@@ -524,60 +524,27 @@ func AppendPTBCommandForReceiver(
 	lggr.Info("APPENDPTB CALL COMPLETED:")
 
 	// Append extra args to the paramValues for the receiver call.
-	// receiverObjectIds: expect [][]byte or []string ("0x..." or hex)
-	idsRaw, ok := extraArgs["receiverObjectIds"]
-	if !ok || idsRaw == nil {
-		lggr.Error("receiverObjectIds missing")
-		return nil, fmt.Errorf("missing extra args: receiverObjectIds (function=%s)", functionName)
+	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
+	if !ok {
+		lggr.Info("RECIEVEROBJECTIDS NOT FOUND")
+		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
 	}
+	lggr.Info("RECIEVEROBJECTIDS: ", receiverObjectIds)
 
-	lggr.Info("RAWRECIEVEROBJC: ", idsRaw)
-	var ids [][]byte
-	switch v := idsRaw.(type) {
-	case [][]byte:
-		ids = v
-	case []string:
-		ids = make([][]byte, 0, len(v))
-		for i, s := range v {
-			b, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
-			if err != nil {
-				lggr.Errorw("invalid hex in receiverObjectIds", "index", i, "value", s, "err", err)
-				return nil, fmt.Errorf("receiverObjectIds[%d] invalid hex: %w", i, err)
-			}
-			ids = append(ids, b)
-		}
-	default:
-		lggr.Errorw("unsupported receiverObjectIds type", "type", fmt.Sprintf("%T", idsRaw))
-		return nil, fmt.Errorf("receiverObjectIds unsupported type %T", idsRaw)
-	}
+	extraArgsValues := receiverObjectIds.([][]byte)
 
-	if len(ids) < 2 {
-		lggr.Errorw("receiverObjectIds has insufficient elements", "count", len(ids))
-		return nil, fmt.Errorf("receiverObjectIds must have at least 2 elements (got %d)", len(ids))
-	}
+	clockObj := hex.EncodeToString(extraArgsValues[0])
+	recieverState := hex.EncodeToString(extraArgsValues[1])
 
-	// Append objects
-	for i, b := range ids {
-		if len(b) == 0 {
-			lggr.Warnw("empty receiverObjectId element", "index", i)
-			continue
-		}
-		paramValues = append(paramValues, bind.Object{Id: "0x" + hex.EncodeToString(b)})
-	}
-
-	// Log the two you care about
-	clockObj := "0x" + hex.EncodeToString(ids[0])
-	receiverState := "0x" + hex.EncodeToString(ids[1])
-	lggr.Infow("RECEIVER OBJ", "count", len(ids), "clockObj", clockObj, "receiverState", receiverState)
-
+	lggr.Info("RECIEVER OBJ: ", clockObj, recieverState)
 	typeArgsList = []string{}
 	typeParamsList = []string{}
 	paramValues = []any{
 		messageID,
 		bind.Object{Id: addressMappings.CcipObjectRef},
 		extractedAny2SuiMessageResult,
-		bind.Object{Id: clockObj},
-		bind.Object{Id: receiverState},
+		bind.Object{Id: "0x" + clockObj},
+		bind.Object{Id: "0x" + recieverState},
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
