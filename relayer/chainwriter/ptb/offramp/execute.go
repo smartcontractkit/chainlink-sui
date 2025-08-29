@@ -531,6 +531,7 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("missing extra args: receiverObjectIds (function=%s)", functionName)
 	}
 
+	lggr.Info("RAWRECIEVEROBJC: ", idsRaw)
 	var ids [][]byte
 	switch v := idsRaw.(type) {
 	case [][]byte:
