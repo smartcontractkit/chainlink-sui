@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -524,27 +525,45 @@ func AppendPTBCommandForReceiver(
 	lggr.Info("APPENDPTB CALL COMPLETED:")
 
 	// Append extra args to the paramValues for the receiver call.
-	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
-	if !ok {
-		lggr.Info("RECIEVEROBJECTIDS NOT FOUND")
-		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
+
+	idsRaw, ok := extraArgs["receiverObjectIds"]
+	if !ok || idsRaw == nil {
+		return nil, fmt.Errorf("missing receiverObjectIds/recieverObjectIds")
 	}
-	lggr.Info("RECIEVEROBJECTIDS: ", receiverObjectIds)
 
-	extraArgsValues := receiverObjectIds.([][]byte)
+	lggr.Infow("receiverObjectIds raw lookup",
+		"found", ok,
+		"goType", fmt.Sprintf("%T", idsRaw),
+	)
+	ids, err := normalizeBytesList(idsRaw)
+	if err != nil {
+		return nil, err
+	}
 
-	clockObj := hex.EncodeToString(extraArgsValues[0])
-	recieverState := hex.EncodeToString(extraArgsValues[1])
+	lggr.Info("IDSS: ", ids)
+	if len(ids) < 2 {
+		return nil, fmt.Errorf("need at least 2 ids, got %d", len(ids))
+	}
 
-	lggr.Info("RECIEVER OBJ: ", clockObj, recieverState)
+	// build params + log
+	for _, b := range ids {
+		if len(b) == 0 {
+			continue
+		}
+		paramValues = append(paramValues, bind.Object{Id: "0x" + hex.EncodeToString(b)})
+	}
+	clockObj := "0x" + hex.EncodeToString(ids[0])
+	receiverState := "0x" + hex.EncodeToString(ids[1])
+	lggr.Infow("receiverObjectIds normalized", "count", len(ids), "clockObj", clockObj, "receiverState", receiverState)
+
 	typeArgsList = []string{}
 	typeParamsList = []string{}
 	paramValues = []any{
 		messageID,
 		bind.Object{Id: addressMappings.CcipObjectRef},
 		extractedAny2SuiMessageResult,
-		bind.Object{Id: "0x" + clockObj},
-		bind.Object{Id: "0x" + recieverState},
+		bind.Object{Id: clockObj},
+		bind.Object{Id: receiverState},
 	}
 
 	// Use the normalized module to populate the paramTypes and paramValues for the bound contract
@@ -581,4 +600,34 @@ func AppendPTBCommandForReceiver(
 	}
 
 	return receiverCommandResult, nil
+}
+
+func normalizeBytesList(x any) ([][]byte, error) {
+	rv := reflect.ValueOf(x)
+	if !rv.IsValid() || rv.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("receiverObjectIds: expected slice, got %T", x)
+	}
+
+	out := make([][]byte, 0, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		el := rv.Index(i).Interface()
+		switch v := el.(type) {
+		case []byte:
+			out = append(out, v)
+		case [32]byte:
+			b := make([]byte, 32)
+			copy(b, v[:])
+			out = append(out, b)
+		case string:
+			s := strings.TrimPrefix(v, "0x")
+			b, err := hex.DecodeString(s)
+			if err != nil {
+				return nil, fmt.Errorf("receiverObjectIds[%d]: invalid hex: %w", i, err)
+			}
+			out = append(out, b)
+		default:
+			return nil, fmt.Errorf("receiverObjectIds[%d]: unsupported elem type %T", i, el)
+		}
+	}
+	return out, nil
 }
