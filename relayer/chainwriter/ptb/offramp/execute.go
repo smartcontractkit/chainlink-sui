@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -509,6 +510,13 @@ func AppendPTBCommandForReceiver(
 	lggr.Infow("offrampStateHelperContract state",
 		"type", fmt.Sprintf("%T", offrampStateHelperContract),
 		"isNil", offrampStateHelperContract == nil,
+	)
+	deadline, has := ctx.Deadline()
+	lggr.Infow("ctx before AppendPTB", "err", ctx.Err(), "hasDeadline", has, "deadline", deadline)
+	t := reflect.TypeOf(offrampStateHelperContract) // *bind.BoundContract
+	lggr.Infow("BoundContract type",
+		"type", fmt.Sprintf("%T", offrampStateHelperContract),
+		"pkgPath", t.Elem().PkgPath(),
 	)
 
 	extractedAny2SuiMessageResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedAny2SuiExtractCall)
