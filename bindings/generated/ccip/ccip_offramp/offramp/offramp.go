@@ -178,7 +178,7 @@ var _ IOfframp = (*OfframpContract)(nil)
 var _ IOfframpDevInspect = (*OfframpDevInspect)(nil)
 
 func NewOfframp(packageID string, client sui.ISuiAPI) (*OfframpContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_offramp", "offramp", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip_offramp", "offramp", client, nil)
 	if err != nil {
 		return nil, err
 	}

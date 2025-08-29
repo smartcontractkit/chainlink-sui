@@ -83,7 +83,7 @@ var _ IComplex = (*ComplexContract)(nil)
 var _ IComplexDevInspect = (*ComplexDevInspect)(nil)
 
 func NewComplex(packageID string, client sui.ISuiAPI) (*ComplexContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "test", "complex", client)
+	contract, err := bind.NewBoundContract(packageID, "test", "complex", client, nil)
 	if err != nil {
 		return nil, err
 	}

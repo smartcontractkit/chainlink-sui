@@ -140,7 +140,7 @@ var _ ICounter = (*CounterContract)(nil)
 var _ ICounterDevInspect = (*CounterDevInspect)(nil)
 
 func NewCounter(packageID string, client sui.ISuiAPI) (*CounterContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "test", "counter", client)
+	contract, err := bind.NewBoundContract(packageID, "test", "counter", client, nil)
 	if err != nil {
 		return nil, err
 	}

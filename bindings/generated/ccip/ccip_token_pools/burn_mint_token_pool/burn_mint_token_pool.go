@@ -165,7 +165,7 @@ var _ IBurnMintTokenPool = (*BurnMintTokenPoolContract)(nil)
 var _ IBurnMintTokenPoolDevInspect = (*BurnMintTokenPoolDevInspect)(nil)
 
 func NewBurnMintTokenPool(packageID string, client sui.ISuiAPI) (*BurnMintTokenPoolContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "burn_mint_token_pool", "burn_mint_token_pool", client)
+	contract, err := bind.NewBoundContract(packageID, "burn_mint_token_pool", "burn_mint_token_pool", client, nil)
 	if err != nil {
 		return nil, err
 	}

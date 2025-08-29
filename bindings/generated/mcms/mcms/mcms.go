@@ -286,7 +286,7 @@ var _ IMcms = (*McmsContract)(nil)
 var _ IMcmsDevInspect = (*McmsDevInspect)(nil)
 
 func NewMcms(packageID string, client sui.ISuiAPI) (*McmsContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms", client)
+	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms", client, nil)
 	if err != nil {
 		return nil, err
 	}

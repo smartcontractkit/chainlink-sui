@@ -147,7 +147,7 @@ var _ ITokenPool = (*TokenPoolContract)(nil)
 var _ ITokenPoolDevInspect = (*TokenPoolDevInspect)(nil)
 
 func NewTokenPool(packageID string, client sui.ISuiAPI) (*TokenPoolContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_token_pool", "token_pool", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip_token_pool", "token_pool", client, nil)
 	if err != nil {
 		return nil, err
 	}

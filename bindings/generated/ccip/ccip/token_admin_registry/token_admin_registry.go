@@ -97,7 +97,7 @@ var _ ITokenAdminRegistry = (*TokenAdminRegistryContract)(nil)
 var _ ITokenAdminRegistryDevInspect = (*TokenAdminRegistryDevInspect)(nil)
 
 func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (*TokenAdminRegistryContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "token_admin_registry", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip", "token_admin_registry", client, nil)
 	if err != nil {
 		return nil, err
 	}

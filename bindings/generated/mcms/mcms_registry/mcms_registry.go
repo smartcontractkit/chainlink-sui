@@ -99,7 +99,7 @@ var _ IMcmsRegistry = (*McmsRegistryContract)(nil)
 var _ IMcmsRegistryDevInspect = (*McmsRegistryDevInspect)(nil)
 
 func NewMcmsRegistry(packageID string, client sui.ISuiAPI) (*McmsRegistryContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_registry", client)
+	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_registry", client, nil)
 	if err != nil {
 		return nil, err
 	}

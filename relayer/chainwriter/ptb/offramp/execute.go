@@ -263,6 +263,7 @@ func AppendPTBCommandForTokenPool(
 		tokenPoolConfigs.TokenPoolPackageId,
 		tokenPoolConfigs.TokenPoolModule,
 		sdkClient,
+		lggr,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token pool bound contract when appending PTB command: %w", err)
@@ -274,6 +275,7 @@ func AppendPTBCommandForTokenPool(
 		addressMappings.CcipPackageId,
 		"offramp_state_helper",
 		sdkClient,
+		lggr,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)
@@ -466,7 +468,7 @@ func AppendPTBCommandForReceiver(
 	receiverParams *transaction.Argument,
 	extraArgs map[string]any,
 ) (*transaction.Argument, error) {
-	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient)
+	boundReceiverContract, err := bind.NewBoundContract(packageId, packageId, moduleId, sdkClient, lggr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create receiver bound contract when appending PTB command: %w", err)
 	}
@@ -476,6 +478,7 @@ func AppendPTBCommandForReceiver(
 		addressMappings.CcipPackageId,
 		"offramp_state_helper",
 		sdkClient,
+		lggr,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create offramp state helper bound contract when appending PTB command: %w", err)

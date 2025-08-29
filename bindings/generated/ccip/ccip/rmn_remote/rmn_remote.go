@@ -102,7 +102,7 @@ var _ IRmnRemote = (*RmnRemoteContract)(nil)
 var _ IRmnRemoteDevInspect = (*RmnRemoteDevInspect)(nil)
 
 func NewRmnRemote(packageID string, client sui.ISuiAPI) (*RmnRemoteContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "rmn_remote", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip", "rmn_remote", client, nil)
 	if err != nil {
 		return nil, err
 	}

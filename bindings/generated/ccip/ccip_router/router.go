@@ -115,7 +115,7 @@ var _ IRouter = (*RouterContract)(nil)
 var _ IRouterDevInspect = (*RouterDevInspect)(nil)
 
 func NewRouter(packageID string, client sui.ISuiAPI) (*RouterContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_router", "router", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip_router", "router", client, nil)
 	if err != nil {
 		return nil, err
 	}

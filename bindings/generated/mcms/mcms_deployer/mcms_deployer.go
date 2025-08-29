@@ -54,7 +54,7 @@ var _ IMcmsDeployer = (*McmsDeployerContract)(nil)
 var _ IMcmsDeployerDevInspect = (*McmsDeployerDevInspect)(nil)
 
 func NewMcmsDeployer(packageID string, client sui.ISuiAPI) (*McmsDeployerContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_deployer", client)
+	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_deployer", client, nil)
 	if err != nil {
 		return nil, err
 	}

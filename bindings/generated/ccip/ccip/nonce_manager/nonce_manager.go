@@ -59,7 +59,7 @@ var _ INonceManager = (*NonceManagerContract)(nil)
 var _ INonceManagerDevInspect = (*NonceManagerDevInspect)(nil)
 
 func NewNonceManager(packageID string, client sui.ISuiAPI) (*NonceManagerContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "nonce_manager", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip", "nonce_manager", client, nil)
 	if err != nil {
 		return nil, err
 	}

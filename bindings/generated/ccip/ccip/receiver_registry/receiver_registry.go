@@ -73,7 +73,7 @@ var _ IReceiverRegistry = (*ReceiverRegistryContract)(nil)
 var _ IReceiverRegistryDevInspect = (*ReceiverRegistryDevInspect)(nil)
 
 func NewReceiverRegistry(packageID string, client sui.ISuiAPI) (*ReceiverRegistryContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "receiver_registry", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip", "receiver_registry", client, nil)
 	if err != nil {
 		return nil, err
 	}

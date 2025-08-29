@@ -84,7 +84,7 @@ var _ IDummyReceiver = (*DummyReceiverContract)(nil)
 var _ IDummyReceiverDevInspect = (*DummyReceiverDevInspect)(nil)
 
 func NewDummyReceiver(packageID string, client sui.ISuiAPI) (*DummyReceiverContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_dummy_receiver", "dummy_receiver", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip_dummy_receiver", "dummy_receiver", client, nil)
 	if err != nil {
 		return nil, err
 	}

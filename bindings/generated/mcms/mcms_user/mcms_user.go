@@ -83,7 +83,7 @@ var _ IMcmsUser = (*McmsUserContract)(nil)
 var _ IMcmsUserDevInspect = (*McmsUserDevInspect)(nil)
 
 func NewMcmsUser(packageID string, client sui.ISuiAPI) (*McmsUserContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "mcms_test", "mcms_user", client)
+	contract, err := bind.NewBoundContract(packageID, "mcms_test", "mcms_user", client, nil)
 	if err != nil {
 		return nil, err
 	}

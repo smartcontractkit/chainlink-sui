@@ -65,7 +65,7 @@ var _ I{{toUpperCamel .Module}} = (*{{toUpperCamel .Module}}Contract)(nil)
 var _ I{{toUpperCamel .Module}}DevInspect = (*{{toUpperCamel .Module}}DevInspect)(nil)
 
 func New{{toUpperCamel .Module}}(packageID string, client sui.ISuiAPI) (*{{toUpperCamel .Module}}Contract, error) {
-	contract, err := bind.NewBoundContract(packageID, "{{.Package}}", "{{.Module}}", client)
+	contract, err := bind.NewBoundContract(packageID, "{{.Package}}", "{{.Module}}", client, nil)
 	if err != nil {
 		return nil, err
 	}

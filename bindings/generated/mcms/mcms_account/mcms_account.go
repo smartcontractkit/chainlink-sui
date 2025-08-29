@@ -74,7 +74,7 @@ var _ IMcmsAccount = (*McmsAccountContract)(nil)
 var _ IMcmsAccountDevInspect = (*McmsAccountDevInspect)(nil)
 
 func NewMcmsAccount(packageID string, client sui.ISuiAPI) (*McmsAccountContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_account", client)
+	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_account", client, nil)
 	if err != nil {
 		return nil, err
 	}

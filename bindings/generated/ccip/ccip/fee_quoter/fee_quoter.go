@@ -137,7 +137,7 @@ var _ IFeeQuoter = (*FeeQuoterContract)(nil)
 var _ IFeeQuoterDevInspect = (*FeeQuoterDevInspect)(nil)
 
 func NewFeeQuoter(packageID string, client sui.ISuiAPI) (*FeeQuoterContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", client, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -51,7 +51,7 @@ var _ ILink = (*LinkContract)(nil)
 var _ ILinkDevInspect = (*LinkDevInspect)(nil)
 
 func NewLink(packageID string, client sui.ISuiAPI) (*LinkContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "link", "link", client)
+	contract, err := bind.NewBoundContract(packageID, "link", "link", client, nil)
 	if err != nil {
 		return nil, err
 	}

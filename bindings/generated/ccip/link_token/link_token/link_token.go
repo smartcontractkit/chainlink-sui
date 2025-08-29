@@ -51,7 +51,7 @@ var _ ILinkToken = (*LinkTokenContract)(nil)
 var _ ILinkTokenDevInspect = (*LinkTokenDevInspect)(nil)
 
 func NewLinkToken(packageID string, client sui.ISuiAPI) (*LinkTokenContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "link_token", "link_token", client)
+	contract, err := bind.NewBoundContract(packageID, "link_token", "link_token", client, nil)
 	if err != nil {
 		return nil, err
 	}

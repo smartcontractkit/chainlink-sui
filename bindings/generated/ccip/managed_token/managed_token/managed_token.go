@@ -153,7 +153,7 @@ var _ IManagedToken = (*ManagedTokenContract)(nil)
 var _ IManagedTokenDevInspect = (*ManagedTokenDevInspect)(nil)
 
 func NewManagedToken(packageID string, client sui.ISuiAPI) (*ManagedTokenContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "managed_token", "managed_token", client)
+	contract, err := bind.NewBoundContract(packageID, "managed_token", "managed_token", client, nil)
 	if err != nil {
 		return nil, err
 	}

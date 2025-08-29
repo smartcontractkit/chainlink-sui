@@ -106,7 +106,7 @@ var _ IStateObject = (*StateObjectContract)(nil)
 var _ IStateObjectDevInspect = (*StateObjectDevInspect)(nil)
 
 func NewStateObject(packageID string, client sui.ISuiAPI) (*StateObjectContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "state_object", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip", "state_object", client, nil)
 	if err != nil {
 		return nil, err
 	}

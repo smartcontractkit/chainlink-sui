@@ -76,7 +76,7 @@ var _ IGenerics = (*GenericsContract)(nil)
 var _ IGenericsDevInspect = (*GenericsDevInspect)(nil)
 
 func NewGenerics(packageID string, client sui.ISuiAPI) (*GenericsContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "test", "generics", client)
+	contract, err := bind.NewBoundContract(packageID, "test", "generics", client, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -50,7 +50,7 @@ var _ IMockLinkToken = (*MockLinkTokenContract)(nil)
 var _ IMockLinkTokenDevInspect = (*MockLinkTokenDevInspect)(nil)
 
 func NewMockLinkToken(packageID string, client sui.ISuiAPI) (*MockLinkTokenContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "mock_link_token", "mock_link_token", client)
+	contract, err := bind.NewBoundContract(packageID, "mock_link_token", "mock_link_token", client, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -50,7 +50,7 @@ var _ IMockEthToken = (*MockEthTokenContract)(nil)
 var _ IMockEthTokenDevInspect = (*MockEthTokenDevInspect)(nil)
 
 func NewMockEthToken(packageID string, client sui.ISuiAPI) (*MockEthTokenContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "mock_eth_token", "mock_eth_token", client)
+	contract, err := bind.NewBoundContract(packageID, "mock_eth_token", "mock_eth_token", client, nil)
 	if err != nil {
 		return nil, err
 	}

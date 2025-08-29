@@ -166,7 +166,7 @@ var _ IOnramp = (*OnrampContract)(nil)
 var _ IOnrampDevInspect = (*OnrampDevInspect)(nil)
 
 func NewOnramp(packageID string, client sui.ISuiAPI) (*OnrampContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "onramp", client)
+	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "onramp", client, nil)
 	if err != nil {
 		return nil, err
 	}

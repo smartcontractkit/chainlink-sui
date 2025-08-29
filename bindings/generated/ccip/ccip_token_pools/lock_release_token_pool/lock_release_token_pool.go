@@ -183,7 +183,7 @@ var _ ILockReleaseTokenPool = (*LockReleaseTokenPoolContract)(nil)
 var _ ILockReleaseTokenPoolDevInspect = (*LockReleaseTokenPoolDevInspect)(nil)
 
 func NewLockReleaseTokenPool(packageID string, client sui.ISuiAPI) (*LockReleaseTokenPoolContract, error) {
-	contract, err := bind.NewBoundContract(packageID, "lock_release_token_pool", "lock_release_token_pool", client)
+	contract, err := bind.NewBoundContract(packageID, "lock_release_token_pool", "lock_release_token_pool", client, nil)
 	if err != nil {
 		return nil, err
 	}
