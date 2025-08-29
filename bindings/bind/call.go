@@ -321,7 +321,7 @@ func parseVersionString(version string) (uint64, error) {
 // AppendPTB adds an EncodedCall to an existing PTB and returns the result argument
 func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *transaction.Transaction, encoded *EncodedCall) (*transaction.Argument, error) {
 
-	c.lggr.Info("APPENDING PTB FOR EXECUTE", opts.ObjectResolver)
+	c.lggr.Info("APPENDING PTB FOR EXECUTE", opts.ObjectResolver, c.moduleName, c.packageName)
 	if opts.ObjectResolver == nil {
 		opts.ObjectResolver = NewObjectResolver(c.client)
 	}
@@ -386,7 +386,7 @@ func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *tran
 		}
 	}
 
-	c.lggr.Info("RUNNING MOVECALL EXECUTE")
+	c.lggr.Info("RUNNING MOVECALL EXECUTE", models.SuiAddress(encoded.Module.PackageID), encoded.Module.ModuleName, encoded.Function, typeTagValues, argumentValues)
 	arg := ptb.MoveCall(
 		models.SuiAddress(encoded.Module.PackageID),
 		encoded.Module.ModuleName,
@@ -395,6 +395,7 @@ func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *tran
 		argumentValues,
 	)
 
+	c.lggr.Info("RUNNING MOVECALL EXECUTE COMPLETE", arg)
 	return &arg, nil
 }
 
