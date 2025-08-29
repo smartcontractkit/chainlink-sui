@@ -521,9 +521,12 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
 	}
 
+	lggr.Info("APPENDPTB CALL COMPLETED:")
+
 	// Append extra args to the paramValues for the receiver call.
 	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
 	if !ok {
+		lggr.Info("RECIEVEROBJECTIDS NOT FOUND")
 		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
 	}
 	extraArgsValues := receiverObjectIds.([][]byte)
