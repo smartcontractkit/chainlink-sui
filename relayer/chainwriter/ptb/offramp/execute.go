@@ -506,9 +506,10 @@ func AppendPTBCommandForReceiver(
 
 	lggr.Info("Encoded callargs with generics")
 
-	lggr.Info("ABOUT TO CALL APPENDPTB EXECUTE", ptb.Data, encodedAny2SuiExtractCall.Function)
-
-	fmt.Printf("offrampStateHelperContract type: %T\n", offrampStateHelperContract)
+	lggr.Infow("offrampStateHelperContract state",
+		"type", fmt.Sprintf("%T", offrampStateHelperContract),
+		"isNil", offrampStateHelperContract == nil,
+	)
 
 	extractedAny2SuiMessageResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedAny2SuiExtractCall)
 	if err != nil {

@@ -318,6 +318,11 @@ func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *tran
 		return nil, err
 	}
 
+	lggr.Infow(">>> ENTERED AppendPTB <<<",
+		"numCallArgs", len(encoded.CallArgs),
+		"hasPTBData", ptb.Data,
+	)
+
 	lggr.Info("APPENDING PTB FOR EXECUTE", opts.ObjectResolver)
 	if opts.ObjectResolver == nil {
 		opts.ObjectResolver = NewObjectResolver(c.client)
