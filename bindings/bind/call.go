@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -212,7 +211,7 @@ func (c *BoundContract) ExecuteTransaction(ctx context.Context, opts *CallOpts, 
 
 	ptb := transaction.NewTransaction()
 	// Add the encoded call to the PTB
-	_, err := c.AppendPTB(opts, ptb, encoded)
+	_, err := c.AppendPTB(ctx, opts, ptb, encoded)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add encoded call to PTB: %w", err)
 	}
@@ -313,7 +312,7 @@ func parseVersionString(version string) (uint64, error) {
 }
 
 // AppendPTB adds an EncodedCall to an existing PTB and returns the result argument
-func (c *BoundContract) AppendPTB(opts *CallOpts, ptb *transaction.Transaction, encoded *EncodedCall) (*transaction.Argument, error) {
+func (c *BoundContract) AppendPTB(ctx context.Context, opts *CallOpts, ptb *transaction.Transaction, encoded *EncodedCall) (*transaction.Argument, error) {
 	lggr, _ := logger.New()
 	if lggr == nil {
 		// last resort so you still get *something*
@@ -337,9 +336,7 @@ func (c *BoundContract) AppendPTB(opts *CallOpts, ptb *transaction.Transaction, 
 		if encArg.IsArgument() {
 			resolvedEncodedArgs[i] = encArg
 		} else if encArg.IsCallArg() {
-			ctxResolve, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			resolved, resolveErr := opts.ObjectResolver.ResolveCallArg(ctxResolve, encArg.CallArg, encArg.TypeName)
+			resolved, resolveErr := opts.ObjectResolver.ResolveCallArg(ctx, encArg.CallArg, encArg.TypeName)
 			if resolveErr != nil {
 				lggr.Info("FAILED TO RESOLVE CALLARG EXECUTE", resolveErr)
 				return nil, fmt.Errorf("failed to resolve CallArg at index %d: %w", i, resolveErr)

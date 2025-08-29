@@ -5,6 +5,7 @@ import (
 
 	"github.com/block-vision/sui-go-sdk/transaction"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 )
 
@@ -70,6 +71,14 @@ func (c *BoundContract) EncodeCallArgsWithReturnTypes(function string, typeArgs 
 
 // EncodeCallArgsWithGenerics encodes function parameters with full generic type information
 func (c *BoundContract) EncodeCallArgsWithGenerics(function string, typeArgs []string, typeParams []string, paramTypes []string, paramValues []any, returnTypes []string) (*EncodedCall, error) {
+	lggr, _ := logger.New()
+	if lggr == nil {
+		// last resort so you still get *something*
+		tmp, _ := logger.New()
+		lggr = tmp
+	}
+	lggr.Info("ENTERED ENCODECALLARGSWITHGENERICS")
+
 	if len(paramTypes) != len(paramValues) {
 		return nil, fmt.Errorf("paramTypes and paramValues must have the same length")
 	}

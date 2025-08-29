@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -127,7 +126,7 @@ func BuildOffRampExecutePTB(
 		return fmt.Errorf("failed to encode move call (init_execute) using bindings: %w", err)
 	}
 
-	initExecuteResult, err := offrampContract.AppendPTB(callOpts, ptb, encodedInitExecute)
+	initExecuteResult, err := offrampContract.AppendPTB(ctx, callOpts, ptb, encodedInitExecute)
 	if err != nil {
 		return fmt.Errorf("failed to build PTB (init_execute) using bindings: %w", err)
 	}
@@ -177,7 +176,7 @@ func BuildOffRampExecutePTB(
 
 	lggr.Info("finished processing encodedFinishExecute")
 
-	_, err = offrampContract.AppendPTB(callOpts, ptb, encodedFinishExecute)
+	_, err = offrampContract.AppendPTB(ctx, callOpts, ptb, encodedFinishExecute)
 	if err != nil {
 		return fmt.Errorf("failed to build PTB (finish_execute) using bindings: %w", err)
 	}
@@ -308,7 +307,7 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to encode get_token_param_data call: %w", err)
 	}
 
-	getTokenParamDataCommandResult, err := offrampStateHelperContract.AppendPTB(callOpts, ptb, encodedGetTokenParamDataCall)
+	getTokenParamDataCommandResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedGetTokenParamDataCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
 	}
@@ -354,7 +353,7 @@ func AppendPTBCommandForTokenPool(
 		return nil, fmt.Errorf("failed to encode token pool call: %w", err)
 	}
 
-	tokenPoolCommandResult, err := poolBoundContract.AppendPTB(callOpts, ptb, encodedTokenPoolCall)
+	tokenPoolCommandResult, err := poolBoundContract.AppendPTB(ctx, callOpts, ptb, encodedTokenPoolCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (token pool call) using bindings: %w", err)
 	}
@@ -513,13 +512,8 @@ func AppendPTBCommandForReceiver(
 	)
 	deadline, has := ctx.Deadline()
 	lggr.Infow("ctx before AppendPTB", "err", ctx.Err(), "hasDeadline", has, "deadline", deadline)
-	t := reflect.TypeOf(offrampStateHelperContract) // *bind.BoundContract
-	lggr.Infow("BoundContract type",
-		"type", fmt.Sprintf("%T", offrampStateHelperContract),
-		"pkgPath", t.Elem().PkgPath(),
-	)
 
-	extractedAny2SuiMessageResult, err := offrampStateHelperContract.AppendPTB(callOpts, ptb, encodedAny2SuiExtractCall)
+	extractedAny2SuiMessageResult, err := offrampStateHelperContract.AppendPTB(ctx, callOpts, ptb, encodedAny2SuiExtractCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (get_token_param_data) using bindings: %w", err)
 	}
@@ -578,7 +572,7 @@ func AppendPTBCommandForReceiver(
 
 	lggr.Info("Encoded reciever call with generics")
 
-	receiverCommandResult, err := boundReceiverContract.AppendPTB(callOpts, ptb, encodedReceiverCall)
+	receiverCommandResult, err := boundReceiverContract.AppendPTB(ctx, callOpts, ptb, encodedReceiverCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (receiver call) using bindings: %w", err)
 	}
