@@ -36,7 +36,6 @@ const EUnauthorized: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
 const EInvalidStateAddress: u64 = 6;
-const EInvalidRegistryAddress: u64 = 7;
 
 // ================================================================
 // |                             Init                             |
@@ -569,8 +568,7 @@ public fun mcms_accept_ownership<T>(
     assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    let state_address = bcs_stream::deserialize_address(&mut stream);
-    assert!(state_address == object::id_address(state), EInvalidStateAddress);
+    bcs_helper::validate_obj_addr(object::id_address(state), &mut stream);
 
     let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
