@@ -57,19 +57,21 @@ var initFQHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input InitFeeQ
 		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
 	}
 
-	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterCap")
-	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterState")
-
-	if err1 != nil || err2 != nil {
-		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
+	feeQuoterCapObjectId, err1 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterCap")
+	if err1 != nil {
+		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to find fee quoter cap object ID in tx: %w", err1)
+	}
+	feeQuoterStateObjectId, err2 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterState")
+	if err2 != nil {
+		return sui_ops.OpTxResult[InitFeeQuoterObjects]{}, fmt.Errorf("failed to find fee quoter state object ID in tx: %w", err2)
 	}
 
 	return sui_ops.OpTxResult[InitFeeQuoterObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects: InitFeeQuoterObjects{
-			FeeQuoterCapObjectId:   obj1,
-			FeeQuoterStateObjectId: obj2,
+			FeeQuoterCapObjectId:   feeQuoterCapObjectId,
+			FeeQuoterStateObjectId: feeQuoterStateObjectId,
 		},
 	}, err
 }

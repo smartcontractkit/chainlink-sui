@@ -504,6 +504,30 @@ public fun apply_token_transfer_fee_config_updates(
     });
 }
 
+public fun update_prices_with_owner_cap(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    clock: &clock::Clock,
+    source_tokens: vector<address>,
+    source_usd_per_token: vector<u256>,
+    gas_dest_chain_selectors: vector<u64>,
+    gas_usd_per_unit_gas: vector<u256>,
+    ctx: &mut TxContext,
+) {
+    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    update_prices(
+        ref,
+        &fee_quoter_cap,
+        clock,
+        source_tokens,
+        source_usd_per_token,
+        gas_dest_chain_selectors,
+        gas_usd_per_unit_gas,
+        ctx,
+    );
+    destroy_fee_quoter_cap(owner_cap, fee_quoter_cap);
+}
+
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
 public fun update_prices(
     ref: &mut CCIPObjectRef,
@@ -1625,8 +1649,7 @@ public fun create_fee_quoter_cap(ctx: &mut TxContext): FeeQuoterCap {
     }
 }
 
-#[test_only]
-public fun destroy_fee_quoter_cap(cap: FeeQuoterCap) {
+public fun destroy_fee_quoter_cap(_: &OwnerCap, cap: FeeQuoterCap) {
     let FeeQuoterCap { id } = cap;
     object::delete(id);
 }
