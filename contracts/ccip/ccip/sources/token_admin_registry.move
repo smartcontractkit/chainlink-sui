@@ -701,3 +701,12 @@ public fun get_pending_admin_transfer(
     let token_config = state.token_configs.borrow(coin_metadata_address);
     (token_config.administrator, token_config.pending_administrator)
 }
+
+#[test_only]
+public fun test_mcms_register_entrypoint(
+    owner_cap: OwnerCap,
+    registry: &mut Registry,
+    ctx: &mut TxContext,
+) {
+    mcms_registry::register_entrypoint(registry, McmsCallback {}, owner_cap, ctx);
+}
