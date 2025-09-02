@@ -102,7 +102,7 @@ public fun test_create_token_transfer_params() {
         source_token,
         dest_token,
         extra_data,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params, 0);
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params);
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);
@@ -202,13 +202,11 @@ public fun test_get_remote_chain_selector() {
     // Test retrieving the remote chain selectors
     let (remote_chain1, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params1,
-        0,
     );
     assert!(remote_chain1 == DESTINATION_CHAIN_SELECTOR);
 
     let (remote_chain2, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params2,
-        0,
     );
     assert!(remote_chain2 == different_chain);
 
@@ -259,7 +257,7 @@ public fun test_create_and_verify_token_transfer() {
         source_token_address,
         dest_token_address,
         extra_data,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params, 0);
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params);
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);
@@ -307,13 +305,14 @@ public fun test_multiple_token_transfers() {
         scenario.ctx(),
     );
 
-    // Create token transfer params with both transfers
-    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
+    // Create separate token transfer params for each transfer
+    let mut token_params1 = onramp_state_helper::create_token_transfer_params(@0x456);
+    let mut token_params2 = onramp_state_helper::create_token_transfer_params(@0x456);
 
     // Add first token transfer
     onramp_state_helper::add_token_transfer_param<TestTypeProof>(
         &ref,
-        &mut token_params,
+        &mut token_params1,
         DESTINATION_CHAIN_SELECTOR,
         1000,
         TOKEN_ADDRESS_1,
@@ -325,7 +324,7 @@ public fun test_multiple_token_transfers() {
     // Add second token transfer
     onramp_state_helper::add_token_transfer_param<TestTypeProof2>(
         &ref,
-        &mut token_params,
+        &mut token_params2,
         DESTINATION_CHAIN_SELECTOR,
         2000,
         TOKEN_ADDRESS_2,
@@ -342,7 +341,7 @@ public fun test_multiple_token_transfers() {
         source_token_address1,
         dest_token_address1,
         extra_data1,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params, 0);
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params1);
 
     assert!(remote_chain1 == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id1 == @0x1);
@@ -359,7 +358,7 @@ public fun test_multiple_token_transfers() {
         source_token_address2,
         dest_token_address2,
         extra_data2,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params, 1);
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params2);
 
     assert!(remote_chain2 == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id2 == @0x2);
@@ -369,7 +368,8 @@ public fun test_multiple_token_transfers() {
     assert!(extra_data2 == b"extra_data_2");
 
     // Clean up
-    onramp_state_helper::deconstruct_token_params(&source_cap, token_params);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params1);
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params2);
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 
@@ -426,7 +426,7 @@ public fun test_get_source_token_transfer_data() {
         source_token_address,
         dest_token_address,
         extra_data,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params, 0);
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params);
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);
@@ -476,7 +476,6 @@ public fun test_edge_case_large_amounts() {
 
     let (_, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params,
-        0,
     );
 
     assert!(amount == max_amount);
@@ -526,7 +525,7 @@ public fun test_edge_case_empty_data() {
         _,
         dest_token_address,
         extra_data,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params, 0);
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params);
 
     assert!(dest_token_address == vector<u8>[]);
     assert!(extra_data == vector<u8>[]);
@@ -560,11 +559,11 @@ public fun test_different_destination_chains() {
     let chains = vector[1, 100, 1000, 999999];
     let mut i = 0;
 
-    // Create single token params object and add all transfers
-    let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
-
+    // Create separate token params objects for each chain
     while (i < chains.length()) {
         let chain = chains[i];
+        let mut token_params = onramp_state_helper::create_token_transfer_params(@0x456);
+
         onramp_state_helper::add_token_transfer_param<TestTypeProof>(
             &ref,
             &mut token_params,
@@ -578,15 +577,14 @@ public fun test_different_destination_chains() {
 
         let (remote_chain, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
             &token_params,
-            i,
         );
         assert!(remote_chain == chain);
 
+        // Clean up this token params
+        onramp_state_helper::deconstruct_token_params(&source_cap, token_params);
+
         i = i + 1;
     };
-
-    // Clean up all token params
-    onramp_state_helper::deconstruct_token_params(&source_cap, token_params);
 
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
@@ -625,7 +623,6 @@ public fun test_zero_amount_transfer() {
 
     let (_, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params,
-        0,
     );
 
     assert!(amount == 0);
@@ -677,7 +674,7 @@ public fun test_source_transfer_cap_permission() {
         source_token_address,
         dest_token_address,
         extra_data,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params, 0);
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params);
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);

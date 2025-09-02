@@ -8,22 +8,24 @@ use std::ascii;
 use std::type_name;
 use sui::address;
 
-const EWrongIndexInReceiverParams: u64 = 1;
-const ENoMessageToExtract: u64 = 2;
-const ETypeProofMismatch: u64 = 3;
-const ECCIPReceiveFailed: u64 = 4;
-const EWrongNumberOfCompletedTransfers: u64 = 5;
-const ETokenTransferMismatch: u64 = 6;
+const ENoMessageToExtract: u64 = 1;
+const ETypeProofMismatch: u64 = 2;
+const ECCIPReceiveFailed: u64 = 3;
+const ETokenTransferMismatch: u64 = 4;
+const ETokenTransferAlreadyExists: u64 = 5;
+const ETokenTransferDoesNotExist: u64 = 6;
+const ETokenTransferAlreadyCompleted: u64 = 7;
+const EWrongReceiptAndTokenTransfer: u64 = 8;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
 public struct ReceiverParams {
     // if this CCIP message contains token transfers, this vector will be non-empty.
-    params: vector<DestTokenTransfer>,
+    token_transfer: Option<DestTokenTransfer>,
     // if this CCIP message needs to call a function on the receiver, this will be populated.
     message: Option<Any2SuiMessage>,
     source_chain_selector: u64,
-    receipts: vector<CompletedDestTokenTransfer>,
+    receipt: Option<CompletedDestTokenTransfer>,
 }
 
 /// the cap to be stored in the offramp state to control the updates to ReceiverParams
@@ -32,13 +34,12 @@ public struct DestTransferCap has key, store {
 }
 
 public struct CompletedDestTokenTransfer {
-    token_pool_id: ID,
-    receiver: address,
+    token_receiver: address,
     dest_token_address: address,
 }
 
 public struct DestTokenTransfer has copy, drop {
-    receiver: address,
+    token_receiver: address,
     remote_chain_selector: u64,
     // the amount of token to transfer, denoted from the source chain
     source_amount: u64,
@@ -62,10 +63,10 @@ fun init(_witness: OFFRAMP_STATE_HELPER, ctx: &mut TxContext) {
 
 public fun create_receiver_params(_: &DestTransferCap, source_chain_selector: u64): ReceiverParams {
     ReceiverParams {
-        params: vector[],
+        token_transfer: option::none(),
         message: option::none(),
         source_chain_selector,
-        receipts: vector[],
+        receipt: option::none(),
     }
 }
 
@@ -78,7 +79,7 @@ public fun get_source_chain_selector(receiver_params: &ReceiverParams): u64 {
 public fun add_dest_token_transfer(
     _: &DestTransferCap,
     receiver_params: &mut ReceiverParams,
-    receiver: address,
+    token_receiver: address,
     remote_chain_selector: u64,
     source_amount: u64,
     dest_token_address: address,
@@ -87,10 +88,12 @@ public fun add_dest_token_transfer(
     source_pool_data: vector<u8>,
     offchain_data: vector<u8>,
 ) {
+    assert!(receiver_params.token_transfer.is_none(), ETokenTransferAlreadyExists);
+
     receiver_params
-        .params
-        .push_back(DestTokenTransfer {
-            receiver,
+        .token_transfer
+        .fill(DestTokenTransfer {
+            token_receiver: token_receiver,
             remote_chain_selector,
             source_amount,
             dest_token_address,
@@ -113,7 +116,7 @@ public fun populate_message(
 }
 
 public fun create_dest_token_transfer(
-    receiver: address,
+    token_receiver: address,
     remote_chain_selector: u64,
     source_amount: u64,
     dest_token_address: address,
@@ -123,7 +126,7 @@ public fun create_dest_token_transfer(
     offchain_token_data: vector<u8>,
 ): DestTokenTransfer {
     DestTokenTransfer {
-        receiver,
+        token_receiver,
         remote_chain_selector,
         source_amount,
         dest_token_address,
@@ -135,38 +138,31 @@ public fun create_dest_token_transfer(
 }
 
 public fun get_dest_token_transfer_data(
-    d: DestTokenTransfer,
-): (address, u64, u64, address, address, vector<u8>, vector<u8>, vector<u8>) {
-    (
-        d.receiver,
-        d.remote_chain_selector,
-        d.source_amount,
-        d.dest_token_address,
-        d.dest_token_pool_package_id,
-        d.source_pool_address,
-        d.source_pool_data,
-        d.offchain_token_data,
-    )
-}
-
-public fun get_dest_token_transfer(
     receiver_params: &ReceiverParams,
-    index: u64,
-): DestTokenTransfer {
-    assert!(index < receiver_params.params.length(), EWrongIndexInReceiverParams);
+): (address, u64, u64, address, address, vector<u8>, vector<u8>, vector<u8>) {
+    assert!(receiver_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
 
-    receiver_params.params[index]
+    let token_transfer = receiver_params.token_transfer.borrow();
+    (
+        token_transfer.token_receiver,
+        token_transfer.remote_chain_selector,
+        token_transfer.source_amount,
+        token_transfer.dest_token_address,
+        token_transfer.dest_token_pool_package_id,
+        token_transfer.source_pool_address,
+        token_transfer.source_pool_data,
+        token_transfer.offchain_token_data,
+    )
 }
 
 public fun get_token_param_data(
     receiver_params: &ReceiverParams,
-    index: u64,
 ): (address, u64, address, vector<u8>, vector<u8>, vector<u8>) {
-    assert!(index < receiver_params.params.length(), EWrongIndexInReceiverParams);
-    let token_param = receiver_params.params[index];
+    assert!(receiver_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
+    let token_param = receiver_params.token_transfer.borrow();
 
     (
-        token_param.receiver,
+        token_param.token_receiver,
         token_param.source_amount,
         token_param.dest_token_address,
         token_param.source_pool_address,
@@ -180,9 +176,8 @@ public fun get_token_param_data(
 public fun complete_token_transfer<TypeProof: drop>(
     ref: &CCIPObjectRef,
     receiver_params: &mut ReceiverParams,
-    receiver: address,
+    token_receiver: address,
     dest_token_address: address,
-    token_pool_id: ID,
     _: TypeProof,
 ) {
     let token_config = registry::get_token_config(ref, dest_token_address);
@@ -193,12 +188,12 @@ public fun complete_token_transfer<TypeProof: drop>(
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
     let receipt = CompletedDestTokenTransfer {
-        token_pool_id: token_pool_id,
-        receiver: receiver,
+        token_receiver: token_receiver,
         dest_token_address: dest_token_address,
     };
 
-    receiver_params.receipts.push_back(receipt);
+    assert!(receiver_params.receipt.is_none(), ETokenTransferAlreadyCompleted);
+    receiver_params.receipt.fill(receipt);
 }
 
 public fun extract_any2sui_message(receiver_params: &mut ReceiverParams): Any2SuiMessage {
@@ -228,29 +223,32 @@ public fun consume_any2sui_message<TypeProof: drop>(
 /// in receiver params is empty.
 public fun deconstruct_receiver_params(_: &DestTransferCap, receiver_params: ReceiverParams) {
     let ReceiverParams {
-        mut params,
+        token_transfer: mut token_transfer_op,
         message: message_op,
         source_chain_selector: _,
-        receipts: mut completed_transfers,
+        receipt: mut receipt_op,
     } = receiver_params;
 
     // make sure all token transfers are completed
-    assert!(completed_transfers.length() == params.length(), EWrongNumberOfCompletedTransfers);
-    while (!completed_transfers.is_empty()) {
-        let completed_transfer = completed_transfers.pop_back();
+    assert!(
+        token_transfer_op.is_none() && receipt_op.is_none() || (token_transfer_op.is_some() && receipt_op.is_some()),
+        EWrongReceiptAndTokenTransfer,
+    );
+    if (token_transfer_op.is_some()) {
+        let token_transfer = token_transfer_op.extract();
+        let receipt = receipt_op.extract();
         let CompletedDestTokenTransfer {
-            token_pool_id: _,
-            receiver,
+            token_receiver,
             dest_token_address,
-        } = completed_transfer;
-        let token_transfer = params.pop_back();
+        } = receipt;
         assert!(
-            receiver == token_transfer.receiver &&
+            token_receiver == token_transfer.token_receiver &&
             dest_token_address == token_transfer.dest_token_address,
             ETokenTransferMismatch,
         );
     };
-    completed_transfers.destroy_empty();
+    receipt_op.destroy_none();
+    token_transfer_op.destroy_none();
 
     // make sure the any2sui message is extracted
     assert!(message_op.is_none(), ECCIPReceiveFailed);
@@ -265,48 +263,21 @@ public fun test_init(ctx: &mut TxContext) {
 }
 
 #[test_only]
-public fun deconstruct_receiver_params_for_test(
-    _: &DestTransferCap,
-    receiver_params: ReceiverParams,
-) {
-    let ReceiverParams {
-        params: _,
-        message: message_op,
-        source_chain_selector: _,
-        receipts: mut r,
-    } = receiver_params;
-
-    while (r.is_empty() == false) {
-        let completed_transfer = r.pop_back();
-        let CompletedDestTokenTransfer {
-            token_pool_id: _,
-            receiver: _,
-            dest_token_address: _,
-        } = completed_transfer;
-    };
-
-    assert!(message_op.is_none(), ECCIPReceiveFailed);
-    message_op.destroy_none();
-    r.destroy_empty();
-}
-
-#[test_only]
 public fun deconstruct_receiver_params_with_message_for_test(
     _: &DestTransferCap,
     receiver_params: ReceiverParams,
 ) {
     let ReceiverParams {
-        params: _,
+        token_transfer: _,
         message: mut message_op,
         source_chain_selector: _,
-        receipts: mut r,
+        receipt: mut r,
     } = receiver_params;
 
-    while (r.is_empty() == false) {
-        let completed_transfer = r.pop_back();
+    if (r.is_some()) {
+        let completed_transfer = r.extract();
         let CompletedDestTokenTransfer {
-            token_pool_id: _,
-            receiver: _,
+            token_receiver: _,
             dest_token_address: _,
         } = completed_transfer;
     };
@@ -316,5 +287,5 @@ public fun deconstruct_receiver_params_with_message_for_test(
         client::consume_any2sui_message(message);
     };
     message_op.destroy_none();
-    r.destroy_empty();
+    r.destroy_none();
 }

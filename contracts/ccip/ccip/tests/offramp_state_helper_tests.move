@@ -137,7 +137,7 @@ public fun test_add_dest_token_transfer() {
         source_pool_address,
         source_pool_data,
         offchain_data,
-    ) = offramp_state_helper::get_token_param_data(&receiver_params, 0);
+    ) = offramp_state_helper::get_token_param_data(&receiver_params);
 
     assert!(receiver == RECEIVER_ADDRESS);
     assert!(source_amount == 1000);
@@ -147,110 +147,11 @@ public fun test_add_dest_token_transfer() {
     assert!(offchain_data == b"offchain_data");
 
     // This will fail but we need to call it to consume receiver_params
-    offramp_state_helper::deconstruct_receiver_params_for_test(&dest_cap, receiver_params);
-
-    cleanup_test(scenario, owner_cap, ref, dest_cap);
-}
-
-#[test]
-public fun test_add_multiple_dest_token_transfers() {
-    let (scenario, owner_cap, ref, dest_cap) = setup_test();
-
-    let mut receiver_params = offramp_state_helper::create_receiver_params(
+    offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
         &dest_cap,
-        SOURCE_CHAIN_SELECTOR,
+        receiver_params,
     );
 
-    // Add first token transfer
-    offramp_state_helper::add_dest_token_transfer(
-        &dest_cap,
-        &mut receiver_params,
-        RECEIVER_ADDRESS,
-        SOURCE_CHAIN_SELECTOR, // remote_chain_selector
-        1000,
-        TOKEN_ADDRESS_1,
-        TOKEN_POOL_ADDRESS_1,
-        b"source_pool_1",
-        b"pool_data_1",
-        b"offchain_1",
-    );
-
-    // Add second token transfer
-    offramp_state_helper::add_dest_token_transfer(
-        &dest_cap,
-        &mut receiver_params,
-        RECEIVER_ADDRESS,
-        SOURCE_CHAIN_SELECTOR, // remote_chain_selector
-        2000,
-        TOKEN_ADDRESS_2,
-        TOKEN_POOL_ADDRESS_2,
-        b"source_pool_2",
-        b"pool_data_2",
-        b"offchain_2",
-    );
-
-    // Verify first transfer
-    let (
-        receiver1,
-        source_amount1,
-        dest_token_address1,
-        source_pool_address1,
-        source_pool_data1,
-        offchain_data1,
-    ) = offramp_state_helper::get_token_param_data(&receiver_params, 0);
-
-    assert!(receiver1 == RECEIVER_ADDRESS);
-    assert!(source_amount1 == 1000);
-    assert!(dest_token_address1 == TOKEN_ADDRESS_1);
-    assert!(source_pool_address1 == b"source_pool_1");
-    assert!(source_pool_data1 == b"pool_data_1");
-    assert!(offchain_data1 == b"offchain_1");
-
-    // Verify second transfer
-    let (
-        receiver2,
-        source_amount2,
-        dest_token_address2,
-        source_pool_address2,
-        source_pool_data2,
-        offchain_data2,
-    ) = offramp_state_helper::get_token_param_data(&receiver_params, 1);
-
-    assert!(receiver2 == RECEIVER_ADDRESS);
-    assert!(source_amount2 == 2000);
-    assert!(dest_token_address2 == TOKEN_ADDRESS_2);
-    assert!(source_pool_address2 == b"source_pool_2");
-    assert!(source_pool_data2 == b"pool_data_2");
-    assert!(offchain_data2 == b"offchain_2");
-
-    // We need to consume the receiver_params with incomplete transfers
-    // This will fail but we need to call it to consume receiver_params
-    offramp_state_helper::deconstruct_receiver_params_for_test(&dest_cap, receiver_params);
-
-    cleanup_test(scenario, owner_cap, ref, dest_cap);
-}
-
-#[test]
-#[expected_failure(abort_code = offramp_state_helper::EWrongIndexInReceiverParams)]
-public fun test_get_token_param_data_wrong_index() {
-    let (scenario, owner_cap, ref, dest_cap) = setup_test();
-
-    let receiver_params = offramp_state_helper::create_receiver_params(
-        &dest_cap,
-        SOURCE_CHAIN_SELECTOR,
-    );
-
-    // Try to access index 0 when no transfers have been added
-    let (
-        _receiver,
-        _source_amount,
-        _dest_token_address,
-        _source_pool_address,
-        _source_pool_data,
-        _offchain_data,
-    ) = offramp_state_helper::get_token_param_data(&receiver_params, 0);
-
-    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
 
@@ -325,16 +226,13 @@ public fun test_complete_token_transfer() {
 
     // Create a test coin to transfer
     let test_coin = coin::mint_for_testing<TestToken>(500, scenario.ctx());
-    let id = object::id(&test_coin);
 
-    // let local_amount = coin::value(&test_coin);
     // Complete the token transfer
     offramp_state_helper::complete_token_transfer(
         &ref,
         &mut receiver_params,
         RECEIVER_ADDRESS,
         TOKEN_ADDRESS_1,
-        id,
         TestTypeProof {},
     );
 
@@ -395,6 +293,313 @@ public fun test_deconstruct_receiver_params_empty() {
 
     // Should succeed with no token transfers and no message
     offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ENoMessageToExtract)]
+public fun test_extract_message_when_none_exists() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Try to extract message when none exists - should fail
+    let message = offramp_state_helper::extract_any2sui_message(&mut receiver_params);
+
+    // This should never be reached - consume the message to avoid drop error
+    let (_, _, _, _, _) = client::consume_any2sui_message(message);
+    offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
+        &dest_cap,
+        receiver_params,
+    );
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ETokenTransferAlreadyExists)]
+public fun test_add_token_transfer_when_already_exists() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Add first token transfer
+    offramp_state_helper::add_dest_token_transfer(
+        &dest_cap,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        SOURCE_CHAIN_SELECTOR,
+        1000,
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        b"source_pool_address",
+        b"source_pool_data",
+        b"offchain_data",
+    );
+
+    // Try to add second token transfer - should fail
+    offramp_state_helper::add_dest_token_transfer(
+        &dest_cap,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        SOURCE_CHAIN_SELECTOR,
+        2000,
+        TOKEN_ADDRESS_2,
+        TOKEN_POOL_ADDRESS_2,
+        b"source_pool_address_2",
+        b"source_pool_data_2",
+        b"offchain_data_2",
+    );
+
+    // This should never be reached
+    offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
+        &dest_cap,
+        receiver_params,
+    );
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ETokenTransferDoesNotExist)]
+public fun test_get_token_param_data_when_none_exists() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Try to get token data when no token transfer exists - should fail
+    let (_, _, _, _, _, _) = offramp_state_helper::get_token_param_data(&receiver_params);
+
+    // This should never be reached
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ETokenTransferDoesNotExist)]
+public fun test_get_dest_token_transfer_data_when_none_exists() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Try to get dest token transfer data when none exists - should fail
+    let (_, _, _, _, _, _, _, _) = offramp_state_helper::get_dest_token_transfer_data(
+        &receiver_params,
+    );
+
+    // This should never be reached
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ETokenTransferAlreadyCompleted)]
+public fun test_complete_token_transfer_already_completed() {
+    let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
+
+    // Register a token
+    registry::register_pool_by_admin(
+        &mut ref,
+        state_object::create_ccip_admin_proof_for_test(),
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        string::utf8(b"test_pool"),
+        ascii::string(b"TestType"),
+        OWNER,
+        type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
+        scenario.ctx(),
+    );
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Add a token transfer
+    offramp_state_helper::add_dest_token_transfer(
+        &dest_cap,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        SOURCE_CHAIN_SELECTOR,
+        1000,
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        b"source_pool_address",
+        b"source_pool_data",
+        b"offchain_data",
+    );
+
+    // Complete the token transfer once
+    offramp_state_helper::complete_token_transfer(
+        &ref,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        TOKEN_ADDRESS_1,
+        TestTypeProof {},
+    );
+
+    // Try to complete it again - should fail
+    offramp_state_helper::complete_token_transfer(
+        &ref,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        TOKEN_ADDRESS_1,
+        TestTypeProof {},
+    );
+
+    // This should never be reached
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ETypeProofMismatch)]
+public fun test_complete_token_transfer_wrong_type_proof() {
+    let (mut scenario, owner_cap, mut ref, dest_cap) = setup_test();
+
+    // Register a token with TestTypeProof
+    registry::register_pool_by_admin(
+        &mut ref,
+        state_object::create_ccip_admin_proof_for_test(),
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        string::utf8(b"test_pool"),
+        ascii::string(b"TestType"),
+        OWNER,
+        type_name::into_string(type_name::get<TestTypeProof>()),
+        vector<address>[], // lock_or_burn_params
+        vector<address>[], // release_or_mint_params
+        scenario.ctx(),
+    );
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Add a token transfer
+    offramp_state_helper::add_dest_token_transfer(
+        &dest_cap,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        SOURCE_CHAIN_SELECTOR,
+        1000,
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        b"source_pool_address",
+        b"source_pool_data",
+        b"offchain_data",
+    );
+
+    // Try to complete with wrong type proof - should fail
+    offramp_state_helper::complete_token_transfer(
+        &ref,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        TOKEN_ADDRESS_1,
+        TestTypeProof2 {}, // Wrong type proof!
+    );
+
+    // This should never be reached
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ECCIPReceiveFailed)]
+public fun test_deconstruct_with_unextracted_message() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Add a message but don't extract it
+    let test_message = client::new_any2sui_message(
+        b"message_id_32_bytes_long_test_msg",
+        SOURCE_CHAIN_SELECTOR,
+        b"sender_address",
+        b"test_data",
+        vector[],
+    );
+    offramp_state_helper::populate_message(&dest_cap, &mut receiver_params, test_message);
+
+    // Try to deconstruct without extracting message - should fail
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::EWrongReceiptAndTokenTransfer)]
+public fun test_deconstruct_with_token_transfer_but_no_receipt() {
+    let (scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Add a token transfer but don't complete it (no receipt)
+    offramp_state_helper::add_dest_token_transfer(
+        &dest_cap,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        SOURCE_CHAIN_SELECTOR,
+        1000,
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        b"source_pool_address",
+        b"source_pool_data",
+        b"offchain_data",
+    );
+
+    // Try to deconstruct with token transfer but no receipt - should fail
+    offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
+
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = ccip::offramp_state_helper::ETypeProofMismatch)]
+public fun test_consume_message_wrong_type_proof() {
+    let (scenario, owner_cap, mut ref, dest_cap) = setup_test();
+
+    // Register a receiver with TestTypeProof
+    receiver_registry::register_receiver(
+        &mut ref,
+        TestTypeProof {},
+    );
+
+    // Create a test message
+    let test_message = client::new_any2sui_message(
+        b"message_id_32_bytes_long_test_msg",
+        SOURCE_CHAIN_SELECTOR,
+        b"sender_address",
+        b"test_data",
+        vector[],
+    );
+
+    // Try to consume with wrong type proof - should fail
+    let (_, _, _, _, _) = offramp_state_helper::consume_any2sui_message(
+        &ref,
+        test_message,
+        TestTypeProof2 {}, // Wrong type proof!
+    );
 
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
