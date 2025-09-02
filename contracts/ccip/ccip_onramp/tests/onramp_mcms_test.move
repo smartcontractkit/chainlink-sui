@@ -11,7 +11,6 @@ use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::bcs;
-use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
 
 const DEST_CHAIN_SELECTOR_1: u64 = 1;
@@ -101,27 +100,6 @@ fun initialize_onramp(
         vector[true, false], // dest_chain_allowlist_enabled
         ctx,
     );
-}
-
-fun mcms_register_upgrade_cap(env: &mut Env) {
-    let mut registry = ts::take_shared<Registry>(&env.scenario);
-    let mut deployer_state = ts::take_shared<mcms_deployer::DeployerState>(&env.scenario);
-
-    let upgrade_cap = package::test_publish(@ccip_onramp.to_id(), env.scenario.ctx());
-
-    // Initialize the user data with mcms_registry
-    // This creates a owner_cap and mcms_registry owns this cap
-    onramp::mcms_register_upgrade_cap(
-        upgrade_cap,
-        &mut registry,
-        &mut deployer_state,
-        env.scenario.ctx(),
-    );
-
-    ts::return_shared(registry);
-    ts::return_shared(deployer_state);
-
-    env.scenario.next_tx(OWNER);
 }
 
 fun transfer_to_mcms(
