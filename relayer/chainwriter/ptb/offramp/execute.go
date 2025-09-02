@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -151,23 +150,48 @@ func BuildOffRampExecutePTB(
 
 	lggr.Debugw("finished processing token pool calls", "tokenPoolCalls", tokenPoolCommandsResults)
 
-	// Process each message and create PTB commands for each (valid) receiver.
-	_, err = ProcessReceivers(
-		ctx,
-		lggr,
-		ptbClient,
-		ptb,
-		messages,
-		&addressMappings,
-		callOpts,
-		initExecuteResult,
-		offrampArgs.ExtraData.ExtraArgsDecoded,
-	)
+	// check if it's a pure token transfer
+	// Pure tokenTransfer:
+	// - ReceiverObjectIds = empty
+	// - token.Reciever = non empty (maybe EOA or object)
+	// - don't care about processing Recievers during pure token transfer
+	recieverObjectIds, ok := offrampArgs.ExtraData.ExtraArgsDecoded["receiverObjectIds"]
+	if !ok {
+		return fmt.Errorf("receiverObjectIds not found in ExtraArgsDecoded")
+	}
+
+	recieverObjectIdsSlice, ok := recieverObjectIds.([]interface{})
+	if !ok {
+		lggr.Info("Error: receiverObjectIds is not a []interface{}")
+		return fmt.Errorf("error converting recieverobjectIds to interface")
+	}
+
+	converted, err := convertToByteSlice(recieverObjectIdsSlice)
 	if err != nil {
 		return err
 	}
 
-	lggr.Info("finished processing recievers offramp exec")
+	if len(converted) > 0 {
+		// Process each message and create PTB commands for each (valid) receiver.
+		_, err = ProcessReceivers(
+			ctx,
+			lggr,
+			ptbClient,
+			ptb,
+			messages,
+			&addressMappings,
+			callOpts,
+			initExecuteResult,
+			offrampArgs.ExtraData.ExtraArgsDecoded,
+		)
+		if err != nil {
+			return err
+		}
+
+		lggr.Info("finished processing recievers offramp exec")
+	} else {
+		lggr.Info("Ignoring processing recievers because recieverObjectIds is empty")
+	}
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
@@ -387,6 +411,7 @@ func ProcessReceivers(
 	receiverCommandsResults := make([]transaction.Argument, 0)
 	// Generate receiver call commands
 	for _, message := range messages {
+
 		// If there is no receiver, skip this message
 		if len(message.Receiver) == 0 || message.Receiver == nil {
 			lggr.Debugw("no receiver specified, skipping message in offramp execution...", "message", message)
@@ -525,6 +550,10 @@ func AppendPTBCommandForReceiver(
 	lggr.Info("APPENDPTB CALL COMPLETED:")
 
 	// Append extra args to the paramValues for the receiver call.
+	// TODO:
+	// check the input args of ccip_recieve
+	// ensure the args length match the values passed
+	// map each value to the args
 
 	idsRaw, ok := extraArgs["receiverObjectIds"]
 	if !ok || idsRaw == nil {
@@ -548,28 +577,6 @@ func AppendPTBCommandForReceiver(
 		fmt.Printf("Successfully converted: %#v\n", converted)
 	}
 
-	// lggr.Infow("receiverObjectIds raw lookup",
-	// 	"found", ok,
-	// 	"goType", fmt.Sprintf("%T", idsRaw),
-	// )
-	// ids, err := normalizeBytesList(idsRaw)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// lggr.Info("IDSS: ", ids)
-	// if len(ids) < 2 {
-	// 	return nil, fmt.Errorf("need at least 2 ids, got %d", len(ids))
-	// }
-
-	// // build params + log
-	// for _, b := range ids {
-	// 	if len(b) == 0 {
-	// 		continue
-	// 	}
-	// 	paramValues = append(paramValues, bind.Object{Id: "0x" + hex.EncodeToString(b)})
-	// }
-
 	clockObj := "0x" + hex.EncodeToString(converted[0])
 	receiverState := "0x" + hex.EncodeToString(converted[1])
 	lggr.Infow("receiverObjectIds normalized", "count", len(converted), "clockObj", clockObj, "receiverState", receiverState)
@@ -580,6 +587,7 @@ func AppendPTBCommandForReceiver(
 		messageID,
 		bind.Object{Id: addressMappings.CcipObjectRef},
 		extractedAny2SuiMessageResult,
+		// True assumption: All these will be object
 		bind.Object{Id: clockObj},
 		bind.Object{Id: receiverState},
 	}
@@ -618,36 +626,6 @@ func AppendPTBCommandForReceiver(
 	}
 
 	return receiverCommandResult, nil
-}
-
-func normalizeBytesList(x any) ([][]byte, error) {
-	rv := reflect.ValueOf(x)
-	if !rv.IsValid() || rv.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("receiverObjectIds: expected slice, got %T", x)
-	}
-
-	out := make([][]byte, 0, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		el := rv.Index(i).Interface()
-		switch v := el.(type) {
-		case []byte:
-			out = append(out, v)
-		case [32]byte:
-			b := make([]byte, 32)
-			copy(b, v[:])
-			out = append(out, b)
-		case string:
-			s := strings.TrimPrefix(v, "0x")
-			b, err := hex.DecodeString(s)
-			if err != nil {
-				return nil, fmt.Errorf("receiverObjectIds[%d]: invalid hex: %w", i, err)
-			}
-			out = append(out, b)
-		default:
-			return nil, fmt.Errorf("receiverObjectIds[%d]: unsupported elem type %T", i, el)
-		}
-	}
-	return out, nil
 }
 
 func convertToByteSlice(input []interface{}) ([][]byte, error) {
