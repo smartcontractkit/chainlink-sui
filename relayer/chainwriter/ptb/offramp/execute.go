@@ -348,6 +348,8 @@ func AppendPTBCommandForTokenPool(
 		getTokenParamDataCommandResult,
 	}
 
+	lggr.Info("TOKENPOOL PARAM VALUESS: ", paramValues)
+
 	// Append dynamic values (addresses) to the paramValues for the token pool call.
 	// This allows an unknown set of addresses to be passed in.
 	for _, value := range tokenPoolConfigs.ReleaseOrMintParams {
