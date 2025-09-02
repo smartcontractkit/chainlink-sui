@@ -267,14 +267,21 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
-    let fee_quoter_cap = FeeQuoterCap {
-        id: object::new(ctx),
-    };
-    transfer::transfer(
-        fee_quoter_cap,
-        ctx.sender(),
-    );
+    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    transfer::public_transfer(fee_quoter_cap, ctx.sender());
     state_object::add(ref, owner_cap, state, ctx);
+}
+
+#[allow(lint(self_transfer))]
+public fun issue_fee_quoter_cap(owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    transfer::public_transfer(fee_quoter_cap, ctx.sender());
+}
+
+public fun new_fee_quoter_cap(_: &OwnerCap, ctx: &mut TxContext): FeeQuoterCap {
+    FeeQuoterCap {
+        id: object::new(ctx),
+    }
 }
 
 public fun get_token_price(ref: &CCIPObjectRef, token: address): TimestampedPrice {
