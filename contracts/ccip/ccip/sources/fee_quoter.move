@@ -267,14 +267,21 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
-    let fee_quoter_cap = FeeQuoterCap {
-        id: object::new(ctx),
-    };
-    transfer::transfer(
-        fee_quoter_cap,
-        ctx.sender(),
-    );
+    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    transfer::public_transfer(fee_quoter_cap, ctx.sender());
     state_object::add(ref, owner_cap, state, ctx);
+}
+
+#[allow(lint(self_transfer))]
+public fun issue_fee_quoter_cap(owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    transfer::public_transfer(fee_quoter_cap, ctx.sender());
+}
+
+public fun new_fee_quoter_cap(_: &OwnerCap, ctx: &mut TxContext): FeeQuoterCap {
+    FeeQuoterCap {
+        id: object::new(ctx),
+    }
 }
 
 public fun get_token_price(ref: &CCIPObjectRef, token: address): TimestampedPrice {
@@ -495,6 +502,30 @@ public fun apply_token_transfer_fee_config_updates(
             event::emit(TokenTransferFeeConfigRemoved { dest_chain_selector, token });
         }
     });
+}
+
+public fun update_prices_with_owner_cap(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    clock: &clock::Clock,
+    source_tokens: vector<address>,
+    source_usd_per_token: vector<u256>,
+    gas_dest_chain_selectors: vector<u64>,
+    gas_usd_per_unit_gas: vector<u256>,
+    ctx: &mut TxContext,
+) {
+    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    update_prices(
+        ref,
+        &fee_quoter_cap,
+        clock,
+        source_tokens,
+        source_usd_per_token,
+        gas_dest_chain_selectors,
+        gas_usd_per_unit_gas,
+        ctx,
+    );
+    destroy_fee_quoter_cap(owner_cap, fee_quoter_cap);
 }
 
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
@@ -1618,8 +1649,7 @@ public fun create_fee_quoter_cap(ctx: &mut TxContext): FeeQuoterCap {
     }
 }
 
-#[test_only]
-public fun destroy_fee_quoter_cap(cap: FeeQuoterCap) {
+public fun destroy_fee_quoter_cap(_: &OwnerCap, cap: FeeQuoterCap) {
     let FeeQuoterCap { id } = cap;
     object::delete(id);
 }
