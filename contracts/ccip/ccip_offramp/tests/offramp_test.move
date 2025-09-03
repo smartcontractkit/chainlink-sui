@@ -61,6 +61,9 @@ fun setup(): (TestEnv, OwnerCap, FeeQuoterCap, DestTransferCap) {
         scenario.ctx(),
     );
 
+    // Issue a fee quoter cap
+    fee_quoter::issue_fee_quoter_cap(&ccip_owner_cap, scenario.ctx());
+
     scenario.next_tx(OWNER);
     let fee_quoter_cap = ts::take_from_sender<FeeQuoterCap>(&scenario);
 

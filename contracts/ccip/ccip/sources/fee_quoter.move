@@ -267,6 +267,12 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
+    issue_fee_quoter_cap(owner_cap, ctx);
+    state_object::add(ref, owner_cap, state, ctx);
+}
+
+#[allow(lint(self_transfer))]
+public fun issue_fee_quoter_cap(_: &OwnerCap, ctx: &mut TxContext) {
     let fee_quoter_cap = FeeQuoterCap {
         id: object::new(ctx),
     };
@@ -274,7 +280,6 @@ public fun initialize(
         fee_quoter_cap,
         ctx.sender(),
     );
-    state_object::add(ref, owner_cap, state, ctx);
 }
 
 public fun get_token_price(ref: &CCIPObjectRef, token: address): TimestampedPrice {
@@ -1606,20 +1611,14 @@ public fun mcms_entrypoint(
             premium_multiplier_wei_per_eth,
             ctx,
         );
+    } else if (function_bytes == b"issue_fee_quoter_cap") {
+        issue_fee_quoter_cap(owner_cap, ctx);
     } else {
         abort EInvalidFunction
     }
 }
 
-#[test_only]
-public fun create_fee_quoter_cap(ctx: &mut TxContext): FeeQuoterCap {
-    FeeQuoterCap {
-        id: object::new(ctx),
-    }
-}
-
-#[test_only]
-public fun destroy_fee_quoter_cap(cap: FeeQuoterCap) {
+public fun destroy_fee_quoter_cap(_: &OwnerCap, cap: FeeQuoterCap) {
     let FeeQuoterCap { id } = cap;
     object::delete(id);
 }

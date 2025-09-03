@@ -314,7 +314,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		lggr.Infow("mostRecentEvent", "mostRecentEvent", eventsResponse.Data)
 	})
 
-	t.Run("CCIP SUI messaging with 1 LR TP and 1 BM TP", func(t *testing.T) {
+	t.Run("CCIP SUI messaging with Lock Release Token Pool", func(t *testing.T) {
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
 
@@ -323,26 +323,46 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		// Create array with both coins for the PTB arguments
 		linkCoins := []string{mintedCoinId1, mintedCoinId2}
 
-		// Set up arguments for the PTB
-		ptbArgs := createCCIPSendPTBArgsForBMAndLRTokenPools(
+		// Create chain writer config for Lock Release Token Pool only
+		lrTokenPoolDetails := testutils.TokenToolDetails{
+			TokenPoolPackageId: envSettings.LockReleaseTokenPoolReport.Output.LockReleaseTPPackageID,
+			TokenPoolType:      testutils.TokenPoolTypeLockRelease,
+		}
+
+		lrChainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
+			envSettings.CCIPReport.Output.CCIPPackageId,
+			envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+			[]testutils.TokenToolDetails{lrTokenPoolDetails},
+			publicKeyBytes,
+			linkTokenType,
+			linkTokenType,
+			ethTokenType,
+		)
+		require.NoError(t, err)
+
+		lrChainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, lrChainWriterConfig, false)
+		require.NoError(t, err)
+
+		err = lrChainWriter.Start(ctx)
+		require.NoError(t, err)
+		defer lrChainWriter.Close()
+
+		// Set up arguments for the PTB - only Lock Release Token Pool
+		ptbArgs := createCCIPSendPTBArgsForLRTokenPool(
 			lggr,
 			destChainSelector,
 			linkTokenType,
-			ethTokenType,
 			envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId,
-			envSettings.MockEthTokenReport.Output.Objects.CoinMetadataObjectId,
 			linkCoins,
-			envSettings.EthCoins,
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
 			environment.ClockObjectId,
 			envSettings.OnRampReport.Output.Objects.StateObjectId,
 			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectId,
-			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
 			environment.EthereumAddress,
 		)
-		txID := "ccip_send_two_token_pool_calls"
+		txID := "ccip_send_lock_release_token_pool"
 
-		err = chainWriter.SubmitTransaction(ctx,
+		err = lrChainWriter.SubmitTransaction(ctx,
 			cwConfig.PTBChainWriterModuleName,
 			"token_transfer_with_messaging",
 			&ptbArgs,
@@ -354,7 +374,76 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			status, statusErr := chainWriter.GetTransactionStatus(ctx, txID)
+			status, statusErr := lrChainWriter.GetTransactionStatus(ctx, txID)
+			if statusErr != nil {
+				return false
+			}
+
+			return status == commonTypes.Finalized
+		}, 5*time.Second, 1*time.Second, "Transaction final state not reached")
+	})
+
+	t.Run("CCIP SUI messaging with Burn Mint Token Pool", func(t *testing.T) {
+		tokenAmount := uint64(500000) // 500K tokens for transfer
+		feeAmount := uint64(100000)   // 100K tokens for fee payment
+
+		_, mintedCoinId2 := environment.GetLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
+
+		// Create chain writer config for Burn Mint Token Pool only
+		bmTokenPoolDetails := testutils.TokenToolDetails{
+			TokenPoolPackageId: envSettings.BurnMintTokenPoolReport.Output.BurnMintTPPackageID,
+			TokenPoolType:      testutils.TokenPoolTypeBurnMint,
+		}
+
+		bmChainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
+			envSettings.CCIPReport.Output.CCIPPackageId,
+			envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+			[]testutils.TokenToolDetails{bmTokenPoolDetails},
+			publicKeyBytes,
+			linkTokenType,
+			linkTokenType,
+			ethTokenType,
+		)
+		require.NoError(t, err)
+
+		bmChainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, bmChainWriterConfig, false)
+		require.NoError(t, err)
+
+		err = bmChainWriter.Start(ctx)
+		require.NoError(t, err)
+		defer bmChainWriter.Close()
+
+		// Set up arguments for the PTB - only Burn Mint Token Pool
+		ptbArgs := createCCIPSendPTBArgsForBMTokenPool(
+			lggr,
+			destChainSelector,
+			linkTokenType,
+			ethTokenType,
+			envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId,
+			envSettings.MockEthTokenReport.Output.Objects.CoinMetadataObjectId,
+			mintedCoinId2, // fee token
+			envSettings.EthCoins[0], // token to transfer
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			environment.ClockObjectId,
+			envSettings.OnRampReport.Output.Objects.StateObjectId,
+			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
+			environment.EthereumAddress,
+		)
+		txID := "ccip_send_burn_mint_token_pool"
+
+		err = bmChainWriter.SubmitTransaction(ctx,
+			cwConfig.PTBChainWriterModuleName,
+			"token_transfer_with_messaging",
+			&ptbArgs,
+			txID,
+			accountAddress,
+			&commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			nil,
+		)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			status, statusErr := bmChainWriter.GetTransactionStatus(ctx, txID)
 			if statusErr != nil {
 				return false
 			}
@@ -530,6 +619,83 @@ func createCCIPSendPTBArgsForBMAndLRTokenPools(
 		"fee_token":                          linkTokenCoinObjects[1],
 		"extra_args":                         []byte{}, // Empty array to use default gas limit
 		"token_receiver":                     testutils.ZeroAddress,
+	}
+}
+
+// createCCIPSendPTBArgsForLRTokenPool creates PTBArgMapping for a CCIP send operation with Lock Release Token Pool only
+func createCCIPSendPTBArgsForLRTokenPool(
+	lggr logger.Logger,
+	destChainSelector uint64,
+	linkTokenType string,
+	linkTokenMetadata string,
+	linkTokenCoinObjects []string,
+	ccipObjectRef string,
+	clockObject string,
+	ccipOnrampState string,
+	tokenPoolState string,
+	ethereumAddress string,
+) map[string]any {
+	lggr.Infow("createCCIPSendPTBArgsForLRTokenPool", "destChainSelector", destChainSelector, "linkTokenType", linkTokenType, "linkTokenMetadata", linkTokenMetadata, "linkTokenCoinObjects", linkTokenCoinObjects, "ccipObjectRef", ccipObjectRef, "clockObject", clockObject, "ccipOnrampState", ccipOnrampState, "tokenPoolState", tokenPoolState)
+
+	// Remove 0x prefix if present
+	evmAddressBytes := environment.NormalizeTo32Bytes(ethereumAddress)
+
+	lggr.Infow("evmAddressBytes", "evmAddressBytes", evmAddressBytes)
+
+	return map[string]any{
+		"ccip_object_ref":                    ccipObjectRef,
+		"ccip_object_ref_mutable":            ccipObjectRef, // Same object, different parameter name
+		"clock":                              environment.ClockObjectId,
+		"destination_chain_selector":         destChainSelector,
+		"link_lock_release_token_pool_state": tokenPoolState,
+		"c_link":                             linkTokenCoinObjects[0],
+		"onramp_state":                       ccipOnrampState,
+		"receiver":                           evmAddressBytes,
+		"data":                               []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		"fee_token_metadata":                 linkTokenMetadata,
+		"fee_token":                          linkTokenCoinObjects[1],
+		"extra_args":                         []byte{}, // Empty array to use default gas limit
+		"token_receiver":                     testutils.ZeroAddress,
+	}
+}
+
+// createCCIPSendPTBArgsForBMTokenPool creates PTBArgMapping for a CCIP send operation with Burn Mint Token Pool only
+func createCCIPSendPTBArgsForBMTokenPool(
+	lggr logger.Logger,
+	destChainSelector uint64,
+	linkTokenType string,
+	ethTokenType string,
+	linkTokenMetadata string,
+	ethTokenMetadata string,
+	feeTokenCoinObject string,
+	ethTokenCoinObject string,
+	ccipObjectRef string,
+	clockObject string,
+	ccipOnrampState string,
+	ethTokenPoolState string,
+	ethereumAddress string,
+) map[string]any {
+	lggr.Infow("createCCIPSendPTBArgsForBMTokenPool", "destChainSelector", destChainSelector, "ethTokenType", ethTokenType, "ethTokenMetadata", ethTokenMetadata, "ethTokenCoinObject", ethTokenCoinObject, "ccipObjectRef", ccipObjectRef, "clockObject", clockObject, "ccipOnrampState", ccipOnrampState, "ethTokenPoolState", ethTokenPoolState)
+
+	// Remove 0x prefix if present
+	evmAddressBytes := environment.NormalizeTo32Bytes(ethereumAddress)
+
+	lggr.Infow("evmAddressBytes", "evmAddressBytes", evmAddressBytes)
+
+	return map[string]any{
+		"ccip_object_ref":                ccipObjectRef,
+		"ccip_object_ref_mutable":        ccipObjectRef, // Same object, different parameter name
+		"clock":                          environment.ClockObjectId,
+		"destination_chain_selector":     destChainSelector,
+		"eth_burn_mint_token_pool_state": ethTokenPoolState,
+		"c_eth":                          ethTokenCoinObject,
+		"onramp_state":                   ccipOnrampState,
+		"receiver":                       evmAddressBytes,
+		"data":                           []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		"fee_token_metadata":             linkTokenMetadata,
+		"fee_token":                      feeTokenCoinObject,
+		"extra_args":                     []byte{}, // Empty array to use default gas limit
+		"token_receiver":                 testutils.ZeroAddress,
 	}
 }
 

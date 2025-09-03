@@ -40,9 +40,9 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 			return DeployCCIPOffRampSeqOutput{}, err
 		}
 
-		input.InitializeOffRampInput.OffRampPackageId = deployReport.Output.PackageId
-		input.InitializeOffRampInput.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
-		input.InitializeOffRampInput.OffRampStateId = deployReport.Output.Objects.CCIPOffRampStateObjectId
+		input.OffRampPackageId = deployReport.Output.PackageId
+		input.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
+		input.OffRampStateId = deployReport.Output.Objects.CCIPOffRampStateObjectId
 
 		_, err = cld_ops.ExecuteOperation(env, InitializeOffRampOp, deps, input.InitializeOffRampInput)
 		if err != nil {

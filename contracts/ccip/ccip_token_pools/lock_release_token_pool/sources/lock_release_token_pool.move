@@ -325,13 +325,12 @@ public fun lock_or_burn<T: drop>(
 public fun release_or_mint<T>(
     ref: &CCIPObjectRef,
     receiver_params: &mut offramp_sh::ReceiverParams,
-    token_transfer: offramp_sh::DestTokenTransfer,
     clock: &Clock,
     state: &mut LockReleaseTokenPoolState<T>,
     ctx: &mut TxContext,
 ) {
     let (
-        receiver,
+        token_receiver,
         remote_chain_selector,
         source_amount,
         dest_token_address,
@@ -339,7 +338,7 @@ public fun release_or_mint<T>(
         source_pool_address,
         source_pool_data,
         _,
-    ) = offramp_sh::get_dest_token_transfer_data(token_transfer);
+    ) = offramp_sh::get_dest_token_transfer_data(receiver_params);
 
     let local_amount = token_pool::calculate_release_or_mint_amount(
         &state.token_pool_state,
@@ -363,18 +362,17 @@ public fun release_or_mint<T>(
 
     token_pool::emit_released_or_minted(
         &mut state.token_pool_state,
-        receiver,
+        token_receiver,
         local_amount,
         remote_chain_selector,
     );
-    transfer::public_transfer(c, receiver);
+    transfer::public_transfer(c, token_receiver);
 
     offramp_sh::complete_token_transfer(
         ref,
         receiver_params,
-        receiver,
+        token_receiver,
         dest_token_address,
-        object::id(state),
         TypeProof {},
     );
 }
