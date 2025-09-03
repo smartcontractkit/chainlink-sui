@@ -152,6 +152,7 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 			// TODO: for another PR implement exponential backoff
 			txm.lggr.Infow("Exponential backoff strategy not implemented")
 		case GasBump:
+			txm.lggr.Infow("Gas bump strategy", "transactionID", tx.TransactionID)
 			updatedGas, err := txm.gasManager.GasBump(ctx, &tx)
 			if err != nil {
 				txm.lggr.Errorw("Failed to bump gas", "transactionID", tx.TransactionID, "error", err)
@@ -167,7 +168,7 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 				return nil
 			}
 
-			err = txm.transactionRepository.UpdateTransactionGas(tx.TransactionID, &updatedGas)
+			err = txm.transactionRepository.UpdateTransactionGas(ctx, txm.keystoreService, txm.suiGateway, tx.TransactionID, &updatedGas)
 			if err != nil {
 				txm.lggr.Errorw("Failed to update transaction gas", "transactionID", tx.TransactionID, "error", err)
 				return err

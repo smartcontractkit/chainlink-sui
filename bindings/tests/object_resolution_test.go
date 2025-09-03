@@ -22,6 +22,7 @@ func TestObjectResolution(t *testing.T) {
 	opts := &bind.CallOpts{
 		Signer:           signer,
 		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
 	testContract, _, err := testpackage.PublishTest(ctx, opts, client)

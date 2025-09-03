@@ -38,7 +38,6 @@ func setupTestEnvironment(t *testing.T) (
 	counterObjectId string,
 ) {
 	t.Helper()
-
 	log = logger.Test(t)
 
 	// Start local Sui node
@@ -72,17 +71,14 @@ func setupTestEnvironment(t *testing.T) (
 	relayerClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
-	// Build and publish contract
 	contractPath := testutils.BuildSetup(t, "contracts/test")
-	testutils.BuildContract(t, contractPath)
-
-	packageId, publishOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	gasBudget := int(2000000000)
+	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
 
 	log.Debugw("Published Contract", "packageId", packageId)
 
-	// Get the counter object ID
-	counterObjectId, err = testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
+	counterObjectId, err = testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	log.Debugw("Counter object created", "counterObjectId", counterObjectId)
@@ -491,7 +487,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, packageId)
+		txnConfig := writerConfig.Modules["counter"].Functions["single_op_ptb"]
+
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "single_op_ptb", args, packageId, txnConfig)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -507,7 +505,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, packageId)
+		ptb, cError := constructor.BuildPTBCommands(ctx, "nonexistent_module", "get_count", args, packageId, nil)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -518,7 +516,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, packageId)
+		txnConfig := writerConfig.Modules["counter"].Functions["nonexistent_function"]
+
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "nonexistent_function", args, packageId, txnConfig)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -527,7 +527,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	t.Run("Missing Required Argument", func(t *testing.T) {
 		args := config.Arguments{Args: map[string]any{}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, packageId)
+		txnConfig := writerConfig.Modules["counter"].Functions["incorrect_ptb"]
+		ptb, cError := constructor.BuildPTBCommands(ctx, "incorrect_ptb", "get_count", args, packageId, txnConfig)
 		require.Error(t, cError)
 		require.Nil(t, ptb)
 	})
@@ -537,7 +538,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		// Start by creating a Counter and its counter manager
 		args := config.Arguments{Args: map[string]any{}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, packageId)
+		txnConfig := writerConfig.Modules["counter"].Functions["create_counter_manager"]
+
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "create_counter_manager", args, packageId, txnConfig)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -561,7 +564,8 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"manager_object": managerObjectId,
 		}}
 
-		ptb, cError = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, packageId)
+		txnConfig = writerConfig.Modules["counter"].Functions["manager_borrow_op_ptb"]
+		ptb, cError = constructor.BuildPTBCommands(ctx, "counter", "manager_borrow_op_ptb", args, packageId, txnConfig)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -589,7 +593,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 			"counter_id": counterObjectId,
 		}}
 
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, packageId)
+		txnConfig := writerConfig.Modules["counter"].Functions["complex_operation"]
+
+		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "complex_operation", args, packageId, txnConfig)
 		require.NoError(t, cError)
 		require.NotNil(t, ptb)
 
@@ -629,7 +635,9 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 		}
 
 		// Use the constructor to build PTB commands for the generic function
-		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_coin_value_ptb", args, packageId)
+		txnConfig := writerConfig.Modules["counter"].Functions["get_coin_value_ptb"]
+
+		ptb, err := constructor.BuildPTBCommands(ctx, "counter", "get_coin_value_ptb", args, packageId, txnConfig)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 

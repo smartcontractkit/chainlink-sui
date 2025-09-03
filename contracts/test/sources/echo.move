@@ -48,7 +48,7 @@ module test::echo {
         event::emit(TripleValueEvent { values });
     }
 
-    public entry fun simple_event_echo(
+    public fun simple_event_echo(
         val: u64,
         _ctx: &mut TxContext
     ): u64 {
@@ -56,7 +56,7 @@ module test::echo {
         val
     }
 
-    public entry fun no_config_event_echo(
+        public fun no_config_event_echo(
             val: u64,
             _ctx: &mut TxContext
         ): u64 {

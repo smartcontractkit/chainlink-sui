@@ -13,6 +13,7 @@ import (
 
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
@@ -73,6 +74,15 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		return commonTypes.ErrNotFound
 	}
 
+	var arguments cwConfig.Arguments
+	if err := mapstructure.Decode(args, &arguments.Args); err != nil {
+		return fmt.Errorf("failed to decode args: %w", err)
+	}
+	arguments.ArgTypes = map[string]string{}
+
+	s.lggr.Debugw("arguments: ", arguments.Args, "params: ", functionConfig.Params, "decoded args: ", arguments)
+
+	// overwrite ptbName
 	if moduleConfig.Name != "" {
 		ptbName = moduleConfig.Name
 	}
@@ -81,19 +91,28 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		method = functionConfig.Name
 	}
 
-	// Make sure that args is a map[string]any
-	var arguments map[string]any
-	if err := mapstructure.Decode(args, &arguments); err != nil {
-		return fmt.Errorf("failed to decode args: %w", err)
+	// Get gas budget from CCIP message if available
+	switch method {
+	case cwConfig.CCIPExecute:
+		gasBudget, err := s.EstimateGasBudgetFromCCIPExecuteMessage(ctx, arguments.Args, meta)
+		if err != nil {
+			s.lggr.Errorw("Error estimating gas budget", "error", err)
+			return err
+		}
+		if gasBudget != nil {
+			s.lggr.Infow("Using gas budget from CCIP message", "gasBudget", gasBudget, "transactionID", transactionID)
+			meta = &commonTypes.TxMeta{
+				GasLimit: gasBudget,
+			}
+		} else {
+			s.lggr.Debugw("No gas budget found, using the transaction simulation")
+		}
+	case cwConfig.CCIPCommit:
+		// TODO: I don't think we need to do anything here
+		s.lggr.Infow("CCIPCommit not implemented", "transactionID", transactionID)
 	}
 
-	// Setup args into PTB constructor args to include types from function config
-	ptbArgsInput := cwConfig.Arguments{
-		Args:     arguments,
-		ArgTypes: make(map[string]string),
-	}
-
-	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, ptbArgsInput, toAddress)
+	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, toAddress, functionConfig)
 
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
@@ -102,7 +121,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 
 	s.lggr.Infow("PTB commands", "ptb", ptbService, "functionConfig", functionConfig)
 
-	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.PublicKey, ptbService, s.simulate)
+	tx, err := s.txm.EnqueuePTB(ctx, transactionID, meta, functionConfig.PublicKey, ptbService)
 	if err != nil {
 		s.lggr.Errorw("Error enqueuing PTB", "error", err)
 		return err
@@ -155,6 +174,30 @@ func (s *SuiChainWriter) Start(ctx context.Context) error {
 		s.lggr.Infow("Starting SuiChainWriter")
 		return nil
 	})
+}
+
+func (s *SuiChainWriter) EstimateGasBudgetFromCCIPExecuteMessage(ctx context.Context, arguments map[string]any, meta *commonTypes.TxMeta) (*big.Int, error) {
+	offrampArgs, err := offramp.DecodeOffRampExecCallArgs(arguments)
+	if err != nil {
+		return nil, err
+	}
+
+	totalGasBudget := big.NewInt(0)
+
+	gasBudget, err := s.txm.GetGasManager().CalculateOfframpExecuteGasBudget(ctx, *offrampArgs)
+	if err != nil {
+		return nil, err
+	}
+	totalGasBudget.Add(totalGasBudget, gasBudget)
+
+	// Use the maximum of meta.GasLimit and totalGasBudget if meta.GasLimit is set
+	if meta.GasLimit != nil {
+		if meta.GasLimit.Cmp(totalGasBudget) > 0 {
+			totalGasBudget = meta.GasLimit
+		}
+	}
+
+	return totalGasBudget, nil
 }
 
 var (

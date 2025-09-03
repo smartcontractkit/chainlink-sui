@@ -6,13 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/constant"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
-	"github.com/stretchr/testify/require"
-
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
+	"github.com/test-go/testify/require"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -20,6 +19,7 @@ const (
 	defaultTransactionTimeout = 10 * time.Second
 	defaultNumberRetries      = 5
 	defaultGasLimit           = 10000000
+	waitTimeNextTest          = 2 * time.Second
 )
 
 type TestState struct {
@@ -47,7 +47,13 @@ type Contracts struct {
 }
 
 // setupClients initializes the Sui and relayer clients.
-func SetupClients(t *testing.T, rpcURL string, keystore loop.Keystore, logg logger.Logger) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
+func SetupClients(
+	t *testing.T,
+	rpcURL string,
+	keystore loop.Keystore,
+	logg logger.Logger,
+	gasLimit int64,
+) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore) {
 	t.Helper()
 
 	relayerClient, err := client.NewPTBClient(logg, rpcURL, nil, defaultTransactionTimeout, keystore, maxConcurrentRequests, "WaitForEffectsCert")
@@ -57,12 +63,15 @@ func SetupClients(t *testing.T, rpcURL string, keystore loop.Keystore, logg logg
 
 	t.Log("relayerClient", relayerClient)
 
-	store := txm.NewTxmStoreImpl()
+	lggr := logger.Named(logg, "testutils")
+
+	store := txm.NewTxmStoreImpl(lggr)
 	conf := txm.DefaultConfigSet
 
 	retryManager := txm.NewDefaultRetryManager(defaultNumberRetries)
-	gasLimit := big.NewInt(defaultGasLimit)
-	gasManager := txm.NewSuiGasManager(logg, relayerClient, *gasLimit, 0)
+	// Set max gas budget to be higher than provided gas limit to allow gas bumping
+	maxGasBudget := big.NewInt(gasLimit * 2) // 2x the gas limit as max budget
+	gasManager := txm.NewSuiGasManager(logg, relayerClient, *maxGasBudget, 0)
 
 	txManager, err := txm.NewSuiTxm(logg, relayerClient, keystore, conf, store, retryManager, gasManager)
 	if err != nil {
@@ -72,66 +81,13 @@ func SetupClients(t *testing.T, rpcURL string, keystore loop.Keystore, logg logg
 	return relayerClient, txManager, store
 }
 
-// BootstrapTestEnvironment sets up a complete test environment for a Sui relayer integration test.
-// It performs the following steps:
-//  1. Starts a local Sui node of the specified NodeEnvType.
-//  2. Initializes a new keystore and retrieves the account address and associated signer.
-//  3. Funds the account using the Sui faucet.
-//  4. Iterates over the provided contracts metadata:
-//     - Builds and compiles each contract.
-//     - Publishes the contract to the Sui network.
-//     - Queries and records the contract object IDs.
-//  5. Initializes the Sui and relayer clients as well as the transaction manager (TXM).
-//  6. Aggregates all the resources into a TestState struct, which is subsequently used for testing.
-//
-// Parameters:
-//   - t: testing.T used for logging and error handling.
-//   - nodeType: the type of node to start (NodeEnvType).
-//   - contractsMetadata: a slice of Contracts containing metadata for the contracts to be deployed.
-//
-// Returns:
-//   - *TestState: a pointer to the fully bootstrapped test environment containing:
-//   - AccountAddress (string)
-//   - SuiGateway (*client.PTBClient)
-//   - KeystoreGateway (loop.Keystore)
-//   - TxManager (*txm.SuiTxm)
-//   - TxStore (*txm.InMemoryStore)
-//   - Signer (signer.SuiSigner)
-//   - Contracts ([]Contracts)
-//   - Cmd (exec.Cmd) — the running process for the Sui node.
-//
-// Example usage:
-//
-//	func TestMyFunction(t *testing.T) {
-//	    contractsMeta := []testutils.Contracts{
-//	        {
-//	            Path: "contracts/mycontract/",
-//	            Name: "mycontract",
-//	            Objects: []testutils.ContractObject{
-//	                {
-//	                    ObjectID:    "0x123",
-//	                    PackageName: "mycontract",
-//	                    StructName:  "MyStruct",
-//	                },
-//	            },
-//	        },
-//	    }
-//
-//	    // Bootstraps the environment with a local Sui node and provided contracts metadata.
-//	    testState := testutils.BootstrapTestEnvironment(t, testutils.CLI, contractsMeta)
-//
-//	    // Use testState to access the account address, TXM, client, etc.
-//	    // Example: reading the account address
-//	    t.Logf("Account Address: %s", testState.AccountAddress)
-//
-//	    // Continue with further tests using testState...
-//	}
-func BootstrapTestEnvironment(t *testing.T, nodeType NodeEnvType, contractsMetadata []Contracts) *TestState {
-	t.Helper()
-	_logger := logger.Test(t)
-	_logger.Debugw("Starting Sui node")
-
-	cmd, err := StartSuiNode(nodeType)
+func SetupTestEnv(
+	t *testing.T,
+	ctx context.Context,
+	lgr logger.Logger,
+	gasLimit int64,
+) (*client.PTBClient, *txm.SuiTxm, *txm.InMemoryStore, string, *TestKeystore, []byte, string, string) {
+	cmd, err := StartSuiNode(CLI)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -143,55 +99,29 @@ func BootstrapTestEnvironment(t *testing.T, nodeType NodeEnvType, contractsMetad
 		}
 	})
 
-	testKeystore := NewTestKeystore(t)
+	// Used to wait for the tear down of one test before starting the next
+	// since they both depend on the Sui node running on the same port
+	time.Sleep(waitTimeNextTest)
+
+	keystoreInstance := NewTestKeystore(t)
+	accountAddress, publicKeyBytes := GetAccountAndKeyFromSui(keystoreInstance)
+
+	faucetFundErr := FundWithFaucet(lgr, SuiLocalnet, accountAddress)
+	require.NoError(t, faucetFundErr)
+
+	contractPath := BuildSetup(t, "contracts/test")
+	gasBudget := int(2000000000)
+	packageId, tx, err := PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
-	accountAddress, pubkeyBytes := GetAccountAndKeyFromSui(testKeystore)
+	require.NotNil(t, packageId)
+	require.NotNil(t, tx)
 
-	err = FundWithFaucet(_logger, constant.SuiLocalnet, accountAddress)
+	lgr.Debugw("Published Contract", "packageId", packageId)
+
+	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	contractsState := []Contracts{}
+	suiClient, txManager, transactionRepository := SetupClients(t, LocalUrl, keystoreInstance, lgr, gasLimit)
 
-	for _, contract := range contractsMetadata {
-		_logger.Infow("Building contract", contract)
-		contractPath := BuildSetup(t, contract.Path)
-		BuildContract(t, contractPath)
-		packageId, publishOutput, err := PublishContract(t, contract.Name, contractPath, accountAddress, nil)
-		_logger.Infow("Publish contract", "packageId", packageId, "Contract Name", contract.Name)
-		require.NoError(t, err)
-		c := &Contracts{
-			Path:     contractPath,
-			Name:     contract.Name,
-			ModuleID: packageId,
-			Objects:  []ContractObject{},
-		}
-
-		for _, obj := range contract.Objects {
-			objectId, err := QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, obj.PackageName, obj.StructName)
-			_logger.Debugw("Query object ID", "objectId", objectId, "PackageName", obj.PackageName, "StructName", obj.StructName)
-			require.NoError(t, err)
-
-			c.Objects = append(
-				c.Objects, ContractObject{
-					ObjectID:    objectId,
-					PackageName: obj.PackageName,
-					StructName:  obj.StructName,
-				})
-		}
-		contractsState = append(contractsState, *c)
-		_logger.Debugw("Contract state", contractsState)
-	}
-
-	suiClient, txManager, txStore := SetupClients(t, LocalUrl, testKeystore, _logger)
-
-	return &TestState{
-		AccountAddress:  accountAddress,
-		PublicKeyBytes:  pubkeyBytes,
-		SuiGateway:      suiClient,
-		KeystoreGateway: testKeystore,
-		TxManager:       txManager,
-		TxStore:         txStore,
-		Contracts:       contractsState,
-		Cmd:             *cmd,
-	}
+	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
 }

@@ -14,3 +14,6 @@
 # Node.js
 **/node_modules/
 chainlink-sui
+
+/scripts/artifacts.**.json
+/contracts/**/Move.toml.bak

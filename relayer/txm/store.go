@@ -1,10 +1,14 @@
 package txm
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client/suierrors"
 )
 
@@ -32,9 +36,16 @@ type TxmStore interface {
 	// Returns an error if the transaction is not found.
 	UpdateTransactionDigest(transactionID string, digest string) error
 
-	// UpdateTransactionGas updates the gas budget of a transaction.
-	// Returns an error if the transaction is not found.
-	UpdateTransactionGas(transactionID string, gasBudget *big.Int) error
+	// UpdateTransactionGas updates the gas budget of a transaction and regenerates its BCS payload and signatures.
+	// This method is typically used after a new gas estimate is obtained, ensuring the transaction is ready for submission.
+	// Returns an error if the transaction is not found or if updating the payload fails.
+	UpdateTransactionGas(
+		ctx context.Context,
+		keystoreService loop.Keystore,
+		suiClient client.SuiPTBClient,
+		transactionID string,
+		gasBudget *big.Int,
+	) error
 
 	UpdateTransactionError(transactionID string, txError *suierrors.SuiError) error
 
@@ -59,6 +70,7 @@ type TxmStore interface {
 // This design allows for efficient filtering of transactions by state without
 // maintaining duplicate copies of transaction data or performing expensive iterations.
 type InMemoryStore struct {
+	lggr         logger.Logger
 	mu           sync.RWMutex                             // Mutex to control concurrent access to the data structures
 	transactions map[string]*SuiTx                        // Main map to store pointers to transactions by ID
 	stateBuckets map[TransactionState]map[string]struct{} // Auxiliary maps to store transaction IDs by state for efficient lookups
@@ -68,8 +80,9 @@ var _ TxmStore = (*InMemoryStore)(nil)
 
 // NewTxmStoreImpl creates and initializes a new InMemoryStore instance.
 // It initializes the transactions map and state buckets for all possible transaction states.
-func NewTxmStoreImpl() *InMemoryStore {
+func NewTxmStoreImpl(lggr logger.Logger) *InMemoryStore {
 	return &InMemoryStore{
+		lggr:         lggr,
 		transactions: make(map[string]*SuiTx),
 		stateBuckets: map[TransactionState]map[string]struct{}{
 			StatePending:   make(map[string]struct{}),
@@ -275,7 +288,13 @@ func (s *InMemoryStore) GetInflightTransactions() ([]SuiTx, error) {
 }
 
 // UpdateTransactionGas implements TxmStore.
-func (s *InMemoryStore) UpdateTransactionGas(transactionID string, gasBudget *big.Int) error {
+func (s *InMemoryStore) UpdateTransactionGas(
+	ctx context.Context,
+	keystoreService loop.Keystore,
+	suiClient client.SuiPTBClient,
+	transactionID string,
+	gasBudget *big.Int,
+) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -284,6 +303,11 @@ func (s *InMemoryStore) UpdateTransactionGas(transactionID string, gasBudget *bi
 		return fmt.Errorf("transaction not found")
 	}
 	tx.Metadata.GasLimit = gasBudget
+
+	err := tx.UpdateBSCPayload(ctx, s.lggr, keystoreService, suiClient)
+	if err != nil {
+		return fmt.Errorf("failed to update BCS payload during transaction gas update: %w", err)
+	}
 
 	return nil
 }

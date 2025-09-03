@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -26,6 +27,9 @@ const (
 // It provides methods to estimate the gas budget needed for a Sui transaction and to compute a new
 // gas budget (gas bump) when a transaction encounters a gas-related issue.
 type GasManager interface {
+	// MaxGasBudget returns the maximum gas budget permitted.
+	MaxGasBudget() *big.Int
+
 	// EstimateGasBudget estimates the gas budget required for the given transaction.
 	//
 	// Parameters:
@@ -36,6 +40,17 @@ type GasManager interface {
 	//   - uint64: The estimated gas budget.
 	//   - error: An error if estimation is not implemented or fails.
 	EstimateGasBudget(ctx context.Context, tx *SuiTx) (uint64, error)
+
+	// EstimateGasBudgetFromCCIPMessage estimates the gas budget required for the given CCIP message.
+	//
+	// Parameters:
+	//   - ctx: Context allowing cancellation and timeouts.
+	//   - message: The CCIP message for which to estimate the gas budget.
+	//
+	// Returns:
+	//   - uint64: The estimated gas budget.
+	//   - error: An error if estimation is not implemented or fails.
+	CalculateOfframpExecuteGasBudget(ctx context.Context, arguments offramp.SuiOffRampExecCallArgs) (*big.Int, error)
 
 	// GasBump calculates a new gas budget for the given transaction by increasing its current gas limit.
 	// The new budget is computed by increasing the current gas limit by a specified percentage (defaults to 20%)
@@ -86,6 +101,11 @@ func NewSuiGasManager(lggr logger.Logger, ptbClient client.SuiPTBClient, maxGasB
 	}
 }
 
+// MaxGasBudget returns the maximum gas budget permitted.
+func (s *SuiGasManager) MaxGasBudget() *big.Int {
+	return &s.maxGasBudget
+}
+
 // EstimateGasBudget estimates the gas budget for a transaction. Note that this is not an entirely
 // gas-less operation, it requires a very small amount of gas to estimate the gas budget.
 //
@@ -105,32 +125,93 @@ func (s *SuiGasManager) EstimateGasBudget(ctx context.Context, tx *SuiTx) (uint6
 	return gasBudget, nil
 }
 
-// GasBump computes a new gas budget for a transaction by increasing its current gas limit.
-// The new budget is determined by multiplying the current budget by gasLimitPercentualIncrease and
-// then dividing by percentualNormalization. If the current gas limit already meets or exceeds the
-// maximum allowed budget, the function returns an error. If the computed budget exceeds the maximum,
-// it is capped at maxGasBudget.
+// EstimateGasBudgetFromCCIPMessage estimates the gas budget required for the given CCIP message.
+// If the message contains ExtraArgs, it attempts to ABI decode them as SuiExtraArgsV1 struct
+// and extract the gas limit from the decoded data.
 //
 // Parameters:
 //   - ctx: Context allowing cancellation and timeouts.
-//   - tx: The Sui transaction whose gas limit is being increased.
+//   - message: The CCIP message for which to estimate the gas budget.
 //
 // Returns:
-//   - big.Int: The new gas budget.
-//   - error: An error if the gas budget is already at or above the maximum allowed.
+//   - uint64: The estimated gas budget.
+//   - error: An error if estimation is not implemented or fails.
+func (s *SuiGasManager) CalculateOfframpExecuteGasBudget(ctx context.Context, arguments offramp.SuiOffRampExecCallArgs) (*big.Int, error) {
+	gasLimit := big.NewInt(0)
+	if val, ok := arguments.ExtraData.ExtraArgsDecoded["gasLimit"]; ok {
+		if gl, ok := val.(*big.Int); ok {
+			gasLimit.Add(gasLimit, gl)
+		} else {
+			return nil, fmt.Errorf("gasLimit in ExtraArgsDecoded is not *big.Int, got %T", val)
+		}
+	}
+
+	for _, destExecData := range arguments.ExtraData.DestExecDataDecoded {
+		if val, ok := destExecData["destGasAmount"]; ok {
+			if destGasAmount, ok := val.(uint64); ok {
+				gasLimit.Add(gasLimit, big.NewInt(int64(destGasAmount)))
+			} else {
+				return nil, fmt.Errorf("destGasAmount in DestExecDataDecoded is not uint64, got %T", val)
+			}
+		}
+	}
+
+	return gasLimit, nil
+}
+
+// GasBump increases the gas budget for a given transaction by applying a configured percentage bump.
+// The new gas budget is calculated as:
+//
+//	newBudget = currentGasLimit * gasLimitPercentualIncrease / percentualNormalization
+//
+// The function ensures that the new budget does not exceed either the transaction's maximum allowed gas budget
+// (tx.GasBudget) or the gas manager's configured maximum (s.maxGasBudget). The lower of these two values is used
+// as the absolute cap. If the current gas limit is already at or above this cap, an error is returned and no bump occurs.
+// If the calculated new budget exceeds the cap, it is set to the cap value.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeouts.
+//   - tx:  The SuiTx transaction whose gas limit should be increased.
+//
+// Returns:
+//   - big.Int: The new gas budget to use.
+//   - error:   An error if the gas budget is already at or above the allowed maximum.
 func (s *SuiGasManager) GasBump(ctx context.Context, tx *SuiTx) (big.Int, error) {
+	// gas budget should be the minimum value between the transaction and the gas manager config
+
+	// The max amount of the gas that the Gas manager will allow
+	gasManagerMaxGasBudget := big.NewInt(int64(s.maxGasBudget.Uint64()))
+
+	// the max amount of the gas that the transaction will allow
+	txGasBudget := big.NewInt(int64(tx.GasBudget))
+
+	var maxGasLimit *big.Int
+
+	// Determine the maximum gas limit to use for bumping.
+	// The maximum is the lesser of the transaction's gas budget and the gas manager's configured maximum.
+	// This ensures we do not exceed either the transaction's intended limit or the system's allowed maximum.
+	if txGasBudget.Cmp(gasManagerMaxGasBudget) < 0 {
+		maxGasLimit = txGasBudget
+	} else {
+		maxGasLimit = gasManagerMaxGasBudget
+	}
+
+	txGasLimit := tx.Metadata.GasLimit
+
+	s.lggr.Debugw("GasBump", "txGasLimit", txGasLimit, "maxGasLimit", maxGasLimit)
+
 	// Check if the current gas limit is at or above the maximum allowed budget.
-	if tx.Metadata.GasLimit.Cmp(&s.maxGasBudget) >= 0 {
-		return *big.NewInt(0), errors.New("gas budget is already at max gas budget")
+	if txGasLimit.Cmp(maxGasLimit) > 0 {
+		return *big.NewInt(0), errors.New("gas budget is already at max gas limit")
 	}
 
 	// Calculate the new gas budget: newBudget = currentGasLimit * gasLimitPercentualIncrease / percentualNormalization.
-	newBudget := new(big.Int).Mul(tx.Metadata.GasLimit, big.NewInt(gasLimitPercentualIncrease))
+	newBudget := new(big.Int).Mul(txGasLimit, big.NewInt(gasLimitPercentualIncrease))
 	newBudget.Div(newBudget, big.NewInt(percentualNormalization))
 
 	// Cap the new budget at maxGasBudget if it exceeds the allowed maximum.
-	if newBudget.Cmp(&s.maxGasBudget) > 0 {
-		newBudget.Set(&s.maxGasBudget)
+	if newBudget.Cmp(maxGasLimit) > 0 {
+		newBudget.Set(maxGasLimit)
 	}
 
 	return *newBudget, nil

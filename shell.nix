@@ -17,6 +17,9 @@
       gopls
       mockgen
 
+      # bun for typescript examples
+      bun
+
       # Keep adding as needed
 
       # Sui CLI custom derivation
@@ -39,6 +42,7 @@
     # Debug info
     echo "Using Go at: $(which go)"
     go version
+    bun --version
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
     alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"]' -) --path-mode \"abs\""
     echo ""

@@ -15,6 +15,9 @@ const (
 	DefaultTxTimeoutSeconds           = 10
 	DefaultConfirmPollSecs            = int64(1)
 	DefaultBalancePollIntervalSeconds = int64(10)
+
+	DefaultIndexerPollIntervalSecs = uint64(3)
+	DefaultIndexerSyncTimeoutSecs  = uint64(3)
 )
 
 type ChainInfo struct {

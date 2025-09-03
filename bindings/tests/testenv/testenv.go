@@ -208,6 +208,7 @@ func createAccount(t *testing.T) (utils.SuiSigner, error) {
 
 	faucetURL := fmt.Sprintf("http://localhost:%d", instance.faucetPort)
 	log := logger.Test(t)
+
 	err = fundWithFaucet(log, faucetURL, signerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fund account: %w", err)

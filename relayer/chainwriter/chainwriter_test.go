@@ -32,35 +32,17 @@ func strPtr(s string) *string {
 
 //nolint:paralleltest
 func TestChainWriterSubmitTransaction(t *testing.T) {
+	ctx := context.Background()
+	gasLimit := int64(10000000)
 	_logger := logger.Test(t)
-	metadata := []testutils.Contracts{
-		{
-			Path:     "contracts/test/",
-			Name:     "test",
-			ModuleID: "0x1",
-			Objects: []testutils.ContractObject{
-				{
-					ObjectID:    "0x1",
-					PackageName: "counter",
-					StructName:  "Counter",
-				},
-			},
-		},
-	}
-
-	testState := testutils.BootstrapTestEnvironment(t, testutils.CLI, metadata)
-	publicKeyBytes := testState.PublicKeyBytes
-
-	countContract := testState.Contracts[0]
-	packageId := countContract.ModuleID
-	objectID := countContract.Objects[0].ObjectID
+	suiClient, txManager, txStore, accountAddress, _, publicKeyBytes, packageId, objectId := testutils.SetupTestEnv(t, ctx, _logger, gasLimit)
 
 	// ChainWriter configuration
 	chainWriterConfig := config.ChainWriterConfig{
 		Modules: map[string]*config.ChainWriterModule{
 			"counter": {
 				Name:     "counter",
-				ModuleID: testState.Contracts[0].ModuleID,
+				ModuleID: "counter",
 				Functions: map[string]*config.ChainWriterFunction{
 					"increment": {
 						Name:      "increment",
@@ -107,34 +89,34 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 
 	_logger.Infow("ChainWriterConfig", "config", chainWriterConfig)
 
-	chainWriter, err := chainwriter.NewSuiChainWriter(_logger, testState.TxManager, chainWriterConfig, false)
+	chainWriter, err := chainwriter.NewSuiChainWriter(_logger, txManager, chainWriterConfig, false)
 	require.NoError(t, err)
 
 	c := context.Background()
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
-	// Get coins to use - need at least 2 coins (one for function arg, one for gas)
-	coins, err := testState.SuiGateway.GetCoinsByAddress(ctx, testState.AccountAddress)
-	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(coins), 2, "Need at least 2 coins for this test")
-
 	err = chainWriter.Start(ctx)
 	require.NoError(t, err)
-	err = testState.TxManager.Start(ctx)
+	err = txManager.Start(ctx)
 	require.NoError(t, err)
 
 	defer chainWriter.Close()
-	defer testState.TxManager.Close()
+	defer txManager.Close()
 
 	// Simple map style for builder pattern
 	simpleArgs := map[string]any{
-		"counter": objectID,
+		"counter": objectId,
 	}
+
+	// Get coins to use - need at least 2 coins (one for function arg, one for gas)
+	coins, err := suiClient.GetCoinsByAddress(ctx, accountAddress)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(coins), 2, "Need at least 2 coins for this test")
 
 	// Common validation functions
 	getCounterValue := func() (string, error) {
-		objectDetails, callBackErr := testState.SuiGateway.ReadObjectId(ctx, objectID)
+		objectDetails, callBackErr := suiClient.ReadObjectId(ctx, objectId)
 		if callBackErr != nil {
 			return "", callBackErr
 		}
@@ -167,11 +149,11 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		{
 			name:             "Test ChainWriter with valid parameters",
 			txID:             "test-txID",
-			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:           testState.AccountAddress,
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
+			sender:           accountAddress,
 			contractName:     "counter",
 			functionName:     "increment",
-			args:             map[string]any{"counter": objectID},
+			args:             map[string]any{"counter": objectId},
 			expectError:      nil,
 			expectedResult:   "0",
 			status:           commonTypes.Finalized,
@@ -181,8 +163,8 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		{
 			name:             "Test ChainWriter with PTB using builder",
 			txID:             "test-ptb-txID",
-			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:           testState.AccountAddress,
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
+			sender:           accountAddress,
 			contractName:     config.PTBChainWriterModuleName,
 			functionName:     "ptb_call",
 			args:             simpleArgs,
@@ -195,8 +177,8 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		{
 			name:             "Test ChainWriter with missing argument for PTB using builder",
 			txID:             "test-ptb-txID-missing-arg",
-			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:           testState.AccountAddress,
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
+			sender:           accountAddress,
 			contractName:     config.PTBChainWriterModuleName,
 			functionName:     "ptb_call",
 			args:             map[string]any{},
@@ -209,8 +191,8 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		{
 			name:             "Test ChainWriter with PTB using simple map",
 			txID:             "test-ptb-simple-map",
-			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:           testState.AccountAddress,
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
+			sender:           accountAddress,
 			contractName:     config.PTBChainWriterModuleName,
 			functionName:     "ptb_call",
 			args:             simpleArgs,
@@ -223,11 +205,11 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		{
 			name:             "Test ChainWriter with invalid function call",
 			txID:             "test-txID-invalid-func",
-			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:           testState.AccountAddress,
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
+			sender:           accountAddress,
 			contractName:     "counter",
 			functionName:     "nonexistent_function",
-			args:             map[string]any{"counter": objectID},
+			args:             map[string]any{"counter": objectId},
 			expectError:      commonTypes.ErrNotFound,
 			expectedResult:   "",
 			status:           commonTypes.Failed,
@@ -237,11 +219,11 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		{
 			name:             "Test ChainWriter with invalid contract",
 			txID:             "test-txID-invalid-contract",
-			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:           testState.AccountAddress,
+			txMeta:           &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
+			sender:           accountAddress,
 			contractName:     "nonexistent_contract",
 			functionName:     "increment",
-			args:             map[string]any{"counter": objectID},
+			args:             map[string]any{"counter": objectId},
 			expectError:      commonTypes.ErrNotFound,
 			expectedResult:   "",
 			status:           commonTypes.Failed,
@@ -251,12 +233,12 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 		{
 			name:         "Test ChainWriter with the same transaction ID",
 			txID:         "test-txID",
-			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:       testState.AccountAddress,
+			txMeta:       &commonTypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
+			sender:       accountAddress,
 			contractName: "counter",
 			functionName: "increment",
 			args: map[string]any{
-				"counter": objectID,
+				"counter": objectId,
 			},
 			expectError:      errors.New("transaction already exists"),
 			expectedResult:   "",
@@ -272,7 +254,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 			// Submit the transaction
 			err = chainWriter.SubmitTransaction(ctx, scenario.contractName, scenario.functionName,
 				scenario.args,
-				scenario.txID, scenario.sender,
+				scenario.txID, packageId,
 				scenario.txMeta, nil,
 			)
 			if scenario.expectError != nil {
@@ -295,7 +277,7 @@ func TestChainWriterSubmitTransaction(t *testing.T) {
 
 				assert.Equal(t, scenario.expectedResult, actualValue, "Expected value does not match")
 
-				tx, err := testState.TxStore.GetTransaction(scenario.txID)
+				tx, err := txStore.GetTransaction(scenario.txID)
 				require.NoError(t, err, "Failed to get transaction from repository")
 				assert.Equal(t, scenario.numberAttemps, tx.Attempt, "Transaction attempts do not match")
 			}

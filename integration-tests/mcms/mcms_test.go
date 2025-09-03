@@ -454,7 +454,9 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "")
+		functionConfig := config.Modules["mcms_ptb_test"].Functions["set_config"]
+
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "", functionConfig)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -501,7 +503,9 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "")
+		functionConfig := config.Modules["mcms_ptb_test"].Functions["set_config"]
+
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "", functionConfig)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -568,7 +572,8 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args, "")
+		functionConfig := config.Modules["mcms_ptb_test"].Functions["set_config_and_root"]
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args, "", functionConfig)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 
@@ -749,7 +754,8 @@ func TestMCMS(t *testing.T) {
 			},
 		}
 
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args, "")
+		functionConfig := config.Modules["mcms_ptb_test"].Functions["timelock_execute"]
+		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args, "", functionConfig)
 		require.NoError(t, err)
 		require.NotNil(t, ptb)
 

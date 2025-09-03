@@ -25,6 +25,7 @@ func TestPTBChaining(t *testing.T) {
 	testPackage, tx, err := testpackage.PublishTest(ctx, &bind.CallOpts{
 		Signer:           signer,
 		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}, client)
 	require.NoError(t, err)
 	require.NotNil(t, testPackage)
@@ -33,6 +34,7 @@ func TestPTBChaining(t *testing.T) {
 	opts := &bind.CallOpts{
 		Signer:           signer,
 		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
 	t.Run("Counter PTB chaining", func(t *testing.T) {

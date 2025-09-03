@@ -115,6 +115,7 @@ func (rm *DefaultRetryManager) IsRetryable(tx *SuiTx, errMessage string) (bool, 
 //   - RetryStrategy: the recommended retry strategy (GasBump or ExponentialBackoff), or NoRetry if not retryable.
 func defaultRetryStrategy(tx *SuiTx, txErrorMsg string, maxRetries int) (bool, RetryStrategy) {
 	txError := suierrors.ParseSuiErrorMessage(txErrorMsg)
+
 	if !suierrors.IsRetryable(txError) {
 		return false, NoRetry
 	}

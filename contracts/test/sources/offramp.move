@@ -15,6 +15,7 @@ module test::offramp {
     use sui::package::UpgradeCap;
     use sui::table::{Self, Table};
     use sui::vec_map::{Self, VecMap};
+    use sui::object::{Self, UID};
 
     use test::ocr3_base::{Self, OCR3BaseState, OCRConfig};
 
@@ -156,6 +157,248 @@ module test::offramp {
 
     public struct SkippedReportExecution has copy, drop {
         source_chain_selector: u64
+    }
+
+    // Simple methods to emit events for testing purposes
+
+    /// Emit a StaticConfigSet event
+    public fun emit_static_config_set_event(chain_selector: u64) {
+        event::emit(StaticConfigSet { chain_selector });
+    }
+
+    /// Emit a DynamicConfigSet event
+    public fun emit_dynamic_config_set_event(dynamic_config: DynamicConfig) {
+        event::emit(DynamicConfigSet { dynamic_config });
+    }
+
+    /// Emit a SourceChainConfigSet event
+    public fun emit_source_chain_config_set_event(
+        source_chain_selector: u64,
+        source_chain_config: SourceChainConfig
+    ) {
+        event::emit(SourceChainConfigSet {
+            source_chain_selector,
+            source_chain_config
+        });
+    }
+
+    /// Emit a SkippedAlreadyExecuted event
+    public fun emit_skipped_already_executed_event(
+        source_chain_selector: u64,
+        sequence_number: u64
+    ) {
+        event::emit(SkippedAlreadyExecuted {
+            source_chain_selector,
+            sequence_number
+        });
+    }
+
+    /// Emit an ExecutionStateChanged event
+    public fun emit_execution_state_changed_event(
+        source_chain_selector: u64,
+        sequence_number: u64,
+        message_id: vector<u8>,
+        message_hash: vector<u8>,
+        state: u8
+    ) {
+        event::emit(ExecutionStateChanged {
+            source_chain_selector,
+            sequence_number,
+            message_id,
+            message_hash,
+            state
+        });
+    }
+
+    /// Emit a CommitReportAccepted event
+    public fun emit_commit_report_accepted_event(
+        blessed_merkle_roots: vector<MerkleRoot>,
+        unblessed_merkle_roots: vector<MerkleRoot>,
+        price_updates: PriceUpdates
+    ) {
+        event::emit(CommitReportAccepted {
+            blessed_merkle_roots,
+            unblessed_merkle_roots,
+            price_updates
+        });
+    }
+
+    /// Emit a SkippedReportExecution event
+    public fun emit_skipped_report_execution_event(source_chain_selector: u64) {
+        event::emit(SkippedReportExecution { source_chain_selector });
+    }
+
+    // Helper functions to create test structures
+
+    /// Create a test SourceChainConfig
+    public fun create_test_source_chain_config(
+        router: address,
+        is_enabled: bool,
+        min_seq_nr: u64,
+        is_rmn_verification_disabled: bool,
+        on_ramp: vector<u8>
+    ): SourceChainConfig {
+        SourceChainConfig {
+            router,
+            is_enabled,
+            min_seq_nr,
+            is_rmn_verification_disabled,
+            on_ramp
+        }
+    }
+
+    /// Create a default test SourceChainConfig with reasonable values
+    public fun create_default_test_source_chain_config(): SourceChainConfig {
+        create_test_source_chain_config(
+            @0x1,
+            true,
+            1,
+            false,
+            x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        )
+    }
+
+    /// Create a test DynamicConfig
+    public fun create_test_dynamic_config(
+        fee_quoter: address,
+        permissionless_execution_threshold_seconds: u32
+    ): DynamicConfig {
+        DynamicConfig {
+            fee_quoter,
+            permissionless_execution_threshold_seconds
+        }
+    }
+
+    /// Create a default test DynamicConfig with reasonable values
+    public fun create_default_test_dynamic_config(): DynamicConfig {
+        create_test_dynamic_config(
+            @0x2,
+            3600
+        )
+    }
+
+    /// Create a test RampMessageHeader
+    public fun create_test_ramp_message_header(
+        message_id: vector<u8>,
+        source_chain_selector: u64,
+        dest_chain_selector: u64,
+        sequence_number: u64,
+        nonce: u64
+    ): RampMessageHeader {
+        RampMessageHeader {
+            message_id,
+            source_chain_selector,
+            dest_chain_selector,
+            sequence_number,
+            nonce
+        }
+    }
+
+    /// Create a test Any2SuiTokenTransfer
+    public fun create_test_any2sui_token_transfer(
+        source_pool_address: vector<u8>,
+        dest_token_address: address,
+        dest_gas_amount: u32,
+        extra_data: vector<u8>,
+        amount: u256
+    ): Any2SuiTokenTransfer {
+        Any2SuiTokenTransfer {
+            source_pool_address,
+            dest_token_address,
+            dest_gas_amount,
+            extra_data,
+            amount
+        }
+    }
+
+    /// Create a test Any2SuiRampMessage
+    public fun create_test_any2sui_ramp_message(
+        header: RampMessageHeader,
+        sender: vector<u8>,
+        data: vector<u8>,
+        receiver: address,
+        gas_limit: u256,
+        token_amounts: vector<Any2SuiTokenTransfer>
+    ): Any2SuiRampMessage {
+        Any2SuiRampMessage {
+            header,
+            sender,
+            data,
+            receiver,
+            gas_limit,
+            token_amounts
+        }
+    }
+
+    /// Create a test MerkleRoot
+    public fun create_test_merkle_root(
+        source_chain_selector: u64,
+        on_ramp_address: vector<u8>,
+        min_seq_nr: u64,
+        max_seq_nr: u64,
+        merkle_root: vector<u8>
+    ): MerkleRoot {
+        MerkleRoot {
+            source_chain_selector,
+            on_ramp_address,
+            min_seq_nr,
+            max_seq_nr,
+            merkle_root
+        }
+    }
+
+    /// Create a test PriceUpdates
+    public fun create_test_price_updates(
+        token_price_updates: vector<TokenPriceUpdate>,
+        gas_price_updates: vector<GasPriceUpdate>
+    ): PriceUpdates {
+        PriceUpdates {
+            token_price_updates,
+            gas_price_updates
+        }
+    }
+
+    /// Create a test TokenPriceUpdate
+    public fun create_test_token_price_update(
+        source_token: address,
+        usd_per_token: u256
+    ): TokenPriceUpdate {
+        TokenPriceUpdate {
+            source_token,
+            usd_per_token
+        }
+    }
+
+    /// Create a test GasPriceUpdate
+    public fun create_test_gas_price_update(
+        dest_chain_selector: u64,
+        usd_per_unit_gas: u256
+    ): GasPriceUpdate {
+        GasPriceUpdate {
+            dest_chain_selector,
+            usd_per_unit_gas
+        }
+    }
+
+    /// Create test chain selectors
+    public fun create_test_chain_selectors(): vector<u64> {
+        vector[1, 137, 42161, 10]  // Ethereum, Polygon, Arbitrum, Optimism
+    }
+
+    /// Create test message IDs
+    public fun create_test_message_ids(): vector<vector<u8>> {
+        vector[
+            x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+            x"2234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdea"
+        ]
+    }
+
+    /// Create test on-ramp addresses
+    public fun create_test_on_ramp_addresses(): vector<vector<u8>> {
+        vector[
+            x"3234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeb",
+            x"4234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdec"
+        ]
     }
 
     public fun type_and_version(): String {

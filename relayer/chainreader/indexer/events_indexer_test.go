@@ -70,16 +70,16 @@ func TestEventsIndexer(t *testing.T) {
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
-	// Deploy contract with proper account consistency
 	contractPath := testutils.BuildSetup(t, "contracts/test")
-	testutils.BuildContract(t, contractPath)
-
-	packageId, publishOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	gasBudget := int(2000000000)
+	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
+	require.NotNil(t, packageId)
+	require.NotNil(t, tx)
 
 	log.Debugw("Published Contract", "packageId", packageId)
 
-	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
+	counterObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	// Setup event selector

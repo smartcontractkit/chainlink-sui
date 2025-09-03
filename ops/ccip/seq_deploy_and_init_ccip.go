@@ -235,25 +235,6 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			return DeployCCIPSeqOutput{}, err
 		}
 
-		// TODO: RMN Set config. For e2e could be disabled
-		_, err = cld_ops.ExecuteOperation(
-			env,
-			RMNRemoteSetConfigOp,
-			deps,
-			RMNRemoteSetConfigInput{
-				CCIPPackageId:               deployReport.Output.PackageId,
-				StateObjectId:               deployReport.Output.Objects.CCIPObjectRefObjectId,
-				OwnerCapObjectId:            deployReport.Output.Objects.OwnerCapObjectId,
-				RmnHomeContractConfigDigest: input.RmnHomeContractConfigDigest,
-				SignerOnchainPublicKeys:     input.SignerOnchainPublicKeys,
-				NodeIndexes:                 input.NodeIndexes,
-				FSign:                       input.FSign,
-			},
-		)
-		if err != nil {
-			return DeployCCIPSeqOutput{}, err
-		}
-
 		return DeployCCIPSeqOutput{
 			CCIPPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPSeqObjects{

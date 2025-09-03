@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	config2 "github.com/smartcontractkit/chainlink-sui/relayer/config"
 

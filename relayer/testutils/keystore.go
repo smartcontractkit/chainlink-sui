@@ -35,6 +35,10 @@ func (tk *TestKeystore) AddKey(key ed25519.PrivateKey) {
 	tk.Keys[publicKey] = key
 }
 
+func (u *TestKeystore) Decrypt(ctx context.Context, account string, encrypted []byte) (decrypted []byte, err error) {
+	return nil, fmt.Errorf("method Decrypt not implemented")
+}
+
 func (tk *TestKeystore) Sign(ctx context.Context, id string, hash []byte) ([]byte, error) {
 	privateKey, ok := tk.Keys[id]
 	if !ok {

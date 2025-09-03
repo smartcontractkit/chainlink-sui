@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/test-go/testify/require"
 )
@@ -25,7 +26,8 @@ func GetTransaction() SuiTx {
 
 func TestAddTransaction(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	tx := GetTransaction()
 	err := store.AddTransaction(tx)
@@ -38,7 +40,8 @@ func TestAddTransaction(t *testing.T) {
 
 func TestAddDuplicateTransaction(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	tx := GetTransaction()
 	_ = store.AddTransaction(tx)
@@ -49,7 +52,8 @@ func TestAddDuplicateTransaction(t *testing.T) {
 
 func TestGetTransaction(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	tx := GetTransaction()
 	_ = store.AddTransaction(tx)
@@ -61,7 +65,8 @@ func TestGetTransaction(t *testing.T) {
 
 func TestGetNonExistentTransaction(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	_, err := store.GetTransaction("1")
 	require.Error(t, err, "expected an error when retrieving a non-existent transaction")
@@ -69,7 +74,8 @@ func TestGetNonExistentTransaction(t *testing.T) {
 
 func TestChangeState(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	tx := GetTransaction()
 	_ = store.AddTransaction(tx)
@@ -87,7 +93,8 @@ func TestChangeState(t *testing.T) {
 
 func TestInvalidStateTransition(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	tx := GetTransaction()
 	_ = store.AddTransaction(tx)
@@ -98,7 +105,8 @@ func TestInvalidStateTransition(t *testing.T) {
 
 func TestDeleteTransaction(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	tx := GetTransaction()
 	_ = store.AddTransaction(tx)
@@ -111,7 +119,8 @@ func TestDeleteTransaction(t *testing.T) {
 
 func TestDeleteNonExistentTransaction(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	err := store.DeleteTransaction("1")
 	assert.Error(t, err, "expected an error when deleting a non-existent transaction")
@@ -119,7 +128,8 @@ func TestDeleteNonExistentTransaction(t *testing.T) {
 
 func TestGetTransactionsByState(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	tx1 := GetTransaction()
 	tx2 := GetTransaction()
@@ -150,7 +160,8 @@ func TestGetTransactionsByState(t *testing.T) {
 
 func TestGetTransactionsByInvalidState(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	_, err := store.GetTransactionsByState(999) // Invalid state
 	assert.Error(t, err, "expected an error when retrieving transactions by an invalid state")
@@ -158,7 +169,8 @@ func TestGetTransactionsByInvalidState(t *testing.T) {
 
 func TestConcurrentReadAndWrite(t *testing.T) {
 	t.Parallel()
-	store := NewTxmStoreImpl()
+	lggr := logger.Test(t)
+	store := NewTxmStoreImpl(lggr)
 
 	// Create a transaction
 	tx := GetTransaction()
