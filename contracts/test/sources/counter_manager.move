@@ -10,7 +10,7 @@ module test::counter_manager {
     }
 
     /// Create a new CounterManager for a shared Counter object
-    public entry fun create(counter: Counter, ctx: &mut TxContext) {
+    public fun create(counter: Counter, ctx: &mut TxContext) {
         let manager = CounterManager {
             id: object::new(ctx),
             counter: borrow::new(counter, ctx)

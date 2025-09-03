@@ -31,6 +31,7 @@ func TestProgrammableTransactionBlocks(t *testing.T) {
 	opts := &bind.CallOpts{
 		Signer:           signer,
 		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
 	// Publish the test package

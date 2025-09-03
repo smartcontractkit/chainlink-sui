@@ -1,0 +1,19 @@
+{
+  "name": "ts-sdk-examples",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.37.4",
+    "commander": "^14.0.0"
+  },
+  "scripts": {
+    "onramp": "bun run index.ts onramp",
+    "ccip_send": "bun run index.ts onramp"
+  }
+}
