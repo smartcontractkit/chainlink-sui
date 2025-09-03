@@ -63,7 +63,6 @@ func TestTransactionsIndexer(t *testing.T) {
 
 	// Setup keystore and client
 	keystoreInstance := testutils.NewTestKeystore(t)
-
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
 	// Fund the account multiple times to ensure sufficient balance
@@ -81,30 +80,27 @@ func TestTransactionsIndexer(t *testing.T) {
 		return !failed
 	}, 15*time.Second, 1*time.Second, "Failed to fund account with sufficient SUI balance")
 
-	txnSigner := keystoreInstance.GetSuiSigner(context.Background(), hex.EncodeToString(publicKeyBytes))
+	txnSigner := keystoreInstance.GetSuiSigner(ctx, hex.EncodeToString(publicKeyBytes))
 
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
-	// Deploy and configure offramp
-	DeployAndConfigureOffRamp(t, relayerClient, accountAddress, publicKeyBytes)
-
-	// Deploy contract
 	contractPath := testutils.BuildSetup(t, "contracts/test")
-	testutils.BuildContract(t, contractPath)
-
-	packageId, publishOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	gasBudget := int(2000000000)
+	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
+	require.NotEmpty(t, packageId)
+	require.NotEmpty(t, tx)
 
 	log.Debugw("Published Contract", "packageId", packageId)
 
-	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
+	counterObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	ccipObjectRefId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "offramp", "CCIPObjectRef")
+	ccipObjectRefId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "offramp", "CCIPObjectRef")
 	require.NoError(t, err)
 
-	offrampStateObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "offramp", "OffRampState")
+	offrampStateObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "offramp", "OffRampState")
 	require.NoError(t, err)
 
 	chainWriterConfig := cwConfig.ChainWriterConfig{
@@ -391,7 +387,7 @@ func TestTransactionsIndexer(t *testing.T) {
 				"report_context": [][]byte{},
 				"report":         reportBytes,
 			},
-		}, "")
+		}, packageId, chainWriterConfig.Modules["counter"].Functions["offramp_execution_with_error"])
 		require.NoError(t, err)
 
 		// Execute the PTB command using the PTB client, we don't check errors because we expect a failure
@@ -494,10 +490,4 @@ func SetOCRConfig(t *testing.T, relayerClient *client.PTBClient, packageId strin
 	)
 
 	return resp, err
-}
-
-func DeployAndConfigureOffRamp(t *testing.T, relayerClient *client.PTBClient, accountAddress string, signerPublicKey []byte) {
-	t.Helper()
-
-	// Stretch: implement or re-use what's in the offramp integration test instead of sample contracts
 }

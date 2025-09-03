@@ -711,7 +711,7 @@ public fun ccip_send<T>(
             amount,
             dest_token_address,
             extra_data,
-            dest_exec_data: vector[], // destination execution gas amount, populated later by fee quoter
+            dest_exec_data: vector[],
         });
         token_amounts.push_back(amount);
         source_tokens.push_back(source_token_coin_metadata_address);

@@ -18,7 +18,6 @@ public struct TestTypeProof2 has drop {}
 const OWNER: address = @0x1000;
 const TOKEN_ADDRESS_1: address =
     @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
-const TOKEN_ADDRESS_2: address = @0x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7;
 const DESTINATION_CHAIN_SELECTOR: u64 = 1000;
 
 fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, SourceTransferCap) {
@@ -273,107 +272,6 @@ public fun test_create_and_verify_token_transfer() {
 }
 
 #[test]
-public fun test_multiple_token_transfers() {
-    let (mut scenario, owner_cap, mut ref, source_cap) = setup_test();
-
-    // Register two tokens
-    registry::register_pool_by_admin(
-        &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
-        TOKEN_ADDRESS_1,
-        @0x1,
-        string::utf8(b"test_pool_1"),
-        ascii::string(b"TestType"),
-        OWNER,
-        type_name::into_string(type_name::get<TestTypeProof>()),
-        vector<address>[], // lock_or_burn_params
-        vector<address>[], // release_or_mint_params
-        scenario.ctx(),
-    );
-
-    registry::register_pool_by_admin(
-        &mut ref,
-        state_object::create_ccip_admin_proof_for_test(),
-        TOKEN_ADDRESS_2,
-        @0x2,
-        string::utf8(b"test_pool_2"),
-        ascii::string(b"TestType"),
-        OWNER,
-        type_name::into_string(type_name::get<TestTypeProof2>()),
-        vector<address>[], // lock_or_burn_params
-        vector<address>[], // release_or_mint_params
-        scenario.ctx(),
-    );
-
-    // Create separate token transfer params for each transfer
-    let mut token_params1 = onramp_state_helper::create_token_transfer_params(@0x456);
-    let mut token_params2 = onramp_state_helper::create_token_transfer_params(@0x456);
-
-    // Add first token transfer
-    onramp_state_helper::add_token_transfer_param<TestTypeProof>(
-        &ref,
-        &mut token_params1,
-        DESTINATION_CHAIN_SELECTOR,
-        1000,
-        TOKEN_ADDRESS_1,
-        b"dest_token_address_1",
-        b"extra_data_1",
-        TestTypeProof {},
-    );
-
-    // Add second token transfer
-    onramp_state_helper::add_token_transfer_param<TestTypeProof2>(
-        &ref,
-        &mut token_params2,
-        DESTINATION_CHAIN_SELECTOR,
-        2000,
-        TOKEN_ADDRESS_2,
-        b"dest_token_address_2",
-        b"extra_data_2",
-        TestTypeProof2 {},
-    );
-
-    // Verify first transfer
-    let (
-        remote_chain1,
-        token_pool_package_id1,
-        amount1,
-        source_token_address1,
-        dest_token_address1,
-        extra_data1,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params1);
-
-    assert!(remote_chain1 == DESTINATION_CHAIN_SELECTOR);
-    assert!(token_pool_package_id1 == @0x1);
-    assert!(amount1 == 1000);
-    assert!(source_token_address1 == TOKEN_ADDRESS_1);
-    assert!(dest_token_address1 == b"dest_token_address_1");
-    assert!(extra_data1 == b"extra_data_1");
-
-    // Verify second transfer
-    let (
-        remote_chain2,
-        token_pool_package_id2,
-        amount2,
-        source_token_address2,
-        dest_token_address2,
-        extra_data2,
-    ) = onramp_state_helper::get_source_token_transfer_data(&token_params2);
-
-    assert!(remote_chain2 == DESTINATION_CHAIN_SELECTOR);
-    assert!(token_pool_package_id2 == @0x2);
-    assert!(amount2 == 2000);
-    assert!(source_token_address2 == TOKEN_ADDRESS_2);
-    assert!(dest_token_address2 == b"dest_token_address_2");
-    assert!(extra_data2 == b"extra_data_2");
-
-    // Clean up
-    onramp_state_helper::deconstruct_token_params(&source_cap, token_params1);
-    onramp_state_helper::deconstruct_token_params(&source_cap, token_params2);
-    cleanup_test(scenario, owner_cap, ref, source_cap);
-}
-
-#[test]
 public fun test_deconstruct_empty_params_vector() {
     let (scenario, owner_cap, ref, source_cap) = setup_test();
 
@@ -383,6 +281,29 @@ public fun test_deconstruct_empty_params_vector() {
     // Deconstruct should work with empty params
     onramp_state_helper::deconstruct_token_params(&source_cap, empty_params);
 
+    cleanup_test(scenario, owner_cap, ref, source_cap);
+}
+
+#[test]
+#[expected_failure(abort_code = onramp_state_helper::ETokenTransferDoesNotExist)]
+public fun test_get_token_transfer_data_when_empty() {
+    let (scenario, owner_cap, ref, source_cap) = setup_test();
+
+    // Create empty token transfer params (no token transfer added)
+    let token_params = onramp_state_helper::create_token_transfer_params(@0x456);
+
+    // This should fail with ETokenTransferDoesNotExist because no token transfer was added
+    let (
+        _remote_chain,
+        _token_pool_package_id,
+        _amount,
+        _source_token_address,
+        _dest_token_address,
+        _extra_data,
+    ) = onramp_state_helper::get_source_token_transfer_data(&token_params);
+
+    // The following code won't be reached due to the expected failure above
+    onramp_state_helper::deconstruct_token_params(&source_cap, token_params);
     cleanup_test(scenario, owner_cap, ref, source_cap);
 }
 

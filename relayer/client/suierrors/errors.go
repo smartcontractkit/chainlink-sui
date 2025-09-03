@@ -110,6 +110,7 @@ var ErrInvalidGasObject = NewSuiError(GasErrors, "InvalidGasObject")
 var ErrInsufficientBalanceToCoverMinimalGas = NewSuiError(GasErrors, "InsufficientBalanceToCoverMinimalGas")
 var ErrUnexpectedGasPaymentObject = NewSuiError(GasErrors, "UnexpectedGasPaymentObject")
 var ErrGasPriceMismatchError = NewSuiError(GasErrors, "GasPriceMismatchError")
+var ErrInsufficientGas = NewSuiError(GasErrors, "InsufficientGas")
 
 // Signature & Transaction Errors
 var ErrIncorrectUserSignature = NewSuiError(SignatureAndTransactionErrors, "IncorrectUserSignature")
@@ -185,6 +186,7 @@ var suiErrorMappings = []struct {
 	{ErrInsufficientBalanceToCoverMinimalGas.Error(), ErrInsufficientBalanceToCoverMinimalGas},
 	{ErrUnexpectedGasPaymentObject.Error(), ErrUnexpectedGasPaymentObject},
 	{ErrGasPriceMismatchError.Error(), ErrGasPriceMismatchError},
+	{ErrInsufficientGas.Error(), ErrInsufficientGas},
 
 	// Signature & Transaction Errors
 	{ErrIncorrectUserSignature.Error(), ErrIncorrectUserSignature},
@@ -249,6 +251,7 @@ var retryableErrors = []error{
 	ErrGasBalanceTooLow,
 	ErrGasPriceUnderRGP,
 	ErrGasPriceTooHigh,
+	ErrInsufficientGas,
 }
 
 // IsRetryable determines if a Sui error is retryable (transient).

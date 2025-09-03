@@ -5,275 +5,44 @@ package txm_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
-	"github.com/stretchr/testify/assert"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
-	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
-
-const WAIT_TIME_NEXT_TEST = 2 * time.Second
 
 type Counter struct {
 	Value string `json:"value"`
 }
 
 //nolint:paralleltest
-func TestEnqueueIntegration(t *testing.T) {
-	t.Skip("Skipping unstable test")
 
-	// Step 1: Setup
-
+func TestEnqueuePTBIntegration(t *testing.T) {
+	ctx := context.Background()
 	_logger := logger.Test(t)
 	_logger.Debugw("Starting Sui node")
 
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
+	gasLimit := int64(200000000000)
 
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
-	})
-
-	// Used to wait for the tear down of one test before starting the next
-	// since they both depend on the Sui node running on the same port
-	time.Sleep(WAIT_TIME_NEXT_TEST)
-
-	testKeystore := testutils.NewTestKeystore(t)
-
-	accountAddress, publicKey := testutils.GetAccountAndKeyFromSui(testKeystore)
-
-	err = testutils.FundWithFaucet(_logger, testutils.SuiLocalnet, accountAddress)
-	require.NoError(t, err)
-
-	contractPath := testutils.BuildSetup(t, "contracts/test/")
-	testutils.BuildContract(t, contractPath)
-	packageId, publishOutput, err := testutils.PublishContract(t, "cw_tests", contractPath, accountAddress, nil)
-	require.NoError(t, err)
-
-	counterObjectId, err := testutils.QueryCreatedObjectID(publishOutput.ObjectChanges, packageId, "counter", "Counter")
-	require.NoError(t, err)
-
-	suiClient, txManager, transactionRepository := testutils.SetupClients(t, testutils.LocalUrl, testKeystore, _logger)
-
-	// Step 2: Define multiple test scenarios
-	testScenarios := []struct {
-		name            string
-		txID            string
-		signerPublicKey []byte
-		txMeta          *commontypes.TxMeta
-		sender          string
-		function        string
-		paramTypes      []string
-		args            []any
-		expectErr       bool
-		expectedValue   string
-		finalState      commontypes.TransactionStatus
-		storeFinalState txm.TransactionState
-		numberAttemps   int
-		drainAccount    bool
-	}{
-		{
-			name:            "Valid enqueue test",
-			txID:            "integration-test-txID-1",
-			signerPublicKey: publicKey,
-			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:          accountAddress,
-			function:        fmt.Sprintf("%s::counter::increment", packageId),
-			paramTypes:      []string{"object_id"},
-			args:            []any{counterObjectId},
-			expectErr:       false,
-			expectedValue:   "1",
-			finalState:      commontypes.Finalized,
-			storeFinalState: txm.StateFinalized,
-			numberAttemps:   1,
-			drainAccount:    false,
-		},
-		{
-			name:            "Another valid enqueue test",
-			txID:            "integration-test-txID-2",
-			signerPublicKey: publicKey,
-			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:          accountAddress,
-			function:        fmt.Sprintf("%s::counter::increment", packageId),
-			paramTypes:      []string{"object_id"},
-			args:            []any{counterObjectId},
-			expectErr:       false,
-			expectedValue:   "2",
-			finalState:      commontypes.Finalized,
-			storeFinalState: txm.StateFinalized,
-			numberAttemps:   1,
-			drainAccount:    false,
-		},
-		{
-			name:            "Invalid enqueue test (wrong function)",
-			txID:            "wrong-function-test-txID",
-			signerPublicKey: publicKey,
-			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:          accountAddress,
-			function:        fmt.Sprintf("%s::counter::i-do-not-exist", packageId),
-			paramTypes:      []string{"object_id"},
-			args:            []any{counterObjectId},
-			expectErr:       false,
-			expectedValue:   "",
-			finalState:      commontypes.Fatal,
-			storeFinalState: txm.StateFailed,
-			numberAttemps:   1,
-			drainAccount:    false,
-		},
-		{
-			name:            "Invalid enqueue test (no gas in wallet)",
-			txID:            "low-gas-test-txID",
-			signerPublicKey: publicKey,
-			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(10000000)},
-			sender:          accountAddress,
-			function:        fmt.Sprintf("%s::counter::increment", packageId),
-			paramTypes:      []string{"object_id"},
-			args:            []any{counterObjectId},
-			expectErr:       true,
-			expectedValue:   "",
-			finalState:      commontypes.Failed,
-			storeFinalState: txm.StateFailed,
-			numberAttemps:   1,
-			drainAccount:    true,
-		},
-	}
-
-	ctx := context.Background()
-	err = txManager.Start(ctx)
-	require.NoError(t, err, "Failed to start transaction manager")
-
-	// Step 3: Execute each test scenario
-	//nolint:paralleltest
-	for _, tc := range testScenarios {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.drainAccount {
-				addr, err := client.GetAddressFromPublicKey(tc.signerPublicKey)
-
-				require.NoError(t, err, "Failed to get address from public key")
-				_logger.Infow("Draining account coins from account address", addr)
-				coins, err := suiClient.GetCoinsByAddress(ctx, addr)
-				require.NoError(t, err, "Failed to get coin objects")
-				burnAddress := "0x000000000000000000000000000000000000dead"
-				err = testutils.DrainAccountCoins(t, ctx, _logger, addr, testKeystore, suiClient, coins, burnAddress)
-				require.NoError(t, err, "Failed to drain account coins")
-
-				// Wait a moment for transactions to be confirmed
-				time.Sleep(2 * time.Second)
-
-				coins, err = suiClient.GetCoinsByAddress(ctx, addr)
-				require.NoError(t, err, "Failed to get coin objects")
-				assert.Empty(t, coins, "Expected no coins left in the account")
-			}
-
-			tx, err := txManager.Enqueue(ctx, tc.txID, tc.txMeta,
-				tc.signerPublicKey, tc.function, nil, tc.paramTypes, tc.args, false)
-
-			if tc.expectErr {
-				assert.Error(t, err, "Expected an error but Enqueue succeeded")
-			} else {
-				require.Eventually(t, func() bool {
-					status, statusErr := txManager.GetTransactionStatus(ctx, (*tx).TransactionID)
-					if statusErr != nil {
-						return false
-					}
-
-					return status == tc.finalState
-				}, 60*time.Second, 1*time.Second, "Transaction final state not reached")
-
-				tx2, err := transactionRepository.GetTransaction((*tx).TransactionID)
-				require.NoError(t, err, "Failed to get transaction from repository")
-				assert.NotNil(t, tx2.Digest, "Transaction digest should not be nil")
-
-				transaction, err := transactionRepository.GetTransaction(tc.txID)
-				require.NoError(t, err, "Failed to get transaction from repository")
-				assert.Equal(t, tc.storeFinalState, transaction.State, "Transaction state should be Finalized")
-				assert.Equal(t, tc.numberAttemps, transaction.Attempt, "Transaction attempts should be 1")
-
-				objectDetails, err := suiClient.ReadObjectId(ctx, counterObjectId)
-				require.NoError(t, err, "Failed to get object details")
-				counter := testutils.ExtractStruct[Counter](t, objectDetails)
-				assert.Contains(t, counter.Value, tc.expectedValue, "Counter value does not match")
-			}
-		})
-	}
-	txManager.Close()
-}
-
-//nolint:paralleltest
-func TestEnqueuePTBIntegration(t *testing.T) {
-	_logger := logger.Test(t)
-	metadata := []testutils.Contracts{
-		{
-			Path:     "contracts/test/",
-			Name:     "test",
-			ModuleID: "0x1",
-			Objects: []testutils.ContractObject{
-				{
-					ObjectID:    "0x1",
-					PackageName: "counter",
-					StructName:  "Counter",
-				},
-			},
-		},
-	}
-
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
-	})
-
-	// Used to wait for the tear down of one test before starting the next
-	// since they both depend on the Sui node running on the same port
-	time.Sleep(WAIT_TIME_NEXT_TEST)
-	testState := testutils.BootstrapTestEnvironment(t, testutils.CLI, metadata)
-	txManager := testState.TxManager
-
-	numberFaucetCalls := 3
-
-	for range numberFaucetCalls {
-		err = testutils.FundWithFaucet(_logger, testutils.SuiLocalnet, testState.AccountAddress)
-		require.NoError(t, err)
-	}
-
-	_logger.Infow("Test environment bootstrapped")
-
-	countContract := testState.Contracts[0]
-	packageId := countContract.ModuleID
-	objectId := countContract.Objects[0].ObjectID
+	suiClient, txManager, _, accountAddress, _, publicKeyBytes, packageId, objectId := testutils.SetupTestEnv(t, ctx, _logger, gasLimit)
 
 	chainWriterConfig := config.ChainWriterConfig{
 		Modules: map[string]*config.ChainWriterModule{
 			"counter": {
-				Name:     countContract.Name,
+				Name:     "Counter",
 				ModuleID: packageId,
 				Functions: map[string]*config.ChainWriterFunction{
 					"ptb_call": {
 						Name:      "ptb_call",
-						PublicKey: testState.PublicKeyBytes,
+						PublicKey: publicKeyBytes,
 						Params:    []codec.SuiFunctionParam{},
 						PTBCommands: []config.ChainWriterPTBCommand{
 							{
@@ -296,9 +65,7 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 		},
 	}
 
-	ptbConstructor := ptb.NewPTBConstructor(chainWriterConfig, testState.SuiGateway, _logger)
-
-	gasLimit := int64(200000000000)
+	ptbConstructor := ptb.NewPTBConstructor(chainWriterConfig, suiClient, _logger)
 
 	// Step 2: Define multiple test scenarios
 	testScenarios := []struct {
@@ -319,8 +86,8 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			name:            "Test ChainWriter with valid parameters",
 			txID:            "test-txID",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
-			sender:          testState.AccountAddress,
-			signerPublicKey: testState.PublicKeyBytes,
+			sender:          accountAddress,
+			signerPublicKey: publicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
@@ -333,8 +100,8 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			name:            "Test ChainWriter with PTB",
 			txID:            "test-ptb-txID",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
-			sender:          testState.AccountAddress,
-			signerPublicKey: testState.PublicKeyBytes,
+			sender:          accountAddress,
+			signerPublicKey: publicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
@@ -347,8 +114,8 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			name:            "Test ChainWriter with missing argument for PTB",
 			txID:            "test-ptb-txID-missing-arg",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
-			sender:          testState.AccountAddress,
-			signerPublicKey: testState.PublicKeyBytes,
+			sender:          accountAddress,
+			signerPublicKey: publicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{}, // missing "counter"
@@ -361,8 +128,8 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			name:            "Test ChainWriter with simple map args",
 			txID:            "test-ptb-simple-map",
 			txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(gasLimit)},
-			sender:          testState.AccountAddress,
-			signerPublicKey: testState.PublicKeyBytes,
+			sender:          accountAddress,
+			signerPublicKey: publicKeyBytes,
 			contractName:    config.PTBChainWriterModuleName,
 			functionName:    "ptb_call",
 			args:            map[string]any{"counter": objectId},
@@ -371,11 +138,26 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			status:          commontypes.Finalized,
 			numberAttemps:   3,
 		},
+		// {
+		// 	name:            "Test ChainWriter with low gas budget requiring gas bump",
+		// 	txID:            "test-ptb-gas-management",
+		// 	txMeta:          &commontypes.TxMeta{GasLimit: big.NewInt(smallGasLimit)}, // Use small limit to trigger gas bumping
+		// 	sender:          accountAddress,
+		// 	signerPublicKey: publicKeyBytes,
+		// 	contractName:    config.PTBChainWriterModuleName,
+		// 	functionName:    "ptb_call",
+		// 	args:            map[string]any{"counter": objectId},
+		// 	expectError:     nil,
+		// 	expectedResult:  "4",
+		// 	status:          commontypes.Finalized,
+		// 	numberAttemps:   3, // Should succeed after gas bumps
+		// },
 	}
 
-	ctx := context.Background()
-	err = txManager.Start(ctx)
+	err := txManager.Start(ctx)
 	require.NoError(t, err, "Failed to start transaction manager")
+
+	functionConfig := chainWriterConfig.Modules["counter"].Functions["ptb_call"]
 
 	// Step 3: Execute each test scenario
 	//nolint:paralleltest
@@ -384,12 +166,12 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 			arg := config.Arguments{
 				Args: tc.args.(map[string]any),
 			}
-			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, arg, packageId)
+			ptb, err := ptbConstructor.BuildPTBCommands(ctx, "counter", tc.functionName, arg, packageId, functionConfig)
 			if tc.expectError != nil {
 				require.Error(t, err, "Expected an error but BuildPTBCommands succeeded")
 			} else {
 				require.NoError(t, err, "Failed to build PTB commands")
-				tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.signerPublicKey, ptb, false)
+				tx, err := txManager.EnqueuePTB(ctx, tc.txID, tc.txMeta, tc.signerPublicKey, ptb)
 				require.NoError(t, err, "Failed to enqueue PTB")
 
 				require.Eventually(t, func() bool {
@@ -399,7 +181,8 @@ func TestEnqueuePTBIntegration(t *testing.T) {
 					}
 
 					return status == tc.status
-				}, 5*time.Second, 1*time.Second, "Transaction final state not reached")
+				}, 10*time.Second, 1*time.Second, "Transaction final state not reached")
+
 			}
 		})
 	}

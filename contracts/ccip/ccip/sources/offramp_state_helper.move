@@ -11,11 +11,11 @@ use sui::address;
 const ENoMessageToExtract: u64 = 1;
 const ETypeProofMismatch: u64 = 2;
 const ECCIPReceiveFailed: u64 = 3;
-const ETokenTransferMismatch: u64 = 4;
-const ETokenTransferAlreadyExists: u64 = 5;
-const ETokenTransferDoesNotExist: u64 = 6;
-const ETokenTransferAlreadyCompleted: u64 = 7;
-const EWrongReceiptAndTokenTransfer: u64 = 8;
+const EWrongReceiptAndTokenTransfer: u64 = 4;
+const ETokenTransferMismatch: u64 = 5;
+const ETokenTransferAlreadyExists: u64 = 6;
+const ETokenTransferDoesNotExist: u64 = 7;
+const ETokenTransferAlreadyCompleted: u64 = 8;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -93,7 +93,7 @@ public fun add_dest_token_transfer(
     receiver_params
         .token_transfer
         .fill(DestTokenTransfer {
-            token_receiver: token_receiver,
+            token_receiver,
             remote_chain_selector,
             source_amount,
             dest_token_address,
@@ -247,10 +247,10 @@ public fun deconstruct_receiver_params(_: &DestTransferCap, receiver_params: Rec
             ETokenTransferMismatch,
         );
     };
-    receipt_op.destroy_none();
-    token_transfer_op.destroy_none();
 
-    // make sure the any2sui message is extracted
+    token_transfer_op.destroy_none();
+    receipt_op.destroy_none();
+
     assert!(message_op.is_none(), ECCIPReceiveFailed);
     message_op.destroy_none();
 }

@@ -5,8 +5,8 @@ use ccip::token_admin_registry as registry;
 use std::type_name;
 
 const ETypeProofMismatch: u64 = 1;
-const ETokenTransferDoesNotExist: u64 = 2;
-const ETokenTransferAlreadyExists: u64 = 3;
+const ETokenTransferAlreadyExists: u64 = 2;
+const ETokenTransferDoesNotExist: u64 = 3;
 
 public struct ONRAMP_STATE_HELPER has drop {}
 

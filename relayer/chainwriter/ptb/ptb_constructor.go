@@ -135,19 +135,11 @@ Parameters:
   - function: the name of the signal (virtual function) which does not actually map to a single contract call
   - argMapping: a structured representation of the arguments for various commands within PTB, containing both object and scalar arguments
 */
-func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments cwConfig.Arguments, toAddress string) (*transaction.Transaction, error) {
+func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string, function string, arguments cwConfig.Arguments, toAddress string, txnConfig *cwConfig.ChainWriterFunction) (*transaction.Transaction, error) {
 	p.log.Debugw("Building PTB commands", "module", moduleName, "function", function)
 
-	// Look up the module
-	module, ok := p.config.Modules[moduleName]
-	if !ok {
-		return nil, fmt.Errorf("missing module %s not found in configuration", moduleName)
-	}
-
-	// Look up the transaction
-	txnConfig, ok := module.Functions[function]
-	if !ok {
-		return nil, fmt.Errorf("missing function config (%s) not found in module (%s)", function, moduleName)
+	if txnConfig == nil {
+		return nil, fmt.Errorf("transaction config is nil")
 	}
 
 	// Create a new transaction builder
@@ -160,8 +152,9 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		return nil, err
 	}
 
-	// If the function is Execute, then we need to build the PTB using bespoke code rather than using the configs to programmatically build the PTB commands.
-	if function == cwConfig.CCIPExecute {
+	// Handle special functions that require custom PTB building
+	switch function {
+	case cwConfig.CCIPExecute:
 		addressMappings, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
 		if err != nil {
 			p.log.Errorw("Error setting up address mappings", "error", err)
@@ -176,19 +169,29 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		}
 
 		return ptb, nil
-	} else if function == cwConfig.CCIPCommit {
+
+	case cwConfig.CCIPCommit:
 		// If it's just a commit, then we just need to get the address mappings and use the regular
 		// PTB builder to build the PTB.
-		addressMappings, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
+		am, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
 		if err != nil {
-			p.log.Errorw("Error setting up address mappings", "error", err)
 			return nil, err
 		}
-		// Add values from address mappings to the arguments received from core to enable the regualar
-		// PTB building flow for commit.
-		arguments.Args["ccip_object_ref"] = addressMappings.CcipObjectRef
-		arguments.Args["state"] = addressMappings.OffRampState
-		arguments.Args["clock"] = addressMappings.ClockObject
+
+		// inject object_ids if missing
+		if arguments.Args == nil {
+			arguments.Args = map[string]any{}
+		}
+		if _, ok := arguments.Args["ref"]; !ok {
+			arguments.Args["ref"] = am.CcipObjectRef
+		}
+		if _, ok := arguments.Args["state"]; !ok {
+			arguments.Args["state"] = am.OffRampState
+		}
+		if _, ok := arguments.Args["clock"]; !ok {
+			arguments.Args["clock"] = am.ClockObject
+		}
+
 	}
 
 	// Create a map for caching objects
@@ -268,6 +271,7 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	cachedArgs *map[string]transaction.Argument,
 ) ([]transaction.Argument, error) {
 	processedArgs := make([]transaction.Argument, 0, len(params))
+
 	for _, param := range params {
 		p.log.Debugw("Processing PTB parameter", "Param", param)
 

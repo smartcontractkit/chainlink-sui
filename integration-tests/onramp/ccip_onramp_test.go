@@ -9,18 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commonTypes "github.com/smartcontractkit/chainlink-common/pkg/types"
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	mockethtoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_eth_token"
-	mocklinktoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_link_token"
 	"github.com/smartcontractkit/chainlink-sui/integration-tests/onramp/environment"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/stretchr/testify/require"
 )
@@ -33,138 +27,14 @@ type ContractAddresses struct {
 	CCIPTokenPoolStateObjectId string
 }
 
-func getLinkCoins_OLD_DELETE_ME(t *testing.T, envSettings *environment.EnvironmentSettings, linkTokenType string, accountAddress string, lggr logger.Logger, tokenAmount uint64, feeAmount uint64) (string, string) {
-	// Mint LINK tokens for the CCIP send operation
-	// We need two separate coins: one for the token transfer and one for the fee payment
-
-	// Use the setup account to mint tokens (since it owns the TreasuryCapObjectId)
-	// but then transfer them to the transaction account
-	deps := sui_ops.OpTxDeps{
-		Client: envSettings.Client,
-		Signer: envSettings.Signer,
-		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
-			return &bind.CallOpts{
-				Signer:           envSettings.Signer,
-				WaitForExecution: true,
-				GasBudget:        &b,
-			}
-		},
-	}
-
-	// Create LINK token contract instance
-	linkContract, err := mocklinktoken.NewMockLinkToken(envSettings.MockLinkReport.Output.PackageId, envSettings.Client)
-	require.NoError(t, err, "failed to create LINK token contract")
-
-	// Use MintAndTransfer to mint directly to the transaction account
-	// This avoids the ownership issue by minting directly to the account that will use the coins
-
-	// Mint first coin for token transfer directly to transaction account
-	mintTx1, err := linkContract.MockLinkToken().MintAndTransfer(
-		context.Background(),
-		deps.GetCallOpts(),
-		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectId},
-		tokenAmount,
-		accountAddress, // Mint directly to transaction account
-	)
-	require.NoError(t, err, "failed to mint and transfer LINK tokens for transfer")
-
-	lggr.Debugw("Minted and transferred LINK tokens for transfer", "amount", tokenAmount, "txDigest", mintTx1.Digest, "recipient", accountAddress)
-
-	// Find the first minted coin object ID from the transaction
-	mintedCoinId1, err := bind.FindCoinObjectIdFromTx(*mintTx1, linkTokenType)
-	require.NoError(t, err, "failed to find first minted coin object ID")
-	lggr.Infow("First mintedCoinId", "coin", mintedCoinId1)
-
-	// Mint second coin for fee payment directly to transaction account
-	mintTx2, err := linkContract.MockLinkToken().MintAndTransfer(
-		context.Background(),
-		deps.GetCallOpts(),
-		bind.Object{Id: envSettings.MockLinkReport.Output.Objects.TreasuryCapObjectId},
-		feeAmount,
-		accountAddress, // Mint directly to transaction account
-	)
-	require.NoError(t, err, "failed to mint and transfer LINK tokens for fee")
-
-	lggr.Debugw("Minted and transferred LINK tokens for fee", "amount", feeAmount, "txDigest", mintTx2.Digest, "recipient", accountAddress)
-
-	// Find the second minted coin object ID from the transaction
-	mintedCoinId2, err := bind.FindCoinObjectIdFromTx(*mintTx2, linkTokenType)
-	require.NoError(t, err, "failed to find second minted coin object ID")
-	lggr.Infow("Second mintedCoinId", "coin", mintedCoinId2)
-
-	return mintedCoinId1, mintedCoinId2
-}
-
-func getEthCoins_OLD_DELETE_ME(t *testing.T, client sui.ISuiAPI, signer rel.SuiSigner, ethTokenPackageId string, treasuryCapObjectId string, ethTokenType string, accountAddress string, lggr logger.Logger, tokenAmount uint64, feeAmount uint64) []string {
-	// Mint ETH tokens for the CCIP send operation
-	// We need two separate coins: one for the token transfer and one for the fee payment
-
-	// Use the setup account to mint tokens (since it owns the TreasuryCapObjectId)
-	// but then transfer them to the transaction account
-	deps := sui_ops.OpTxDeps{
-		Client: client,
-		Signer: signer,
-		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
-			return &bind.CallOpts{
-				Signer:           signer,
-				WaitForExecution: true,
-				GasBudget:        &b,
-			}
-		},
-	}
-
-	// Create ETH token contract instance
-	ethContract, err := mockethtoken.NewMockEthToken(ethTokenPackageId, client)
-	require.NoError(t, err, "failed to create ETH token contract")
-
-	// Use MintAndTransfer to mint directly to the transaction account
-	// This avoids the ownership issue by minting directly to the account that will use the coins
-
-	// Mint first coin for token transfer directly to transaction account
-	mintTx1, err := ethContract.MockEthToken().MintAndTransfer(
-		context.Background(),
-		deps.GetCallOpts(),
-		bind.Object{Id: treasuryCapObjectId},
-		tokenAmount,
-		accountAddress, // Mint directly to transaction account
-	)
-	require.NoError(t, err, "failed to mint and transfer ETH tokens for transfer")
-
-	lggr.Debugw("Minted and transferred ETH tokens for transfer", "amount", tokenAmount, "txDigest", mintTx1.Digest, "recipient", accountAddress)
-
-	// Find the first minted coin object ID from the transaction
-	mintedCoinId1, err := bind.FindCoinObjectIdFromTx(*mintTx1, ethTokenType)
-	require.NoError(t, err, "failed to find first minted coin object ID")
-	lggr.Infow("First ETH mintedCoinId", "coin", mintedCoinId1)
-
-	// Mint second coin for fee payment directly to transaction account
-	mintTx2, err := ethContract.MockEthToken().MintAndTransfer(
-		context.Background(),
-		deps.GetCallOpts(),
-		bind.Object{Id: treasuryCapObjectId},
-		feeAmount,
-		accountAddress, // Mint directly to transaction account
-	)
-	require.NoError(t, err, "failed to mint and transfer ETH tokens for fee")
-
-	lggr.Debugw("Minted and transferred ETH tokens for fee", "amount", feeAmount, "txDigest", mintTx2.Digest, "recipient", accountAddress)
-
-	// Find the second minted coin object ID from the transaction
-	mintedCoinId2, err := bind.FindCoinObjectIdFromTx(*mintTx2, ethTokenType)
-	require.NoError(t, err, "failed to find second minted coin object ID")
-	lggr.Infow("Second ETH mintedCoinId", "coin", mintedCoinId2)
-
-	return []string{mintedCoinId1, mintedCoinId2}
-}
-
 // TestCCIPSuiOnRamp tests the CCIP onramp send functionality
 func TestCCIPSuiOnRamp(t *testing.T) {
 	lggr := logger.Test(t)
 
 	localChainSelector := uint64(1)
 	destChainSelector := uint64(2)
+
+	gasBudget := int64(500_000_000)
 
 	// Create keystore and get account
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -197,50 +67,52 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", envSettings.MockLinkReport.Output.PackageId)
 	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
-	_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr)
-
-	tokenPoolDetails := testutils.TokenToolDetails{
-		TokenPoolPackageId: envSettings.LockReleaseTokenPoolReport.Output.LockReleaseTPPackageID,
-		TokenPoolType:      testutils.TokenPoolTypeLockRelease,
-	}
-	ethTokenPoolDetails := testutils.TokenToolDetails{
-		TokenPoolPackageId: envSettings.BurnMintTokenPoolReport.Output.BurnMintTPPackageID,
-		TokenPoolType:      testutils.TokenPoolTypeBurnMint,
-	}
-
-	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
-		envSettings.CCIPReport.Output.CCIPPackageId,
-		envSettings.OnRampReport.Output.CCIPOnRampPackageId,
-		[]testutils.TokenToolDetails{tokenPoolDetails, ethTokenPoolDetails},
-		publicKeyBytes,
-		linkTokenType,
-		linkTokenType,
-		ethTokenType,
-	)
-	require.NoError(t, err)
-
-	lggr.Infow("chainWriterConfig", "chainWriterConfig", chainWriterConfig)
-	chainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, chainWriterConfig, false)
-	require.NoError(t, err)
-
 	c := context.Background()
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
-	err = chainWriter.Start(ctx)
-	require.NoError(t, err)
-
-	err = txManager.Start(ctx)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		txManager.Close()
-		chainWriter.Close()
-	})
-
 	t.Run("CCIP SUI messaging", func(t *testing.T) {
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
+		tokenPoolDetails := testutils.TokenToolDetails{
+			TokenPoolPackageId: envSettings.LockReleaseTokenPoolReport.Output.LockReleaseTPPackageID,
+			TokenPoolType:      testutils.TokenPoolTypeLockRelease,
+		}
+		ethTokenPoolDetails := testutils.TokenToolDetails{
+			TokenPoolPackageId: envSettings.BurnMintTokenPoolReport.Output.BurnMintTPPackageID,
+			TokenPoolType:      testutils.TokenPoolTypeBurnMint,
+		}
+
+		err = txManager.Start(ctx)
+		require.NoError(t, err)
+
+		chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
+			lggr,
+			envSettings.CCIPReport.Output.CCIPPackageId,
+			envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+			[]testutils.TokenToolDetails{tokenPoolDetails, ethTokenPoolDetails},
+			publicKeyBytes,
+			linkTokenType,
+			linkTokenType,
+			ethTokenType,
+		)
+		require.NoError(t, err)
+
+		lggr.Infow("chainWriterConfig", "chainWriterConfig", chainWriterConfig)
+		chainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, chainWriterConfig, false)
+		require.NoError(t, err)
+
+		err = chainWriter.Start(ctx)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			txManager.Close()
+			chainWriter.Close()
+		})
+
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
+
+		gasBudget := int64(500_000_000)
 
 		mintedCoinId1, mintedCoinId2 := environment.GetLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
 
@@ -274,13 +146,15 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 			"ptbArgs", ptbArgs,
 			"chainWriterConfig", chainWriterConfig)
 
+		offrampPackageId := envSettings.OnRampReport.Output.CCIPOnRampPackageId
+
 		err = chainWriter.SubmitTransaction(ctx,
 			cwConfig.PTBChainWriterModuleName,
 			"message_passing",
 			&ptbArgs,
 			txID,
-			accountAddress,
-			&commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			offrampPackageId,
+			&commonTypes.TxMeta{GasLimit: big.NewInt(gasBudget)},
 			nil,
 		)
 		require.NoError(t, err)
@@ -314,7 +188,9 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		lggr.Infow("mostRecentEvent", "mostRecentEvent", eventsResponse.Data)
 	})
 
-	t.Run("CCIP SUI messaging with 1 LR TP and 1 BM TP", func(t *testing.T) {
+	t.Run("CCIP SUI messaging with Lock Release Token Pool", func(t *testing.T) {
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
+
 		tokenAmount := uint64(500000) // 500K tokens for transfer
 		feeAmount := uint64(100000)   // 100K tokens for fee payment
 
@@ -323,38 +199,151 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 		// Create array with both coins for the PTB arguments
 		linkCoins := []string{mintedCoinId1, mintedCoinId2}
 
-		// Set up arguments for the PTB
-		ptbArgs := createCCIPSendPTBArgsForBMAndLRTokenPools(
+		// Create chain writer config for Lock Release Token Pool only
+		lrTokenPoolDetails := testutils.TokenToolDetails{
+			TokenPoolPackageId: envSettings.LockReleaseTokenPoolReport.Output.LockReleaseTPPackageID,
+			TokenPoolType:      testutils.TokenPoolTypeLockRelease,
+		}
+
+		lrChainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
+			lggr,
+			envSettings.CCIPReport.Output.CCIPPackageId,
+			envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+			[]testutils.TokenToolDetails{lrTokenPoolDetails},
+			publicKeyBytes,
+			linkTokenType,
+			linkTokenType,
+			ethTokenType,
+		)
+		require.NoError(t, err)
+
+		lrChainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, lrChainWriterConfig, false)
+		require.NoError(t, err)
+
+		err = txManager.Start(ctx)
+		require.NoError(t, err)
+
+		err = lrChainWriter.Start(ctx)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			txManager.Close()
+			lrChainWriter.Close()
+		})
+
+		// Set up arguments for the PTB - only Lock Release Token Pool
+		ptbArgs := createCCIPSendPTBArgsForLRTokenPool(
+			lggr,
+			destChainSelector,
+			linkTokenType,
+			envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId,
+			linkCoins,
+			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
+			environment.ClockObjectId,
+			envSettings.OnRampReport.Output.Objects.StateObjectId,
+			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectId,
+			environment.EthereumAddress,
+		)
+		txID := "ccip_send_lock_release_token_pool"
+
+		err = lrChainWriter.SubmitTransaction(ctx,
+			cwConfig.PTBChainWriterModuleName,
+			"token_transfer_with_messaging",
+			&ptbArgs,
+			txID,
+			accountAddress,
+			&commonTypes.TxMeta{GasLimit: big.NewInt(gasBudget)},
+			nil,
+		)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			status, statusErr := lrChainWriter.GetTransactionStatus(ctx, txID)
+			if statusErr != nil {
+				return false
+			}
+
+			return status == commonTypes.Finalized
+		}, 5*time.Second, 1*time.Second, "Transaction final state not reached")
+	})
+
+	t.Run("CCIP SUI messaging with Burn Mint Token Pool", func(t *testing.T) {
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
+
+		tokenAmount := uint64(500000) // 500K tokens for transfer
+		feeAmount := uint64(100000)   // 100K tokens for fee payment
+
+		gasBudget := int64(500_000_000)
+
+		_, mintedCoinId2 := environment.GetLinkCoins(t, envSettings, linkTokenType, accountAddress, lggr, tokenAmount, feeAmount)
+
+		// Create chain writer config for Burn Mint Token Pool only
+		bmTokenPoolDetails := testutils.TokenToolDetails{
+			TokenPoolPackageId: envSettings.BurnMintTokenPoolReport.Output.BurnMintTPPackageID,
+			TokenPoolType:      testutils.TokenPoolTypeBurnMint,
+		}
+
+		bmChainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
+			lggr,
+			envSettings.CCIPReport.Output.CCIPPackageId,
+			envSettings.OnRampReport.Output.CCIPOnRampPackageId,
+			[]testutils.TokenToolDetails{bmTokenPoolDetails},
+			publicKeyBytes,
+			linkTokenType,
+			linkTokenType,
+			ethTokenType,
+		)
+		require.NoError(t, err)
+
+		lggr.Debugw("bmChainWriterConfig", "bmChainWriterConfig", bmChainWriterConfig)
+
+		bmChainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, bmChainWriterConfig, false)
+		require.NoError(t, err)
+
+		err = txManager.Start(ctx)
+		require.NoError(t, err)
+
+		err = bmChainWriter.Start(ctx)
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			txManager.Close()
+			bmChainWriter.Close()
+		})
+
+		// Set up arguments for the PTB - only Burn Mint Token Pool
+		ptbArgs := createCCIPSendPTBArgsForBMTokenPool(
 			lggr,
 			destChainSelector,
 			linkTokenType,
 			ethTokenType,
 			envSettings.MockLinkReport.Output.Objects.CoinMetadataObjectId,
 			envSettings.MockEthTokenReport.Output.Objects.CoinMetadataObjectId,
-			linkCoins,
-			envSettings.EthCoins,
+			mintedCoinId2,           // fee token
+			envSettings.EthCoins[0], // token to transfer
 			envSettings.CCIPReport.Output.Objects.CCIPObjectRefObjectId,
 			environment.ClockObjectId,
 			envSettings.OnRampReport.Output.Objects.StateObjectId,
-			envSettings.LockReleaseTokenPoolReport.Output.Objects.StateObjectId,
 			envSettings.BurnMintTokenPoolReport.Output.Objects.StateObjectId,
 			environment.EthereumAddress,
 		)
-		txID := "ccip_send_two_token_pool_calls"
+		txID := "ccip_send_burn_mint_token_pool"
 
-		err = chainWriter.SubmitTransaction(ctx,
+		offrampPackageId := envSettings.OnRampReport.Output.CCIPOnRampPackageId
+
+		err = bmChainWriter.SubmitTransaction(ctx,
 			cwConfig.PTBChainWriterModuleName,
 			"token_transfer_with_messaging",
 			&ptbArgs,
 			txID,
-			accountAddress,
-			&commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			offrampPackageId,
+			&commonTypes.TxMeta{GasLimit: big.NewInt(gasBudget)},
 			nil,
 		)
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			status, statusErr := chainWriter.GetTransactionStatus(ctx, txID)
+			status, statusErr := bmChainWriter.GetTransactionStatus(ctx, txID)
 			if statusErr != nil {
 				return false
 			}
@@ -369,6 +358,8 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 
 	localChainSelector := uint64(1)
 	destChainSelector := uint64(2)
+
+	gasBudget := int64(500_000_000)
 
 	// Create keystore and get account
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -402,7 +393,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 
 	lggr.Infow("Using account", "address", accountAddress)
 
-	_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr)
+	_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
 
 	ethManagedTokenPoolDetails := testutils.TokenToolDetails{
 		TokenPoolPackageId: envSettings.ManagedTokenPoolReport.Output.ManagedTPPackageId,
@@ -413,6 +404,7 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", envSettings.MockEthTokenReport.Output.PackageId)
 
 	chainWriterConfig, err := testutils.ConfigureOnRampChainWriter(
+		lggr,
 		envSettings.CCIPReport.Output.CCIPPackageId,
 		envSettings.OnRampReport.Output.CCIPOnRampPackageId,
 		[]testutils.TokenToolDetails{ethManagedTokenPoolDetails},
@@ -468,13 +460,15 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 		)
 		txID := "ccip_send_test_token"
 
+		offrampPackageId := envSettings.OnRampReport.Output.CCIPOnRampPackageId
+
 		err = chainWriter.SubmitTransaction(ctx,
 			cwConfig.PTBChainWriterModuleName,
 			"token_transfer_with_messaging",
 			&ptbArgs,
 			txID,
-			accountAddress,
-			&commonTypes.TxMeta{GasLimit: big.NewInt(10000000)},
+			offrampPackageId,
+			&commonTypes.TxMeta{GasLimit: big.NewInt(gasBudget)},
 			nil,
 		)
 		require.NoError(t, err)
@@ -530,6 +524,83 @@ func createCCIPSendPTBArgsForBMAndLRTokenPools(
 		"fee_token":                          linkTokenCoinObjects[1],
 		"extra_args":                         []byte{}, // Empty array to use default gas limit
 		"token_receiver":                     testutils.ZeroAddress,
+	}
+}
+
+// createCCIPSendPTBArgsForLRTokenPool creates PTBArgMapping for a CCIP send operation with Lock Release Token Pool only
+func createCCIPSendPTBArgsForLRTokenPool(
+	lggr logger.Logger,
+	destChainSelector uint64,
+	linkTokenType string,
+	linkTokenMetadata string,
+	linkTokenCoinObjects []string,
+	ccipObjectRef string,
+	clockObject string,
+	ccipOnrampState string,
+	tokenPoolState string,
+	ethereumAddress string,
+) map[string]any {
+	lggr.Infow("createCCIPSendPTBArgsForLRTokenPool", "destChainSelector", destChainSelector, "linkTokenType", linkTokenType, "linkTokenMetadata", linkTokenMetadata, "linkTokenCoinObjects", linkTokenCoinObjects, "ccipObjectRef", ccipObjectRef, "clockObject", clockObject, "ccipOnrampState", ccipOnrampState, "tokenPoolState", tokenPoolState)
+
+	// Remove 0x prefix if present
+	evmAddressBytes := environment.NormalizeTo32Bytes(ethereumAddress)
+
+	lggr.Infow("evmAddressBytes", "evmAddressBytes", evmAddressBytes)
+
+	return map[string]any{
+		"ccip_object_ref":                    ccipObjectRef,
+		"ccip_object_ref_mutable":            ccipObjectRef, // Same object, different parameter name
+		"clock":                              environment.ClockObjectId,
+		"destination_chain_selector":         destChainSelector,
+		"link_lock_release_token_pool_state": tokenPoolState,
+		"c_link":                             linkTokenCoinObjects[0],
+		"onramp_state":                       ccipOnrampState,
+		"receiver":                           evmAddressBytes,
+		"data":                               []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		"fee_token_metadata":                 linkTokenMetadata,
+		"fee_token":                          linkTokenCoinObjects[1],
+		"extra_args":                         []byte{}, // Empty array to use default gas limit
+		"token_receiver":                     testutils.ZeroAddress,
+	}
+}
+
+// createCCIPSendPTBArgsForBMTokenPool creates PTBArgMapping for a CCIP send operation with Burn Mint Token Pool only
+func createCCIPSendPTBArgsForBMTokenPool(
+	lggr logger.Logger,
+	destChainSelector uint64,
+	linkTokenType string,
+	ethTokenType string,
+	linkTokenMetadata string,
+	ethTokenMetadata string,
+	feeTokenCoinObject string,
+	ethTokenCoinObject string,
+	ccipObjectRef string,
+	clockObject string,
+	ccipOnrampState string,
+	ethTokenPoolState string,
+	ethereumAddress string,
+) map[string]any {
+	lggr.Infow("createCCIPSendPTBArgsForBMTokenPool", "destChainSelector", destChainSelector, "ethTokenType", ethTokenType, "ethTokenMetadata", ethTokenMetadata, "ethTokenCoinObject", ethTokenCoinObject, "ccipObjectRef", ccipObjectRef, "clockObject", clockObject, "ccipOnrampState", ccipOnrampState, "ethTokenPoolState", ethTokenPoolState)
+
+	// Remove 0x prefix if present
+	evmAddressBytes := environment.NormalizeTo32Bytes(ethereumAddress)
+
+	lggr.Infow("evmAddressBytes", "evmAddressBytes", evmAddressBytes)
+
+	return map[string]any{
+		"ccip_object_ref":                ccipObjectRef,
+		"ccip_object_ref_mutable":        ccipObjectRef, // Same object, different parameter name
+		"clock":                          environment.ClockObjectId,
+		"destination_chain_selector":     destChainSelector,
+		"eth_burn_mint_token_pool_state": ethTokenPoolState,
+		"c_eth":                          ethTokenCoinObject,
+		"onramp_state":                   ccipOnrampState,
+		"receiver":                       evmAddressBytes,
+		"data":                           []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		"fee_token_metadata":             linkTokenMetadata,
+		"fee_token":                      feeTokenCoinObject,
+		"extra_args":                     []byte{}, // Empty array to use default gas limit
+		"token_receiver":                 testutils.ZeroAddress,
 	}
 }
 
