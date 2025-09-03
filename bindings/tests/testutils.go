@@ -9,6 +9,8 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 )
 
+var DEFAULT_GAS_BUDGET uint64 = 1000000000
+
 func FindCreatedObject(objectChanges []models.ObjectChange, objectPattern string) (string, *uint64, error) {
 	var targetModule, targetObject string
 

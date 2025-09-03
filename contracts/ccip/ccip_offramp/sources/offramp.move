@@ -181,6 +181,8 @@ public struct SkippedReportExecution has copy, drop {
     source_chain_selector: u64,
 }
 
+const TOKEN_TRANSFER_LIMIT: u64 = 1;
+
 /// These have to match the EVM states
 /// However, execution in SUI is done in a single PTB,
 /// so we don't have the IN_PROGRESS or FAILURE states.
@@ -220,6 +222,7 @@ const EDestTransferCapNotSet: u64 = 25;
 const ECalculateMessageHashInvalidArguments: u64 = 26;
 const EInvalidFunction: u64 = 27;
 const EInvalidTokenReceiver: u64 = 28;
+const ETokenTransferLimitExceeded: u64 = 29;
 
 public fun type_and_version(): String {
     string::utf8(b"OffRamp 1.6.0")
@@ -554,11 +557,10 @@ fun pre_execute_single_report(
 
     let message = &execution_report.message;
     let sequence_number = message.header.sequence_number;
-    let execution_state_ref = if (source_chain_execution_states.contains(sequence_number)) {
-        source_chain_execution_states.borrow_mut(sequence_number)
-    } else {
-        &mut EXECUTION_STATE_UNTOUCHED
+    if (!source_chain_execution_states.contains(sequence_number)) {
+        source_chain_execution_states.add(sequence_number, EXECUTION_STATE_UNTOUCHED);
     };
+    let execution_state_ref = source_chain_execution_states.borrow_mut(sequence_number);
 
     if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
         event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
@@ -570,6 +572,7 @@ fun pre_execute_single_report(
     assert!(message.header.nonce == 0, EMustBeOutOfOrderExec);
 
     let number_of_tokens_in_msg = message.token_amounts.length();
+    assert!(number_of_tokens_in_msg <= TOKEN_TRANSFER_LIMIT, ETokenTransferLimitExceeded);
     let has_valid_message_receiver =
         (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     assert!(
@@ -583,7 +586,6 @@ fun pre_execute_single_report(
     );
     assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
 
-    let mut i = 0;
     let mut receiver_params = osh::create_receiver_params(
         state.dest_transfer_cap.borrow(),
         source_chain_selector,
@@ -592,13 +594,13 @@ fun pre_execute_single_report(
     let mut token_addresses = vector[];
     let mut token_amounts = vector[];
 
-    while (i < number_of_tokens_in_msg) {
+    if (number_of_tokens_in_msg == TOKEN_TRANSFER_LIMIT) {
         let token_pool_address: address = token_admin_registry::get_pool(
             ref,
-            message.token_amounts[i].dest_token_address,
+            message.token_amounts[0].dest_token_address,
         );
         assert!(token_pool_address != @0x0, EUnsupportedToken);
-        let mut amount_op = u256::try_as_u64(message.token_amounts[i].amount);
+        let mut amount_op = u256::try_as_u64(message.token_amounts[0].amount);
         assert!(amount_op.is_some(), ETokenAmountOverflow);
         let amount = amount_op.extract();
 
@@ -608,15 +610,14 @@ fun pre_execute_single_report(
             token_receiver, // if there is a token receiver, users must specify token receiver in extra_args
             source_chain_selector,
             amount,
-            message.token_amounts[i].dest_token_address,
+            message.token_amounts[0].dest_token_address,
             token_pool_address,
-            message.token_amounts[i].source_pool_address,
-            message.token_amounts[i].extra_data,
-            execution_report.offchain_token_data[i],
+            message.token_amounts[0].source_pool_address,
+            message.token_amounts[0].extra_data,
+            execution_report.offchain_token_data[0],
         );
-        token_addresses.push_back(message.token_amounts[i].dest_token_address);
+        token_addresses.push_back(message.token_amounts[0].dest_token_address);
         token_amounts.push_back(amount);
-        i = i + 1;
     };
 
     // if the message has a valid message receiver and proper data & gas limit

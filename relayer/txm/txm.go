@@ -3,8 +3,6 @@ package txm
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -18,15 +16,14 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
-const expectedFunctionTokens = 3
 const numberGoroutines = 2
 
 type TxManager interface {
 	services.Service
-	Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error)
-	EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *transaction.Transaction, simulateTx bool) (*SuiTx, error)
+	EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *transaction.Transaction) (*SuiTx, error)
 	GetTransactionStatus(ctx context.Context, transactionID string) (commontypes.TransactionStatus, error)
 	GetClient() client.SuiPTBClient
+	GetGasManager() GasManager
 }
 
 type SuiTxm struct {
@@ -50,6 +47,7 @@ func NewSuiTxm(
 ) (*SuiTxm, error) {
 	lggr.Infof("Creating SuiTxm")
 	lggr.Infof("SuiTxm configuration: %+v", conf)
+	lggr.Infof("Gas manager Max Gas Budget: %+v", gasManager.MaxGasBudget())
 
 	return &SuiTxm{
 		lggr:                  logger.Named(lggr, "SuiTxm"),
@@ -62,73 +60,6 @@ func NewSuiTxm(
 		broadcastChannel:      make(chan string, conf.BroadcastChanSize),
 		stopChannel:           make(chan struct{}),
 	}, nil
-}
-
-// Enqueue generates a standard Move call transaction, adds it to the transaction store,
-// and queues it for broadcasting. It handles transaction ID generation (if needed),
-// function signature parsing, parameter encoding, transaction generation, signing, and storage.
-//
-// Parameters:
-//   - ctx: Context for the operation.
-//   - transactionID: A specific ID for the transaction. If empty, a new ID is generated.
-//   - txMetadata: Transaction metadata, potentially including gas limits.
-//   - signerPublicKey: The public key of the account signing and sending the transaction.
-//   - function: The full function signature (e.g., "packageId::module::functionName").
-//   - typeArgs: Type arguments for generic Move functions.
-//   - paramTypes: The types of the parameters being passed to the Move function.
-//   - paramValues: The actual values of the parameters.
-//   - simulateTx: Boolean flag indicating whether to simulate the transaction (currently unused in GenerateTransaction).
-//
-// Returns:
-//   - *SuiTx: The generated and stored transaction object.
-//   - error: An error if the transaction ID exists, function parsing fails, transaction generation fails, or storage fails.
-func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, function string, typeArgs []string, paramTypes []string, paramValues []any, simulateTx bool) (*SuiTx, error) {
-	if transactionID == "" {
-		transactionID = TransactionIDGenerator()
-	} else {
-		// Check if the txn ID already exists in the transactions map
-		// If the txn ID already exists, return an error
-		_, err := txm.transactionRepository.GetTransaction(transactionID)
-		if err == nil {
-			return nil, errors.New("txn already exists")
-		}
-	}
-
-	functionTokens := strings.Split(function, "::")
-	if len(functionTokens) != expectedFunctionTokens {
-		msg := fmt.Sprintf("unexpected function name, expected 3 tokens, got %d", len(functionTokens))
-		txm.lggr.Error(msg)
-
-		return nil, errors.New(msg)
-	}
-
-	suiFunction := &SuiFunction{
-		PackageId: functionTokens[0],
-		Module:    functionTokens[1],
-		Name:      functionTokens[2],
-	}
-
-	txn, err := GenerateTransaction(
-		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
-		txm.configuration.RequestType, transactionID, txMetadata,
-		suiFunction, typeArgs, paramTypes, paramValues,
-	)
-	if err != nil {
-		txm.lggr.Errorw("Failed to generate txn", "error", err)
-		return nil, err
-	}
-
-	err = txm.transactionRepository.AddTransaction(*txn)
-	if err != nil {
-		txm.lggr.Errorw("Failed to add txn to repository", "error", err)
-		return nil, err
-	}
-
-	txm.broadcastChannel <- transactionID
-	txm.lggr.Infow("Transaction added to broadcast channel", "transactionID", transactionID)
-	txm.lggr.Infow("Transaction enqueued", "transactionID", transactionID)
-
-	return txn, nil
 }
 
 // EnqueuePTB generates a transaction based on a pre-constructed Programmable Transaction Block (PTB),
@@ -147,13 +78,15 @@ func (txm *SuiTxm) Enqueue(ctx context.Context, transactionID string, txMetadata
 // Returns:
 //   - *SuiTx: The generated and stored transaction object.
 //   - error: An error if transaction generation or storage fails.
-func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *transaction.Transaction, simulateTx bool) (*SuiTx, error) {
+func (txm *SuiTxm) EnqueuePTB(ctx context.Context, transactionID string, txMetadata *commontypes.TxMeta, signerPublicKey []byte, ptb *transaction.Transaction) (*SuiTx, error) {
 	txm.lggr.Infow("Enqueuing PTB", "transactionID", transactionID, "ptb", ptb)
 
-	txn, err := GeneratePTBTransaction(
+	simulateTx := true
+
+	txn, err := GeneratePTBTransactionWithGasEstimation(
 		ctx, signerPublicKey, txm.lggr, txm.keystoreService, txm.suiGateway,
 		txm.configuration.RequestType, transactionID, txMetadata,
-		ptb, simulateTx,
+		ptb, simulateTx, txm.gasManager,
 	)
 	if err != nil {
 		txm.lggr.Errorw("Failed to generate PTB txn", "error", err)
@@ -243,6 +176,10 @@ func (txm *SuiTxm) Start(_ context.Context) error {
 // GetClient returns the Sui client instance used by the transaction manager.
 func (txm *SuiTxm) GetClient() client.SuiPTBClient {
 	return txm.suiGateway
+}
+
+func (txm *SuiTxm) GetGasManager() GasManager {
+	return txm.gasManager
 }
 
 var _ TxManager = (*SuiTxm)(nil)

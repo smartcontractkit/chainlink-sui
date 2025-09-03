@@ -371,7 +371,6 @@ func decodeStruct(data any, target any) error {
 			mk := strings.ReplaceAll(mapKey, "_", "")
 			fn := strings.ReplaceAll(fieldName, "_", "")
 			ok := strings.EqualFold(mk, fn)
-			fmt.Printf("MatchName? mapKey=%q(%q) field=%q(%q) -> %v\n", mapKey, mk, fieldName, fn, ok)
 			return ok
 		},
 	}

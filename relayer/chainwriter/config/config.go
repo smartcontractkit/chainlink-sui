@@ -8,8 +8,8 @@ import (
 
 var (
 	PTBChainWriterModuleName = "cll://component=cw/type=ptb_builder"
-	CCIPExecute              = "Execute"
-	CCIPCommit               = "Commit"
+	CCIPExecute              = "execute"
+	CCIPCommit               = "commit"
 )
 
 type ChainWriterConfig struct {

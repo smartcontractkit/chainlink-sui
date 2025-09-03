@@ -26,6 +26,7 @@ func TestBindingFeatures(t *testing.T) {
 	opts := &bind.CallOpts{
 		Signer:           signer,
 		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
 	testPackage, tx, err := testpackage.PublishTest(ctx, opts, client)

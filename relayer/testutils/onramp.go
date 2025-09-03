@@ -3,6 +3,7 @@ package testutils
 import (
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
@@ -282,6 +283,7 @@ func getManagedLockOrBurnCommand(tokenPoolPackageId string, ethTokenType string)
 // ConfigureOnRampChainWriter creates a single ChainWriterConfig that contains
 // two PTB configurations: one for message passing and one for token transfers with messaging
 func ConfigureOnRampChainWriter(
+	log logger.Logger,
 	ccipPackageId string,
 	ccipOnrampPackageId string,
 	tokenPools []TokenToolDetails,
@@ -318,6 +320,7 @@ func ConfigureOnRampChainWriter(
 				tokenTransferCommands = append(tokenTransferCommands, lockOrBurnCommand)
 			case TokenPoolTypeBurnMint:
 				burnMintCommand := getBMLockOrBurnCommand(tokenPool.TokenPoolPackageId, ethTokenType)
+				log.Debugw("burnMintCommand", "burnMintCommand", burnMintCommand)
 				tokenTransferCommands = append(tokenTransferCommands, burnMintCommand)
 			case TokenPoolTypeManaged:
 				managedCommand := getManagedLockOrBurnCommand(tokenPool.TokenPoolPackageId, ethTokenType)
