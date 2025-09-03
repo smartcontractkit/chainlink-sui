@@ -554,11 +554,10 @@ fun pre_execute_single_report(
 
     let message = &execution_report.message;
     let sequence_number = message.header.sequence_number;
-    let execution_state_ref = if (source_chain_execution_states.contains(sequence_number)) {
-        source_chain_execution_states.borrow_mut(sequence_number)
-    } else {
-        &mut EXECUTION_STATE_UNTOUCHED
+    if (!source_chain_execution_states.contains(sequence_number)) {
+        source_chain_execution_states.add(sequence_number, EXECUTION_STATE_UNTOUCHED);
     };
+    let execution_state_ref = source_chain_execution_states.borrow_mut(sequence_number);
 
     if (*execution_state_ref != EXECUTION_STATE_UNTOUCHED) {
         event::emit(SkippedAlreadyExecuted { source_chain_selector, sequence_number });
