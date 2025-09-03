@@ -5,12 +5,13 @@ package loop
 import (
 	"context"
 	"fmt"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 	"math/big"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/reader"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
@@ -63,13 +64,11 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	require.NoError(t, faucetFundErr)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
-	testutils.BuildContract(t, contractPath)
-
-	packageId, publishOutput, err := testutils.PublishContract(t, "TestContract", contractPath, accountAddress, nil)
+	gasBudget := int(2000000000)
+	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
-
-	log.Debugw("Published Contract", "packageId", packageId)
-	log.Debugw("Publish output", "output", publishOutput)
+	require.NotNil(t, packageId)
+	require.NotNil(t, tx)
 
 	// Set up the base ChainReader with echo function configurations
 	chainReaderConfigs := chainreaderConfig.ChainReaderConfig{

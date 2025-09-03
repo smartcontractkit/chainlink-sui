@@ -123,7 +123,7 @@ module test::counter {
     }
 
     /// Create and share a Counter object
-    public entry fun initialize(ctx: &mut TxContext) {
+    public fun initialize(ctx: &mut TxContext) {
         let counter = Counter {
             id: object::new(ctx),
             value: 0
@@ -136,7 +136,7 @@ module test::counter {
     }
 
     /// Increment counter by 1
-    public entry fun increment(counter: &mut Counter) {
+    public fun increment(counter: &mut Counter) {
         counter.value = counter.value + 1;
 
         // Emit an event
@@ -147,7 +147,7 @@ module test::counter {
     }
 
     /// Decrement counter by 1
-    public entry fun decrement(counter: &mut Counter) {
+    public fun decrement(counter: &mut Counter) {
         counter.value = counter.value - 1;
 
         // Emit an event
@@ -200,7 +200,7 @@ module test::counter {
         });
     }
 
-    public entry fun increment_by_two_no_context(_admin: &AdminCap, counter: &mut Counter) {
+    public fun increment_by_two_no_context(_admin: &AdminCap, counter: &mut Counter) {
         counter.value = counter.value + 2;
 
         // Emit an event
@@ -210,7 +210,7 @@ module test::counter {
         });
     }
 
-    public entry fun increment_by(counter: &mut Counter, by: u64) {
+    public fun increment_by(counter: &mut Counter, by: u64) {
         // This is a test to ensure that the failed transaction is findable by the indexer
         assert!(by <= 999, EInvalidCounterValue);
         
@@ -224,7 +224,7 @@ module test::counter {
     }
 
     /// Increment counter by a*b
-    public entry fun increment_mult(
+    public fun increment_mult(
         counter: &mut Counter,
         a: u64,
         b: u64,
@@ -240,7 +240,7 @@ module test::counter {
     }
 
     /// receive byte array
-    public entry fun increment_by_bytes_length(
+    public fun increment_by_bytes_length(
         counter: &mut Counter,
         bytes: vector<u8>,
     ) {
@@ -255,12 +255,12 @@ module test::counter {
     }
 
     /// Get the value of the count
-    public entry fun get_count(counter: &Counter): u64 {
+    public fun get_count(counter: &Counter): u64 {
         counter.value
     }
 
     // Used to test the pointer functionality in CR
-    public entry fun get_count_using_pointer(counter: &Counter): u64 {
+    public fun get_count_using_pointer(counter: &Counter): u64 {
         counter.value
     }
 
