@@ -21,6 +21,8 @@ var (
 
 type IOnramp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	GetVersion(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	MigrateToV2(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -53,6 +55,7 @@ type IOnramp interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, registry bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOnrampDevInspect
 	Encoder() OnrampEncoder
@@ -60,6 +63,7 @@ type IOnramp interface {
 
 type IOnrampDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
+	GetVersion(ctx context.Context, opts *bind.CallOpts, state bind.Object) (uint64, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (bool, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (uint64, error)
 	GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (uint64, error)
@@ -84,6 +88,10 @@ type IOnrampDevInspect interface {
 type OnrampEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetVersion(state bind.Object) (*bind.EncodedCall, error)
+	GetVersionWithArgs(args ...any) (*bind.EncodedCall, error)
+	MigrateToV2(state bind.Object) (*bind.EncodedCall, error)
+	MigrateToV2WithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsChainSupported(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
@@ -148,6 +156,8 @@ type OnrampEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsRegisterEntrypoint(ownerCap bind.Object, registry bind.Object) (*bind.EncodedCall, error)
+	McmsRegisterEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsEntrypoint(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -189,6 +199,7 @@ func (c *OnrampContract) DevInspect() IOnrampDevInspect {
 
 type OnRampState struct {
 	Id                string       `move:"sui::object::UID"`
+	Version           uint64       `move:"u64"`
 	ChainSelector     uint64       `move:"u64"`
 	FeeAggregator     string       `move:"address"`
 	AllowlistAdmin    string       `move:"address"`
@@ -291,6 +302,7 @@ type McmsCallback struct {
 
 type bcsOnRampState struct {
 	Id                string
+	Version           uint64
 	ChainSelector     uint64
 	FeeAggregator     [32]byte
 	AllowlistAdmin    [32]byte
@@ -305,6 +317,7 @@ func convertOnRampStateFromBCS(bcs bcsOnRampState) (OnRampState, error) {
 
 	return OnRampState{
 		Id:                bcs.Id,
+		Version:           bcs.Version,
 		ChainSelector:     bcs.ChainSelector,
 		FeeAggregator:     fmt.Sprintf("0x%x", bcs.FeeAggregator),
 		AllowlistAdmin:    fmt.Sprintf("0x%x", bcs.AllowlistAdmin),
@@ -702,6 +715,26 @@ func (c *OnrampContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetVersion executes the get_version Move function.
+func (c *OnrampContract) GetVersion(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.GetVersion(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// MigrateToV2 executes the migrate_to_v2 Move function.
+func (c *OnrampContract) MigrateToV2(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.MigrateToV2(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // Initialize executes the initialize Move function.
 func (c *OnrampContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.onrampEncoder.Initialize(state, param, nonceManagerCap, sourceTransferCap, chainSelector, feeAggregator, allowlistAdmin, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
@@ -1022,6 +1055,16 @@ func (c *OnrampContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// McmsRegisterEntrypoint executes the mcms_register_entrypoint Move function.
+func (c *OnrampContract) McmsRegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, registry bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsRegisterEntrypoint(ownerCap, registry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // McmsEntrypoint executes the mcms_entrypoint Move function.
 func (c *OnrampContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.onrampEncoder.McmsEntrypoint(state, registry, params)
@@ -1050,6 +1093,28 @@ func (d *OnrampDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOp
 	result, ok := results[0].(string)
 	if !ok {
 		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetVersion executes the get_version Move function using DevInspect to get return values.
+//
+// Returns: u64
+func (d *OnrampDevInspect) GetVersion(ctx context.Context, opts *bind.CallOpts, state bind.Object) (uint64, error) {
+	encoded, err := d.contract.onrampEncoder.GetVersion(state)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 0 {
+		return 0, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(uint64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
 	}
 	return result, nil
 }
@@ -1476,6 +1541,62 @@ func (c onrampEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, e
 	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::string::String",
 	})
+}
+
+// GetVersion encodes a call to the get_version Move function.
+func (c onrampEncoder) GetVersion(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_version", typeArgsList, typeParamsList, []string{
+		"&OnRampState",
+	}, []any{
+		state,
+	}, []string{
+		"u64",
+	})
+}
+
+// GetVersionWithArgs encodes a call to the get_version Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) GetVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OnRampState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_version", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"u64",
+	})
+}
+
+// MigrateToV2 encodes a call to the migrate_to_v2 Move function.
+func (c onrampEncoder) MigrateToV2(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("migrate_to_v2", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+	}, []any{
+		state,
+	}, nil)
+}
+
+// MigrateToV2WithArgs encodes a call to the migrate_to_v2 Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) MigrateToV2WithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("migrate_to_v2", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // Initialize encodes a call to the initialize Move function.
@@ -2637,6 +2758,35 @@ func (c onrampEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.Encode
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsRegisterEntrypoint encodes a call to the mcms_register_entrypoint Move function.
+func (c onrampEncoder) McmsRegisterEntrypoint(ownerCap bind.Object, registry bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, []string{
+		"OwnerCap",
+		"&mut Registry",
+	}, []any{
+		ownerCap,
+		registry,
+	}, nil)
+}
+
+// McmsRegisterEntrypointWithArgs encodes a call to the mcms_register_entrypoint Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) McmsRegisterEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"OwnerCap",
+		"&mut Registry",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_register_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsEntrypoint encodes a call to the mcms_entrypoint Move function.

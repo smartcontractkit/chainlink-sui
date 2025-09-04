@@ -22,6 +22,7 @@ var (
 type IMcmsDeployer interface {
 	RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, upgradeCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*models.SuiTransactionBlockResponse, error)
+	AuthorizeUpgradeBypassCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, policy byte, digest []byte, packageAddress string) (*models.SuiTransactionBlockResponse, error)
 	CommitUpgrade(ctx context.Context, opts *bind.CallOpts, state bind.Object, receipt bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsDeployerDevInspect
 	Encoder() McmsDeployerEncoder
@@ -29,6 +30,7 @@ type IMcmsDeployer interface {
 
 type IMcmsDeployerDevInspect interface {
 	AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (bind.Object, error)
+	AuthorizeUpgradeBypassCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, policy byte, digest []byte, packageAddress string) (bind.Object, error)
 }
 
 type McmsDeployerEncoder interface {
@@ -36,6 +38,8 @@ type McmsDeployerEncoder interface {
 	RegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	AuthorizeUpgrade(param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*bind.EncodedCall, error)
 	AuthorizeUpgradeWithArgs(args ...any) (*bind.EncodedCall, error)
+	AuthorizeUpgradeBypassCap(state bind.Object, policy byte, digest []byte, packageAddress string) (*bind.EncodedCall, error)
+	AuthorizeUpgradeBypassCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	CommitUpgrade(state bind.Object, receipt bind.Object) (*bind.EncodedCall, error)
 	CommitUpgradeWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -76,8 +80,9 @@ func (c *McmsDeployerContract) DevInspect() IMcmsDeployerDevInspect {
 }
 
 type DeployerState struct {
-	Id          string      `move:"sui::object::UID"`
-	UpgradeCaps bind.Object `move:"Table<address, UpgradeCap>"`
+	Id           string      `move:"sui::object::UID"`
+	UpgradeCaps  bind.Object `move:"Table<address, UpgradeCap>"`
+	CapToPackage bind.Object `move:"Table<ID, address>"`
 }
 
 type UpgradeCapRegistered struct {
@@ -94,9 +99,10 @@ type UpgradeTicketAuthorized struct {
 }
 
 type UpgradeReceiptCommitted struct {
-	PackageAddress string `move:"address"`
-	OldVersion     uint64 `move:"u64"`
-	NewVersion     uint64 `move:"u64"`
+	OldPackageAddress string `move:"address"`
+	NewPackageAddress string `move:"address"`
+	OldVersion        uint64 `move:"u64"`
+	NewVersion        uint64 `move:"u64"`
 }
 
 type MCMS_DEPLOYER struct {
@@ -135,17 +141,19 @@ func convertUpgradeTicketAuthorizedFromBCS(bcs bcsUpgradeTicketAuthorized) (Upgr
 }
 
 type bcsUpgradeReceiptCommitted struct {
-	PackageAddress [32]byte
-	OldVersion     uint64
-	NewVersion     uint64
+	OldPackageAddress [32]byte
+	NewPackageAddress [32]byte
+	OldVersion        uint64
+	NewVersion        uint64
 }
 
 func convertUpgradeReceiptCommittedFromBCS(bcs bcsUpgradeReceiptCommitted) (UpgradeReceiptCommitted, error) {
 
 	return UpgradeReceiptCommitted{
-		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
-		OldVersion:     bcs.OldVersion,
-		NewVersion:     bcs.NewVersion,
+		OldPackageAddress: fmt.Sprintf("0x%x", bcs.OldPackageAddress),
+		NewPackageAddress: fmt.Sprintf("0x%x", bcs.NewPackageAddress),
+		OldVersion:        bcs.OldVersion,
+		NewVersion:        bcs.NewVersion,
 	}, nil
 }
 
@@ -227,6 +235,16 @@ func (c *McmsDeployerContract) AuthorizeUpgrade(ctx context.Context, opts *bind.
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// AuthorizeUpgradeBypassCap executes the authorize_upgrade_bypass_cap Move function.
+func (c *McmsDeployerContract) AuthorizeUpgradeBypassCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, policy byte, digest []byte, packageAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsDeployerEncoder.AuthorizeUpgradeBypassCap(state, policy, digest, packageAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // CommitUpgrade executes the commit_upgrade Move function.
 func (c *McmsDeployerContract) CommitUpgrade(ctx context.Context, opts *bind.CallOpts, state bind.Object, receipt bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsDeployerEncoder.CommitUpgrade(state, receipt)
@@ -242,6 +260,28 @@ func (c *McmsDeployerContract) CommitUpgrade(ctx context.Context, opts *bind.Cal
 // Returns: UpgradeTicket
 func (d *McmsDeployerDevInspect) AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (bind.Object, error) {
 	encoded, err := d.contract.mcmsDeployerEncoder.AuthorizeUpgrade(param, state, policy, digest, packageAddress)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
+// AuthorizeUpgradeBypassCap executes the authorize_upgrade_bypass_cap Move function using DevInspect to get return values.
+//
+// Returns: UpgradeTicket
+func (d *McmsDeployerDevInspect) AuthorizeUpgradeBypassCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, policy byte, digest []byte, packageAddress string) (bind.Object, error) {
+	encoded, err := d.contract.mcmsDeployerEncoder.AuthorizeUpgradeBypassCap(state, policy, digest, packageAddress)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -333,6 +373,45 @@ func (c mcmsDeployerEncoder) AuthorizeUpgradeWithArgs(args ...any) (*bind.Encode
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("authorize_upgrade", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"UpgradeTicket",
+	})
+}
+
+// AuthorizeUpgradeBypassCap encodes a call to the authorize_upgrade_bypass_cap Move function.
+func (c mcmsDeployerEncoder) AuthorizeUpgradeBypassCap(state bind.Object, policy byte, digest []byte, packageAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("authorize_upgrade_bypass_cap", typeArgsList, typeParamsList, []string{
+		"&mut DeployerState",
+		"u8",
+		"vector<u8>",
+		"address",
+	}, []any{
+		state,
+		policy,
+		digest,
+		packageAddress,
+	}, []string{
+		"UpgradeTicket",
+	})
+}
+
+// AuthorizeUpgradeBypassCapWithArgs encodes a call to the authorize_upgrade_bypass_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsDeployerEncoder) AuthorizeUpgradeBypassCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut DeployerState",
+		"u8",
+		"vector<u8>",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("authorize_upgrade_bypass_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"UpgradeTicket",
 	})
 }
