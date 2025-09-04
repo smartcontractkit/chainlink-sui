@@ -21,6 +21,9 @@ var (
 
 type IStateObject interface {
 	OwnerCapId(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	IsCursedFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, function []byte) (*models.SuiTransactionBlockResponse, error)
+	CurseFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, function []byte) (*models.SuiTransactionBlockResponse, error)
+	UncurseFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, function []byte) (*models.SuiTransactionBlockResponse, error)
 	Add(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, obj bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Contains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Remove(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -43,6 +46,7 @@ type IStateObject interface {
 
 type IStateObjectDevInspect interface {
 	OwnerCapId(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (bind.Object, error)
+	IsCursedFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, function []byte) (bool, error)
 	Contains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object) (bool, error)
 	Remove(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object) (any, error)
 	Borrow(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object) (bind.Object, error)
@@ -58,6 +62,12 @@ type IStateObjectDevInspect interface {
 type StateObjectEncoder interface {
 	OwnerCapId(ref bind.Object) (*bind.EncodedCall, error)
 	OwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, error)
+	IsCursedFunction(ref bind.Object, function []byte) (*bind.EncodedCall, error)
+	IsCursedFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
+	CurseFunction(ref bind.Object, param bind.Object, function []byte) (*bind.EncodedCall, error)
+	CurseFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
+	UncurseFunction(ref bind.Object, param bind.Object, function []byte) (*bind.EncodedCall, error)
+	UncurseFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Add(typeArgs []string, ref bind.Object, ownerCap bind.Object, obj bind.Object) (*bind.EncodedCall, error)
 	AddWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Contains(typeArgs []string, ref bind.Object) (*bind.EncodedCall, error)
@@ -128,8 +138,9 @@ func (c *StateObjectContract) DevInspect() IStateObjectDevInspect {
 }
 
 type CCIPObjectRef struct {
-	Id           string      `move:"sui::object::UID"`
-	OwnableState bind.Object `move:"OwnableState"`
+	Id              string      `move:"sui::object::UID"`
+	OwnableState    bind.Object `move:"OwnableState"`
+	CursedFunctions bind.Object `move:"VecSet<vector<u8>>"`
 }
 
 type CCIPObjectRefPointer struct {
@@ -213,6 +224,36 @@ func init() {
 // OwnerCapId executes the owner_cap_id Move function.
 func (c *StateObjectContract) OwnerCapId(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.stateObjectEncoder.OwnerCapId(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// IsCursedFunction executes the is_cursed_function Move function.
+func (c *StateObjectContract) IsCursedFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, function []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.IsCursedFunction(ref, function)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CurseFunction executes the curse_function Move function.
+func (c *StateObjectContract) CurseFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, function []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.CurseFunction(ref, param, function)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// UncurseFunction executes the uncurse_function Move function.
+func (c *StateObjectContract) UncurseFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, function []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.UncurseFunction(ref, param, function)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -398,6 +439,28 @@ func (d *StateObjectDevInspect) OwnerCapId(ctx context.Context, opts *bind.CallO
 	result, ok := results[0].(bind.Object)
 	if !ok {
 		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
+// IsCursedFunction executes the is_cursed_function Move function using DevInspect to get return values.
+//
+// Returns: bool
+func (d *StateObjectDevInspect) IsCursedFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, function []byte) (bool, error) {
+	encoded, err := d.contract.stateObjectEncoder.IsCursedFunction(ref, function)
+	if err != nil {
+		return false, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return false, err
+	}
+	if len(results) == 0 {
+		return false, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bool)
+	if !ok {
+		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
 	}
 	return result, nil
 }
@@ -650,6 +713,103 @@ func (c stateObjectEncoder) OwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, 
 	return c.EncodeCallArgsWithGenerics("owner_cap_id", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"ID",
 	})
+}
+
+// IsCursedFunction encodes a call to the is_cursed_function Move function.
+func (c stateObjectEncoder) IsCursedFunction(ref bind.Object, function []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("is_cursed_function", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"vector<u8>",
+	}, []any{
+		ref,
+		function,
+	}, []string{
+		"bool",
+	})
+}
+
+// IsCursedFunctionWithArgs encodes a call to the is_cursed_function Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) IsCursedFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("is_cursed_function", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"bool",
+	})
+}
+
+// CurseFunction encodes a call to the curse_function Move function.
+func (c stateObjectEncoder) CurseFunction(ref bind.Object, param bind.Object, function []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("curse_function", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<u8>",
+	}, []any{
+		ref,
+		param,
+		function,
+	}, nil)
+}
+
+// CurseFunctionWithArgs encodes a call to the curse_function Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) CurseFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("curse_function", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// UncurseFunction encodes a call to the uncurse_function Move function.
+func (c stateObjectEncoder) UncurseFunction(ref bind.Object, param bind.Object, function []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("uncurse_function", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<u8>",
+	}, []any{
+		ref,
+		param,
+		function,
+	}, nil)
+}
+
+// UncurseFunctionWithArgs encodes a call to the uncurse_function Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) UncurseFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"vector<u8>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("uncurse_function", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // Add encodes a call to the add Move function.

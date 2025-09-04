@@ -183,7 +183,7 @@ public fun complete_token_transfer<TypeProof: drop>(
     let token_config = registry::get_token_config(ref, dest_token_address);
     let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(token_config);
 
-    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
@@ -208,8 +208,8 @@ public fun consume_any2sui_message<TypeProof: drop>(
     message: Any2SuiMessage,
     _: TypeProof,
 ): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
-    let proof_tn = type_name::get<TypeProof>();
-    let address_str = type_name::get_address(&proof_tn);
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let address_str = type_name::address_string(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
 
     let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);

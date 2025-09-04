@@ -21,7 +21,7 @@ var (
 
 type IOnramp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -84,7 +84,7 @@ type IOnrampDevInspect interface {
 type OnrampEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
+	Initialize(state bind.Object, param bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsChainSupported(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -194,7 +194,6 @@ type OnRampState struct {
 	AllowlistAdmin    string       `move:"address"`
 	DestChainConfigs  bind.Object  `move:"Table<u64, DestChainConfig>"`
 	FeeTokens         bind.Object  `move:"Bag"`
-	NonceManagerCap   *bind.Object `move:"0x1::option::Option<NonceManagerCap>"`
 	SourceTransferCap *bind.Object `move:"0x1::option::Option<osh::SourceTransferCap>"`
 	OwnableState      bind.Object  `move:"OwnableState"`
 }
@@ -296,7 +295,6 @@ type bcsOnRampState struct {
 	AllowlistAdmin    [32]byte
 	DestChainConfigs  bind.Object
 	FeeTokens         bind.Object
-	NonceManagerCap   *bind.Object
 	SourceTransferCap *bind.Object
 	OwnableState      bind.Object
 }
@@ -310,7 +308,6 @@ func convertOnRampStateFromBCS(bcs bcsOnRampState) (OnRampState, error) {
 		AllowlistAdmin:    fmt.Sprintf("0x%x", bcs.AllowlistAdmin),
 		DestChainConfigs:  bcs.DestChainConfigs,
 		FeeTokens:         bcs.FeeTokens,
-		NonceManagerCap:   bcs.NonceManagerCap,
 		SourceTransferCap: bcs.SourceTransferCap,
 		OwnableState:      bcs.OwnableState,
 	}, nil
@@ -703,8 +700,8 @@ func (c *OnrampContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts
 }
 
 // Initialize executes the initialize Move function.
-func (c *OnrampContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.Initialize(state, param, nonceManagerCap, sourceTransferCap, chainSelector, feeAggregator, allowlistAdmin, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
+func (c *OnrampContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.Initialize(state, param, sourceTransferCap, chainSelector, feeAggregator, allowlistAdmin, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1479,13 +1476,12 @@ func (c onrampEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, e
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c onrampEncoder) Initialize(state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error) {
+func (c onrampEncoder) Initialize(state bind.Object, param bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
 		"&mut OnRampState",
 		"&OwnerCap",
-		"NonceManagerCap",
 		"osh::SourceTransferCap",
 		"u64",
 		"address",
@@ -1496,7 +1492,6 @@ func (c onrampEncoder) Initialize(state bind.Object, param bind.Object, nonceMan
 	}, []any{
 		state,
 		param,
-		nonceManagerCap,
 		sourceTransferCap,
 		chainSelector,
 		feeAggregator,
@@ -1513,7 +1508,6 @@ func (c onrampEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, error
 	expectedParams := []string{
 		"&mut OnRampState",
 		"&OwnerCap",
-		"NonceManagerCap",
 		"osh::SourceTransferCap",
 		"u64",
 		"address",

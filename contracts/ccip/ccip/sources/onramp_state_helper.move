@@ -65,7 +65,7 @@ public fun add_token_transfer_param<TypeProof: drop>(
         token_config,
     );
 
-    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 

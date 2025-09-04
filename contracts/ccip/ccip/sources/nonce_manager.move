@@ -5,10 +5,10 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use std::string::{Self, String};
 use sui::table::{Self, Table};
 
-// store this cap to onramp
-public struct NonceManagerCap has key, store {
-    id: UID,
-}
+// // store this cap to onramp
+// public struct NonceManagerCap has key, store {
+//     id: UID,
+// }
 
 public struct NonceManagerState has key, store {
     id: UID,
@@ -17,6 +17,7 @@ public struct NonceManagerState has key, store {
 }
 
 const EAlreadyInitialized: u64 = 1;
+const EInvalidFunctionVersion: u64 = 2;
 
 public fun type_and_version(): String {
     string::utf8(b"NonceManager 1.6.0")
@@ -30,11 +31,11 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
         id: object::new(ctx),
         outbound_nonces: table::new(ctx),
     };
-    let cap = NonceManagerCap {
-        id: object::new(ctx),
-    };
+    // let cap = NonceManagerCap {
+    //     id: object::new(ctx),
+    // };
     state_object::add(ref, owner_cap, state, ctx);
-    transfer::transfer(cap, ctx.sender());
+    // transfer::transfer(cap, ctx.sender());
 }
 
 public fun get_outbound_nonce(ref: &CCIPObjectRef, dest_chain_selector: u64, sender: address): u64 {
@@ -51,13 +52,19 @@ public fun get_outbound_nonce(ref: &CCIPObjectRef, dest_chain_selector: u64, sen
     dest_chain_nonces[sender]
 }
 
-public fun get_incremented_outbound_nonce(
+public(package) fun get_incremented_outbound_nonce(
     ref: &mut CCIPObjectRef,
-    _: &NonceManagerCap,
     dest_chain_selector: u64,
     sender: address,
     ctx: &mut TxContext,
 ): u64 {
+    assert!(
+        !state_object::is_cursed_function(
+            ref,
+            b"nonce_manager::get_incremented_outbound_nonce::v1",
+        ),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow_mut<NonceManagerState>(ref);
 
     if (!state.outbound_nonces.contains(dest_chain_selector)) {
