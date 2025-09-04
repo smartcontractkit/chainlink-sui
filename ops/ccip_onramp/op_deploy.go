@@ -18,6 +18,7 @@ type DeployCCIPOnRampObjects struct {
 	// State Object
 	OwnerCapObjectId        string
 	CCIPOnrampStateObjectId string
+	UpgradeCapObjectId      string
 }
 
 type DeployCCIPOnRampInput struct {
@@ -44,8 +45,9 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	// TODO: We should move the object ID finding logic into the binding package
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "onramp", "OnRampState")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
 
-	if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
 	}
 
@@ -55,6 +57,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		Objects: DeployCCIPOnRampObjects{
 			OwnerCapObjectId:        obj1,
 			CCIPOnrampStateObjectId: obj2,
+			UpgradeCapObjectId:      obj3,
 		},
 	}, err
 }
@@ -319,4 +322,82 @@ var GetDestChainConfigOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Runs GetDestChainConfig OnRamp",
 	GetDestChainConfigHandler,
+)
+
+type RegisterUpgradeCapInput struct {
+	OnRampPackageId    string
+	UpgradeCapObjectId string
+	RegistryId         string
+	DeployerStateId    string
+}
+
+var RegisterUpgradeCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RegisterUpgradeCapInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.McmsRegisterUpgradeCap(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.UpgradeCapObjectId},
+		bind.Object{Id: input.RegistryId},
+		bind.Object{Id: input.DeployerStateId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to register upgrade cap with MCMS: %w", err)
+	}
+
+	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   DeployCCIPOnRampObjects{},
+	}, nil
+}
+
+type RegisterWithMCMSInput struct {
+	OnRampPackageId  string
+	OwnerCapObjectId string
+	RegistryId       string
+}
+
+var RegisterWithMCMSHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RegisterWithMCMSInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.McmsRegisterEntrypoint(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.RegistryId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to register OnRamp with MCMS: %w", err)
+	}
+
+	return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   DeployCCIPOnRampObjects{},
+	}, nil
+}
+
+var RegisterWithMCMSOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-register-with-mcms", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Registers OnRamp OwnerCap with MCMS Registry",
+	RegisterWithMCMSHandler,
+)
+
+var RegisterUpgradeCapOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-register-upgrade-cap", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Registers OnRamp UpgradeCap with MCMS",
+	RegisterUpgradeCapHandler,
 )

@@ -13,6 +13,8 @@ type DeployAndInitCCIPOnRampSeqInput struct {
 	OnRampInitializeInput
 	ApplyDestChainConfigureOnRampInput
 	ApplyAllowListUpdatesInput
+	RegisterWithMCMSInput
+	RegisterUpgradeCapInput
 }
 
 type DeployCCIPOnRampSeqObjects struct {
@@ -54,6 +56,31 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		}
 
 		_, err = cld_ops.ExecuteOperation(env, ApplyDestChainConfigUpdateOp, deps, applyDestChainConfigUpdateInput)
+		if err != nil {
+			return DeployCCIPOnRampSeqOutput{}, err
+		}
+
+		// Register OnRamp with MCMS registry first
+		registerWithMCMSInput := RegisterWithMCMSInput{
+			OnRampPackageId:  deployReport.Output.PackageId,
+			OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
+			RegistryId:       input.RegisterWithMCMSInput.RegistryId,
+		}
+
+		_, err = cld_ops.ExecuteOperation(env, RegisterWithMCMSOp, deps, registerWithMCMSInput)
+		if err != nil {
+			return DeployCCIPOnRampSeqOutput{}, err
+		}
+
+		// Register UpgradeCap with MCMS deployer
+		registerUpgradeCapInput := RegisterUpgradeCapInput{
+			OnRampPackageId:    deployReport.Output.PackageId,
+			UpgradeCapObjectId: deployReport.Output.Objects.UpgradeCapObjectId,
+			RegistryId:         input.RegisterUpgradeCapInput.RegistryId,
+			DeployerStateId:    input.RegisterUpgradeCapInput.DeployerStateId,
+		}
+
+		_, err = cld_ops.ExecuteOperation(env, RegisterUpgradeCapOp, deps, registerUpgradeCapInput)
 		if err != nil {
 			return DeployCCIPOnRampSeqOutput{}, err
 		}

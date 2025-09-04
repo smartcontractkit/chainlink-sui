@@ -10,6 +10,8 @@ module mcms::mcms_deployer {
         id: UID,
         /// Package address -> UpgradeCap
         upgrade_caps: Table<address, UpgradeCap>,
+        /// UpgradeCap ID -> Package address (For reverse lookup)
+        cap_to_package: Table<ID, address>,
     }
 
     public struct UpgradeCapRegistered has copy, drop {
@@ -26,7 +28,8 @@ module mcms::mcms_deployer {
     }
 
     public struct UpgradeReceiptCommitted has copy, drop {
-        package_address: address,
+        old_package_address: address,
+        new_package_address: address,
         old_version: u64,
         new_version: u64,
     }
@@ -39,6 +42,7 @@ module mcms::mcms_deployer {
         let state = DeployerState {
             id: object::new(ctx),
             upgrade_caps: table::new(ctx),
+            cap_to_package: table::new(ctx),
         };
 
         transfer::share_object(state);
@@ -62,6 +66,7 @@ module mcms::mcms_deployer {
         let version = upgrade_cap.version();
         let policy = upgrade_cap.policy();
 
+        state.cap_to_package.add(object::id(&upgrade_cap), package_address);
         state.upgrade_caps.add(package_address, upgrade_cap);
 
         event::emit(UpgradeCapRegistered {
@@ -94,22 +99,44 @@ module mcms::mcms_deployer {
         package::authorize_upgrade(cap, policy, digest)
     }
 
+    /// FOR TESTING ONLY
+    public fun authorize_upgrade_bypass_cap(
+        state: &mut DeployerState,
+        policy: u8,
+        digest: vector<u8>,
+        package_address: address,
+        _ctx: &mut TxContext,
+    ): UpgradeTicket {
+        assert!(state.upgrade_caps.contains(package_address), EPackageAddressNotRegistered);
+
+        let cap = state.upgrade_caps.borrow_mut(package_address);
+        event::emit(UpgradeTicketAuthorized {
+            package_address,
+            policy,
+            digest,
+        });
+
+        package::authorize_upgrade(cap, policy, digest)
+    }
+
     /// Commit the upgrade by consuming the `UpgradeTicket`
     public fun commit_upgrade(
         state: &mut DeployerState,
         receipt: UpgradeReceipt,
         _ctx: &mut TxContext,
     ) {
-        let package_address = receipt.package().to_address();
-        assert!(state.upgrade_caps.contains(package_address), EPackageAddressNotRegistered);
+        let new_package_address = receipt.package().to_address();
+        let old_package_address = *state.cap_to_package.borrow(receipt.cap());
+        assert!(state.upgrade_caps.contains(old_package_address), EPackageAddressNotRegistered);
 
-        let cap = state.upgrade_caps.borrow_mut(package_address);
+        let cap = state.upgrade_caps.borrow_mut(old_package_address);
         let old_version = cap.version();
 
         package::commit_upgrade(cap, receipt);
 
         event::emit(UpgradeReceiptCommitted {
-            package_address,
+            old_package_address,
+            new_package_address,
             old_version,
             new_version: cap.version(),
         });
