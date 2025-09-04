@@ -171,10 +171,6 @@ type FeeQuoterState struct {
 	PremiumMultiplierWeiPerEth   bind.Object `move:"table::Table<address, u64>"`
 }
 
-type FeeQuoterCap struct {
-	Id string `move:"sui::object::UID"`
-}
-
 type StaticConfig struct {
 	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
 	LinkToken                    string   `move:"address"`
@@ -454,14 +450,6 @@ func init() {
 		}
 
 		result, err := convertFeeQuoterStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
-		var result FeeQuoterCap
-		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
 		}

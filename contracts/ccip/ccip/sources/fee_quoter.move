@@ -107,9 +107,9 @@ public struct FeeQuoterState has key, store {
     premium_multiplier_wei_per_eth: table::Table<address, u64>,
 }
 
-public struct FeeQuoterCap has key, store {
-    id: UID,
-}
+// public struct FeeQuoterCap has key, store {
+//     id: UID,
+// }
 
 public struct StaticConfig has drop {
     max_fee_juels_per_msg: u256,
@@ -268,13 +268,13 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
-    let fee_quoter_cap = FeeQuoterCap {
-        id: object::new(ctx),
-    };
-    transfer::transfer(
-        fee_quoter_cap,
-        ctx.sender(),
-    );
+    // let fee_quoter_cap = FeeQuoterCap {
+    //     id: object::new(ctx),
+    // };
+    // transfer::transfer(
+    //     fee_quoter_cap,
+    //     ctx.sender(),
+    // );
     state_object::add(ref, owner_cap, state, ctx);
 }
 
