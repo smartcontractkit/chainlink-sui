@@ -1,6 +1,8 @@
 package onrampops
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -16,7 +18,8 @@ type DeployAndInitCCIPOnRampSeqInput struct {
 }
 
 type DeployCCIPOnRampSeqObjects struct {
-	StateObjectId string
+	StateObjectId    string
+	OwnerCapObjectId string
 }
 
 type DeployCCIPOnRampSeqOutput struct {
@@ -38,6 +41,8 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		input.OnRampInitializeInput.OnRampPackageId = deployReport.Output.PackageId
 		input.OnRampInitializeInput.OnRampStateId = deployReport.Output.Objects.CCIPOnrampStateObjectId
 		input.OnRampInitializeInput.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
+
+		fmt.Println("ONRAMP INPUTSS: ", input.OnRampInitializeInput)
 
 		_, err = cld_ops.ExecuteOperation(env, OnRampInitializeOP, deps, input.OnRampInitializeInput)
 		if err != nil {
@@ -63,7 +68,7 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		if len(input.ApplyAllowListUpdatesInput.DestChainSelector) > 0 {
 			applyAllowListUpdatesInput := ApplyAllowListUpdatesInput{
 				OnRampPackageId:               deployReport.Output.PackageId,
-				CCIPObjectRefId:               input.ApplyAllowListUpdatesInput.CCIPObjectRefId,
+				CCIPObjectRefId:               input.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId,
 				OwnerCapObjectId:              deployReport.Output.Objects.OwnerCapObjectId,
 				StateObjectId:                 deployReport.Output.Objects.CCIPOnrampStateObjectId,
 				DestChainSelector:             input.ApplyAllowListUpdatesInput.DestChainSelector,
@@ -81,7 +86,8 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		return DeployCCIPOnRampSeqOutput{
 			CCIPOnRampPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPOnRampSeqObjects{
-				StateObjectId: deployReport.Output.Objects.CCIPOnrampStateObjectId,
+				StateObjectId:    deployReport.Output.Objects.CCIPOnrampStateObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 			},
 		}, nil
 	},

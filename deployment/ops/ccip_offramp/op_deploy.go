@@ -148,6 +148,47 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 	}, err
 }
 
+type ApplySourceChainConfigUpdateInput struct {
+	CCIPObjectRef                        string
+	OffRampPackageId                     string
+	OffRampStateId                       string
+	OwnerCapObjectId                     string
+	SourceChainsSelectors                []uint64
+	SourceChainsIsEnabled                []bool
+	SouceChainsIsRMNVerificationDisabled []bool
+	SourceChainsOnRamp                   [][]byte
+}
+
+var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplySourceChainConfigUpdateInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.ApplySourceChainConfigUpdates(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.CCIPObjectRef},
+		bind.Object{Id: input.OffRampStateId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.SourceChainsSelectors,
+		input.SourceChainsIsEnabled,
+		input.SouceChainsIsRMNVerificationDisabled,
+		input.SourceChainsOnRamp,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute applySourceChainConfigUpdate in offramp: %w", err)
+	}
+
+	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OffRampPackageId,
+		Objects:   DeployCCIPOffRampObjects{},
+	}, err
+}
+
 var DeployCCIPOffRampOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "deploy"),
 	semver.MustParse("0.1.0"),
@@ -156,7 +197,7 @@ var DeployCCIPOffRampOp = cld_ops.NewOperation(
 )
 
 var InitializeOffRampOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "configure"),
+	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "initialize"),
 	semver.MustParse("0.1.0"),
 	"Initialize the CCIP offramp package",
 	initializeHandler,
@@ -165,98 +206,13 @@ var InitializeOffRampOp = cld_ops.NewOperation(
 var SetOCR3ConfigOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "configure"),
 	semver.MustParse("0.1.0"),
-	"Initialize the CCIP setOCR3Config package",
+	"Running CCIP setOCR3Config package",
 	setOCR3ConfigHandler,
 )
 
-type AddPackageIdOffRampInput struct {
-	OffRampPackageId string
-	StateObjectId    string
-	OwnerCapObjectId string
-	PackageId        string
-}
-
-type AddPackageIdOffRampObjects struct {
-	// No specific objects are returned from add_package_id
-}
-
-var addPackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdOffRampInput) (output sui_ops.OpTxResult[AddPackageIdOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, err
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := offRampPackage.AddPackageId(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, fmt.Errorf("failed to execute AddPackageId on offRamp: %w", err)
-	}
-
-	b.Logger.Infow("Package ID added to OffRamp", "packageId", input.PackageId)
-
-	return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.OffRampPackageId,
-		Objects:   AddPackageIdOffRampObjects{},
-	}, nil
-}
-
-var AddPackageIdOffRampOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-offramp-add-package-id", "package", "configure"),
+var ApplySourceChainConfigUpdatesOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "applysourcechainconfigupdate"),
 	semver.MustParse("0.1.0"),
-	"Adds a new package ID to the OffRamp state for upgrade tracking",
-	addPackageIdOffRampHandler,
-)
-
-type RemovePackageIdOffRampInput struct {
-	OffRampPackageId string
-	StateObjectId    string
-	OwnerCapObjectId string
-	PackageId        string
-}
-
-type RemovePackageIdOffRampObjects struct {
-	// No specific objects are returned from remove_package_id
-}
-
-var removePackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RemovePackageIdOffRampInput) (output sui_ops.OpTxResult[RemovePackageIdOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[RemovePackageIdOffRampObjects]{}, err
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := offRampPackage.RemovePackageId(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[RemovePackageIdOffRampObjects]{}, fmt.Errorf("failed to execute RemovePackageId on offRamp: %w", err)
-	}
-
-	b.Logger.Infow("Package ID removed from OffRamp", "packageId", input.PackageId)
-
-	return sui_ops.OpTxResult[RemovePackageIdOffRampObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.OffRampPackageId,
-		Objects:   RemovePackageIdOffRampObjects{},
-	}, nil
-}
-
-var RemovePackageIdOffRampOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-offramp-remove-package-id", "package", "configure"),
-	semver.MustParse("0.1.0"),
-	"Removes a package ID from the OffRamp state for upgrade tracking",
-	removePackageIdOffRampHandler,
+	"Running Offramp ApplySourceChainConfigUpdate operation",
+	applySourceChainConfigUpdateHandler,
 )

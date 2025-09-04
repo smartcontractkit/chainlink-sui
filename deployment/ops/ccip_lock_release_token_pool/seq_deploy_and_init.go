@@ -111,6 +111,27 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 			return DeployLockReleaseTokenPoolOutput{}, err
 		}
 
+		for i, chainSelector := range input.RemoteChainSelectors {
+			for _, poolAddr := range input.RemotePoolAddressesToAdd[i] {
+				_, err = cld_ops.ExecuteOperation(
+					env,
+					LockReleaseTokenPoolAddRemotePoolOp,
+					deps,
+					LockReleaseTokenPoolAddRemotePoolInput{
+						LockReleaseTokenPoolPackageId: deployReport.Output.PackageId,
+						CoinObjectTypeArg:             input.CoinObjectTypeArg,
+						StateObjectId:                 initReport.Output.Objects.StateObjectId,
+						OwnerCap:                      initReport.Output.Objects.OwnerCapObjectId,
+						RemoteChainSelector:           chainSelector,
+						RemotePoolAddress:             poolAddr, // one address at a time
+					},
+				)
+				if err != nil {
+					return DeployLockReleaseTokenPoolOutput{}, err
+				}
+			}
+		}
+
 		return DeployLockReleaseTokenPoolOutput{
 			LockReleaseTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{
@@ -213,6 +234,27 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 		)
 		if err != nil {
 			return DeployLockReleaseTokenPoolOutput{}, err
+		}
+
+		for i, chainSelector := range input.RemoteChainSelectors {
+			for _, poolAddr := range input.RemotePoolAddressesToAdd[i] {
+				_, err = cld_ops.ExecuteOperation(
+					env,
+					LockReleaseTokenPoolAddRemotePoolOp,
+					deps,
+					LockReleaseTokenPoolAddRemotePoolInput{
+						LockReleaseTokenPoolPackageId: deployReport.Output.PackageId,
+						CoinObjectTypeArg:             input.CoinObjectTypeArg,
+						StateObjectId:                 initReport.Output.Objects.StateObjectId,
+						OwnerCap:                      initReport.Output.Objects.OwnerCapObjectId,
+						RemoteChainSelector:           chainSelector,
+						RemotePoolAddress:             poolAddr, // one address at a time
+					},
+				)
+				if err != nil {
+					return DeployLockReleaseTokenPoolOutput{}, err
+				}
+			}
 		}
 
 		return DeployLockReleaseTokenPoolOutput{

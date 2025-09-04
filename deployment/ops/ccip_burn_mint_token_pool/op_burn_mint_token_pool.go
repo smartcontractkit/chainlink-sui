@@ -255,3 +255,50 @@ var BurnMintTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 	"Sets chain rate limiter configs in the CCIP Burn Mint Token Pool contract",
 	setChainRateLimiterHandler,
 )
+
+// BMTP -- add_remote_pool
+type BurnMintTokenPoolAddRemotePoolInput struct {
+	BurnMintTokenPoolPackageId string
+	CoinObjectTypeArg          string
+	StateObjectId              string
+	OwnerCap                   string
+	RemoteChainSelector        uint64
+	RemotePoolAddress          string
+}
+
+var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolAddRemotePoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.AddRemotePool(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.RemoteChainSelector,
+		[]byte(input.RemotePoolAddress),
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool add remote pool: %w", err)
+	}
+
+	b.Logger.Infow("AddRemotePool on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintTokenPoolPackageId, "Chain:", input.RemoteChainSelector)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.BurnMintTokenPoolPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var BurnMintTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "add_remote_pool"),
+	semver.MustParse("0.1.0"),
+	"Adds a remote pool in the CCIP BurnMint Token Pool contract",
+	addRemotePoolHandler,
+)

@@ -109,6 +109,27 @@ var DeployAndInitBurnMintTokenPoolSequence = cld_ops.NewSequence(
 			return DeployBurnMintTokenPoolOutput{}, err
 		}
 
+		for i, chainSelector := range input.RemoteChainSelectors {
+			for _, poolAddr := range input.RemotePoolAddressesToAdd[i] {
+				_, err = cld_ops.ExecuteOperation(
+					env,
+					BurnMintTokenPoolAddRemotePoolOp,
+					deps,
+					BurnMintTokenPoolAddRemotePoolInput{
+						BurnMintTokenPoolPackageId: deployReport.Output.PackageId,
+						CoinObjectTypeArg:          input.CoinObjectTypeArg,
+						StateObjectId:              initReport.Output.Objects.StateObjectId,
+						OwnerCap:                   initReport.Output.Objects.OwnerCapObjectId,
+						RemoteChainSelector:        chainSelector,
+						RemotePoolAddress:          poolAddr, // one address at a time
+					},
+				)
+				if err != nil {
+					return DeployBurnMintTokenPoolOutput{}, err
+				}
+			}
+		}
+
 		return DeployBurnMintTokenPoolOutput{
 			BurnMintTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployBurnMintTokenPoolObjects{

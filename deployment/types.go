@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"github.com/Masterminds/semver/v3"
-
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 )
 
@@ -10,13 +9,15 @@ var (
 	SuiCCIPRouterType              deployment.ContractType = "SuiRouter"
 	SuiCCIPType                    deployment.ContractType = "SuiCCIP"
 	SuiCCIPObjectRefType           deployment.ContractType = "SuiCCIPObjectRef"
+	SuiCCIPOwnerCapObjectIdType    deployment.ContractType = "SuiCCIPOwnerCapObjectId"
 	SuiFeeQuoterCapType            deployment.ContractType = "SuiCCIPFeeQuoterCap"
 	SuiTokenPoolType               deployment.ContractType = "SuiTokenPool"
 	SuiOnRampType                  deployment.ContractType = "SuiOnRamp"
-	SuiOnRampStateObjectIDType     deployment.ContractType = "SuiOnRampStateObjectID"
+	SuiOnRampStateObjectIdType     deployment.ContractType = "SuiOnRampStateObjectId"
+	SuiOnRampOwnerCapObjectIdType  deployment.ContractType = "SuiOnRampOwnerCapObjectId"
 	SuiOffRampType                 deployment.ContractType = "SuiOffRamp"
-	SuiOffRampOwnerCapObjectIDType deployment.ContractType = "SuiOffRampOwnerCapObjectId"
-	SuiOffRampStateObjectIDType    deployment.ContractType = "SuiOffRampStateObjectId"
+	SuiOffRampOwnerCapObjectIdType deployment.ContractType = "SuiOffRampOwnerCapObjectId"
+	SuiOffRampStateObjectIdType    deployment.ContractType = "SuiOffRampStateObjectId"
 	SuiLockReleaseTPType           deployment.ContractType = "SuiLockReleaseToken"
 	SuiLockReleaseTPStateType      deployment.ContractType = "SuiLockReleaseTokenState"
 
@@ -34,11 +35,14 @@ var (
 	SuiMcmsUserOwnerCapObjectIDType deployment.ContractType = "SuiMcmsUserOwnerCapObjectId"
 
 	// Link related
+	SuiLinkTokenObjectMetadataID deployment.ContractType = "SuiLinkTokenObjectMetadataId"
+	SuiLinkTokenTreasuryCapID    deployment.ContractType = "SuiLinkTokenTreasuryCapId"
+	SuiMCMSType                  deployment.ContractType = "SuiManyChainMultisig"
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
 	SuiBnMTokenPoolType          deployment.ContractType = "SuiBnMTokenPool"
 	SuiBnMTokenPoolStateType     deployment.ContractType = "SuiBnMTokenPoolState"
-	SuiLinkTokenObjectMetadataID deployment.ContractType = "SuiLinkTokenObjectMetadataId"
-	SuiLinkTokenTreasuryCapID    deployment.ContractType = "SuiLinkTokenTreasuryCapId"
+	SuiLinkTokenObjectMetadataId deployment.ContractType = "SuiLinkTokenObjectMetadataId"
+	SuiLinkTokenTreasuryCapId    deployment.ContractType = "SuiLinkTokenTreasuryCapId"
 )
 
 var (
