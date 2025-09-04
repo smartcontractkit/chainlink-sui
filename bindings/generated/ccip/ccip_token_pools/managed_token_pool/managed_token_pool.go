@@ -57,6 +57,7 @@ type IManagedTokenPool interface {
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IManagedTokenPoolDevInspect
 	Encoder() ManagedTokenPoolEncoder
+	Bound() bind.IBoundContract
 }
 
 type IManagedTokenPoolDevInspect interface {
@@ -164,7 +165,7 @@ type ManagedTokenPoolDevInspect struct {
 var _ IManagedTokenPool = (*ManagedTokenPoolContract)(nil)
 var _ IManagedTokenPoolDevInspect = (*ManagedTokenPoolDevInspect)(nil)
 
-func NewManagedTokenPool(packageID string, client sui.ISuiAPI) (*ManagedTokenPoolContract, error) {
+func NewManagedTokenPool(packageID string, client sui.ISuiAPI) (IManagedTokenPool, error) {
 	contract, err := bind.NewBoundContract(packageID, "managed_token_pool", "managed_token_pool", client)
 	if err != nil {
 		return nil, err
@@ -176,6 +177,10 @@ func NewManagedTokenPool(packageID string, client sui.ISuiAPI) (*ManagedTokenPoo
 	}
 	c.devInspect = &ManagedTokenPoolDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *ManagedTokenPoolContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *ManagedTokenPoolContract) Encoder() ManagedTokenPoolEncoder {

@@ -56,6 +56,7 @@ type IOnramp interface {
 	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOnrampDevInspect
 	Encoder() OnrampEncoder
+	Bound() bind.IBoundContract
 }
 
 type IOnrampDevInspect interface {
@@ -165,7 +166,7 @@ type OnrampDevInspect struct {
 var _ IOnramp = (*OnrampContract)(nil)
 var _ IOnrampDevInspect = (*OnrampDevInspect)(nil)
 
-func NewOnramp(packageID string, client sui.ISuiAPI) (*OnrampContract, error) {
+func NewOnramp(packageID string, client sui.ISuiAPI) (IOnramp, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "onramp", client)
 	if err != nil {
 		return nil, err
@@ -177,6 +178,10 @@ func NewOnramp(packageID string, client sui.ISuiAPI) (*OnrampContract, error) {
 	}
 	c.devInspect = &OnrampDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *OnrampContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *OnrampContract) Encoder() OnrampEncoder {

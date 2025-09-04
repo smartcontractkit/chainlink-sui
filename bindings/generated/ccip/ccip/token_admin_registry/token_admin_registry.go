@@ -37,6 +37,7 @@ type ITokenAdminRegistry interface {
 	IsAdministrator(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, administrator string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ITokenAdminRegistryDevInspect
 	Encoder() TokenAdminRegistryEncoder
+	Bound() bind.IBoundContract
 }
 
 type ITokenAdminRegistryDevInspect interface {
@@ -96,7 +97,7 @@ type TokenAdminRegistryDevInspect struct {
 var _ ITokenAdminRegistry = (*TokenAdminRegistryContract)(nil)
 var _ ITokenAdminRegistryDevInspect = (*TokenAdminRegistryDevInspect)(nil)
 
-func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (*TokenAdminRegistryContract, error) {
+func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (ITokenAdminRegistry, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "token_admin_registry", client)
 	if err != nil {
 		return nil, err
@@ -108,6 +109,10 @@ func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (*TokenAdminReg
 	}
 	c.devInspect = &TokenAdminRegistryDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *TokenAdminRegistryContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *TokenAdminRegistryContract) Encoder() TokenAdminRegistryEncoder {

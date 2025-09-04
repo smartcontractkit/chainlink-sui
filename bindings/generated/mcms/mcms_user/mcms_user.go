@@ -33,6 +33,7 @@ type IMcmsUser interface {
 	GetFieldD(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsUserDevInspect
 	Encoder() McmsUserEncoder
+	Bound() bind.IBoundContract
 }
 
 type IMcmsUserDevInspect interface {
@@ -82,7 +83,7 @@ type McmsUserDevInspect struct {
 var _ IMcmsUser = (*McmsUserContract)(nil)
 var _ IMcmsUserDevInspect = (*McmsUserDevInspect)(nil)
 
-func NewMcmsUser(packageID string, client sui.ISuiAPI) (*McmsUserContract, error) {
+func NewMcmsUser(packageID string, client sui.ISuiAPI) (IMcmsUser, error) {
 	contract, err := bind.NewBoundContract(packageID, "mcms_test", "mcms_user", client)
 	if err != nil {
 		return nil, err
@@ -94,6 +95,10 @@ func NewMcmsUser(packageID string, client sui.ISuiAPI) (*McmsUserContract, error
 	}
 	c.devInspect = &McmsUserDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *McmsUserContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *McmsUserContract) Encoder() McmsUserEncoder {
