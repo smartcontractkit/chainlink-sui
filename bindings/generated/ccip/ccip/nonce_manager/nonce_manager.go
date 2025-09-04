@@ -23,7 +23,7 @@ type INonceManager interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
-	GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
+	GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() INonceManagerDevInspect
 	Encoder() NonceManagerEncoder
 }
@@ -31,7 +31,7 @@ type INonceManager interface {
 type INonceManagerDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (uint64, error)
-	GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (uint64, error)
+	GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (uint64, error)
 }
 
 type NonceManagerEncoder interface {
@@ -41,7 +41,7 @@ type NonceManagerEncoder interface {
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOutboundNonce(ref bind.Object, destChainSelector uint64, sender string) (*bind.EncodedCall, error)
 	GetOutboundNonceWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetIncrementedOutboundNonce(ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (*bind.EncodedCall, error)
+	GetIncrementedOutboundNonce(ref bind.Object, destChainSelector uint64, sender string) (*bind.EncodedCall, error)
 	GetIncrementedOutboundNonceWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -80,24 +80,12 @@ func (c *NonceManagerContract) DevInspect() INonceManagerDevInspect {
 	return c.devInspect
 }
 
-type NonceManagerCap struct {
-	Id string `move:"sui::object::UID"`
-}
-
 type NonceManagerState struct {
 	Id             string      `move:"sui::object::UID"`
 	OutboundNonces bind.Object `move:"Table<u64, Table<address, u64>>"`
 }
 
 func init() {
-	bind.RegisterStructDecoder("ccip::nonce_manager::NonceManagerCap", func(data []byte) (interface{}, error) {
-		var result NonceManagerCap
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
 	bind.RegisterStructDecoder("ccip::nonce_manager::NonceManagerState", func(data []byte) (interface{}, error) {
 		var result NonceManagerState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -139,8 +127,8 @@ func (c *NonceManagerContract) GetOutboundNonce(ctx context.Context, opts *bind.
 }
 
 // GetIncrementedOutboundNonce executes the get_incremented_outbound_nonce Move function.
-func (c *NonceManagerContract) GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.nonceManagerEncoder.GetIncrementedOutboundNonce(ref, param, destChainSelector, sender)
+func (c *NonceManagerContract) GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.nonceManagerEncoder.GetIncrementedOutboundNonce(ref, destChainSelector, sender)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -195,8 +183,8 @@ func (d *NonceManagerDevInspect) GetOutboundNonce(ctx context.Context, opts *bin
 // GetIncrementedOutboundNonce executes the get_incremented_outbound_nonce Move function using DevInspect to get return values.
 //
 // Returns: u64
-func (d *NonceManagerDevInspect) GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (uint64, error) {
-	encoded, err := d.contract.nonceManagerEncoder.GetIncrementedOutboundNonce(ref, param, destChainSelector, sender)
+func (d *NonceManagerDevInspect) GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (uint64, error) {
+	encoded, err := d.contract.nonceManagerEncoder.GetIncrementedOutboundNonce(ref, destChainSelector, sender)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -308,17 +296,15 @@ func (c nonceManagerEncoder) GetOutboundNonceWithArgs(args ...any) (*bind.Encode
 }
 
 // GetIncrementedOutboundNonce encodes a call to the get_incremented_outbound_nonce Move function.
-func (c nonceManagerEncoder) GetIncrementedOutboundNonce(ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (*bind.EncodedCall, error) {
+func (c nonceManagerEncoder) GetIncrementedOutboundNonce(ref bind.Object, destChainSelector uint64, sender string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_incremented_outbound_nonce", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&NonceManagerCap",
 		"u64",
 		"address",
 	}, []any{
 		ref,
-		param,
 		destChainSelector,
 		sender,
 	}, []string{
@@ -331,7 +317,6 @@ func (c nonceManagerEncoder) GetIncrementedOutboundNonce(ref bind.Object, param 
 func (c nonceManagerEncoder) GetIncrementedOutboundNonceWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&NonceManagerCap",
 		"u64",
 		"address",
 	}

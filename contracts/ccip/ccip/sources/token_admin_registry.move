@@ -69,6 +69,7 @@ const ETokenNotRegistered: u64 = 4;
 const ENotAdministrator: u64 = 5;
 const ETokenAddressNotRegistered: u64 = 6;
 const ENotAllowed: u64 = 7;
+const EInvalidFunctionVersion: u64 = 8;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -248,9 +249,13 @@ public fun register_pool<T, TypeProof: drop>(
     release_or_mint_params: vector<address>,
     _proof: TypeProof,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"token_admin_registry::register_pool::v1"),
+        EInvalidFunctionVersion,
+    );
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let token_type = type_name::get<T>().into_string();
-    let proof_tn = type_name::get<TypeProof>();
+    let token_type = type_name::with_defining_ids<T>().into_string();
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -279,6 +284,10 @@ public fun register_pool_by_admin(
     release_or_mint_params: vector<address>,
     _: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"token_admin_registry::register_pool_by_admin::v1"),
+        EInvalidFunctionVersion,
+    );
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -332,6 +341,10 @@ public fun unregister_pool(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"token_admin_registry::unregister_pool::v1"),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -358,6 +371,10 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"token_admin_registry::set_pool::v1"),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -375,7 +392,7 @@ public fun set_pool<TypeProof: drop>(
         token_config.token_pool_module = token_pool_module;
         token_config.lock_or_burn_params = lock_or_burn_params;
         token_config.release_or_mint_params = release_or_mint_params;
-        let token_pool_type_proof_tn = type_name::get<TypeProof>();
+        let token_pool_type_proof_tn = type_name::with_defining_ids<TypeProof>();
         let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
         token_config.token_pool_type_proof = token_pool_type_proof_str;
 
@@ -396,6 +413,10 @@ public fun transfer_admin_role(
     new_admin: address,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"token_admin_registry::transfer_admin_role::v1"),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);

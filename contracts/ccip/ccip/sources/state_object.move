@@ -7,6 +7,7 @@ use std::ascii;
 use std::type_name;
 use sui::address;
 use sui::dynamic_object_field as dof;
+use sui::vec_set::{Self, VecSet};
 
 const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
@@ -16,6 +17,7 @@ const EInvalidOwnerCap: u64 = 4;
 public struct CCIPObjectRef has key, store {
     id: UID,
     ownable_state: OwnableState,
+    cursed_functions: VecSet<vector<u8>>,
 }
 
 public struct CCIPObjectRefPointer has key, store {
@@ -32,6 +34,7 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     let ref = CCIPObjectRef {
         id: object::new(ctx),
         ownable_state,
+        cursed_functions: vec_set::empty<vector<u8>>(),
     };
 
     let owner_cap_id = object::id(&owner_cap);
@@ -42,8 +45,8 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
         owner_cap_id: object::id_to_address(&owner_cap_id),
     };
 
-    let tn = type_name::get_with_original_ids<STATE_OBJECT>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<STATE_OBJECT>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(ref);
@@ -55,6 +58,18 @@ public fun owner_cap_id(ref: &CCIPObjectRef): ID {
     ref.ownable_state.owner_cap_id()
 }
 
+public fun is_cursed_function(ref: &CCIPObjectRef, function: vector<u8>): bool {
+    ref.cursed_functions.contains(&function)
+}
+
+public fun curse_function(ref: &mut CCIPObjectRef, _: &OwnerCap, function: vector<u8>) {
+    ref.cursed_functions.insert(function);
+}
+
+public fun uncurse_function(ref: &mut CCIPObjectRef, _: &OwnerCap, function: vector<u8>) {
+    ref.cursed_functions.remove(&function);
+}
+
 public(package) fun add<T: key + store>(
     ref: &mut CCIPObjectRef,
     owner_cap: &OwnerCap,
@@ -63,13 +78,13 @@ public(package) fun add<T: key + store>(
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
 
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     assert!(!dof::exists_(&ref.id, tn), EModuleAlreadyExists);
     dof::add(&mut ref.id, tn, obj);
 }
 
 public(package) fun contains<T>(ref: &CCIPObjectRef): bool {
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     dof::exists_(&ref.id, tn)
 }
 
@@ -79,18 +94,18 @@ public(package) fun remove<T: key + store>(
     _ctx: &TxContext,
 ): T {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     assert!(dof::exists_(&ref.id, tn), EModuleDoesNotExist);
     dof::remove(&mut ref.id, tn)
 }
 
 public(package) fun borrow<T: key + store>(ref: &CCIPObjectRef): &T {
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     dof::borrow(&ref.id, tn)
 }
 
 public(package) fun borrow_mut<T: key + store>(ref: &mut CCIPObjectRef): &mut T {
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     dof::borrow_mut(&mut ref.id, tn)
 }
 

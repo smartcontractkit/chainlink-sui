@@ -32,7 +32,7 @@ type IFeeQuoter interface {
 	ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenTransferFeeConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error)
 	ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error)
-	UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error)
+	UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error)
 	GetValidatedFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error)
 	GetPremiumMultiplierWeiPerEth(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
@@ -95,7 +95,7 @@ type FeeQuoterEncoder interface {
 	GetTokenTransferFeeConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	ApplyTokenTransferFeeConfigUpdates(ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error)
 	ApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	UpdatePrices(ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error)
+	UpdatePrices(ref bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error)
 	UpdatePricesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetValidatedFee(ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*bind.EncodedCall, error)
 	GetValidatedFeeWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -169,10 +169,6 @@ type FeeQuoterState struct {
 	DestChainConfigs             bind.Object `move:"table::Table<u64, DestChainConfig>"`
 	TokenTransferFeeConfigs      bind.Object `move:"table::Table<u64, table::Table<address, TokenTransferFeeConfig>>"`
 	PremiumMultiplierWeiPerEth   bind.Object `move:"table::Table<address, u64>"`
-}
-
-type FeeQuoterCap struct {
-	Id string `move:"sui::object::UID"`
 }
 
 type StaticConfig struct {
@@ -454,14 +450,6 @@ func init() {
 		}
 
 		result, err := convertFeeQuoterStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
-		var result FeeQuoterCap
-		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
 		}
@@ -755,8 +743,8 @@ func (c *FeeQuoterContract) ApplyTokenTransferFeeConfigUpdates(ctx context.Conte
 }
 
 // UpdatePrices executes the update_prices Move function.
-func (c *FeeQuoterContract) UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.UpdatePrices(ref, param, clock, sourceTokens, sourceUsdPerToken, gasDestChainSelectors, gasUsdPerUnitGas)
+func (c *FeeQuoterContract) UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.UpdatePrices(ref, clock, sourceTokens, sourceUsdPerToken, gasDestChainSelectors, gasUsdPerUnitGas)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1694,12 +1682,11 @@ func (c feeQuoterEncoder) ApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any
 }
 
 // UpdatePrices encodes a call to the update_prices Move function.
-func (c feeQuoterEncoder) UpdatePrices(ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) UpdatePrices(ref bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("update_prices", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&FeeQuoterCap",
 		"&clock::Clock",
 		"vector<address>",
 		"vector<u256>",
@@ -1707,7 +1694,6 @@ func (c feeQuoterEncoder) UpdatePrices(ref bind.Object, param bind.Object, clock
 		"vector<u256>",
 	}, []any{
 		ref,
-		param,
 		clock,
 		sourceTokens,
 		sourceUsdPerToken,
@@ -1721,7 +1707,6 @@ func (c feeQuoterEncoder) UpdatePrices(ref bind.Object, param bind.Object, clock
 func (c feeQuoterEncoder) UpdatePricesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&FeeQuoterCap",
 		"&clock::Clock",
 		"vector<address>",
 		"vector<u256>",

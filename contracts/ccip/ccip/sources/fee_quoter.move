@@ -107,9 +107,9 @@ public struct FeeQuoterState has key, store {
     premium_multiplier_wei_per_eth: table::Table<address, u64>,
 }
 
-public struct FeeQuoterCap has key, store {
-    id: UID,
-}
+// public struct FeeQuoterCap has key, store {
+//     id: UID,
+// }
 
 public struct StaticConfig has drop {
     max_fee_juels_per_msg: u256,
@@ -238,6 +238,7 @@ const EInvalidSvmAccountLength: u64 = 35;
 const ETokenAmountMismatch: u64 = 36;
 const EInvalidOwnerCap: u64 = 37;
 const EInvalidFunction: u64 = 38;
+const EInvalidFunctionVersion: u64 = 39;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -267,13 +268,13 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
-    let fee_quoter_cap = FeeQuoterCap {
-        id: object::new(ctx),
-    };
-    transfer::transfer(
-        fee_quoter_cap,
-        ctx.sender(),
-    );
+    // let fee_quoter_cap = FeeQuoterCap {
+    //     id: object::new(ctx),
+    // };
+    // transfer::transfer(
+    //     fee_quoter_cap,
+    //     ctx.sender(),
+    // );
     state_object::add(ref, owner_cap, state, ctx);
 }
 
@@ -346,6 +347,10 @@ public fun apply_fee_token_updates(
     fee_tokens_to_add: vector<address>,
     _ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"fee_quoter::apply_fee_token_updates::v1"),
+        EInvalidFunctionVersion,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -424,6 +429,13 @@ public fun apply_token_transfer_fee_config_updates(
     remove_tokens: vector<address>,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(
+            ref,
+            b"fee_quoter::apply_token_transfer_fee_config_updates::v1",
+        ),
+        EInvalidFunctionVersion,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -498,9 +510,9 @@ public fun apply_token_transfer_fee_config_updates(
 }
 
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
-public fun update_prices(
+public(package) fun update_prices(
     ref: &mut CCIPObjectRef,
-    _: &FeeQuoterCap,
+    // _: &FeeQuoterCap,
     clock: &clock::Clock,
     source_tokens: vector<address>,
     source_usd_per_token: vector<u256>,
@@ -508,6 +520,10 @@ public fun update_prices(
     gas_usd_per_unit_gas: vector<u256>,
     _ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"fee_quoter::update_prices::v1"),
+        EInvalidFunctionVersion,
+    );
     assert!(source_tokens.length() == source_usd_per_token.length(), ETokenUpdateMismatch);
     assert!(gas_dest_chain_selectors.length() == gas_usd_per_unit_gas.length(), EGasUpdateMismatch);
 
@@ -682,6 +698,13 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
     premium_multiplier_wei_per_eth: vector<u64>,
     _ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(
+            ref,
+            b"fee_quoter::apply_premium_multiplier_wei_per_eth_updates::v1",
+        ),
+        EInvalidFunctionVersion,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -703,6 +726,13 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
 }
 
 public fun get_premium_multiplier_wei_per_eth(ref: &CCIPObjectRef, token: address): u64 {
+    assert!(
+        !state_object::is_cursed_function(
+            ref,
+            b"fee_quoter::get_premium_multiplier_wei_per_eth::v1",
+        ),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     get_premium_multiplier_wei_per_eth_internal(state, token)
 }
@@ -993,6 +1023,10 @@ public fun get_token_receiver(
     extra_args: vector<u8>,
     message_receiver: vector<u8>,
 ): vector<u8> {
+    assert!(
+        !state_object::is_cursed_function(ref, b"fee_quoter::get_token_receiver::v1"),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
 
     let chain_family_selector = get_dest_chain_config_internal(
@@ -1260,6 +1294,10 @@ public fun apply_dest_chain_config_updates(
     network_fee_usd_cents: u32,
     _ctx: &mut TxContext,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"fee_quoter::apply_dest_chain_config_updates::v1"),
+        EInvalidFunctionVersion,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);

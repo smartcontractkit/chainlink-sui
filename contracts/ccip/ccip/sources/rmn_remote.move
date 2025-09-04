@@ -37,7 +37,6 @@ public struct Signer has copy, drop, store {
     node_index: u64,
 }
 
-// TODO: figure out what to do with chain_id. Cannot get it from Sui library.
 public struct Report has drop {
     dest_chain_selector: u64,
     rmn_remote_contract_address: address,
@@ -84,14 +83,15 @@ const EInvalidDigestLength: u64 = 14;
 const ESignersMismatch: u64 = 15;
 const EInvalidSubjectLength: u64 = 16;
 const EInvalidPublicKeyLength: u64 = 17;
+const EInvalidFunctionVersion: u64 = 18;
 
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
 }
 
 public fun get_arm(): address {
-    let tn = type_name::get<RMNRemoteState>();
-    let addr_string = tn.get_address();
+    let tn = type_name::with_defining_ids<RMNRemoteState>();
+    let addr_string = tn.address_string();
 
     // Convert the hex string to an address
     // The address string is already in the correct format for address parsing
@@ -151,6 +151,12 @@ public fun verify(
     merkle_root_values: vector<vector<u8>>,
     signatures: vector<vector<u8>>,
 ): bool {
+    // if this function is not cursed, proceed
+    assert!(
+        !state_object::is_cursed_function(ref, b"rmn_remote::verify::v1"),
+        EInvalidFunctionVersion,
+    );
+
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     assert!(state.config_count > 0, EConfigNotSet);
@@ -227,6 +233,10 @@ public fun set_config(
     node_indexes: vector<u64>,
     f_sign: u64,
 ) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"rmn_remote::set_config::v1"),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     assert!(rmn_home_contract_config_digest.length() == 32, EInvalidDigestLength);
@@ -301,10 +311,18 @@ public fun get_report_digest_header(): vector<u8> {
 }
 
 public fun curse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"rmn_remote::curse::v1"),
+        EInvalidFunctionVersion,
+    );
     curse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"rmn_remote::curse_multiple::v1"),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
@@ -317,10 +335,18 @@ public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vecto
 }
 
 public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"rmn_remote::uncurse::v1"),
+        EInvalidFunctionVersion,
+    );
     uncurse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun uncurse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+    assert!(
+        !state_object::is_cursed_function(ref, b"rmn_remote::uncurse_multiple::v1"),
+        EInvalidFunctionVersion,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {

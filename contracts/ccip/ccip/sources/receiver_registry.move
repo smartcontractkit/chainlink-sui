@@ -51,10 +51,10 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
 
 public fun register_receiver<ProofType: drop>(ref: &mut CCIPObjectRef, _proof: ProofType) {
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
-    let proof_typename = type_name::get<ProofType>();
-    let receiver_module_name = std::string::from_ascii(type_name::get_module(&proof_typename));
+    let proof_typename = type_name::with_defining_ids<ProofType>();
+    let receiver_module_name = std::string::from_ascii(type_name::module_string(&proof_typename));
     let receiver_package_id = address::from_ascii_bytes(
-        &ascii::into_bytes(type_name::get_address(&proof_typename)),
+        &ascii::into_bytes(type_name::address_string(&proof_typename)),
     );
     assert!(!registry.receiver_configs.contains(&receiver_package_id), EAlreadyRegistered);
 
