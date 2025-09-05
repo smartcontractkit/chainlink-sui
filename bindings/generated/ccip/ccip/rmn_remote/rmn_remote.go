@@ -43,6 +43,7 @@ type IRmnRemote interface {
 	McmsUncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRmnRemoteDevInspect
 	Encoder() RmnRemoteEncoder
+	Bound() bind.IBoundContract
 }
 
 type IRmnRemoteDevInspect interface {
@@ -116,7 +117,7 @@ type RmnRemoteDevInspect struct {
 var _ IRmnRemote = (*RmnRemoteContract)(nil)
 var _ IRmnRemoteDevInspect = (*RmnRemoteDevInspect)(nil)
 
-func NewRmnRemote(packageID string, client sui.ISuiAPI) (*RmnRemoteContract, error) {
+func NewRmnRemote(packageID string, client sui.ISuiAPI) (IRmnRemote, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "rmn_remote", client)
 	if err != nil {
 		return nil, err
@@ -128,6 +129,10 @@ func NewRmnRemote(packageID string, client sui.ISuiAPI) (*RmnRemoteContract, err
 	}
 	c.devInspect = &RmnRemoteDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *RmnRemoteContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *RmnRemoteContract) Encoder() RmnRemoteEncoder {

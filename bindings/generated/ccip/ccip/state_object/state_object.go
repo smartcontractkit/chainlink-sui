@@ -40,6 +40,7 @@ type IStateObject interface {
 	McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IStateObjectDevInspect
 	Encoder() StateObjectEncoder
+	Bound() bind.IBoundContract
 }
 
 type IStateObjectDevInspect interface {
@@ -108,7 +109,7 @@ type StateObjectDevInspect struct {
 var _ IStateObject = (*StateObjectContract)(nil)
 var _ IStateObjectDevInspect = (*StateObjectDevInspect)(nil)
 
-func NewStateObject(packageID string, client sui.ISuiAPI) (*StateObjectContract, error) {
+func NewStateObject(packageID string, client sui.ISuiAPI) (IStateObject, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "state_object", client)
 	if err != nil {
 		return nil, err
@@ -120,6 +121,10 @@ func NewStateObject(packageID string, client sui.ISuiAPI) (*StateObjectContract,
 	}
 	c.devInspect = &StateObjectDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *StateObjectContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *StateObjectContract) Encoder() StateObjectEncoder {

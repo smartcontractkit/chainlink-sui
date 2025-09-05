@@ -65,6 +65,7 @@ type IBurnMintTokenPool interface {
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IBurnMintTokenPoolDevInspect
 	Encoder() BurnMintTokenPoolEncoder
+	Bound() bind.IBoundContract
 }
 
 type IBurnMintTokenPoolDevInspect interface {
@@ -188,7 +189,7 @@ type BurnMintTokenPoolDevInspect struct {
 var _ IBurnMintTokenPool = (*BurnMintTokenPoolContract)(nil)
 var _ IBurnMintTokenPoolDevInspect = (*BurnMintTokenPoolDevInspect)(nil)
 
-func NewBurnMintTokenPool(packageID string, client sui.ISuiAPI) (*BurnMintTokenPoolContract, error) {
+func NewBurnMintTokenPool(packageID string, client sui.ISuiAPI) (IBurnMintTokenPool, error) {
 	contract, err := bind.NewBoundContract(packageID, "burn_mint_token_pool", "burn_mint_token_pool", client)
 	if err != nil {
 		return nil, err
@@ -200,6 +201,10 @@ func NewBurnMintTokenPool(packageID string, client sui.ISuiAPI) (*BurnMintTokenP
 	}
 	c.devInspect = &BurnMintTokenPoolDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *BurnMintTokenPoolContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *BurnMintTokenPoolContract) Encoder() BurnMintTokenPoolEncoder {

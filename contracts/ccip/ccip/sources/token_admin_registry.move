@@ -1,7 +1,10 @@
 module ccip::token_admin_registry;
 
+use ccip::bcs_helper;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use mcms::bcs_stream;
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
@@ -69,6 +72,7 @@ const ETokenNotRegistered: u64 = 4;
 const ENotAdministrator: u64 = 5;
 const ETokenAddressNotRegistered: u64 = 6;
 const ENotAllowed: u64 = 7;
+const EInvalidFunction: u64 = 8;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -332,13 +336,21 @@ public fun unregister_pool(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    unregister_pool_internal(ref, coin_metadata_address, ctx.sender());
+}
+
+fun unregister_pool_internal(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    caller: address,
+) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
     let token_config = state.token_configs.remove(coin_metadata_address);
 
-    assert!(token_config.administrator == ctx.sender(), ENotAllowed);
+    assert!(token_config.administrator == caller, ENotAllowed);
 
     let previous_pool_address = token_config.token_pool_package_id;
 
@@ -358,14 +370,37 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
+    let token_pool_type_proof_tn = type_name::get<TypeProof>();
+    let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
+    set_pool_internal(
+        ref,
+        coin_metadata_address,
+        token_pool_package_id,
+        token_pool_module,
+        lock_or_burn_params,
+        release_or_mint_params,
+        token_pool_type_proof_str,
+        ctx.sender(),
+    );
+}
+
+fun set_pool_internal(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    token_pool_package_id: address,
+    token_pool_module: String,
+    lock_or_burn_params: vector<address>,
+    release_or_mint_params: vector<address>,
+    token_pool_type_proof: ascii::String,
+    caller: address,
+) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
-    // the tx signer must be the administrator of the token pool.
-    assert!(token_config.administrator == ctx.sender(), ENotAllowed);
+    assert!(token_config.administrator == caller, ENotAllowed);
 
     // TODO: sort out the UX here
     // the token pool changes, the package id, state address, module, and type proof will change.
@@ -375,15 +410,13 @@ public fun set_pool<TypeProof: drop>(
         token_config.token_pool_module = token_pool_module;
         token_config.lock_or_burn_params = lock_or_burn_params;
         token_config.release_or_mint_params = release_or_mint_params;
-        let token_pool_type_proof_tn = type_name::get<TypeProof>();
-        let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
-        token_config.token_pool_type_proof = token_pool_type_proof_str;
+        token_config.token_pool_type_proof = token_pool_type_proof;
 
         event::emit(PoolSet {
             coin_metadata_address,
             previous_pool_package_id,
             new_pool_package_id: token_pool_package_id,
-            token_pool_type_proof: token_pool_type_proof_str,
+            token_pool_type_proof,
             lock_or_burn_params,
             release_or_mint_params,
         });
@@ -396,13 +429,22 @@ public fun transfer_admin_role(
     new_admin: address,
     ctx: &mut TxContext,
 ) {
+    transfer_admin_role_internal(ref, coin_metadata_address, new_admin, ctx.sender());
+}
+
+fun transfer_admin_role_internal(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    new_admin: address,
+    caller: address,
+) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
-    assert!(token_config.administrator == ctx.sender(), ENotAdministrator);
+    assert!(token_config.administrator == caller, ENotAdministrator);
 
     // can be @0x0 to cancel a pending transfer.
     token_config.pending_administrator = new_admin;
@@ -419,13 +461,21 @@ public fun accept_admin_role(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    accept_admin_role_internal(ref, coin_metadata_address, ctx.sender());
+}
+
+fun accept_admin_role_internal(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    caller: address,
+) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
 
     let token_config = state.token_configs.borrow_mut(coin_metadata_address);
 
-    assert!(token_config.pending_administrator == ctx.sender(), ENotPendingAdministrator);
+    assert!(token_config.pending_administrator == caller, ENotPendingAdministrator);
 
     token_config.administrator = token_config.pending_administrator;
     token_config.pending_administrator = @0x0;
@@ -447,6 +497,140 @@ public fun is_administrator(
 
     let token_config = state.token_configs.borrow(coin_metadata_address);
     token_config.administrator == administrator
+}
+
+// ================================================================
+// |                       MCMS Functions                         |
+// ================================================================
+
+public struct McmsCallback has drop {}
+
+public fun mcms_unregister_pool(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    _ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"unregister_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    unregister_pool_internal(ref, coin_metadata_address, mcms_registry::get_multisig_address());
+}
+
+public fun mcms_set_pool(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    _ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    let token_pool_package_id = bcs_stream::deserialize_address(&mut stream);
+    let token_pool_module = bcs_stream::deserialize_string(&mut stream);
+    let lock_or_burn_params = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    let release_or_mint_params = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    let token_pool_type_proof = ascii::string(bcs_stream::deserialize_string(
+        &mut stream,
+    ).into_bytes());
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_pool_internal(
+        ref,
+        coin_metadata_address,
+        token_pool_package_id,
+        token_pool_module,
+        lock_or_burn_params,
+        release_or_mint_params,
+        token_pool_type_proof,
+        mcms_registry::get_multisig_address(),
+    );
+}
+
+public fun mcms_transfer_admin_role(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    _ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"transfer_admin_role"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    let new_admin = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_admin_role_internal(
+        ref,
+        coin_metadata_address,
+        new_admin,
+        mcms_registry::get_multisig_address(),
+    );
+}
+
+public fun mcms_accept_admin_role(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    _ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"accept_admin_role"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    accept_admin_role_internal(ref, coin_metadata_address, mcms_registry::get_multisig_address());
 }
 
 #[test_only]
@@ -476,4 +660,53 @@ public fun insert_token_configs_for_test<TypeProof: drop>(
             );
         i = i + 1;
     }
+}
+
+#[test_only]
+public fun transfer_admin_role_internal_for_test(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    new_admin: address,
+    caller: address,
+) {
+    transfer_admin_role_internal(ref, coin_metadata_address, new_admin, caller);
+}
+
+#[test_only]
+public fun accept_admin_role_internal_for_test(
+    ref: &mut CCIPObjectRef,
+    coin_metadata_address: address,
+    caller: address,
+) {
+    accept_admin_role_internal(ref, coin_metadata_address, caller);
+}
+
+#[test_only]
+public fun has_pending_admin_transfer(ref: &CCIPObjectRef, coin_metadata_address: address): bool {
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+    assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
+
+    let token_config = state.token_configs.borrow(coin_metadata_address);
+    token_config.pending_administrator != @0x0
+}
+
+#[test_only]
+public fun get_pending_admin_transfer(
+    ref: &CCIPObjectRef,
+    coin_metadata_address: address,
+): (address, address) {
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+    assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
+
+    let token_config = state.token_configs.borrow(coin_metadata_address);
+    (token_config.administrator, token_config.pending_administrator)
+}
+
+#[test_only]
+public fun test_mcms_register_entrypoint(
+    owner_cap: OwnerCap,
+    registry: &mut Registry,
+    ctx: &mut TxContext,
+) {
+    mcms_registry::register_entrypoint(registry, McmsCallback {}, owner_cap, ctx);
 }

@@ -33,6 +33,7 @@ type IDummyReceiver interface {
 	CcipReceive(ctx context.Context, opts *bind.CallOpts, expectedMessageId []byte, ref bind.Object, message bind.Object, param bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IDummyReceiverDevInspect
 	Encoder() DummyReceiverEncoder
+	Bound() bind.IBoundContract
 }
 
 type IDummyReceiverDevInspect interface {
@@ -83,7 +84,7 @@ type DummyReceiverDevInspect struct {
 var _ IDummyReceiver = (*DummyReceiverContract)(nil)
 var _ IDummyReceiverDevInspect = (*DummyReceiverDevInspect)(nil)
 
-func NewDummyReceiver(packageID string, client sui.ISuiAPI) (*DummyReceiverContract, error) {
+func NewDummyReceiver(packageID string, client sui.ISuiAPI) (IDummyReceiver, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip_dummy_receiver", "dummy_receiver", client)
 	if err != nil {
 		return nil, err
@@ -95,6 +96,10 @@ func NewDummyReceiver(packageID string, client sui.ISuiAPI) (*DummyReceiverContr
 	}
 	c.devInspect = &DummyReceiverDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *DummyReceiverContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *DummyReceiverContract) Encoder() DummyReceiverEncoder {

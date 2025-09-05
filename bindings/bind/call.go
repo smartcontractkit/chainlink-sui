@@ -18,6 +18,17 @@ const (
 	DefaultGasBudget uint64 = 10_000_000
 )
 
+type IBoundContract interface {
+	GetPackageID() string
+	GetPackageName() string
+	GetModuleName() string
+	AppendPTB(ctx context.Context, opts *CallOpts, ptb *transaction.Transaction, encoded *EncodedCall) (*transaction.Argument, error)
+	Call(ctx context.Context, opts *CallOpts, encoded *EncodedCall) ([]any, error)
+	ExecuteTransaction(ctx context.Context, opts *CallOpts, encoded *EncodedCall) (*models.SuiTransactionBlockResponse, error)
+}
+
+var _ IBoundContract = (*BoundContract)(nil)
+
 type BoundContract struct {
 	packageID   string
 	packageName string
