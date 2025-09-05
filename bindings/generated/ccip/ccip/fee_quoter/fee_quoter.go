@@ -44,7 +44,10 @@ type IFeeQuoter interface {
 	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
 	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error)
-	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
 }
@@ -119,8 +122,14 @@ type FeeQuoterEncoder interface {
 	GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsEntrypoint(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsApplyFeeTokenUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyFeeTokenUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsApplyDestChainConfigUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsApplyTokenTransferFeeConfigUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type FeeQuoterContract struct {
@@ -874,9 +883,39 @@ func (c *FeeQuoterContract) GetTokenTransferFeeConfigFields(ctx context.Context,
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsEntrypoint executes the mcms_entrypoint Move function.
-func (c *FeeQuoterContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.McmsEntrypoint(ref, registry, params)
+// McmsApplyFeeTokenUpdates executes the mcms_apply_fee_token_updates Move function.
+func (c *FeeQuoterContract) McmsApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsApplyFeeTokenUpdates(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplyDestChainConfigUpdates executes the mcms_apply_dest_chain_config_updates Move function.
+func (c *FeeQuoterContract) McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsApplyDestChainConfigUpdates(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplyTokenTransferFeeConfigUpdates executes the mcms_apply_token_transfer_fee_config_updates Move function.
+func (c *FeeQuoterContract) McmsApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsApplyTokenTransferFeeConfigUpdates(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsApplyPremiumMultiplierWeiPerEthUpdates executes the mcms_apply_premium_multiplier_wei_per_eth_updates Move function.
+func (c *FeeQuoterContract) McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsApplyPremiumMultiplierWeiPerEthUpdates(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2247,11 +2286,11 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (
 	})
 }
 
-// McmsEntrypoint encodes a call to the mcms_entrypoint Move function.
-func (c feeQuoterEncoder) McmsEntrypoint(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsApplyFeeTokenUpdates encodes a call to the mcms_apply_fee_token_updates Move function.
+func (c feeQuoterEncoder) McmsApplyFeeTokenUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_apply_fee_token_updates", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2262,9 +2301,9 @@ func (c feeQuoterEncoder) McmsEntrypoint(ref bind.Object, registry bind.Object, 
 	}, nil)
 }
 
-// McmsEntrypointWithArgs encodes a call to the mcms_entrypoint Move function using arbitrary arguments.
+// McmsApplyFeeTokenUpdatesWithArgs encodes a call to the mcms_apply_fee_token_updates Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c feeQuoterEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) McmsApplyFeeTokenUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
@@ -2276,5 +2315,101 @@ func (c feeQuoterEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_apply_fee_token_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplyDestChainConfigUpdates encodes a call to the mcms_apply_dest_chain_config_updates Move function.
+func (c feeQuoterEncoder) McmsApplyDestChainConfigUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_dest_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplyDestChainConfigUpdatesWithArgs encodes a call to the mcms_apply_dest_chain_config_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_dest_chain_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplyTokenTransferFeeConfigUpdates encodes a call to the mcms_apply_token_transfer_fee_config_updates Move function.
+func (c feeQuoterEncoder) McmsApplyTokenTransferFeeConfigUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplyTokenTransferFeeConfigUpdatesWithArgs encodes a call to the mcms_apply_token_transfer_fee_config_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) McmsApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsApplyPremiumMultiplierWeiPerEthUpdates encodes a call to the mcms_apply_premium_multiplier_wei_per_eth_updates Move function.
+func (c feeQuoterEncoder) McmsApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_premium_multiplier_wei_per_eth_updates", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs encodes a call to the mcms_apply_premium_multiplier_wei_per_eth_updates Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_apply_premium_multiplier_wei_per_eth_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
