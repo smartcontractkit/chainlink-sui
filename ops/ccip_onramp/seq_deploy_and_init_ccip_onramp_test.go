@@ -94,6 +94,13 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 			DestChainAddAllowedSenders:    [][]string{{}},
 			DestChainRemoveAllowedSenders: [][]string{{}},
 		},
+		RegisterWithMCMSInput: RegisterWithMCMSInput{
+			RegistryId: reportMCMs.Output.Objects.McmsRegistryObjectId,
+		},
+		RegisterUpgradeCapInput: RegisterUpgradeCapInput{
+			RegistryId:      reportMCMs.Output.Objects.McmsRegistryObjectId,
+			DeployerStateId: reportMCMs.Output.Objects.McmsDeployerObjectId,
+		},
 	}
 
 	// Run onRamp deploy & Apply dest chain update sequence
