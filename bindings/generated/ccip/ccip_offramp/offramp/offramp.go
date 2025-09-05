@@ -59,6 +59,7 @@ type IOfframp interface {
 	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOfframpDevInspect
 	Encoder() OfframpEncoder
+	Bound() bind.IBoundContract
 }
 
 type IOfframpDevInspect interface {
@@ -177,7 +178,7 @@ type OfframpDevInspect struct {
 var _ IOfframp = (*OfframpContract)(nil)
 var _ IOfframpDevInspect = (*OfframpDevInspect)(nil)
 
-func NewOfframp(packageID string, client sui.ISuiAPI) (*OfframpContract, error) {
+func NewOfframp(packageID string, client sui.ISuiAPI) (IOfframp, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip_offramp", "offramp", client)
 	if err != nil {
 		return nil, err
@@ -189,6 +190,10 @@ func NewOfframp(packageID string, client sui.ISuiAPI) (*OfframpContract, error) 
 	}
 	c.devInspect = &OfframpDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *OfframpContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *OfframpContract) Encoder() OfframpEncoder {

@@ -31,6 +31,7 @@ type IMcmsAccount interface {
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsAccountDevInspect
 	Encoder() McmsAccountEncoder
+	Bound() bind.IBoundContract
 }
 
 type IMcmsAccountDevInspect interface {
@@ -73,7 +74,7 @@ type McmsAccountDevInspect struct {
 var _ IMcmsAccount = (*McmsAccountContract)(nil)
 var _ IMcmsAccountDevInspect = (*McmsAccountDevInspect)(nil)
 
-func NewMcmsAccount(packageID string, client sui.ISuiAPI) (*McmsAccountContract, error) {
+func NewMcmsAccount(packageID string, client sui.ISuiAPI) (IMcmsAccount, error) {
 	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_account", client)
 	if err != nil {
 		return nil, err
@@ -85,6 +86,10 @@ func NewMcmsAccount(packageID string, client sui.ISuiAPI) (*McmsAccountContract,
 	}
 	c.devInspect = &McmsAccountDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *McmsAccountContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *McmsAccountContract) Encoder() McmsAccountEncoder {

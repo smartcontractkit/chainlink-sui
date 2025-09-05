@@ -47,6 +47,7 @@ type IFeeQuoter interface {
 	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
+	Bound() bind.IBoundContract
 }
 
 type IFeeQuoterDevInspect interface {
@@ -136,7 +137,7 @@ type FeeQuoterDevInspect struct {
 var _ IFeeQuoter = (*FeeQuoterContract)(nil)
 var _ IFeeQuoterDevInspect = (*FeeQuoterDevInspect)(nil)
 
-func NewFeeQuoter(packageID string, client sui.ISuiAPI) (*FeeQuoterContract, error) {
+func NewFeeQuoter(packageID string, client sui.ISuiAPI) (IFeeQuoter, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", client)
 	if err != nil {
 		return nil, err
@@ -148,6 +149,10 @@ func NewFeeQuoter(packageID string, client sui.ISuiAPI) (*FeeQuoterContract, err
 	}
 	c.devInspect = &FeeQuoterDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *FeeQuoterContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *FeeQuoterContract) Encoder() FeeQuoterEncoder {
