@@ -22,42 +22,42 @@ var (
 type IUpgradeRegistry interface {
 
   Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object,ownerCap bind.Object,) (*models.SuiTransactionBlockResponse, error)
-  UpdateFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error)
-  GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,) (*models.SuiTransactionBlockResponse, error)
-  IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error)
-  UpdateModuleRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error)
-  GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,) (*models.SuiTransactionBlockResponse, error)
-  IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error)
-  GetPackageHistory(ctx context.Context, opts *bind.CallOpts, registry bind.Object,package string,) (*models.SuiTransactionBlockResponse, error)
+  UpdateFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error)
+  GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,) (*models.SuiTransactionBlockResponse, error)
+  IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error)
+  UpdateModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error)
+  GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,) (*models.SuiTransactionBlockResponse, error)
+  IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error)
+  GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object,package string,) (*models.SuiTransactionBlockResponse, error)
   DevInspect() IUpgradeRegistryDevInspect
   Encoder() UpgradeRegistryEncoder
 }
 
 type IUpgradeRegistryDevInspect interface {
 
-  GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,) ([]uint64, error)
-  IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,contractVersion uint64,) (bool, error)
-  GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,) ([]uint64, error)
-  IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,contractVersion uint64,) (bool, error)
-  GetPackageHistory(ctx context.Context, opts *bind.CallOpts, registry bind.Object,package string,) ([]any, error)
+  GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,) ([]uint64, error)
+  IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,contractVersion uint64,) (bool, error)
+  GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,) ([]uint64, error)
+  IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,contractVersion uint64,) (bool, error)
+  GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object,package string,) ([]any, error)
 }
 
 type UpgradeRegistryEncoder interface {
   Initialize(ref bind.Object,ownerCap bind.Object,) (*bind.EncodedCall, error)
   InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-  UpdateFunctionRestrictions(registry bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*bind.EncodedCall, error)
+  UpdateFunctionRestrictions(ref bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*bind.EncodedCall, error)
   UpdateFunctionRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
-  GetFunctionRestrictions(registry bind.Object,moduleName string,functionName string,) (*bind.EncodedCall, error)
+  GetFunctionRestrictions(ref bind.Object,moduleName string,functionName string,) (*bind.EncodedCall, error)
   GetFunctionRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
-  IsFunctionAllowed(registry bind.Object,moduleName string,functionName string,contractVersion uint64,) (*bind.EncodedCall, error)
+  IsFunctionAllowed(ref bind.Object,moduleName string,functionName string,contractVersion uint64,) (*bind.EncodedCall, error)
   IsFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
-  UpdateModuleRestrictions(registry bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*bind.EncodedCall, error)
+  UpdateModuleRestrictions(ref bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*bind.EncodedCall, error)
   UpdateModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
-  GetModuleRestrictions(registry bind.Object,moduleName string,) (*bind.EncodedCall, error)
+  GetModuleRestrictions(ref bind.Object,moduleName string,) (*bind.EncodedCall, error)
   GetModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
-  IsModuleAllowed(registry bind.Object,moduleName string,contractVersion uint64,) (*bind.EncodedCall, error)
+  IsModuleAllowed(ref bind.Object,moduleName string,contractVersion uint64,) (*bind.EncodedCall, error)
   IsModuleAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
-  GetPackageHistory(registry bind.Object,package string,) (*bind.EncodedCall, error)
+  GetPackageHistory(ref bind.Object,package string,) (*bind.EncodedCall, error)
   GetPackageHistoryWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -206,8 +206,8 @@ func (c *UpgradeRegistryContract) Initialize(ctx context.Context, opts *bind.Cal
 
 
 // UpdateFunctionRestrictions executes the update_function_restrictions Move function.
-func (c *UpgradeRegistryContract) UpdateFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.UpdateFunctionRestrictions(registry, param, moduleName, functionName, blockedVersions, )
+func (c *UpgradeRegistryContract) UpdateFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.UpdateFunctionRestrictions(ref, param, moduleName, functionName, blockedVersions, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -217,8 +217,8 @@ func (c *UpgradeRegistryContract) UpdateFunctionRestrictions(ctx context.Context
 
 
 // GetFunctionRestrictions executes the get_function_restrictions Move function.
-func (c *UpgradeRegistryContract) GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.GetFunctionRestrictions(registry, moduleName, functionName, )
+func (c *UpgradeRegistryContract) GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.GetFunctionRestrictions(ref, moduleName, functionName, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -228,8 +228,8 @@ func (c *UpgradeRegistryContract) GetFunctionRestrictions(ctx context.Context, o
 
 
 // IsFunctionAllowed executes the is_function_allowed Move function.
-func (c *UpgradeRegistryContract) IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.IsFunctionAllowed(registry, moduleName, functionName, contractVersion, )
+func (c *UpgradeRegistryContract) IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.IsFunctionAllowed(ref, moduleName, functionName, contractVersion, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -239,8 +239,8 @@ func (c *UpgradeRegistryContract) IsFunctionAllowed(ctx context.Context, opts *b
 
 
 // UpdateModuleRestrictions executes the update_module_restrictions Move function.
-func (c *UpgradeRegistryContract) UpdateModuleRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.UpdateModuleRestrictions(registry, param, moduleName, blockedVersions, )
+func (c *UpgradeRegistryContract) UpdateModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.UpdateModuleRestrictions(ref, param, moduleName, blockedVersions, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -250,8 +250,8 @@ func (c *UpgradeRegistryContract) UpdateModuleRestrictions(ctx context.Context, 
 
 
 // GetModuleRestrictions executes the get_module_restrictions Move function.
-func (c *UpgradeRegistryContract) GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.GetModuleRestrictions(registry, moduleName, )
+func (c *UpgradeRegistryContract) GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.GetModuleRestrictions(ref, moduleName, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -261,8 +261,8 @@ func (c *UpgradeRegistryContract) GetModuleRestrictions(ctx context.Context, opt
 
 
 // IsModuleAllowed executes the is_module_allowed Move function.
-func (c *UpgradeRegistryContract) IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.IsModuleAllowed(registry, moduleName, contractVersion, )
+func (c *UpgradeRegistryContract) IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,contractVersion uint64,) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.IsModuleAllowed(ref, moduleName, contractVersion, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -272,8 +272,8 @@ func (c *UpgradeRegistryContract) IsModuleAllowed(ctx context.Context, opts *bin
 
 
 // GetPackageHistory executes the get_package_history Move function.
-func (c *UpgradeRegistryContract) GetPackageHistory(ctx context.Context, opts *bind.CallOpts, registry bind.Object,package string,) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.GetPackageHistory(registry, package, )
+func (c *UpgradeRegistryContract) GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object,package string,) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.GetPackageHistory(ref, package, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -290,8 +290,8 @@ func (c *UpgradeRegistryContract) GetPackageHistory(ctx context.Context, opts *b
 // GetFunctionRestrictions executes the get_function_restrictions Move function using DevInspect to get return values.
 //
 // Returns: vector<u64>
-func (d *UpgradeRegistryDevInspect) GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,) ([]uint64, error) {
-	encoded, err := d.contract.upgradeRegistryEncoder.GetFunctionRestrictions(registry, moduleName, functionName, )
+func (d *UpgradeRegistryDevInspect) GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,) ([]uint64, error) {
+	encoded, err := d.contract.upgradeRegistryEncoder.GetFunctionRestrictions(ref, moduleName, functionName, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -313,8 +313,8 @@ func (d *UpgradeRegistryDevInspect) GetFunctionRestrictions(ctx context.Context,
 // IsFunctionAllowed executes the is_function_allowed Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *UpgradeRegistryDevInspect) IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,functionName string,contractVersion uint64,) (bool, error) {
-	encoded, err := d.contract.upgradeRegistryEncoder.IsFunctionAllowed(registry, moduleName, functionName, contractVersion, )
+func (d *UpgradeRegistryDevInspect) IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,functionName string,contractVersion uint64,) (bool, error) {
+	encoded, err := d.contract.upgradeRegistryEncoder.IsFunctionAllowed(ref, moduleName, functionName, contractVersion, )
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -337,8 +337,8 @@ func (d *UpgradeRegistryDevInspect) IsFunctionAllowed(ctx context.Context, opts 
 // GetModuleRestrictions executes the get_module_restrictions Move function using DevInspect to get return values.
 //
 // Returns: vector<u64>
-func (d *UpgradeRegistryDevInspect) GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,) ([]uint64, error) {
-	encoded, err := d.contract.upgradeRegistryEncoder.GetModuleRestrictions(registry, moduleName, )
+func (d *UpgradeRegistryDevInspect) GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,) ([]uint64, error) {
+	encoded, err := d.contract.upgradeRegistryEncoder.GetModuleRestrictions(ref, moduleName, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -360,8 +360,8 @@ func (d *UpgradeRegistryDevInspect) GetModuleRestrictions(ctx context.Context, o
 // IsModuleAllowed executes the is_module_allowed Move function using DevInspect to get return values.
 //
 // Returns: bool
-func (d *UpgradeRegistryDevInspect) IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, registry bind.Object,moduleName string,contractVersion uint64,) (bool, error) {
-	encoded, err := d.contract.upgradeRegistryEncoder.IsModuleAllowed(registry, moduleName, contractVersion, )
+func (d *UpgradeRegistryDevInspect) IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object,moduleName string,contractVersion uint64,) (bool, error) {
+	encoded, err := d.contract.upgradeRegistryEncoder.IsModuleAllowed(ref, moduleName, contractVersion, )
 	if err != nil {
 		return false, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -386,8 +386,8 @@ func (d *UpgradeRegistryDevInspect) IsModuleAllowed(ctx context.Context, opts *b
 //   [0]: vector<address>
 //   [1]: vector<u64>
 //   [2]: vector<u64>
-func (d *UpgradeRegistryDevInspect) GetPackageHistory(ctx context.Context, opts *bind.CallOpts, registry bind.Object,package string,) ([]any, error) {
-	encoded, err := d.contract.upgradeRegistryEncoder.GetPackageHistory(registry, package, )
+func (d *UpgradeRegistryDevInspect) GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object,package string,) ([]any, error) {
+	encoded, err := d.contract.upgradeRegistryEncoder.GetPackageHistory(ref, package, )
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -430,17 +430,17 @@ func (c upgradeRegistryEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCa
 }
 
 // UpdateFunctionRestrictions encodes a call to the update_function_restrictions Move function.
-func (c upgradeRegistryEncoder) UpdateFunctionRestrictions(registry bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) UpdateFunctionRestrictions(ref bind.Object,param bind.Object,moduleName string,functionName string,blockedVersions []uint64,) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("update_function_restrictions", typeArgsList, typeParamsList, []string{
-		"&mut UpgradeRegistry",
+		"&mut CCIPObjectRef",
 		"&OwnerCap",
 		"0x1::string::String",
 		"0x1::string::String",
 		"vector<u64>",
 	}, []any{
-		registry,
+		ref,
 		param,
 		moduleName,
 		functionName,
@@ -452,7 +452,7 @@ func (c upgradeRegistryEncoder) UpdateFunctionRestrictions(registry bind.Object,
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c upgradeRegistryEncoder) UpdateFunctionRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&mut UpgradeRegistry",
+		"&mut CCIPObjectRef",
 		"&OwnerCap",
 		"0x1::string::String",
 		"0x1::string::String",
@@ -468,15 +468,15 @@ func (c upgradeRegistryEncoder) UpdateFunctionRestrictionsWithArgs(args ...any) 
 }
 
 // GetFunctionRestrictions encodes a call to the get_function_restrictions Move function.
-func (c upgradeRegistryEncoder) GetFunctionRestrictions(registry bind.Object,moduleName string,functionName string,) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) GetFunctionRestrictions(ref bind.Object,moduleName string,functionName string,) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_function_restrictions", typeArgsList, typeParamsList, []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 		"0x1::string::String",
 	}, []any{
-		registry,
+		ref,
 		moduleName,
 		functionName,
 	}, []string{
@@ -488,7 +488,7 @@ func (c upgradeRegistryEncoder) GetFunctionRestrictions(registry bind.Object,mod
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c upgradeRegistryEncoder) GetFunctionRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 		"0x1::string::String",
 	}
@@ -504,16 +504,16 @@ func (c upgradeRegistryEncoder) GetFunctionRestrictionsWithArgs(args ...any) (*b
 }
 
 // IsFunctionAllowed encodes a call to the is_function_allowed Move function.
-func (c upgradeRegistryEncoder) IsFunctionAllowed(registry bind.Object,moduleName string,functionName string,contractVersion uint64,) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) IsFunctionAllowed(ref bind.Object,moduleName string,functionName string,contractVersion uint64,) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("is_function_allowed", typeArgsList, typeParamsList, []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 		"0x1::string::String",
 		"u64",
 	}, []any{
-		registry,
+		ref,
 		moduleName,
 		functionName,
 		contractVersion,
@@ -526,7 +526,7 @@ func (c upgradeRegistryEncoder) IsFunctionAllowed(registry bind.Object,moduleNam
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c upgradeRegistryEncoder) IsFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 		"0x1::string::String",
 		"u64",
@@ -543,16 +543,16 @@ func (c upgradeRegistryEncoder) IsFunctionAllowedWithArgs(args ...any) (*bind.En
 }
 
 // UpdateModuleRestrictions encodes a call to the update_module_restrictions Move function.
-func (c upgradeRegistryEncoder) UpdateModuleRestrictions(registry bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) UpdateModuleRestrictions(ref bind.Object,param bind.Object,moduleName string,blockedVersions []uint64,) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("update_module_restrictions", typeArgsList, typeParamsList, []string{
-		"&mut UpgradeRegistry",
+		"&mut CCIPObjectRef",
 		"&OwnerCap",
 		"0x1::string::String",
 		"vector<u64>",
 	}, []any{
-		registry,
+		ref,
 		param,
 		moduleName,
 		blockedVersions,
@@ -563,7 +563,7 @@ func (c upgradeRegistryEncoder) UpdateModuleRestrictions(registry bind.Object,pa
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c upgradeRegistryEncoder) UpdateModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&mut UpgradeRegistry",
+		"&mut CCIPObjectRef",
 		"&OwnerCap",
 		"0x1::string::String",
 		"vector<u64>",
@@ -578,14 +578,14 @@ func (c upgradeRegistryEncoder) UpdateModuleRestrictionsWithArgs(args ...any) (*
 }
 
 // GetModuleRestrictions encodes a call to the get_module_restrictions Move function.
-func (c upgradeRegistryEncoder) GetModuleRestrictions(registry bind.Object,moduleName string,) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) GetModuleRestrictions(ref bind.Object,moduleName string,) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_module_restrictions", typeArgsList, typeParamsList, []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 	}, []any{
-		registry,
+		ref,
 		moduleName,
 	}, []string{
 		"vector<u64>",
@@ -596,7 +596,7 @@ func (c upgradeRegistryEncoder) GetModuleRestrictions(registry bind.Object,modul
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c upgradeRegistryEncoder) GetModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 	}
 	
@@ -611,15 +611,15 @@ func (c upgradeRegistryEncoder) GetModuleRestrictionsWithArgs(args ...any) (*bin
 }
 
 // IsModuleAllowed encodes a call to the is_module_allowed Move function.
-func (c upgradeRegistryEncoder) IsModuleAllowed(registry bind.Object,moduleName string,contractVersion uint64,) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) IsModuleAllowed(ref bind.Object,moduleName string,contractVersion uint64,) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("is_module_allowed", typeArgsList, typeParamsList, []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 		"u64",
 	}, []any{
-		registry,
+		ref,
 		moduleName,
 		contractVersion,
 	}, []string{
@@ -631,7 +631,7 @@ func (c upgradeRegistryEncoder) IsModuleAllowed(registry bind.Object,moduleName 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c upgradeRegistryEncoder) IsModuleAllowedWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 		"u64",
 	}
@@ -647,14 +647,14 @@ func (c upgradeRegistryEncoder) IsModuleAllowedWithArgs(args ...any) (*bind.Enco
 }
 
 // GetPackageHistory encodes a call to the get_package_history Move function.
-func (c upgradeRegistryEncoder) GetPackageHistory(registry bind.Object,package string,) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) GetPackageHistory(ref bind.Object,package string,) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_package_history", typeArgsList, typeParamsList, []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 	}, []any{
-		registry,
+		ref,
 		package,
 	}, []string{
 		"vector<address>",
@@ -667,7 +667,7 @@ func (c upgradeRegistryEncoder) GetPackageHistory(registry bind.Object,package s
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c upgradeRegistryEncoder) GetPackageHistoryWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"&UpgradeRegistry",
+		"&CCIPObjectRef",
 		"0x1::string::String",
 	}
 	
