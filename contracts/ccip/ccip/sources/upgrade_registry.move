@@ -163,14 +163,14 @@ public fun is_module_allowed(
 // To be used by off-chain systems to get the package history of a given module
 public fun get_package_history(
     ref: &CCIPObjectRef,
-    package: String,
+    package_name: String,
 ): (vector<address>, vector<u64>, vector<u64>) {
     let registry = state_object::borrow<UpgradeRegistry>(ref);
 
-    if (!registry.package_history.contains(package)) {
+    if (!registry.package_history.contains(package_name)) {
         (vector::empty(), vector::empty(), vector::empty())
     } else {
-        let package_history = registry.package_history.borrow(package);
+        let package_history = registry.package_history.borrow(package_name);
         let package_ids = package_history.map_ref!(|ph| ph.package_id);
         let versions = package_history.map_ref!(|ph| ph.version);
         let timestamps = package_history.map_ref!(|ph| ph.timestamp);
