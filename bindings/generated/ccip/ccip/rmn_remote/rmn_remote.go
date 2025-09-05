@@ -36,6 +36,11 @@ type IRmnRemote interface {
 	IsCursedGlobal(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IsCursed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
 	IsCursedU128(ctx context.Context, opts *bind.CallOpts, ref bind.Object, subjectValue *big.Int) (*models.SuiTransactionBlockResponse, error)
+	McmsSetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsCurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsCurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsUncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRmnRemoteDevInspect
 	Encoder() RmnRemoteEncoder
 	Bound() bind.IBoundContract
@@ -87,6 +92,16 @@ type RmnRemoteEncoder interface {
 	IsCursedWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsCursedU128(ref bind.Object, subjectValue *big.Int) (*bind.EncodedCall, error)
 	IsCursedU128WithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsSetConfig(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsCurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsCurseWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsCurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsCurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsUncurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsUncurseWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsUncurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsUncurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type RmnRemoteContract struct {
@@ -177,6 +192,9 @@ type Uncursed struct {
 	Subjects [][]byte `move:"vector<vector<u8>>"`
 }
 
+type McmsCallback struct {
+}
+
 type bcsReport struct {
 	DestChainSelector           uint64
 	RmnRemoteContractAddress    [32]byte
@@ -260,6 +278,14 @@ func init() {
 	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::Uncursed", func(data []byte) (interface{}, error) {
 		var result Uncursed
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	bind.RegisterStructDecoder("ccip::rmn_remote::McmsCallback", func(data []byte) (interface{}, error) {
+		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
@@ -421,6 +447,56 @@ func (c *RmnRemoteContract) IsCursed(ctx context.Context, opts *bind.CallOpts, r
 // IsCursedU128 executes the is_cursed_u128 Move function.
 func (c *RmnRemoteContract) IsCursedU128(ctx context.Context, opts *bind.CallOpts, ref bind.Object, subjectValue *big.Int) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.IsCursedU128(ref, subjectValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsSetConfig executes the mcms_set_config Move function.
+func (c *RmnRemoteContract) McmsSetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsSetConfig(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsCurse executes the mcms_curse Move function.
+func (c *RmnRemoteContract) McmsCurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsCurse(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsCurseMultiple executes the mcms_curse_multiple Move function.
+func (c *RmnRemoteContract) McmsCurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsCurseMultiple(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsUncurse executes the mcms_uncurse Move function.
+func (c *RmnRemoteContract) McmsUncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsUncurse(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsUncurseMultiple executes the mcms_uncurse_multiple Move function.
+func (c *RmnRemoteContract) McmsUncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.McmsUncurseMultiple(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1154,4 +1230,164 @@ func (c rmnRemoteEncoder) IsCursedU128WithArgs(args ...any) (*bind.EncodedCall, 
 	return c.EncodeCallArgsWithGenerics("is_cursed_u128", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"bool",
 	})
+}
+
+// McmsSetConfig encodes a call to the mcms_set_config Move function.
+func (c rmnRemoteEncoder) McmsSetConfig(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_set_config", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsSetConfigWithArgs encodes a call to the mcms_set_config Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsSetConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_set_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsCurse encodes a call to the mcms_curse Move function.
+func (c rmnRemoteEncoder) McmsCurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsCurseWithArgs encodes a call to the mcms_curse Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsCurseWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsCurseMultiple encodes a call to the mcms_curse_multiple Move function.
+func (c rmnRemoteEncoder) McmsCurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse_multiple", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsCurseMultipleWithArgs encodes a call to the mcms_curse_multiple Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsCurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_curse_multiple", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsUncurse encodes a call to the mcms_uncurse Move function.
+func (c rmnRemoteEncoder) McmsUncurse(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_uncurse", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsUncurseWithArgs encodes a call to the mcms_uncurse Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsUncurseWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_uncurse", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsUncurseMultiple encodes a call to the mcms_uncurse_multiple Move function.
+func (c rmnRemoteEncoder) McmsUncurseMultiple(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_uncurse_multiple", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsUncurseMultipleWithArgs encodes a call to the mcms_uncurse_multiple Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c rmnRemoteEncoder) McmsUncurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_uncurse_multiple", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

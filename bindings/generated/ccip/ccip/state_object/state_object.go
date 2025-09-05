@@ -35,7 +35,8 @@ type IStateObject interface {
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IStateObjectDevInspect
 	Encoder() StateObjectEncoder
@@ -87,8 +88,10 @@ type StateObjectEncoder interface {
 	PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error)
 	PendingTransferAccepted(ref bind.Object) (*bind.EncodedCall, error)
 	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsEntrypoint(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTransferOwnership(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsProofEntrypoint(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsProofEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -365,9 +368,19 @@ func (c *StateObjectContract) PendingTransferAccepted(ctx context.Context, opts 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsEntrypoint executes the mcms_entrypoint Move function.
-func (c *StateObjectContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.McmsEntrypoint(ref, registry, params)
+// McmsTransferOwnership executes the mcms_transfer_ownership Move function.
+func (c *StateObjectContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.McmsTransferOwnership(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
+func (c *StateObjectContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.McmsExecuteOwnershipTransfer(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1107,11 +1120,11 @@ func (c stateObjectEncoder) PendingTransferAcceptedWithArgs(args ...any) (*bind.
 	})
 }
 
-// McmsEntrypoint encodes a call to the mcms_entrypoint Move function.
-func (c stateObjectEncoder) McmsEntrypoint(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
+func (c stateObjectEncoder) McmsTransferOwnership(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -1122,9 +1135,9 @@ func (c stateObjectEncoder) McmsEntrypoint(ref bind.Object, registry bind.Object
 	}, nil)
 }
 
-// McmsEntrypointWithArgs encodes a call to the mcms_entrypoint Move function using arbitrary arguments.
+// McmsTransferOwnershipWithArgs encodes a call to the mcms_transfer_ownership Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c stateObjectEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c stateObjectEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
 		"&mut Registry",
@@ -1136,7 +1149,39 @@ func (c stateObjectEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCa
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
+func (c stateObjectEncoder) McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsExecuteOwnershipTransferWithArgs encodes a call to the mcms_execute_ownership_transfer Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsProofEntrypoint encodes a call to the mcms_proof_entrypoint Move function.
