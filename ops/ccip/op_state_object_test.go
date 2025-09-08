@@ -28,7 +28,7 @@ func TestStateObjectPackageIdOperations(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(400_000_000)
+			b := uint64(500_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -44,7 +44,7 @@ func TestStateObjectPackageIdOperations(t *testing.T) {
 	)
 
 	// Deploy LINK
-	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
+	_, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
 
 	// Deploy MCMS
@@ -84,8 +84,9 @@ func TestStateObjectPackageIdOperations(t *testing.T) {
 	})
 
 	t.Run("Test Add Package ID", func(t *testing.T) {
-		// Add a new package ID
+		// Add a new package ID (will be zero-padded to 32 bytes)
 		newPackageId := "0x1234567890abcdef1234567890abcdef12345678"
+		expectedPackageId := "0x0000000000000000000000001234567890abcdef1234567890abcdef12345678"
 		_, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
@@ -94,13 +95,19 @@ func TestStateObjectPackageIdOperations(t *testing.T) {
 		})
 		require.NoError(t, err, "failed to add package ID")
 
-		// Verify the package ID was added
-		getPackageIdsReport, err := cld_ops.ExecuteOperation(bundle, GetPackageIdsStateObjectOp, deps, GetPackageIdsStateObjectInput{
+		// Verify the package ID was added - create a new bundle to avoid caching
+		newReporter := cld_ops.NewMemoryReporter()
+		newBundle := cld_ops.NewBundle(
+			context.Background,
+			logger.Test(t),
+			newReporter,
+		)
+		getPackageIdsReport, err := cld_ops.ExecuteOperation(newBundle, GetPackageIdsStateObjectOp, deps, GetPackageIdsStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 		})
 		require.NoError(t, err, "failed to get package IDs after adding")
-		require.Contains(t, getPackageIdsReport.Output.Objects.PackageIds, newPackageId, "package IDs should contain the newly added package ID")
+		require.Contains(t, getPackageIdsReport.Output.Objects.PackageIds, expectedPackageId, "package IDs should contain the newly added package ID")
 		require.Len(t, getPackageIdsReport.Output.Objects.PackageIds, 2, "should have 2 package IDs now")
 	})
 }
