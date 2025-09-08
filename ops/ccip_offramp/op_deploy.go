@@ -106,6 +106,7 @@ var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 type SetOCR3ConfigInput struct {
 	OffRampPackageId               string
 	OffRampStateId                 string
+	CCIPObjectRefId                string
 	OwnerCapObjectId               string
 	ConfigDigest                   []byte
 	OCRPluginType                  byte
@@ -126,6 +127,7 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 	tx, err := offRampPackage.SetOcr3Config(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.OffRampStateId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.ConfigDigest,
