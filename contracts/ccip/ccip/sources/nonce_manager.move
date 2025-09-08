@@ -2,8 +2,11 @@ module ccip::nonce_manager;
 
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::verify_function_allowed;
 use std::string::{Self, String};
 use sui::table::{Self, Table};
+
+const VERSION: u64 = 1;
 
 // store this cap to onramp
 public struct NonceManagerCap has key, store {
@@ -38,6 +41,12 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
 }
 
 public fun get_outbound_nonce(ref: &CCIPObjectRef, dest_chain_selector: u64, sender: address): u64 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"nonce_manager"),
+        string::utf8(b"get_outbound_nonce"),
+        VERSION,
+    );
     let state = state_object::borrow<NonceManagerState>(ref);
 
     if (!state.outbound_nonces.contains(dest_chain_selector)) {
@@ -58,6 +67,12 @@ public fun get_incremented_outbound_nonce(
     sender: address,
     ctx: &mut TxContext,
 ): u64 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"nonce_manager"),
+        string::utf8(b"get_incremented_outbound_nonce"),
+        VERSION,
+    );
     let state = state_object::borrow_mut<NonceManagerState>(ref);
 
     if (!state.outbound_nonces.contains(dest_chain_selector)) {

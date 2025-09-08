@@ -1150,7 +1150,7 @@ public fun test_accept_admin_role_no_pending_transfer() {
 // === Upgrade Registry Function Restriction Tests ===
 
 #[test]
-#[expected_failure(abort_code = registry::EFunctionNotAllowed)]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
 public fun test_register_pool_function_not_allowed() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
@@ -1201,7 +1201,7 @@ public fun test_register_pool_function_not_allowed() {
 }
 
 #[test]
-#[expected_failure(abort_code = registry::EFunctionNotAllowed)]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
 public fun test_set_pool_function_not_allowed() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);

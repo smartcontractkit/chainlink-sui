@@ -2,6 +2,7 @@ module ccip::receiver_registry;
 
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::verify_function_allowed;
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
@@ -35,6 +36,8 @@ const EAlreadyRegistered: u64 = 1;
 const EAlreadyInitialized: u64 = 2;
 const EUnknownReceiver: u64 = 3;
 
+const VERSION: u64 = 1;
+
 public fun type_and_version(): String {
     string::utf8(b"ReceiverRegistry 1.6.0")
 }
@@ -50,6 +53,12 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
 }
 
 public fun register_receiver<ProofType: drop>(ref: &mut CCIPObjectRef, _proof: ProofType) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"receiver_registry"),
+        string::utf8(b"register_receiver"),
+        VERSION,
+    );
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
     let proof_typename = type_name::get<ProofType>();
     let receiver_module_name = std::string::from_ascii(type_name::get_module(&proof_typename));
@@ -77,6 +86,12 @@ public fun unregister_receiver(
     receiver_package_id: address,
     _: &TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"receiver_registry"),
+        string::utf8(b"unregister_receiver"),
+        VERSION,
+    );
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
 
     assert!(registry.receiver_configs.contains(&receiver_package_id), EUnknownReceiver);
@@ -89,11 +104,23 @@ public fun unregister_receiver(
 }
 
 public fun is_registered_receiver(ref: &CCIPObjectRef, receiver_package_id: address): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"receiver_registry"),
+        string::utf8(b"is_registered_receiver"),
+        VERSION,
+    );
     let registry = state_object::borrow<ReceiverRegistry>(ref);
     registry.receiver_configs.contains(&receiver_package_id)
 }
 
 public fun get_receiver_config(ref: &CCIPObjectRef, receiver_package_id: address): ReceiverConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"receiver_registry"),
+        string::utf8(b"get_receiver_config"),
+        VERSION,
+    );
     let registry = state_object::borrow<ReceiverRegistry>(ref);
 
     assert!(registry.receiver_configs.contains(&receiver_package_id), EUnknownReceiver);
@@ -109,6 +136,12 @@ public fun get_receiver_info(
     ref: &CCIPObjectRef,
     receiver_package_id: address,
 ): (String, ascii::String) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"receiver_registry"),
+        string::utf8(b"get_receiver_info"),
+        VERSION,
+    );
     let registry = state_object::borrow<ReceiverRegistry>(ref);
 
     if (registry.receiver_configs.contains(&receiver_package_id)) {

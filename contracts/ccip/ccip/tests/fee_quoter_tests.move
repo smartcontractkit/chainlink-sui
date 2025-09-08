@@ -1396,7 +1396,7 @@ public fun test_apply_token_transfer_fee_config_invalid_fee_range() {
 // === Upgrade Registry Function Restriction Tests ===
 
 #[test]
-#[expected_failure(abort_code = fee_quoter::EFunctionNotAllowed)]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
 public fun test_apply_fee_token_updates_function_not_allowed() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
@@ -1425,7 +1425,7 @@ public fun test_apply_fee_token_updates_function_not_allowed() {
 }
 
 #[test]
-#[expected_failure(abort_code = fee_quoter::EFunctionNotAllowed)]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
 public fun test_process_message_args_function_not_allowed() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();

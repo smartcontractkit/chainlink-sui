@@ -24,6 +24,7 @@ type IUpgradeRegistry interface {
 	UpdateFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, moduleName string, functionName string, blockedVersions []uint64) (*models.SuiTransactionBlockResponse, error)
 	GetFunctionRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string) (*models.SuiTransactionBlockResponse, error)
 	IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, contractVersion uint64) (*models.SuiTransactionBlockResponse, error)
+	VerifyFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, contractVersion uint64) (*models.SuiTransactionBlockResponse, error)
 	UpdateModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, moduleName string, blockedVersions []uint64) (*models.SuiTransactionBlockResponse, error)
 	GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string) (*models.SuiTransactionBlockResponse, error)
 	IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, contractVersion uint64) (*models.SuiTransactionBlockResponse, error)
@@ -49,6 +50,8 @@ type UpgradeRegistryEncoder interface {
 	GetFunctionRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsFunctionAllowed(ref bind.Object, moduleName string, functionName string, contractVersion uint64) (*bind.EncodedCall, error)
 	IsFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
+	VerifyFunctionAllowed(ref bind.Object, moduleName string, functionName string, contractVersion uint64) (*bind.EncodedCall, error)
+	VerifyFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
 	UpdateModuleRestrictions(ref bind.Object, param bind.Object, moduleName string, blockedVersions []uint64) (*bind.EncodedCall, error)
 	UpdateModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetModuleRestrictions(ref bind.Object, moduleName string) (*bind.EncodedCall, error)
@@ -219,6 +222,16 @@ func (c *UpgradeRegistryContract) GetFunctionRestrictions(ctx context.Context, o
 // IsFunctionAllowed executes the is_function_allowed Move function.
 func (c *UpgradeRegistryContract) IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, contractVersion uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.upgradeRegistryEncoder.IsFunctionAllowed(ref, moduleName, functionName, contractVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// VerifyFunctionAllowed executes the verify_function_allowed Move function.
+func (c *UpgradeRegistryContract) VerifyFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, contractVersion uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.VerifyFunctionAllowed(ref, moduleName, functionName, contractVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -513,6 +526,41 @@ func (c upgradeRegistryEncoder) IsFunctionAllowedWithArgs(args ...any) (*bind.En
 	return c.EncodeCallArgsWithGenerics("is_function_allowed", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"bool",
 	})
+}
+
+// VerifyFunctionAllowed encodes a call to the verify_function_allowed Move function.
+func (c upgradeRegistryEncoder) VerifyFunctionAllowed(ref bind.Object, moduleName string, functionName string, contractVersion uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("verify_function_allowed", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+		"0x1::string::String",
+		"0x1::string::String",
+		"u64",
+	}, []any{
+		ref,
+		moduleName,
+		functionName,
+		contractVersion,
+	}, nil)
+}
+
+// VerifyFunctionAllowedWithArgs encodes a call to the verify_function_allowed Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c upgradeRegistryEncoder) VerifyFunctionAllowedWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+		"0x1::string::String",
+		"0x1::string::String",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("verify_function_allowed", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // UpdateModuleRestrictions encodes a call to the update_module_restrictions Move function.

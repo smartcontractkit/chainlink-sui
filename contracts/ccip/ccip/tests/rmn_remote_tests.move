@@ -676,7 +676,7 @@ public fun test_verify_invalid_signature_length() {
 // === Upgrade Registry Function Restriction Tests ===
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::EFunctionNotAllowed)]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
 public fun test_set_config_function_not_allowed() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
@@ -707,7 +707,7 @@ public fun test_set_config_function_not_allowed() {
 }
 
 #[test]
-#[expected_failure(abort_code = rmn_remote::EFunctionNotAllowed)]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
 public fun test_curse_function_not_allowed() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();

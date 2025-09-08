@@ -8,7 +8,7 @@ use ccip::nonce_manager::{Self, NonceManagerCap};
 use ccip::onramp_state_helper::{Self as osh, TokenTransferParams};
 use ccip::rmn_remote;
 use ccip::state_object::CCIPObjectRef;
-use ccip::upgrade_registry::is_function_allowed;
+use ccip::upgrade_registry::verify_function_allowed;
 use ccip_onramp::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
@@ -149,7 +149,6 @@ const ECalculateMessageHashInvalidArguments: u64 = 16;
 const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
 const EInvalidFeeTokenMetadataAddress: u64 = 19;
-const EFunctionNotAllowed: u64 = 20;
 
 const VERSION: u64 = 1;
 
@@ -259,14 +258,11 @@ public fun withdraw_fee_tokens<T>(
     fee_token_metadata: &CoinMetadata<T>,
 ) {
     assert!(state.fee_aggregator != @0x0, EFeeAggregatorNotSet);
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"withdraw_fee_tokens"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"withdraw_fee_tokens"),
+        VERSION,
     );
 
     let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
@@ -360,14 +356,11 @@ public fun get_fee<T>(
     fee_token: &CoinMetadata<T>,
     extra_args: vector<u8>,
 ): u64 {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"get_fee"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"get_fee"),
+        VERSION,
     );
     get_fee_internal(
         ref,
@@ -414,14 +407,11 @@ public fun set_dynamic_config(
     fee_aggregator: address,
     allowlist_admin: address,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"set_dynamic_config"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"set_dynamic_config"),
+        VERSION,
     );
     set_dynamic_config_internal(state, fee_aggregator, allowlist_admin);
 }
@@ -434,14 +424,11 @@ public fun apply_dest_chain_config_updates(
     dest_chain_enabled: vector<bool>,
     dest_chain_allowlist_enabled: vector<bool>,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"apply_dest_chain_config_updates"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"apply_dest_chain_config_updates"),
+        VERSION,
     );
     apply_dest_chain_config_updates_internal(
         state,
@@ -488,14 +475,11 @@ public fun apply_allowlist_updates(
     dest_chain_remove_allowed_senders: vector<vector<address>>,
     _ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"apply_allowlist_updates"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"apply_allowlist_updates"),
+        VERSION,
     );
     apply_allowlist_updates_internal(
         state,
@@ -515,14 +499,11 @@ public fun apply_allowlist_updates_by_admin(
     dest_chain_remove_allowed_senders: vector<vector<address>>,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"apply_allowlist_updates_by_admin"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"apply_allowlist_updates_by_admin"),
+        VERSION,
     );
     assert!(state.allowlist_admin == ctx.sender(), EOnlyCallableByAllowlistAdmin);
 
@@ -608,6 +589,12 @@ fun apply_allowlist_updates_internal(
 }
 
 public fun get_outbound_nonce(ref: &CCIPObjectRef, dest_chain_selector: u64, sender: address): u64 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"get_outbound_nonce"),
+        VERSION,
+    );
     nonce_manager::get_outbound_nonce(ref, dest_chain_selector, sender)
 }
 
@@ -631,6 +618,7 @@ public fun get_dynamic_config_fields(cfg: DynamicConfig): (address, address) {
 }
 
 public fun calculate_message_hash(
+    ref: &CCIPObjectRef,
     on_ramp_address: address,
     message_id: vector<u8>,
     source_chain_selector: u64,
@@ -649,6 +637,12 @@ public fun calculate_message_hash(
     dest_exec_datas: vector<vector<u8>>,
     extra_args: vector<u8>,
 ): vector<u8> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"calculate_message_hash"),
+        VERSION,
+    );
     let source_pool_addresses_len = source_pool_addresses.length();
     assert!(
         source_pool_addresses_len == dest_token_addresses.length()
@@ -659,6 +653,7 @@ public fun calculate_message_hash(
     );
 
     let metadata_hash = calculate_metadata_hash(
+        ref,
         source_chain_selector,
         dest_chain_selector,
         on_ramp_address,
@@ -699,10 +694,17 @@ public fun calculate_message_hash(
 }
 
 public fun calculate_metadata_hash(
+    ref: &CCIPObjectRef,
     source_chain_selector: u64,
     dest_chain_selector: u64,
     on_ramp_address: address,
 ): vector<u8> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"calculate_metadata_hash"),
+        VERSION,
+    );
     let mut packed = vector[];
     eth_abi::encode_right_padded_bytes32(
         &mut packed,
@@ -772,14 +774,11 @@ public fun ccip_send<T>(
     extra_args: vector<u8>,
     ctx: &mut TxContext,
 ): vector<u8> {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"ccip_send"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"ccip_send"),
+        VERSION,
     );
     // get_fee_internal will check curse status
     let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
@@ -965,6 +964,7 @@ fun construct_message(
 
     // attach message id
     let metadata_hash = calculate_metadata_hash(
+        ref,
         state.chain_selector,
         dest_chain_selector,
         object::uid_to_address(&state.id),
@@ -1010,27 +1010,21 @@ public fun transfer_ownership(
     new_owner: address,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"transfer_ownership"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"transfer_ownership"),
+        VERSION,
     );
     ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
 }
 
 public fun accept_ownership(ref: &CCIPObjectRef, state: &mut OnRampState, ctx: &mut TxContext) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"accept_ownership"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"accept_ownership"),
+        VERSION,
     );
     ownable::accept_ownership(&mut state.ownable_state, ctx);
 }
@@ -1041,14 +1035,11 @@ public fun accept_ownership_from_object(
     from: &mut UID,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"accept_ownership_from_object"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"accept_ownership_from_object"),
+        VERSION,
     );
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
@@ -1059,14 +1050,11 @@ public fun mcms_accept_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"mcms_accept_ownership"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"mcms_accept_ownership"),
+        VERSION,
     );
     let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
         params,
@@ -1089,14 +1077,11 @@ public fun execute_ownership_transfer(
     to: address,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"execute_ownership_transfer"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"execute_ownership_transfer"),
+        VERSION,
     );
     ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
@@ -1109,14 +1094,11 @@ public fun execute_ownership_transfer_to_mcms(
     to: address,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"execute_ownership_transfer_to_mcms"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"execute_ownership_transfer_to_mcms"),
+        VERSION,
     );
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
@@ -1135,14 +1117,11 @@ public fun mcms_register_upgrade_cap(
     state: &mut DeployerState,
     ctx: &mut TxContext,
 ) {
-    assert!(
-        is_function_allowed(
-            ref,
-            string::utf8(b"onramp"),
-            string::utf8(b"mcms_register_upgrade_cap"),
-            VERSION,
-        ),
-        EFunctionNotAllowed,
+    verify_function_allowed(
+        ref,
+        string::utf8(b"onramp"),
+        string::utf8(b"mcms_register_upgrade_cap"),
+        VERSION,
     );
     mcms_deployer::register_upgrade_cap(
         state,

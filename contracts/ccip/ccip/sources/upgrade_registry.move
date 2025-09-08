@@ -28,6 +28,8 @@ public struct FunctionKey has copy, drop, store {
     function_name: String,
 }
 
+const EFunctionNotAllowed: u64 = 1;
+
 public struct UpgradeRegistry has key, store {
     id: UID,
     // (module_name, function_name) -> blocked function versions
@@ -110,6 +112,23 @@ public fun is_function_allowed(
         let blocked_versions = registry.function_restrictions.borrow(key);
         !blocked_versions.contains(&contract_version)
     }
+}
+
+public fun verify_function_allowed(
+    ref: &CCIPObjectRef,
+    module_name: String,
+    function_name: String,
+    contract_version: u64,
+) {
+    assert!(
+        is_function_allowed(
+            ref,
+            module_name,
+            function_name,
+            contract_version,
+        ),
+        EFunctionNotAllowed,
+    );
 }
 
 // =================== Module Restrictions =================== //
