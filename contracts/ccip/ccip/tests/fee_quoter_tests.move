@@ -1392,3 +1392,76 @@ public fun test_apply_token_transfer_fee_config_invalid_fee_range() {
 
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
+
+// === Upgrade Registry Function Restriction Tests ===
+
+#[test]
+#[expected_failure(abort_code = fee_quoter::EFunctionNotAllowed)]
+public fun test_apply_fee_token_updates_function_not_allowed() {
+    let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
+    let ctx = scenario.ctx();
+    initialize_fee_quoter(&mut ref, &owner_cap, ctx);
+
+    // Block the apply_fee_token_updates function using upgrade registry
+    upgrade_registry::update_function_restrictions(
+        &mut ref,
+        &owner_cap,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"apply_fee_token_updates"),
+        vector[1], // block version 1
+        ctx,
+    );
+
+    // This should fail because the function is blocked by upgrade registry
+    fee_quoter::apply_fee_token_updates(
+        &mut ref,
+        &owner_cap,
+        vector[MOCK_ADDRESS_1], // fee_tokens_to_remove
+        vector[MOCK_ADDRESS_4], // fee_tokens_to_add
+        ctx,
+    );
+
+    cleanup_test_scenario(scenario, owner_cap, ref);
+}
+
+#[test]
+#[expected_failure(abort_code = fee_quoter::EFunctionNotAllowed)]
+public fun test_process_message_args_function_not_allowed() {
+    let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
+    let ctx = scenario.ctx();
+    initialize_fee_quoter(&mut ref, &owner_cap, ctx);
+
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_EVM, true, ctx);
+
+    // Block the process_message_args function using upgrade registry
+    upgrade_registry::update_function_restrictions(
+        &mut ref,
+        &owner_cap,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"process_message_args"),
+        vector[1], // block version 1
+        ctx,
+    );
+
+    let evm_extra_args =
+        x"181dcf10a1a910000000000000000000000000000000000000000000000000000000000001";
+
+    // This should fail because the function is blocked by upgrade registry
+    let (
+        _msg_fee_juels,
+        _is_out_of_order_execution,
+        _converted_extra_args,
+        _dest_exec_data_per_token,
+    ) = fee_quoter::process_message_args(
+        &ref,
+        100, // dest_chain_selector
+        MOCK_ADDRESS_1, // fee_token
+        1000, // fee_token_amount
+        evm_extra_args, // extra_args
+        vector[MOCK_ADDRESS_1], // source_token_addresses
+        vector[bcs::to_bytes(&MOCK_ADDRESS_2)], // dest_token_addresses
+        vector[bcs::to_bytes(&MOCK_ADDRESS_3)], // dest_pool_datas
+    );
+
+    cleanup_test_scenario(scenario, owner_cap, ref);
+}
