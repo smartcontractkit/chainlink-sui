@@ -86,17 +86,12 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 	pointerTag := "_::counter::CounterPointer::counter_id"
 
+	pollingInterval := 10 * time.Second
+	syncTimeout := 10 * time.Second
+
 	// Set up the ChainReader
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: false,
-		EventsIndexer: config.EventsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
-		},
-		TransactionsIndexer: config.TransactionsIndexerConfig{
-			PollingInterval: 10 * time.Second,
-			SyncTimeout:     10 * time.Second,
-		},
 		Modules: map[string]*config.ChainReaderModule{
 			"Counter": {
 				Name: "counter",
@@ -186,8 +181,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		db,
 		log,
 		relayerClient,
-		chainReaderConfig.TransactionsIndexer.PollingInterval,
-		chainReaderConfig.TransactionsIndexer.SyncTimeout,
+		pollingInterval,
+		syncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
@@ -198,8 +193,8 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		relayerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		chainReaderConfig.EventsIndexer.PollingInterval,
-		chainReaderConfig.EventsIndexer.SyncTimeout,
+		pollingInterval,
+		syncTimeout,
 	)
 	indexerInstance := indexer.NewIndexer(
 		log,

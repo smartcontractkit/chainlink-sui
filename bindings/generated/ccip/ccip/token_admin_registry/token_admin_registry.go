@@ -35,8 +35,13 @@ type ITokenAdminRegistry interface {
 	TransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, newAdmin string) (*models.SuiTransactionBlockResponse, error)
 	AcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	IsAdministrator(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, administrator string) (*models.SuiTransactionBlockResponse, error)
+	McmsUnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ITokenAdminRegistryDevInspect
 	Encoder() TokenAdminRegistryEncoder
+	Bound() bind.IBoundContract
 }
 
 type ITokenAdminRegistryDevInspect interface {
@@ -81,6 +86,14 @@ type TokenAdminRegistryEncoder interface {
 	AcceptAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsAdministrator(ref bind.Object, coinMetadataAddress string, administrator string) (*bind.EncodedCall, error)
 	IsAdministratorWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsUnregisterPool(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsUnregisterPoolWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsSetPool(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetPoolWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTransferAdminRole(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsAcceptAdminRole(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAcceptAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type TokenAdminRegistryContract struct {
@@ -96,7 +109,7 @@ type TokenAdminRegistryDevInspect struct {
 var _ ITokenAdminRegistry = (*TokenAdminRegistryContract)(nil)
 var _ ITokenAdminRegistryDevInspect = (*TokenAdminRegistryDevInspect)(nil)
 
-func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (*TokenAdminRegistryContract, error) {
+func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (ITokenAdminRegistry, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "token_admin_registry", client)
 	if err != nil {
 		return nil, err
@@ -108,6 +121,10 @@ func NewTokenAdminRegistry(packageID string, client sui.ISuiAPI) (*TokenAdminReg
 	}
 	c.devInspect = &TokenAdminRegistryDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *TokenAdminRegistryContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *TokenAdminRegistryContract) Encoder() TokenAdminRegistryEncoder {
@@ -164,6 +181,9 @@ type AdministratorTransferRequested struct {
 type AdministratorTransferred struct {
 	CoinMetadataAddress string `move:"address"`
 	NewAdmin            string `move:"address"`
+}
+
+type McmsCallback struct {
 }
 
 type bcsTokenConfig struct {
@@ -381,6 +401,14 @@ func init() {
 		}
 		return result, nil
 	})
+	bind.RegisterStructDecoder("ccip::token_admin_registry::McmsCallback", func(data []byte) (interface{}, error) {
+		var result McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -526,6 +554,46 @@ func (c *TokenAdminRegistryContract) AcceptAdminRole(ctx context.Context, opts *
 // IsAdministrator executes the is_administrator Move function.
 func (c *TokenAdminRegistryContract) IsAdministrator(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, administrator string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.tokenAdminRegistryEncoder.IsAdministrator(ref, coinMetadataAddress, administrator)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsUnregisterPool executes the mcms_unregister_pool Move function.
+func (c *TokenAdminRegistryContract) McmsUnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.McmsUnregisterPool(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsSetPool executes the mcms_set_pool Move function.
+func (c *TokenAdminRegistryContract) McmsSetPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.McmsSetPool(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsTransferAdminRole executes the mcms_transfer_admin_role Move function.
+func (c *TokenAdminRegistryContract) McmsTransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.McmsTransferAdminRole(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsAcceptAdminRole executes the mcms_accept_admin_role Move function.
+func (c *TokenAdminRegistryContract) McmsAcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.McmsAcceptAdminRole(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1254,4 +1322,132 @@ func (c tokenAdminRegistryEncoder) IsAdministratorWithArgs(args ...any) (*bind.E
 	return c.EncodeCallArgsWithGenerics("is_administrator", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"bool",
 	})
+}
+
+// McmsUnregisterPool encodes a call to the mcms_unregister_pool Move function.
+func (c tokenAdminRegistryEncoder) McmsUnregisterPool(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_unregister_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsUnregisterPoolWithArgs encodes a call to the mcms_unregister_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) McmsUnregisterPoolWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_unregister_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsSetPool encodes a call to the mcms_set_pool Move function.
+func (c tokenAdminRegistryEncoder) McmsSetPool(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsSetPoolWithArgs encodes a call to the mcms_set_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) McmsSetPoolWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsTransferAdminRole encodes a call to the mcms_transfer_admin_role Move function.
+func (c tokenAdminRegistryEncoder) McmsTransferAdminRole(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_admin_role", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsTransferAdminRoleWithArgs encodes a call to the mcms_transfer_admin_role Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) McmsTransferAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_transfer_admin_role", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsAcceptAdminRole encodes a call to the mcms_accept_admin_role Move function.
+func (c tokenAdminRegistryEncoder) McmsAcceptAdminRole(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_accept_admin_role", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsAcceptAdminRoleWithArgs encodes a call to the mcms_accept_admin_role Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c tokenAdminRegistryEncoder) McmsAcceptAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_accept_admin_role", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

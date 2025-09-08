@@ -30,6 +30,7 @@ type I{{toUpperCamel .Module}} interface {
 {{- end}}
   DevInspect() I{{toUpperCamel .Module}}DevInspect
   Encoder() {{toUpperCamel .Module}}Encoder
+	Bound() bind.IBoundContract
 }
 
 type I{{toUpperCamel .Module}}DevInspect interface {
@@ -64,7 +65,7 @@ type {{toUpperCamel .Module}}DevInspect struct {
 var _ I{{toUpperCamel .Module}} = (*{{toUpperCamel .Module}}Contract)(nil)
 var _ I{{toUpperCamel .Module}}DevInspect = (*{{toUpperCamel .Module}}DevInspect)(nil)
 
-func New{{toUpperCamel .Module}}(packageID string, client sui.ISuiAPI) (*{{toUpperCamel .Module}}Contract, error) {
+func New{{toUpperCamel .Module}}(packageID string, client sui.ISuiAPI) (I{{toUpperCamel .Module}}, error) {
 	contract, err := bind.NewBoundContract(packageID, "{{.Package}}", "{{.Module}}", client)
 	if err != nil {
 		return nil, err
@@ -76,6 +77,10 @@ func New{{toUpperCamel .Module}}(packageID string, client sui.ISuiAPI) (*{{toUpp
 	}
 	c.devInspect = &{{toUpperCamel .Module}}DevInspect{contract: c}
 	return c, nil
+}
+
+func (c *{{toUpperCamel .Module}}Contract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *{{toUpperCamel .Module}}Contract) Encoder() {{toUpperCamel .Module}}Encoder {

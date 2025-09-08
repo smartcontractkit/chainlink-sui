@@ -25,6 +25,7 @@ type IMcmsDeployer interface {
 	CommitUpgrade(ctx context.Context, opts *bind.CallOpts, state bind.Object, receipt bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsDeployerDevInspect
 	Encoder() McmsDeployerEncoder
+	Bound() bind.IBoundContract
 }
 
 type IMcmsDeployerDevInspect interface {
@@ -53,7 +54,7 @@ type McmsDeployerDevInspect struct {
 var _ IMcmsDeployer = (*McmsDeployerContract)(nil)
 var _ IMcmsDeployerDevInspect = (*McmsDeployerDevInspect)(nil)
 
-func NewMcmsDeployer(packageID string, client sui.ISuiAPI) (*McmsDeployerContract, error) {
+func NewMcmsDeployer(packageID string, client sui.ISuiAPI) (IMcmsDeployer, error) {
 	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_deployer", client)
 	if err != nil {
 		return nil, err
@@ -65,6 +66,10 @@ func NewMcmsDeployer(packageID string, client sui.ISuiAPI) (*McmsDeployerContrac
 	}
 	c.devInspect = &McmsDeployerDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *McmsDeployerContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *McmsDeployerContract) Encoder() McmsDeployerEncoder {
