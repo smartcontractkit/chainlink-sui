@@ -121,7 +121,6 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 			SourceChainsIsRMNVerificationDisabled: []bool{true},
 			SourceChainsOnRamp:                    [][]byte{{0x01}},
 		},
-		CCIPObjectRefId: reportCCIP.Output.Objects.CCIPObjectRefObjectId,
 		ExecutionOCR3Config: SetOCR3ConfigInput{
 			OffRampPackageId: "", // Will be set by the sequence
 			OffRampStateId:   "", // Will be set by the sequence
@@ -141,6 +140,16 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		},
 	}
 
-	_, err = cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPOffRampSequence, deps, seqOffRampInput)
+	seqResult, err := cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPOffRampSequence, deps, seqOffRampInput)
 	require.NoError(t, err, "failed to deploy CCIP OffRamp Package")
+
+	// Set OCR3 Execution Config after sequence completes
+	executionConfig := seqOffRampInput.ExecutionOCR3Config
+	executionConfig.OffRampPackageId = seqResult.Output.CCIPOffRampPackageId
+	executionConfig.OffRampStateId = seqResult.Output.Objects.StateObjectId
+	executionConfig.OwnerCapObjectId = seqResult.Output.Objects.OwnerCapId
+	executionConfig.CCIPObjectRefId = reportCCIP.Output.Objects.CCIPObjectRefObjectId
+
+	_, err = cld_ops.ExecuteOperation(bundle, SetOCR3ConfigOp, deps, executionConfig)
+	require.NoError(t, err, "failed to set OCR3 execution config")
 }
