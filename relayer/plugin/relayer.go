@@ -30,6 +30,7 @@ import (
 )
 
 type SuiRelayer struct {
+	types.UnimplementedRelayer
 	services.StateMachine
 
 	chainId    string
