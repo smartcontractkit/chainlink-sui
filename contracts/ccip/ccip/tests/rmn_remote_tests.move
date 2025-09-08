@@ -5,6 +5,7 @@ module ccip::rmn_remote_test;
 use ccip::ownable::OwnerCap;
 use ccip::rmn_remote::{Self, RMNRemoteState};
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use sui::test_scenario::{Self, Scenario};
 
 // === Constants ===
@@ -93,6 +94,8 @@ fun initialize_rmn_remote(
     chain_selector: u64,
     ctx: &mut TxContext,
 ) {
+    // Initialize upgrade registry first (required by rmn_remote functions)
+    upgrade_registry::initialize(ref, owner_cap, ctx);
     rmn_remote::initialize(ref, owner_cap, chain_selector, ctx);
 }
 
@@ -376,8 +379,11 @@ public fun test_initialize_already_initialized() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
     let ctx = scenario.ctx();
 
-    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+    // Initialize upgrade registry first (required by rmn_remote functions)
+    upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
+    rmn_remote::initialize(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+    // This should fail because rmn_remote is already initialized
+    rmn_remote::initialize(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
 
     tear_down_test(scenario, owner_cap, ref);
 }
@@ -663,6 +669,64 @@ public fun test_verify_invalid_signature_length() {
         vector[MERKLE_ROOT_VALUE_1],
         vector[INVALID_SHORT_SIGNATURE, VALID_SIGNATURE_2], // only 28 bytes, should be 64
     );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+// === Upgrade Registry Function Restriction Tests ===
+
+#[test]
+#[expected_failure(abort_code = rmn_remote::EFunctionNotAllowed)]
+public fun test_set_config_function_not_allowed() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+
+    // Block the set_config function using upgrade registry
+    upgrade_registry::update_function_restrictions(
+        &mut ref,
+        &owner_cap,
+        std::string::utf8(b"rmn_remote"),
+        std::string::utf8(b"set_config"),
+        vector[1], // block version 1
+        ctx,
+    );
+
+    // This should fail because the function is blocked by upgrade registry
+    rmn_remote::set_config(
+        &mut ref,
+        &owner_cap,
+        VALID_DIGEST,
+        vector[SIGNER_PUBKEY_1, SIGNER_PUBKEY_2, SIGNER_PUBKEY_3],
+        vector[0, 1, 2],
+        F_SIGN_VALUE,
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+#[expected_failure(abort_code = rmn_remote::EFunctionNotAllowed)]
+public fun test_curse_function_not_allowed() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+    let ctx = scenario.ctx();
+
+    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
+    setup_basic_config(&mut ref, &owner_cap);
+
+    // Block the curse function using upgrade registry
+    upgrade_registry::update_function_restrictions(
+        &mut ref,
+        &owner_cap,
+        std::string::utf8(b"rmn_remote"),
+        std::string::utf8(b"curse"),
+        vector[1], // block version 1
+        ctx,
+    );
+
+    // This should fail because the function is blocked by upgrade registry
+    rmn_remote::curse(&mut ref, &owner_cap, SUBJECT_1);
 
     tear_down_test(scenario, owner_cap, ref);
 }

@@ -352,7 +352,6 @@ public fun apply_fee_token_updates(
     _ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
-
     assert!(
         is_function_allowed(
             ref,
@@ -532,6 +531,15 @@ public fun update_prices(
     gas_usd_per_unit_gas: vector<u256>,
     _ctx: &mut TxContext,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"fee_quoter"),
+            string::utf8(b"update_prices"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     assert!(source_tokens.length() == source_usd_per_token.length(), ETokenUpdateMismatch);
     assert!(gas_dest_chain_selectors.length() == gas_usd_per_unit_gas.length(), EGasUpdateMismatch);
 

@@ -5,6 +5,7 @@ use ccip::eth_abi;
 use ccip::merkle_proof;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::is_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
@@ -88,6 +89,9 @@ const ESignersMismatch: u64 = 15;
 const EInvalidSubjectLength: u64 = 16;
 const EInvalidPublicKeyLength: u64 = 17;
 const EInvalidFunction: u64 = 18;
+const EFunctionNotAllowed: u64 = 19;
+
+const VERSION: u64 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
@@ -156,6 +160,16 @@ public fun verify(
     merkle_root_values: vector<vector<u8>>,
     signatures: vector<vector<u8>>,
 ): bool {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"verify"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
+
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     assert!(state.config_count > 0, EConfigNotSet);
@@ -232,6 +246,15 @@ public fun set_config(
     node_indexes: vector<u64>,
     f_sign: u64,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"set_config"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     assert!(rmn_home_contract_config_digest.length() == 32, EInvalidDigestLength);
@@ -306,10 +329,28 @@ public fun get_report_digest_header(): vector<u8> {
 }
 
 public fun curse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"curse"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     curse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"curse_multiple"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
@@ -322,10 +363,28 @@ public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vecto
 }
 
 public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"uncurse"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     uncurse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun uncurse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"rmn_remote"),
+            string::utf8(b"uncurse_multiple"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
