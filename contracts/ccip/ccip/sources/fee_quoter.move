@@ -7,6 +7,7 @@ use ccip::client;
 use ccip::eth_abi;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::is_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
@@ -14,6 +15,8 @@ use std::string::{Self, String};
 use sui::clock;
 use sui::event;
 use sui::table;
+
+const VERSION: u64 = 1;
 
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
@@ -239,6 +242,7 @@ const EInvalidSvmAccountLength: u64 = 35;
 const ETokenAmountMismatch: u64 = 36;
 const EInvalidOwnerCap: u64 = 37;
 const EInvalidFunction: u64 = 38;
+const EFunctionNotAllowed: u64 = 39;
 
 public fun type_and_version(): String {
     string::utf8(b"FeeQuoter 1.6.0")
@@ -349,6 +353,16 @@ public fun apply_fee_token_updates(
 ) {
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"fee_quoter"),
+            string::utf8(b"apply_fee_token_updates"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
+
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
     // Remove tokens
@@ -426,6 +440,15 @@ public fun apply_token_transfer_fee_config_updates(
     ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"fee_quoter"),
+            string::utf8(b"apply_token_transfer_fee_config_updates"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
@@ -684,6 +707,15 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
     _ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"fee_quoter"),
+            string::utf8(b"apply_premium_multiplier_wei_per_eth_updates"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
@@ -1031,6 +1063,15 @@ public fun process_message_args(
     dest_token_addresses: vector<vector<u8>>,
     dest_pool_datas: vector<vector<u8>>,
 ): (u256, bool, vector<u8>, vector<vector<u8>>) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"fee_quoter"),
+            string::utf8(b"process_message_args"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     // This is the fee in Sui denomination. We convert it to juels (1e18 based) below.
     let msg_fee_link_local_denomination = if (fee_token == state.link_token) {
@@ -1262,6 +1303,15 @@ public fun apply_dest_chain_config_updates(
     _ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"fee_quoter"),
+            string::utf8(b"apply_dest_chain_config_updates"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
 

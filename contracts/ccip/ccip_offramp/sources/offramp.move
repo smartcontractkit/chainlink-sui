@@ -32,6 +32,7 @@ use sui::vec_map::{Self, VecMap};
 
 public struct OffRampState has key, store {
     id: UID,
+    package_ids: vector<address>,
     ocr3_base_state: OCR3BaseState,
     // static config
     chain_selector: u64,
@@ -236,6 +237,7 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
     let state = OffRampState {
         id: object::new(ctx),
+        package_ids: vector[],
         ocr3_base_state: ocr3_base::new(ctx),
         chain_selector: 0,
         permissionless_execution_threshold_seconds: 0,
@@ -297,6 +299,27 @@ public fun initialize(
         source_chains_on_ramp,
         ctx,
     );
+
+    let tn = type_name::get_with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.get_address());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+    state.package_ids.push_back(package_id);
+}
+
+public fun get_package_ids(state: &OffRampState): vector<address> {
+    state.package_ids
+}
+
+public fun get_initial_package_id(state: &OffRampState): address {
+    state.package_ids[0]
+}
+
+public fun get_latest_package_id(state: &OffRampState): address {
+    state.package_ids[state.package_ids.length() - 1]
+}
+
+public fun add_package_id(state: &mut OffRampState, _: &OwnerCap, package_id: address) {
+    state.package_ids.push_back(package_id);
 }
 
 public fun get_ocr3_base(state: &OffRampState): &OCR3BaseState {
@@ -1289,7 +1312,6 @@ public fun mcms_register_upgrade_cap(
 // ================================================================
 
 public struct McmsCallback has drop {}
-
 
 public fun mcms_set_dynamic_config(
     state: &mut OffRampState,

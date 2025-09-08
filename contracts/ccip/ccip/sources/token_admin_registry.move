@@ -2,12 +2,15 @@ module ccip::token_admin_registry;
 
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::is_function_allowed;
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
 use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
+
+const VERSION: u64 = 1;
 
 public struct TokenAdminRegistryState has key, store {
     id: UID,
@@ -69,6 +72,7 @@ const ETokenNotRegistered: u64 = 4;
 const ENotAdministrator: u64 = 5;
 const ETokenAddressNotRegistered: u64 = 6;
 const ENotAllowed: u64 = 7;
+const EFunctionNotAllowed: u64 = 8;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
@@ -248,6 +252,15 @@ public fun register_pool<T, TypeProof: drop>(
     release_or_mint_params: vector<address>,
     _proof: TypeProof,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"register_pool"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let token_type = type_name::get<T>().into_string();
     let proof_tn = type_name::get<TypeProof>();
@@ -279,6 +292,15 @@ public fun register_pool_by_admin(
     release_or_mint_params: vector<address>,
     _: &mut TxContext,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"register_pool_by_admin"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -332,6 +354,15 @@ public fun unregister_pool(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"unregister_pool"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -358,6 +389,15 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"set_pool"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -396,6 +436,15 @@ public fun transfer_admin_role(
     new_admin: address,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"transfer_admin_role"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -419,6 +468,15 @@ public fun accept_admin_role(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"accept_admin_role"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);

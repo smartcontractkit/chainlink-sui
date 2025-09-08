@@ -22,16 +22,19 @@ var (
 type IOnramp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
+	GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error)
+	WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
-	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error)
-	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
+	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error)
+	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
 	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetAllowedSendersList(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error)
-	ApplyAllowlistUpdatesByAdmin(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error)
+	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error)
+	ApplyAllowlistUpdatesByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error)
 	GetOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
@@ -46,26 +49,28 @@ type IOnramp interface {
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	TransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
+	TransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsInitialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsWithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsWithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOnrampDevInspect
 	Encoder() OnrampEncoder
 }
 
 type IOnrampDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
+	GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error)
+	GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (bool, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (uint64, error)
 	GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (uint64, error)
@@ -92,25 +97,31 @@ type OnrampEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetPackageIds(state bind.Object) (*bind.EncodedCall, error)
+	GetPackageIdsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetInitialPackageId(state bind.Object) (*bind.EncodedCall, error)
+	GetInitialPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
+	AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsChainSupported(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetExpectedNextSequenceNumber(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetExpectedNextSequenceNumberWithArgs(args ...any) (*bind.EncodedCall, error)
-	WithdrawFeeTokens(typeArgs []string, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error)
+	WithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error)
 	WithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetFee(typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
 	GetFeeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	SetDynamicConfig(state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error)
+	SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error)
 	SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyDestChainConfigUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
+	ApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
 	ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetDestChainConfig(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetDestChainConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetAllowedSendersList(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetAllowedSendersListWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyAllowlistUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error)
+	ApplyAllowlistUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyAllowlistUpdatesByAdmin(state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error)
+	ApplyAllowlistUpdatesByAdmin(ref bind.Object, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdatesByAdminWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOutboundNonce(ref bind.Object, destChainSelector uint64, sender string) (*bind.EncodedCall, error)
 	GetOutboundNonceWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -140,33 +151,33 @@ type OnrampEncoder interface {
 	PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error)
 	PendingTransferAccepted(state bind.Object) (*bind.EncodedCall, error)
 	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
-	TransferOwnership(state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error)
+	TransferOwnership(ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error)
 	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnership(state bind.Object) (*bind.EncodedCall, error)
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAcceptOwnership(ref bind.Object, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcms(ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	McmsRegisterUpgradeCap(ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetDynamicConfig(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsApplyDestChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsApplyAllowlistUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplyAllowlistUpdates(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferOwnership(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsInitialize(state bind.Object, registry bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsWithdrawFeeTokens(typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsWithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsWithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
 
@@ -207,6 +218,7 @@ func (c *OnrampContract) DevInspect() IOnrampDevInspect {
 
 type OnRampState struct {
 	Id                string       `move:"sui::object::UID"`
+	PackageIds        []string     `move:"vector<address>"`
 	ChainSelector     uint64       `move:"u64"`
 	FeeAggregator     string       `move:"address"`
 	AllowlistAdmin    string       `move:"address"`
@@ -309,6 +321,7 @@ type McmsCallback struct {
 
 type bcsOnRampState struct {
 	Id                string
+	PackageIds        [][32]byte
 	ChainSelector     uint64
 	FeeAggregator     [32]byte
 	AllowlistAdmin    [32]byte
@@ -322,7 +335,14 @@ type bcsOnRampState struct {
 func convertOnRampStateFromBCS(bcs bcsOnRampState) (OnRampState, error) {
 
 	return OnRampState{
-		Id:                bcs.Id,
+		Id: bcs.Id,
+		PackageIds: func() []string {
+			addrs := make([]string, len(bcs.PackageIds))
+			for i, addr := range bcs.PackageIds {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
 		ChainSelector:     bcs.ChainSelector,
 		FeeAggregator:     fmt.Sprintf("0x%x", bcs.FeeAggregator),
 		AllowlistAdmin:    fmt.Sprintf("0x%x", bcs.AllowlistAdmin),
@@ -730,6 +750,36 @@ func (c *OnrampContract) Initialize(ctx context.Context, opts *bind.CallOpts, st
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetPackageIds executes the get_package_ids Move function.
+func (c *OnrampContract) GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.GetPackageIds(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetInitialPackageId executes the get_initial_package_id Move function.
+func (c *OnrampContract) GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.GetInitialPackageId(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AddPackageId executes the add_package_id Move function.
+func (c *OnrampContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.AddPackageId(state, param, packageId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // IsChainSupported executes the is_chain_supported Move function.
 func (c *OnrampContract) IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.onrampEncoder.IsChainSupported(state, destChainSelector)
@@ -751,8 +801,8 @@ func (c *OnrampContract) GetExpectedNextSequenceNumber(ctx context.Context, opts
 }
 
 // WithdrawFeeTokens executes the withdraw_fee_tokens Move function.
-func (c *OnrampContract) WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.WithdrawFeeTokens(typeArgs, state, param, feeTokenMetadata)
+func (c *OnrampContract) WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.WithdrawFeeTokens(typeArgs, ref, state, param, feeTokenMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -771,8 +821,8 @@ func (c *OnrampContract) GetFee(ctx context.Context, opts *bind.CallOpts, typeAr
 }
 
 // SetDynamicConfig executes the set_dynamic_config Move function.
-func (c *OnrampContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.SetDynamicConfig(state, param, feeAggregator, allowlistAdmin)
+func (c *OnrampContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.SetDynamicConfig(ref, state, param, feeAggregator, allowlistAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -781,8 +831,8 @@ func (c *OnrampContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOp
 }
 
 // ApplyDestChainConfigUpdates executes the apply_dest_chain_config_updates Move function.
-func (c *OnrampContract) ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.ApplyDestChainConfigUpdates(state, param, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
+func (c *OnrampContract) ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.ApplyDestChainConfigUpdates(ref, state, param, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -811,8 +861,8 @@ func (c *OnrampContract) GetAllowedSendersList(ctx context.Context, opts *bind.C
 }
 
 // ApplyAllowlistUpdates executes the apply_allowlist_updates Move function.
-func (c *OnrampContract) ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.ApplyAllowlistUpdates(state, param, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
+func (c *OnrampContract) ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.ApplyAllowlistUpdates(ref, state, param, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -821,8 +871,8 @@ func (c *OnrampContract) ApplyAllowlistUpdates(ctx context.Context, opts *bind.C
 }
 
 // ApplyAllowlistUpdatesByAdmin executes the apply_allowlist_updates_by_admin Move function.
-func (c *OnrampContract) ApplyAllowlistUpdatesByAdmin(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.ApplyAllowlistUpdatesByAdmin(state, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
+func (c *OnrampContract) ApplyAllowlistUpdatesByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.ApplyAllowlistUpdatesByAdmin(ref, state, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -971,8 +1021,8 @@ func (c *OnrampContract) PendingTransferAccepted(ctx context.Context, opts *bind
 }
 
 // TransferOwnership executes the transfer_ownership Move function.
-func (c *OnrampContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.TransferOwnership(state, ownerCap, newOwner)
+func (c *OnrampContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.TransferOwnership(ref, state, ownerCap, newOwner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1001,8 +1051,8 @@ func (c *OnrampContract) AcceptOwnershipFromObject(ctx context.Context, opts *bi
 }
 
 // McmsAcceptOwnership executes the mcms_accept_ownership Move function.
-func (c *OnrampContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsAcceptOwnership(state, params)
+func (c *OnrampContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsAcceptOwnership(ref, state, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1011,8 +1061,8 @@ func (c *OnrampContract) McmsAcceptOwnership(ctx context.Context, opts *bind.Cal
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *OnrampContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.ExecuteOwnershipTransfer(ownerCap, ownableState, to)
+func (c *OnrampContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.ExecuteOwnershipTransfer(ref, ownerCap, ownableState, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1021,8 +1071,8 @@ func (c *OnrampContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bin
 }
 
 // ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
-func (c *OnrampContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.ExecuteOwnershipTransferToMcms(ownerCap, state, registry, to)
+func (c *OnrampContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.ExecuteOwnershipTransferToMcms(ref, ownerCap, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1031,8 +1081,8 @@ func (c *OnrampContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opt
 }
 
 // McmsRegisterUpgradeCap executes the mcms_register_upgrade_cap Move function.
-func (c *OnrampContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsRegisterUpgradeCap(upgradeCap, registry, state)
+func (c *OnrampContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsRegisterUpgradeCap(ref, upgradeCap, registry, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1041,8 +1091,8 @@ func (c *OnrampContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.
 }
 
 // McmsSetDynamicConfig executes the mcms_set_dynamic_config Move function.
-func (c *OnrampContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsSetDynamicConfig(state, registry, params)
+func (c *OnrampContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsSetDynamicConfig(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1051,8 +1101,8 @@ func (c *OnrampContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.Ca
 }
 
 // McmsApplyDestChainConfigUpdates executes the mcms_apply_dest_chain_config_updates Move function.
-func (c *OnrampContract) McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsApplyDestChainConfigUpdates(state, registry, params)
+func (c *OnrampContract) McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsApplyDestChainConfigUpdates(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1061,8 +1111,8 @@ func (c *OnrampContract) McmsApplyDestChainConfigUpdates(ctx context.Context, op
 }
 
 // McmsApplyAllowlistUpdates executes the mcms_apply_allowlist_updates Move function.
-func (c *OnrampContract) McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsApplyAllowlistUpdates(state, registry, params)
+func (c *OnrampContract) McmsApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsApplyAllowlistUpdates(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1071,8 +1121,8 @@ func (c *OnrampContract) McmsApplyAllowlistUpdates(ctx context.Context, opts *bi
 }
 
 // McmsTransferOwnership executes the mcms_transfer_ownership Move function.
-func (c *OnrampContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsTransferOwnership(state, registry, params)
+func (c *OnrampContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsTransferOwnership(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1081,8 +1131,8 @@ func (c *OnrampContract) McmsTransferOwnership(ctx context.Context, opts *bind.C
 }
 
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
-func (c *OnrampContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsExecuteOwnershipTransfer(state, registry, params)
+func (c *OnrampContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsExecuteOwnershipTransfer(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1101,8 +1151,8 @@ func (c *OnrampContract) McmsInitialize(ctx context.Context, opts *bind.CallOpts
 }
 
 // McmsWithdrawFeeTokens executes the mcms_withdraw_fee_tokens Move function.
-func (c *OnrampContract) McmsWithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.McmsWithdrawFeeTokens(typeArgs, state, registry, feeTokenMetadata, params)
+func (c *OnrampContract) McmsWithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.McmsWithdrawFeeTokens(typeArgs, ref, state, registry, feeTokenMetadata, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1115,6 +1165,50 @@ func (c *OnrampContract) McmsWithdrawFeeTokens(ctx context.Context, opts *bind.C
 // Returns: 0x1::string::String
 func (d *OnrampDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
 	encoded, err := d.contract.onrampEncoder.TypeAndVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetPackageIds executes the get_package_ids Move function using DevInspect to get return values.
+//
+// Returns: vector<address>
+func (d *OnrampDevInspect) GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error) {
+	encoded, err := d.contract.onrampEncoder.GetPackageIds(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetInitialPackageId executes the get_initial_package_id Move function using DevInspect to get return values.
+//
+// Returns: address
+func (d *OnrampDevInspect) GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error) {
+	encoded, err := d.contract.onrampEncoder.GetInitialPackageId(state)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1609,6 +1703,98 @@ func (c onrampEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, error
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// GetPackageIds encodes a call to the get_package_ids Move function.
+func (c onrampEncoder) GetPackageIds(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_package_ids", typeArgsList, typeParamsList, []string{
+		"&OnRampState",
+	}, []any{
+		state,
+	}, []string{
+		"vector<address>",
+	})
+}
+
+// GetPackageIdsWithArgs encodes a call to the get_package_ids Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) GetPackageIdsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OnRampState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_package_ids", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<address>",
+	})
+}
+
+// GetInitialPackageId encodes a call to the get_initial_package_id Move function.
+func (c onrampEncoder) GetInitialPackageId(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_initial_package_id", typeArgsList, typeParamsList, []string{
+		"&OnRampState",
+	}, []any{
+		state,
+	}, []string{
+		"address",
+	})
+}
+
+// GetInitialPackageIdWithArgs encodes a call to the get_initial_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) GetInitialPackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OnRampState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_initial_package_id", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
+	})
+}
+
+// AddPackageId encodes a call to the add_package_id Move function.
+func (c onrampEncoder) AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, []string{
+		"&mut OnRampState",
+		"&OwnerCap",
+		"address",
+	}, []any{
+		state,
+		param,
+		packageId,
+	}, nil)
+}
+
+// AddPackageIdWithArgs encodes a call to the add_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c onrampEncoder) AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OnRampState",
+		"&OwnerCap",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // IsChainSupported encodes a call to the is_chain_supported Move function.
 func (c onrampEncoder) IsChainSupported(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1676,16 +1862,18 @@ func (c onrampEncoder) GetExpectedNextSequenceNumberWithArgs(args ...any) (*bind
 }
 
 // WithdrawFeeTokens encodes a call to the withdraw_fee_tokens Move function.
-func (c onrampEncoder) WithdrawFeeTokens(typeArgs []string, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) WithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("withdraw_fee_tokens", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"&CoinMetadata<T>",
 	}, []any{
+		ref,
 		state,
 		param,
 		feeTokenMetadata,
@@ -1696,6 +1884,7 @@ func (c onrampEncoder) WithdrawFeeTokens(typeArgs []string, state bind.Object, p
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) WithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"&CoinMetadata<T>",
@@ -1770,15 +1959,17 @@ func (c onrampEncoder) GetFeeWithArgs(typeArgs []string, args ...any) (*bind.Enc
 }
 
 // SetDynamicConfig encodes a call to the set_dynamic_config Move function.
-func (c onrampEncoder) SetDynamicConfig(state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_dynamic_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"address",
 		"address",
 	}, []any{
+		ref,
 		state,
 		param,
 		feeAggregator,
@@ -1790,6 +1981,7 @@ func (c onrampEncoder) SetDynamicConfig(state bind.Object, param bind.Object, fe
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"address",
@@ -1805,16 +1997,18 @@ func (c onrampEncoder) SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall,
 }
 
 // ApplyDestChainConfigUpdates encodes a call to the apply_dest_chain_config_updates Move function.
-func (c onrampEncoder) ApplyDestChainConfigUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error) {
+func (c onrampEncoder) ApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_dest_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"vector<u64>",
 		"vector<bool>",
 		"vector<bool>",
 	}, []any{
+		ref,
 		state,
 		param,
 		destChainSelectors,
@@ -1827,6 +2021,7 @@ func (c onrampEncoder) ApplyDestChainConfigUpdates(state bind.Object, param bind
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"vector<u64>",
@@ -1917,10 +2112,11 @@ func (c onrampEncoder) GetAllowedSendersListWithArgs(args ...any) (*bind.Encoded
 }
 
 // ApplyAllowlistUpdates encodes a call to the apply_allowlist_updates Move function.
-func (c onrampEncoder) ApplyAllowlistUpdates(state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) ApplyAllowlistUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_allowlist_updates", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"vector<u64>",
@@ -1928,6 +2124,7 @@ func (c onrampEncoder) ApplyAllowlistUpdates(state bind.Object, param bind.Objec
 		"vector<vector<address>>",
 		"vector<vector<address>>",
 	}, []any{
+		ref,
 		state,
 		param,
 		destChainSelectors,
@@ -1941,6 +2138,7 @@ func (c onrampEncoder) ApplyAllowlistUpdates(state bind.Object, param bind.Objec
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) ApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"vector<u64>",
@@ -1958,16 +2156,18 @@ func (c onrampEncoder) ApplyAllowlistUpdatesWithArgs(args ...any) (*bind.Encoded
 }
 
 // ApplyAllowlistUpdatesByAdmin encodes a call to the apply_allowlist_updates_by_admin Move function.
-func (c onrampEncoder) ApplyAllowlistUpdatesByAdmin(state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) ApplyAllowlistUpdatesByAdmin(ref bind.Object, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_allowlist_updates_by_admin", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"vector<u64>",
 		"vector<bool>",
 		"vector<vector<address>>",
 		"vector<vector<address>>",
 	}, []any{
+		ref,
 		state,
 		destChainSelectors,
 		destChainAllowlistEnabled,
@@ -1980,6 +2180,7 @@ func (c onrampEncoder) ApplyAllowlistUpdatesByAdmin(state bind.Object, destChain
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) ApplyAllowlistUpdatesByAdminWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"vector<u64>",
 		"vector<bool>",
@@ -2503,14 +2704,16 @@ func (c onrampEncoder) PendingTransferAcceptedWithArgs(args ...any) (*bind.Encod
 }
 
 // TransferOwnership encodes a call to the transfer_ownership Move function.
-func (c onrampEncoder) TransferOwnership(state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) TransferOwnership(ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"address",
 	}, []any{
+		ref,
 		state,
 		ownerCap,
 		newOwner,
@@ -2521,6 +2724,7 @@ func (c onrampEncoder) TransferOwnership(state bind.Object, ownerCap bind.Object
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&OwnerCap",
 		"address",
@@ -2590,13 +2794,15 @@ func (c onrampEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.Enc
 }
 
 // McmsAcceptOwnership encodes a call to the mcms_accept_ownership Move function.
-func (c onrampEncoder) McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsAcceptOwnership(ref bind.Object, state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_accept_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		params,
 	}, nil)
@@ -2606,6 +2812,7 @@ func (c onrampEncoder) McmsAcceptOwnership(state bind.Object, params bind.Object
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"ExecutingCallbackParams",
 	}
@@ -2619,14 +2826,16 @@ func (c onrampEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCa
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c onrampEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OwnableState",
 		"address",
 	}, []any{
+		ref,
 		ownerCap,
 		ownableState,
 		to,
@@ -2637,6 +2846,7 @@ func (c onrampEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableSta
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OwnableState",
 		"address",
@@ -2651,15 +2861,17 @@ func (c onrampEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.Enco
 }
 
 // ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
-func (c onrampEncoder) ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) ExecuteOwnershipTransferToMcms(ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OnRampState",
 		"&mut Registry",
 		"address",
 	}, []any{
+		ref,
 		ownerCap,
 		state,
 		registry,
@@ -2671,6 +2883,7 @@ func (c onrampEncoder) ExecuteOwnershipTransferToMcms(ownerCap bind.Object, stat
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OnRampState",
 		"&mut Registry",
@@ -2686,14 +2899,16 @@ func (c onrampEncoder) ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bin
 }
 
 // McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.
-func (c onrampEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsRegisterUpgradeCap(ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"UpgradeCap",
 		"&mut Registry",
 		"&mut DeployerState",
 	}, []any{
+		ref,
 		upgradeCap,
 		registry,
 		state,
@@ -2704,6 +2919,7 @@ func (c onrampEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object, registry b
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"UpgradeCap",
 		"&mut Registry",
 		"&mut DeployerState",
@@ -2718,14 +2934,16 @@ func (c onrampEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.Encode
 }
 
 // McmsSetDynamicConfig encodes a call to the mcms_set_dynamic_config Move function.
-func (c onrampEncoder) McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsSetDynamicConfig(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_set_dynamic_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -2736,6 +2954,7 @@ func (c onrampEncoder) McmsSetDynamicConfig(state bind.Object, registry bind.Obj
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2750,14 +2969,16 @@ func (c onrampEncoder) McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedC
 }
 
 // McmsApplyDestChainConfigUpdates encodes a call to the mcms_apply_dest_chain_config_updates Move function.
-func (c onrampEncoder) McmsApplyDestChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_apply_dest_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -2768,6 +2989,7 @@ func (c onrampEncoder) McmsApplyDestChainConfigUpdates(state bind.Object, regist
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2782,14 +3004,16 @@ func (c onrampEncoder) McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bi
 }
 
 // McmsApplyAllowlistUpdates encodes a call to the mcms_apply_allowlist_updates Move function.
-func (c onrampEncoder) McmsApplyAllowlistUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsApplyAllowlistUpdates(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_apply_allowlist_updates", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -2800,6 +3024,7 @@ func (c onrampEncoder) McmsApplyAllowlistUpdates(state bind.Object, registry bin
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2814,14 +3039,16 @@ func (c onrampEncoder) McmsApplyAllowlistUpdatesWithArgs(args ...any) (*bind.Enc
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
-func (c onrampEncoder) McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsTransferOwnership(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -2832,6 +3059,7 @@ func (c onrampEncoder) McmsTransferOwnership(state bind.Object, registry bind.Ob
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2846,14 +3074,16 @@ func (c onrampEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.Encoded
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
-func (c onrampEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsExecuteOwnershipTransfer(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -2864,6 +3094,7 @@ func (c onrampEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -2916,17 +3147,19 @@ func (c onrampEncoder) McmsInitializeWithArgs(args ...any) (*bind.EncodedCall, e
 }
 
 // McmsWithdrawFeeTokens encodes a call to the mcms_withdraw_fee_tokens Move function.
-func (c onrampEncoder) McmsWithdrawFeeTokens(typeArgs []string, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) McmsWithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, feeTokenMetadata bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_withdraw_fee_tokens", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"&CoinMetadata<T>",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		feeTokenMetadata,
@@ -2938,6 +3171,7 @@ func (c onrampEncoder) McmsWithdrawFeeTokens(typeArgs []string, state bind.Objec
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) McmsWithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut Registry",
 		"&CoinMetadata<T>",

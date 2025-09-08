@@ -22,6 +22,9 @@ var (
 type IOfframp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
+	GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
 	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -67,6 +70,8 @@ type IOfframp interface {
 
 type IOfframpDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
+	GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error)
+	GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bind.Object, error)
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error)
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error)
@@ -96,6 +101,12 @@ type OfframpEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetPackageIds(state bind.Object) (*bind.EncodedCall, error)
+	GetPackageIdsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetInitialPackageId(state bind.Object) (*bind.EncodedCall, error)
+	GetInitialPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
+	AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOcr3Base(state bind.Object) (*bind.EncodedCall, error)
 	GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, error)
 	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error)
@@ -213,6 +224,7 @@ func (c *OfframpContract) DevInspect() IOfframpDevInspect {
 
 type OffRampState struct {
 	Id                                      string       `move:"sui::object::UID"`
+	PackageIds                              []string     `move:"vector<address>"`
 	Ocr3BaseState                           bind.Object  `move:"OCR3BaseState"`
 	ChainSelector                           uint64       `move:"u64"`
 	PermissionlessExecutionThresholdSeconds uint32       `move:"u32"`
@@ -353,6 +365,45 @@ type OFFRAMP struct {
 }
 
 type McmsCallback struct {
+}
+
+type bcsOffRampState struct {
+	Id                                      string
+	PackageIds                              [][32]byte
+	Ocr3BaseState                           bind.Object
+	ChainSelector                           uint64
+	PermissionlessExecutionThresholdSeconds uint32
+	SourceChainConfigs                      bind.Object
+	ExecutionStates                         bind.Object
+	Roots                                   bind.Object
+	LatestPriceSequenceNumber               uint64
+	FeeQuoterCap                            *bind.Object
+	DestTransferCap                         *bind.Object
+	OwnableState                            bind.Object
+}
+
+func convertOffRampStateFromBCS(bcs bcsOffRampState) (OffRampState, error) {
+
+	return OffRampState{
+		Id: bcs.Id,
+		PackageIds: func() []string {
+			addrs := make([]string, len(bcs.PackageIds))
+			for i, addr := range bcs.PackageIds {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		Ocr3BaseState:                           bcs.Ocr3BaseState,
+		ChainSelector:                           bcs.ChainSelector,
+		PermissionlessExecutionThresholdSeconds: bcs.PermissionlessExecutionThresholdSeconds,
+		SourceChainConfigs:                      bcs.SourceChainConfigs,
+		ExecutionStates:                         bcs.ExecutionStates,
+		Roots:                                   bcs.Roots,
+		LatestPriceSequenceNumber:               bcs.LatestPriceSequenceNumber,
+		FeeQuoterCap:                            bcs.FeeQuoterCap,
+		DestTransferCap:                         bcs.DestTransferCap,
+		OwnableState:                            bcs.OwnableState,
+	}, nil
 }
 
 type bcsOffRampStatePointer struct {
@@ -556,8 +607,13 @@ func convertSourceChainConfigSetFromBCS(bcs bcsSourceChainConfigSet) (SourceChai
 
 func init() {
 	bind.RegisterStructDecoder("ccip_offramp::offramp::OffRampState", func(data []byte) (interface{}, error) {
-		var result OffRampState
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsOffRampState
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertOffRampStateFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -809,6 +865,36 @@ func (c *OfframpContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpt
 // Initialize executes the initialize Move function.
 func (c *OfframpContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.offrampEncoder.Initialize(state, param, feeQuoterCap, destTransferCap, chainSelector, permissionlessExecutionThresholdSeconds, sourceChainsSelectors, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetPackageIds executes the get_package_ids Move function.
+func (c *OfframpContract) GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetPackageIds(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetInitialPackageId executes the get_initial_package_id Move function.
+func (c *OfframpContract) GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetInitialPackageId(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// AddPackageId executes the add_package_id Move function.
+func (c *OfframpContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.AddPackageId(state, param, packageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1211,6 +1297,50 @@ func (c *OfframpContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts
 // Returns: 0x1::string::String
 func (d *OfframpDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
 	encoded, err := d.contract.offrampEncoder.TypeAndVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetPackageIds executes the get_package_ids Move function using DevInspect to get return values.
+//
+// Returns: vector<address>
+func (d *OfframpDevInspect) GetPackageIds(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error) {
+	encoded, err := d.contract.offrampEncoder.GetPackageIds(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].([]string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected return type: expected []string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetInitialPackageId executes the get_initial_package_id Move function using DevInspect to get return values.
+//
+// Returns: address
+func (d *OfframpDevInspect) GetInitialPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error) {
+	encoded, err := d.contract.offrampEncoder.GetInitialPackageId(state)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1764,6 +1894,98 @@ func (c offrampEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, erro
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// GetPackageIds encodes a call to the get_package_ids Move function.
+func (c offrampEncoder) GetPackageIds(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_package_ids", typeArgsList, typeParamsList, []string{
+		"&OffRampState",
+	}, []any{
+		state,
+	}, []string{
+		"vector<address>",
+	})
+}
+
+// GetPackageIdsWithArgs encodes a call to the get_package_ids Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) GetPackageIdsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OffRampState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_package_ids", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"vector<address>",
+	})
+}
+
+// GetInitialPackageId encodes a call to the get_initial_package_id Move function.
+func (c offrampEncoder) GetInitialPackageId(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_initial_package_id", typeArgsList, typeParamsList, []string{
+		"&OffRampState",
+	}, []any{
+		state,
+	}, []string{
+		"address",
+	})
+}
+
+// GetInitialPackageIdWithArgs encodes a call to the get_initial_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) GetInitialPackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&OffRampState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_initial_package_id", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
+	})
+}
+
+// AddPackageId encodes a call to the add_package_id Move function.
+func (c offrampEncoder) AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, []string{
+		"&mut OffRampState",
+		"&OwnerCap",
+		"address",
+	}, []any{
+		state,
+		param,
+		packageId,
+	}, nil)
+}
+
+// AddPackageIdWithArgs encodes a call to the add_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut OffRampState",
+		"&OwnerCap",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetOcr3Base encodes a call to the get_ocr3_base Move function.
