@@ -50,8 +50,8 @@ type IOnramp interface {
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
-	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
@@ -153,9 +153,9 @@ type OnrampEncoder interface {
 	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
 	TransferOwnership(ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error)
 	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	AcceptOwnership(state bind.Object) (*bind.EncodedCall, error)
+	AcceptOwnership(ref bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObject(ref bind.Object, state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsAcceptOwnership(ref bind.Object, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -1031,8 +1031,8 @@ func (c *OnrampContract) TransferOwnership(ctx context.Context, opts *bind.CallO
 }
 
 // AcceptOwnership executes the accept_ownership Move function.
-func (c *OnrampContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.AcceptOwnership(state)
+func (c *OnrampContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.AcceptOwnership(ref, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1041,8 +1041,8 @@ func (c *OnrampContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpt
 }
 
 // AcceptOwnershipFromObject executes the accept_ownership_from_object Move function.
-func (c *OnrampContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.AcceptOwnershipFromObject(state, from)
+func (c *OnrampContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.AcceptOwnershipFromObject(ref, state, from)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2739,12 +2739,14 @@ func (c onrampEncoder) TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // AcceptOwnership encodes a call to the accept_ownership Move function.
-func (c onrampEncoder) AcceptOwnership(state bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) AcceptOwnership(ref bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("accept_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 	}, []any{
+		ref,
 		state,
 	}, nil)
 }
@@ -2753,6 +2755,7 @@ func (c onrampEncoder) AcceptOwnership(state bind.Object) (*bind.EncodedCall, er
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 	}
 
@@ -2765,13 +2768,15 @@ func (c onrampEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, 
 }
 
 // AcceptOwnershipFromObject encodes a call to the accept_ownership_from_object Move function.
-func (c onrampEncoder) AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) AcceptOwnershipFromObject(ref bind.Object, state bind.Object, from string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut UID",
 	}, []any{
+		ref,
 		state,
 		from,
 	}, nil)
@@ -2781,6 +2786,7 @@ func (c onrampEncoder) AcceptOwnershipFromObject(state bind.Object, from string)
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OnRampState",
 		"&mut UID",
 	}

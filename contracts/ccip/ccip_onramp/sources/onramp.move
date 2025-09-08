@@ -1022,15 +1022,34 @@ public fun transfer_ownership(
     ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
 }
 
-public fun accept_ownership(state: &mut OnRampState, ctx: &mut TxContext) {
+public fun accept_ownership(ref: &CCIPObjectRef, state: &mut OnRampState, ctx: &mut TxContext) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"onramp"),
+            string::utf8(b"accept_ownership"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     ownable::accept_ownership(&mut state.ownable_state, ctx);
 }
 
 public fun accept_ownership_from_object(
+    ref: &CCIPObjectRef,
     state: &mut OnRampState,
     from: &mut UID,
     ctx: &mut TxContext,
 ) {
+    assert!(
+        is_function_allowed(
+            ref,
+            string::utf8(b"onramp"),
+            string::utf8(b"accept_ownership_from_object"),
+            VERSION,
+        ),
+        EFunctionNotAllowed,
+    );
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
