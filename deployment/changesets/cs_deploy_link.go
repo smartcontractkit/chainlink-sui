@@ -7,6 +7,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
 	linkops "github.com/smartcontractkit/chainlink-sui/ops/link"
 )
@@ -48,21 +49,21 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 	}
 
 	// save LinkToken address to the addressbook
-	typeAndVersionLinkToken := cldf.NewTypeAndVersion(SuiLinkTokenType, Version1_0_0)
+	typeAndVersionLinkToken := cldf.NewTypeAndVersion(deployment.SuiLinkTokenType, deployment.Version1_0_0)
 	err = ab.Save(config.ChainSelector, linkTokenReport.Output.PackageId, typeAndVersionLinkToken)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken address %s for Sui chain %d: %w", linkTokenReport.Output.PackageId, config.ChainSelector, err)
 	}
 
 	// save LinkTokenCoinMetadataId address to the addressbook
-	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(SuiLinkTokenObjectMetadataId, Version1_0_0)
+	typeAndVersionCoinMetadataId := cldf.NewTypeAndVersion(deployment.SuiLinkTokenObjectMetadataId, deployment.Version1_0_0)
 	err = ab.Save(config.ChainSelector, linkTokenReport.Output.Objects.CoinMetadataObjectId, typeAndVersionCoinMetadataId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken CoinmetadataObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.CoinMetadataObjectId, config.ChainSelector, err)
 	}
 
 	// save LinkTokenTreasuryCapId address to the addressbook
-	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(SuiLinkTokenTreasuryCapId, Version1_0_0)
+	typeAndVersionTreasuryCapId := cldf.NewTypeAndVersion(deployment.SuiLinkTokenTreasuryCapId, deployment.Version1_0_0)
 	err = ab.Save(config.ChainSelector, linkTokenReport.Output.Objects.TreasuryCapObjectId, typeAndVersionTreasuryCapId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save LinkToken TreasuryCapObjectId address %s for Sui chain %d: %w", linkTokenReport.Output.Objects.TreasuryCapObjectId, config.ChainSelector, err)

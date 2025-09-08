@@ -1,4 +1,4 @@
-package changesets
+package deployment
 
 import (
 	"github.com/Masterminds/semver/v3"
