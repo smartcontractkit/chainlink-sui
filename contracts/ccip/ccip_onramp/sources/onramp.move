@@ -990,6 +990,15 @@ public fun mcms_register_upgrade_cap(
     );
 }
 
+/// FOR TESTING ONLY
+public fun mcms_register_entrypoint(
+    owner_cap: OwnerCap,
+    registry: &mut Registry,
+    ctx: &mut TxContext,
+) {
+    mcms_registry::register_entrypoint(registry, McmsCallback {}, owner_cap, ctx);
+}
+
 // ================================================================
 // |                      MCMS Entrypoint                         |
 // ================================================================

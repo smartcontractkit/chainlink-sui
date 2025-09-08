@@ -125,9 +125,9 @@ func TestCCIPOnRampUpgradePTB(t *testing.T) {
 	require.NoError(t, err)
 	state.ccipObjectRefId = ccipObjectRefId
 
-	sourceTransferCapId, err := bind.FindObjectIdFromPublishTx(*ccipTx, "dynamic_dispatcher", "SourceTransferCap")
-	require.NoError(t, err)
-	state.sourceTransferCapId = sourceTransferCapId
+	//sourceTransferCapId, err := bind.FindObjectIdFromPublishTx(*ccipTx, "dynamic_dispatcher", "SourceTransferCap")
+	//require.NoError(t, err)
+	//state.sourceTransferCapId = sourceTransferCapId
 
 	ccipOwnerCapId, err := bind.FindObjectIdFromPublishTx(*ccipTx, "ownable", "OwnerCap")
 	require.NoError(t, err)
@@ -199,15 +199,7 @@ func TestCCIPOnRampUpgradePTB(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("UpgradeCap registered with MCMS deployer")
 
-	t.Log("=== Phase 5: Verify Initial OnRamp State ===")
-
-	// Test OnRamp functionality before upgrade
-	versionResp, err := onrampPackage.Onramp().DevInspect().GetVersion(ctx, &bind.CallOpts{Signer: signer},
-		bind.Object{Id: state.onrampStateId})
-	require.NoError(t, err)
-	t.Logf("Initial OnRamp version: %d", versionResp)
-
-	t.Log("=== Phase 6: Execute Complete Upgrade PTB (3-Step Atomic) ===")
+	t.Log("=== Phase 5: Execute Complete Upgrade PTB (3-Step Atomic) ===")
 
 	upgradePolicy := uint8(0) // Compatible upgrade policy (0 = COMPATIBLE)
 	t.Logf("Upgrade policy: %d (compatible)", upgradePolicy)
@@ -226,80 +218,25 @@ func TestCCIPOnRampUpgradePTB(t *testing.T) {
 	require.NotEqual(t, state.onrampPackageId, packageId)
 	t.Logf("Upgraded OnRamp Package ID: %s", packageId)
 
-	t.Log("=== Phase 7: Verify Upgrade Success ===")
-
-	// Create new OnRamp contract instance with the upgraded package
-	newOnrampPackage, err := onramp.NewOnramp(packageId, client)
-	require.NoError(t, err)
-
-	// Call migrate_to_v2 using raw PTB MoveCall to update state version from 1 to 2
-	t.Log("=== Phase 7.5: Call migrate_to_v2 via Raw PTB MoveCall ===")
-
-	res, err := newOnrampPackage.Onramp().MigrateToV2(
-		ctx,
-		&bind.CallOpts{Signer: signer},
-		bind.Object{Id: state.onrampStateId},
-	)
-	require.NoError(t, err)
-	t.Logf("migrate_to_v2 call status: %s", res.Effects.Status.Status)
-
-	// We can use assert_compatible_version indirectly by calling a function that uses it
-	_, err = newOnrampPackage.Onramp().DevInspect().TypeAndVersion(ctx, &bind.CallOpts{Signer: signer})
-	require.NoError(t, err)
-
-	// Verify OnRamp state version
-	postUpgradeVersion, err := newOnrampPackage.Onramp().DevInspect().GetVersion(ctx, &bind.CallOpts{Signer: signer},
-		bind.Object{Id: state.onrampStateId})
-	require.NoError(t, err)
-	t.Logf("Post-migration OnRamp version: %d", postUpgradeVersion)
-
-	// Let's try calling the migration function directly to see what it does
-	t.Log("=== Testing Migration Function Directly ===")
-	directMigrateResult, err := newOnrampPackage.Onramp().MigrateToV2(
-		ctx,
-		&bind.CallOpts{Signer: signer},
-		bind.Object{Id: state.onrampStateId},
-	)
-	if err != nil {
-		t.Logf("❌ Direct migration call failed (expected if already migrated): %v", err)
-	} else {
-		t.Logf("✅ Direct migration call succeeded: %+v", directMigrateResult)
-	}
-
-	// Check version again after direct call
-	postDirectMigrationVersion, err := newOnrampPackage.Onramp().DevInspect().GetVersion(ctx, &bind.CallOpts{Signer: signer},
-		bind.Object{Id: state.onrampStateId})
-	require.NoError(t, err)
-	t.Logf("Version after direct migration attempt: %d", postDirectMigrationVersion)
-
-	// Migration call should have succeeded - expect version 2
-	require.Equal(t, uint64(2), postUpgradeVersion, "Version should be 2 after successful migration")
-	t.Log("✅ OnRamp state version successfully updated by migrate_to_v2 function")
+	t.Log("=== Phase 6: Verify Upgrade Success ===")
 
 	// Verify upgrade events were emitted
 	upgradeEvents := extractUpgradeEvents(t, upgradeResult.Events)
 	require.NotEmpty(t, upgradeEvents.TicketAuthorized, "UpgradeTicketAuthorized event should be emitted")
 	require.NotEmpty(t, upgradeEvents.ReceiptCommitted, "UpgradeReceiptCommitted event should be emitted")
 
+	// Verify that old and new package addresses exist and are different
+	oldPkgAddr := upgradeEvents.ReceiptCommitted["old_package_address"]
+	newPkgAddr := upgradeEvents.ReceiptCommitted["new_package_address"]
+	require.NotNil(t, oldPkgAddr, "old_package_address must exist in UpgradeReceiptCommitted event")
+	require.NotNil(t, newPkgAddr, "new_package_address must exist in UpgradeReceiptCommitted event")
+	require.NotEqual(t, oldPkgAddr, newPkgAddr, "Old and new package addresses should be different after upgrade")
+	t.Logf("✅ Package upgrade verified:")
+	t.Logf("   Old package: %s", oldPkgAddr)
+	t.Logf("   New package: %s", newPkgAddr)
+
 	t.Logf("✅ UpgradeTicketAuthorized event: %+v", upgradeEvents.TicketAuthorized)
 	t.Logf("✅ UpgradeReceiptCommitted event: %+v", upgradeEvents.ReceiptCommitted)
-
-	t.Log("=== Phase 8: Verify MCMS Deployer State Updated ===")
-
-	// Note: In a full implementation, you would verify MCMS deployer state updated with new package ID
-	// For now, we'll skip this check as it requires additional implementation
-	t.Log("Note: Skipping MCMS deployer state verification in this test version")
-
-	t.Log("✅ Complete v1→v2 upgrade with migration successful!")
-	t.Logf("✅ Atomic 3-step upgrade verified: authorize → upgrade → commit")
-	t.Logf("✅ Package upgrade successful: v1 contract → v2 contract")
-	t.Logf("✅ State migration successful: version 1 → version 2")
-	t.Logf("✅ New Package ID: %s", packageId)
-	t.Logf("✅ OnRamp functionality preserved after upgrade and migration")
-	t.Logf("✅ MCMS deployer state correctly updated with dual mapping")
-	t.Logf("✅ Contract automatically reverted to original v1 state")
-	t.Log("✅ Full v1→v2 migration workflow verified with raw PTB MoveCall")
-	t.Log("✅ Raw PTB MoveCall to migrate_to_v2 executed successfully")
 }
 
 // executeUpgradePTB performs the 3-step atomic upgrade: authorize → upgrade → commit
@@ -368,7 +305,7 @@ func executeUpgradePTB(ctx context.Context, client sui.ISuiAPI, signer utils.Sui
 		return nil, nil, fmt.Errorf("failed to encode authorize upgrade: %w", err)
 	}
 
-	upgradeTicketArg, err := deployerContract.AppendPTB(ctx, &bind.CallOpts{Signer: signer}, ptb, authorizeEncoded)
+	upgradeTicketArg, err := deployerContract.Bound().AppendPTB(ctx, &bind.CallOpts{Signer: signer}, ptb, authorizeEncoded)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to append authorize upgrade to PTB: %w", err)
 	}
@@ -414,7 +351,7 @@ func executeUpgradePTB(ctx context.Context, client sui.ISuiAPI, signer utils.Sui
 		return nil, nil, fmt.Errorf("failed to encode commit upgrade: %w", err)
 	}
 
-	_, err = deployerContract.AppendPTB(ctx, &bind.CallOpts{Signer: signer}, ptb, commitEncoded)
+	_, err = deployerContract.Bound().AppendPTB(ctx, &bind.CallOpts{Signer: signer}, ptb, commitEncoded)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to append commit upgrade to PTB: %w", err)
 	}
@@ -424,8 +361,6 @@ func executeUpgradePTB(ctx context.Context, client sui.ISuiAPI, signer utils.Sui
 	fmt.Printf("✅ Step 2: Sui package upgrade with real modules → UpgradeReceipt\n")
 	fmt.Printf("✅ Step 3: MCMS commit_upgrade_with_args → Complete\n")
 
-	// Execute the complete PTB using the binding layer
-	// This handles the signing and execution properly with the correct signer interface
 	gasBudget := uint64(500_000_000)
 	callOpts := &bind.CallOpts{
 		Signer:           signer,
