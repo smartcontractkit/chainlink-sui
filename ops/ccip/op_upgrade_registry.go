@@ -139,6 +139,7 @@ var getFunctionRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 	}
 
 	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	blockedVersions, err := contract.DevInspect().GetFunctionRestrictions(
 		b.GetContext(),
 		opts,
@@ -191,6 +192,7 @@ var isFunctionAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	}
 
 	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	isAllowed, err := contract.DevInspect().IsFunctionAllowed(
 		b.GetContext(),
 		opts,
@@ -296,6 +298,7 @@ var getModuleRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	}
 
 	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	blockedVersions, err := contract.DevInspect().GetModuleRestrictions(
 		b.GetContext(),
 		opts,
@@ -345,6 +348,7 @@ var isModuleAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 	}
 
 	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	isAllowed, err := contract.DevInspect().IsModuleAllowed(
 		b.GetContext(),
 		opts,

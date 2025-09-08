@@ -78,6 +78,7 @@ var getPackageIdsStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDe
 	}
 
 	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	packageIds, err := contract.DevInspect().GetPackageIds(
 		b.GetContext(),
 		opts,
@@ -125,6 +126,7 @@ var getInitialPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.
 	}
 
 	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
 	initialPackageId, err := contract.DevInspect().GetInitialPackageId(
 		b.GetContext(),
 		opts,

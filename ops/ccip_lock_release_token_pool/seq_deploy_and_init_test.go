@@ -74,6 +74,15 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	linkReport, err := cld_ops.ExecuteOperation(bundle, mocklinktokenops.DeployMockLinkTokenOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy Mock LINK token")
 
+	// Initialize upgrade registry (required by token admin registry)
+	upgradeRegistryInput := ccip_ops.InitUpgradeRegistryInput{
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		StateObjectId:    reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId: reportCCIP.Output.Objects.OwnerCapObjectId,
+	}
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.UpgradeRegistryInitializeOp, deps, upgradeRegistryInput)
+	require.NoError(t, err, "failed to initialize upgrade registry")
+
 	// Initialize TokenAdminRegistry
 	inputTAR := ccip_ops.InitTARInput{
 		CCIPPackageId:      reportCCIP.Output.PackageId,
@@ -83,7 +92,7 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	}
 
 	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.TokenAdminRegistryInitializeOp, deps, inputTAR)
-	require.NoError(t, err, "failed to deploy Mock LINK token")
+	require.NoError(t, err, "failed to initialize token admin registry")
 
 	// Run BurnMintTokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
