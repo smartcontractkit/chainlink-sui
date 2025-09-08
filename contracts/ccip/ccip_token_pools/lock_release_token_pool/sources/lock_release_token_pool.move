@@ -35,7 +35,6 @@ const ETokenPoolBalanceTooLow: u64 = 2;
 const EUnauthorized: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
-const EInvalidStateAddress: u64 = 6;
 
 // ================================================================
 // |                             Init                             |
