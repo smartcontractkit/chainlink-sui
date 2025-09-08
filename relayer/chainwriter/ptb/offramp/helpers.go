@@ -105,7 +105,8 @@ func GetOfframpAddressMappings(
 		return OffRampAddressMappings{}, err
 	}
 	for _, ccipOwnedObject := range offrampOwnedObjects {
-		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, "offramp::OffRampStatePointer") {
+		searchTag := fmt.Sprintf("%s:offramp::OffRampStatePointer", addressMappings.OffRampPackageId)
+		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, searchTag) {
 			lggr.Debugw("Found offramp state object pointer", "fields", ccipOwnedObject.Data.Content.Fields)
 			// parse the object into a map
 			parsedObject := ccipOwnedObject.Data.Content.Fields
@@ -127,7 +128,8 @@ func GetOfframpAddressMappings(
 		return OffRampAddressMappings{}, err
 	}
 	for _, ccipOwnedObject := range ccipOwnedObjects {
-		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, "state_object::CCIPObjectRefPointer") {
+		searchTag := fmt.Sprintf("%s:state_object::CCIPObjectRefPointer", addressMappings.CcipPackageId)
+		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, searchTag) {
 			// parse the object into a map
 			parsedObject := ccipOwnedObject.Data.Content.Fields
 			if err != nil {
