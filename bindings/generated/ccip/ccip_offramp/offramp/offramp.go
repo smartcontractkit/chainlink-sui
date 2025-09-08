@@ -27,43 +27,43 @@ type IOfframp interface {
 	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
-	FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	FinishExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
-	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
-	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
-	SetOcr3Config(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error)
+	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
+	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
+	SetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error)
 	ConfigSigners(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ConfigTransmitters(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Commit(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetMerkleRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, root []byte) (*models.SuiTransactionBlockResponse, error)
-	GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, sourceChainConfig SourceChainConfig) (*models.SuiTransactionBlockResponse, error)
-	GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
-	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error)
-	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error)
-	ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
+	GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainConfig SourceChainConfig) (*models.SuiTransactionBlockResponse, error)
+	GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
+	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error)
+	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error)
+	ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	TransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
-	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsSetOcr3Config(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	TransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
+	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOfframpDevInspect
 	Encoder() OfframpEncoder
 }
@@ -76,18 +76,18 @@ type IOfframpDevInspect interface {
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error)
 	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (byte, error)
-	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error)
-	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error)
+	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error)
+	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error)
 	ConfigSigners(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([][]byte, error)
 	ConfigTransmitters(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]string, error)
 	GetMerkleRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, root []byte) (uint64, error)
-	GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64) (SourceChainConfig, error)
-	GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, sourceChainConfig SourceChainConfig) ([]any, error)
-	GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]any, error)
-	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (StaticConfig, error)
-	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) ([]any, error)
-	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (DynamicConfig, error)
-	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) ([]any, error)
+	GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, sourceChainSelector uint64) (SourceChainConfig, error)
+	GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainConfig SourceChainConfig) ([]any, error)
+	GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) ([]any, error)
+	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (StaticConfig, error)
+	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg StaticConfig) ([]any, error)
+	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (DynamicConfig, error)
+	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg DynamicConfig) ([]any, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (string, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
@@ -111,17 +111,17 @@ type OfframpEncoder interface {
 	GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, error)
 	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error)
 	InitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
-	FinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
+	FinishExecute(ref bind.Object, state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
 	FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*bind.EncodedCall, error)
 	ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*bind.EncodedCall, error)
 	GetExecutionStateWithArgs(args ...any) (*bind.EncodedCall, error)
-	CalculateMetadataHash(sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*bind.EncodedCall, error)
+	CalculateMetadataHash(ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*bind.EncodedCall, error)
 	CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error)
-	CalculateMessageHash(messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error)
+	CalculateMessageHash(ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error)
 	CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetOcr3Config(state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error)
+	SetOcr3Config(ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error)
 	SetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	ConfigSigners(state bind.Object) (*bind.EncodedCall, error)
 	ConfigSignersWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -131,23 +131,23 @@ type OfframpEncoder interface {
 	CommitWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetMerkleRoot(state bind.Object, root []byte) (*bind.EncodedCall, error)
 	GetMerkleRootWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetSourceChainConfig(state bind.Object, sourceChainSelector uint64) (*bind.EncodedCall, error)
+	GetSourceChainConfig(ref bind.Object, state bind.Object, sourceChainSelector uint64) (*bind.EncodedCall, error)
 	GetSourceChainConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetSourceChainConfigFields(sourceChainConfig SourceChainConfig) (*bind.EncodedCall, error)
+	GetSourceChainConfigFields(ref bind.Object, sourceChainConfig SourceChainConfig) (*bind.EncodedCall, error)
 	GetSourceChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetAllSourceChainConfigs(state bind.Object) (*bind.EncodedCall, error)
+	GetAllSourceChainConfigs(ref bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	GetAllSourceChainConfigsWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetStaticConfig(state bind.Object) (*bind.EncodedCall, error)
+	GetStaticConfig(ref bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCall, error)
+	GetStaticConfigFields(ref bind.Object, cfg StaticConfig) (*bind.EncodedCall, error)
 	GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetDynamicConfig(state bind.Object) (*bind.EncodedCall, error)
+	GetDynamicConfig(ref bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	GetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedCall, error)
+	GetDynamicConfigFields(ref bind.Object, cfg DynamicConfig) (*bind.EncodedCall, error)
 	GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetDynamicConfig(state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error)
+	SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error)
 	SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplySourceChainConfigUpdates(state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error)
+	ApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error)
 	ApplySourceChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCcipPackageId() (*bind.EncodedCall, error)
 	GetCcipPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -161,29 +161,29 @@ type OfframpEncoder interface {
 	PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error)
 	PendingTransferAccepted(state bind.Object) (*bind.EncodedCall, error)
 	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
-	TransferOwnership(state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error)
+	TransferOwnership(ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error)
 	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	AcceptOwnership(state bind.Object) (*bind.EncodedCall, error)
+	AcceptOwnership(ref bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
+	AcceptOwnershipFromObject(ref bind.Object, state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAcceptOwnership(ref bind.Object, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcms(ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
+	McmsRegisterUpgradeCap(ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetDynamicConfig(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsApplySourceChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplySourceChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsSetOcr3Config(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetOcr3Config(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsSetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsTransferOwnership(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsExecuteOwnershipTransfer(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -923,8 +923,8 @@ func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, 
 }
 
 // FinishExecute executes the finish_execute Move function.
-func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.FinishExecute(state, receiverParams)
+func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.FinishExecute(ref, state, receiverParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -953,8 +953,8 @@ func (c *OfframpContract) GetExecutionState(ctx context.Context, opts *bind.Call
 }
 
 // CalculateMetadataHash executes the calculate_metadata_hash Move function.
-func (c *OfframpContract) CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.CalculateMetadataHash(sourceChainSelector, destChainSelector, onRamp)
+func (c *OfframpContract) CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.CalculateMetadataHash(ref, sourceChainSelector, destChainSelector, onRamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -963,8 +963,8 @@ func (c *OfframpContract) CalculateMetadataHash(ctx context.Context, opts *bind.
 }
 
 // CalculateMessageHash executes the calculate_message_hash Move function.
-func (c *OfframpContract) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.CalculateMessageHash(messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, onRamp, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
+func (c *OfframpContract) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.CalculateMessageHash(ref, messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, onRamp, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -973,8 +973,8 @@ func (c *OfframpContract) CalculateMessageHash(ctx context.Context, opts *bind.C
 }
 
 // SetOcr3Config executes the set_ocr3_config Move function.
-func (c *OfframpContract) SetOcr3Config(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.SetOcr3Config(state, param, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
+func (c *OfframpContract) SetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.SetOcr3Config(ref, state, param, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1023,8 +1023,8 @@ func (c *OfframpContract) GetMerkleRoot(ctx context.Context, opts *bind.CallOpts
 }
 
 // GetSourceChainConfig executes the get_source_chain_config Move function.
-func (c *OfframpContract) GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.GetSourceChainConfig(state, sourceChainSelector)
+func (c *OfframpContract) GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetSourceChainConfig(ref, state, sourceChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1033,8 +1033,8 @@ func (c *OfframpContract) GetSourceChainConfig(ctx context.Context, opts *bind.C
 }
 
 // GetSourceChainConfigFields executes the get_source_chain_config_fields Move function.
-func (c *OfframpContract) GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, sourceChainConfig SourceChainConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.GetSourceChainConfigFields(sourceChainConfig)
+func (c *OfframpContract) GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainConfig SourceChainConfig) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetSourceChainConfigFields(ref, sourceChainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1043,8 +1043,8 @@ func (c *OfframpContract) GetSourceChainConfigFields(ctx context.Context, opts *
 }
 
 // GetAllSourceChainConfigs executes the get_all_source_chain_configs Move function.
-func (c *OfframpContract) GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.GetAllSourceChainConfigs(state)
+func (c *OfframpContract) GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetAllSourceChainConfigs(ref, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1053,8 +1053,8 @@ func (c *OfframpContract) GetAllSourceChainConfigs(ctx context.Context, opts *bi
 }
 
 // GetStaticConfig executes the get_static_config Move function.
-func (c *OfframpContract) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.GetStaticConfig(state)
+func (c *OfframpContract) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetStaticConfig(ref, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1063,8 +1063,8 @@ func (c *OfframpContract) GetStaticConfig(ctx context.Context, opts *bind.CallOp
 }
 
 // GetStaticConfigFields executes the get_static_config_fields Move function.
-func (c *OfframpContract) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.GetStaticConfigFields(cfg)
+func (c *OfframpContract) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetStaticConfigFields(ref, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1073,8 +1073,8 @@ func (c *OfframpContract) GetStaticConfigFields(ctx context.Context, opts *bind.
 }
 
 // GetDynamicConfig executes the get_dynamic_config Move function.
-func (c *OfframpContract) GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.GetDynamicConfig(state)
+func (c *OfframpContract) GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetDynamicConfig(ref, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1083,8 +1083,8 @@ func (c *OfframpContract) GetDynamicConfig(ctx context.Context, opts *bind.CallO
 }
 
 // GetDynamicConfigFields executes the get_dynamic_config_fields Move function.
-func (c *OfframpContract) GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.GetDynamicConfigFields(cfg)
+func (c *OfframpContract) GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.GetDynamicConfigFields(ref, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1093,8 +1093,8 @@ func (c *OfframpContract) GetDynamicConfigFields(ctx context.Context, opts *bind
 }
 
 // SetDynamicConfig executes the set_dynamic_config Move function.
-func (c *OfframpContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.SetDynamicConfig(state, param, permissionlessExecutionThresholdSeconds)
+func (c *OfframpContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.SetDynamicConfig(ref, state, param, permissionlessExecutionThresholdSeconds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1103,8 +1103,8 @@ func (c *OfframpContract) SetDynamicConfig(ctx context.Context, opts *bind.CallO
 }
 
 // ApplySourceChainConfigUpdates executes the apply_source_chain_config_updates Move function.
-func (c *OfframpContract) ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ApplySourceChainConfigUpdates(state, param, sourceChainsSelector, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
+func (c *OfframpContract) ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ApplySourceChainConfigUpdates(ref, state, param, sourceChainsSelector, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1173,8 +1173,8 @@ func (c *OfframpContract) PendingTransferAccepted(ctx context.Context, opts *bin
 }
 
 // TransferOwnership executes the transfer_ownership Move function.
-func (c *OfframpContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.TransferOwnership(state, ownerCap, newOwner)
+func (c *OfframpContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.TransferOwnership(ref, state, ownerCap, newOwner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1183,8 +1183,8 @@ func (c *OfframpContract) TransferOwnership(ctx context.Context, opts *bind.Call
 }
 
 // AcceptOwnership executes the accept_ownership Move function.
-func (c *OfframpContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.AcceptOwnership(state)
+func (c *OfframpContract) AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.AcceptOwnership(ref, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1193,8 +1193,8 @@ func (c *OfframpContract) AcceptOwnership(ctx context.Context, opts *bind.CallOp
 }
 
 // AcceptOwnershipFromObject executes the accept_ownership_from_object Move function.
-func (c *OfframpContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.AcceptOwnershipFromObject(state, from)
+func (c *OfframpContract) AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.AcceptOwnershipFromObject(ref, state, from)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1203,8 +1203,8 @@ func (c *OfframpContract) AcceptOwnershipFromObject(ctx context.Context, opts *b
 }
 
 // McmsAcceptOwnership executes the mcms_accept_ownership Move function.
-func (c *OfframpContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsAcceptOwnership(state, params)
+func (c *OfframpContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsAcceptOwnership(ref, state, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1213,8 +1213,8 @@ func (c *OfframpContract) McmsAcceptOwnership(ctx context.Context, opts *bind.Ca
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *OfframpContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ExecuteOwnershipTransfer(ownerCap, ownableState, to)
+func (c *OfframpContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ExecuteOwnershipTransfer(ref, ownerCap, ownableState, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1223,8 +1223,8 @@ func (c *OfframpContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bi
 }
 
 // ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
-func (c *OfframpContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ExecuteOwnershipTransferToMcms(ownerCap, state, registry, to)
+func (c *OfframpContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ExecuteOwnershipTransferToMcms(ref, ownerCap, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1233,8 +1233,8 @@ func (c *OfframpContract) ExecuteOwnershipTransferToMcms(ctx context.Context, op
 }
 
 // McmsRegisterUpgradeCap executes the mcms_register_upgrade_cap Move function.
-func (c *OfframpContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsRegisterUpgradeCap(upgradeCap, registry, state)
+func (c *OfframpContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsRegisterUpgradeCap(ref, upgradeCap, registry, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1243,8 +1243,8 @@ func (c *OfframpContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind
 }
 
 // McmsSetDynamicConfig executes the mcms_set_dynamic_config Move function.
-func (c *OfframpContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsSetDynamicConfig(state, registry, params)
+func (c *OfframpContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsSetDynamicConfig(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1253,8 +1253,8 @@ func (c *OfframpContract) McmsSetDynamicConfig(ctx context.Context, opts *bind.C
 }
 
 // McmsApplySourceChainConfigUpdates executes the mcms_apply_source_chain_config_updates Move function.
-func (c *OfframpContract) McmsApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsApplySourceChainConfigUpdates(state, registry, params)
+func (c *OfframpContract) McmsApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsApplySourceChainConfigUpdates(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1263,8 +1263,8 @@ func (c *OfframpContract) McmsApplySourceChainConfigUpdates(ctx context.Context,
 }
 
 // McmsSetOcr3Config executes the mcms_set_ocr3_config Move function.
-func (c *OfframpContract) McmsSetOcr3Config(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsSetOcr3Config(state, registry, params)
+func (c *OfframpContract) McmsSetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsSetOcr3Config(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1273,8 +1273,8 @@ func (c *OfframpContract) McmsSetOcr3Config(ctx context.Context, opts *bind.Call
 }
 
 // McmsTransferOwnership executes the mcms_transfer_ownership Move function.
-func (c *OfframpContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsTransferOwnership(state, registry, params)
+func (c *OfframpContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsTransferOwnership(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1283,8 +1283,8 @@ func (c *OfframpContract) McmsTransferOwnership(ctx context.Context, opts *bind.
 }
 
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
-func (c *OfframpContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.McmsExecuteOwnershipTransfer(state, registry, params)
+func (c *OfframpContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsExecuteOwnershipTransfer(ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1449,8 +1449,8 @@ func (d *OfframpDevInspect) GetExecutionState(ctx context.Context, opts *bind.Ca
 // CalculateMetadataHash executes the calculate_metadata_hash Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
-func (d *OfframpDevInspect) CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error) {
-	encoded, err := d.contract.offrampEncoder.CalculateMetadataHash(sourceChainSelector, destChainSelector, onRamp)
+func (d *OfframpDevInspect) CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error) {
+	encoded, err := d.contract.offrampEncoder.CalculateMetadataHash(ref, sourceChainSelector, destChainSelector, onRamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1471,8 +1471,8 @@ func (d *OfframpDevInspect) CalculateMetadataHash(ctx context.Context, opts *bin
 // CalculateMessageHash executes the calculate_message_hash Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
-func (d *OfframpDevInspect) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error) {
-	encoded, err := d.contract.offrampEncoder.CalculateMessageHash(messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, onRamp, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
+func (d *OfframpDevInspect) CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error) {
+	encoded, err := d.contract.offrampEncoder.CalculateMessageHash(ref, messageId, sourceChainSelector, destChainSelector, sequenceNumber, nonce, sender, receiver, onRamp, data, gasLimit, sourcePoolAddresses, destTokenAddresses, destGasAmounts, extraDatas, amounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1559,8 +1559,8 @@ func (d *OfframpDevInspect) GetMerkleRoot(ctx context.Context, opts *bind.CallOp
 // GetSourceChainConfig executes the get_source_chain_config Move function using DevInspect to get return values.
 //
 // Returns: SourceChainConfig
-func (d *OfframpDevInspect) GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64) (SourceChainConfig, error) {
-	encoded, err := d.contract.offrampEncoder.GetSourceChainConfig(state, sourceChainSelector)
+func (d *OfframpDevInspect) GetSourceChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, sourceChainSelector uint64) (SourceChainConfig, error) {
+	encoded, err := d.contract.offrampEncoder.GetSourceChainConfig(ref, state, sourceChainSelector)
 	if err != nil {
 		return SourceChainConfig{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1587,8 +1587,8 @@ func (d *OfframpDevInspect) GetSourceChainConfig(ctx context.Context, opts *bind
 //	[2]: u64
 //	[3]: bool
 //	[4]: vector<u8>
-func (d *OfframpDevInspect) GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, sourceChainConfig SourceChainConfig) ([]any, error) {
-	encoded, err := d.contract.offrampEncoder.GetSourceChainConfigFields(sourceChainConfig)
+func (d *OfframpDevInspect) GetSourceChainConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainConfig SourceChainConfig) ([]any, error) {
+	encoded, err := d.contract.offrampEncoder.GetSourceChainConfigFields(ref, sourceChainConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1601,8 +1601,8 @@ func (d *OfframpDevInspect) GetSourceChainConfigFields(ctx context.Context, opts
 //
 //	[0]: vector<u64>
 //	[1]: vector<SourceChainConfig>
-func (d *OfframpDevInspect) GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]any, error) {
-	encoded, err := d.contract.offrampEncoder.GetAllSourceChainConfigs(state)
+func (d *OfframpDevInspect) GetAllSourceChainConfigs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) ([]any, error) {
+	encoded, err := d.contract.offrampEncoder.GetAllSourceChainConfigs(ref, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1612,8 +1612,8 @@ func (d *OfframpDevInspect) GetAllSourceChainConfigs(ctx context.Context, opts *
 // GetStaticConfig executes the get_static_config Move function using DevInspect to get return values.
 //
 // Returns: StaticConfig
-func (d *OfframpDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (StaticConfig, error) {
-	encoded, err := d.contract.offrampEncoder.GetStaticConfig(state)
+func (d *OfframpDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (StaticConfig, error) {
+	encoded, err := d.contract.offrampEncoder.GetStaticConfig(ref, state)
 	if err != nil {
 		return StaticConfig{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1639,8 +1639,8 @@ func (d *OfframpDevInspect) GetStaticConfig(ctx context.Context, opts *bind.Call
 //	[1]: address
 //	[2]: address
 //	[3]: address
-func (d *OfframpDevInspect) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) ([]any, error) {
-	encoded, err := d.contract.offrampEncoder.GetStaticConfigFields(cfg)
+func (d *OfframpDevInspect) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg StaticConfig) ([]any, error) {
+	encoded, err := d.contract.offrampEncoder.GetStaticConfigFields(ref, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1650,8 +1650,8 @@ func (d *OfframpDevInspect) GetStaticConfigFields(ctx context.Context, opts *bin
 // GetDynamicConfig executes the get_dynamic_config Move function using DevInspect to get return values.
 //
 // Returns: DynamicConfig
-func (d *OfframpDevInspect) GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (DynamicConfig, error) {
-	encoded, err := d.contract.offrampEncoder.GetDynamicConfig(state)
+func (d *OfframpDevInspect) GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (DynamicConfig, error) {
+	encoded, err := d.contract.offrampEncoder.GetDynamicConfig(ref, state)
 	if err != nil {
 		return DynamicConfig{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1675,8 +1675,8 @@ func (d *OfframpDevInspect) GetDynamicConfig(ctx context.Context, opts *bind.Cal
 //
 //	[0]: address
 //	[1]: u32
-func (d *OfframpDevInspect) GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) ([]any, error) {
-	encoded, err := d.contract.offrampEncoder.GetDynamicConfigFields(cfg)
+func (d *OfframpDevInspect) GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg DynamicConfig) ([]any, error) {
+	encoded, err := d.contract.offrampEncoder.GetDynamicConfigFields(ref, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2064,13 +2064,15 @@ func (c offrampEncoder) InitExecuteWithArgs(args ...any) (*bind.EncodedCall, err
 }
 
 // FinishExecute encodes a call to the finish_execute Move function.
-func (c offrampEncoder) FinishExecute(state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) FinishExecute(ref bind.Object, state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("finish_execute", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"osh::ReceiverParams",
 	}, []any{
+		ref,
 		state,
 		receiverParams,
 	}, nil)
@@ -2080,6 +2082,7 @@ func (c offrampEncoder) FinishExecute(state bind.Object, receiverParams bind.Obj
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"osh::ReceiverParams",
 	}
@@ -2171,14 +2174,16 @@ func (c offrampEncoder) GetExecutionStateWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // CalculateMetadataHash encodes a call to the calculate_metadata_hash Move function.
-func (c offrampEncoder) CalculateMetadataHash(sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) CalculateMetadataHash(ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("calculate_metadata_hash", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"u64",
 		"u64",
 		"vector<u8>",
 	}, []any{
+		ref,
 		sourceChainSelector,
 		destChainSelector,
 		onRamp,
@@ -2191,6 +2196,7 @@ func (c offrampEncoder) CalculateMetadataHash(sourceChainSelector uint64, destCh
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"u64",
 		"u64",
 		"vector<u8>",
@@ -2207,10 +2213,11 @@ func (c offrampEncoder) CalculateMetadataHashWithArgs(args ...any) (*bind.Encode
 }
 
 // CalculateMessageHash encodes a call to the calculate_message_hash Move function.
-func (c offrampEncoder) CalculateMessageHash(messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error) {
+func (c offrampEncoder) CalculateMessageHash(ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("calculate_message_hash", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"vector<u8>",
 		"u64",
 		"u64",
@@ -2227,6 +2234,7 @@ func (c offrampEncoder) CalculateMessageHash(messageId []byte, sourceChainSelect
 		"vector<vector<u8>>",
 		"vector<u256>",
 	}, []any{
+		ref,
 		messageId,
 		sourceChainSelector,
 		destChainSelector,
@@ -2251,6 +2259,7 @@ func (c offrampEncoder) CalculateMessageHash(messageId []byte, sourceChainSelect
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"vector<u8>",
 		"u64",
 		"u64",
@@ -2279,10 +2288,11 @@ func (c offrampEncoder) CalculateMessageHashWithArgs(args ...any) (*bind.Encoded
 }
 
 // SetOcr3Config encodes a call to the set_ocr3_config Move function.
-func (c offrampEncoder) SetOcr3Config(state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) SetOcr3Config(ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_ocr3_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"vector<u8>",
@@ -2292,6 +2302,7 @@ func (c offrampEncoder) SetOcr3Config(state bind.Object, param bind.Object, conf
 		"vector<vector<u8>>",
 		"vector<address>",
 	}, []any{
+		ref,
 		state,
 		param,
 		configDigest,
@@ -2307,6 +2318,7 @@ func (c offrampEncoder) SetOcr3Config(state bind.Object, param bind.Object, conf
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) SetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"vector<u8>",
@@ -2460,13 +2472,15 @@ func (c offrampEncoder) GetMerkleRootWithArgs(args ...any) (*bind.EncodedCall, e
 }
 
 // GetSourceChainConfig encodes a call to the get_source_chain_config Move function.
-func (c offrampEncoder) GetSourceChainConfig(state bind.Object, sourceChainSelector uint64) (*bind.EncodedCall, error) {
+func (c offrampEncoder) GetSourceChainConfig(ref bind.Object, state bind.Object, sourceChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_source_chain_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 		"u64",
 	}, []any{
+		ref,
 		state,
 		sourceChainSelector,
 	}, []string{
@@ -2478,6 +2492,7 @@ func (c offrampEncoder) GetSourceChainConfig(state bind.Object, sourceChainSelec
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetSourceChainConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 		"u64",
 	}
@@ -2493,12 +2508,14 @@ func (c offrampEncoder) GetSourceChainConfigWithArgs(args ...any) (*bind.Encoded
 }
 
 // GetSourceChainConfigFields encodes a call to the get_source_chain_config_fields Move function.
-func (c offrampEncoder) GetSourceChainConfigFields(sourceChainConfig SourceChainConfig) (*bind.EncodedCall, error) {
+func (c offrampEncoder) GetSourceChainConfigFields(ref bind.Object, sourceChainConfig SourceChainConfig) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_source_chain_config_fields", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"ccip_offramp::offramp::SourceChainConfig",
 	}, []any{
+		ref,
 		sourceChainConfig,
 	}, []string{
 		"address",
@@ -2513,6 +2530,7 @@ func (c offrampEncoder) GetSourceChainConfigFields(sourceChainConfig SourceChain
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetSourceChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"ccip_offramp::offramp::SourceChainConfig",
 	}
 
@@ -2531,12 +2549,14 @@ func (c offrampEncoder) GetSourceChainConfigFieldsWithArgs(args ...any) (*bind.E
 }
 
 // GetAllSourceChainConfigs encodes a call to the get_all_source_chain_configs Move function.
-func (c offrampEncoder) GetAllSourceChainConfigs(state bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) GetAllSourceChainConfigs(ref bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_all_source_chain_configs", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 	}, []any{
+		ref,
 		state,
 	}, []string{
 		"vector<u64>",
@@ -2548,6 +2568,7 @@ func (c offrampEncoder) GetAllSourceChainConfigs(state bind.Object) (*bind.Encod
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetAllSourceChainConfigsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 	}
 
@@ -2563,12 +2584,14 @@ func (c offrampEncoder) GetAllSourceChainConfigsWithArgs(args ...any) (*bind.Enc
 }
 
 // GetStaticConfig encodes a call to the get_static_config Move function.
-func (c offrampEncoder) GetStaticConfig(state bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) GetStaticConfig(ref bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 	}, []any{
+		ref,
 		state,
 	}, []string{
 		"ccip_offramp::offramp::StaticConfig",
@@ -2579,6 +2602,7 @@ func (c offrampEncoder) GetStaticConfig(state bind.Object) (*bind.EncodedCall, e
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 	}
 
@@ -2593,12 +2617,14 @@ func (c offrampEncoder) GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall,
 }
 
 // GetStaticConfigFields encodes a call to the get_static_config_fields Move function.
-func (c offrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCall, error) {
+func (c offrampEncoder) GetStaticConfigFields(ref bind.Object, cfg StaticConfig) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"ccip_offramp::offramp::StaticConfig",
 	}, []any{
+		ref,
 		cfg,
 	}, []string{
 		"u64",
@@ -2612,6 +2638,7 @@ func (c offrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCa
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"ccip_offramp::offramp::StaticConfig",
 	}
 
@@ -2629,12 +2656,14 @@ func (c offrampEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.Encode
 }
 
 // GetDynamicConfig encodes a call to the get_dynamic_config Move function.
-func (c offrampEncoder) GetDynamicConfig(state bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) GetDynamicConfig(ref bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 	}, []any{
+		ref,
 		state,
 	}, []string{
 		"ccip_offramp::offramp::DynamicConfig",
@@ -2645,6 +2674,7 @@ func (c offrampEncoder) GetDynamicConfig(state bind.Object) (*bind.EncodedCall, 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OffRampState",
 	}
 
@@ -2659,12 +2689,14 @@ func (c offrampEncoder) GetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // GetDynamicConfigFields encodes a call to the get_dynamic_config_fields Move function.
-func (c offrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedCall, error) {
+func (c offrampEncoder) GetDynamicConfigFields(ref bind.Object, cfg DynamicConfig) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config_fields", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"ccip_offramp::offramp::DynamicConfig",
 	}, []any{
+		ref,
 		cfg,
 	}, []string{
 		"address",
@@ -2676,6 +2708,7 @@ func (c offrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.Encoded
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"ccip_offramp::offramp::DynamicConfig",
 	}
 
@@ -2691,14 +2724,16 @@ func (c offrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.Encod
 }
 
 // SetDynamicConfig encodes a call to the set_dynamic_config Move function.
-func (c offrampEncoder) SetDynamicConfig(state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error) {
+func (c offrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_dynamic_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"u32",
 	}, []any{
+		ref,
 		state,
 		param,
 		permissionlessExecutionThresholdSeconds,
@@ -2709,6 +2744,7 @@ func (c offrampEncoder) SetDynamicConfig(state bind.Object, param bind.Object, p
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"u32",
@@ -2723,10 +2759,11 @@ func (c offrampEncoder) SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // ApplySourceChainConfigUpdates encodes a call to the apply_source_chain_config_updates Move function.
-func (c offrampEncoder) ApplySourceChainConfigUpdates(state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_source_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"vector<u64>",
@@ -2734,6 +2771,7 @@ func (c offrampEncoder) ApplySourceChainConfigUpdates(state bind.Object, param b
 		"vector<bool>",
 		"vector<vector<u8>>",
 	}, []any{
+		ref,
 		state,
 		param,
 		sourceChainsSelector,
@@ -2747,6 +2785,7 @@ func (c offrampEncoder) ApplySourceChainConfigUpdates(state bind.Object, param b
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) ApplySourceChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"vector<u64>",
@@ -2938,14 +2977,16 @@ func (c offrampEncoder) PendingTransferAcceptedWithArgs(args ...any) (*bind.Enco
 }
 
 // TransferOwnership encodes a call to the transfer_ownership Move function.
-func (c offrampEncoder) TransferOwnership(state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) TransferOwnership(ref bind.Object, state bind.Object, ownerCap bind.Object, newOwner string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"address",
 	}, []any{
+		ref,
 		state,
 		ownerCap,
 		newOwner,
@@ -2956,6 +2997,7 @@ func (c offrampEncoder) TransferOwnership(state bind.Object, ownerCap bind.Objec
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&OwnerCap",
 		"address",
@@ -2970,12 +3012,14 @@ func (c offrampEncoder) TransferOwnershipWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // AcceptOwnership encodes a call to the accept_ownership Move function.
-func (c offrampEncoder) AcceptOwnership(state bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) AcceptOwnership(ref bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("accept_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 	}, []any{
+		ref,
 		state,
 	}, nil)
 }
@@ -2984,6 +3028,7 @@ func (c offrampEncoder) AcceptOwnership(state bind.Object) (*bind.EncodedCall, e
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 	}
 
@@ -2996,13 +3041,15 @@ func (c offrampEncoder) AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall,
 }
 
 // AcceptOwnershipFromObject encodes a call to the accept_ownership_from_object Move function.
-func (c offrampEncoder) AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) AcceptOwnershipFromObject(ref bind.Object, state bind.Object, from string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("accept_ownership_from_object", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut UID",
 	}, []any{
+		ref,
 		state,
 		from,
 	}, nil)
@@ -3012,6 +3059,7 @@ func (c offrampEncoder) AcceptOwnershipFromObject(state bind.Object, from string
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut UID",
 	}
@@ -3025,13 +3073,15 @@ func (c offrampEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.En
 }
 
 // McmsAcceptOwnership encodes a call to the mcms_accept_ownership Move function.
-func (c offrampEncoder) McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsAcceptOwnership(ref bind.Object, state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_accept_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		params,
 	}, nil)
@@ -3041,6 +3091,7 @@ func (c offrampEncoder) McmsAcceptOwnership(state bind.Object, params bind.Objec
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"ExecutingCallbackParams",
 	}
@@ -3054,14 +3105,16 @@ func (c offrampEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedC
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c offrampEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OwnableState",
 		"address",
 	}, []any{
+		ref,
 		ownerCap,
 		ownableState,
 		to,
@@ -3072,6 +3125,7 @@ func (c offrampEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableSt
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OwnableState",
 		"address",
@@ -3086,15 +3140,17 @@ func (c offrampEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.Enc
 }
 
 // ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
-func (c offrampEncoder) ExecuteOwnershipTransferToMcms(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ExecuteOwnershipTransferToMcms(ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OffRampState",
 		"&mut Registry",
 		"address",
 	}, []any{
+		ref,
 		ownerCap,
 		state,
 		registry,
@@ -3106,6 +3162,7 @@ func (c offrampEncoder) ExecuteOwnershipTransferToMcms(ownerCap bind.Object, sta
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"OwnerCap",
 		"&mut OffRampState",
 		"&mut Registry",
@@ -3121,14 +3178,16 @@ func (c offrampEncoder) ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bi
 }
 
 // McmsRegisterUpgradeCap encodes a call to the mcms_register_upgrade_cap Move function.
-func (c offrampEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsRegisterUpgradeCap(ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"UpgradeCap",
 		"&mut Registry",
 		"&mut DeployerState",
 	}, []any{
+		ref,
 		upgradeCap,
 		registry,
 		state,
@@ -3139,6 +3198,7 @@ func (c offrampEncoder) McmsRegisterUpgradeCap(upgradeCap bind.Object, registry 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"UpgradeCap",
 		"&mut Registry",
 		"&mut DeployerState",
@@ -3153,14 +3213,16 @@ func (c offrampEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.Encod
 }
 
 // McmsSetDynamicConfig encodes a call to the mcms_set_dynamic_config Move function.
-func (c offrampEncoder) McmsSetDynamicConfig(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsSetDynamicConfig(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_set_dynamic_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -3171,6 +3233,7 @@ func (c offrampEncoder) McmsSetDynamicConfig(state bind.Object, registry bind.Ob
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) McmsSetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3185,14 +3248,16 @@ func (c offrampEncoder) McmsSetDynamicConfigWithArgs(args ...any) (*bind.Encoded
 }
 
 // McmsApplySourceChainConfigUpdates encodes a call to the mcms_apply_source_chain_config_updates Move function.
-func (c offrampEncoder) McmsApplySourceChainConfigUpdates(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_apply_source_chain_config_updates", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -3203,6 +3268,7 @@ func (c offrampEncoder) McmsApplySourceChainConfigUpdates(state bind.Object, reg
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) McmsApplySourceChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3217,14 +3283,16 @@ func (c offrampEncoder) McmsApplySourceChainConfigUpdatesWithArgs(args ...any) (
 }
 
 // McmsSetOcr3Config encodes a call to the mcms_set_ocr3_config Move function.
-func (c offrampEncoder) McmsSetOcr3Config(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsSetOcr3Config(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_set_ocr3_config", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -3235,6 +3303,7 @@ func (c offrampEncoder) McmsSetOcr3Config(state bind.Object, registry bind.Objec
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) McmsSetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3249,14 +3318,16 @@ func (c offrampEncoder) McmsSetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
-func (c offrampEncoder) McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsTransferOwnership(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -3267,6 +3338,7 @@ func (c offrampEncoder) McmsTransferOwnership(state bind.Object, registry bind.O
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3281,14 +3353,16 @@ func (c offrampEncoder) McmsTransferOwnershipWithArgs(args ...any) (*bind.Encode
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.
-func (c offrampEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c offrampEncoder) McmsExecuteOwnershipTransfer(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
+		ref,
 		state,
 		registry,
 		params,
@@ -3299,6 +3373,7 @@ func (c offrampEncoder) McmsExecuteOwnershipTransfer(state bind.Object, registry
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&mut OffRampState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
