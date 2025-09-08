@@ -4,6 +4,7 @@ module ccip::token_admin_registry_tests;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
+use ccip::upgrade_registry;
 use std::ascii;
 use std::string;
 use std::type_name;
@@ -51,6 +52,8 @@ fun initialize_state_and_registry(scenario: &mut Scenario, admin: address) {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ctx = scenario.ctx();
 
+        // Initialize upgrade registry first (required by token_admin_registry functions)
+        upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
         registry::initialize(&mut ref, &owner_cap, ctx);
 
         scenario.return_to_sender(owner_cap);

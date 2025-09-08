@@ -5,6 +5,7 @@ module ccip::fee_quoter_tests;
 use ccip::fee_quoter::{Self, FeeQuoterState};
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use std::bcs;
 use std::string;
 use sui::clock;
@@ -57,6 +58,9 @@ fun setup_ccip_environment(): (Scenario, OwnerCap, CCIPObjectRef) {
 }
 
 fun initialize_fee_quoter(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    // Initialize upgrade registry first (required by fee_quoter functions)
+    upgrade_registry::initialize(ref, owner_cap, ctx);
+
     fee_quoter::initialize(
         ref,
         owner_cap,
@@ -901,6 +905,9 @@ public fun test_get_validated_fee_invalid_token_receiver_svm() {
 public fun test_process_message_args_message_fee_too_high() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
+
+    // Initialize upgrade registry first (required by fee_quoter functions)
+    upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Initialize with a very LOW max fee limit
     fee_quoter::initialize(
