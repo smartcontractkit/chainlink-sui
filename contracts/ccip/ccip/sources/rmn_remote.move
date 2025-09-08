@@ -1,9 +1,12 @@
 module ccip::rmn_remote;
 
+use ccip::bcs_helper;
 use ccip::eth_abi;
 use ccip::merkle_proof;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use mcms::bcs_stream;
+use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
 use std::string::{Self, String};
 use std::type_name;
@@ -84,6 +87,7 @@ const EInvalidDigestLength: u64 = 14;
 const ESignersMismatch: u64 = 15;
 const EInvalidSubjectLength: u64 = 16;
 const EInvalidPublicKeyLength: u64 = 17;
+const EInvalidFunction: u64 = 18;
 
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
@@ -385,6 +389,157 @@ fun ecrecover_to_eth_address(mut signature: vector<u8>, msg: vector<u8>): vector
         i = i + 1;
     };
     addr
+}
+
+// ================================================================
+// |                      MCMS Entrypoints                       |
+// ================================================================
+
+public struct McmsCallback has drop {}
+
+public fun mcms_set_config(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_config"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let rmn_home_contract_config_digest = bcs_stream::deserialize_vector_u8(&mut stream);
+    let signer_onchain_public_keys = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_vector_u8(stream) },
+    );
+    let node_indexes = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_u64(stream) },
+    );
+    let f_sign = bcs_stream::deserialize_u64(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_config(
+        ref,
+        owner_cap,
+        rmn_home_contract_config_digest,
+        signer_onchain_public_keys,
+        node_indexes,
+        f_sign,
+    );
+}
+
+public fun mcms_curse(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"curse"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let subject = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    curse(ref, owner_cap, subject);
+}
+
+public fun mcms_curse_multiple(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"curse_multiple"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let subjects = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_vector_u8(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    curse_multiple(ref, owner_cap, subjects);
+}
+
+public fun mcms_uncurse(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"uncurse"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let subjects = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_vector_u8(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    uncurse_multiple(ref, owner_cap, subjects);
+}
+
+public fun mcms_uncurse_multiple(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"uncurse_multiple"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let subjects = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_vector_u8(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    uncurse_multiple(ref, owner_cap, subjects);
 }
 
 #[test_only]
