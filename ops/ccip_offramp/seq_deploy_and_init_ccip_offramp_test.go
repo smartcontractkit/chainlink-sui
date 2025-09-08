@@ -49,7 +49,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(400_000_000)
+			b := uint64(500_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -82,6 +82,15 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
+
+	// Initialize upgrade registry (required by fee quoter and other CCIP functions)
+	upgradeRegistryInput := ccip_ops.InitUpgradeRegistryInput{
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		StateObjectId:    reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId: reportCCIP.Output.Objects.OwnerCapObjectId,
+	}
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.UpgradeRegistryInitializeOp, deps, upgradeRegistryInput)
+	require.NoError(t, err, "failed to initialize Upgrade Registry")
 
 	// Initialize feeQuoter
 	feeQuoterInit := ccip_ops.InitFeeQuoterInput{
