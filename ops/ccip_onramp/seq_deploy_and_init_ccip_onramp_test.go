@@ -84,11 +84,13 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 			DestChainAllowListEnabled: []bool{true},
 		},
 		ApplyDestChainConfigureOnRampInput: ApplyDestChainConfigureOnRampInput{
+			CCIPObjectRefId:           report.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:         []uint64{909606746561742123},
 			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{false},
 		},
 		ApplyAllowListUpdatesInput: ApplyAllowListUpdatesInput{
+			CCIPObjectRefId:               report.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:             []uint64{909606746561742123},
 			DestChainAllowListEnabled:     []bool{false},
 			DestChainAddAllowedSenders:    [][]string{{}},

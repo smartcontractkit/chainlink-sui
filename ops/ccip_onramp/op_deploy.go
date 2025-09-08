@@ -108,6 +108,7 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 
 type ApplyDestChainConfigureOnRampInput struct {
 	OnRampPackageId           string
+	CCIPObjectRefId           string
 	OwnerCapObjectId          string
 	StateObjectId             string
 	DestChainSelector         []uint64
@@ -126,6 +127,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	tx, err := onRampPackage.ApplyDestChainConfigUpdates(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -145,6 +147,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 type ApplyAllowListUpdatesInput struct {
 	OnRampPackageId               string
+	CCIPObjectRefId               string
 	OwnerCapObjectId              string
 	StateObjectId                 string
 	DestChainSelector             []uint64
@@ -164,6 +167,7 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	tx, err := onRampPackage.ApplyAllowlistUpdates(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -214,8 +218,6 @@ var IsChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	}, nil
 }
 
-// Note: Shares the same input as IsChainSupported
-// TODO: maybe rename the input to make it more generic
 var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsChainSupportedInput) (output sui_ops.OpTxResult[IsChainSupportedOutput], err error) {
 	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
