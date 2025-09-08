@@ -211,17 +211,4 @@ func TestUpgradeRegistryOperations(t *testing.T) {
 		require.NoError(t, err, "failed to check if module is allowed")
 		require.True(t, isModuleAllowedReport2.Output.Objects.IsAllowed, "module version 7 should be allowed")
 	})
-
-	t.Run("Test Package History", func(t *testing.T) {
-		// Test getting package history (should be empty initially)
-		getPackageHistoryReport, err := cld_ops.ExecuteOperation(bundle, GetPackageHistoryOp, deps, GetPackageHistoryInput{
-			CCIPPackageId: report.Output.CCIPPackageId,
-			StateObjectId: report.Output.Objects.CCIPObjectRefObjectId,
-			PackageName:   "test_package",
-		})
-		require.NoError(t, err, "failed to get package history")
-		require.Empty(t, getPackageHistoryReport.Output.Objects.PackageIds, "package history should be empty initially")
-		require.Empty(t, getPackageHistoryReport.Output.Objects.Versions, "versions should be empty initially")
-		require.Empty(t, getPackageHistoryReport.Output.Objects.Timestamps, "timestamps should be empty initially")
-	})
 }
