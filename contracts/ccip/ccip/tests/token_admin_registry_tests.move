@@ -4,6 +4,7 @@ module ccip::token_admin_registry_tests;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
+use ccip::upgrade_registry;
 use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
@@ -58,6 +59,8 @@ fun initialize_state_and_registry(scenario: &mut Scenario, admin: address) {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ctx = scenario.ctx();
 
+        // Initialize upgrade registry first (required by token_admin_registry functions)
+        upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
         registry::initialize(&mut ref, &owner_cap, ctx);
 
         scenario.return_to_sender(owner_cap);
@@ -1479,5 +1482,130 @@ public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
         ts::return_shared(registry);
     };
 
+    ts::end(scenario);
+}
+
+// === Upgrade Registry Function Restriction Tests ===
+
+#[test]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
+public fun test_register_pool_function_not_allowed() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ctx = scenario.ctx();
+
+        // Block the register_pool function using upgrade registry
+        upgrade_registry::block_function(
+            &mut ref,
+            &owner_cap,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"register_pool"),
+            1, // block version 1
+            ctx,
+        );
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        // This should fail because the function is blocked by upgrade registry
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            b"test_pool",
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
+public fun test_set_pool_function_not_allowed() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_to_address(&object::id(&coin_metadata));
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        // First register the pool normally
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            b"initial_pool",
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Block the set_pool function using upgrade registry
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ctx = scenario.ctx();
+
+        upgrade_registry::block_function(
+            &mut ref,
+            &owner_cap,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"set_pool"),
+            1, // block version 1
+            ctx,
+        );
+
+        scenario.return_to_sender(owner_cap);
+        ts::return_shared(ref);
+    };
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let ctx = scenario.ctx();
+
+        // This should fail because the function is blocked by upgrade registry
+        registry::set_pool(
+            &mut ref,
+            local_token,
+            MOCK_TOKEN_POOL_PACKAGE_ID_2,
+            string::utf8(b"updated_pool"),
+            vector<address>[], // lock_or_burn_params
+            vector<address>[], // release_or_mint_params
+            TypeProof2 {},
+            ctx,
+        );
+
+        ts::return_shared(ref);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
     ts::end(scenario);
 }
