@@ -1,6 +1,7 @@
 #[test_only]
 module ccip_token_pool::token_pool_test;
 
+use ccip::upgrade_registry;
 use ccip_token_pool::token_pool::{Self, TokenPoolState};
 use std::bcs;
 use sui::clock;
@@ -68,6 +69,7 @@ fun set_up_token_pool_test_with_ccip(): (
     // Retrieve the shared CCIPObjectRef
     let mut ref = scenario.take_shared<ccip::state_object::CCIPObjectRef>();
 
+    upgrade_registry::initialize(&mut ref, &owner_cap, scenario.ctx());
     // Initialize RMN remote
     ccip::rmn_remote::initialize(&mut ref, &owner_cap, 1000, scenario.ctx()); // local chain selector = 1000
 

@@ -822,6 +822,7 @@ public fun test_invalid_owner_cap_error() {
     scenario.next_tx(@0x999);
     let ccip_owner_cap2 = scenario.take_from_sender<CCIPOwnerCap>();
     let mut ccip_ref2 = scenario.take_shared<CCIPObjectRef>();
+    upgrade_registry::initialize(&mut ccip_ref2, &ccip_owner_cap2, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref2, &ccip_owner_cap2, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref2, &ccip_owner_cap2, 1000, scenario.ctx());
 

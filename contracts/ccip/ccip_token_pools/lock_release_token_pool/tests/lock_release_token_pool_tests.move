@@ -1026,6 +1026,7 @@ public fun test_lock_or_burn_functionality() {
     // Retrieve the shared CCIPObjectRef
     let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
+    upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
     onramp_sh::test_init(scenario.ctx());
@@ -1196,6 +1197,7 @@ public fun test_release_or_mint_functionality() {
     // Retrieve the shared CCIPObjectRef
     let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
+    upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
     offramp_sh::test_init(scenario.ctx());
