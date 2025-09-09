@@ -322,6 +322,12 @@ public fun register_pool_by_admin(
     release_or_mint_params: vector<address>,
     _: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"register_pool_by_admin"),
+        VERSION,
+    );
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -375,6 +381,12 @@ public fun unregister_pool(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"unregister_pool"),
+        VERSION,
+    );
     unregister_pool_internal(ref, coin_metadata_address, ctx.sender());
 }
 
@@ -383,12 +395,6 @@ fun unregister_pool_internal(
     coin_metadata_address: address,
     caller: address,
 ) {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"token_admin_registry"),
-        string::utf8(b"unregister_pool"),
-        VERSION,
-    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
