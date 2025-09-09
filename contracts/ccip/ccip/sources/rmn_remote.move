@@ -5,6 +5,7 @@ use ccip::eth_abi;
 use ccip::merkle_proof;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
@@ -89,10 +90,13 @@ const EInvalidSubjectLength: u64 = 16;
 const EInvalidPublicKeyLength: u64 = 17;
 const EInvalidFunction: u64 = 18;
 
+const VERSION: u8 = 1;
+
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
 }
 
+// test what happens to this when upgrading
 public fun get_arm(): address {
     let tn = type_name::get<RMNRemoteState>();
     let addr_string = tn.get_address();
@@ -155,6 +159,13 @@ public fun verify(
     merkle_root_values: vector<vector<u8>>,
     signatures: vector<vector<u8>>,
 ): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"verify"),
+        VERSION,
+    );
+
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     assert!(state.config_count > 0, EConfigNotSet);
@@ -231,6 +242,13 @@ public fun set_config(
     node_indexes: vector<u64>,
     f_sign: u64,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"set_config"),
+        VERSION,
+    );
+
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     assert!(rmn_home_contract_config_digest.length() == 32, EInvalidDigestLength);
@@ -289,12 +307,24 @@ public fun set_config(
 }
 
 public fun get_versioned_config(ref: &CCIPObjectRef): (u32, Config) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"get_versioned_config"),
+        VERSION,
+    );
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     (state.config_count, state.config)
 }
 
 public fun get_local_chain_selector(ref: &CCIPObjectRef): u64 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"get_local_chain_selector"),
+        VERSION,
+    );
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.local_chain_selector
@@ -305,10 +335,22 @@ public fun get_report_digest_header(): vector<u8> {
 }
 
 public fun curse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"curse"),
+        VERSION,
+    );
     curse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"curse_multiple"),
+        VERSION,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
@@ -321,10 +363,22 @@ public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vecto
 }
 
 public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<u8>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"uncurse"),
+        VERSION,
+    );
     uncurse_multiple(ref, owner_cap, vector[subject]);
 }
 
 public fun uncurse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"uncurse_multiple"),
+        VERSION,
+    );
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
@@ -336,6 +390,12 @@ public fun uncurse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vec
 }
 
 public fun get_cursed_subjects(ref: &CCIPObjectRef): vector<vector<u8>> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"get_cursed_subjects"),
+        VERSION,
+    );
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.cursed_subjects.keys()
@@ -343,18 +403,36 @@ public fun get_cursed_subjects(ref: &CCIPObjectRef): vector<vector<u8>> {
 
 #[allow(implicit_const_copy)]
 public fun is_cursed_global(ref: &CCIPObjectRef): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"is_cursed_global"),
+        VERSION,
+    );
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.cursed_subjects.contains(&GLOBAL_CURSE_SUBJECT)
 }
 
 public fun is_cursed(ref: &CCIPObjectRef, subject: vector<u8>): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"is_cursed"),
+        VERSION,
+    );
     let state = state_object::borrow<RMNRemoteState>(ref);
 
     state.cursed_subjects.contains(&subject) || is_cursed_global(ref)
 }
 
 public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"rmn_remote"),
+        string::utf8(b"is_cursed_u128"),
+        VERSION,
+    );
     let mut subject = bcs::to_bytes(&subject_value);
     subject.reverse();
     is_cursed(ref, subject)
