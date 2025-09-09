@@ -48,6 +48,7 @@ type ICounter interface {
 	GetVectorOfVectorsOfU8(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ICounterDevInspect
 	Encoder() CounterEncoder
+	Bound() bind.IBoundContract
 }
 
 type ICounterDevInspect interface {
@@ -139,7 +140,7 @@ type CounterDevInspect struct {
 var _ ICounter = (*CounterContract)(nil)
 var _ ICounterDevInspect = (*CounterDevInspect)(nil)
 
-func NewCounter(packageID string, client sui.ISuiAPI) (*CounterContract, error) {
+func NewCounter(packageID string, client sui.ISuiAPI) (ICounter, error) {
 	contract, err := bind.NewBoundContract(packageID, "test", "counter", client)
 	if err != nil {
 		return nil, err
@@ -151,6 +152,10 @@ func NewCounter(packageID string, client sui.ISuiAPI) (*CounterContract, error) 
 	}
 	c.devInspect = &CounterDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *CounterContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *CounterContract) Encoder() CounterEncoder {

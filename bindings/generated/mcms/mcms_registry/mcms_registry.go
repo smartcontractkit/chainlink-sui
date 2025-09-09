@@ -36,6 +36,7 @@ type IMcmsRegistry interface {
 	CreateMcmsProof(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsRegistryDevInspect
 	Encoder() McmsRegistryEncoder
+	Bound() bind.IBoundContract
 }
 
 type IMcmsRegistryDevInspect interface {
@@ -98,7 +99,7 @@ type McmsRegistryDevInspect struct {
 var _ IMcmsRegistry = (*McmsRegistryContract)(nil)
 var _ IMcmsRegistryDevInspect = (*McmsRegistryDevInspect)(nil)
 
-func NewMcmsRegistry(packageID string, client sui.ISuiAPI) (*McmsRegistryContract, error) {
+func NewMcmsRegistry(packageID string, client sui.ISuiAPI) (IMcmsRegistry, error) {
 	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms_registry", client)
 	if err != nil {
 		return nil, err
@@ -110,6 +111,10 @@ func NewMcmsRegistry(packageID string, client sui.ISuiAPI) (*McmsRegistryContrac
 	}
 	c.devInspect = &McmsRegistryDevInspect{contract: c}
 	return c, nil
+}
+
+func (c *McmsRegistryContract) Bound() bind.IBoundContract {
+	return c.BoundContract
 }
 
 func (c *McmsRegistryContract) Encoder() McmsRegistryEncoder {

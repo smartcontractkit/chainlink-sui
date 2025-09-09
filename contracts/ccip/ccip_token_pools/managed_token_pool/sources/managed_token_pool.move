@@ -3,6 +3,7 @@
 /// the mint cap object is used to mint/burn the token on the managed token module
 module managed_token_pool::managed_token_pool;
 
+use ccip::bcs_helper;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
@@ -541,23 +542,24 @@ public fun accept_ownership_from_object<T>(
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
-/// Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
-public fun accept_ownership_as_mcms<T>(
+public fun mcms_accept_ownership<T>(
     state: &mut ManagedTokenPoolState<T>,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
         params,
         McmsCallback<T> {},
     );
-    assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addr(object::id_address(state), &mut stream);
+
     let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
 public fun execute_ownership_transfer(
@@ -606,81 +608,262 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback<phantom T> has drop {}
 
-public fun mcms_entrypoint<T>(
+public fun mcms_set_allowlist_enabled<T>(
     state: &mut ManagedTokenPoolState<T>,
     registry: &mut Registry,
-    params: ExecutingCallbackParams, // hot potato
-    ctx: &mut TxContext,
+    params: ExecutingCallbackParams,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
         registry,
         McmsCallback<T> {},
         params,
     );
+    assert!(function == string::utf8(b"set_allowlist_enabled"), EInvalidFunction);
 
-    let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
-    if (function_bytes == b"set_allowlist_enabled") {
-        let enabled = bcs_stream::deserialize_bool(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        set_allowlist_enabled(state, owner_cap, enabled);
-    } else if (function_bytes == b"apply_allowlist_updates") {
-        let removes = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_address(stream),
-        );
-        let adds = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_address(stream),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        apply_allowlist_updates(state, owner_cap, removes, adds);
-    } else if (function_bytes == b"apply_chain_updates") {
-        let remote_chain_selectors_to_remove = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let remote_chain_selectors_to_add = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let remote_pool_addresses_to_add = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_vector!(
-                stream,
-                |stream| bcs_stream::deserialize_vector_u8(stream),
-            ),
-        );
-        let remote_token_addresses_to_add = bcs_stream::deserialize_vector!(
-            &mut stream,
+    let enabled = bcs_stream::deserialize_bool(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_allowlist_enabled(state, owner_cap, enabled);
+}
+
+public fun mcms_apply_allowlist_updates<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"apply_allowlist_updates"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let removes = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    let adds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    apply_allowlist_updates(state, owner_cap, removes, adds);
+}
+
+public fun mcms_apply_chain_updates<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"apply_chain_updates"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let remote_chain_selectors_to_remove = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let remote_chain_selectors_to_add = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let remote_pool_addresses_to_add = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector!(
+            stream,
             |stream| bcs_stream::deserialize_vector_u8(stream),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        apply_chain_updates(
-            state,
-            owner_cap,
-            remote_chain_selectors_to_remove,
-            remote_chain_selectors_to_add,
-            remote_pool_addresses_to_add,
-            remote_token_addresses_to_add,
-        );
-    } else if (function_bytes == b"transfer_ownership") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        transfer_ownership(state, owner_cap, to, ctx);
-    } else if (function_bytes == b"accept_ownership_as_mcms") {
-        let mcms = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
-    } else if (function_bytes == b"execute_ownership_transfer") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback<T> {});
-        execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
-    } else {
-        abort EInvalidFunction
-    };
+        ),
+    );
+    let remote_token_addresses_to_add = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    apply_chain_updates(
+        state,
+        owner_cap,
+        remote_chain_selectors_to_remove,
+        remote_chain_selectors_to_add,
+        remote_pool_addresses_to_add,
+        remote_token_addresses_to_add,
+    );
+}
+
+public fun mcms_add_remote_pool<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"add_remote_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let remote_pool_address = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    add_remote_pool(state, owner_cap, remote_chain_selector, remote_pool_address);
+}
+
+public fun mcms_remove_remote_pool<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"remove_remote_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+    let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let remote_pool_address = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    remove_remote_pool(state, owner_cap, remote_chain_selector, remote_pool_address);
+}
+
+public fun mcms_set_chain_rate_limiter_configs<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    clock: &Clock,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_chain_rate_limiter_configs"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let remote_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let outbound_is_enableds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let outbound_capacities = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let outbound_rates = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let inbound_is_enableds = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let inbound_capacities = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let inbound_rates = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_chain_rate_limiter_configs(
+        state,
+        owner_cap,
+        clock,
+        remote_chain_selectors,
+        outbound_is_enableds,
+        outbound_capacities,
+        outbound_rates,
+        inbound_is_enableds,
+        inbound_capacities,
+        inbound_rates,
+    );
+}
+
+public fun mcms_set_chain_rate_limiter_config<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    clock: &Clock,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_chain_rate_limiter_config"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let outbound_is_enabled = bcs_stream::deserialize_bool(&mut stream);
+    let outbound_capacity = bcs_stream::deserialize_u64(&mut stream);
+    let outbound_rate = bcs_stream::deserialize_u64(&mut stream);
+    let inbound_is_enabled = bcs_stream::deserialize_bool(&mut stream);
+    let inbound_capacity = bcs_stream::deserialize_u64(&mut stream);
+    let inbound_rate = bcs_stream::deserialize_u64(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_chain_rate_limiter_config(
+        state,
+        owner_cap,
+        clock,
+        remote_chain_selector,
+        outbound_is_enabled,
+        outbound_capacity,
+        outbound_rate,
+        inbound_is_enabled,
+        inbound_capacity,
+        inbound_rate,
+    );
 }
 
 /// destroy the managed token pool state and the owner cap, return the mint cap to the owner
@@ -709,4 +892,86 @@ public fun destroy_token_pool<T>(
     ownable::destroy_owner_cap(owner_cap, ctx);
 
     mint_cap
+}
+
+public fun mcms_transfer_ownership<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(state, owner_cap, to, ctx);
+}
+
+public fun mcms_mcms_accept_ownership<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let mcms = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
+}
+
+public fun mcms_execute_ownership_transfer<T>(
+    state: &mut ManagedTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback<T> {});
+    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }

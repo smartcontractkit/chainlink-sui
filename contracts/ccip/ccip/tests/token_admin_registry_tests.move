@@ -4,7 +4,11 @@ module ccip::token_admin_registry_tests;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
+use mcms::mcms_account;
+use mcms::mcms_deployer;
+use mcms::mcms_registry::{Self, Registry};
 use std::ascii;
+use std::bcs;
 use std::string;
 use std::type_name;
 use sui::coin;
@@ -42,6 +46,9 @@ fun initialize_state_and_registry(scenario: &mut Scenario, admin: address) {
     scenario.next_tx(admin);
     {
         let ctx = scenario.ctx();
+        mcms_account::test_init(ctx);
+        mcms_registry::test_init(ctx);
+        mcms_deployer::test_init(ctx);
         state_object::test_init(ctx);
     };
 
@@ -1141,5 +1148,336 @@ public fun test_accept_admin_role_no_pending_transfer() {
     };
 
     transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+// ================================ MCMS Admin Transfer Tests ================================
+
+#[test]
+public fun test_mcms_transfer_admin_role() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_address(&coin_metadata);
+    let mcms = mcms_registry::get_multisig_address();
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Register MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
+
+        ts::return_shared(registry);
+    };
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Execute MCMS transfer (called by token administrator)
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let registry = scenario.take_shared<Registry>();
+
+        registry::transfer_admin_role(&mut ref, local_token, mcms, scenario.ctx());
+
+        // Verify pending transfer is set but admin hasn't changed yet (still TOKEN_ADMIN_ADDRESS)
+        assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS));
+        assert!(!registry::is_administrator(&ref, local_token, mcms));
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+public fun test_mcms_accept_admin_role() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_address(&coin_metadata);
+    let mcms = mcms_registry::get_multisig_address();
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Register MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
+
+        ts::return_shared(registry);
+    };
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        // set pending transfer to MCMS
+        registry::transfer_admin_role(&mut ref, local_token, mcms, scenario.ctx());
+
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // // Execute MCMS accept (called by pending administrator) (TOKEN_ADMIN_ADDRESS_2)
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        // Create MCMS callback params for accept (need to include object addresses first)
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&object::id_address(&registry)));
+        data.append(bcs::to_bytes(&local_token));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"accept_admin_role"),
+            data,
+        );
+
+        // Execute MCMS accept
+        registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
+
+        // Verify admin has changed and no pending transfer (TOKEN_ADMIN_ADDRESS_2 is now the admin)
+        assert!(!registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS));
+        assert!(registry::is_administrator(&ref, local_token, mcms));
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+public fun test_mcms_full_admin_transfer_flow() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_address(&coin_metadata);
+    let mcms = mcms_registry::get_multisig_address();
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Register MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
+
+        ts::return_shared(registry);
+    };
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Step 1: MCMS Transfer (called by token administrator)
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let registry = scenario.take_shared<Registry>();
+        registry::transfer_admin_role(&mut ref, local_token, mcms, scenario.ctx());
+
+        // Verify pending state (TOKEN_ADMIN_ADDRESS is still the admin)
+        assert!(registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS));
+        assert!(!registry::is_administrator(&ref, local_token, mcms));
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    // Step 2: MCMS Accept
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&object::id_address(&registry)));
+        data.append(bcs::to_bytes(&local_token));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"accept_admin_role"),
+            data,
+        );
+
+        registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
+
+        // Verify final state
+        assert!(!registry::is_administrator(&ref, local_token, TOKEN_ADMIN_ADDRESS));
+        assert!(registry::is_administrator(&ref, local_token, mcms));
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ENotPendingAdministrator)]
+public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let (treasury_cap, coin_metadata) = create_test_token(&mut scenario);
+    let local_token = object::id_address(&coin_metadata);
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
+
+        ts::return_shared(registry);
+    };
+
+    scenario.next_tx(TOKEN_ADMIN_ADDRESS);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+        register_test_pool(
+            &mut ref,
+            &treasury_cap,
+            &coin_metadata,
+            MOCK_TOKEN_POOL_PACKAGE_ID_1,
+            b"mock_token_pool",
+            TOKEN_ADMIN_ADDRESS,
+        );
+
+        let ctx = scenario.ctx();
+        transfer::public_transfer(treasury_cap, ctx.sender());
+        ts::return_shared(ref);
+    };
+
+    // Try to accept without pending transfer - should fail (TOKEN_ADMIN_ADDRESS is still the admin)
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&object::id_address(&registry)));
+        data.append(bcs::to_bytes(&local_token));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"accept_admin_role"),
+            data,
+        );
+
+        registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = registry::ETokenNotRegistered)]
+public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
+    let mcms = mcms_registry::get_multisig_address();
+
+    initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
+
+    // Register MCMS capability
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
+
+        ts::return_shared(registry);
+    };
+
+    // Try to transfer admin for unregistered token - should fail
+    scenario.next_tx(CCIP_ADMIN);
+    {
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
+        let mut registry = scenario.take_shared<Registry>();
+
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&ref)));
+        data.append(bcs::to_bytes(&object::id_address(&registry)));
+        data.append(bcs::to_bytes(&@0x999)); // unregistered token
+        data.append(bcs::to_bytes(&mcms));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"token_admin_registry"),
+            string::utf8(b"transfer_admin_role"),
+            data,
+        );
+
+        registry::mcms_transfer_admin_role(&mut ref, &mut registry, params, scenario.ctx());
+
+        ts::return_shared(ref);
+        ts::return_shared(registry);
+    };
+
     ts::end(scenario);
 }
