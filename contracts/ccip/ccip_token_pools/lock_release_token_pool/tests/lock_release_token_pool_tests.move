@@ -7,6 +7,7 @@ use ccip::ownable::OwnerCap as CCIPOwnerCap;
 use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
+use ccip::upgrade_registry;
 use ccip_token_pool::ownable::OwnerCap;
 use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState};
 use std::string;
@@ -48,6 +49,7 @@ fun setup_ccip_environment(scenario: &mut Scenario): (CCIPOwnerCap, CCIPObjectRe
     let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
     // Initialize required CCIP modules
+    upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx()); // local chain selector = 1000
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     onramp_sh::test_init(scenario.ctx());

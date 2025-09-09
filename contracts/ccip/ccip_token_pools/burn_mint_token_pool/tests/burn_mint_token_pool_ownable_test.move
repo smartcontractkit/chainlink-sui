@@ -5,6 +5,7 @@ use burn_mint_token_pool::burn_mint_token_pool::{Self, BurnMintTokenPoolState};
 use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
+use ccip::upgrade_registry;
 use ccip_token_pool::ownable::{Self, OwnerCap};
 use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
@@ -34,6 +35,7 @@ fun setup(): (TestEnv, OwnerCap) {
     let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
     // Initialize required CCIP modules
+    upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
 
