@@ -7,6 +7,7 @@ use ccip::client;
 use ccip::eth_abi;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;
@@ -14,6 +15,8 @@ use std::string::{Self, String};
 use sui::clock;
 use sui::event;
 use sui::table;
+
+const VERSION: u8 = 1;
 
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
@@ -280,6 +283,12 @@ public fun new_fee_quoter_cap(_: &OwnerCap, ctx: &mut TxContext): FeeQuoterCap {
 }
 
 public fun get_token_price(ref: &CCIPObjectRef, token: address): TimestampedPrice {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_token_price"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     get_token_price_internal(state, token)
 }
@@ -292,6 +301,12 @@ public fun get_token_prices(
     ref: &CCIPObjectRef,
     tokens: vector<address>,
 ): (vector<TimestampedPrice>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_token_prices"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     tokens.map_ref!(|token| get_token_price_internal(state, *token))
 }
@@ -300,6 +315,12 @@ public fun get_dest_chain_gas_price(
     ref: &CCIPObjectRef,
     dest_chain_selector: u64,
 ): TimestampedPrice {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_dest_chain_gas_price"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     get_dest_chain_gas_price_internal(state, dest_chain_selector)
 }
@@ -310,6 +331,12 @@ public fun get_token_and_gas_prices(
     token: address,
     dest_chain_selector: u64,
 ): (u256, u256) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_token_and_gas_prices"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     let dest_chain_config = get_dest_chain_config_internal(
         state,
@@ -332,11 +359,23 @@ public fun convert_token_amount(
     from_token_amount: u64,
     to_token: address,
 ): u64 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"convert_token_amount"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     convert_token_amount_internal(state, from_token, from_token_amount, to_token)
 }
 
 public fun get_fee_tokens(ref: &CCIPObjectRef): vector<address> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_fee_tokens"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     state.fee_tokens
 }
@@ -348,6 +387,12 @@ public fun apply_fee_token_updates(
     fee_tokens_to_add: vector<address>,
     _ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"apply_fee_token_updates"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -378,6 +423,12 @@ public fun get_token_transfer_fee_config(
     dest_chain_selector: u64,
     token: address,
 ): TokenTransferFeeConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_token_transfer_fee_config"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     get_token_transfer_fee_config_internal(
         state,
@@ -426,6 +477,12 @@ public fun apply_token_transfer_fee_config_updates(
     remove_tokens: vector<address>,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"apply_token_transfer_fee_config_updates"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -534,6 +591,12 @@ public fun update_prices(
     gas_usd_per_unit_gas: vector<u256>,
     _ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"update_prices"),
+        VERSION,
+    );
     assert!(source_tokens.length() == source_usd_per_token.length(), ETokenUpdateMismatch);
     assert!(gas_dest_chain_selectors.length() == gas_usd_per_unit_gas.length(), EGasUpdateMismatch);
 
@@ -591,6 +654,12 @@ public fun get_validated_fee(
     fee_token: address, // the fee token's coin metadata object id
     extra_args: vector<u8>,
 ): u64 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_validated_fee"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
 
     let dest_chain_config = get_dest_chain_config_internal(
@@ -708,6 +777,12 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
     premium_multiplier_wei_per_eth: vector<u64>,
     _ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"apply_premium_multiplier_wei_per_eth_updates"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -729,6 +804,12 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
 }
 
 public fun get_premium_multiplier_wei_per_eth(ref: &CCIPObjectRef, token: address): u64 {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_premium_multiplier_wei_per_eth"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     get_premium_multiplier_wei_per_eth_internal(state, token)
 }
@@ -1019,6 +1100,12 @@ public fun get_token_receiver(
     extra_args: vector<u8>,
     message_receiver: vector<u8>,
 ): vector<u8> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_token_receiver"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
 
     let chain_family_selector = get_dest_chain_config_internal(
@@ -1056,6 +1143,12 @@ public fun process_message_args(
     dest_token_addresses: vector<vector<u8>>,
     dest_pool_datas: vector<vector<u8>>,
 ): (u256, bool, vector<u8>, vector<vector<u8>>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"process_message_args"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     // This is the fee in Sui denomination. We convert it to juels (1e18 based) below.
     let msg_fee_link_local_denomination = if (fee_token == state.link_token) {
@@ -1203,6 +1296,12 @@ fun process_pool_return_data(
 }
 
 public fun get_dest_chain_config(ref: &CCIPObjectRef, dest_chain_selector: u64): DestChainConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_dest_chain_config"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     *get_dest_chain_config_internal(state, dest_chain_selector)
 }
@@ -1286,6 +1385,12 @@ public fun apply_dest_chain_config_updates(
     network_fee_usd_cents: u32,
     _ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"apply_dest_chain_config_updates"),
+        VERSION,
+    );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
@@ -1337,6 +1442,12 @@ public fun apply_dest_chain_config_updates(
 }
 
 public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"get_static_config"),
+        VERSION,
+    );
     let state = state_object::borrow<FeeQuoterState>(ref);
     StaticConfig {
         max_fee_juels_per_msg: state.max_fee_juels_per_msg,
@@ -1698,13 +1809,6 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
         premium_multiplier_wei_per_eth,
         ctx,
     );
-}
-
-#[test_only]
-public fun create_fee_quoter_cap(ctx: &mut TxContext): FeeQuoterCap {
-    FeeQuoterCap {
-        id: object::new(ctx),
-    }
 }
 
 public fun destroy_fee_quoter_cap(_: &OwnerCap, cap: FeeQuoterCap) {

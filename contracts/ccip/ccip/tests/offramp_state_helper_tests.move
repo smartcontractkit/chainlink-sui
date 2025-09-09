@@ -7,6 +7,7 @@ use ccip::ownable::OwnerCap;
 use ccip::receiver_registry;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
+use ccip::upgrade_registry;
 use std::ascii;
 use std::string;
 use std::type_name;
@@ -40,6 +41,8 @@ fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, DestTransferCap) {
 
     // Retrieve the shared CCIPObjectRef
     let mut ref = scenario.take_shared<CCIPObjectRef>();
+
+    upgrade_registry::initialize(&mut ref, &owner_cap, scenario.ctx());
 
     // Initialize token admin registry
     registry::initialize(&mut ref, &owner_cap, scenario.ctx());
