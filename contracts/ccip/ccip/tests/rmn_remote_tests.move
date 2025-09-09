@@ -684,12 +684,12 @@ public fun test_set_config_function_not_allowed() {
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
 
     // Block the set_config function using upgrade registry
-    upgrade_registry::update_function_restrictions(
+    upgrade_registry::block_function(
         &mut ref,
         &owner_cap,
         std::string::utf8(b"rmn_remote"),
         std::string::utf8(b"set_config"),
-        vector[1], // block version 1
+        1, // block version 1
         ctx,
     );
 
@@ -716,12 +716,12 @@ public fun test_curse_function_not_allowed() {
     setup_basic_config(&mut ref, &owner_cap);
 
     // Block the curse function using upgrade registry
-    upgrade_registry::update_function_restrictions(
+    upgrade_registry::block_function(
         &mut ref,
         &owner_cap,
         std::string::utf8(b"rmn_remote"),
         std::string::utf8(b"curse"),
-        vector[1], // block version 1
+        1, // block version 1
         ctx,
     );
 

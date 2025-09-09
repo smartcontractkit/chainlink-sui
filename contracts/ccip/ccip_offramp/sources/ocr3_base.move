@@ -15,7 +15,7 @@ const OCR_PLUGIN_TYPE_COMMIT: u8 = 0;
 const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
 const PUBLIC_KEY_NUM_BYTES: u64 = 32;
 
-const VERSION: u64 = 1;
+const VERSION: u8 = 1;
 
 public struct UnvalidatedPublicKey has copy, drop, store {
     bytes: vector<u8>,

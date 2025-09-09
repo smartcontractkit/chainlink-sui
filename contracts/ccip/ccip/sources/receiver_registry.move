@@ -36,7 +36,7 @@ const EAlreadyRegistered: u64 = 1;
 const EAlreadyInitialized: u64 = 2;
 const EUnknownReceiver: u64 = 3;
 
-const VERSION: u64 = 1;
+const VERSION: u8 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"ReceiverRegistry 1.6.0")

@@ -1164,12 +1164,12 @@ public fun test_register_pool_function_not_allowed() {
         let ctx = scenario.ctx();
 
         // Block the register_pool function using upgrade registry
-        upgrade_registry::update_function_restrictions(
+        upgrade_registry::block_function(
             &mut ref,
             &owner_cap,
             string::utf8(b"token_admin_registry"),
             string::utf8(b"register_pool"),
-            vector[1], // block version 1
+            1, // block version 1
             ctx,
         );
 
@@ -1235,12 +1235,12 @@ public fun test_set_pool_function_not_allowed() {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
         let ctx = scenario.ctx();
 
-        upgrade_registry::update_function_restrictions(
+        upgrade_registry::block_function(
             &mut ref,
             &owner_cap,
             string::utf8(b"token_admin_registry"),
             string::utf8(b"set_pool"),
-            vector[1], // block version 1
+            1, // block version 1
             ctx,
         );
 

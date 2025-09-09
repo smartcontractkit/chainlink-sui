@@ -150,7 +150,7 @@ const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
 const EInvalidFeeTokenMetadataAddress: u64 = 19;
 
-const VERSION: u64 = 1;
+const VERSION: u8 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"OnRamp 1.6.0")

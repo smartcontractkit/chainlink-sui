@@ -227,7 +227,7 @@ const EInvalidFunction: u64 = 27;
 const EInvalidTokenReceiver: u64 = 28;
 const ETokenTransferLimitExceeded: u64 = 29;
 
-const VERSION: u64 = 1;
+const VERSION: u8 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"OffRamp 1.6.0")

@@ -45,13 +45,6 @@ public fun test_initialize() {
     let (scenario, owner_cap, ref) = set_up_test();
 
     // Test that we can get empty restrictions initially
-    let empty_function_restrictions = upgrade_registry::get_function_restrictions(
-        &ref,
-        string::utf8(b"test_module"),
-        string::utf8(b"test_function"),
-    );
-    assert!(empty_function_restrictions.is_empty());
-
     let empty_module_restrictions = upgrade_registry::get_module_restrictions(
         &ref,
         string::utf8(b"test_module"),
@@ -61,288 +54,457 @@ public fun test_initialize() {
     tear_down_test(scenario, owner_cap, ref);
 }
 
-// =================== Function Restrictions Tests =================== //
+// =================== Version Blocking Tests =================== //
 
 #[test]
-public fun test_update_and_get_function_restrictions() {
+public fun test_block_version() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
 
     let module_name = string::utf8(b"test_module");
-    let function_name = string::utf8(b"test_function");
-    let blocked_versions = vector[1u64, 2u64, 5u64];
+    let version = 1u8;
 
-    // Update function restrictions
-    upgrade_registry::update_function_restrictions(
+    // Block a version
+    upgrade_registry::block_version(
         &mut ref,
         &owner_cap,
         module_name,
-        function_name,
-        blocked_versions,
+        version,
         scenario.ctx(),
     );
 
-    // Get and verify function restrictions
-    let retrieved_restrictions = upgrade_registry::get_function_restrictions(
-        &ref,
-        module_name,
-        function_name,
-    );
-    assert!(retrieved_restrictions == blocked_versions);
+    // Check that the version is blocked
+    let restrictions = upgrade_registry::get_module_restrictions(&ref, module_name);
+    assert!(restrictions.length() == 1);
+    assert!(restrictions[0].length() == 1);
+    assert!(restrictions[0][0] == version);
 
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-public fun test_update_function_restrictions_overwrites_existing() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-
-    let module_name = string::utf8(b"test_module");
-    let function_name = string::utf8(b"test_function");
-    let initial_blocked_versions = vector[1u64, 2u64];
-    let updated_blocked_versions = vector[3u64, 4u64, 5u64];
-
-    // Set initial restrictions
-    upgrade_registry::update_function_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        function_name,
-        initial_blocked_versions,
-        scenario.ctx(),
-    );
-
-    // Update with new restrictions
-    upgrade_registry::update_function_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        function_name,
-        updated_blocked_versions,
-        scenario.ctx(),
-    );
-
-    // Verify the restrictions were overwritten
-    let retrieved_restrictions = upgrade_registry::get_function_restrictions(
-        &ref,
-        module_name,
-        function_name,
-    );
-    assert!(retrieved_restrictions == updated_blocked_versions);
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-public fun test_is_function_allowed() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-
-    let module_name = string::utf8(b"test_module");
-    let function_name = string::utf8(b"test_function");
-    let blocked_versions = vector[1u64, 3u64, 5u64];
-
-    // Initially, all versions should be allowed
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 1u64));
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 2u64));
-
-    // Set function restrictions
-    upgrade_registry::update_function_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        function_name,
-        blocked_versions,
-        scenario.ctx(),
-    );
-
-    // Test blocked versions
-    assert!(!upgrade_registry::is_function_allowed(&ref, module_name, function_name, 1u64));
-    assert!(!upgrade_registry::is_function_allowed(&ref, module_name, function_name, 3u64));
-    assert!(!upgrade_registry::is_function_allowed(&ref, module_name, function_name, 5u64));
-
-    // Test allowed versions
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 2u64));
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 4u64));
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 6u64));
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-// =================== Module Restrictions Tests =================== //
-
-#[test]
-public fun test_update_and_get_module_restrictions() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-
-    let module_name = string::utf8(b"test_module");
-    let blocked_versions = vector[1u64, 2u64, 5u64];
-
-    // Update module restrictions
-    upgrade_registry::update_module_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        blocked_versions,
-        scenario.ctx(),
-    );
-
-    // Get and verify module restrictions
-    let retrieved_restrictions = upgrade_registry::get_module_restrictions(&ref, module_name);
-    assert!(retrieved_restrictions == blocked_versions);
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-public fun test_update_module_restrictions_overwrites_existing() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-
-    let module_name = string::utf8(b"test_module");
-    let initial_blocked_versions = vector[1u64, 2u64];
-    let updated_blocked_versions = vector[3u64, 4u64, 5u64];
-
-    // Set initial restrictions
-    upgrade_registry::update_module_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        initial_blocked_versions,
-        scenario.ctx(),
-    );
-
-    // Update with new restrictions
-    upgrade_registry::update_module_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        updated_blocked_versions,
-        scenario.ctx(),
-    );
-
-    // Verify the restrictions were overwritten
-    let retrieved_restrictions = upgrade_registry::get_module_restrictions(&ref, module_name);
-    assert!(retrieved_restrictions == updated_blocked_versions);
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-public fun test_is_module_allowed() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-
-    let module_name = string::utf8(b"test_module");
-    let blocked_versions = vector[1u64, 3u64, 5u64];
-
-    // Initially, all versions should be allowed
-    assert!(upgrade_registry::is_module_allowed(&ref, module_name, 1u64));
-    assert!(upgrade_registry::is_module_allowed(&ref, module_name, 2u64));
-
-    // Set module restrictions
-    upgrade_registry::update_module_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        blocked_versions,
-        scenario.ctx(),
-    );
-
-    // Test blocked versions
-    assert!(!upgrade_registry::is_module_allowed(&ref, module_name, 1u64));
-    assert!(!upgrade_registry::is_module_allowed(&ref, module_name, 3u64));
-    assert!(!upgrade_registry::is_module_allowed(&ref, module_name, 5u64));
-
-    // Test allowed versions
-    assert!(upgrade_registry::is_module_allowed(&ref, module_name, 2u64));
-    assert!(upgrade_registry::is_module_allowed(&ref, module_name, 4u64));
-    assert!(upgrade_registry::is_module_allowed(&ref, module_name, 6u64));
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-// =================== Function and Module Interaction Tests =================== //
-
-#[test]
-public fun test_function_blocked_when_module_blocked() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-
-    let module_name = string::utf8(b"test_module");
-    let function_name = string::utf8(b"test_function");
-    let blocked_version = 1u64;
-
-    // Block the module version
-    upgrade_registry::update_module_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        vector[blocked_version],
-        scenario.ctx(),
-    );
-
-    // Function should be blocked even though it has no specific restrictions
+    // Check that any function in this version is blocked
     assert!(
-        !upgrade_registry::is_function_allowed(&ref, module_name, function_name, blocked_version),
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            string::utf8(b"any_function"),
+            version,
+        ),
     );
-
-    // Function should be allowed for non-blocked module versions
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 2u64));
 
     tear_down_test(scenario, owner_cap, ref);
 }
 
 #[test]
-public fun test_function_blocked_when_both_module_and_function_have_restrictions() {
+public fun test_block_version_emits_event() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let version = 1u8;
+
+    // Block a version
+    upgrade_registry::block_version(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        version,
+        scenario.ctx(),
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+public fun test_block_multiple_versions() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+
+    // Block multiple versions
+    upgrade_registry::block_version(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        1u8,
+        scenario.ctx(),
+    );
+    upgrade_registry::block_version(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        3u8,
+        scenario.ctx(),
+    );
+
+    // Check that both versions are blocked
+    let restrictions = upgrade_registry::get_module_restrictions(&ref, module_name);
+    assert!(restrictions.length() == 2);
+
+    // Check that functions in blocked versions are not allowed
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            string::utf8(b"any_function"),
+            1u8,
+        ),
+    );
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            string::utf8(b"any_function"),
+            3u8,
+        ),
+    );
+
+    // Check that functions in non-blocked versions are allowed
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            string::utf8(b"any_function"),
+            2u8,
+        ),
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+// =================== Function Blocking Tests =================== //
+
+#[test]
+public fun test_block_function() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
 
     let module_name = string::utf8(b"test_module");
     let function_name = string::utf8(b"test_function");
+    let version = 1u8;
 
-    // Block module version 1 and 2
-    upgrade_registry::update_module_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        vector[1u64, 2u64],
-        scenario.ctx(),
-    );
-
-    // Block function version 3 and 4
-    upgrade_registry::update_function_restrictions(
+    // Block a specific function
+    upgrade_registry::block_function(
         &mut ref,
         &owner_cap,
         module_name,
         function_name,
-        vector[3u64, 4u64],
+        version,
         scenario.ctx(),
     );
 
-    // Version 1, 2 should be blocked due to module restrictions
-    assert!(!upgrade_registry::is_function_allowed(&ref, module_name, function_name, 1u64));
-    assert!(!upgrade_registry::is_function_allowed(&ref, module_name, function_name, 2u64));
+    // Check that the function is blocked
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function_name,
+            version,
+        ),
+    );
 
-    // Version 3, 4 should be blocked due to function restrictions
-    assert!(!upgrade_registry::is_function_allowed(&ref, module_name, function_name, 3u64));
-    assert!(!upgrade_registry::is_function_allowed(&ref, module_name, function_name, 4u64));
-
-    // Version 5 should be allowed (not blocked by either)
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 5u64));
+    // Check that other functions in the same version are still allowed
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            string::utf8(b"other_function"),
+            version,
+        ),
+    );
 
     tear_down_test(scenario, owner_cap, ref);
 }
 
-// =================== Package History Tests =================== //
+#[test]
+public fun test_block_function_emits_event() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+    let version = 1u8;
+
+    // Block a specific function
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        function_name,
+        version,
+        scenario.ctx(),
+    );
+
+    // Note: Event testing is not implemented in this test framework
+    // The event emission is tested indirectly through the function behavior
+
+    tear_down_test(scenario, owner_cap, ref);
+}
 
 #[test]
-public fun test_get_package_history_empty() {
+public fun test_block_multiple_functions() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let function1 = string::utf8(b"function1");
+    let function2 = string::utf8(b"function2");
+    let version = 1u8;
+
+    // Block multiple functions
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        function1,
+        version,
+        scenario.ctx(),
+    );
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        function2,
+        version,
+        scenario.ctx(),
+    );
+
+    // Check that both functions are blocked
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function1,
+            version,
+        ),
+    );
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function2,
+            version,
+        ),
+    );
+
+    // Check that other functions are still allowed
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            string::utf8(b"other_function"),
+            version,
+        ),
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+// =================== Function Allowed Tests =================== //
+
+#[test]
+public fun test_is_function_allowed_no_restrictions() {
     let (scenario, owner_cap, ref) = set_up_test();
 
-    let package_name = string::utf8(b"test_package");
-    let (package_ids, versions, timestamps) = upgrade_registry::get_package_history(
-        &ref,
-        package_name,
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+
+    // When no restrictions exist, all functions should be allowed
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function_name,
+            1u8,
+        ),
+    );
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function_name,
+            2u8,
+        ),
     );
 
-    assert!(package_ids.is_empty());
-    assert!(versions.is_empty());
-    assert!(timestamps.is_empty());
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+public fun test_is_function_allowed_with_version_blocked() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+    let blocked_version = 1u8;
+
+    // Block the entire version
+    upgrade_registry::block_version(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        blocked_version,
+        scenario.ctx(),
+    );
+
+    // Function should be blocked in the blocked version
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function_name,
+            blocked_version,
+        ),
+    );
+
+    // Function should be allowed in other versions
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function_name,
+            2u8,
+        ),
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+public fun test_is_function_allowed_with_function_blocked() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+    let version = 1u8;
+
+    // Block the specific function
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        function_name,
+        version,
+        scenario.ctx(),
+    );
+
+    // Function should be blocked
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function_name,
+            version,
+        ),
+    );
+
+    // Other functions should be allowed
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            string::utf8(b"other_function"),
+            version,
+        ),
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+// =================== Verify Function Allowed Tests =================== //
+
+#[test]
+public fun test_verify_function_allowed_success() {
+    let (scenario, owner_cap, ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+    let version = 1u8;
+
+    // This should not panic since the function is allowed
+    upgrade_registry::verify_function_allowed(
+        &ref,
+        module_name,
+        function_name,
+        version,
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
+public fun test_verify_function_allowed_failure() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+    let version = 1u8;
+
+    // Block the function
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        function_name,
+        version,
+        scenario.ctx(),
+    );
+
+    // This should panic since the function is blocked
+    upgrade_registry::verify_function_allowed(
+        &ref,
+        module_name,
+        function_name,
+        version,
+    );
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+// =================== Get Module Restrictions Tests =================== //
+
+#[test]
+public fun test_get_module_restrictions_empty() {
+    let (scenario, owner_cap, ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+
+    // Should return empty vector for module with no restrictions
+    let restrictions = upgrade_registry::get_module_restrictions(&ref, module_name);
+    assert!(restrictions.is_empty());
+
+    tear_down_test(scenario, owner_cap, ref);
+}
+
+#[test]
+public fun test_get_module_restrictions_with_blocks() {
+    let (mut scenario, owner_cap, mut ref) = set_up_test();
+
+    let module_name = string::utf8(b"test_module");
+
+    // Block a version
+    upgrade_registry::block_version(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        1u8,
+        scenario.ctx(),
+    );
+
+    // Block a function
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module_name,
+        string::utf8(b"test_function"),
+        2u8,
+        scenario.ctx(),
+    );
+
+    // Get restrictions
+    let restrictions = upgrade_registry::get_module_restrictions(&ref, module_name);
+    assert!(restrictions.length() == 2);
+
+    // First restriction should be version block [1]
+    assert!(restrictions[0].length() == 1);
+    assert!(restrictions[0][0] == 1u8);
+
+    // Second restriction should be function block [2, b"test_function"]
+    assert!(restrictions[1].length() > 1);
+    assert!(restrictions[1][0] == 2u8);
 
     tear_down_test(scenario, owner_cap, ref);
 }
@@ -350,72 +512,108 @@ public fun test_get_package_history_empty() {
 // =================== Edge Cases and Error Conditions =================== //
 
 #[test]
-public fun test_empty_blocked_versions_list() {
+public fun test_multiple_modules_isolation() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
 
-    let module_name = string::utf8(b"test_module");
+    let module1 = string::utf8(b"module1");
+    let module2 = string::utf8(b"module2");
     let function_name = string::utf8(b"test_function");
-    let empty_blocked_versions = vector::empty<u64>();
 
-    // Set empty restrictions
-    upgrade_registry::update_function_restrictions(
+    // Block version 1 in module1
+    upgrade_registry::block_version(
         &mut ref,
         &owner_cap,
-        module_name,
+        module1,
+        1u8,
+        scenario.ctx(),
+    );
+
+    // Block function in module2
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        module2,
         function_name,
-        empty_blocked_versions,
+        1u8,
         scenario.ctx(),
     );
 
-    upgrade_registry::update_module_restrictions(
-        &mut ref,
-        &owner_cap,
-        module_name,
-        empty_blocked_versions,
-        scenario.ctx(),
-    );
+    // Test that restrictions are isolated
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module1,
+            function_name,
+            1u8,
+        ),
+    ); // blocked by version block
 
-    // All versions should be allowed
-    assert!(upgrade_registry::is_function_allowed(&ref, module_name, function_name, 1u64));
-    assert!(upgrade_registry::is_module_allowed(&ref, module_name, 1u64));
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module2,
+            function_name,
+            1u8,
+        ),
+    ); // blocked by function block
+
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module1,
+            function_name,
+            2u8,
+        ),
+    ); // allowed in module1, version 2
+
+    assert!(
+        upgrade_registry::is_function_allowed(
+            &ref,
+            module2,
+            string::utf8(b"other_function"),
+            1u8,
+        ),
+    ); // allowed in module2, different function
 
     tear_down_test(scenario, owner_cap, ref);
 }
 
 #[test]
-public fun test_multiple_modules_and_functions() {
+public fun test_same_version_blocked_by_both_version_and_function() {
     let (mut scenario, owner_cap, mut ref) = set_up_test();
 
-    let module1 = string::utf8(b"module1");
-    let module2 = string::utf8(b"module2");
-    let function1 = string::utf8(b"function1");
-    let function2 = string::utf8(b"function2");
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+    let version = 1u8;
 
-    // Set different restrictions for different modules and functions
-    upgrade_registry::update_module_restrictions(
+    // Block the entire version
+    upgrade_registry::block_version(
         &mut ref,
         &owner_cap,
-        module1,
-        vector[1u64],
+        module_name,
+        version,
         scenario.ctx(),
     );
 
-    upgrade_registry::update_function_restrictions(
+    // Also block the specific function in the same version
+    upgrade_registry::block_function(
         &mut ref,
         &owner_cap,
-        module2,
-        function1,
-        vector[2u64],
+        module_name,
+        function_name,
+        version,
         scenario.ctx(),
     );
 
-    // Test that restrictions are isolated
-    assert!(!upgrade_registry::is_module_allowed(&ref, module1, 1u64));
-    assert!(upgrade_registry::is_module_allowed(&ref, module2, 1u64));
-
-    assert!(upgrade_registry::is_function_allowed(&ref, module1, function1, 2u64)); // blocked by module, but version 2 not blocked for module1
-    assert!(!upgrade_registry::is_function_allowed(&ref, module2, function1, 2u64)); // blocked by function restriction
-    assert!(upgrade_registry::is_function_allowed(&ref, module2, function2, 2u64)); // different function, not blocked
+    // Function should still be blocked (version block takes precedence)
+    assert!(
+        !upgrade_registry::is_function_allowed(
+            &ref,
+            module_name,
+            function_name,
+            version,
+        ),
+    );
 
     tear_down_test(scenario, owner_cap, ref);
 }

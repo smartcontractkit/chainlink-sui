@@ -6,7 +6,7 @@ use ccip::upgrade_registry::verify_function_allowed;
 use std::string::{Self, String};
 use sui::table::{Self, Table};
 
-const VERSION: u64 = 1;
+const VERSION: u8 = 1;
 
 // store this cap to onramp
 public struct NonceManagerCap has key, store {

@@ -90,7 +90,7 @@ const EInvalidSubjectLength: u64 = 16;
 const EInvalidPublicKeyLength: u64 = 17;
 const EInvalidFunction: u64 = 18;
 
-const VERSION: u64 = 1;
+const VERSION: u8 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
