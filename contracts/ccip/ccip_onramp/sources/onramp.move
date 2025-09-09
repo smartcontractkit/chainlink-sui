@@ -1,5 +1,6 @@
 module ccip_onramp::onramp;
 
+use ccip::bcs_helper;
 use ccip::eth_abi;
 use ccip::fee_quoter;
 use ccip::merkle_proof;
@@ -145,7 +146,9 @@ const ECannotSendZeroTokens: u64 = 15;
 const EZeroChainSelector: u64 = 16;
 const ECalculateMessageHashInvalidArguments: u64 = 17;
 const EInvalidRemoteChainSelector: u64 = 18;
-const EInvalidFunction: u64 = 19;
+const DuplicateSourceTokenCoinMetadataAddress: u64 = 19;
+const EInvalidFunction: u64 = 20;
+const EInvalidFeeTokenMetadataAddress: u64 = 21;
 
 public fun type_and_version(): String {
     string::utf8(b"OnRamp 1.6.0")
@@ -928,23 +931,23 @@ public fun accept_ownership_from_object(
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
-// Cannot call through `mcms_entrypoint` as owner cap is not registered with MCMS registry
-public fun accept_ownership_as_mcms(
+public fun mcms_accept_ownership(
     state: &mut OnRampState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
         params,
         McmsCallback {},
     );
-    assert!(function_name == string::utf8(b"accept_ownership_as_mcms"), EInvalidFunction);
+    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    let mcms = bcs_stream::deserialize_address(&mut stream);
+    bcs_helper::validate_obj_addr(object::id_address(state), &mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    ownable::accept_ownership_as_mcms(&mut state.ownable_state, mcms, ctx);
+    let mcms = mcms_registry::get_multisig_address();
+    ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
 public fun execute_ownership_transfer(
@@ -993,10 +996,76 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-public fun mcms_entrypoint(
+public fun mcms_set_dynamic_config(
     state: &mut OnRampState,
     registry: &mut Registry,
-    params: ExecutingCallbackParams, // hot potato
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_dynamic_config"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let fee_aggregator = bcs_stream::deserialize_address(&mut stream);
+    let allowlist_admin = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_dynamic_config(state, owner_cap, fee_aggregator, allowlist_admin);
+}
+
+public fun mcms_apply_dest_chain_config_updates(
+    state: &mut OnRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"apply_dest_chain_config_updates"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let dest_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let dest_chain_enabled = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    apply_dest_chain_config_updates(
+        state,
+        owner_cap,
+        dest_chain_selectors,
+        dest_chain_enabled,
+        dest_chain_allowlist_enabled,
+    );
+}
+
+public fun mcms_apply_allowlist_updates(
+    state: &mut OnRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
@@ -1004,80 +1073,181 @@ public fun mcms_entrypoint(
         McmsCallback {},
         params,
     );
+    assert!(function == string::utf8(b"apply_allowlist_updates"), EInvalidFunction);
 
-    let function_bytes = *function.as_bytes();
     let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
 
-    if (function_bytes == b"set_dynamic_config") {
-        let fee_aggregator = bcs_stream::deserialize_address(&mut stream);
-        let allowlist_admin = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        set_dynamic_config(state, owner_cap, fee_aggregator, allowlist_admin);
-    } else if (function_bytes == b"apply_dest_chain_config_updates") {
-        let dest_chain_selectors = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let dest_chain_enabled = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_bool(stream),
-        );
-        let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_bool(stream),
-        );
-        bcs_stream::assert_is_consumed(&stream);
-        apply_dest_chain_config_updates(
-            state,
-            owner_cap,
-            dest_chain_selectors,
-            dest_chain_enabled,
-            dest_chain_allowlist_enabled,
-        );
-    } else if (function_bytes == b"apply_allowlist_updates") {
-        let dest_chain_selectors = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_u64(stream),
-        );
-        let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_bool(stream),
-        );
-        let dest_chain_add_allowed_senders = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_vector!(
-                stream,
-                |stream| bcs_stream::deserialize_address(stream),
-            ),
-        );
-        let dest_chain_remove_allowed_senders = bcs_stream::deserialize_vector!(
-            &mut stream,
-            |stream| bcs_stream::deserialize_vector!(
-                stream,
-                |stream| bcs_stream::deserialize_address(stream),
-            ),
-        );
-        apply_allowlist_updates(
-            state,
-            owner_cap,
-            dest_chain_selectors,
-            dest_chain_allowlist_enabled,
-            dest_chain_add_allowed_senders,
-            dest_chain_remove_allowed_senders,
-            ctx,
-        );
-    } else if (function_bytes == b"transfer_ownership") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        transfer_ownership(state, owner_cap, to, ctx);
-    } else if (function_bytes == b"execute_ownership_transfer") {
-        let to = bcs_stream::deserialize_address(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-        execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
-    } else {
-        abort EUnknownFunction
-    };
+    let dest_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let dest_chain_add_allowed_senders = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector!(
+            stream,
+            |stream| bcs_stream::deserialize_address(stream),
+        ),
+    );
+    let dest_chain_remove_allowed_senders = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector!(
+            stream,
+            |stream| bcs_stream::deserialize_address(stream),
+        ),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    apply_allowlist_updates(
+        state,
+        owner_cap,
+        dest_chain_selectors,
+        dest_chain_allowlist_enabled,
+        dest_chain_add_allowed_senders,
+        dest_chain_remove_allowed_senders,
+        ctx,
+    );
+}
+
+public fun mcms_transfer_ownership(
+    state: &mut OnRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(state, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer(
+    state: &mut OnRampState,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
+    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+}
+
+public fun mcms_initialize(
+    state: &mut OnRampState,
+    registry: &mut Registry,
+    nonce_manager_cap: NonceManagerCap,
+    source_transfer_cap: osh::SourceTransferCap,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"initialize"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let chain_selector = bcs_stream::deserialize_u64(&mut stream);
+    let fee_aggregator = bcs_stream::deserialize_address(&mut stream);
+    let allowlist_admin = bcs_stream::deserialize_address(&mut stream);
+    let dest_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_u64(stream),
+    );
+    let dest_chain_enabled = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_bool(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    initialize(
+        state,
+        owner_cap,
+        nonce_manager_cap,
+        source_transfer_cap,
+        chain_selector,
+        fee_aggregator,
+        allowlist_admin,
+        dest_chain_selectors,
+        dest_chain_enabled,
+        dest_chain_allowlist_enabled,
+        ctx,
+    );
+}
+
+public fun mcms_withdraw_fee_tokens<T>(
+    state: &mut OnRampState,
+    registry: &mut Registry,
+    fee_token_metadata: &CoinMetadata<T>,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"withdraw_fee_tokens"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    assert!(
+        coin_metadata_address == object::id_address(fee_token_metadata),
+        EInvalidFeeTokenMetadataAddress,
+    );
+
+    bcs_stream::assert_is_consumed(&stream);
+
+    withdraw_fee_tokens(state, owner_cap, fee_token_metadata);
 }
 
 // ============================== Test Functions ============================== //
