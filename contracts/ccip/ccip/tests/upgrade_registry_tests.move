@@ -58,14 +58,6 @@ public fun test_initialize() {
     );
     assert!(empty_module_restrictions.is_empty());
 
-    let (package_ids, versions, timestamps) = upgrade_registry::get_package_history(
-        &ref,
-        string::utf8(b"test_package"),
-    );
-    assert!(package_ids.is_empty());
-    assert!(versions.is_empty());
-    assert!(timestamps.is_empty());
-
     tear_down_test(scenario, owner_cap, ref);
 }
 

@@ -28,7 +28,6 @@ type IUpgradeRegistry interface {
 	UpdateModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, moduleName string, blockedVersions []uint64) (*models.SuiTransactionBlockResponse, error)
 	GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string) (*models.SuiTransactionBlockResponse, error)
 	IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, contractVersion uint64) (*models.SuiTransactionBlockResponse, error)
-	GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageName string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IUpgradeRegistryDevInspect
 	Encoder() UpgradeRegistryEncoder
 }
@@ -38,7 +37,6 @@ type IUpgradeRegistryDevInspect interface {
 	IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, contractVersion uint64) (bool, error)
 	GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string) ([]uint64, error)
 	IsModuleAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, contractVersion uint64) (bool, error)
-	GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageName string) ([]any, error)
 }
 
 type UpgradeRegistryEncoder interface {
@@ -58,8 +56,6 @@ type UpgradeRegistryEncoder interface {
 	GetModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsModuleAllowed(ref bind.Object, moduleName string, contractVersion uint64) (*bind.EncodedCall, error)
 	IsModuleAllowedWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetPackageHistory(ref bind.Object, packageName string) (*bind.EncodedCall, error)
-	GetPackageHistoryWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type UpgradeRegistryContract struct {
@@ -108,12 +104,6 @@ type ModuleRestrictionsUpdated struct {
 	BlockedVersions []uint64 `move:"vector<u64>"`
 }
 
-type PackageHistory struct {
-	PackageId string `move:"address"`
-	Version   uint64 `move:"u64"`
-	Timestamp uint64 `move:"u64"`
-}
-
 type FunctionKey struct {
 	ModuleName   string `move:"0x1::string::String"`
 	FunctionName string `move:"0x1::string::String"`
@@ -123,22 +113,6 @@ type UpgradeRegistry struct {
 	Id                   string      `move:"sui::object::UID"`
 	FunctionRestrictions bind.Object `move:"Table<FunctionKey, vector<u64>>"`
 	ModuleRestrictions   bind.Object `move:"Table<String, vector<u64>>"`
-	PackageHistory       bind.Object `move:"Table<String, vector<PackageHistory>>"`
-}
-
-type bcsPackageHistory struct {
-	PackageId [32]byte
-	Version   uint64
-	Timestamp uint64
-}
-
-func convertPackageHistoryFromBCS(bcs bcsPackageHistory) (PackageHistory, error) {
-
-	return PackageHistory{
-		PackageId: fmt.Sprintf("0x%x", bcs.PackageId),
-		Version:   bcs.Version,
-		Timestamp: bcs.Timestamp,
-	}, nil
 }
 
 func init() {
@@ -153,19 +127,6 @@ func init() {
 	bind.RegisterStructDecoder("ccip::upgrade_registry::ModuleRestrictionsUpdated", func(data []byte) (interface{}, error) {
 		var result ModuleRestrictionsUpdated
 		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("ccip::upgrade_registry::PackageHistory", func(data []byte) (interface{}, error) {
-		var temp bcsPackageHistory
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertPackageHistoryFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -269,16 +230,6 @@ func (c *UpgradeRegistryContract) IsModuleAllowed(ctx context.Context, opts *bin
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetPackageHistory executes the get_package_history Move function.
-func (c *UpgradeRegistryContract) GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageName string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.GetPackageHistory(ref, packageName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // GetFunctionRestrictions executes the get_function_restrictions Move function using DevInspect to get return values.
 //
 // Returns: vector<u64>
@@ -365,21 +316,6 @@ func (d *UpgradeRegistryDevInspect) IsModuleAllowed(ctx context.Context, opts *b
 		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
 	}
 	return result, nil
-}
-
-// GetPackageHistory executes the get_package_history Move function using DevInspect to get return values.
-//
-// Returns:
-//
-//	[0]: vector<address>
-//	[1]: vector<u64>
-//	[2]: vector<u64>
-func (d *UpgradeRegistryDevInspect) GetPackageHistory(ctx context.Context, opts *bind.CallOpts, ref bind.Object, packageName string) ([]any, error) {
-	encoded, err := d.contract.upgradeRegistryEncoder.GetPackageHistory(ref, packageName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	return d.contract.Call(ctx, opts, encoded)
 }
 
 type upgradeRegistryEncoder struct {
@@ -664,42 +600,5 @@ func (c upgradeRegistryEncoder) IsModuleAllowedWithArgs(args ...any) (*bind.Enco
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("is_module_allowed", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"bool",
-	})
-}
-
-// GetPackageHistory encodes a call to the get_package_history Move function.
-func (c upgradeRegistryEncoder) GetPackageHistory(ref bind.Object, packageName string) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_package_history", typeArgsList, typeParamsList, []string{
-		"&CCIPObjectRef",
-		"0x1::string::String",
-	}, []any{
-		ref,
-		packageName,
-	}, []string{
-		"vector<address>",
-		"vector<u64>",
-		"vector<u64>",
-	})
-}
-
-// GetPackageHistoryWithArgs encodes a call to the get_package_history Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c upgradeRegistryEncoder) GetPackageHistoryWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&CCIPObjectRef",
-		"0x1::string::String",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_package_history", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<address>",
-		"vector<u64>",
-		"vector<u64>",
 	})
 }

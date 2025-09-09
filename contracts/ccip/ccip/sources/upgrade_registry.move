@@ -17,12 +17,6 @@ public struct ModuleRestrictionsUpdated has copy, drop {
     blocked_versions: vector<u64>,
 }
 
-public struct PackageHistory has copy, drop, store {
-    package_id: address,
-    version: u64,
-    timestamp: u64,
-}
-
 public struct FunctionKey has copy, drop, store {
     module_name: String,
     function_name: String,
@@ -36,7 +30,6 @@ public struct UpgradeRegistry has key, store {
     function_restrictions: Table<FunctionKey, vector<u64>>,
     //  module_name -> blocked versions
     module_restrictions: Table<String, vector<u64>>,
-    package_history: Table<String, vector<PackageHistory>>,
 }
 
 public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
@@ -44,7 +37,6 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
         id: object::new(ctx),
         function_restrictions: table::new(ctx),
         module_restrictions: table::new(ctx),
-        package_history: table::new(ctx),
     };
 
     state_object::add(ref, owner_cap, registry, ctx);
@@ -174,25 +166,5 @@ public fun is_module_allowed(
     } else {
         let blocked_versions = registry.module_restrictions.borrow(module_name);
         !blocked_versions.contains(&contract_version)
-    }
-}
-
-// =================== Package History =================== //
-
-// To be used by off-chain systems to get the package history of a given module
-public fun get_package_history(
-    ref: &CCIPObjectRef,
-    package_name: String,
-): (vector<address>, vector<u64>, vector<u64>) {
-    let registry = state_object::borrow<UpgradeRegistry>(ref);
-
-    if (!registry.package_history.contains(package_name)) {
-        (vector::empty(), vector::empty(), vector::empty())
-    } else {
-        let package_history = registry.package_history.borrow(package_name);
-        let package_ids = package_history.map_ref!(|ph| ph.package_id);
-        let versions = package_history.map_ref!(|ph| ph.version);
-        let timestamps = package_history.map_ref!(|ph| ph.timestamp);
-        (package_ids, versions, timestamps)
     }
 }
