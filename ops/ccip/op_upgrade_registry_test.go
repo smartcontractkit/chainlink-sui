@@ -126,34 +126,32 @@ func TestUpgradeRegistryOperations(t *testing.T) {
 	require.NotEmpty(t, report.Output.CCIPPackageId, "CCIP package ID should not be empty")
 	require.NotEmpty(t, report.Output.Objects.UpgradeRegistryObjectId, "UpgradeRegistry object ID should not be empty")
 
-	t.Run("Test Function Restrictions", func(t *testing.T) {
-		// Test updating function restrictions
-		_, err := cld_ops.ExecuteOperation(bundle, UpdateFunctionRestrictionsOp, deps, UpdateFunctionRestrictionsInput{
+	t.Run("Test Version Blocking", func(t *testing.T) {
+		// Test blocking a version
+		_, err := cld_ops.ExecuteOperation(bundle, BlockVersionOp, deps, BlockVersionInput{
 			CCIPPackageId:    report.Output.CCIPPackageId,
 			StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
 			ModuleName:       "test_module",
-			FunctionName:     "test_function",
-			BlockedVersions:  []uint64{1, 2, 3},
+			Version:          1,
 		})
-		require.NoError(t, err, "failed to update function restrictions")
+		require.NoError(t, err, "failed to block version")
 
-		// Test getting function restrictions
-		getFuncRestrictionsReport, err := cld_ops.ExecuteOperation(bundle, GetFunctionRestrictionsOp, deps, GetFunctionRestrictionsInput{
+		// Test getting module restrictions after blocking version
+		getModuleRestrictionsReport, err := cld_ops.ExecuteOperation(bundle, GetModuleRestrictionsOp, deps, GetModuleRestrictionsInput{
 			CCIPPackageId: report.Output.CCIPPackageId,
 			StateObjectId: report.Output.Objects.CCIPObjectRefObjectId,
 			ModuleName:    "test_module",
-			FunctionName:  "test_function",
 		})
-		require.NoError(t, err, "failed to get function restrictions")
-		require.Equal(t, []uint64{1, 2, 3}, getFuncRestrictionsReport.Output.Objects.BlockedVersions, "blocked versions should match")
+		require.NoError(t, err, "failed to get module restrictions")
+		require.NotEmpty(t, getModuleRestrictionsReport.Output.Objects.Restrictions, "restrictions should not be empty")
 
-		// Test checking if function is allowed
+		// Test checking if function is allowed (should be blocked due to version block)
 		isFuncAllowedReport, err := cld_ops.ExecuteOperation(bundle, IsFunctionAllowedOp, deps, IsFunctionAllowedInput{
 			CCIPPackageId:   report.Output.CCIPPackageId,
 			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
 			ModuleName:      "test_module",
-			FunctionName:    "test_function",
+			FunctionName:    "any_function",
 			ContractVersion: 1,
 		})
 		require.NoError(t, err, "failed to check if function is allowed")
@@ -164,51 +162,99 @@ func TestUpgradeRegistryOperations(t *testing.T) {
 			CCIPPackageId:   report.Output.CCIPPackageId,
 			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
 			ModuleName:      "test_module",
-			FunctionName:    "test_function",
-			ContractVersion: 4,
+			FunctionName:    "any_function",
+			ContractVersion: 2,
 		})
 		require.NoError(t, err, "failed to check if function is allowed")
-		require.True(t, isFuncAllowedReport2.Output.Objects.IsAllowed, "function version 4 should be allowed")
+		require.True(t, isFuncAllowedReport2.Output.Objects.IsAllowed, "function version 2 should be allowed")
 	})
 
-	t.Run("Test Module Restrictions", func(t *testing.T) {
-		// Test updating module restrictions
-		_, err := cld_ops.ExecuteOperation(bundle, UpdateModuleRestrictionsOp, deps, UpdateModuleRestrictionsInput{
+	t.Run("Test Function Blocking", func(t *testing.T) {
+		// Test blocking a specific function
+		_, err := cld_ops.ExecuteOperation(bundle, BlockFunctionOp, deps, BlockFunctionInput{
 			CCIPPackageId:    report.Output.CCIPPackageId,
 			StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
 			ModuleName:       "test_module_2",
-			BlockedVersions:  []uint64{5, 6},
+			FunctionName:     "test_function",
+			Version:          1,
 		})
-		require.NoError(t, err, "failed to update module restrictions")
+		require.NoError(t, err, "failed to block function")
 
-		// Test getting module restrictions
+		// Test checking if blocked function is allowed
+		isFuncAllowedReport, err := cld_ops.ExecuteOperation(bundle, IsFunctionAllowedOp, deps, IsFunctionAllowedInput{
+			CCIPPackageId:   report.Output.CCIPPackageId,
+			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
+			ModuleName:      "test_module_2",
+			FunctionName:    "test_function",
+			ContractVersion: 1,
+		})
+		require.NoError(t, err, "failed to check if function is allowed")
+		require.False(t, isFuncAllowedReport.Output.Objects.IsAllowed, "function should be blocked")
+
+		// Test checking if other function in same version is allowed
+		isFuncAllowedReport2, err := cld_ops.ExecuteOperation(bundle, IsFunctionAllowedOp, deps, IsFunctionAllowedInput{
+			CCIPPackageId:   report.Output.CCIPPackageId,
+			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
+			ModuleName:      "test_module_2",
+			FunctionName:    "other_function",
+			ContractVersion: 1,
+		})
+		require.NoError(t, err, "failed to check if function is allowed")
+		require.True(t, isFuncAllowedReport2.Output.Objects.IsAllowed, "other function should be allowed")
+	})
+
+	t.Run("Test Function Verification", func(t *testing.T) {
+		// Test verifying an allowed function (should succeed)
+		_, err := cld_ops.ExecuteOperation(bundle, VerifyFunctionAllowedOp, deps, VerifyFunctionAllowedInput{
+			CCIPPackageId:   report.Output.CCIPPackageId,
+			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
+			ModuleName:      "test_module_3",
+			FunctionName:    "allowed_function",
+			ContractVersion: 1,
+		})
+		require.NoError(t, err, "failed to verify allowed function")
+
+		// Test verifying a blocked function (should fail)
+		// First block the function
+		_, err = cld_ops.ExecuteOperation(bundle, BlockFunctionOp, deps, BlockFunctionInput{
+			CCIPPackageId:    report.Output.CCIPPackageId,
+			StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
+			OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
+			ModuleName:       "test_module_3",
+			FunctionName:     "blocked_function",
+			Version:          1,
+		})
+		require.NoError(t, err, "failed to block function")
+
+		// Now try to verify the blocked function (should fail)
+		_, err = cld_ops.ExecuteOperation(bundle, VerifyFunctionAllowedOp, deps, VerifyFunctionAllowedInput{
+			CCIPPackageId:   report.Output.CCIPPackageId,
+			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
+			ModuleName:      "test_module_3",
+			FunctionName:    "blocked_function",
+			ContractVersion: 1,
+		})
+		require.Error(t, err, "verification of blocked function should fail")
+	})
+
+	t.Run("Test Module Restrictions", func(t *testing.T) {
+		// Test getting module restrictions for a module with no restrictions
 		getModuleRestrictionsReport, err := cld_ops.ExecuteOperation(bundle, GetModuleRestrictionsOp, deps, GetModuleRestrictionsInput{
 			CCIPPackageId: report.Output.CCIPPackageId,
 			StateObjectId: report.Output.Objects.CCIPObjectRefObjectId,
-			ModuleName:    "test_module_2",
+			ModuleName:    "unrestricted_module",
 		})
 		require.NoError(t, err, "failed to get module restrictions")
-		require.Equal(t, []uint64{5, 6}, getModuleRestrictionsReport.Output.Objects.BlockedVersions, "blocked versions should match")
+		require.Empty(t, getModuleRestrictionsReport.Output.Objects.Restrictions, "restrictions should be empty for unrestricted module")
 
-		// Test checking if module is allowed
-		isModuleAllowedReport, err := cld_ops.ExecuteOperation(bundle, IsModuleAllowedOp, deps, IsModuleAllowedInput{
-			CCIPPackageId:   report.Output.CCIPPackageId,
-			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
-			ModuleName:      "test_module_2",
-			ContractVersion: 5,
+		// Test getting module restrictions for a module with restrictions
+		getModuleRestrictionsReport2, err := cld_ops.ExecuteOperation(bundle, GetModuleRestrictionsOp, deps, GetModuleRestrictionsInput{
+			CCIPPackageId: report.Output.CCIPPackageId,
+			StateObjectId: report.Output.Objects.CCIPObjectRefObjectId,
+			ModuleName:    "test_module", // This module has version 1 blocked from previous test
 		})
-		require.NoError(t, err, "failed to check if module is allowed")
-		require.False(t, isModuleAllowedReport.Output.Objects.IsAllowed, "module version 5 should be blocked")
-
-		// Test with allowed version
-		isModuleAllowedReport2, err := cld_ops.ExecuteOperation(bundle, IsModuleAllowedOp, deps, IsModuleAllowedInput{
-			CCIPPackageId:   report.Output.CCIPPackageId,
-			StateObjectId:   report.Output.Objects.CCIPObjectRefObjectId,
-			ModuleName:      "test_module_2",
-			ContractVersion: 7,
-		})
-		require.NoError(t, err, "failed to check if module is allowed")
-		require.True(t, isModuleAllowedReport2.Output.Objects.IsAllowed, "module version 7 should be allowed")
+		require.NoError(t, err, "failed to get module restrictions")
+		require.NotEmpty(t, getModuleRestrictionsReport2.Output.Objects.Restrictions, "restrictions should not be empty for restricted module")
 	})
 }

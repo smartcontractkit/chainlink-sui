@@ -65,120 +65,174 @@ var UpgradeRegistryInitializeOp = cld_ops.NewOperation(
 	initUpgradeRegistryHandler,
 )
 
-// =================== Function Restrictions Operations =================== //
+// =================== Version Blocking Operations =================== //
 
-type UpdateFunctionRestrictionsInput struct {
+type BlockVersionInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+	ModuleName       string
+	Version          uint8
+}
+
+type BlockVersionObjects struct {
+	// No specific objects are returned from block operations
+}
+
+var blockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BlockVersionInput) (output sui_ops.OpTxResult[BlockVersionObjects], err error) {
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.BlockVersion(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.ModuleName,
+		input.Version,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[BlockVersionObjects]{}, fmt.Errorf("failed to execute BlockVersion: %w", err)
+	}
+
+	b.Logger.Infow("Version blocked",
+		"moduleName", input.ModuleName,
+		"version", input.Version,
+	)
+
+	return sui_ops.OpTxResult[BlockVersionObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   BlockVersionObjects{},
+	}, nil
+}
+
+var BlockVersionOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "block_version"),
+	semver.MustParse("0.1.0"),
+	"Blocks an entire version of a module in the UpgradeRegistry",
+	blockVersionHandler,
+)
+
+// =================== Function Blocking Operations =================== //
+
+type BlockFunctionInput struct {
 	CCIPPackageId    string
 	StateObjectId    string
 	OwnerCapObjectId string
 	ModuleName       string
 	FunctionName     string
-	BlockedVersions  []uint64
+	Version          uint8
 }
 
-type UpdateFunctionRestrictionsObjects struct {
-	// No specific objects are returned from update operations
+type BlockFunctionObjects struct {
+	// No specific objects are returned from block operations
 }
 
-var updateFunctionRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UpdateFunctionRestrictionsInput) (output sui_ops.OpTxResult[UpdateFunctionRestrictionsObjects], err error) {
+var blockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BlockFunctionInput) (output sui_ops.OpTxResult[BlockFunctionObjects], err error) {
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[UpdateFunctionRestrictionsObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.UpdateFunctionRestrictions(
+	tx, err := contract.BlockFunction(
 		b.GetContext(),
 		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.ModuleName,
 		input.FunctionName,
-		input.BlockedVersions,
+		input.Version,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[UpdateFunctionRestrictionsObjects]{}, fmt.Errorf("failed to execute UpdateFunctionRestrictions: %w", err)
+		return sui_ops.OpTxResult[BlockFunctionObjects]{}, fmt.Errorf("failed to execute BlockFunction: %w", err)
 	}
 
-	b.Logger.Infow("Function restrictions updated",
+	b.Logger.Infow("Function blocked",
 		"moduleName", input.ModuleName,
 		"functionName", input.FunctionName,
-		"blockedVersions", input.BlockedVersions,
+		"version", input.Version,
 	)
 
-	return sui_ops.OpTxResult[UpdateFunctionRestrictionsObjects]{
+	return sui_ops.OpTxResult[BlockFunctionObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-		Objects:   UpdateFunctionRestrictionsObjects{},
+		Objects:   BlockFunctionObjects{},
 	}, nil
 }
 
-var UpdateFunctionRestrictionsOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "update_function_restrictions"),
+var BlockFunctionOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "block_function"),
 	semver.MustParse("0.1.0"),
-	"Updates function restrictions in the UpgradeRegistry",
-	updateFunctionRestrictionsHandler,
+	"Blocks a specific function in a specific version in the UpgradeRegistry",
+	blockFunctionHandler,
 )
 
-type GetFunctionRestrictionsInput struct {
+// =================== Module Restrictions Operations =================== //
+
+type GetModuleRestrictionsInput struct {
 	CCIPPackageId string
 	StateObjectId string
 	ModuleName    string
-	FunctionName  string
 }
 
-type GetFunctionRestrictionsOutput struct {
-	BlockedVersions []uint64
+type GetModuleRestrictionsOutput struct {
+	Restrictions [][]byte
 }
 
-var getFunctionRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFunctionRestrictionsInput) (output sui_ops.OpTxResult[GetFunctionRestrictionsOutput], err error) {
+var getModuleRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetModuleRestrictionsInput) (output sui_ops.OpTxResult[GetModuleRestrictionsOutput], err error) {
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[GetFunctionRestrictionsOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
+		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	blockedVersions, err := contract.DevInspect().GetFunctionRestrictions(
+	restrictions, err := contract.DevInspect().GetModuleRestrictions(
 		b.GetContext(),
 		opts,
 		bind.Object{Id: input.StateObjectId},
 		input.ModuleName,
-		input.FunctionName,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[GetFunctionRestrictionsOutput]{}, fmt.Errorf("failed to get function restrictions: %w", err)
+		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, fmt.Errorf("failed to get module restrictions: %w", err)
 	}
 
-	b.Logger.Infow("Function restrictions retrieved",
+	b.Logger.Infow("Module restrictions retrieved",
 		"moduleName", input.ModuleName,
-		"functionName", input.FunctionName,
-		"blockedVersions", blockedVersions,
+		"restrictions", restrictions,
 	)
 
-	return sui_ops.OpTxResult[GetFunctionRestrictionsOutput]{
+	return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{
 		Digest:    "",
 		PackageId: input.CCIPPackageId,
-		Objects: GetFunctionRestrictionsOutput{
-			BlockedVersions: blockedVersions,
+		Objects: GetModuleRestrictionsOutput{
+			Restrictions: restrictions,
 		},
 	}, nil
 }
 
-var GetFunctionRestrictionsOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "get_function_restrictions"),
+var GetModuleRestrictionsOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "get_module_restrictions"),
 	semver.MustParse("0.1.0"),
-	"Gets function restrictions from the UpgradeRegistry",
-	getFunctionRestrictionsHandler,
+	"Gets module restrictions from the UpgradeRegistry",
+	getModuleRestrictionsHandler,
 )
+
+// =================== Function Permission Operations =================== //
 
 type IsFunctionAllowedInput struct {
 	CCIPPackageId   string
 	StateObjectId   string
 	ModuleName      string
 	FunctionName    string
-	ContractVersion uint64
+	ContractVersion uint8
 }
 
 type IsFunctionAllowedOutput struct {
@@ -228,156 +282,56 @@ var IsFunctionAllowedOp = cld_ops.NewOperation(
 	isFunctionAllowedHandler,
 )
 
-// =================== Module Restrictions Operations =================== //
+// =================== Function Verification Operations =================== //
 
-type UpdateModuleRestrictionsInput struct {
-	CCIPPackageId    string
-	StateObjectId    string
-	OwnerCapObjectId string
-	ModuleName       string
-	BlockedVersions  []uint64
-}
-
-type UpdateModuleRestrictionsObjects struct {
-	// No specific objects are returned from update operations
-}
-
-var updateModuleRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UpdateModuleRestrictionsInput) (output sui_ops.OpTxResult[UpdateModuleRestrictionsObjects], err error) {
-	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[UpdateModuleRestrictionsObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.UpdateModuleRestrictions(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.ModuleName,
-		input.BlockedVersions,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[UpdateModuleRestrictionsObjects]{}, fmt.Errorf("failed to execute UpdateModuleRestrictions: %w", err)
-	}
-
-	b.Logger.Infow("Module restrictions updated",
-		"moduleName", input.ModuleName,
-		"blockedVersions", input.BlockedVersions,
-	)
-
-	return sui_ops.OpTxResult[UpdateModuleRestrictionsObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
-		Objects:   UpdateModuleRestrictionsObjects{},
-	}, nil
-}
-
-var UpdateModuleRestrictionsOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "update_module_restrictions"),
-	semver.MustParse("0.1.0"),
-	"Updates module restrictions in the UpgradeRegistry",
-	updateModuleRestrictionsHandler,
-)
-
-type GetModuleRestrictionsInput struct {
-	CCIPPackageId string
-	StateObjectId string
-	ModuleName    string
-}
-
-type GetModuleRestrictionsOutput struct {
-	BlockedVersions []uint64
-}
-
-var getModuleRestrictionsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetModuleRestrictionsInput) (output sui_ops.OpTxResult[GetModuleRestrictionsOutput], err error) {
-	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	blockedVersions, err := contract.DevInspect().GetModuleRestrictions(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-		input.ModuleName,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{}, fmt.Errorf("failed to get module restrictions: %w", err)
-	}
-
-	b.Logger.Infow("Module restrictions retrieved",
-		"moduleName", input.ModuleName,
-		"blockedVersions", blockedVersions,
-	)
-
-	return sui_ops.OpTxResult[GetModuleRestrictionsOutput]{
-		Digest:    "",
-		PackageId: input.CCIPPackageId,
-		Objects: GetModuleRestrictionsOutput{
-			BlockedVersions: blockedVersions,
-		},
-	}, nil
-}
-
-var GetModuleRestrictionsOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "get_module_restrictions"),
-	semver.MustParse("0.1.0"),
-	"Gets module restrictions from the UpgradeRegistry",
-	getModuleRestrictionsHandler,
-)
-
-type IsModuleAllowedInput struct {
+type VerifyFunctionAllowedInput struct {
 	CCIPPackageId   string
 	StateObjectId   string
 	ModuleName      string
-	ContractVersion uint64
+	FunctionName    string
+	ContractVersion uint8
 }
 
-type IsModuleAllowedOutput struct {
-	IsAllowed bool
+type VerifyFunctionAllowedObjects struct {
+	// No specific objects are returned from verification operations
 }
 
-var isModuleAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsModuleAllowedInput) (output sui_ops.OpTxResult[IsModuleAllowedOutput], err error) {
+var verifyFunctionAllowedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input VerifyFunctionAllowedInput) (output sui_ops.OpTxResult[VerifyFunctionAllowedObjects], err error) {
 	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[IsModuleAllowedOutput]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
+		return sui_ops.OpTxResult[VerifyFunctionAllowedObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	isAllowed, err := contract.DevInspect().IsModuleAllowed(
+	tx, err := contract.VerifyFunctionAllowed(
 		b.GetContext(),
 		opts,
 		bind.Object{Id: input.StateObjectId},
 		input.ModuleName,
+		input.FunctionName,
 		input.ContractVersion,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[IsModuleAllowedOutput]{}, fmt.Errorf("failed to check if module is allowed: %w", err)
+		return sui_ops.OpTxResult[VerifyFunctionAllowedObjects]{}, fmt.Errorf("failed to verify function allowed: %w", err)
 	}
 
-	b.Logger.Infow("Module allowed check completed",
+	b.Logger.Infow("Function verification completed",
 		"moduleName", input.ModuleName,
+		"functionName", input.FunctionName,
 		"contractVersion", input.ContractVersion,
-		"isAllowed", isAllowed,
 	)
 
-	return sui_ops.OpTxResult[IsModuleAllowedOutput]{
-		Digest:    "",
+	return sui_ops.OpTxResult[VerifyFunctionAllowedObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-		Objects: IsModuleAllowedOutput{
-			IsAllowed: isAllowed,
-		},
+		Objects:   VerifyFunctionAllowedObjects{},
 	}, nil
 }
 
-var IsModuleAllowedOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "is_module_allowed"),
+var VerifyFunctionAllowedOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "verify_function_allowed"),
 	semver.MustParse("0.1.0"),
-	"Checks if a module is allowed in the UpgradeRegistry",
-	isModuleAllowedHandler,
+	"Verifies that a function is allowed in the UpgradeRegistry (throws error if not allowed)",
+	verifyFunctionAllowedHandler,
 )
