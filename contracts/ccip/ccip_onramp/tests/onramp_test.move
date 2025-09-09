@@ -346,7 +346,7 @@ fun cleanup_standalone_fee_test_env(
     coin_metadata: CoinMetadata<ONRAMP_TEST>,
     fee_quoter_cap: fee_quoter::FeeQuoterCap,
 ) {
-    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(&ccip_owner_cap, fee_quoter_cap);
     transfer::public_transfer(treasury_cap, OWNER);
     transfer::public_freeze_object(coin_metadata);
 
