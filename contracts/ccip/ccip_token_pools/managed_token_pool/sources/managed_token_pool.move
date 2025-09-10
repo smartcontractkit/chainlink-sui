@@ -3,7 +3,6 @@
 /// the mint cap object is used to mint/burn the token on the managed token module
 module managed_token_pool::managed_token_pool;
 
-use ccip::bcs_helper;
 use ccip::eth_abi;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
@@ -554,7 +553,7 @@ public fun mcms_accept_ownership<T>(
     assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addr(object::id_address(state), &mut stream);
+    bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
 
     let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -621,7 +620,7 @@ public fun mcms_set_allowlist_enabled<T>(
     assert!(function == string::utf8(b"set_allowlist_enabled"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -645,7 +644,7 @@ public fun mcms_apply_allowlist_updates<T>(
     assert!(function == string::utf8(b"apply_allowlist_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -676,7 +675,7 @@ public fun mcms_apply_chain_updates<T>(
     assert!(function == string::utf8(b"apply_chain_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -725,7 +724,7 @@ public fun mcms_add_remote_pool<T>(
     assert!(function == string::utf8(b"add_remote_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -750,7 +749,7 @@ public fun mcms_remove_remote_pool<T>(
     assert!(function == string::utf8(b"remove_remote_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -775,7 +774,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
     assert!(function == string::utf8(b"set_chain_rate_limiter_configs"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -838,7 +837,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
     assert!(function == string::utf8(b"set_chain_rate_limiter_config"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -908,7 +907,7 @@ public fun mcms_transfer_ownership<T>(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -936,7 +935,7 @@ public fun mcms_mcms_accept_ownership<T>(
     assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -964,7 +963,7 @@ public fun mcms_execute_ownership_transfer<T>(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
