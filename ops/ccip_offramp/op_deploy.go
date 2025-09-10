@@ -106,6 +106,7 @@ var initializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Init
 type SetOCR3ConfigInput struct {
 	OffRampPackageId               string
 	OffRampStateId                 string
+	CCIPObjectRefId                string
 	OwnerCapObjectId               string
 	ConfigDigest                   []byte
 	OCRPluginType                  byte
@@ -126,6 +127,7 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 	tx, err := offRampPackage.SetOcr3Config(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.OffRampStateId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.ConfigDigest,
@@ -165,4 +167,136 @@ var SetOCR3ConfigOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Initialize the CCIP setOCR3Config package",
 	setOCR3ConfigHandler,
+)
+
+type AddPackageIdOffRampInput struct {
+	OffRampPackageId string
+	StateObjectId    string
+	OwnerCapObjectId string
+	PackageId        string
+}
+
+type AddPackageIdOffRampObjects struct {
+	// No specific objects are returned from add_package_id
+}
+
+var addPackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdOffRampInput) (output sui_ops.OpTxResult[AddPackageIdOffRampObjects], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.AddPackageId(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.PackageId,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, fmt.Errorf("failed to execute AddPackageId on offRamp: %w", err)
+	}
+
+	b.Logger.Infow("Package ID added to OffRamp", "packageId", input.PackageId)
+
+	return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OffRampPackageId,
+		Objects:   AddPackageIdOffRampObjects{},
+	}, nil
+}
+
+var AddPackageIdOffRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-offramp-add-package-id", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Adds a new package ID to the OffRamp state for upgrade tracking",
+	addPackageIdOffRampHandler,
+)
+
+type GetPackageIdsOffRampInput struct {
+	OffRampPackageId string
+	StateObjectId    string
+}
+
+type GetPackageIdsOffRampOutput struct {
+	PackageIds []string
+}
+
+var getPackageIdsOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetPackageIdsOffRampInput) (output sui_ops.OpTxResult[GetPackageIdsOffRampOutput], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[GetPackageIdsOffRampOutput]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	packageIds, err := offRampPackage.DevInspect().GetPackageIds(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[GetPackageIdsOffRampOutput]{}, fmt.Errorf("failed to get package IDs from OffRamp: %w", err)
+	}
+
+	b.Logger.Infow("Package IDs retrieved from OffRamp", "packageIds", packageIds)
+
+	return sui_ops.OpTxResult[GetPackageIdsOffRampOutput]{
+		Digest:    "",
+		PackageId: input.OffRampPackageId,
+		Objects: GetPackageIdsOffRampOutput{
+			PackageIds: packageIds,
+		},
+	}, nil
+}
+
+var GetPackageIdsOffRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-offramp-get-package-ids", "package", "query"),
+	semver.MustParse("0.1.0"),
+	"Gets all package IDs from the OffRamp state",
+	getPackageIdsOffRampHandler,
+)
+
+type GetInitialPackageIdOffRampInput struct {
+	OffRampPackageId string
+	StateObjectId    string
+}
+
+type GetInitialPackageIdOffRampOutput struct {
+	InitialPackageId string
+}
+
+var getInitialPackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetInitialPackageIdOffRampInput) (output sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	initialPackageId, err := offRampPackage.DevInspect().GetInitialPackageId(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput]{}, fmt.Errorf("failed to get initial package ID from OffRamp: %w", err)
+	}
+
+	b.Logger.Infow("Initial package ID retrieved from OffRamp", "initialPackageId", initialPackageId)
+
+	return sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput]{
+		Digest:    "",
+		PackageId: input.OffRampPackageId,
+		Objects: GetInitialPackageIdOffRampOutput{
+			InitialPackageId: initialPackageId,
+		},
+	}, nil
+}
+
+var GetInitialPackageIdOffRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-offramp-get-initial-package-id", "package", "query"),
+	semver.MustParse("0.1.0"),
+	"Gets the initial package ID from the OffRamp state",
+	getInitialPackageIdOffRampHandler,
 )

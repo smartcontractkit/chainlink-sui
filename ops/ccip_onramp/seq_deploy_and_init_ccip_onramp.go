@@ -46,6 +46,7 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 
 		applyDestChainConfigUpdateInput := ApplyDestChainConfigureOnRampInput{
 			OnRampPackageId:           deployReport.Output.PackageId,
+			CCIPObjectRefId:           input.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId,
 			OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
 			StateObjectId:             deployReport.Output.Objects.CCIPOnrampStateObjectId,
 			DestChainSelector:         input.ApplyDestChainConfigureOnRampInput.DestChainSelector,
