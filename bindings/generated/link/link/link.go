@@ -24,7 +24,6 @@ type ILink interface {
 	Mint(ctx context.Context, opts *bind.CallOpts, treasuryCap bind.Object, amount uint64) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ILinkDevInspect
 	Encoder() LinkEncoder
-	Bound() bind.IBoundContract
 }
 
 type ILinkDevInspect interface {
@@ -51,7 +50,7 @@ type LinkDevInspect struct {
 var _ ILink = (*LinkContract)(nil)
 var _ ILinkDevInspect = (*LinkDevInspect)(nil)
 
-func NewLink(packageID string, client sui.ISuiAPI) (ILink, error) {
+func NewLink(packageID string, client sui.ISuiAPI) (*LinkContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "link", "link", client)
 	if err != nil {
 		return nil, err
@@ -63,10 +62,6 @@ func NewLink(packageID string, client sui.ISuiAPI) (ILink, error) {
 	}
 	c.devInspect = &LinkDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *LinkContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *LinkContract) Encoder() LinkEncoder {

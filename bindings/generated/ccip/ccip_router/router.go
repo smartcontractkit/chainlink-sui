@@ -44,7 +44,6 @@ type IRouter interface {
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRouterDevInspect
 	Encoder() RouterEncoder
-	Bound() bind.IBoundContract
 }
 
 type IRouterDevInspect interface {
@@ -121,7 +120,7 @@ type RouterDevInspect struct {
 var _ IRouter = (*RouterContract)(nil)
 var _ IRouterDevInspect = (*RouterDevInspect)(nil)
 
-func NewRouter(packageID string, client sui.ISuiAPI) (IRouter, error) {
+func NewRouter(packageID string, client sui.ISuiAPI) (*RouterContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip_router", "router", client)
 	if err != nil {
 		return nil, err
@@ -133,10 +132,6 @@ func NewRouter(packageID string, client sui.ISuiAPI) (IRouter, error) {
 	}
 	c.devInspect = &RouterDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *RouterContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *RouterContract) Encoder() RouterEncoder {

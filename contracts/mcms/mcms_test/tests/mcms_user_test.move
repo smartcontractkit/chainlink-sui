@@ -116,12 +116,12 @@ fun test_register_and_initialize() {
 }
 
 #[test]
-fun test_mcms_function_one() {
+fun test_mcms_entrypoint_function_one() {
     let mut scenario = create_test_scenario();
 
     let sender = setup_mcms_registry_and_user_data(&mut scenario);
 
-    // Transaction 4: Execute mcms_function_one
+    // Transaction 4: Execute mcms_entrypoint with function_one
     {
         ts::next_tx(&mut scenario, sender);
 
@@ -133,8 +133,6 @@ fun test_mcms_function_one() {
 
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -149,8 +147,8 @@ fun test_mcms_function_one() {
             data,
         );
 
-        // Command 2: Call mcms_function_one with params hot potato
-        mcms_user::mcms_function_one(
+        // Command 2: Call mcms_entrypoint with params hot potato
+        mcms_user::mcms_entrypoint(
             &mut user_data,
             &mut registry,
             params,
@@ -170,12 +168,12 @@ fun test_mcms_function_one() {
 }
 
 #[test]
-fun test_mcms_function_two() {
+fun test_mcms_entrypoint_function_two() {
     let mut scenario = create_test_scenario();
 
     let sender = setup_mcms_registry_and_user_data(&mut scenario);
 
-    // Transaction 4: Execute mcms_function_two
+    // Transaction 4: Execute mcms_entrypoint with function_two
     {
         ts::next_tx(&mut scenario, sender);
 
@@ -186,8 +184,6 @@ fun test_mcms_function_two() {
         let arg2 = TEST_ARG_U128;
 
         let mut data = vector::empty<u8>();
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -202,8 +198,8 @@ fun test_mcms_function_two() {
             data,
         );
 
-        // Command 2: Call mcms_function_two
-        mcms_user::mcms_function_two(
+        // Command 2: Call mcms_entrypoint
+        mcms_user::mcms_entrypoint(
             &mut user_data,
             &mut registry,
             params,
@@ -223,13 +219,13 @@ fun test_mcms_function_two() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_user::EInvalidFunction)]
-fun test_mcms_function_one_invalid_function() {
+#[expected_failure(abort_code = mcms_user::EUnknownFunction)]
+fun test_mcms_entrypoint_unknown_function() {
     let mut scenario = create_test_scenario();
 
     let sender = setup_mcms_registry_and_user_data(&mut scenario);
 
-    // Transaction 4: Execute mcms_function_one with unknown function
+    // Transaction 4: Execute mcms_entrypoint with unknown function
     {
         ts::next_tx(&mut scenario, sender);
 
@@ -247,7 +243,7 @@ fun test_mcms_function_one_invalid_function() {
 
         let ctx = ts::ctx(&mut scenario);
         // Command 2: This should fail because the function name is unknown
-        mcms_user::mcms_function_one(
+        mcms_user::mcms_entrypoint(
             &mut user_data,
             &mut registry,
             params,
@@ -286,7 +282,7 @@ fun test_mcms_entrypoint_wrong_module_name() {
 
         let ctx = ts::ctx(&mut scenario);
         // Command 2: This should fail because the module name doesn't match
-        mcms_user::mcms_function_one(
+        mcms_user::mcms_entrypoint(
             &mut user_data,
             &mut registry,
             params,
@@ -318,8 +314,6 @@ fun test_sequential_function_calls() {
 
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -334,8 +328,8 @@ fun test_sequential_function_calls() {
             data,
         );
 
-        // Command 2: Call mcms_function_one
-        mcms_user::mcms_function_one(
+        // Command 2: Call mcms_entrypoint
+        mcms_user::mcms_entrypoint(
             &mut user_data,
             &mut registry,
             params,
@@ -361,8 +355,6 @@ fun test_sequential_function_calls() {
 
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -377,8 +369,8 @@ fun test_sequential_function_calls() {
 
         let ctx = ts::ctx(&mut scenario);
 
-        // Command 2: Call mcms_function_two
-        mcms_user::mcms_function_two(
+        // Command 2: Call mcms_entrypoint
+        mcms_user::mcms_entrypoint(
             &mut user_data,
             &mut registry,
             params,
@@ -414,16 +406,11 @@ fun test_call_function_with_invalid_user_data() {
         let mut registry = ts::take_shared<Registry>(&scenario);
 
         let ctx = ts::ctx(&mut scenario);
-        let fake_owner_cap = object::new(ctx);
-        // Create a fake user_data
-        let mut fake_user_data = mcms_user::test_create_user_data(ctx, fake_owner_cap.to_inner());
 
         let arg1 = string::utf8(TEST_ARG_STRING);
         let arg2 = TEST_ARG_BYTES;
 
         let mut data = vector::empty<u8>();
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&fake_user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -434,9 +421,13 @@ fun test_call_function_with_invalid_user_data() {
             data,
         );
 
+        let fake_owner_cap = object::new(ctx);
+        // Create a fake user_data
+        let mut fake_user_data = mcms_user::test_create_user_data(ctx, fake_owner_cap.to_inner());
+
         // Command 2: This should fail because we provide an unregistered user_data
         // The cap does not exist for this user_data
-        mcms_user::mcms_function_one(
+        mcms_user::mcms_entrypoint(
             &mut fake_user_data,
             &mut registry,
             params,

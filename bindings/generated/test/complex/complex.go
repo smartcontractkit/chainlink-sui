@@ -32,7 +32,6 @@ type IComplex interface {
 	FlattenString(ctx context.Context, opts *bind.CallOpts, input [][]string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IComplexDevInspect
 	Encoder() ComplexEncoder
-	Bound() bind.IBoundContract
 }
 
 type IComplexDevInspect interface {
@@ -83,7 +82,7 @@ type ComplexDevInspect struct {
 var _ IComplex = (*ComplexContract)(nil)
 var _ IComplexDevInspect = (*ComplexDevInspect)(nil)
 
-func NewComplex(packageID string, client sui.ISuiAPI) (IComplex, error) {
+func NewComplex(packageID string, client sui.ISuiAPI) (*ComplexContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "test", "complex", client)
 	if err != nil {
 		return nil, err
@@ -95,10 +94,6 @@ func NewComplex(packageID string, client sui.ISuiAPI) (IComplex, error) {
 	}
 	c.devInspect = &ComplexDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *ComplexContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *ComplexContract) Encoder() ComplexEncoder {

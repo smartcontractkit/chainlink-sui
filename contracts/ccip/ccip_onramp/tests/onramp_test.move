@@ -7,6 +7,7 @@ use ccip::onramp_state_helper as osh;
 use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
+use ccip::upgrade_registry;
 use ccip_onramp::onramp::{Self, OnRampState};
 use ccip_onramp::ownable::OwnerCap;
 use mcms::mcms_account;
@@ -99,6 +100,7 @@ fun setup(): (Env, NonceManagerCap, osh::SourceTransferCap) {
     let state = ts::take_shared<OnRampState>(&scenario);
 
     let ccip_owner_cap = ts::take_from_sender<ccip::ownable::OwnerCap>(&scenario);
+    upgrade_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     nonce_manager::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ref, &ccip_owner_cap, 1000, scenario.ctx());
@@ -280,6 +282,7 @@ fun setup_standalone_fee_test_env(): (
     let onramp_owner_cap = ts::take_from_sender<OwnerCap>(&scenario);
 
     // Initialize CCIP modules
+    upgrade_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     nonce_manager::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ref, &ccip_owner_cap, 1000, scenario.ctx());
@@ -346,7 +349,7 @@ fun cleanup_standalone_fee_test_env(
     coin_metadata: CoinMetadata<ONRAMP_TEST>,
     fee_quoter_cap: fee_quoter::FeeQuoterCap,
 ) {
-    fee_quoter::destroy_fee_quoter_cap(&ccip_owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     transfer::public_transfer(treasury_cap, OWNER);
     transfer::public_freeze_object(coin_metadata);
 
@@ -402,6 +405,7 @@ public fun test_apply_allowlist_updates() {
     initialize_onramp(&mut env, &owner_cap, nonce_manager_cap, source_transfer_cap);
 
     onramp::apply_allowlist_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // dest_chain_selectors
@@ -425,6 +429,7 @@ public fun test_apply_allowlist_updates() {
     assert!(allowed_senders == vector[ALLOWED_SENDER_3]);
 
     onramp::apply_allowlist_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // dest_chain_selectors
@@ -466,7 +471,13 @@ public fun test_set_dynamic_config() {
     // Update config
     let new_fee_aggregator = @0x999;
     let new_allowlist_admin = @0x888;
-    onramp::set_dynamic_config(&mut env.state, &owner_cap, new_fee_aggregator, new_allowlist_admin);
+    onramp::set_dynamic_config(
+        &env.ref,
+        &mut env.state,
+        &owner_cap,
+        new_fee_aggregator,
+        new_allowlist_admin,
+    );
 
     // Verify config was updated
     let updated_config = onramp::get_dynamic_config(&env.state);
@@ -489,6 +500,7 @@ public fun test_apply_dest_chain_config_updates() {
     // Add a new destination chain
     let new_chain_selector = 999;
     onramp::apply_dest_chain_config_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[new_chain_selector],
@@ -509,6 +521,7 @@ public fun test_apply_dest_chain_config_updates() {
 
     // Update existing chain config
     onramp::apply_dest_chain_config_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[DEST_CHAIN_SELECTOR_2],
@@ -574,7 +587,13 @@ public fun test_ownership_functions() {
 
     // Test transfer ownership
     let new_owner = @0x999;
-    onramp::transfer_ownership(&mut env.state, &owner_cap, new_owner, env.scenario.ctx());
+    onramp::transfer_ownership(
+        &env.ref,
+        &mut env.state,
+        &owner_cap,
+        new_owner,
+        env.scenario.ctx(),
+    );
 
     // Verify pending transfer
     assert!(onramp::has_pending_transfer(&env.state));
@@ -584,7 +603,7 @@ public fun test_ownership_functions() {
 
     // Test accept ownership
     env.scenario.next_tx(new_owner);
-    onramp::accept_ownership(&mut env.state, env.scenario.ctx());
+    onramp::accept_ownership(&env.ref, &mut env.state, env.scenario.ctx());
 
     // Verify acceptance
     assert!(onramp::pending_transfer_accepted(&env.state).extract() == true);
@@ -602,6 +621,7 @@ public fun test_apply_allowlist_updates_by_admin() {
     // Test allowlist updates by admin (not owner)
     env.scenario.next_tx(ALLOWLIST_ADMIN);
     onramp::apply_allowlist_updates_by_admin(
+        &env.ref,
         &mut env.state,
         vector[DEST_CHAIN_SELECTOR_1],
         vector[true],
@@ -632,6 +652,7 @@ public fun test_apply_allowlist_updates_by_admin_unauthorized() {
     // Test allowlist updates by unauthorized user
     env.scenario.next_tx(@0x999); // Not the allowlist admin
     onramp::apply_allowlist_updates_by_admin(
+        &env.ref,
         &mut env.state,
         vector[DEST_CHAIN_SELECTOR_1],
         vector[true],
@@ -957,6 +978,7 @@ public fun test_error_invalid_allowlist_address() {
 
     // Test EInvalidAllowlistAddress (8) - zero address in allowlist
     onramp::apply_allowlist_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[DEST_CHAIN_SELECTOR_1],
@@ -984,7 +1006,7 @@ public fun test_error_unexpected_withdraw_amount() {
 
     // Test withdraw_fee_tokens when no fees exist
     // This should fail because there are no fee tokens to withdraw
-    onramp::withdraw_fee_tokens(&mut env.state, &owner_cap, &coin_metadata);
+    onramp::withdraw_fee_tokens(&env.ref, &mut env.state, &owner_cap, &coin_metadata);
 
     // Clean up test objects (won't be reached due to expected failure)
     transfer::public_transfer(treasury_cap, OWNER);

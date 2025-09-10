@@ -8,6 +8,7 @@ use ccip::receiver_registry;
 use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
+use ccip::upgrade_registry;
 use ccip_offramp::ocr3_base;
 use ccip_offramp::offramp::{Self, OffRampState};
 use ccip_offramp::ownable::OwnerCap;
@@ -48,6 +49,7 @@ fun setup(): (TestEnv, OwnerCap, FeeQuoterCap, DestTransferCap) {
     let dest_transfer_cap = ts::take_from_sender<DestTransferCap>(&scenario);
 
     // Initialize required CCIP components
+    upgrade_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ref, &ccip_owner_cap, 1000, scenario.ctx());
     receiver_registry::initialize(&mut ref, &ccip_owner_cap, scenario.ctx());
@@ -112,47 +114,55 @@ public fun test_initialize() {
     initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
 
     // Test static config
-    let static_config = offramp::get_static_config(&env.state);
+    let static_config = offramp::get_static_config(&env.ref, &env.state);
     let (
         chain_selector,
         rmn_remote,
         token_admin_registry,
         nonce_manager,
-    ) = offramp::get_static_config_fields(static_config);
+    ) = offramp::get_static_config_fields(&env.ref, static_config);
     assert!(chain_selector == CHAIN_SELECTOR);
     assert!(rmn_remote == @ccip);
     assert!(token_admin_registry == @ccip);
     assert!(nonce_manager == @ccip);
 
     // Test dynamic config
-    let dynamic_config = offramp::get_dynamic_config(&env.state);
-    let (fee_quoter, threshold) = offramp::get_dynamic_config_fields(dynamic_config);
+    let dynamic_config = offramp::get_dynamic_config(&env.ref, &env.state);
+    let (fee_quoter, threshold) = offramp::get_dynamic_config_fields(&env.ref, dynamic_config);
     assert!(fee_quoter == @ccip);
     assert!(threshold == PERMISSIONLESS_EXECUTION_THRESHOLD);
 
     // Test source chain configs
-    let source_config_1 = offramp::get_source_chain_config(&env.state, SOURCE_CHAIN_SELECTOR_1);
+    let source_config_1 = offramp::get_source_chain_config(
+        &env.ref,
+        &env.state,
+        SOURCE_CHAIN_SELECTOR_1,
+    );
     let (
         router,
         is_enabled,
         min_seq_nr,
         is_rmn_disabled,
         on_ramp,
-    ) = offramp::get_source_chain_config_fields(source_config_1);
+    ) = offramp::get_source_chain_config_fields(&env.ref, source_config_1);
     assert!(router == @ccip);
     assert!(is_enabled == true);
     assert!(min_seq_nr == 1);
     assert!(is_rmn_disabled == false);
     assert!(on_ramp == b"onramp_1");
 
-    let source_config_2 = offramp::get_source_chain_config(&env.state, SOURCE_CHAIN_SELECTOR_2);
+    let source_config_2 = offramp::get_source_chain_config(
+        &env.ref,
+        &env.state,
+        SOURCE_CHAIN_SELECTOR_2,
+    );
     let (
         router,
         is_enabled,
         min_seq_nr,
         is_rmn_disabled,
         on_ramp,
-    ) = offramp::get_source_chain_config_fields(source_config_2);
+    ) = offramp::get_source_chain_config_fields(&env.ref, source_config_2);
     assert!(router == @ccip);
     assert!(is_enabled == false);
     assert!(min_seq_nr == 1);
@@ -169,17 +179,17 @@ public fun test_set_dynamic_config() {
     initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
 
     // Test initial config
-    let initial_config = offramp::get_dynamic_config(&env.state);
-    let (_, initial_threshold) = offramp::get_dynamic_config_fields(initial_config);
+    let initial_config = offramp::get_dynamic_config(&env.ref, &env.state);
+    let (_, initial_threshold) = offramp::get_dynamic_config_fields(&env.ref, initial_config);
     assert!(initial_threshold == PERMISSIONLESS_EXECUTION_THRESHOLD);
 
     // Update config
     let new_threshold = 7200; // 2 hours
-    offramp::set_dynamic_config(&mut env.state, &owner_cap, new_threshold);
+    offramp::set_dynamic_config(&env.ref, &mut env.state, &owner_cap, new_threshold);
 
     // Verify update
-    let updated_config = offramp::get_dynamic_config(&env.state);
-    let (_, updated_threshold) = offramp::get_dynamic_config_fields(updated_config);
+    let updated_config = offramp::get_dynamic_config(&env.ref, &env.state);
+    let (_, updated_threshold) = offramp::get_dynamic_config_fields(&env.ref, updated_config);
     assert!(updated_threshold == new_threshold);
 
     tear_down(env);
@@ -194,6 +204,7 @@ public fun test_apply_source_chain_config_updates() {
     // Add a new source chain
     let new_chain_selector = 4000;
     offramp::apply_source_chain_config_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[new_chain_selector],
@@ -204,14 +215,14 @@ public fun test_apply_source_chain_config_updates() {
     );
 
     // Verify new chain was added
-    let new_config = offramp::get_source_chain_config(&env.state, new_chain_selector);
+    let new_config = offramp::get_source_chain_config(&env.ref, &env.state, new_chain_selector);
     let (
         router,
         is_enabled,
         min_seq_nr,
         is_rmn_disabled,
         on_ramp,
-    ) = offramp::get_source_chain_config_fields(new_config);
+    ) = offramp::get_source_chain_config_fields(&env.ref, new_config);
     assert!(router == @ccip);
     assert!(is_enabled == true);
     assert!(min_seq_nr == 1);
@@ -220,6 +231,7 @@ public fun test_apply_source_chain_config_updates() {
 
     // Update existing chain
     offramp::apply_source_chain_config_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[SOURCE_CHAIN_SELECTOR_2],
@@ -230,8 +242,13 @@ public fun test_apply_source_chain_config_updates() {
     );
 
     // Verify update
-    let updated_config = offramp::get_source_chain_config(&env.state, SOURCE_CHAIN_SELECTOR_2);
+    let updated_config = offramp::get_source_chain_config(
+        &env.ref,
+        &env.state,
+        SOURCE_CHAIN_SELECTOR_2,
+    );
     let (_, is_enabled, _, is_rmn_disabled, _) = offramp::get_source_chain_config_fields(
+        &env.ref,
         updated_config,
     );
     assert!(is_enabled == true);
@@ -247,7 +264,10 @@ public fun test_get_all_source_chain_configs() {
     initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
 
     // Get all configs
-    let (chain_selectors, chain_configs) = offramp::get_all_source_chain_configs(&env.state);
+    let (chain_selectors, chain_configs) = offramp::get_all_source_chain_configs(
+        &env.ref,
+        &env.state,
+    );
 
     // Should have 2 chains from initialization
     assert!(chain_selectors.length() == 2);
@@ -282,6 +302,7 @@ public fun test_set_ocr3_config() {
     let transmitters = vector[@0x100, @0x200, @0x300, @0x400, @0x500];
 
     offramp::set_ocr3_config(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         config_digest,
@@ -313,6 +334,7 @@ public fun test_set_ocr3_config() {
     // Set OCR3 config for execution plugin
     let execution_plugin_type = ocr3_base::ocr_plugin_type_execution();
     offramp::set_ocr3_config(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         config_digest,
@@ -366,14 +388,14 @@ public fun test_get_source_chain_config_nonexistent() {
 
     // Test getting config for non-existent chain
     let nonexistent_chain = 9999;
-    let config = offramp::get_source_chain_config(&env.state, nonexistent_chain);
+    let config = offramp::get_source_chain_config(&env.ref, &env.state, nonexistent_chain);
     let (
         router,
         is_enabled,
         min_seq_nr,
         is_rmn_disabled,
         on_ramp,
-    ) = offramp::get_source_chain_config_fields(config);
+    ) = offramp::get_source_chain_config_fields(&env.ref, config);
 
     // Should return default empty config
     assert!(router == @0x0);
@@ -461,6 +483,7 @@ public fun test_ocr3_config_commit_requires_signature_verification() {
         x"5555555555555555555555555555555555555555555555555555555555555555",
     ];
     offramp::set_ocr3_config(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         b"test_config_digest_32_bytes_long",
@@ -490,6 +513,7 @@ public fun test_ocr3_config_execution_forbids_signature_verification() {
         x"5555555555555555555555555555555555555555555555555555555555555555",
     ];
     offramp::set_ocr3_config(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         b"test_config_digest_32_bytes_long",
@@ -570,6 +594,7 @@ public fun test_config_signers_and_transmitters() {
     let transmitters = vector[@0x100, @0x200, @0x300, @0x400, @0x500];
 
     offramp::set_ocr3_config(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         config_digest,
@@ -628,6 +653,7 @@ public fun test_apply_source_chain_config_zero_onramp() {
     // Try to update with zero/empty onramp address
     // This should fail due to assert_non_zero_address_vector check
     offramp::apply_source_chain_config_updates(
+        &env.ref,
         &mut env.state,
         &owner_cap,
         vector[4000], // new chain selector

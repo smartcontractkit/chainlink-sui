@@ -108,6 +108,7 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 
 type ApplyDestChainConfigureOnRampInput struct {
 	OnRampPackageId           string
+	CCIPObjectRefId           string
 	OwnerCapObjectId          string
 	StateObjectId             string
 	DestChainSelector         []uint64
@@ -126,6 +127,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	tx, err := onRampPackage.ApplyDestChainConfigUpdates(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -145,6 +147,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 type ApplyAllowListUpdatesInput struct {
 	OnRampPackageId               string
+	CCIPObjectRefId               string
 	OwnerCapObjectId              string
 	StateObjectId                 string
 	DestChainSelector             []uint64
@@ -164,6 +167,7 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	tx, err := onRampPackage.ApplyAllowlistUpdates(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -214,8 +218,6 @@ var IsChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	}, nil
 }
 
-// Note: Shares the same input as IsChainSupported
-// TODO: maybe rename the input to make it more generic
 var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsChainSupportedInput) (output sui_ops.OpTxResult[IsChainSupportedOutput], err error) {
 	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
@@ -319,4 +321,136 @@ var GetDestChainConfigOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Runs GetDestChainConfig OnRamp",
 	GetDestChainConfigHandler,
+)
+
+type AddPackageIdInput struct {
+	OnRampPackageId  string
+	StateObjectId    string
+	OwnerCapObjectId string
+	PackageId        string
+}
+
+type AddPackageIdObjects struct {
+	// No specific objects are returned from add_package_id
+}
+
+var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdInput) (output sui_ops.OpTxResult[AddPackageIdObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.AddPackageId(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.PackageId,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to execute AddPackageId on onRamp: %w", err)
+	}
+
+	b.Logger.Infow("Package ID added to OnRamp", "packageId", input.PackageId)
+
+	return sui_ops.OpTxResult[AddPackageIdObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   AddPackageIdObjects{},
+	}, nil
+}
+
+var AddPackageIdOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-add-package-id", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Adds a new package ID to the OnRamp state for upgrade tracking",
+	addPackageIdHandler,
+)
+
+type GetPackageIdsOnRampInput struct {
+	OnRampPackageId string
+	StateObjectId   string
+}
+
+type GetPackageIdsOnRampOutput struct {
+	PackageIds []string
+}
+
+var getPackageIdsOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetPackageIdsOnRampInput) (output sui_ops.OpTxResult[GetPackageIdsOnRampOutput], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[GetPackageIdsOnRampOutput]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	packageIds, err := onRampPackage.DevInspect().GetPackageIds(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[GetPackageIdsOnRampOutput]{}, fmt.Errorf("failed to get package IDs from OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Package IDs retrieved from OnRamp", "packageIds", packageIds)
+
+	return sui_ops.OpTxResult[GetPackageIdsOnRampOutput]{
+		Digest:    "",
+		PackageId: input.OnRampPackageId,
+		Objects: GetPackageIdsOnRampOutput{
+			PackageIds: packageIds,
+		},
+	}, nil
+}
+
+var GetPackageIdsOnRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-get-package-ids", "package", "query"),
+	semver.MustParse("0.1.0"),
+	"Gets all package IDs from the OnRamp state",
+	getPackageIdsOnRampHandler,
+)
+
+type GetInitialPackageIdOnRampInput struct {
+	OnRampPackageId string
+	StateObjectId   string
+}
+
+type GetInitialPackageIdOnRampOutput struct {
+	InitialPackageId string
+}
+
+var getInitialPackageIdOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetInitialPackageIdOnRampInput) (output sui_ops.OpTxResult[GetInitialPackageIdOnRampOutput], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[GetInitialPackageIdOnRampOutput]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	initialPackageId, err := onRampPackage.DevInspect().GetInitialPackageId(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[GetInitialPackageIdOnRampOutput]{}, fmt.Errorf("failed to get initial package ID from OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Initial package ID retrieved from OnRamp", "initialPackageId", initialPackageId)
+
+	return sui_ops.OpTxResult[GetInitialPackageIdOnRampOutput]{
+		Digest:    "",
+		PackageId: input.OnRampPackageId,
+		Objects: GetInitialPackageIdOnRampOutput{
+			InitialPackageId: initialPackageId,
+		},
+	}, nil
+}
+
+var GetInitialPackageIdOnRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-get-initial-package-id", "package", "query"),
+	semver.MustParse("0.1.0"),
+	"Gets the initial package ID from the OnRamp state",
+	getInitialPackageIdOnRampHandler,
 )

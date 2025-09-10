@@ -24,7 +24,6 @@ type IMockLinkToken interface {
 	Mint(ctx context.Context, opts *bind.CallOpts, treasuryCap bind.Object, amount uint64) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMockLinkTokenDevInspect
 	Encoder() MockLinkTokenEncoder
-	Bound() bind.IBoundContract
 }
 
 type IMockLinkTokenDevInspect interface {
@@ -50,7 +49,7 @@ type MockLinkTokenDevInspect struct {
 var _ IMockLinkToken = (*MockLinkTokenContract)(nil)
 var _ IMockLinkTokenDevInspect = (*MockLinkTokenDevInspect)(nil)
 
-func NewMockLinkToken(packageID string, client sui.ISuiAPI) (IMockLinkToken, error) {
+func NewMockLinkToken(packageID string, client sui.ISuiAPI) (*MockLinkTokenContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "mock_link_token", "mock_link_token", client)
 	if err != nil {
 		return nil, err
@@ -62,10 +61,6 @@ func NewMockLinkToken(packageID string, client sui.ISuiAPI) (IMockLinkToken, err
 	}
 	c.devInspect = &MockLinkTokenDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *MockLinkTokenContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *MockLinkTokenContract) Encoder() MockLinkTokenEncoder {

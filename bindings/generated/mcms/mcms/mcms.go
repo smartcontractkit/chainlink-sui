@@ -86,7 +86,6 @@ type IMcms interface {
 	Data(ctx context.Context, opts *bind.CallOpts, call Call) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsDevInspect
 	Encoder() McmsEncoder
-	Bound() bind.IBoundContract
 }
 
 type IMcmsDevInspect interface {
@@ -286,7 +285,7 @@ type McmsDevInspect struct {
 var _ IMcms = (*McmsContract)(nil)
 var _ IMcmsDevInspect = (*McmsDevInspect)(nil)
 
-func NewMcms(packageID string, client sui.ISuiAPI) (IMcms, error) {
+func NewMcms(packageID string, client sui.ISuiAPI) (*McmsContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "mcms", "mcms", client)
 	if err != nil {
 		return nil, err
@@ -298,10 +297,6 @@ func NewMcms(packageID string, client sui.ISuiAPI) (IMcms, error) {
 	}
 	c.devInspect = &McmsDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *McmsContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *McmsContract) Encoder() McmsEncoder {

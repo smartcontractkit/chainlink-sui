@@ -5,6 +5,7 @@ module ccip::fee_quoter_tests;
 use ccip::fee_quoter::{Self, FeeQuoterState};
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use std::bcs;
 use std::string;
 use sui::clock;
@@ -57,6 +58,9 @@ fun setup_ccip_environment(): (Scenario, OwnerCap, CCIPObjectRef) {
 }
 
 fun initialize_fee_quoter(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    // Initialize upgrade registry first (required by fee_quoter functions)
+    upgrade_registry::initialize(ref, owner_cap, ctx);
+
     fee_quoter::initialize(
         ref,
         owner_cap,
@@ -313,7 +317,7 @@ public fun test_update_prices() {
     let _timestamp_price = fee_quoter::get_dest_chain_gas_price(&ref, 100);
     let _token_price = fee_quoter::get_token_price(&ref, MOCK_ADDRESS_1);
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -508,7 +512,7 @@ public fun test_get_validated_fee() {
 
     assert!(val == 37516800); // equivalent to 0.375 LINK on SUI if LINK has 8 decimals
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -539,7 +543,7 @@ public fun test_get_timestamped_price_fields() {
     assert!(value == DEFAULT_TOKEN_PRICE * ONE_E_18);
     assert!(timestamp == 20);
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -565,7 +569,7 @@ public fun test_get_token_prices() {
     assert!(value1 == DEFAULT_TOKEN_PRICE * ONE_E_18);
     assert!(value2 == DEFAULT_TOKEN_PRICE * ONE_E_18);
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -593,7 +597,7 @@ public fun test_get_token_and_gas_prices() {
     assert!(token_price == DEFAULT_TOKEN_PRICE * ONE_E_18);
     assert!(gas_price == DEFAULT_GAS_PRICE);
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -630,7 +634,7 @@ public fun test_convert_token_amount() {
     );
     assert!(converted_amount == 50);
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -781,7 +785,7 @@ public fun test_get_token_and_gas_prices_chain_not_enabled() {
         100,
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -809,7 +813,7 @@ public fun test_update_prices_token_update_mismatch() {
         ctx,
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -845,7 +849,7 @@ public fun test_get_validated_fee_invalid_extra_args_data_too_short() {
         invalid_extra_args, // extra_args too short
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -891,7 +895,7 @@ public fun test_get_validated_fee_invalid_token_receiver_svm() {
         svm_extra_args, // extra_args with zero token_receiver
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -901,6 +905,9 @@ public fun test_get_validated_fee_invalid_token_receiver_svm() {
 public fun test_process_message_args_message_fee_too_high() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
+
+    // Initialize upgrade registry first (required by fee_quoter functions)
+    upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Initialize with a very LOW max fee limit
     fee_quoter::initialize(
@@ -1058,7 +1065,7 @@ public fun test_get_validated_fee_svm_empty_extra_args() {
         empty_extra_args, // empty extra_args (invalid for SVM)
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -1112,7 +1119,7 @@ public fun test_update_prices_gas_update_mismatch() {
         ctx,
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -1176,7 +1183,7 @@ public fun test_get_validated_fee_unsupported_fee_token() {
         evm_extra_args, // extra_args
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -1216,7 +1223,7 @@ public fun test_get_validated_fee_out_of_order_execution_required() {
         evm_extra_args, // extra_args (out-of-order = false, but chain requires true)
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -1253,7 +1260,7 @@ public fun test_get_validated_fee_invalid_extra_args_tag() {
         invalid_extra_args, // extra_args with invalid tag
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -1316,7 +1323,7 @@ public fun test_get_validated_fee_compute_unit_limit_too_high() {
         svm_extra_args, // extra_args with high compute units
     );
 
-    fee_quoter::destroy_fee_quoter_cap(&owner_cap, fee_quoter_cap);
+    fee_quoter::destroy_fee_quoter_cap(fee_quoter_cap);
     clock::destroy_for_testing(clock);
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
@@ -1380,6 +1387,37 @@ public fun test_apply_token_transfer_fee_config_invalid_fee_range() {
         vector[900], // add_dest_bytes_overhead
         vector[true], // add_is_enabled
         vector[], // remove_tokens
+        ctx,
+    );
+
+    cleanup_test_scenario(scenario, owner_cap, ref);
+}
+
+// === Upgrade Registry Function Restriction Tests ===
+
+#[test]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
+public fun test_apply_fee_token_updates_function_not_allowed() {
+    let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
+    let ctx = scenario.ctx();
+    initialize_fee_quoter(&mut ref, &owner_cap, ctx);
+
+    // Block the apply_fee_token_updates function using upgrade registry
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"apply_fee_token_updates"),
+        1, // block version 1
+        ctx,
+    );
+
+    // This should fail because the function is blocked by upgrade registry
+    fee_quoter::apply_fee_token_updates(
+        &mut ref,
+        &owner_cap,
+        vector[MOCK_ADDRESS_1], // fee_tokens_to_remove
+        vector[MOCK_ADDRESS_4], // fee_tokens_to_add
         ctx,
     );
 

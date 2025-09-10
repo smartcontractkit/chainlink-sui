@@ -26,7 +26,6 @@ type INonceManager interface {
 	GetIncrementedOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() INonceManagerDevInspect
 	Encoder() NonceManagerEncoder
-	Bound() bind.IBoundContract
 }
 
 type INonceManagerDevInspect interface {
@@ -59,7 +58,7 @@ type NonceManagerDevInspect struct {
 var _ INonceManager = (*NonceManagerContract)(nil)
 var _ INonceManagerDevInspect = (*NonceManagerDevInspect)(nil)
 
-func NewNonceManager(packageID string, client sui.ISuiAPI) (INonceManager, error) {
+func NewNonceManager(packageID string, client sui.ISuiAPI) (*NonceManagerContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "nonce_manager", client)
 	if err != nil {
 		return nil, err
@@ -71,10 +70,6 @@ func NewNonceManager(packageID string, client sui.ISuiAPI) (INonceManager, error
 	}
 	c.devInspect = &NonceManagerDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *NonceManagerContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *NonceManagerContract) Encoder() NonceManagerEncoder {

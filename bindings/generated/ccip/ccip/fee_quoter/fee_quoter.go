@@ -22,7 +22,6 @@ var (
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
-	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error)
@@ -33,7 +32,6 @@ type IFeeQuoter interface {
 	ApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, feeTokensToRemove []string, feeTokensToAdd []string) (*models.SuiTransactionBlockResponse, error)
 	GetTokenTransferFeeConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error)
 	ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error)
-	UpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error)
 	UpdatePrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error)
 	GetValidatedFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	ApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, tokens []string, premiumMultiplierWeiPerEth []uint64) (*models.SuiTransactionBlockResponse, error)
@@ -49,17 +47,13 @@ type IFeeQuoter interface {
 	McmsApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsUpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
-	Bound() bind.IBoundContract
 }
 
 type IFeeQuoterDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
-	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (bind.Object, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (TimestampedPrice, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) ([]any, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) ([]TimestampedPrice, error)
@@ -84,8 +78,6 @@ type FeeQuoterEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error)
-	NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error)
 	GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTimestampedPriceFields(tp TimestampedPrice) (*bind.EncodedCall, error)
@@ -106,8 +98,6 @@ type FeeQuoterEncoder interface {
 	GetTokenTransferFeeConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	ApplyTokenTransferFeeConfigUpdates(ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*bind.EncodedCall, error)
 	ApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	UpdatePricesWithOwnerCap(ref bind.Object, ownerCap bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error)
-	UpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	UpdatePrices(ref bind.Object, param bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error)
 	UpdatePricesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetValidatedFee(ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, localTokenAddresses []string, localTokenAmounts []uint64, feeToken string, extraArgs []byte) (*bind.EncodedCall, error)
@@ -138,12 +128,8 @@ type FeeQuoterEncoder interface {
 	McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyTokenTransferFeeConfigUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsUpdatePricesWithOwnerCap(ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsUpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	DestroyFeeQuoterCap(param bind.Object, cap bind.Object) (*bind.EncodedCall, error)
-	DestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type FeeQuoterContract struct {
@@ -159,7 +145,7 @@ type FeeQuoterDevInspect struct {
 var _ IFeeQuoter = (*FeeQuoterContract)(nil)
 var _ IFeeQuoterDevInspect = (*FeeQuoterDevInspect)(nil)
 
-func NewFeeQuoter(packageID string, client sui.ISuiAPI) (IFeeQuoter, error) {
+func NewFeeQuoter(packageID string, client sui.ISuiAPI) (*FeeQuoterContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", client)
 	if err != nil {
 		return nil, err
@@ -171,10 +157,6 @@ func NewFeeQuoter(packageID string, client sui.ISuiAPI) (IFeeQuoter, error) {
 	}
 	c.devInspect = &FeeQuoterDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *FeeQuoterContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *FeeQuoterContract) Encoder() FeeQuoterEncoder {
@@ -681,16 +663,6 @@ func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts,
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// NewFeeQuoterCap executes the new_fee_quoter_cap Move function.
-func (c *FeeQuoterContract) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.NewFeeQuoterCap(param)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // GetTokenPrice executes the get_token_price Move function.
 func (c *FeeQuoterContract) GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.GetTokenPrice(ref, token)
@@ -784,16 +756,6 @@ func (c *FeeQuoterContract) GetTokenTransferFeeConfig(ctx context.Context, opts 
 // ApplyTokenTransferFeeConfigUpdates executes the apply_token_transfer_fee_config_updates Move function.
 func (c *FeeQuoterContract) ApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, addTokens []string, addMinFeeUsdCents []uint32, addMaxFeeUsdCents []uint32, addDeciBps []uint16, addDestGasOverhead []uint32, addDestBytesOverhead []uint32, addIsEnabled []bool, removeTokens []string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.ApplyTokenTransferFeeConfigUpdates(ref, ownerCap, destChainSelector, addTokens, addMinFeeUsdCents, addMaxFeeUsdCents, addDeciBps, addDestGasOverhead, addDestBytesOverhead, addIsEnabled, removeTokens)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// UpdatePricesWithOwnerCap executes the update_prices_with_owner_cap Move function.
-func (c *FeeQuoterContract) UpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.UpdatePricesWithOwnerCap(ref, ownerCap, clock, sourceTokens, sourceUsdPerToken, gasDestChainSelectors, gasUsdPerUnitGas)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -951,29 +913,9 @@ func (c *FeeQuoterContract) McmsApplyTokenTransferFeeConfigUpdates(ctx context.C
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsUpdatePricesWithOwnerCap executes the mcms_update_prices_with_owner_cap Move function.
-func (c *FeeQuoterContract) McmsUpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.McmsUpdatePricesWithOwnerCap(ref, registry, clock, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // McmsApplyPremiumMultiplierWeiPerEthUpdates executes the mcms_apply_premium_multiplier_wei_per_eth_updates Move function.
 func (c *FeeQuoterContract) McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.McmsApplyPremiumMultiplierWeiPerEthUpdates(ref, registry, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// DestroyFeeQuoterCap executes the destroy_fee_quoter_cap Move function.
-func (c *FeeQuoterContract) DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.DestroyFeeQuoterCap(param, cap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -999,28 +941,6 @@ func (d *FeeQuoterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.Cal
 	result, ok := results[0].(string)
 	if !ok {
 		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
-	}
-	return result, nil
-}
-
-// NewFeeQuoterCap executes the new_fee_quoter_cap Move function using DevInspect to get return values.
-//
-// Returns: FeeQuoterCap
-func (d *FeeQuoterDevInspect) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.feeQuoterEncoder.NewFeeQuoterCap(param)
-	if err != nil {
-		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return bind.Object{}, err
-	}
-	if len(results) == 0 {
-		return bind.Object{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bind.Object)
-	if !ok {
-		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -1444,36 +1364,6 @@ func (c feeQuoterEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, er
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// NewFeeQuoterCap encodes a call to the new_fee_quoter_cap Move function.
-func (c feeQuoterEncoder) NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap", typeArgsList, typeParamsList, []string{
-		"&OwnerCap",
-	}, []any{
-		param,
-	}, []string{
-		"ccip::fee_quoter::FeeQuoterCap",
-	})
-}
-
-// NewFeeQuoterCapWithArgs encodes a call to the new_fee_quoter_cap Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c feeQuoterEncoder) NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&OwnerCap",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::FeeQuoterCap",
-	})
-}
-
 // GetTokenPrice encodes a call to the get_token_price Move function.
 func (c feeQuoterEncoder) GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -1840,50 +1730,6 @@ func (c feeQuoterEncoder) ApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// UpdatePricesWithOwnerCap encodes a call to the update_prices_with_owner_cap Move function.
-func (c feeQuoterEncoder) UpdatePricesWithOwnerCap(ref bind.Object, ownerCap bind.Object, clock bind.Object, sourceTokens []string, sourceUsdPerToken []*big.Int, gasDestChainSelectors []uint64, gasUsdPerUnitGas []*big.Int) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("update_prices_with_owner_cap", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&OwnerCap",
-		"&clock::Clock",
-		"vector<address>",
-		"vector<u256>",
-		"vector<u64>",
-		"vector<u256>",
-	}, []any{
-		ref,
-		ownerCap,
-		clock,
-		sourceTokens,
-		sourceUsdPerToken,
-		gasDestChainSelectors,
-		gasUsdPerUnitGas,
-	}, nil)
-}
-
-// UpdatePricesWithOwnerCapWithArgs encodes a call to the update_prices_with_owner_cap Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c feeQuoterEncoder) UpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&OwnerCap",
-		"&clock::Clock",
-		"vector<address>",
-		"vector<u256>",
-		"vector<u64>",
-		"vector<u256>",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("update_prices_with_owner_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // UpdatePrices encodes a call to the update_prices Move function.
@@ -2536,41 +2382,6 @@ func (c feeQuoterEncoder) McmsApplyTokenTransferFeeConfigUpdatesWithArgs(args ..
 	return c.EncodeCallArgsWithGenerics("mcms_apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsUpdatePricesWithOwnerCap encodes a call to the mcms_update_prices_with_owner_cap Move function.
-func (c feeQuoterEncoder) McmsUpdatePricesWithOwnerCap(ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_update_prices_with_owner_cap", typeArgsList, typeParamsList, []string{
-		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"&clock::Clock",
-		"ExecutingCallbackParams",
-	}, []any{
-		ref,
-		registry,
-		clock,
-		params,
-	}, nil)
-}
-
-// McmsUpdatePricesWithOwnerCapWithArgs encodes a call to the mcms_update_prices_with_owner_cap Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c feeQuoterEncoder) McmsUpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut CCIPObjectRef",
-		"&mut Registry",
-		"&clock::Clock",
-		"ExecutingCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_update_prices_with_owner_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
 // McmsApplyPremiumMultiplierWeiPerEthUpdates encodes a call to the mcms_apply_premium_multiplier_wei_per_eth_updates Move function.
 func (c feeQuoterEncoder) McmsApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -2601,33 +2412,4 @@ func (c feeQuoterEncoder) McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(arg
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_apply_premium_multiplier_wei_per_eth_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// DestroyFeeQuoterCap encodes a call to the destroy_fee_quoter_cap Move function.
-func (c feeQuoterEncoder) DestroyFeeQuoterCap(param bind.Object, cap bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("destroy_fee_quoter_cap", typeArgsList, typeParamsList, []string{
-		"&OwnerCap",
-		"ccip::fee_quoter::FeeQuoterCap",
-	}, []any{
-		param,
-		cap,
-	}, nil)
-}
-
-// DestroyFeeQuoterCapWithArgs encodes a call to the destroy_fee_quoter_cap Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c feeQuoterEncoder) DestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&OwnerCap",
-		"ccip::fee_quoter::FeeQuoterCap",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("destroy_fee_quoter_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

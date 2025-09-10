@@ -1,7 +1,10 @@
 module ccip_offramp::ocr3_base;
 
 use ccip::address;
+use ccip::state_object::CCIPObjectRef;
+use ccip::upgrade_registry::verify_function_allowed;
 use std::bit_vector;
+use std::string;
 use sui::ed25519;
 use sui::event;
 use sui::hash;
@@ -11,6 +14,8 @@ const MAX_NUM_ORACLES: u64 = 256;
 const OCR_PLUGIN_TYPE_COMMIT: u8 = 0;
 const OCR_PLUGIN_TYPE_EXECUTION: u8 = 1;
 const PUBLIC_KEY_NUM_BYTES: u64 = 32;
+
+const VERSION: u8 = 1;
 
 public struct UnvalidatedPublicKey has copy, drop, store {
     bytes: vector<u8>,
@@ -97,6 +102,7 @@ public fun ocr_plugin_type_execution(): u8 {
 }
 
 public fun set_ocr3_config(
+    ref: &CCIPObjectRef,
     ocr3_state: &mut OCR3BaseState,
     config_digest: vector<u8>,
     ocr_plugin_type: u8,
@@ -105,6 +111,12 @@ public fun set_ocr3_config(
     signers: vector<vector<u8>>,
     transmitters: vector<address>,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"ocr3_base"),
+        string::utf8(b"set_ocr3_config"),
+        VERSION,
+    );
     assert!(big_f != 0, EBigFMustBePositive);
     assert!(config_digest.length() == 32, EInvalidConfigDigestLength);
 

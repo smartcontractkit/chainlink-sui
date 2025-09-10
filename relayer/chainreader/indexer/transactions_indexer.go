@@ -334,6 +334,8 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 				continue
 			}
 
+			// TODO: check the package ID and that it exists in the list of package IDs
+
 			if moveAbort.Location.FunctionName == nil || !slices.Contains(tIndexer.executeFunctions, *moveAbort.Location.FunctionName) {
 				tIndexer.logger.Debugw("Skipping transaction for non-execute function",
 					"transmitter", transmitter, "function", *moveAbort.Location.FunctionName)

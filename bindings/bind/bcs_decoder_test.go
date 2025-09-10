@@ -256,3 +256,61 @@ func TestSpecificDecodeFunctions(t *testing.T) {
 		assert.Equal(t, 0, result128.Cmp(testValue), "Decoded value should match original")
 	})
 }
+
+// TestVectorU64Decoding tests the new vector<u64> decoding functionality
+func TestVectorU64Decoding(t *testing.T) {
+	t.Run("vector<u64> decoding works correctly", func(t *testing.T) {
+		// Test data: [1, 2, 3, 4, 5]
+		testVector := []uint64{1, 2, 3, 4, 5}
+
+		// Encode using mystenbcs
+		encoded, err := mystenbcs.Marshal(testVector)
+		require.NoError(t, err)
+
+		// Decode using our new functionality
+		decoded, err := decodeBCSValue(encoded, "vector<u64>")
+		require.NoError(t, err)
+
+		// Verify the result
+		result, ok := decoded.([]uint64)
+		require.True(t, ok, "Expected []uint64, got %T", decoded)
+		assert.Equal(t, testVector, result)
+	})
+
+	t.Run("empty vector<u64> decoding works", func(t *testing.T) {
+		// Test empty vector
+		testVector := []uint64{}
+
+		// Encode using mystenbcs
+		encoded, err := mystenbcs.Marshal(testVector)
+		require.NoError(t, err)
+
+		// Decode using our new functionality
+		decoded, err := decodeBCSValue(encoded, "vector<u64>")
+		require.NoError(t, err)
+
+		// Verify the result
+		result, ok := decoded.([]uint64)
+		require.True(t, ok, "Expected []uint64, got %T", decoded)
+		assert.Equal(t, testVector, result)
+		assert.Len(t, result, 0)
+	})
+
+	t.Run("large vector<u64> decoding works", func(t *testing.T) {
+		// Test with larger values and more elements
+		testVector := []uint64{0, 1, 255, 256, 65535, 65536, 4294967295, 4294967296, 18446744073709551615}
+
+		// Encode using mystenbcs
+		encoded, err := mystenbcs.Marshal(testVector)
+		require.NoError(t, err)
+
+		// Decode using our new functionality
+		decoded, err := decodeBCSValue(encoded, "vector<u64>")
+		require.NoError(t, err)
+
+		// Verify the result
+		result, ok := decoded.([]uint64)
+		require.True(t, ok, "Expected []uint64, got %T", decoded)
+		assert.Equal(t, testVector, result)
+	})
+}

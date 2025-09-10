@@ -1,5 +1,6 @@
 module ccip::state_object;
 
+use ccip::bcs_helper;
 use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -16,6 +17,7 @@ const EInvalidOwnerCap: u64 = 4;
 
 public struct CCIPObjectRef has key, store {
     id: UID,
+    package_ids: vector<address>,
     ownable_state: OwnableState,
 }
 
@@ -30,8 +32,9 @@ public struct STATE_OBJECT has drop {}
 fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     let (ownable_state, owner_cap) = ownable::new(ctx);
 
-    let ref = CCIPObjectRef {
+    let mut ref = CCIPObjectRef {
         id: object::new(ctx),
+        package_ids: vector[],
         ownable_state,
     };
 
@@ -46,10 +49,27 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     let tn = type_name::get_with_original_ids<STATE_OBJECT>();
     let package_bytes = ascii::into_bytes(tn.get_address());
     let package_id = address::from_ascii_bytes(&package_bytes);
+    ref.package_ids.push_back(package_id);
 
     transfer::share_object(ref);
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
+}
+
+public fun get_package_ids(state: &CCIPObjectRef): vector<address> {
+    state.package_ids
+}
+
+public fun get_initial_package_id(state: &CCIPObjectRef): address {
+    state.package_ids[0]
+}
+
+public fun get_latest_package_id(state: &CCIPObjectRef): address {
+    state.package_ids[state.package_ids.length() - 1]
+}
+
+public fun add_package_id(state: &mut CCIPObjectRef, _: &OwnerCap, package_id: address) {
+    state.package_ids.push_back(package_id);
 }
 
 public fun owner_cap_id(ref: &CCIPObjectRef): ID {
@@ -177,7 +197,7 @@ public fun mcms_transfer_ownership(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
+    bcs_helper::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -202,7 +222,7 @@ public fun mcms_execute_ownership_transfer(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
+    bcs_helper::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );

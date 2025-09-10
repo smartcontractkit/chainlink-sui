@@ -31,7 +31,6 @@ type IGenerics interface {
 	CreateAndTransferBox(ctx context.Context, opts *bind.CallOpts, typeArgs []string, value bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IGenericsDevInspect
 	Encoder() GenericsEncoder
-	Bound() bind.IBoundContract
 }
 
 type IGenericsDevInspect interface {
@@ -76,7 +75,7 @@ type GenericsDevInspect struct {
 var _ IGenerics = (*GenericsContract)(nil)
 var _ IGenericsDevInspect = (*GenericsDevInspect)(nil)
 
-func NewGenerics(packageID string, client sui.ISuiAPI) (IGenerics, error) {
+func NewGenerics(packageID string, client sui.ISuiAPI) (*GenericsContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "test", "generics", client)
 	if err != nil {
 		return nil, err
@@ -88,10 +87,6 @@ func NewGenerics(packageID string, client sui.ISuiAPI) (IGenerics, error) {
 	}
 	c.devInspect = &GenericsDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *GenericsContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *GenericsContract) Encoder() GenericsEncoder {

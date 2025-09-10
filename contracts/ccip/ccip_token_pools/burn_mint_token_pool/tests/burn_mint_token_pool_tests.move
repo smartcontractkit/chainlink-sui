@@ -7,6 +7,7 @@ use ccip::onramp_state_helper as onramp_sh;
 use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
+use ccip::upgrade_registry;
 use ccip_token_pool::ownable::OwnerCap;
 use std::string;
 use sui::clock;
@@ -42,6 +43,7 @@ fun setup_ccip_environment(
     let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
 
     // Initialize required CCIP modules
+    upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx());
 

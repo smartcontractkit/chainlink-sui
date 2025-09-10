@@ -51,7 +51,6 @@ type ITokenPool interface {
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, state TokenPoolState) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ITokenPoolDevInspect
 	Encoder() TokenPoolEncoder
-	Bound() bind.IBoundContract
 }
 
 type ITokenPoolDevInspect interface {
@@ -147,7 +146,7 @@ type TokenPoolDevInspect struct {
 var _ ITokenPool = (*TokenPoolContract)(nil)
 var _ ITokenPoolDevInspect = (*TokenPoolDevInspect)(nil)
 
-func NewTokenPool(packageID string, client sui.ISuiAPI) (ITokenPool, error) {
+func NewTokenPool(packageID string, client sui.ISuiAPI) (*TokenPoolContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip_token_pool", "token_pool", client)
 	if err != nil {
 		return nil, err
@@ -159,10 +158,6 @@ func NewTokenPool(packageID string, client sui.ISuiAPI) (ITokenPool, error) {
 	}
 	c.devInspect = &TokenPoolDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *TokenPoolContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *TokenPoolContract) Encoder() TokenPoolEncoder {

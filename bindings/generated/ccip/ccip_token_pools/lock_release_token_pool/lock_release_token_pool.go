@@ -71,7 +71,6 @@ type ILockReleaseTokenPool interface {
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() ILockReleaseTokenPoolDevInspect
 	Encoder() LockReleaseTokenPoolEncoder
-	Bound() bind.IBoundContract
 }
 
 type ILockReleaseTokenPoolDevInspect interface {
@@ -210,7 +209,7 @@ type LockReleaseTokenPoolDevInspect struct {
 var _ ILockReleaseTokenPool = (*LockReleaseTokenPoolContract)(nil)
 var _ ILockReleaseTokenPoolDevInspect = (*LockReleaseTokenPoolDevInspect)(nil)
 
-func NewLockReleaseTokenPool(packageID string, client sui.ISuiAPI) (ILockReleaseTokenPool, error) {
+func NewLockReleaseTokenPool(packageID string, client sui.ISuiAPI) (*LockReleaseTokenPoolContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "lock_release_token_pool", "lock_release_token_pool", client)
 	if err != nil {
 		return nil, err
@@ -222,10 +221,6 @@ func NewLockReleaseTokenPool(packageID string, client sui.ISuiAPI) (ILockRelease
 	}
 	c.devInspect = &LockReleaseTokenPoolDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *LockReleaseTokenPoolContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *LockReleaseTokenPoolContract) Encoder() LockReleaseTokenPoolEncoder {

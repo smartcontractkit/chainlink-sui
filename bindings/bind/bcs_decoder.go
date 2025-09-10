@@ -251,6 +251,14 @@ func decodeBCSValue(data []byte, moveType string) (any, error) {
 
 		return result, nil
 
+	case "vector<u64>":
+		var result []uint64
+		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
 	default:
 		return data, fmt.Errorf("unsupported type for automatic decoding: %s", moveType)
 	}

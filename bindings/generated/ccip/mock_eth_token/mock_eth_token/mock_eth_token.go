@@ -24,7 +24,6 @@ type IMockEthToken interface {
 	Mint(ctx context.Context, opts *bind.CallOpts, treasuryCap bind.Object, amount uint64) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMockEthTokenDevInspect
 	Encoder() MockEthTokenEncoder
-	Bound() bind.IBoundContract
 }
 
 type IMockEthTokenDevInspect interface {
@@ -50,7 +49,7 @@ type MockEthTokenDevInspect struct {
 var _ IMockEthToken = (*MockEthTokenContract)(nil)
 var _ IMockEthTokenDevInspect = (*MockEthTokenDevInspect)(nil)
 
-func NewMockEthToken(packageID string, client sui.ISuiAPI) (IMockEthToken, error) {
+func NewMockEthToken(packageID string, client sui.ISuiAPI) (*MockEthTokenContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "mock_eth_token", "mock_eth_token", client)
 	if err != nil {
 		return nil, err
@@ -62,10 +61,6 @@ func NewMockEthToken(packageID string, client sui.ISuiAPI) (IMockEthToken, error
 	}
 	c.devInspect = &MockEthTokenDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *MockEthTokenContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *MockEthTokenContract) Encoder() MockEthTokenEncoder {

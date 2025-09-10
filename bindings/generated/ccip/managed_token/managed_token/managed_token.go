@@ -60,7 +60,6 @@ type IManagedToken interface {
 	McmsUnpause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IManagedTokenDevInspect
 	Encoder() ManagedTokenEncoder
-	Bound() bind.IBoundContract
 }
 
 type IManagedTokenDevInspect interface {
@@ -171,7 +170,7 @@ type ManagedTokenDevInspect struct {
 var _ IManagedToken = (*ManagedTokenContract)(nil)
 var _ IManagedTokenDevInspect = (*ManagedTokenDevInspect)(nil)
 
-func NewManagedToken(packageID string, client sui.ISuiAPI) (IManagedToken, error) {
+func NewManagedToken(packageID string, client sui.ISuiAPI) (*ManagedTokenContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "managed_token", "managed_token", client)
 	if err != nil {
 		return nil, err
@@ -183,10 +182,6 @@ func NewManagedToken(packageID string, client sui.ISuiAPI) (IManagedToken, error
 	}
 	c.devInspect = &ManagedTokenDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *ManagedTokenContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *ManagedTokenContract) Encoder() ManagedTokenEncoder {

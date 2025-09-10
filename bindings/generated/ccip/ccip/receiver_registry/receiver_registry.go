@@ -30,7 +30,6 @@ type IReceiverRegistry interface {
 	GetReceiverInfo(ctx context.Context, opts *bind.CallOpts, ref bind.Object, receiverPackageId string) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IReceiverRegistryDevInspect
 	Encoder() ReceiverRegistryEncoder
-	Bound() bind.IBoundContract
 }
 
 type IReceiverRegistryDevInspect interface {
@@ -73,7 +72,7 @@ type ReceiverRegistryDevInspect struct {
 var _ IReceiverRegistry = (*ReceiverRegistryContract)(nil)
 var _ IReceiverRegistryDevInspect = (*ReceiverRegistryDevInspect)(nil)
 
-func NewReceiverRegistry(packageID string, client sui.ISuiAPI) (IReceiverRegistry, error) {
+func NewReceiverRegistry(packageID string, client sui.ISuiAPI) (*ReceiverRegistryContract, error) {
 	contract, err := bind.NewBoundContract(packageID, "ccip", "receiver_registry", client)
 	if err != nil {
 		return nil, err
@@ -85,10 +84,6 @@ func NewReceiverRegistry(packageID string, client sui.ISuiAPI) (IReceiverRegistr
 	}
 	c.devInspect = &ReceiverRegistryDevInspect{contract: c}
 	return c, nil
-}
-
-func (c *ReceiverRegistryContract) Bound() bind.IBoundContract {
-	return c.BoundContract
 }
 
 func (c *ReceiverRegistryContract) Encoder() ReceiverRegistryEncoder {
