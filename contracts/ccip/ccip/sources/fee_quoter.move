@@ -1659,6 +1659,56 @@ public fun mcms_apply_token_transfer_fee_config_updates(
     );
 }
 
+public fun mcms_update_prices_with_owner_cap(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    clock: &clock::Clock,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"update_prices_with_owner_cap"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_helper::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry), object::id_address(clock)],
+        &mut stream,
+    );
+
+    let source_tokens = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_address(stream) },
+    );
+    let source_usd_per_token = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_u256(stream) },
+    );
+    let gas_dest_chain_selectors = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_u64(stream) },
+    );
+    let gas_usd_per_unit_gas = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| { bcs_stream::deserialize_u256(stream) },
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    update_prices_with_owner_cap(
+        ref,
+        owner_cap,
+        clock,
+        source_tokens,
+        source_usd_per_token,
+        gas_dest_chain_selectors,
+        gas_usd_per_unit_gas,
+        ctx,
+    );
+}
+
 public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
