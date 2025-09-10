@@ -821,7 +821,7 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
 
-	// Get the state object's ID from the pointer object
+	// Read the package IDs from the state object
 	packageIds := []string{}
 	for _, packageId := range stateObject.Content.SuiMoveObject.Fields["package_ids"].([]any) {
 		packageIds = append(packageIds, packageId.(string))

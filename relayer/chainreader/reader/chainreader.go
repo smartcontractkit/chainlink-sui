@@ -372,6 +372,9 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 
 	if moduleConfig.Name != "" {
 		eventConfig.Name = moduleConfig.Name
+	} else {
+		// If the module config has no name, use the module name from the event config
+		moduleConfig.Name = moduleConfig.Events[filter.Key].Module
 	}
 
 	// only write contract address, rest will be handled during chainreader config
