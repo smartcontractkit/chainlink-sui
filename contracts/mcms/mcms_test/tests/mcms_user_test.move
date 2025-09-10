@@ -133,6 +133,8 @@ fun test_mcms_function_one() {
 
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -184,6 +186,8 @@ fun test_mcms_function_two() {
         let arg2 = TEST_ARG_U128;
 
         let mut data = vector::empty<u8>();
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -314,6 +318,8 @@ fun test_sequential_function_calls() {
 
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -355,6 +361,8 @@ fun test_sequential_function_calls() {
 
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -406,11 +414,16 @@ fun test_call_function_with_invalid_user_data() {
         let mut registry = ts::take_shared<Registry>(&scenario);
 
         let ctx = ts::ctx(&mut scenario);
+        let fake_owner_cap = object::new(ctx);
+        // Create a fake user_data
+        let mut fake_user_data = mcms_user::test_create_user_data(ctx, fake_owner_cap.to_inner());
 
         let arg1 = string::utf8(TEST_ARG_STRING);
         let arg2 = TEST_ARG_BYTES;
 
         let mut data = vector::empty<u8>();
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&fake_user_data)));
+        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -420,10 +433,6 @@ fun test_call_function_with_invalid_user_data() {
             string::utf8(FUNCTION_ONE),
             data,
         );
-
-        let fake_owner_cap = object::new(ctx);
-        // Create a fake user_data
-        let mut fake_user_data = mcms_user::test_create_user_data(ctx, fake_owner_cap.to_inner());
 
         // Command 2: This should fail because we provide an unregistered user_data
         // The cap does not exist for this user_data

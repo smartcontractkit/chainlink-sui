@@ -120,6 +120,11 @@ public fun mcms_function_one(
     assert!(function == string::utf8(b"function_one"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(user_data), object::id_address(registry)],
+        &mut stream,
+    );
+
     let arg1 = bcs_stream::deserialize_string(&mut stream);
     let arg2 = bcs_stream::deserialize_vector_u8(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
@@ -144,6 +149,11 @@ public fun mcms_function_two(
     assert!(function == string::utf8(b"function_two"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(user_data), object::id_address(registry)],
+        &mut stream,
+    );
+
     let arg1 = bcs_stream::deserialize_address(&mut stream);
     let arg2 = bcs_stream::deserialize_u128(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
