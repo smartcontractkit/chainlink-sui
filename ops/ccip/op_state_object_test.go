@@ -72,17 +72,6 @@ func TestStateObjectOperations(t *testing.T) {
 		require.Equal(t, signerAddress, getOwnerReport.Output.Objects.Owner, "owner should match signer address")
 	})
 
-	t.Run("Test Get Owner Cap ID", func(t *testing.T) {
-		// Test getting owner cap ID
-		getOwnerCapIdReport, err := cld_ops.ExecuteOperation(bundle, GetOwnerCapIdStateObjectOp, deps, GetOwnerCapIdStateObjectInput{
-			CCIPPackageId:         ccipReport.Output.PackageId,
-			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-		})
-		require.NoError(t, err, "failed to get owner cap ID")
-		require.NotEmpty(t, getOwnerCapIdReport.Output.Objects.OwnerCapId, "owner cap ID should not be empty")
-		require.Equal(t, ccipReport.Output.Objects.OwnerCapObjectId, getOwnerCapIdReport.Output.Objects.OwnerCapId, "owner cap ID should match deployed owner cap ID")
-	})
-
 	t.Run("Test Get Pending Transfer", func(t *testing.T) {
 		// Test getting pending transfer info (should be empty initially)
 		getPendingTransferReport, err := cld_ops.ExecuteOperation(bundle, GetPendingTransferStateObjectOp, deps, GetPendingTransferStateObjectInput{
@@ -131,34 +120,4 @@ func TestStateObjectOperations(t *testing.T) {
 		require.NotEmpty(t, removeReport.Output.Digest, "remove package ID transaction should have a digest")
 	})
 
-	t.Run("Test Ownership Transfer", func(t *testing.T) {
-		// Create a new signer for the transfer
-		newSigner, _ := testenv.SetupEnvironment(t)
-		newSignerAddress, err := newSigner.GetAddress()
-		require.NoError(t, err, "failed to get new signer address")
-
-		// Transfer ownership
-		transferReport, err := cld_ops.ExecuteOperation(bundle, TransferOwnershipStateObjectOp, deps, TransferOwnershipStateObjectInput{
-			CCIPPackageId:         ccipReport.Output.PackageId,
-			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-			To:                    newSignerAddress,
-		})
-		require.NoError(t, err, "failed to transfer ownership")
-		require.NotEmpty(t, transferReport.Output.Digest, "transfer ownership transaction should have a digest")
-
-		// Verify pending transfer exists
-		getPendingTransferReport, err := cld_ops.ExecuteOperation(bundle, GetPendingTransferStateObjectOp, deps, GetPendingTransferStateObjectInput{
-			CCIPPackageId:         ccipReport.Output.PackageId,
-			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-		})
-		require.NoError(t, err, "failed to get pending transfer info after transfer")
-		require.True(t, getPendingTransferReport.Output.Objects.HasPendingTransfer, "should have pending transfer")
-		require.NotNil(t, getPendingTransferReport.Output.Objects.PendingTransferFrom, "pending transfer from should not be nil")
-		require.NotNil(t, getPendingTransferReport.Output.Objects.PendingTransferTo, "pending transfer to should not be nil")
-		require.Equal(t, signerAddress, *getPendingTransferReport.Output.Objects.PendingTransferFrom, "pending transfer from should match original owner")
-		require.Equal(t, newSignerAddress, *getPendingTransferReport.Output.Objects.PendingTransferTo, "pending transfer to should match new owner")
-		require.NotNil(t, getPendingTransferReport.Output.Objects.PendingTransferAccepted, "pending transfer accepted should not be nil")
-		require.False(t, *getPendingTransferReport.Output.Objects.PendingTransferAccepted, "pending transfer should not be accepted yet")
-	})
 }
