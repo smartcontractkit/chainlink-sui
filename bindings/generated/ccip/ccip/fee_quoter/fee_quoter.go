@@ -49,6 +49,7 @@ type IFeeQuoter interface {
 	McmsApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsUpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
@@ -137,6 +138,8 @@ type FeeQuoterEncoder interface {
 	McmsApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyTokenTransferFeeConfigUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyTokenTransferFeeConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsUpdatePricesWithOwnerCap(ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsUpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	DestroyFeeQuoterCap(param bind.Object, cap bind.Object) (*bind.EncodedCall, error)
@@ -941,6 +944,16 @@ func (c *FeeQuoterContract) McmsApplyDestChainConfigUpdates(ctx context.Context,
 // McmsApplyTokenTransferFeeConfigUpdates executes the mcms_apply_token_transfer_fee_config_updates Move function.
 func (c *FeeQuoterContract) McmsApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.McmsApplyTokenTransferFeeConfigUpdates(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsUpdatePricesWithOwnerCap executes the mcms_update_prices_with_owner_cap Move function.
+func (c *FeeQuoterContract) McmsUpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.McmsUpdatePricesWithOwnerCap(ref, registry, clock, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2521,6 +2534,41 @@ func (c feeQuoterEncoder) McmsApplyTokenTransferFeeConfigUpdatesWithArgs(args ..
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_apply_token_transfer_fee_config_updates", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsUpdatePricesWithOwnerCap encodes a call to the mcms_update_prices_with_owner_cap Move function.
+func (c feeQuoterEncoder) McmsUpdatePricesWithOwnerCap(ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_update_prices_with_owner_cap", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"&clock::Clock",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		clock,
+		params,
+	}, nil)
+}
+
+// McmsUpdatePricesWithOwnerCapWithArgs encodes a call to the mcms_update_prices_with_owner_cap Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) McmsUpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"&clock::Clock",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_update_prices_with_owner_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsApplyPremiumMultiplierWeiPerEthUpdates encodes a call to the mcms_apply_premium_multiplier_wei_per_eth_updates Move function.
