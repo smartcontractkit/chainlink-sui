@@ -106,7 +106,7 @@ func TestStateObjectOperations(t *testing.T) {
 			PackageId:             newPackageId,
 		})
 		require.NoError(t, err, "failed to add package ID")
-		require.NotEmpty(t, addReport.Digest, "add package ID transaction should have a digest")
+		require.NotEmpty(t, addReport.Output.Digest, "add package ID transaction should have a digest")
 	})
 
 	t.Run("Test Remove Package ID", func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestStateObjectOperations(t *testing.T) {
 			PackageId:             newPackageId,
 		})
 		require.NoError(t, err, "failed to remove package ID")
-		require.NotEmpty(t, removeReport.Digest, "remove package ID transaction should have a digest")
+		require.NotEmpty(t, removeReport.Output.Digest, "remove package ID transaction should have a digest")
 	})
 
 	t.Run("Test Ownership Transfer", func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestStateObjectOperations(t *testing.T) {
 			To:                    newSignerAddress,
 		})
 		require.NoError(t, err, "failed to transfer ownership")
-		require.NotEmpty(t, transferReport.Digest, "transfer ownership transaction should have a digest")
+		require.NotEmpty(t, transferReport.Output.Digest, "transfer ownership transaction should have a digest")
 
 		// Verify pending transfer exists
 		getPendingTransferReport, err := cld_ops.ExecuteOperation(bundle, GetPendingTransferStateObjectOp, deps, GetPendingTransferStateObjectInput{
