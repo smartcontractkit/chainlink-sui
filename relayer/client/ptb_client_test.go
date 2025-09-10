@@ -477,7 +477,20 @@ func TestPTBClient(t *testing.T) {
 			context.Background(),
 			packageId,
 			"counter",
-			accountAddress,
+			packageId,
+		)
+
+		// The latest package ID should be the same as the provided package ID
+		require.NoError(t, err)
+		require.Equal(t, latestPackageId, packageId)
+	})
+
+	t.Run("GetLatestPackageIdFromPointer", func(t *testing.T) {
+		latestPackageId, err := relayerClient.GetLatestPackageId(
+			context.Background(),
+			packageId,
+			"offramp",
+			packageId,
 		)
 
 		// The latest package ID should be the same as the provided package ID

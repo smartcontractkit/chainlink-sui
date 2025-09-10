@@ -760,42 +760,72 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		return []string{packageId}, nil
 	}
 
-	// Iterate through the structs to find the state object
+	// Iterate through the structs to find the pointer object
 	pointerStructName := ""
+	pointerStructNameFound := false
 	for structName := range normalizedModule.Structs {
 		if strings.Contains(structName, "Pointer") {
 			pointerStructName = structName
+			pointerStructNameFound = true
 			break
 		}
 	}
 
+	if !pointerStructNameFound {
+		return nil, fmt.Errorf("pointer struct name not found for package %s and module %s", packageId, module)
+	}
+
+	// Read the owned objects to get the pointer object's ID
 	ownedObjects, err := c.ReadOwnedObjects(ctx, packageId, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get owned objects: %w", err)
 	}
 
 	// Use the normalized module to determine the state ref object
-	stateRefId := ""
+	var pointerObject models.SuiObjectData
+	pointerObjectFound := false
 
 	for _, ownedObject := range ownedObjects {
+		c.log.Debugw("ownedObject", "ownedObject", ownedObject.Data.Type)
 		if strings.Contains(ownedObject.Data.Type, pointerStructName) {
-			stateRefId = ownedObject.Data.ObjectId
+			pointerObject = *ownedObject.Data
+			pointerObjectFound = true
 			break
 		}
 	}
 
-	if stateRefId == "" {
-		return nil, fmt.Errorf("state ref object not found for package %s and module %s", packageId, module)
+	if !pointerObjectFound {
+		return nil, fmt.Errorf("pointer object not found for package %s and module %s", packageId, module)
 	}
 
-	// Get the state ref object
-	stateRef, err := c.ReadObjectId(ctx, stateRefId)
+	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
+
+	stateObjectId := ""
+	switch module {
+	case "offramp":
+		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["off_ramp_state_id"].(string)
+	case "onramp":
+		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["on_ramp_state_id"].(string)
+	case "ccip":
+	case "state_object":
+		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["object_ref_id"].(string)
+	}
+
+	if stateObjectId == "" {
+		return nil, fmt.Errorf("state object id not found for package %s and module %s", packageId, module)
+	}
+
+	// Read the state object
+	stateObject, err := c.ReadObjectId(ctx, stateObjectId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get state ref object: %w", err)
+		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
 
-	// Read the package IDs
-	packageIds := stateRef.Content.SuiMoveObject.Fields["package_ids"].([]string)
+	// Get the state object's ID from the pointer object
+	packageIds := []string{}
+	for _, packageId := range stateObject.Content.SuiMoveObject.Fields["package_ids"].([]any) {
+		packageIds = append(packageIds, packageId.(string))
+	}
 
 	return packageIds, nil
 }
