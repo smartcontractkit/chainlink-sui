@@ -24,7 +24,8 @@ type IMcmsUser interface {
 	FunctionTwo(ctx context.Context, opts *bind.CallOpts, userData bind.Object, ownerCap bind.Object, arg1 string, arg2 *big.Int) (*models.SuiTransactionBlockResponse, error)
 	RegisterMcmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, registry bind.Object, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, upgradeCap bind.Object, registry bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsFunctionOne(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsFunctionTwo(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetOwnerCap(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetInvocations(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetFieldA(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -54,8 +55,10 @@ type McmsUserEncoder interface {
 	RegisterMcmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
 	RegisterUpgradeCap(state bind.Object, upgradeCap bind.Object, registry bind.Object) (*bind.EncodedCall, error)
 	RegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsEntrypoint(userData bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsFunctionOne(userData bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsFunctionOneWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsFunctionTwo(userData bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsFunctionTwoWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOwnerCap(userData bind.Object) (*bind.EncodedCall, error)
 	GetOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetInvocations(userData bind.Object) (*bind.EncodedCall, error)
@@ -236,9 +239,19 @@ func (c *McmsUserContract) RegisterUpgradeCap(ctx context.Context, opts *bind.Ca
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsEntrypoint executes the mcms_entrypoint Move function.
-func (c *McmsUserContract) McmsEntrypoint(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsUserEncoder.McmsEntrypoint(userData, registry, params)
+// McmsFunctionOne executes the mcms_function_one Move function.
+func (c *McmsUserContract) McmsFunctionOne(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsUserEncoder.McmsFunctionOne(userData, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsFunctionTwo executes the mcms_function_two Move function.
+func (c *McmsUserContract) McmsFunctionTwo(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsUserEncoder.McmsFunctionTwo(userData, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -576,11 +589,11 @@ func (c mcmsUserEncoder) RegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedC
 	return c.EncodeCallArgsWithGenerics("register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsEntrypoint encodes a call to the mcms_entrypoint Move function.
-func (c mcmsUserEncoder) McmsEntrypoint(userData bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsFunctionOne encodes a call to the mcms_function_one Move function.
+func (c mcmsUserEncoder) McmsFunctionOne(userData bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_function_one", typeArgsList, typeParamsList, []string{
 		"&mut UserData",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -591,9 +604,9 @@ func (c mcmsUserEncoder) McmsEntrypoint(userData bind.Object, registry bind.Obje
 	}, nil)
 }
 
-// McmsEntrypointWithArgs encodes a call to the mcms_entrypoint Move function using arbitrary arguments.
+// McmsFunctionOneWithArgs encodes a call to the mcms_function_one Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsUserEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsUserEncoder) McmsFunctionOneWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut UserData",
 		"&mut Registry",
@@ -605,7 +618,39 @@ func (c mcmsUserEncoder) McmsEntrypointWithArgs(args ...any) (*bind.EncodedCall,
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_function_one", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsFunctionTwo encodes a call to the mcms_function_two Move function.
+func (c mcmsUserEncoder) McmsFunctionTwo(userData bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_function_two", typeArgsList, typeParamsList, []string{
+		"&mut UserData",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		userData,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsFunctionTwoWithArgs encodes a call to the mcms_function_two Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsUserEncoder) McmsFunctionTwoWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut UserData",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_function_two", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetOwnerCap encodes a call to the get_owner_cap Move function.
