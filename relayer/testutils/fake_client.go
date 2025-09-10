@@ -126,6 +126,16 @@ func (c *FakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context) (string
 	return "1000", nil
 }
 
+func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+	// Return the provided package ID as the latest for testing
+	return packageId, nil
+}
+
+func (c *FakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+	// Return a single package ID for testing
+	return []string{packageId}, nil
+}
+
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
 // based on gas budget and track call counts for testing gas bump scenarios
 type StatefulFakeSuiPTBClient struct {
@@ -222,6 +232,14 @@ func (c *StatefulFakeSuiPTBClient) BlockByDigest(ctx context.Context, txDigest s
 
 func (c *StatefulFakeSuiPTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType client.TransactionRequestType) (client.SuiTransactionBlockResponse, error) {
 	return client.SuiTransactionBlockResponse{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+	return "", nil
+}
+
+func (c *StatefulFakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+	return []string{}, nil
 }
 
 func (c *StatefulFakeSuiPTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {

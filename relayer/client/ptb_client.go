@@ -54,7 +54,6 @@ type SuiPTBClient interface {
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
 	LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error)
 	GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error)
-	GetInitialPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error)
 	GetClient() sui.ISuiAPI
 	HashTxBytes(txBytes []byte) []byte
 }
@@ -747,74 +746,67 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 
 // LoadModulePackages returns the set of package IDs for a given module using its original package ID
 // This method assumes that module names are unique across all packages
-// IMPORTANT: This meant is meant to be invoked against modules to contain the `get_package_ids` function, not any arbitrary module
 func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+	// Ensure that the module keeps track of its package IDs by checking that it has `add_package_id` function
 	normalizedModule, err := c.GetNormalizedModule(ctx, packageId, module)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get normalized module: %w", err)
 	}
 
-	// Check that the module has the `get_package_ids` function
-	if _, ok := normalizedModule.ExposedFunctions["get_package_ids"]; !ok {
-		c.log.Warnw("module does not have the `get_package_ids` function", "module", module)
-		// fallback to using the provided package ID
+	// Check that the module has the `add_package_id` function
+	if _, ok := normalizedModule.ExposedFunctions["add_package_id"]; !ok {
+		c.log.Warnw("module does not have the `add_package_id` function", "module", module)
+		// fallback to using the provided package ID as it's the only package ID
 		return []string{packageId}, nil
 	}
 
-	resp, err := c.ReadFunction(ctx, signerAddress, packageId, module, "get_package_ids", []any{}, []string{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to read function: %w", err)
+	// Iterate through the structs to find the state object
+	pointerStructName := ""
+	for structName := range normalizedModule.Structs {
+		if strings.Contains(structName, "Pointer") {
+			pointerStructName = structName
+			break
+		}
 	}
 
-	packageIds := resp[0].([]string)
+	ownedObjects, err := c.ReadOwnedObjects(ctx, packageId, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get owned objects: %w", err)
+	}
+
+	// Use the normalized module to determine the state ref object
+	stateRefId := ""
+
+	for _, ownedObject := range ownedObjects {
+		if strings.Contains(ownedObject.Data.Type, pointerStructName) {
+			stateRefId = ownedObject.Data.ObjectId
+			break
+		}
+	}
+
+	if stateRefId == "" {
+		return nil, fmt.Errorf("state ref object not found for package %s and module %s", packageId, module)
+	}
+
+	// Get the state ref object
+	stateRef, err := c.ReadObjectId(ctx, stateRefId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get state ref object: %w", err)
+	}
+
+	// Read the package IDs
+	packageIds := stateRef.Content.SuiMoveObject.Fields["package_ids"].([]string)
 
 	return packageIds, nil
 }
 
 func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
-	normalizedModule, err := c.GetNormalizedModule(ctx, packageId, module)
+	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module, signerAddress)
 	if err != nil {
-		return "", fmt.Errorf("failed to get normalized module: %w", err)
+		return "", fmt.Errorf("failed to load module package ids: %w", err)
 	}
 
-	// Check that the module has the `get_package_ids` function
-	if _, ok := normalizedModule.ExposedFunctions["get_latest_package_id"]; !ok {
-		c.log.Warnw("module does not have the `get_latest_package_id` function", "module", module)
-		// fallback to using the provided package ID
-		return packageId, nil
-	}
-
-	resp, err := c.ReadFunction(ctx, signerAddress, packageId, module, "get_latest_package_id", []any{}, []string{})
-	if err != nil {
-		return "", fmt.Errorf("failed to read function: %w", err)
-	}
-
-	latestPackageId := resp[0].(string)
-
-	return latestPackageId, nil
-}
-
-func (c *PTBClient) GetInitialPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
-	normalizedModule, err := c.GetNormalizedModule(ctx, packageId, module)
-	if err != nil {
-		return "", fmt.Errorf("failed to get normalized module: %w", err)
-	}
-
-	// Check that the module has the `get_package_ids` function
-	if _, ok := normalizedModule.ExposedFunctions["get_initial_package_id"]; !ok {
-		c.log.Warnw("module does not have the `get_initial_package_id` function", "module", module)
-		// fallback to using the provided package ID
-		return packageId, nil
-	}
-
-	resp, err := c.ReadFunction(ctx, signerAddress, packageId, module, "get_initial_package_id", []any{}, []string{})
-	if err != nil {
-		return "", fmt.Errorf("failed to read function: %w", err)
-	}
-
-	latestPackageId := resp[0].(string)
-
-	return latestPackageId, nil
+	return packageIds[len(packageIds)-1], nil
 }
 
 func (c *PTBClient) GetClient() sui.ISuiAPI {

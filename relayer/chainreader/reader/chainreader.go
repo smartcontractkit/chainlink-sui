@@ -379,7 +379,7 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 
 	// repeat the sync call for each package ID (upgrades) of the module
 	// TODO: handle signer address
-	packageIds, err := s.client.LoadModulePackageIds(ctx, contract.Address, contract.Name, "")
+	packageIds, err := s.client.LoadModulePackageIds(ctx, contract.Address, contract.Name, contract.Address)
 	if err != nil {
 		return nil, err
 	}
