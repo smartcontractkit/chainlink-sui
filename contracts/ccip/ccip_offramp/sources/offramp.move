@@ -3,7 +3,6 @@
 /// during upgrades.
 module ccip_offramp::offramp;
 
-use ccip::bcs_helper;
 use ccip::client;
 use ccip::eth_abi;
 use ccip::fee_quoter::{Self, FeeQuoterCap};
@@ -226,6 +225,7 @@ const ECalculateMessageHashInvalidArguments: u64 = 26;
 const EInvalidFunction: u64 = 27;
 const EInvalidTokenReceiver: u64 = 28;
 const ETokenTransferLimitExceeded: u64 = 29;
+const EPackageIdNotFound: u64 = 30;
 
 const VERSION: u8 = 1;
 
@@ -309,20 +309,14 @@ public fun initialize(
     state.package_ids.push_back(package_id);
 }
 
-public fun get_package_ids(state: &OffRampState): vector<address> {
-    state.package_ids
-}
-
-public fun get_initial_package_id(state: &OffRampState): address {
-    state.package_ids[0]
-}
-
-public fun get_latest_package_id(state: &OffRampState): address {
-    state.package_ids[state.package_ids.length() - 1]
-}
-
 public fun add_package_id(state: &mut OffRampState, _: &OwnerCap, package_id: address) {
     state.package_ids.push_back(package_id);
+}
+
+public fun remove_package_id(state: &mut OffRampState, _: &OwnerCap, package_id: address) {
+    let (found, idx) = state.package_ids.index_of(&package_id);
+    assert!(found, EPackageIdNotFound);
+    state.package_ids.remove(idx);
 }
 
 public fun get_ocr3_base(state: &OffRampState): &OCR3BaseState {
@@ -1399,7 +1393,7 @@ public fun mcms_accept_ownership(
     assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addr(object::id_address(state), &mut stream);
+    bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
 
     bcs_stream::assert_is_consumed(&stream);
 
@@ -1488,7 +1482,7 @@ public fun mcms_set_dynamic_config(
     assert!(function == string::utf8(b"set_dynamic_config"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -1514,7 +1508,7 @@ public fun mcms_apply_source_chain_config_updates(
     assert!(function == string::utf8(b"apply_source_chain_config_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -1563,7 +1557,7 @@ public fun mcms_set_ocr3_config(
     assert!(function == string::utf8(b"set_ocr3_config"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -1610,7 +1604,7 @@ public fun mcms_transfer_ownership(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );
@@ -1636,7 +1630,7 @@ public fun mcms_execute_ownership_transfer(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(state), object::id_address(registry)],
         &mut stream,
     );

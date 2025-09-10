@@ -1,6 +1,5 @@
 module ccip::rmn_remote;
 
-use ccip::bcs_helper;
 use ccip::eth_abi;
 use ccip::merkle_proof;
 use ccip::ownable::OwnerCap;
@@ -488,7 +487,7 @@ public fun mcms_set_config(
     assert!(function == string::utf8(b"set_config"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -528,7 +527,7 @@ public fun mcms_curse(
     assert!(function == string::utf8(b"curse"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -552,7 +551,7 @@ public fun mcms_curse_multiple(
     assert!(function == string::utf8(b"curse_multiple"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -579,7 +578,7 @@ public fun mcms_uncurse(
     assert!(function == string::utf8(b"uncurse"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -606,7 +605,7 @@ public fun mcms_uncurse_multiple(
     assert!(function == string::utf8(b"uncurse_multiple"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );

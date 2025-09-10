@@ -215,88 +215,48 @@ var AddPackageIdOffRampOp = cld_ops.NewOperation(
 	addPackageIdOffRampHandler,
 )
 
-type GetPackageIdsOffRampInput struct {
+type RemovePackageIdOffRampInput struct {
 	OffRampPackageId string
 	StateObjectId    string
+	OwnerCapObjectId string
+	PackageId        string
 }
 
-type GetPackageIdsOffRampOutput struct {
-	PackageIds []string
+type RemovePackageIdOffRampObjects struct {
+	// No specific objects are returned from remove_package_id
 }
 
-var getPackageIdsOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetPackageIdsOffRampInput) (output sui_ops.OpTxResult[GetPackageIdsOffRampOutput], err error) {
+var removePackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RemovePackageIdOffRampInput) (output sui_ops.OpTxResult[RemovePackageIdOffRampObjects], err error) {
 	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[GetPackageIdsOffRampOutput]{}, err
+		return sui_ops.OpTxResult[RemovePackageIdOffRampObjects]{}, err
 	}
 
 	opts := deps.GetCallOpts()
-	packageIds, err := offRampPackage.DevInspect().GetPackageIds(
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.RemovePackageId(
 		b.GetContext(),
 		opts,
 		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.PackageId,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[GetPackageIdsOffRampOutput]{}, fmt.Errorf("failed to get package IDs from OffRamp: %w", err)
+		return sui_ops.OpTxResult[RemovePackageIdOffRampObjects]{}, fmt.Errorf("failed to execute RemovePackageId on offRamp: %w", err)
 	}
 
-	b.Logger.Infow("Package IDs retrieved from OffRamp", "packageIds", packageIds)
+	b.Logger.Infow("Package ID removed from OffRamp", "packageId", input.PackageId)
 
-	return sui_ops.OpTxResult[GetPackageIdsOffRampOutput]{
-		Digest:    "",
+	return sui_ops.OpTxResult[RemovePackageIdOffRampObjects]{
+		Digest:    tx.Digest,
 		PackageId: input.OffRampPackageId,
-		Objects: GetPackageIdsOffRampOutput{
-			PackageIds: packageIds,
-		},
+		Objects:   RemovePackageIdOffRampObjects{},
 	}, nil
 }
 
-var GetPackageIdsOffRampOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-offramp-get-package-ids", "package", "query"),
+var RemovePackageIdOffRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-offramp-remove-package-id", "package", "configure"),
 	semver.MustParse("0.1.0"),
-	"Gets all package IDs from the OffRamp state",
-	getPackageIdsOffRampHandler,
-)
-
-type GetInitialPackageIdOffRampInput struct {
-	OffRampPackageId string
-	StateObjectId    string
-}
-
-type GetInitialPackageIdOffRampOutput struct {
-	InitialPackageId string
-}
-
-var getInitialPackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetInitialPackageIdOffRampInput) (output sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput]{}, err
-	}
-
-	opts := deps.GetCallOpts()
-	initialPackageId, err := offRampPackage.DevInspect().GetInitialPackageId(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.StateObjectId},
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput]{}, fmt.Errorf("failed to get initial package ID from OffRamp: %w", err)
-	}
-
-	b.Logger.Infow("Initial package ID retrieved from OffRamp", "initialPackageId", initialPackageId)
-
-	return sui_ops.OpTxResult[GetInitialPackageIdOffRampOutput]{
-		Digest:    "",
-		PackageId: input.OffRampPackageId,
-		Objects: GetInitialPackageIdOffRampOutput{
-			InitialPackageId: initialPackageId,
-		},
-	}, nil
-}
-
-var GetInitialPackageIdOffRampOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-offramp-get-initial-package-id", "package", "query"),
-	semver.MustParse("0.1.0"),
-	"Gets the initial package ID from the OffRamp state",
-	getInitialPackageIdOffRampHandler,
+	"Removes a package ID from the OffRamp state for upgrade tracking",
+	removePackageIdOffRampHandler,
 )

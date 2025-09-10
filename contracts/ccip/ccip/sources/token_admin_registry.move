@@ -1,6 +1,5 @@
 module ccip::token_admin_registry;
 
-use ccip::bcs_helper;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
@@ -594,7 +593,7 @@ public fun mcms_unregister_pool(
     assert!(function == string::utf8(b"unregister_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -619,7 +618,7 @@ public fun mcms_set_pool(
     assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -666,7 +665,7 @@ public fun mcms_transfer_admin_role(
     assert!(function == string::utf8(b"transfer_admin_role"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -697,7 +696,7 @@ public fun mcms_accept_admin_role(
     assert!(function == string::utf8(b"accept_admin_role"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );

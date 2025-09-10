@@ -5,6 +5,7 @@ module ccip::fee_quoter_mcms_test;
 use ccip::fee_quoter;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
@@ -50,6 +51,7 @@ fun setup(): Env {
 
     // Initialize fee quoter
     let state_object_owner_cap = ts::take_from_sender<ccip::ownable::OwnerCap>(&scenario);
+    upgrade_registry::initialize(&mut ref, &state_object_owner_cap, scenario.ctx());
     fee_quoter::initialize(
         &mut ref,
         &state_object_owner_cap,

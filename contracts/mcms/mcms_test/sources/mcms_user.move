@@ -7,7 +7,7 @@ use std::string::{Self, String};
 use sui::package::UpgradeCap;
 
 const EInvalidAdminCap: u64 = 1;
-const EUnknownFunction: u64 = 2;
+const EInvalidFunction: u64 = 2;
 
 public struct UserData has key, store {
     id: UID,
@@ -102,7 +102,7 @@ fun assert_valid_owner_cap(user_data: &UserData, owner_cap: &OwnerCap) {
 
 public struct SampleMcmsCallback has drop {}
 
-public fun mcms_entrypoint(
+public fun mcms_function_one(
     user_data: &mut UserData,
     registry: &mut Registry,
     params: ExecutingCallbackParams, // hot potato
@@ -117,22 +117,47 @@ public fun mcms_entrypoint(
         params,
     );
 
-    let function_bytes = *function.as_bytes();
-    let mut stream = bcs_stream::new(data);
+    assert!(function == string::utf8(b"function_one"), EInvalidFunction);
 
-    if (function_bytes == b"function_one") {
-        let arg1 = bcs_stream::deserialize_string(&mut stream);
-        let arg2 = bcs_stream::deserialize_vector_u8(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        function_one(user_data, owner_cap, arg1, arg2);
-    } else if (function_bytes == b"function_two") {
-        let arg1 = bcs_stream::deserialize_address(&mut stream);
-        let arg2 = bcs_stream::deserialize_u128(&mut stream);
-        bcs_stream::assert_is_consumed(&stream);
-        function_two(user_data, owner_cap, arg1, arg2);
-    } else {
-        abort EUnknownFunction
-    };
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(user_data), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let arg1 = bcs_stream::deserialize_string(&mut stream);
+    let arg2 = bcs_stream::deserialize_vector_u8(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+    function_one(user_data, owner_cap, arg1, arg2);
+}
+
+public fun mcms_function_two(
+    user_data: &mut UserData,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams, // hot potato
+    _ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<
+        SampleMcmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        SampleMcmsCallback {},
+        params,
+    );
+
+    assert!(function == string::utf8(b"function_two"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(user_data), object::id_address(registry)],
+        &mut stream,
+    );
+
+    let arg1 = bcs_stream::deserialize_address(&mut stream);
+    let arg2 = bcs_stream::deserialize_u128(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+    function_two(user_data, owner_cap, arg1, arg2);
 }
 
 public fun get_owner_cap(user_data: &UserData): ID {
