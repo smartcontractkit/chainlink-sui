@@ -1,6 +1,5 @@
 module ccip::state_object;
 
-use ccip::bcs_helper;
 use ccip::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -178,7 +177,7 @@ public fun mcms_transfer_ownership(
     assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -203,7 +202,7 @@ public fun mcms_execute_ownership_transfer(
     assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );

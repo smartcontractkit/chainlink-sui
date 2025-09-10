@@ -2,7 +2,6 @@
 /// information and pricing.
 module ccip::fee_quoter;
 
-use ccip::bcs_helper;
 use ccip::client;
 use ccip::eth_abi;
 use ccip::ownable::OwnerCap;
@@ -1503,7 +1502,7 @@ public fun mcms_apply_fee_token_updates(
     assert!(function == string::utf8(b"apply_fee_token_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -1535,7 +1534,7 @@ public fun mcms_apply_dest_chain_config_updates(
     assert!(function == string::utf8(b"apply_dest_chain_config_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -1603,7 +1602,7 @@ public fun mcms_apply_token_transfer_fee_config_updates(
     assert!(function == string::utf8(b"apply_token_transfer_fee_config_updates"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );
@@ -1674,7 +1673,7 @@ public fun mcms_update_prices_with_owner_cap(
     assert!(function == string::utf8(b"update_prices_with_owner_cap"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry), object::id_address(clock)],
         &mut stream,
     );
@@ -1726,7 +1725,7 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     );
 
     let mut stream = bcs_stream::new(data);
-    bcs_helper::validate_obj_addrs(
+    bcs_stream::validate_obj_addrs(
         vector[object::id_address(ref), object::id_address(registry)],
         &mut stream,
     );

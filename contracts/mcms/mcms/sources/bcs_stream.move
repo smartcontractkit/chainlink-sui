@@ -7,6 +7,7 @@ module mcms::bcs_stream {
     const E_MALFORMED_DATA: u64 = 1;
     const E_OUT_OF_BYTES: u64 = 2;
     const E_NOT_CONSUMED: u64 = 3;
+    const E_INVALID_OBJECT_ADDRESS: u64 = 4;
 
     public struct BCSStream has drop {
         /// Byte buffer containing the serialized data.
@@ -270,6 +271,19 @@ module mcms::bcs_stream {
         stream.cur = 0;
 
         res
+    }
+
+    public fun validate_obj_addr(addr: address, stream: &mut BCSStream) {
+        let deserialized_address = deserialize_address(stream);
+        assert!(deserialized_address == addr, E_INVALID_OBJECT_ADDRESS);
+    }
+
+    public fun validate_obj_addrs(addrs: vector<address>, stream: &mut BCSStream) {
+        let mut i = 0;
+        while (i < addrs.length()) {
+            validate_obj_addr(addrs[i], stream);
+            i = i + 1;
+        }
     }
 
     /// Deserializes `Option` from the stream.
