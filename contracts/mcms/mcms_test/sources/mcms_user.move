@@ -121,7 +121,7 @@ public fun mcms_function_one(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(user_data), object::id_address(registry)],
+        vector[object::id_address(user_data), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -150,7 +150,7 @@ public fun mcms_function_two(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(user_data), object::id_address(registry)],
+        vector[object::id_address(user_data), object::id_address(owner_cap)],
         &mut stream,
     );
 
