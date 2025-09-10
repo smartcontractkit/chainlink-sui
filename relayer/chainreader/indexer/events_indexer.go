@@ -284,9 +284,15 @@ eventLoop:
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
 
+				// optionally use the initial package ID if it is provided
+				packageIdToInsert := selector.Package
+				if selector.InitialPackageId != nil {
+					packageIdToInsert = *selector.InitialPackageId
+				}
+
 				// Convert event to database record
 				record := database.EventRecord{
-					EventAccountAddress: selector.Package,
+					EventAccountAddress: packageIdToInsert,
 					EventHandle:         eventHandle,
 					EventOffset:         offset,
 					TxDigest:            event.Id.TxDigest,
