@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStateObjectPackageIdOperations(t *testing.T) {
+func TestStateObjectOperations(t *testing.T) {
 	t.Parallel()
 
 	signer, client := testenv.SetupEnvironment(t)
@@ -61,53 +61,104 @@ func TestStateObjectPackageIdOperations(t *testing.T) {
 	})
 	require.NoError(t, err, "failed to deploy CCIP Package")
 
-	t.Run("Test Get Initial Package ID", func(t *testing.T) {
-		// Test getting initial package ID
-		getInitialReport, err := cld_ops.ExecuteOperation(bundle, GetInitialPackageIdStateObjectOp, deps, GetInitialPackageIdStateObjectInput{
+	t.Run("Test Get Owner", func(t *testing.T) {
+		// Test getting owner
+		getOwnerReport, err := cld_ops.ExecuteOperation(bundle, GetOwnerStateObjectOp, deps, GetOwnerStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 		})
-		require.NoError(t, err, "failed to get initial package ID")
-		require.NotEmpty(t, getInitialReport.Output.Objects.InitialPackageId, "initial package ID should not be empty")
-		require.Equal(t, ccipReport.Output.PackageId, getInitialReport.Output.Objects.InitialPackageId, "initial package ID should match deployed package ID")
+		require.NoError(t, err, "failed to get owner")
+		require.NotEmpty(t, getOwnerReport.Output.Objects.Owner, "owner should not be empty")
+		require.Equal(t, signerAddress, getOwnerReport.Output.Objects.Owner, "owner should match signer address")
 	})
 
-	t.Run("Test Get Package IDs", func(t *testing.T) {
-		// Test getting all package IDs
-		getPackageIdsReport, err := cld_ops.ExecuteOperation(bundle, GetPackageIdsStateObjectOp, deps, GetPackageIdsStateObjectInput{
+	t.Run("Test Get Owner Cap ID", func(t *testing.T) {
+		// Test getting owner cap ID
+		getOwnerCapIdReport, err := cld_ops.ExecuteOperation(bundle, GetOwnerCapIdStateObjectOp, deps, GetOwnerCapIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 		})
-		require.NoError(t, err, "failed to get package IDs")
-		require.NotEmpty(t, getPackageIdsReport.Output.Objects.PackageIds, "package IDs should not be empty")
-		require.Contains(t, getPackageIdsReport.Output.Objects.PackageIds, ccipReport.Output.PackageId, "package IDs should contain deployed package ID")
+		require.NoError(t, err, "failed to get owner cap ID")
+		require.NotEmpty(t, getOwnerCapIdReport.Output.Objects.OwnerCapId, "owner cap ID should not be empty")
+		require.Equal(t, ccipReport.Output.Objects.OwnerCapObjectId, getOwnerCapIdReport.Output.Objects.OwnerCapId, "owner cap ID should match deployed owner cap ID")
+	})
+
+	t.Run("Test Get Pending Transfer", func(t *testing.T) {
+		// Test getting pending transfer info (should be empty initially)
+		getPendingTransferReport, err := cld_ops.ExecuteOperation(bundle, GetPendingTransferStateObjectOp, deps, GetPendingTransferStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
+		})
+		require.NoError(t, err, "failed to get pending transfer info")
+		require.False(t, getPendingTransferReport.Output.Objects.HasPendingTransfer, "should not have pending transfer initially")
+		require.Nil(t, getPendingTransferReport.Output.Objects.PendingTransferFrom, "pending transfer from should be nil")
+		require.Nil(t, getPendingTransferReport.Output.Objects.PendingTransferTo, "pending transfer to should be nil")
+		require.Nil(t, getPendingTransferReport.Output.Objects.PendingTransferAccepted, "pending transfer accepted should be nil")
 	})
 
 	t.Run("Test Add Package ID", func(t *testing.T) {
-		// Add a new package ID (will be zero-padded to 32 bytes)
+		// Add a new package ID
 		newPackageId := "0x1234567890abcdef1234567890abcdef12345678"
-		expectedPackageId := "0x0000000000000000000000001234567890abcdef1234567890abcdef12345678"
-		_, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
+		addReport, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
 			PackageId:             newPackageId,
 		})
 		require.NoError(t, err, "failed to add package ID")
+		require.NotEmpty(t, addReport.Digest, "add package ID transaction should have a digest")
+	})
 
-		// Verify the package ID was added - create a new bundle to avoid caching
-		newReporter := cld_ops.NewMemoryReporter()
-		newBundle := cld_ops.NewBundle(
-			context.Background,
-			logger.Test(t),
-			newReporter,
-		)
-		getPackageIdsReport, err := cld_ops.ExecuteOperation(newBundle, GetPackageIdsStateObjectOp, deps, GetPackageIdsStateObjectInput{
+	t.Run("Test Remove Package ID", func(t *testing.T) {
+		// First add a package ID to remove
+		newPackageId := "0xabcdef1234567890abcdef1234567890abcdef12"
+		_, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
+			PackageId:             newPackageId,
+		})
+		require.NoError(t, err, "failed to add package ID for removal test")
+
+		// Now remove the package ID
+		removeReport, err := cld_ops.ExecuteOperation(bundle, RemovePackageIdStateObjectOp, deps, RemovePackageIdStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
+			PackageId:             newPackageId,
+		})
+		require.NoError(t, err, "failed to remove package ID")
+		require.NotEmpty(t, removeReport.Digest, "remove package ID transaction should have a digest")
+	})
+
+	t.Run("Test Ownership Transfer", func(t *testing.T) {
+		// Create a new signer for the transfer
+		newSigner, _ := testenv.SetupEnvironment(t)
+		newSignerAddress, err := newSigner.GetAddress()
+		require.NoError(t, err, "failed to get new signer address")
+
+		// Transfer ownership
+		transferReport, err := cld_ops.ExecuteOperation(bundle, TransferOwnershipStateObjectOp, deps, TransferOwnershipStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
+			To:                    newSignerAddress,
+		})
+		require.NoError(t, err, "failed to transfer ownership")
+		require.NotEmpty(t, transferReport.Digest, "transfer ownership transaction should have a digest")
+
+		// Verify pending transfer exists
+		getPendingTransferReport, err := cld_ops.ExecuteOperation(bundle, GetPendingTransferStateObjectOp, deps, GetPendingTransferStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 		})
-		require.NoError(t, err, "failed to get package IDs after adding")
-		require.Contains(t, getPackageIdsReport.Output.Objects.PackageIds, expectedPackageId, "package IDs should contain the newly added package ID")
-		require.Len(t, getPackageIdsReport.Output.Objects.PackageIds, 2, "should have 2 package IDs now")
+		require.NoError(t, err, "failed to get pending transfer info after transfer")
+		require.True(t, getPendingTransferReport.Output.Objects.HasPendingTransfer, "should have pending transfer")
+		require.NotNil(t, getPendingTransferReport.Output.Objects.PendingTransferFrom, "pending transfer from should not be nil")
+		require.NotNil(t, getPendingTransferReport.Output.Objects.PendingTransferTo, "pending transfer to should not be nil")
+		require.Equal(t, signerAddress, *getPendingTransferReport.Output.Objects.PendingTransferFrom, "pending transfer from should match original owner")
+		require.Equal(t, newSignerAddress, *getPendingTransferReport.Output.Objects.PendingTransferTo, "pending transfer to should match new owner")
+		require.NotNil(t, getPendingTransferReport.Output.Objects.PendingTransferAccepted, "pending transfer accepted should not be nil")
+		require.False(t, *getPendingTransferReport.Output.Objects.PendingTransferAccepted, "pending transfer should not be accepted yet")
 	})
 }

@@ -149,6 +149,7 @@ const ECalculateMessageHashInvalidArguments: u64 = 16;
 const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
 const EInvalidFeeTokenMetadataAddress: u64 = 19;
+const EPackageIdNotFound: u64 = 20;
 
 const VERSION: u8 = 1;
 
@@ -224,20 +225,14 @@ public fun initialize(
     state.package_ids.push_back(package_id);
 }
 
-public fun get_package_ids(state: &OnRampState): vector<address> {
-    state.package_ids
-}
-
-public fun get_initial_package_id(state: &OnRampState): address {
-    state.package_ids[0]
-}
-
-public fun get_latest_package_id(state: &OnRampState): address {
-    state.package_ids[state.package_ids.length() - 1]
-}
-
 public fun add_package_id(state: &mut OnRampState, _: &OwnerCap, package_id: address) {
     state.package_ids.push_back(package_id);
+}
+
+public fun remove_package_id(state: &mut OnRampState, _: &OwnerCap, package_id: address) {
+    let (found, idx) = state.package_ids.index_of(&package_id);
+    assert!(found, EPackageIdNotFound);
+    state.package_ids.remove(idx);
 }
 
 public fun is_chain_supported(state: &OnRampState, dest_chain_selector: u64): bool {

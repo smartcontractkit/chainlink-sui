@@ -14,6 +14,7 @@ const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
+const EPackageIdNotFound: u64 = 5;
 
 public struct CCIPObjectRef has key, store {
     id: UID,
@@ -56,20 +57,14 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     transfer::transfer(pointer, package_id);
 }
 
-public fun get_package_ids(state: &CCIPObjectRef): vector<address> {
-    state.package_ids
-}
-
-public fun get_initial_package_id(state: &CCIPObjectRef): address {
-    state.package_ids[0]
-}
-
-public fun get_latest_package_id(state: &CCIPObjectRef): address {
-    state.package_ids[state.package_ids.length() - 1]
-}
-
 public fun add_package_id(state: &mut CCIPObjectRef, _: &OwnerCap, package_id: address) {
     state.package_ids.push_back(package_id);
+}
+
+public fun remove_package_id(state: &mut CCIPObjectRef, _: &OwnerCap, package_id: address) {
+    let (found, idx) = state.package_ids.index_of(&package_id);
+    assert!(found, EPackageIdNotFound);
+    state.package_ids.remove(idx);
 }
 
 public fun owner_cap_id(ref: &CCIPObjectRef): ID {
