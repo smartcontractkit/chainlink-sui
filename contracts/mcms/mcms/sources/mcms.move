@@ -1517,7 +1517,7 @@ fun timelock_schedule(timelock: &mut Timelock, clock: &Clock, id: vector<u8>, de
     assert!(!timelock_is_operation_internal(timelock, id), EOperationAlreadyScheduled);
     assert!(delay >= timelock.min_delay, EInsufficientDelay);
 
-    let timestamp = clock.timestamp_ms() + timelock.min_delay + delay;
+    let timestamp = get_timestamp_seconds(clock) + delay;
     timelock.timestamps.add(id, timestamp);
 }
 
@@ -1747,7 +1747,7 @@ public fun timelock_is_operation_ready(timelock: &Timelock, clock: &Clock, id: v
     };
 
     let timestamp_value = *timelock.timestamps.borrow(id);
-    timestamp_value > DONE_TIMESTAMP && timestamp_value <= clock.timestamp_ms()
+    timestamp_value > DONE_TIMESTAMP && timestamp_value <= get_timestamp_seconds(clock)
 }
 
 public fun timelock_is_operation_done(timelock: &Timelock, id: vector<u8>): bool {
