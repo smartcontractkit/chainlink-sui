@@ -121,6 +121,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, err
 	}
 
+	fmt.Println("APPLYDESTCHAINCONFIGUREONRAMP INPUTS: ", input)
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := onRampPackage.ApplyDestChainConfigUpdates(

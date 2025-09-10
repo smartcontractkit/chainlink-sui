@@ -945,7 +945,7 @@ public fun commit(
 
             fee_quoter::update_prices(
                 ref,
-                state.fee_quoter_cap.borrow(),
+                // state.fee_quoter_cap.borrow(),
                 clock,
                 source_tokens,
                 source_usd_per_token,
