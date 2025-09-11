@@ -1264,7 +1264,6 @@ public fun test_mcms_accept_admin_role() {
         // Create MCMS callback params for accept (need to include object addresses first)
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
-        data.append(bcs::to_bytes(&object::id_address(&registry)));
         data.append(bcs::to_bytes(&local_token));
 
         let params = mcms_registry::test_create_executing_callback_params(
@@ -1350,7 +1349,6 @@ public fun test_mcms_full_admin_transfer_flow() {
 
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
-        data.append(bcs::to_bytes(&object::id_address(&registry)));
         data.append(bcs::to_bytes(&local_token));
 
         let params = mcms_registry::test_create_executing_callback_params(
@@ -1418,7 +1416,6 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
 
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
-        data.append(bcs::to_bytes(&object::id_address(&registry)));
         data.append(bcs::to_bytes(&local_token));
 
         let params = mcms_registry::test_create_executing_callback_params(
@@ -1465,7 +1462,6 @@ public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
 
         let mut data = vector::empty<u8>();
         data.append(bcs::to_bytes(&object::id_address(&ref)));
-        data.append(bcs::to_bytes(&object::id_address(&registry)));
         data.append(bcs::to_bytes(&@0x999)); // unregistered token
         data.append(bcs::to_bytes(&mcms));
 
