@@ -1614,7 +1614,7 @@ public fun mcms_apply_fee_token_updates(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -1646,7 +1646,7 @@ public fun mcms_apply_dest_chain_config_updates(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -1714,7 +1714,7 @@ public fun mcms_apply_token_transfer_fee_config_updates(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -1785,7 +1785,7 @@ public fun mcms_update_prices_with_owner_cap(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry), object::id_address(clock)],
+        vector[object::id_address(ref), object::id_address(owner_cap), object::id_address(clock)],
         &mut stream,
     );
 
@@ -1837,7 +1837,7 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
