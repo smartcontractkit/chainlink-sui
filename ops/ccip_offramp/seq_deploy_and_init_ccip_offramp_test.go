@@ -49,7 +49,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(400_000_000)
+			b := uint64(500_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -83,6 +83,15 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy LINK token")
 
+	// Initialize upgrade registry (required by fee quoter and other CCIP functions)
+	upgradeRegistryInput := ccip_ops.InitUpgradeRegistryInput{
+		CCIPPackageId:    reportCCIP.Output.PackageId,
+		StateObjectId:    reportCCIP.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId: reportCCIP.Output.Objects.OwnerCapObjectId,
+	}
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.UpgradeRegistryInitializeOp, deps, upgradeRegistryInput)
+	require.NoError(t, err, "failed to initialize Upgrade Registry")
+
 	// Initialize feeQuoter
 	feeQuoterInit := ccip_ops.InitFeeQuoterInput{
 		CCIPPackageId:                 reportCCIP.Output.PackageId,
@@ -112,35 +121,35 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 			SourceChainsIsRMNVerificationDisabled: []bool{true},
 			SourceChainsOnRamp:                    [][]byte{{0x01}},
 		},
-		// CommitOCR3Config: SetOCR3ConfigInput{
-		// 	// Sample config digest
-		// 	ConfigDigest: []byte{
-		// 		0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
-		// 		0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
-		// 		0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
-		// 		0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
-		// 	},
-		// 	OCRPluginType:                  byte(0),
-		// 	BigF:                           byte(1),
-		// 	IsSignatureVerificationEnabled: true,
-		// 	Signers:                        signerAddrBytes,
-		// 	Transmitters:                   signerAddresses,
-		// },
-		// ExecutionOCR3Config: SetOCR3ConfigInput{
-		// 	ConfigDigest: []byte{
-		// 		0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
-		// 		0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
-		// 		0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
-		// 		0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
-		// 	},
-		// 	OCRPluginType:                  byte(1),
-		// 	BigF:                           byte(1),
-		// 	IsSignatureVerificationEnabled: false,
-		// 	Signers:                        signerAddrBytes,
-		// 	Transmitters:                   signerAddresses,
-		// },
+		ExecutionOCR3Config: SetOCR3ConfigInput{
+			OffRampPackageId: "", // Will be set by the sequence
+			OffRampStateId:   "", // Will be set by the sequence
+			CCIPObjectRefId:  "", // Will be set by the sequence - REQUIRED for new function signature
+			OwnerCapObjectId: "", // Will be set by the sequence
+			ConfigDigest: []byte{
+				0x00, 0x0A, 0x2F, 0x1F, 0x37, 0xB0, 0x33, 0xCC,
+				0xC4, 0x42, 0x8A, 0xB6, 0x5C, 0x35, 0x39, 0xC9,
+				0x31, 0x5D, 0xBF, 0x88, 0x2D, 0x4B, 0xAB, 0x13,
+				0xF1, 0xE7, 0xEF, 0xE7, 0xB3, 0xDD, 0xDC, 0x36,
+			},
+			OCRPluginType:                  byte(1),
+			BigF:                           byte(1),
+			IsSignatureVerificationEnabled: false,
+			Signers:                        signerAddrBytes,
+			Transmitters:                   signerAddresses,
+		},
 	}
 
-	_, err = cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPOffRampSequence, deps, seqOffRampInput)
+	seqResult, err := cld_ops.ExecuteSequence(bundle, DeployAndInitCCIPOffRampSequence, deps, seqOffRampInput)
 	require.NoError(t, err, "failed to deploy CCIP OffRamp Package")
+
+	// Set OCR3 Execution Config after sequence completes
+	executionConfig := seqOffRampInput.ExecutionOCR3Config
+	executionConfig.OffRampPackageId = seqResult.Output.CCIPOffRampPackageId
+	executionConfig.OffRampStateId = seqResult.Output.Objects.StateObjectId
+	executionConfig.OwnerCapObjectId = seqResult.Output.Objects.OwnerCapId
+	executionConfig.CCIPObjectRefId = reportCCIP.Output.Objects.CCIPObjectRefObjectId
+
+	_, err = cld_ops.ExecuteOperation(bundle, SetOCR3ConfigOp, deps, executionConfig)
+	require.NoError(t, err, "failed to set OCR3 execution config")
 }

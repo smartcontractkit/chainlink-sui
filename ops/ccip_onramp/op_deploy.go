@@ -108,6 +108,7 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 
 type ApplyDestChainConfigureOnRampInput struct {
 	OnRampPackageId           string
+	CCIPObjectRefId           string
 	OwnerCapObjectId          string
 	StateObjectId             string
 	DestChainSelector         []uint64
@@ -126,6 +127,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 	tx, err := onRampPackage.ApplyDestChainConfigUpdates(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -145,6 +147,7 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 
 type ApplyAllowListUpdatesInput struct {
 	OnRampPackageId               string
+	CCIPObjectRefId               string
 	OwnerCapObjectId              string
 	StateObjectId                 string
 	DestChainSelector             []uint64
@@ -164,6 +167,7 @@ var ApplyAllowListUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	tx, err := onRampPackage.ApplyAllowlistUpdates(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -214,8 +218,6 @@ var IsChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	}, nil
 }
 
-// Note: Shares the same input as IsChainSupported
-// TODO: maybe rename the input to make it more generic
 var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsChainSupportedInput) (output sui_ops.OpTxResult[IsChainSupportedOutput], err error) {
 	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
@@ -226,7 +228,7 @@ var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 	opts.Signer = deps.Signer
 	config, err := onRampPackage.DevInspect().GetDestChainConfig(b.GetContext(), opts, bind.Object{Id: input.StateObjectId}, input.DestChainSelector)
 	if err != nil {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
+		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to get dest chain config: %w", err)
 	}
 
 	// The first return value is isEnabled (bool)
@@ -267,7 +269,7 @@ var GetFee = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFeeInput) (o
 	opts.Signer = deps.Signer
 	inspectResp, err := onRampPackage.GetFee(b.GetContext(), opts, []string{input.TypeArgs}, bind.Object{Id: input.CCIPObjectRef}, bind.Object{Id: "0x6"}, input.DestChainSelector, input.Receiver, input.Data, input.TokenAddress, input.TokenAmounts, bind.Object{Id: input.FeeToken}, input.ExtraArgs)
 	if err != nil {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to execute fee quoter initialization: %w", err)
+		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to get fee: %w", err)
 	}
 
 	b.Logger.Infow("getFee returned fee", "fee", inspectResp.Results[0])
@@ -319,4 +321,317 @@ var GetDestChainConfigOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Runs GetDestChainConfig OnRamp",
 	GetDestChainConfigHandler,
+)
+
+type AddPackageIdInput struct {
+	OnRampPackageId  string
+	StateObjectId    string
+	OwnerCapObjectId string
+	PackageId        string
+}
+
+type AddPackageIdObjects struct {
+	// No specific objects are returned from add_package_id
+}
+
+var addPackageIdHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdInput) (output sui_ops.OpTxResult[AddPackageIdObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.AddPackageId(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.PackageId,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdObjects]{}, fmt.Errorf("failed to execute AddPackageId on onRamp: %w", err)
+	}
+
+	b.Logger.Infow("Package ID added to OnRamp", "packageId", input.PackageId)
+
+	return sui_ops.OpTxResult[AddPackageIdObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   AddPackageIdObjects{},
+	}, nil
+}
+
+var AddPackageIdOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-add-package-id", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Adds a new package ID to the OnRamp state for upgrade tracking",
+	addPackageIdHandler,
+)
+
+type RemovePackageIdOnRampInput struct {
+	OnRampPackageId  string
+	StateObjectId    string
+	OwnerCapObjectId string
+	PackageId        string
+}
+
+type RemovePackageIdOnRampObjects struct {
+	// No specific objects are returned from remove_package_id
+}
+
+var removePackageIdOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input RemovePackageIdOnRampInput) (output sui_ops.OpTxResult[RemovePackageIdOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.RemovePackageId(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.PackageId,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{}, fmt.Errorf("failed to execute RemovePackageId on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Package ID removed from OnRamp", "packageId", input.PackageId)
+
+	return sui_ops.OpTxResult[RemovePackageIdOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   RemovePackageIdOnRampObjects{},
+	}, nil
+}
+
+var RemovePackageIdOnRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-remove-package-id", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Removes a package ID from the OnRamp state",
+	removePackageIdOnRampHandler,
+)
+
+type GetOwnerOnRampInput struct {
+	OnRampPackageId string
+	StateObjectId   string
+}
+
+type GetOwnerOnRampOutput struct {
+	Owner string
+}
+
+var getOwnerOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetOwnerOnRampInput) (output sui_ops.OpTxResult[GetOwnerOnRampOutput], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[GetOwnerOnRampOutput]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	owner, err := onRampPackage.DevInspect().Owner(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[GetOwnerOnRampOutput]{}, fmt.Errorf("failed to get owner from OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Owner retrieved from OnRamp", "owner", owner)
+
+	return sui_ops.OpTxResult[GetOwnerOnRampOutput]{
+		Digest:    "",
+		PackageId: input.OnRampPackageId,
+		Objects: GetOwnerOnRampOutput{
+			Owner: owner,
+		},
+	}, nil
+}
+
+var GetOwnerOnRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-get-owner", "package", "query"),
+	semver.MustParse("0.1.0"),
+	"Gets the owner from the OnRamp state",
+	getOwnerOnRampHandler,
+)
+
+type GetPendingTransferOnRampInput struct {
+	OnRampPackageId string
+	StateObjectId   string
+}
+
+type GetPendingTransferOnRampOutput struct {
+	HasPendingTransfer      bool
+	PendingTransferFrom     *string
+	PendingTransferTo       *string
+	PendingTransferAccepted *bool
+}
+
+var getPendingTransferOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetPendingTransferOnRampInput) (output sui_ops.OpTxResult[GetPendingTransferOnRampOutput], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[GetPendingTransferOnRampOutput]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+
+	hasPending, err := onRampPackage.DevInspect().HasPendingTransfer(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[GetPendingTransferOnRampOutput]{}, fmt.Errorf("failed to check pending transfer: %w", err)
+	}
+
+	var pendingFrom *string
+	var pendingTo *string
+	var pendingAccepted *bool
+
+	if hasPending {
+		pendingFrom, err = onRampPackage.DevInspect().PendingTransferFrom(
+			b.GetContext(),
+			opts,
+			bind.Object{Id: input.StateObjectId},
+		)
+		if err != nil {
+			return sui_ops.OpTxResult[GetPendingTransferOnRampOutput]{}, fmt.Errorf("failed to get pending transfer from: %w", err)
+		}
+
+		pendingTo, err = onRampPackage.DevInspect().PendingTransferTo(
+			b.GetContext(),
+			opts,
+			bind.Object{Id: input.StateObjectId},
+		)
+		if err != nil {
+			return sui_ops.OpTxResult[GetPendingTransferOnRampOutput]{}, fmt.Errorf("failed to get pending transfer to: %w", err)
+		}
+
+		pendingAccepted, err = onRampPackage.DevInspect().PendingTransferAccepted(
+			b.GetContext(),
+			opts,
+			bind.Object{Id: input.StateObjectId},
+		)
+		if err != nil {
+			return sui_ops.OpTxResult[GetPendingTransferOnRampOutput]{}, fmt.Errorf("failed to get pending transfer accepted: %w", err)
+		}
+	}
+
+	b.Logger.Infow("Pending transfer info retrieved from OnRamp",
+		"hasPending", hasPending,
+		"pendingFrom", pendingFrom,
+		"pendingTo", pendingTo,
+		"pendingAccepted", pendingAccepted,
+	)
+
+	return sui_ops.OpTxResult[GetPendingTransferOnRampOutput]{
+		Digest:    "",
+		PackageId: input.OnRampPackageId,
+		Objects: GetPendingTransferOnRampOutput{
+			HasPendingTransfer:      hasPending,
+			PendingTransferFrom:     pendingFrom,
+			PendingTransferTo:       pendingTo,
+			PendingTransferAccepted: pendingAccepted,
+		},
+	}, nil
+}
+
+var GetPendingTransferOnRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-get-pending-transfer", "package", "query"),
+	semver.MustParse("0.1.0"),
+	"Gets pending transfer information from the OnRamp state",
+	getPendingTransferOnRampHandler,
+)
+
+type TransferOwnershipOnRampInput struct {
+	OnRampPackageId  string
+	StateObjectId    string
+	OwnerCapObjectId string
+	To               string
+}
+
+type TransferOwnershipOnRampObjects struct {
+	// No specific objects are returned from transfer_ownership
+}
+
+var transferOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TransferOwnershipOnRampInput) (output sui_ops.OpTxResult[TransferOwnershipOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[TransferOwnershipOnRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.TransferOwnership(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.To,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[TransferOwnershipOnRampObjects]{}, fmt.Errorf("failed to execute TransferOwnership on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Ownership transfer initiated for OnRamp", "to", input.To)
+
+	return sui_ops.OpTxResult[TransferOwnershipOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   TransferOwnershipOnRampObjects{},
+	}, nil
+}
+
+var TransferOwnershipOnRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-transfer-ownership", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Transfers ownership of the OnRamp",
+	transferOwnershipOnRampHandler,
+)
+
+type AcceptOwnershipOnRampInput struct {
+	OnRampPackageId string
+	StateObjectId   string
+}
+
+type AcceptOwnershipOnRampObjects struct {
+	// No specific objects are returned from accept_ownership
+}
+
+var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[AcceptOwnershipOnRampObjects], err error) {
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := onRampPackage.AcceptOwnership(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.StateObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on OnRamp: %w", err)
+	}
+
+	b.Logger.Infow("Ownership accepted for OnRamp")
+
+	return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OnRampPackageId,
+		Objects:   AcceptOwnershipOnRampObjects{},
+	}, nil
+}
+
+var AcceptOwnershipOnRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-onramp-accept-ownership", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Accepts ownership of the OnRamp",
+	acceptOwnershipOnRampHandler,
 )
