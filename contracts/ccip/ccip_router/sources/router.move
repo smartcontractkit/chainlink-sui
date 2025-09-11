@@ -273,7 +273,7 @@ public fun mcms_set_on_ramp_infos(
 
     let mut stream = bcs_stream::new(data);
     validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(owner_cap), object::id_address(state)],
         &mut stream,
     );
 
@@ -318,7 +318,7 @@ public fun mcms_transfer_ownership(
 
     let mut stream = bcs_stream::new(data);
     validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -343,7 +343,7 @@ public fun mcms_execute_ownership_transfer(
 
     let mut stream = bcs_stream::new(data);
     validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(_owner_cap), object::id_address(state)],
         &mut stream,
     );
 
