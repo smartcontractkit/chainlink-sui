@@ -52,6 +52,8 @@ type SuiPTBClient interface {
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
+	LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error)
+	GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error)
 	GetClient() sui.ISuiAPI
 	HashTxBytes(txBytes []byte) []byte
 }
@@ -65,7 +67,8 @@ type PTBClient struct {
 	keystoreService    loop.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
-	normalizedModules  map[string]map[string]models.GetNormalizedMoveModuleResponse
+	// map of module name to normalized module definition (similar to an ABI)
+	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)
@@ -739,6 +742,101 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 	c.normalizedModules[packageId][module] = normalizedModule
 
 	return normalizedModule, nil
+}
+
+// LoadModulePackages returns the set of package IDs for a given module using its original package ID
+// This method assumes that module names are unique across all packages
+func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
+	// Ensure that the module keeps track of its package IDs by checking that it has `add_package_id` function
+	normalizedModule, err := c.GetNormalizedModule(ctx, packageId, module)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get normalized module: %w", err)
+	}
+
+	// Check that the module has the `add_package_id` function
+	if _, ok := normalizedModule.ExposedFunctions["add_package_id"]; !ok {
+		c.log.Warnw("module does not have the `add_package_id` function", "module", module)
+		// fallback to using the provided package ID as it's the only package ID
+		return []string{packageId}, nil
+	}
+
+	// Iterate through the structs to find the pointer object
+	pointerStructName := ""
+	pointerStructNameFound := false
+	for structName := range normalizedModule.Structs {
+		if strings.Contains(structName, "Pointer") {
+			pointerStructName = structName
+			pointerStructNameFound = true
+			break
+		}
+	}
+
+	if !pointerStructNameFound {
+		return nil, fmt.Errorf("pointer struct name not found for package %s and module %s", packageId, module)
+	}
+
+	// Read the owned objects to get the pointer object's ID
+	ownedObjects, err := c.ReadOwnedObjects(ctx, packageId, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get owned objects: %w", err)
+	}
+
+	// Use the normalized module to determine the state ref object
+	var pointerObject models.SuiObjectData
+	pointerObjectFound := false
+
+	for _, ownedObject := range ownedObjects {
+		c.log.Debugw("ownedObject", "ownedObject", ownedObject.Data.Type)
+		if strings.Contains(ownedObject.Data.Type, pointerStructName) {
+			pointerObject = *ownedObject.Data
+			pointerObjectFound = true
+			break
+		}
+	}
+
+	if !pointerObjectFound {
+		return nil, fmt.Errorf("pointer object not found for package %s and module %s", packageId, module)
+	}
+
+	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
+
+	stateObjectId := ""
+	switch module {
+	case "offramp":
+		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["off_ramp_state_id"].(string)
+	case "onramp":
+		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["on_ramp_state_id"].(string)
+	case "ccip":
+	case "state_object":
+		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["object_ref_id"].(string)
+	}
+
+	if stateObjectId == "" {
+		return nil, fmt.Errorf("state object id not found for package %s and module %s", packageId, module)
+	}
+
+	// Read the state object
+	stateObject, err := c.ReadObjectId(ctx, stateObjectId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get state object: %w", err)
+	}
+
+	// Read the package IDs from the state object
+	packageIds := []string{}
+	for _, packageId := range stateObject.Content.SuiMoveObject.Fields["package_ids"].([]any) {
+		packageIds = append(packageIds, packageId.(string))
+	}
+
+	return packageIds, nil
+}
+
+func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module, signerAddress)
+	if err != nil {
+		return "", fmt.Errorf("failed to load module package ids: %w", err)
+	}
+
+	return packageIds[len(packageIds)-1], nil
 }
 
 func (c *PTBClient) GetClient() sui.ISuiAPI {
