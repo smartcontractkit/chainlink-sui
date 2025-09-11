@@ -1482,7 +1482,7 @@ public fun mcms_add_package_id(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
     let package_id = bcs_stream::deserialize_address(&mut stream);
@@ -1505,7 +1505,7 @@ public fun mcms_remove_package_id(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
     let package_id = bcs_stream::deserialize_address(&mut stream);
