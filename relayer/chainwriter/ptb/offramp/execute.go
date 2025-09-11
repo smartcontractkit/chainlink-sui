@@ -95,8 +95,14 @@ func BuildOffRampExecutePTB(
 		WaitForExecution: true,
 	}
 
+	// Get the latest package ID from the offramp module
+	latestOfframpPackageId, err := ptbClient.GetLatestPackageId(ctx, addressMappings.OffRampPackageId, "offramp", signerAddress)
+	if err != nil {
+		return err
+	}
+
 	// Set the offramp package interface from bindings
-	offrampPkg, err := offramp.NewOfframp(addressMappings.OffRampPackageId, sdkClient)
+	offrampPkg, err := offramp.NewOfframp(latestOfframpPackageId, sdkClient)
 	if err != nil {
 		return err
 	}
