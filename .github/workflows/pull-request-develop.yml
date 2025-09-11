@@ -9,6 +9,7 @@ on:
     branches:
       - develop
       - staging
+  merge_group:
 
 jobs:
   fast-tests:
