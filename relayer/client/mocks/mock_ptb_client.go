@@ -323,3 +323,33 @@ func (mr *MockSuiPTBClientMockRecorder) HashTxBytes(txBytes interface{}) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashTxBytes", reflect.TypeOf((*MockSuiPTBClient)(nil).HashTxBytes), txBytes)
 }
+
+// LoadModulePackageIds mocks base method.
+func (m *MockSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId, module, signerAddress string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadModulePackageIds", ctx, packageId, module, signerAddress)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LoadModulePackageIds indicates an expected call of LoadModulePackageIds.
+func (mr *MockSuiPTBClientMockRecorder) LoadModulePackageIds(ctx, packageId, module, signerAddress interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadModulePackageIds", reflect.TypeOf((*MockSuiPTBClient)(nil).LoadModulePackageIds), ctx, packageId, module, signerAddress)
+}
+
+// GetLatestPackageId mocks base method.
+func (m *MockSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId, module, signerAddress string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestPackageId", ctx, packageId, module, signerAddress)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestPackageId indicates an expected call of GetLatestPackageId.
+func (mr *MockSuiPTBClientMockRecorder) GetLatestPackageId(ctx, packageId, module, signerAddress interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPackageId", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestPackageId), ctx, packageId, module, signerAddress)
+}

@@ -9,8 +9,10 @@ import (
 )
 
 type ChainReaderConfig struct {
-	IsLoopPlugin bool
-	Modules      map[string]*ChainReaderModule
+	IsLoopPlugin        bool
+	EventsIndexer       EventsIndexerConfig
+	TransactionsIndexer TransactionsIndexerConfig
+	Modules             map[string]*ChainReaderModule
 }
 
 type ChainReaderModule struct {
