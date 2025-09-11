@@ -1,6 +1,8 @@
 package onrampops
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -9,6 +11,7 @@ import (
 )
 
 type DeployAndInitCCIPOnRampSeqInput struct {
+	Test []bool
 	DeployCCIPOnRampInput
 	OnRampInitializeInput
 	ApplyDestChainConfigureOnRampInput
@@ -38,6 +41,8 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		input.OnRampInitializeInput.OnRampPackageId = deployReport.Output.PackageId
 		input.OnRampInitializeInput.OnRampStateId = deployReport.Output.Objects.CCIPOnrampStateObjectId
 		input.OnRampInitializeInput.OwnerCapObjectId = deployReport.Output.Objects.OwnerCapObjectId
+
+		fmt.Println("ONRAMP INPUTSS: ", input.OnRampInitializeInput)
 
 		_, err = cld_ops.ExecuteOperation(env, OnRampInitializeOP, deps, input.OnRampInitializeInput)
 		if err != nil {
