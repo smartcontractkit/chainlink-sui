@@ -48,8 +48,6 @@ func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 	return signer, client
 }
 
-//nolint:paralleltest
-
 // TestTransactionGeneration tests the complete flow of generating and executing a Sui transaction
 // using PTBs. This integration test verifies:
 //
@@ -67,6 +65,8 @@ func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 // - Validate that the final gas budget matches the actual gas consumed
 //
 // This test requires a running local Sui network and performs actual on-chain operations.
+//
+//nolint:paralleltest
 func TestTransactionGeneration(t *testing.T) {
 	ctx := context.Background()
 	lggr := logger.Test(t)
