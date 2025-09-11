@@ -25,6 +25,7 @@ module test::offramp {
 
     public struct OffRampState has key, store {
         id: UID,
+        package_ids: vector<address>,
     }
 
     public struct OffRampStatePointer has key, store {
@@ -408,8 +409,15 @@ module test::offramp {
     public struct OFFRAMP has drop {}
 
     fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
+        let tn = type_name::get_with_original_ids<OFFRAMP>();
+        let package_bytes = ascii::into_bytes(tn.get_address());
+        let package_id = address::from_ascii_bytes(&package_bytes);
+
         let state = OffRampState {
-            id: object::new(ctx)
+            id: object::new(ctx),
+            package_ids: vector[
+                package_id
+            ]
         };
         let ref = CCIPObjectRef {
             id: object::new(ctx)
@@ -426,9 +434,24 @@ module test::offramp {
             source_chain_config: config
         };
         event::emit(config_set);
+
+        let pointer = OffRampStatePointer {
+            id: object::new(ctx),
+            off_ramp_state_id: object::uid_to_address(&state.id),
+            owner_cap_id: @0x0
+        };
         
         transfer::share_object(state);
         transfer::public_share_object(ref);
+        transfer::transfer(pointer, package_id);
+    }
+
+    public fun add_package_id(state: &mut OffRampState, package_id: address) {
+        state.package_ids.push_back(package_id);
+    }
+
+    public fun remove_package_id(state: &mut OffRampState, package_id: address) {
+        state.package_ids.remove(0);
     }
 
     // ================================================================

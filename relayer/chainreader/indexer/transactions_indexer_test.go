@@ -273,6 +273,14 @@ func TestTransactionsIndexer(t *testing.T) {
 			},
 		},
 		IsLoopPlugin: false,
+		EventsIndexer: config.EventsIndexerConfig{
+			PollingInterval: pollingInterval,
+			SyncTimeout:     syncTimeout,
+		},
+		TransactionsIndexer: config.TransactionsIndexerConfig{
+			PollingInterval: pollingInterval,
+			SyncTimeout:     syncTimeout,
+		},
 	}
 
 	// Create the indexers
@@ -280,8 +288,8 @@ func TestTransactionsIndexer(t *testing.T) {
 		db,
 		log,
 		relayerClient,
-		pollingInterval,
-		syncTimeout,
+		readerConfig.TransactionsIndexer.PollingInterval,
+		readerConfig.TransactionsIndexer.SyncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
@@ -293,8 +301,8 @@ func TestTransactionsIndexer(t *testing.T) {
 		relayerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		pollingInterval,
-		syncTimeout,
+		readerConfig.EventsIndexer.PollingInterval,
+		readerConfig.EventsIndexer.SyncTimeout,
 	)
 	indexerInstance := indexer.NewIndexer(
 		log,

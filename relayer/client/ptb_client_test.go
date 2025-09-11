@@ -471,6 +471,32 @@ func TestPTBClient(t *testing.T) {
 		require.NotNil(t, values)
 		require.Equal(t, 1, len(values.Data))
 	})
+
+	t.Run("GetLatestPackageId", func(t *testing.T) {
+		latestPackageId, err := relayerClient.GetLatestPackageId(
+			context.Background(),
+			packageId,
+			"counter",
+			packageId,
+		)
+
+		// The latest package ID should be the same as the provided package ID
+		require.NoError(t, err)
+		require.Equal(t, latestPackageId, packageId)
+	})
+
+	t.Run("GetLatestPackageIdFromPointer", func(t *testing.T) {
+		latestPackageId, err := relayerClient.GetLatestPackageId(
+			context.Background(),
+			packageId,
+			"offramp",
+			packageId,
+		)
+
+		// The latest package ID should be the same as the provided package ID
+		require.NoError(t, err)
+		require.Equal(t, latestPackageId, packageId)
+	})
 }
 
 func IncrementCounterWithMoveCall(t *testing.T, relayerClient *client.PTBClient, packageId string, counterObjectId string, accountAddress string, signerPublicKey []byte) string {
