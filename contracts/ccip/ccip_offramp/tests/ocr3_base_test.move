@@ -1,6 +1,9 @@
 #[test_only]
 module ccip_offramp::ocr3_base_test;
 
+use ccip::ownable::OwnerCap;
+use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use ccip_offramp::ocr3_base::{Self, OCR3BaseState};
 use sui::test_scenario::{Self as ts, Scenario};
 
@@ -30,6 +33,27 @@ fun create_test_scenario(): Scenario {
     ts::begin(ADMIN)
 }
 
+fun setup_ccip_environment(): (Scenario, OwnerCap, CCIPObjectRef) {
+    let mut scenario = create_test_scenario();
+    let ctx = scenario.ctx();
+
+    state_object::test_init(ctx);
+
+    // Advance to next transaction to retrieve the created objects
+    scenario.next_tx(ADMIN);
+
+    // Retrieve the OwnerCap that was transferred to the sender
+    let owner_cap = ts::take_from_sender<OwnerCap>(&scenario);
+
+    // Retrieve the shared CCIPObjectRef
+    let mut ref = ts::take_shared<CCIPObjectRef>(&scenario);
+
+    // Initialize upgrade registry (required for function verification)
+    upgrade_registry::initialize(&mut ref, &owner_cap, scenario.ctx());
+
+    (scenario, owner_cap, ref)
+}
+
 fun setup_basic_ocr_state(scenario: &mut Scenario): OCR3BaseState {
     let ctx = scenario.ctx();
     ocr3_base::new(ctx)
@@ -43,9 +67,16 @@ fun setup_valid_transmitters(): vector<address> {
     vector[TRANSMITTER_1, TRANSMITTER_2, TRANSMITTER_3, TRANSMITTER_4, TRANSMITTER_5]
 }
 
-fun cleanup_scenario(scenario: Scenario, state: OCR3BaseState) {
+fun cleanup_scenario(
+    scenario: Scenario,
+    state: OCR3BaseState,
+    owner_cap: OwnerCap,
+    ref: CCIPObjectRef,
+) {
     // Transfer the state to a dummy address since we can't drop it
     transfer::public_transfer(state, @0x0);
+    ts::return_to_address(ADMIN, owner_cap);
+    ts::return_shared(ref);
     ts::end(scenario);
 }
 
@@ -59,7 +90,8 @@ public fun test_new_ocr3_base_state() {
     // State should be created successfully
     // We can't inspect internal state directly, but creation success is verified
 
-    cleanup_scenario(scenario, state);
+    transfer::public_transfer(state, @0x0);
+    ts::end(scenario);
 }
 
 #[test]
@@ -70,13 +102,14 @@ public fun test_ocr_plugin_types() {
 
 #[test]
 public fun test_set_ocr3_config_commit() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let signers = setup_valid_signers();
     let transmitters = setup_valid_transmitters();
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -104,23 +137,24 @@ public fun test_set_ocr3_config_commit() {
     assert!(config_signers.length() == 5);
     assert!(config_transmitters.length() == 5);
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 public fun test_set_ocr3_config_execution() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let transmitters = setup_valid_transmitters();
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_execution(),
         BIG_F,
         false, // signature verification disabled for execution
-        vector[], // no signers needed for execution
+        vector<vector<u8>>[], // no signers needed for execution
         transmitters,
     );
 
@@ -142,18 +176,19 @@ public fun test_set_ocr3_config_execution() {
     assert!(config_signers.length() == 0);
     assert!(config_transmitters.length() == 5);
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 public fun test_config_signers_and_transmitters() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let signers = setup_valid_signers();
     let transmitters = setup_valid_transmitters();
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -177,7 +212,7 @@ public fun test_config_signers_and_transmitters() {
     assert!(retrieved_transmitters[0] == TRANSMITTER_1);
     assert!(retrieved_transmitters[4] == TRANSMITTER_5);
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
@@ -200,19 +235,20 @@ public fun test_deserialize_sequence_bytes() {
 
 #[test]
 public fun test_transmit_execution_no_signatures() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let transmitters = setup_valid_transmitters();
 
     // Set up execution config (no signature verification)
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_execution(),
         BIG_F,
         false, // no signature verification
-        vector[], // no signers
+        vector<vector<u8>>[], // no signers
         transmitters,
     );
 
@@ -222,7 +258,7 @@ public fun test_transmit_execution_no_signatures() {
         x"0000000000000000000000000000000000000000000000000000000000000001", // sequence 1
     ];
     let report = b"test_report_data";
-    let signatures = vector[]; // no signatures needed for execution
+    let signatures = vector<vector<u8>>[]; // no signatures needed for execution
 
     scenario.next_tx(TRANSMITTER_1);
     let ctx = scenario.ctx();
@@ -237,7 +273,7 @@ public fun test_transmit_execution_no_signatures() {
         ctx,
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 // === Error Condition Tests ===
@@ -245,10 +281,11 @@ public fun test_transmit_execution_no_signatures() {
 #[test]
 #[expected_failure(abort_code = ocr3_base::EBigFMustBePositive)]
 public fun test_set_config_zero_big_f() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -258,16 +295,17 @@ public fun test_set_config_zero_big_f() {
         setup_valid_transmitters(),
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::EInvalidConfigDigestLength)]
 public fun test_set_config_invalid_digest_length() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         b"short_digest", // not 32 bytes
         ocr3_base::ocr_plugin_type_commit(),
@@ -277,37 +315,39 @@ public fun test_set_config_invalid_digest_length() {
         setup_valid_transmitters(),
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::ENoTransmitters)]
 public fun test_set_config_no_transmitters() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
         BIG_F,
         true,
         setup_valid_signers(),
-        vector[], // no transmitters should fail
+        vector<address>[], // no transmitters should fail
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::EBigFTooHigh)]
 public fun test_set_config_big_f_too_high() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     // With 5 signers, big_f must be <= 1 (since we need > 3*big_f signers)
     // 5 > 3*1 = 3 ✓, but 5 > 3*2 = 6 ✗
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -317,13 +357,13 @@ public fun test_set_config_big_f_too_high() {
         setup_valid_transmitters(),
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::ERepeatedSigners)]
 public fun test_set_config_repeated_signers() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let duplicate_signers = vector[
@@ -335,6 +375,7 @@ public fun test_set_config_repeated_signers() {
     ];
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -344,13 +385,13 @@ public fun test_set_config_repeated_signers() {
         setup_valid_transmitters(),
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::ERepeatedTransmitters)]
 public fun test_set_config_repeated_transmitters() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let duplicate_transmitters = vector[
@@ -362,6 +403,7 @@ public fun test_set_config_repeated_transmitters() {
     ];
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -371,13 +413,13 @@ public fun test_set_config_repeated_transmitters() {
         duplicate_transmitters,
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ccip::address::EZeroAddressNotAllowed)]
 public fun test_set_config_zero_transmitter() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let transmitters_with_zero = vector[
@@ -387,22 +429,23 @@ public fun test_set_config_zero_transmitter() {
     ];
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_execution(),
         BIG_F,
         false,
-        vector[], // no signers for execution
+        vector<vector<u8>>[], // no signers for execution
         transmitters_with_zero,
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ccip::address::EZeroAddressNotAllowed)]
 public fun test_set_config_zero_signer() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let signers_with_zero = vector[
@@ -410,10 +453,11 @@ public fun test_set_config_zero_signer() {
         SIGNER_2,
         SIGNER_3,
         SIGNER_4,
-        vector[], // empty/zero signer should fail
+        vector<u8>[], // empty/zero signer should fail
     ];
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -423,17 +467,18 @@ public fun test_set_config_zero_signer() {
         setup_valid_transmitters(),
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::EStaticConfigCannotBeChanged)]
 public fun test_set_config_change_signature_verification() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     // First set config with signature verification enabled
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_commit(),
@@ -445,45 +490,50 @@ public fun test_set_config_change_signature_verification() {
 
     // Try to change signature verification setting - should fail
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // different digest
         ocr3_base::ocr_plugin_type_commit(),
         BIG_F,
         false, // try to disable signature verification - should fail
-        vector[], // no signers
+        vector<vector<u8>>[], // no signers
         setup_valid_transmitters(),
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::EConfigNotSet)]
 public fun test_latest_config_details_not_set() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let state = setup_basic_ocr_state(&mut scenario);
 
     // Try to get config that was never set
     let _config = ocr3_base::latest_config_details(&state, ocr3_base::ocr_plugin_type_commit());
 
-    cleanup_scenario(scenario, state);
+    transfer::public_transfer(state, @0x0);
+    ts::return_to_address(ADMIN, owner_cap);
+    ts::return_shared(ref);
+    ts::end(scenario);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::EUnauthorizedTransmitter)]
 public fun test_transmit_unauthorized_transmitter() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     let transmitters = vector[TRANSMITTER_1, TRANSMITTER_2]; // only these are authorized
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_execution(),
         BIG_F,
         false,
-        vector[],
+        vector<vector<u8>>[],
         transmitters,
     );
 
@@ -501,26 +551,27 @@ public fun test_transmit_unauthorized_transmitter() {
         ocr3_base::ocr_plugin_type_execution(),
         report_context,
         b"test_report",
-        vector[],
+        vector<vector<u8>>[],
         ctx,
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::EConfigDigestMismatch)]
 public fun test_transmit_wrong_config_digest() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_execution(),
         BIG_F,
         false,
-        vector[],
+        vector<vector<u8>>[],
         setup_valid_transmitters(),
     );
 
@@ -539,26 +590,27 @@ public fun test_transmit_wrong_config_digest() {
         ocr3_base::ocr_plugin_type_execution(),
         report_context,
         b"test_report",
-        vector[],
+        vector<vector<u8>>[],
         ctx,
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }
 
 #[test]
 #[expected_failure(abort_code = ocr3_base::EInvalidReportContextLength)]
 public fun test_transmit_invalid_report_context_length() {
-    let mut scenario = create_test_scenario();
+    let (mut scenario, owner_cap, ref) = setup_ccip_environment();
     let mut state = setup_basic_ocr_state(&mut scenario);
 
     ocr3_base::set_ocr3_config(
+        &ref,
         &mut state,
         CONFIG_DIGEST_32_BYTES,
         ocr3_base::ocr_plugin_type_execution(),
         BIG_F,
         false,
-        vector[],
+        vector<vector<u8>>[],
         setup_valid_transmitters(),
     );
 
@@ -575,9 +627,9 @@ public fun test_transmit_invalid_report_context_length() {
         ocr3_base::ocr_plugin_type_execution(),
         invalid_report_context,
         b"test_report",
-        vector[],
+        vector<vector<u8>>[],
         ctx,
     );
 
-    cleanup_scenario(scenario, state);
+    cleanup_scenario(scenario, state, owner_cap, ref);
 }

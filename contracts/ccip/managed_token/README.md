@@ -118,7 +118,7 @@ managed_token::burn<MyToken>(
     &deny_list,
     coin,           // Coin object to burn
     from_address,   // Original owner (for events)
-    ctx,
+    &ctx,           // Immutable context reference
 );
 ```
 
@@ -171,6 +171,20 @@ managed_token::burn<MyToken>(
 |----------|-------------|---------|
 | `borrow_treasury_cap<T>()` | Get treasury cap reference | External integrations |
 
+### MCMS Integration Functions
+
+| Function | Description | Purpose |
+|----------|-------------|---------|
+| `mcms_accept_ownership<T>()` | Accept ownership via MCMS | Multi-sig ownership transfer |
+| `mcms_register_upgrade_cap()` | Register upgrade capability with MCMS | Multi-sig upgrade management |
+| `mcms_configure_new_minter<T>()` | Configure minter via MCMS | Multi-sig minter management |
+| `mcms_increment_mint_allowance<T>()` | Increment allowance via MCMS | Multi-sig allowance management |
+| `mcms_set_unlimited_mint_allowances<T>()` | Set unlimited allowance via MCMS | Multi-sig unlimited minting |
+| `mcms_blocklist<T>()` | Blocklist address via MCMS | Multi-sig security management |
+| `mcms_unblocklist<T>()` | Unblocklist address via MCMS | Multi-sig security management |
+| `mcms_pause<T>()` | Pause token via MCMS | Multi-sig emergency controls |
+| `mcms_unpause<T>()` | Unpause token via MCMS | Multi-sig emergency controls |
+
 ## Advanced Features
 
 ### Ownership Management
@@ -205,11 +219,11 @@ managed_token::increment_mint_allowance<MyToken>(
 ### Multi-Signature Governance (Optional)
 
 ```move
-// Register with MCMS for multi-sig governance
-managed_token::mcms_register_entrypoint<MyToken>(
+// Register upgrade capability with MCMS for multi-sig governance
+managed_token::mcms_register_upgrade_cap(
     &mut registry,
-    &mut state, 
-    owner_cap,  // Transferred to MCMS
+    &mut deployer_state,
+    upgrade_cap,  // Upgrade capability to register
     ctx,
 );
 ```
@@ -341,6 +355,20 @@ module my_company::company_token {
     }
 }
 ```
+
+## Package Information
+
+- **Package Name**: `ManagedToken`
+- **Version**: 1.0.0
+- **Edition**: 2024
+- **Dependencies**: 
+  - `ChainlinkManyChainMultisig` (MCMS integration)
+  - Standard Sui framework modules
+
+### Module Structure
+- `managed_token.move` - Core token management functionality
+- `mint_allowance.move` - Mint allowance tracking and management
+- `ownable.move` - Ownership and transfer management
 
 ---
 

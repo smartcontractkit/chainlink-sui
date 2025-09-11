@@ -5,6 +5,7 @@ module ccip::fee_quoter_tests;
 use ccip::fee_quoter::{Self, FeeQuoterState};
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use std::bcs;
 use std::string;
 use sui::clock;
@@ -57,6 +58,9 @@ fun setup_ccip_environment(): (Scenario, OwnerCap, CCIPObjectRef) {
 }
 
 fun initialize_fee_quoter(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    // Initialize upgrade registry first (required by fee_quoter functions)
+    upgrade_registry::initialize(ref, owner_cap, ctx);
+
     fee_quoter::initialize(
         ref,
         owner_cap,
@@ -302,7 +306,7 @@ public fun test_update_prices() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -433,7 +437,7 @@ public fun test_get_validated_fee() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -526,7 +530,7 @@ public fun test_get_timestamped_price_fields() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -549,7 +553,7 @@ public fun test_get_token_prices() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -575,7 +579,7 @@ public fun test_get_token_and_gas_prices() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -603,7 +607,7 @@ public fun test_convert_token_amount() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -739,7 +743,7 @@ public fun test_get_token_and_gas_prices_chain_not_enabled() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -792,7 +796,7 @@ public fun test_update_prices_token_update_mismatch() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -821,7 +825,7 @@ public fun test_get_validated_fee_invalid_extra_args_data_too_short() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -857,7 +861,7 @@ public fun test_get_validated_fee_invalid_token_receiver_svm() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -901,6 +905,9 @@ public fun test_get_validated_fee_invalid_token_receiver_svm() {
 public fun test_process_message_args_message_fee_too_high() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
+
+    // Initialize upgrade registry first (required by fee_quoter functions)
+    upgrade_registry::initialize(&mut ref, &owner_cap, ctx);
 
     // Initialize with a very LOW max fee limit
     fee_quoter::initialize(
@@ -1034,7 +1041,7 @@ public fun test_get_validated_fee_svm_empty_extra_args() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -1094,7 +1101,7 @@ public fun test_update_prices_gas_update_mismatch() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -1150,7 +1157,7 @@ public fun test_get_validated_fee_unsupported_fee_token() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -1188,7 +1195,7 @@ public fun test_get_validated_fee_out_of_order_execution_required() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -1228,7 +1235,7 @@ public fun test_get_validated_fee_invalid_extra_args_tag() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -1265,7 +1272,7 @@ public fun test_get_validated_fee_compute_unit_limit_too_high() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let fee_quoter_cap = fee_quoter::create_fee_quoter_cap(ctx);
+    let fee_quoter_cap = fee_quoter::new_fee_quoter_cap(&owner_cap, ctx);
 
     let mut clock = clock::create_for_testing(ctx);
     clock::increment_for_testing(&mut clock, 20000);
@@ -1380,6 +1387,37 @@ public fun test_apply_token_transfer_fee_config_invalid_fee_range() {
         vector[900], // add_dest_bytes_overhead
         vector[true], // add_is_enabled
         vector[], // remove_tokens
+        ctx,
+    );
+
+    cleanup_test_scenario(scenario, owner_cap, ref);
+}
+
+// === Upgrade Registry Function Restriction Tests ===
+
+#[test]
+#[expected_failure(abort_code = upgrade_registry::EFunctionNotAllowed)]
+public fun test_apply_fee_token_updates_function_not_allowed() {
+    let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
+    let ctx = scenario.ctx();
+    initialize_fee_quoter(&mut ref, &owner_cap, ctx);
+
+    // Block the apply_fee_token_updates function using upgrade registry
+    upgrade_registry::block_function(
+        &mut ref,
+        &owner_cap,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"apply_fee_token_updates"),
+        1, // block version 1
+        ctx,
+    );
+
+    // This should fail because the function is blocked by upgrade registry
+    fee_quoter::apply_fee_token_updates(
+        &mut ref,
+        &owner_cap,
+        vector[MOCK_ADDRESS_1], // fee_tokens_to_remove
+        vector[MOCK_ADDRESS_4], // fee_tokens_to_add
         ctx,
     );
 

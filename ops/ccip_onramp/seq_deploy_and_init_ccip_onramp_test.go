@@ -28,7 +28,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(400_000_000)
+			b := uint64(500_000_000)
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
@@ -67,6 +67,15 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 	reportNonceManagerInit, err := cld_ops.ExecuteOperation(bundle, ccip_ops.NonceManagerInitializeOp, deps, nonceManagerInput)
 	require.NoError(t, err, "failed to initialize Nonce Manager Package")
 
+	// Initialize upgrade registry (required by onramp functions)
+	upgradeRegistryInput := ccip_ops.InitUpgradeRegistryInput{
+		CCIPPackageId:    report.Output.PackageId,
+		StateObjectId:    report.Output.Objects.CCIPObjectRefObjectId,
+		OwnerCapObjectId: report.Output.Objects.OwnerCapObjectId,
+	}
+	_, err = cld_ops.ExecuteOperation(bundle, ccip_ops.UpgradeRegistryInitializeOp, deps, upgradeRegistryInput)
+	require.NoError(t, err, "failed to initialize Upgrade Registry")
+
 	inputOnRamp := DeployAndInitCCIPOnRampSeqInput{
 		DeployCCIPOnRampInput: DeployCCIPOnRampInput{
 			CCIPPackageId:      report.Output.PackageId,
@@ -84,11 +93,13 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 			DestChainAllowListEnabled: []bool{true},
 		},
 		ApplyDestChainConfigureOnRampInput: ApplyDestChainConfigureOnRampInput{
+			CCIPObjectRefId:           report.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:         []uint64{909606746561742123},
 			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{false},
 		},
 		ApplyAllowListUpdatesInput: ApplyAllowListUpdatesInput{
+			CCIPObjectRefId:               report.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:             []uint64{909606746561742123},
 			DestChainAllowListEnabled:     []bool{false},
 			DestChainAddAllowedSenders:    [][]string{{}},
