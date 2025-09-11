@@ -4,6 +4,7 @@ module ccip::receiver_registry_tests;
 use ccip::ownable::OwnerCap;
 use ccip::receiver_registry::{Self, ReceiverRegistry};
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use std::ascii;
 use std::string;
 use std::type_name;
@@ -37,8 +38,12 @@ fun setup_test(): (Scenario, CCIPObjectRef, OwnerCap) {
 
     scenario.next_tx(OWNER);
     {
-        let ref = scenario.take_shared<CCIPObjectRef>();
+        let mut ref = scenario.take_shared<CCIPObjectRef>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Initialize upgrade registry first
+        upgrade_registry::initialize(&mut ref, &owner_cap, scenario.ctx());
+
         (scenario, ref, owner_cap)
     }
 }

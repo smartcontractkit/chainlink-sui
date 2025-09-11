@@ -4,6 +4,7 @@ module ccip::nonce_manager_test;
 use ccip::nonce_manager::{Self, NonceManagerState};
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER: address = @0x1;
@@ -23,6 +24,8 @@ fun set_up_test(): (Scenario, CCIPObjectRef, OwnerCap) {
 }
 
 fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    // Initialize upgrade registry first (required by nonce_manager functions)
+    upgrade_registry::initialize(ref, owner_cap, ctx);
     nonce_manager::initialize(ref, owner_cap, ctx);
 }
 

@@ -18,6 +18,7 @@ type DeployCCIPSeqObjects struct {
 	ReceiverRegistryStateObjectId   string
 	RMNRemoteStateObjectId          string
 	TokenAdminRegistryStateObjectId string
+	UpgradeRegistryObjectId         string
 	SourceTransferCapObjectId       string
 	DestTransferCapObjectId         string
 }
@@ -160,6 +161,20 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			return DeployCCIPSeqOutput{}, err
 		}
 
+		initUpgradeRegistryReport, err := cld_ops.ExecuteOperation(
+			env,
+			UpgradeRegistryInitializeOp,
+			deps,
+			InitUpgradeRegistryInput{
+				CCIPPackageId:    deployReport.Output.PackageId,
+				StateObjectId:    deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
+			},
+		)
+		if err != nil {
+			return DeployCCIPSeqOutput{}, err
+		}
+
 		// apply_token_transfer_fee_config_updates
 		_, err = cld_ops.ExecuteOperation(
 			env,
@@ -247,6 +262,7 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 				ReceiverRegistryStateObjectId:   initRecRegReport.Output.Objects.ReceiverRegistryStateObjectId,
 				RMNRemoteStateObjectId:          initRMNRemoteReport.Output.Objects.RMNRemoteStateObjectId,
 				TokenAdminRegistryStateObjectId: initTARReport.Output.Objects.TARStateObjectId,
+				UpgradeRegistryObjectId:         initUpgradeRegistryReport.Output.Objects.UpgradeRegistryObjectId,
 				SourceTransferCapObjectId:       deployReport.Output.Objects.SourceTransferCapObjectId,
 				DestTransferCapObjectId:         deployReport.Output.Objects.DestTransferCapObjectId,
 			},
