@@ -918,8 +918,7 @@ public fun mcms_transfer_ownership<T>(
     transfer_ownership(state, owner_cap, to, ctx);
 }
 
-// TODO: Should this be mcms_accept...?
-public fun mcms_mcms_accept_ownership<T>(
+public fun mcms_accept_ownership<T>(
     state: &mut ManagedTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,

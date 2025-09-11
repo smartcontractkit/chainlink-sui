@@ -737,7 +737,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
     state: &mut BurnMintTokenPoolState<T>,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
-    clock: &Clock, // TODO: Clock param breaks the mcms_ function signatures
+    clock: &Clock,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback<T>, OwnerCap>(
         registry,
