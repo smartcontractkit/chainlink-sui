@@ -192,7 +192,7 @@ public fun mcms_transfer_ownership(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -217,7 +217,7 @@ public fun mcms_execute_ownership_transfer(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(_owner_cap)],
         &mut stream,
     );
 

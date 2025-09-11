@@ -594,7 +594,7 @@ public fun mcms_unregister_pool(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 
@@ -619,7 +619,7 @@ public fun mcms_set_pool(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 
@@ -666,7 +666,7 @@ public fun mcms_transfer_admin_role(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 
@@ -697,7 +697,7 @@ public fun mcms_accept_admin_role(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 
