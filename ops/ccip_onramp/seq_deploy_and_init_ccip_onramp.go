@@ -46,6 +46,7 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 
 		applyDestChainConfigUpdateInput := ApplyDestChainConfigureOnRampInput{
 			OnRampPackageId:           deployReport.Output.PackageId,
+			CCIPObjectRefId:           input.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId,
 			OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
 			StateObjectId:             deployReport.Output.Objects.CCIPOnrampStateObjectId,
 			DestChainSelector:         input.ApplyDestChainConfigureOnRampInput.DestChainSelector,
@@ -56,6 +57,25 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		_, err = cld_ops.ExecuteOperation(env, ApplyDestChainConfigUpdateOp, deps, applyDestChainConfigUpdateInput)
 		if err != nil {
 			return DeployCCIPOnRampSeqOutput{}, err
+		}
+
+		// Apply allowlist updates if provided
+		if len(input.ApplyAllowListUpdatesInput.DestChainSelector) > 0 {
+			applyAllowListUpdatesInput := ApplyAllowListUpdatesInput{
+				OnRampPackageId:               deployReport.Output.PackageId,
+				CCIPObjectRefId:               input.ApplyAllowListUpdatesInput.CCIPObjectRefId,
+				OwnerCapObjectId:              deployReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:                 deployReport.Output.Objects.CCIPOnrampStateObjectId,
+				DestChainSelector:             input.ApplyAllowListUpdatesInput.DestChainSelector,
+				DestChainAllowListEnabled:     input.ApplyAllowListUpdatesInput.DestChainAllowListEnabled,
+				DestChainAddAllowedSenders:    input.ApplyAllowListUpdatesInput.DestChainAddAllowedSenders,
+				DestChainRemoveAllowedSenders: input.ApplyAllowListUpdatesInput.DestChainRemoveAllowedSenders,
+			}
+
+			_, err = cld_ops.ExecuteOperation(env, ApplyAllowListUpdateOp, deps, applyAllowListUpdatesInput)
+			if err != nil {
+				return DeployCCIPOnRampSeqOutput{}, err
+			}
 		}
 
 		return DeployCCIPOnRampSeqOutput{

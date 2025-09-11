@@ -12,6 +12,7 @@ use ccip::receiver_registry;
 use ccip::rmn_remote;
 use ccip::state_object::CCIPObjectRef;
 use ccip::token_admin_registry;
+use ccip::upgrade_registry::verify_function_allowed;
 use ccip_offramp::ocr3_base::{Self, OCR3BaseState, OCRConfig};
 use ccip_offramp::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream::{Self, BCSStream};
@@ -31,6 +32,7 @@ use sui::vec_map::{Self, VecMap};
 
 public struct OffRampState has key, store {
     id: UID,
+    package_ids: vector<address>,
     ocr3_base_state: OCR3BaseState,
     // static config
     chain_selector: u64,
@@ -223,6 +225,9 @@ const ECalculateMessageHashInvalidArguments: u64 = 26;
 const EInvalidFunction: u64 = 27;
 const EInvalidTokenReceiver: u64 = 28;
 const ETokenTransferLimitExceeded: u64 = 29;
+const EPackageIdNotFound: u64 = 30;
+
+const VERSION: u8 = 1;
 
 public fun type_and_version(): String {
     string::utf8(b"OffRamp 1.6.0")
@@ -235,6 +240,7 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
     let state = OffRampState {
         id: object::new(ctx),
+        package_ids: vector[],
         ocr3_base_state: ocr3_base::new(ctx),
         chain_selector: 0,
         permissionless_execution_threshold_seconds: 0,
@@ -296,6 +302,21 @@ public fun initialize(
         source_chains_on_ramp,
         ctx,
     );
+
+    let tn = type_name::get_with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.get_address());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+    state.package_ids.push_back(package_id);
+}
+
+public fun add_package_id(state: &mut OffRampState, _: &OwnerCap, package_id: address) {
+    state.package_ids.push_back(package_id);
+}
+
+public fun remove_package_id(state: &mut OffRampState, _: &OwnerCap, package_id: address) {
+    let (found, idx) = state.package_ids.index_of(&package_id);
+    assert!(found, EPackageIdNotFound);
+    state.package_ids.remove(idx);
 }
 
 public fun get_ocr3_base(state: &OffRampState): &OCR3BaseState {
@@ -399,6 +420,12 @@ public fun init_execute(
     token_receiver: address,
     ctx: &mut TxContext,
 ): osh::ReceiverParams {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"init_execute"),
+        VERSION,
+    );
     let reports = deserialize_execution_report(report);
 
     ocr3_base::transmit(
@@ -414,7 +441,17 @@ public fun init_execute(
     pre_execute_single_report(ref, state, clock, reports, false, token_receiver)
 }
 
-public fun finish_execute(state: &mut OffRampState, receiver_params: osh::ReceiverParams) {
+public fun finish_execute(
+    ref: &CCIPObjectRef,
+    state: &mut OffRampState,
+    receiver_params: osh::ReceiverParams,
+) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"finish_execute"),
+        VERSION,
+    );
     assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
     osh::deconstruct_receiver_params(state.dest_transfer_cap.borrow(), receiver_params);
 }
@@ -427,6 +464,12 @@ public fun manually_init_execute(
     report_bytes: vector<u8>,
     token_receiver: address,
 ): osh::ReceiverParams {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"manually_init_execute"),
+        VERSION,
+    );
     let reports = deserialize_execution_report(report_bytes);
 
     pre_execute_single_report(ref, state, clock, reports, true, token_receiver)
@@ -534,6 +577,7 @@ fun pre_execute_single_report(
 
     let source_chain_config = state.source_chain_configs[&source_chain_selector];
     let metadata_hash = calculate_metadata_hash(
+        ref,
         source_chain_selector,
         state.chain_selector,
         source_chain_config.on_ramp,
@@ -668,10 +712,17 @@ fun is_committed_root(state: &OffRampState, clock: &clock::Clock, root: vector<u
 // ================================================================
 
 public fun calculate_metadata_hash(
+    ref: &CCIPObjectRef,
     source_chain_selector: u64,
     dest_chain_selector: u64,
     on_ramp: vector<u8>,
 ): vector<u8> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"calculate_metadata_hash"),
+        VERSION,
+    );
     let mut packed = vector[];
     eth_abi::encode_right_padded_bytes32(
         &mut packed,
@@ -684,6 +735,7 @@ public fun calculate_metadata_hash(
 }
 
 public fun calculate_message_hash(
+    ref: &CCIPObjectRef,
     message_id: vector<u8>,
     source_chain_selector: u64,
     dest_chain_selector: u64,
@@ -700,6 +752,12 @@ public fun calculate_message_hash(
     extra_datas: vector<vector<u8>>,
     amounts: vector<u256>,
 ): vector<u8> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"calculate_message_hash"),
+        VERSION,
+    );
     let source_pool_addresses_len = source_pool_addresses.length();
     assert!(
         source_pool_addresses_len == dest_token_addresses.length()
@@ -710,6 +768,7 @@ public fun calculate_message_hash(
     );
 
     let metadata_hash = calculate_metadata_hash(
+        ref,
         source_chain_selector,
         dest_chain_selector,
         on_ramp,
@@ -840,6 +899,7 @@ fun parse_merkle_root(stream: &mut BCSStream): vector<MerkleRoot> {
 // ================================================================
 
 public fun set_ocr3_config(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     _: &OwnerCap,
     config_digest: vector<u8>,
@@ -849,7 +909,14 @@ public fun set_ocr3_config(
     signers: vector<vector<u8>>,
     transmitters: vector<address>,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"set_ocr3_config"),
+        VERSION,
+    );
     ocr3_base::set_ocr3_config(
+        ref,
         &mut state.ocr3_base_state,
         config_digest,
         ocr_plugin_type,
@@ -908,6 +975,12 @@ public fun commit(
     signatures: vector<vector<u8>>,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"commit"),
+        VERSION,
+    );
     let commit_report = deserialize_commit_report(report);
 
     if (commit_report.blessed_merkle_roots.length() > 0) {
@@ -1069,9 +1142,16 @@ public fun get_merkle_root(state: &OffRampState, root: vector<u8>): u64 {
 }
 
 public fun get_source_chain_config(
+    ref: &CCIPObjectRef,
     state: &OffRampState,
     source_chain_selector: u64,
 ): SourceChainConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"get_source_chain_config"),
+        VERSION,
+    );
     if (state.source_chain_configs.contains(&source_chain_selector)) {
         let source_chain_config = state.source_chain_configs.get(&source_chain_selector);
         *source_chain_config
@@ -1087,8 +1167,15 @@ public fun get_source_chain_config(
 }
 
 public fun get_source_chain_config_fields(
+    ref: &CCIPObjectRef,
     source_chain_config: SourceChainConfig,
 ): (address, bool, u64, bool, vector<u8>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"get_source_chain_config_fields"),
+        VERSION,
+    );
     (
         source_chain_config.router,
         source_chain_config.is_enabled,
@@ -1099,8 +1186,15 @@ public fun get_source_chain_config_fields(
 }
 
 public fun get_all_source_chain_configs(
+    ref: &CCIPObjectRef,
     state: &OffRampState,
 ): (vector<u64>, vector<SourceChainConfig>) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"get_all_source_chain_configs"),
+        VERSION,
+    );
     let mut chain_selectors = vector[];
     let mut chain_configs = vector[];
     let keys = state.source_chain_configs.keys();
@@ -1115,31 +1209,61 @@ public fun get_all_source_chain_configs(
 // |                           Config                             |
 // ================================================================
 
-public fun get_static_config(state: &OffRampState): StaticConfig {
+public fun get_static_config(ref: &CCIPObjectRef, state: &OffRampState): StaticConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"get_static_config"),
+        VERSION,
+    );
     create_static_config(state.chain_selector)
 }
 
-// why do we need these addresses? for offchain?
-// rmn_remote: @ccip,
-// token_admin_registry: @ccip,
-// nonce_manager: @ccip
-public fun get_static_config_fields(cfg: StaticConfig): (u64, address, address, address) {
+public fun get_static_config_fields(
+    ref: &CCIPObjectRef,
+    cfg: StaticConfig,
+): (u64, address, address, address) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"get_static_config_fields"),
+        VERSION,
+    );
     (cfg.chain_selector, cfg.rmn_remote, cfg.token_admin_registry, cfg.nonce_manager)
 }
 
-public fun get_dynamic_config(state: &OffRampState): DynamicConfig {
+public fun get_dynamic_config(ref: &CCIPObjectRef, state: &OffRampState): DynamicConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"get_dynamic_config"),
+        VERSION,
+    );
     create_dynamic_config(state.permissionless_execution_threshold_seconds)
 }
 
-public fun get_dynamic_config_fields(cfg: DynamicConfig): (address, u32) {
+public fun get_dynamic_config_fields(ref: &CCIPObjectRef, cfg: DynamicConfig): (address, u32) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"get_dynamic_config_fields"),
+        VERSION,
+    );
     (cfg.fee_quoter, cfg.permissionless_execution_threshold_seconds)
 }
 
 public fun set_dynamic_config(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     _: &OwnerCap,
     permissionless_execution_threshold_seconds: u32,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"set_dynamic_config"),
+        VERSION,
+    );
     set_dynamic_config_internal(
         state,
         permissionless_execution_threshold_seconds,
@@ -1156,6 +1280,7 @@ fun create_static_config(chain_selector: u64): StaticConfig {
 }
 
 public fun apply_source_chain_config_updates(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     _: &OwnerCap,
     source_chains_selector: vector<u64>,
@@ -1164,6 +1289,12 @@ public fun apply_source_chain_config_updates(
     source_chains_on_ramp: vector<vector<u8>>,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"apply_source_chain_config_updates"),
+        VERSION,
+    );
     apply_source_chain_config_updates_internal(
         state,
         source_chains_selector,
@@ -1203,31 +1334,58 @@ public fun pending_transfer_accepted(state: &OffRampState): Option<bool> {
 }
 
 public fun transfer_ownership(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     owner_cap: &OwnerCap,
     new_owner: address,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"transfer_ownership"),
+        VERSION,
+    );
     ownable::transfer_ownership(owner_cap, &mut state.ownable_state, new_owner, ctx);
 }
 
-public fun accept_ownership(state: &mut OffRampState, ctx: &mut TxContext) {
+public fun accept_ownership(ref: &CCIPObjectRef, state: &mut OffRampState, ctx: &mut TxContext) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"accept_ownership"),
+        VERSION,
+    );
     ownable::accept_ownership(&mut state.ownable_state, ctx);
 }
 
 public fun accept_ownership_from_object(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     from: &mut UID,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"accept_ownership_from_object"),
+        VERSION,
+    );
     ownable::accept_ownership_from_object(&mut state.ownable_state, from, ctx);
 }
 
 public fun mcms_accept_ownership(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"mcms_accept_ownership"),
+        VERSION,
+    );
     let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
         params,
         McmsCallback {},
@@ -1244,21 +1402,35 @@ public fun mcms_accept_ownership(
 }
 
 public fun execute_ownership_transfer(
+    ref: &CCIPObjectRef,
     owner_cap: OwnerCap,
     ownable_state: &mut OwnableState,
     to: address,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"execute_ownership_transfer"),
+        VERSION,
+    );
     ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
 }
 
 public fun execute_ownership_transfer_to_mcms(
+    ref: &CCIPObjectRef,
     owner_cap: OwnerCap,
     state: &mut OffRampState,
     registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"execute_ownership_transfer_to_mcms"),
+        VERSION,
+    );
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
@@ -1270,11 +1442,18 @@ public fun execute_ownership_transfer_to_mcms(
 }
 
 public fun mcms_register_upgrade_cap(
+    ref: &CCIPObjectRef,
     upgrade_cap: UpgradeCap,
     registry: &mut Registry,
     state: &mut DeployerState,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"offramp"),
+        string::utf8(b"mcms_register_upgrade_cap"),
+        VERSION,
+    );
     mcms_deployer::register_upgrade_cap(
         state,
         registry,
@@ -1289,8 +1468,8 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-
 public fun mcms_set_dynamic_config(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -1311,10 +1490,11 @@ public fun mcms_set_dynamic_config(
     let permissionless_execution_threshold_seconds = bcs_stream::deserialize_u32(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    set_dynamic_config(state, owner_cap, permissionless_execution_threshold_seconds);
+    set_dynamic_config(ref, state, owner_cap, permissionless_execution_threshold_seconds);
 }
 
 public fun mcms_apply_source_chain_config_updates(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -1352,6 +1532,7 @@ public fun mcms_apply_source_chain_config_updates(
     bcs_stream::assert_is_consumed(&stream);
 
     apply_source_chain_config_updates(
+        ref,
         state,
         owner_cap,
         source_chains_selector,
@@ -1363,6 +1544,7 @@ public fun mcms_apply_source_chain_config_updates(
 }
 
 public fun mcms_set_ocr3_config(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -1395,6 +1577,7 @@ public fun mcms_set_ocr3_config(
     bcs_stream::assert_is_consumed(&stream);
 
     set_ocr3_config(
+        ref,
         state,
         owner_cap,
         config_digest,
@@ -1407,6 +1590,7 @@ public fun mcms_set_ocr3_config(
 }
 
 public fun mcms_transfer_ownership(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -1428,10 +1612,11 @@ public fun mcms_transfer_ownership(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    transfer_ownership(state, owner_cap, to, ctx);
+    transfer_ownership(ref, state, owner_cap, to, ctx);
 }
 
 public fun mcms_execute_ownership_transfer(
+    ref: &CCIPObjectRef,
     state: &mut OffRampState,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -1454,7 +1639,7 @@ public fun mcms_execute_ownership_transfer(
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+    execute_ownership_transfer(ref, owner_cap, &mut state.ownable_state, to, ctx);
 }
 
 // ============================== Test Functions ============================== //
