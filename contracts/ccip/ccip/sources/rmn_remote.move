@@ -95,7 +95,6 @@ public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
 }
 
-// test what happens to this when upgrading
 public fun get_arm(): address {
     let tn = type_name::get<RMNRemoteState>();
     let addr_string = tn.get_address();

@@ -177,6 +177,50 @@ public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
 
+public fun mcms_add_package_id(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"add_package_id"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+    let package_id = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+    add_package_id(ref, owner_cap, package_id);
+}
+
+public fun mcms_remove_package_id(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"remove_package_id"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(registry)],
+        &mut stream,
+    );
+    let package_id = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+    remove_package_id(ref, owner_cap, package_id);
+}
+
 public fun mcms_transfer_ownership(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
