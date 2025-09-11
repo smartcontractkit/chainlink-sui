@@ -30,15 +30,12 @@ const VEC_NUM_GROUPS: vector<u8> = vector[
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-// TODO: Change hash to SUI (MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_SUI)
-// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_APTOS")
+// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_SUI")
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA: vector<u8> =
-    x"a71d47b6c00b64ee21af96a1d424cb2dcbbed12becdcd3b4e6c7fc4c2f80a697";
-
-// TODO: Change hash to SUI (MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_SUI)
-// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_APTOS")
+    x"8d82f6d1169cfb3fd9bc8641ea8b89677f50fe86e8d61d0d3fa6149778c934cf";
+// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_SUI")
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP: vector<u8> =
-    x"e5a6d1256b00d7ec22512b6b60a3f4d75c559745d2dbf309f77b8b756caabe14";
+    x"542b28b7edb99385286abe2b9c308f91a385cbcb48fc98127cfd13deb28a50b8";
 
 /// Special timestamp value indicating an operation is done
 const DONE_TIMESTAMP: u64 = 1;
@@ -1517,7 +1514,7 @@ fun timelock_schedule(timelock: &mut Timelock, clock: &Clock, id: vector<u8>, de
     assert!(!timelock_is_operation_internal(timelock, id), EOperationAlreadyScheduled);
     assert!(delay >= timelock.min_delay, EInsufficientDelay);
 
-    let timestamp = clock.timestamp_ms() + timelock.min_delay + delay;
+    let timestamp = get_timestamp_seconds(clock) + delay;
     timelock.timestamps.add(id, timestamp);
 }
 
@@ -1747,7 +1744,7 @@ public fun timelock_is_operation_ready(timelock: &Timelock, clock: &Clock, id: v
     };
 
     let timestamp_value = *timelock.timestamps.borrow(id);
-    timestamp_value > DONE_TIMESTAMP && timestamp_value <= clock.timestamp_ms()
+    timestamp_value > DONE_TIMESTAMP && timestamp_value <= get_timestamp_seconds(clock)
 }
 
 public fun timelock_is_operation_done(timelock: &Timelock, id: vector<u8>): bool {
