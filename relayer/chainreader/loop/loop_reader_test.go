@@ -202,9 +202,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		},
 	}
 
-	pollingInterval := 4 * time.Second
-	syncTimeout := 3 * time.Second
-
 	echoBinding := types.BoundContract{
 		Name:    "echo",
 		Address: packageId, // Package ID of the deployed echo contract
@@ -227,8 +224,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		db,
 		log,
 		relayerClient,
-		pollingInterval,
-		syncTimeout,
+		chainReaderConfigs.TransactionsIndexer.PollingInterval,
+		chainReaderConfigs.TransactionsIndexer.SyncTimeout,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
 		// to the transaction indexer to avoid having to reading ChainReader configs here as well
 		map[string]*config.ChainReaderEvent{},
@@ -239,8 +236,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		relayerClient,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
-		pollingInterval,
-		syncTimeout,
+		chainReaderConfigs.EventsIndexer.PollingInterval,
+		chainReaderConfigs.EventsIndexer.SyncTimeout,
 	)
 	indexerInstance := indexer.NewIndexer(
 		log,

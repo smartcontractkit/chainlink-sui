@@ -95,7 +95,6 @@ public fun type_and_version(): String {
     string::utf8(b"RMNRemote 1.6.0")
 }
 
-// test what happens to this when upgrading
 public fun get_arm(): address {
     let tn = type_name::get<RMNRemoteState>();
     let addr_string = tn.get_address();
@@ -488,7 +487,7 @@ public fun mcms_set_config(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -528,7 +527,7 @@ public fun mcms_curse(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -552,7 +551,7 @@ public fun mcms_curse_multiple(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -579,7 +578,7 @@ public fun mcms_uncurse(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -606,7 +605,7 @@ public fun mcms_uncurse_multiple(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 

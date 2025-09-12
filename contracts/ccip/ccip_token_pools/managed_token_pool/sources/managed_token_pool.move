@@ -621,7 +621,7 @@ public fun mcms_set_allowlist_enabled<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -645,7 +645,7 @@ public fun mcms_apply_allowlist_updates<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -676,7 +676,7 @@ public fun mcms_apply_chain_updates<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -725,7 +725,7 @@ public fun mcms_add_remote_pool<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -750,7 +750,7 @@ public fun mcms_remove_remote_pool<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
     let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
@@ -775,7 +775,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap), object::id_address(clock)],
         &mut stream,
     );
 
@@ -838,7 +838,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap), object::id_address(clock)],
         &mut stream,
     );
 
@@ -908,7 +908,7 @@ public fun mcms_transfer_ownership<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -916,34 +916,6 @@ public fun mcms_transfer_ownership<T>(
     bcs_stream::assert_is_consumed(&stream);
 
     transfer_ownership(state, owner_cap, to, ctx);
-}
-
-public fun mcms_mcms_accept_ownership<T>(
-    state: &mut ManagedTokenPoolState<T>,
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-    ctx: &mut TxContext,
-) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<
-        McmsCallback<T>,
-        OwnerCap,
-    >(
-        registry,
-        McmsCallback<T> {},
-        params,
-    );
-    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
-
-    let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
-        &mut stream,
-    );
-
-    let mcms = bcs_stream::deserialize_address(&mut stream);
-    bcs_stream::assert_is_consumed(&stream);
-
-    ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
 public fun mcms_execute_ownership_transfer<T>(
@@ -964,7 +936,7 @@ public fun mcms_execute_ownership_transfer<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(_owner_cap), object::id_address(state)],
         &mut stream,
     );
 
