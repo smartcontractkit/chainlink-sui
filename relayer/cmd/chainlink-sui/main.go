@@ -56,7 +56,7 @@ type pluginRelayer struct {
 
 var _ loop.PluginRelayer = &pluginRelayer{}
 
-func (c *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, keystore loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
+func (c *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, keystore, csa loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
 	cfg, err := config2.NewDecodedTOMLConfig(rawConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read configs: %w", err)
