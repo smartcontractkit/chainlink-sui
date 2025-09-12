@@ -1,8 +1,7 @@
 module mcms::bcs_stream {
+    use mcms::params;
     use std::string::{Self, String};
     use sui::bcs;
-
-    use mcms::params;
 
     const E_MALFORMED_DATA: u64 = 1;
     const E_OUT_OF_BYTES: u64 = 2;
@@ -59,9 +58,9 @@ module mcms::bcs_stream {
             return false
         } else if (byte == 1) {
             return true
-        } else {
-            abort E_MALFORMED_DATA
-        }
+        };
+
+        abort E_MALFORMED_DATA
     }
 
     public fun deserialize_address(stream: &mut BCSStream): address {
@@ -204,7 +203,7 @@ module mcms::bcs_stream {
     }
 
     /// Deserializes a `u256` value from the stream.
-    public entry fun deserialize_u256_entry(data: vector<u8>, cursor: u64) {
+    public fun deserialize_u256_entry(data: vector<u8>, cursor: u64) {
         let mut stream = BCSStream { data: data, cur: cursor };
         deserialize_u256(&mut stream);
     }
