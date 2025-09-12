@@ -20,7 +20,7 @@ type CCIPChainState struct {
 	OnRampStateObjectID        string
 	OffRampAddress             string
 	OffRampOwnerCapID          string
-	OffRampStateObjectID       string
+	OffRampStateObjectId       string
 	LinkTokenAddress           string
 	LinkTokenCoinMetadataID    string
 	LinkTokenTreasuryCapID     string
@@ -94,7 +94,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.OffRampAddress = addr
 
 		case SuiOffRampStateObjectIDType:
-			chainState.OffRampStateObjectID = addr
+			chainState.OffRampStateObjectId = addr
 
 		case SuiOffRampOwnerCapObjectIDType:
 			chainState.OffRampOwnerCapID = addr
