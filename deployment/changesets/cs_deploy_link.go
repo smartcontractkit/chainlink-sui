@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
@@ -23,7 +22,7 @@ type DeployLinkToken struct{}
 // Apply implements deployment.ChangeSetV2.
 func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
-	seqReports := make([]operations.Report[any, any], 0)
+	seqReports := make([]cld_ops.Report[any, any], 0)
 
 	suiChains := e.BlockChains.SuiChains()
 
@@ -42,7 +41,7 @@ func (d DeployLinkToken) Apply(e cldf.Environment, config DeployLinkTokenConfig)
 	}
 
 	// Run DeployLinkToken Operation
-	linkTokenReport, err := operations.ExecuteOperation(e.OperationsBundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
+	linkTokenReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, linkops.DeployLINKOp, deps, cld_ops.EmptyInput{})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy LinkToken for Sui chain %d: %w", config.ChainSelector, err)
 	}

@@ -34,7 +34,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 	suiChains := make(map[uint64]CCIPChainState)
 
 	for chainSelector := range rawChains {
-		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector)
+		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector) //nolint
 		if err != nil {
 			// Chain not found in address book, initialize empty state
 			if !errors.Is(err, cldf.ErrChainNotFound) {
