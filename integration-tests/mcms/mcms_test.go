@@ -58,9 +58,11 @@ func setupTestEnvironment(t *testing.T) (
 	log = logger.Test(t)
 
 	// Start local Sui node
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 	log.Debugw("Started Sui node")
+	localUrl := env.LocalUrl
+	faucetUrl := env.FaucetUrl
 
 	// setup keystore instance
 	keystoreInstance := testutils.NewTestKeystore(t)
@@ -68,8 +70,8 @@ func setupTestEnvironment(t *testing.T) (
 
 	// Ensure the process is killed when the test completes
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
+		if env.Cmd.Process != nil {
+			perr := env.Cmd.Process.Kill()
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -77,11 +79,11 @@ func setupTestEnvironment(t *testing.T) (
 	})
 
 	// Fund the account
-	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+	err = testutils.FundWithFaucet(log, accountAddress, faucetUrl)
 	require.NoError(t, err)
 
 	// Create client
-	ptbClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	ptbClient, err = client.NewPTBClient(log, localUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
 	// Build and publish contracts

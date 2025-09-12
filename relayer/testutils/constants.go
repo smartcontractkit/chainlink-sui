@@ -2,10 +2,8 @@ package testutils
 
 // Network URLs
 const (
-	DevnetUrl      = "https://fullnode.devnet.sui.io:443"
-	TestnetUrl     = "https://fullnode.testnet.sui.io:443"
-	LocalUrl       = "http://127.0.0.1:9000"
-	LocalFaucetUrl = "http://127.0.0.1:9123/gas"
+	DevnetUrl  = "https://fullnode.devnet.sui.io:443"
+	TestnetUrl = "https://fullnode.testnet.sui.io:443"
 )
 
 // Network environments

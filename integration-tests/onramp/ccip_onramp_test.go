@@ -40,11 +40,11 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	keystoreInstance := testutils.NewTestKeystore(t)
 
 	// Start dedicated Sui node for this test
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			if perr := cmd.Process.Kill(); perr != nil {
+		if env.Cmd.Process != nil {
+			if perr := env.Cmd.Process.Kill(); perr != nil {
 				t.Logf("Failed to kill Sui node process: %v", perr)
 			}
 		}
@@ -60,7 +60,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 
 	// Fund the account for gas payments
 	for range 3 {
-		err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
+		err := testutils.FundWithFaucet(lggr, accountAddress, env.FaucetUrl)
 		require.NoError(t, err)
 	}
 
@@ -72,7 +72,7 @@ func TestCCIPSuiOnRamp(t *testing.T) {
 	defer cancel()
 
 	t.Run("CCIP SUI messaging", func(t *testing.T) {
-		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
+		_, txManager, _ := testutils.SetupClients(t, env.LocalUrl, keystoreInstance, lggr, gasBudget)
 		tokenPoolDetails := testutils.TokenToolDetails{
 			TokenPoolPackageId: envSettings.LockReleaseTokenPoolReport.Output.LockReleaseTPPackageID,
 			TokenPoolType:      testutils.TokenPoolTypeLockRelease,
@@ -368,11 +368,11 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Start dedicated Sui node for this test
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			if perr := cmd.Process.Kill(); perr != nil {
+		if env.Cmd.Process != nil {
+			if perr := env.Cmd.Process.Kill(); perr != nil {
 				t.Logf("Failed to kill Sui node process: %v", perr)
 			}
 		}
@@ -381,19 +381,19 @@ func TestCCIPSuiOnRampWithManagedTokenPool(t *testing.T) {
 	// Wait for the node to be fully ready
 	time.Sleep(3 * time.Second)
 
-	accountAddress, publicKeyBytes, signer, client, deps, bundle := environment.BasicSetUp(t, lggr, keystoreInstance)
+	accountAddress, publicKeyBytes, signer, client, deps, bundle := environment.BasicSetUp(t, lggr, keystoreInstance, env.LocalUrl, env.FaucetUrl)
 
 	// Fund the account for gas payments
 	for range 3 {
-		err := testutils.FundWithFaucet(lggr, "localnet", accountAddress)
+		err := testutils.FundWithFaucet(lggr, accountAddress, env.FaucetUrl)
 		require.NoError(t, err)
 	}
 
-	envSettings := environment.SetupTestEnvironmentForManagedTokenPool(t, client, signer, accountAddress, bundle, deps, localChainSelector, destChainSelector, keystoreInstance)
+	envSettings := environment.SetupTestEnvironmentForManagedTokenPool(t, client, signer, accountAddress, bundle, deps, localChainSelector, destChainSelector, keystoreInstance, env.LocalUrl, env.FaucetUrl)
 
 	lggr.Infow("Using account", "address", accountAddress)
 
-	_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
+	_, txManager, _ := testutils.SetupClients(t, env.LocalUrl, keystoreInstance, lggr, gasBudget)
 
 	ethManagedTokenPoolDetails := testutils.TokenToolDetails{
 		TokenPoolPackageId: envSettings.ManagedTokenPoolReport.Output.ManagedTPPackageId,

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/block-vision/sui-go-sdk/models"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
@@ -27,9 +26,40 @@ const (
 	CLI
 )
 
+func RandomPortNumberGenerator() (int, error) {
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+	port, err := listener.Addr().(*net.TCPAddr).Port, nil
+	if err != nil {
+		return 0, err
+	}
+	listener.Close()
+	return port, nil
+}
+
+type SuiNodeEnvironment struct {
+	Cmd       *exec.Cmd
+	LocalUrl  string
+	FaucetUrl string
+}
+
 // StartSuiNode starts a local Sui node using Docker
-func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
+func StartSuiNode(nodeType NodeEnvType) (*SuiNodeEnvironment, error) {
 	var cmd *exec.Cmd
+
+	port, err := RandomPortNumberGenerator()
+	if err != nil {
+		return nil, err
+	}
+	faucetPort, err := RandomPortNumberGenerator()
+	if err != nil {
+		return nil, err
+	}
+
+	portStr := fmt.Sprintf("%d", port)
+	faucetPortStr := fmt.Sprintf("%d", faucetPort)
 
 	switch nodeType {
 	case Docker:
@@ -40,9 +70,12 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 			return nil, err
 		}
 
+		localUrl := fmt.Sprintf("http://localhost:%s", portStr)
+		faucetUrl := fmt.Sprintf("http://localhost:%s/gas", faucetPortStr)
+
 		// If the container is already running, return
 		if len(strings.TrimSpace(string(output))) > 0 {
-			return cmd, nil
+			return &SuiNodeEnvironment{Cmd: cmd, LocalUrl: localUrl, FaucetUrl: faucetUrl}, nil
 		}
 
 		// Start the container
@@ -53,30 +86,38 @@ func StartSuiNode(nodeType NodeEnvType) (*exec.Cmd, error) {
 		}
 	case CLI:
 		// Start the local sui node
-		cmd = exec.Command("sui", "start", "--with-faucet", "--force-regenesis")
-		err := cmd.Start()
+		cmd = exec.Command("sui", "start",
+			"--force-regenesis",
+			"--fullnode-rpc-port="+portStr,
+			"--with-faucet="+faucetPortStr,
+		)
+		err = cmd.Start()
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	localUrl := fmt.Sprintf("http://localhost:%s", portStr)
+	faucetUrl := fmt.Sprintf("http://localhost:%s/gas", faucetPortStr)
+
 	// Wait for the node to start
 	const defaultDelay = 10 * time.Second
 	const backoffDelay = 100 * time.Millisecond
-	err := waitForConnection(LocalUrl, defaultDelay, backoffDelay)
+	err = waitForConnection(localUrl, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
 	// wait for Faucet to be available
-	err = waitForConnection(LocalFaucetUrl, defaultDelay, backoffDelay)
+	err = waitForConnection(faucetUrl, defaultDelay, backoffDelay)
 	if err != nil {
 		return nil, err
 	}
 
-	return cmd, nil
+	return &SuiNodeEnvironment{Cmd: cmd, LocalUrl: localUrl, FaucetUrl: faucetUrl}, nil
 }
 
 func waitForConnection(url string, timeout time.Duration, backoffDelay time.Duration) error {
+	fmt.Println("Waiting for connection", "url", url)
 	// Parse the URL to extract host and port
 	parsedURL, err := netUrl.Parse(url)
 	if err != nil {
@@ -127,13 +168,6 @@ func waitForConnection(url string, timeout time.Duration, backoffDelay time.Dura
 	return fmt.Errorf("timed out waiting for %s after %s", host, timeout)
 }
 
-func GetFaucetHost(network string) string {
-	switch network {
-	default:
-		return LocalUrl
-	}
-}
-
 // FundWithFaucet Funds a Sui account with test tokens using the Sui faucet API.
 // NOTE: The Sui faucet must be already running.
 //
@@ -143,13 +177,8 @@ func GetFaucetHost(network string) string {
 // - network: The network from which the faucet tokens are requested. Use "sui/constant" (e.g., "SuiLocalnet").
 // - recipient: The recipient's address to fund.
 // Returns an error if the faucet request fails or if there is an issue determining the faucet host.
-func FundWithFaucet(log logger.Logger, network string, recipient string) error {
-	log.Infow("Funding account with test tokens", "address", recipient)
-
-	faucetHost, err := sui.GetFaucetHost(network)
-	if err != nil {
-		return err
-	}
+func FundWithFaucet(log logger.Logger, recipient string, faucetUrl string) error {
+	log.Infow("Funding account with test tokens", "address", recipient, "faucetUrl", faucetUrl)
 
 	body := models.FaucetRequest{
 		FixedAmountRequest: &models.FaucetFixedAmountRequest{
@@ -158,9 +187,9 @@ func FundWithFaucet(log logger.Logger, network string, recipient string) error {
 	}
 
 	// Request funds from faucet
-	faucetRequestErr := faucetRequest(faucetHost, body, map[string]string{})
+	faucetRequestErr := faucetRequest(faucetUrl, body, map[string]string{})
 	if faucetRequestErr != nil {
-		log.Errorw("Failed to request funds from faucet", "err", faucetRequestErr)
+		log.Errorw("Failed to request funds from faucet", "err", faucetRequestErr, "faucetUrl", faucetUrl)
 		return faucetRequestErr
 	}
 

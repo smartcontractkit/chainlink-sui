@@ -35,11 +35,21 @@ func (tk *TestKeystore) AddKey(key ed25519.PrivateKey) {
 	tk.Keys[publicKey] = key
 }
 
+func getKeysDebug(keys map[string]ed25519.PrivateKey) []string {
+	result := make([]string, 0, len(keys))
+	for k := range keys {
+		result = append(result, k)
+	}
+	return result
+}
+
 func (u *TestKeystore) Decrypt(ctx context.Context, account string, encrypted []byte) (decrypted []byte, err error) {
 	return nil, fmt.Errorf("method Decrypt not implemented")
 }
 
 func (tk *TestKeystore) Sign(ctx context.Context, id string, hash []byte) ([]byte, error) {
+	tk.t.Logf("Looking for key with id: %s", id)
+	tk.t.Logf("Available keys: %v", getKeysDebug(tk.Keys))
 	privateKey, ok := tk.Keys[id]
 	if !ok {
 		tk.t.Fatalf("No such key: %s", id)

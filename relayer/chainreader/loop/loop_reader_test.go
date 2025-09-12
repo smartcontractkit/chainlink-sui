@@ -32,13 +32,13 @@ import (
 func TestLoopChainReaderLocal(t *testing.T) {
 	log := logger.Test(t)
 
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
 	// Ensure the process is killed when the test completes.
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
+		if env.Cmd.Process != nil {
+			perr := env.Cmd.Process.Kill()
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -47,20 +47,20 @@ func TestLoopChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	runLoopChainReaderEchoTest(t, log, testutils.LocalUrl)
+	runLoopChainReaderEchoTest(t, log, env.LocalUrl)
 }
 
-func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) {
+func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, env *testutils.SuiNodeEnvironment) {
 	t.Helper()
 	ctx := context.Background()
 
 	keystoreInstance := testutils.NewTestKeystore(t)
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	relayerClient, clientErr := client.NewPTBClient(log, env.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, clientErr)
 
-	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+	faucetFundErr := testutils.FundWithFaucet(log, accountAddress, env.FaucetUrl)
 	require.NoError(t, faucetFundErr)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")

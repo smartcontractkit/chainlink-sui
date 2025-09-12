@@ -46,12 +46,12 @@ func TestTransactionsIndexer(t *testing.T) {
 	dbStore := database.NewDBStore(db, log)
 	require.NoError(t, dbStore.EnsureSchema(ctx))
 
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
+		if env.Cmd.Process != nil {
+			perr := env.Cmd.Process.Kill()
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -70,7 +70,7 @@ func TestTransactionsIndexer(t *testing.T) {
 		failed := false
 
 		for i := 0; i < 3; i++ {
-			err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+			err = testutils.FundWithFaucet(log, accountAddress, env.FaucetUrl)
 			if err != nil {
 				failed = true
 				break
@@ -82,7 +82,7 @@ func TestTransactionsIndexer(t *testing.T) {
 
 	txnSigner := keystoreInstance.GetSuiSigner(ctx, hex.EncodeToString(publicKeyBytes))
 
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	relayerClient, err := client.NewPTBClient(log, env.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")

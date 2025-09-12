@@ -3,11 +3,13 @@ package testutils
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,10 +18,18 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 	"github.com/stretchr/testify/require"
+
+	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 )
 
 type ObjectChange struct {
@@ -49,6 +59,12 @@ type TxnMetaWithObjectChanges struct {
 	ObjectChanges []ObjectChange `json:"objectChanges"`
 }
 
+type CompileOutput struct {
+	Modules      []string `json:"modules"`
+	Dependencies []string `json:"dependencies"`
+	Digest       []byte   `json:"digest"`
+}
+
 func BuildSetup(t *testing.T, packagePath string) string {
 	t.Helper()
 	lgr := logger.Test(t)
@@ -66,6 +82,30 @@ func BuildSetup(t *testing.T, packagePath string) string {
 	lgr.Debugw("Building contract setup", "path", contractPath)
 
 	return contractPath
+}
+
+func CompileContract(t *testing.T, contractPath string) (CompileOutput, error) {
+	t.Helper()
+
+	t.Log("Compiling contract", "path", contractPath)
+
+	cmd := exec.Command("sui", "move", "build",
+		"--path", contractPath,
+		"--dump-bytecode-as-base64",
+		"--ignore-chain",
+		"--silence-warnings",
+	)
+
+	output, err := cmd.Output()
+	require.NoError(t, err, "Failed to compile contract: %s", string(output))
+
+	var compileOutput CompileOutput
+	if err := json.Unmarshal(output, &compileOutput); err != nil {
+		t.Log("Failed to unmarshal compile output", "error", err, "output", string(output))
+		return CompileOutput{}, err
+	}
+
+	return compileOutput, nil
 }
 
 func findDigestIndex(input string) (int, error) {
@@ -126,6 +166,112 @@ func LoadCompiledModules(packageName string, contractPath string) ([]string, err
 	}
 
 	return modules, nil
+}
+
+func PublishContractFromCompileOutput(
+	t *testing.T,
+	compileOutput CompileOutput,
+	accountAddress string,
+	gasBudget *int,
+	ptbClient *client.PTBClient,
+	signerPublicKey []byte,
+	keystoreService loop.Keystore,
+) (client.SuiTransactionBlockResponse, string, error) {
+	t.Helper()
+	lgr := logger.Test(t)
+
+	ctx := context.Background()
+	t.Log("Publishing contract", "compileOutput", compileOutput)
+
+	// Modules are base64 encoded, convert them to SuiAddress for PTB
+	modules := make([][]byte, len(compileOutput.Modules))
+	for i, module := range compileOutput.Modules {
+		moduleBytes, err := base64.StdEncoding.DecodeString(module)
+		if err != nil {
+			return client.SuiTransactionBlockResponse{}, "", fmt.Errorf("failed to decode module: %w", err)
+		}
+		modules[i] = moduleBytes
+	}
+
+	dependencies := make([]models.SuiAddress, len(compileOutput.Dependencies))
+	for i, dependency := range compileOutput.Dependencies {
+		dependencies[i] = models.SuiAddress(dependency)
+	}
+
+	ptb := transaction.NewTransaction()
+	ptb.SetSuiClient(ptbClient.GetClient().(*sui.Client))
+	ptb.SetSender(models.SuiAddress(accountAddress))
+	upgradeCap := ptb.Publish(modules, dependencies)
+	ptb.TransferObjects([]transaction.Argument{upgradeCap}, ptb.Pure(models.SuiAddress(accountAddress)))
+
+	txMetadata := &commontypes.TxMeta{
+		GasLimit: big.NewInt(int64(*gasBudget)),
+	}
+
+	maxGasBudget := big.NewInt(int64(*gasBudget))
+
+	gasManager := txm.NewSuiGasManager(lgr, ptbClient, *maxGasBudget, 0)
+
+	requestType := "WaitForLocalExecution"
+
+	ptbTx, err := txm.GeneratePTBTransactionWithGasEstimation(
+		ctx,
+		signerPublicKey,
+		lgr,
+		keystoreService,
+		ptbClient,
+		requestType,
+		"publish",
+		txMetadata,
+		ptb,
+		true,
+		gasManager,
+	)
+	if err != nil {
+		return client.SuiTransactionBlockResponse{}, "", err
+	}
+
+	payload := client.TransactionBlockRequest{
+		TxBytes:    ptbTx.Payload,
+		Signatures: ptbTx.Signatures,
+		Options: client.TransactionBlockOptions{
+			ShowInput:          true,
+			ShowRawInput:       true,
+			ShowEffects:        true,
+			ShowObjectChanges:  true,
+			ShowBalanceChanges: true,
+			ShowEvents:         true,
+		},
+		RequestType: requestType,
+	}
+
+	resp, err := ptbClient.SendTransaction(ctx, payload)
+	if err != nil {
+		return client.SuiTransactionBlockResponse{}, "", err
+	}
+
+	lgr.Debugw("Published contract", "response", resp)
+
+	packageId, err := FindPackageIdFromPublishTx(resp)
+	if err != nil {
+		return client.SuiTransactionBlockResponse{}, "", err
+	}
+
+	return resp, packageId, nil
+}
+
+func FindPackageIdFromPublishTx(tx client.SuiTransactionBlockResponse) (string, error) {
+	if len(tx.ObjectChanges) == 0 {
+		return "", errors.New("no object changes in transaction")
+	}
+
+	for _, change := range tx.ObjectChanges {
+		if change.Type == "published" && change.PackageId != "" {
+			return change.PackageId, nil
+		}
+	}
+
+	return "", errors.New("package ID not found in transaction")
 }
 
 // PublishContract publishes a Move contract to the Sui network and extracts its package ID.
@@ -199,12 +345,12 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 }
 
 // QueryCreatedObjectID queries the created object ID for a given package ID, module, and struct name.
-func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, structName string) (string, error) {
+func QueryCreatedObjectID(objectChanges []models.ObjectChange, packageID, module, structName string) (string, error) {
 	expectedType := fmt.Sprintf("%s::%s::%s", packageID, module, structName)
 
 	for _, change := range objectChanges {
 		if change.Type == "created" && change.ObjectType == expectedType {
-			return change.ObjectID, nil
+			return change.ObjectId, nil
 		}
 	}
 

@@ -41,13 +41,13 @@ func TestChainReaderLocal(t *testing.T) {
 	t.Parallel()
 	log := logger.Test(t)
 
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
 	// Ensure the process is killed when the test completes.
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
+		if env.Cmd.Process != nil {
+			perr := env.Cmd.Process.Kill()
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -56,7 +56,7 @@ func TestChainReaderLocal(t *testing.T) {
 
 	log.Debugw("Started Sui node")
 
-	runChainReaderCounterTest(t, log, testutils.LocalUrl)
+	runChainReaderCounterTest(t, log, env.LocalUrl)
 }
 
 func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
@@ -69,7 +69,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	relayerClient, clientErr := client.NewPTBClient(log, rpcUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, clientErr)
 
-	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+	faucetFundErr := testutils.FundWithFaucet(log, accountAddress, env.FaucetUrl)
 	require.NoError(t, faucetFundErr)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")

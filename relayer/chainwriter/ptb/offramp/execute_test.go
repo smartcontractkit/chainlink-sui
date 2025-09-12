@@ -54,18 +54,18 @@ func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI,
 	t.Helper()
 
 	// Start the node.
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			if perr := cmd.Process.Kill(); perr != nil {
+		if env.Cmd.Process != nil {
+			if perr := env.Cmd.Process.Kill(); perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
 		}
 	})
 
 	// Create the client.
-	client := sui.NewSuiClient(testutils.LocalUrl)
+	client := sui.NewSuiClient(env.LocalUrl)
 
 	// Generate key pair and create a signer.
 	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
@@ -76,7 +76,7 @@ func setupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI,
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err)
 	for range 3 {
-		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
+		err = testutils.FundWithFaucet(lggr, signerAddress, env.FaucetUrl)
 		require.NoError(t, err)
 	}
 
@@ -670,7 +670,7 @@ func TestExecuteOffRamp(t *testing.T) {
 
 		// Fund the account
 		for range 3 {
-			err = testutils.FundWithFaucet(lggr, "localnet", accountAddress)
+			err = testutils.FundWithFaucet(lggr, accountAddress, "localnet")
 			require.NoError(t, err)
 		}
 

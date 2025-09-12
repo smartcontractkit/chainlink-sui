@@ -41,13 +41,13 @@ func setupTestEnvironment(t *testing.T) (
 	log = logger.Test(t)
 
 	// Start local Sui node
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
 	// Ensure the process is killed when the test completes
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
+		if env.Cmd.Process != nil {
+			perr := env.Cmd.Process.Kill()
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -64,11 +64,11 @@ func setupTestEnvironment(t *testing.T) (
 	// a previous test and hasn't had a chance to spin up yet
 	require.Eventually(t, func() bool {
 		// Fund the account
-		err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+		err = testutils.FundWithFaucet(log, accountAddress, env.FaucetUrl)
 		return err == nil
 	}, time.Second*10, time.Second)
 
-	relayerClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	relayerClient, err = client.NewPTBClient(log, env.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")
@@ -610,7 +610,7 @@ func TestPTBConstructor_IntegrationWithCounter(t *testing.T) {
 	//nolint:paralleltest
 	t.Run("PTB Constructor with Generic Type Tags - get_coin_value", func(t *testing.T) {
 		// Fund the account
-		cError := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+		cError := testutils.FundWithFaucet(log, accountAddress, env.FaucetUrl)
 		require.NoError(t, cError)
 
 		// Get coins to use - need at least 2 coins (one for function arg, one for gas)

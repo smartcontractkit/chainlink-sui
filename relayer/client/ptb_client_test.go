@@ -22,12 +22,14 @@ import (
 func TestPTBClient(t *testing.T) {
 	log := logger.Test(t)
 
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
+	localUrl := env.LocalUrl
+	faucetUrl := env.FaucetUrl
 
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
+		if env.Cmd.Process != nil {
+			perr := env.Cmd.Process.Kill()
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -38,10 +40,10 @@ func TestPTBClient(t *testing.T) {
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
 	maxConcurrent := int64(3)
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 120*time.Second, keystoreInstance, maxConcurrent, "WaitForLocalExecution")
+	relayerClient, err := client.NewPTBClient(log, localUrl, nil, 120*time.Second, keystoreInstance, maxConcurrent, "WaitForLocalExecution")
 	require.NoError(t, err)
 
-	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+	err = testutils.FundWithFaucet(log, accountAddress, faucetUrl)
 	require.NoError(t, err)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")

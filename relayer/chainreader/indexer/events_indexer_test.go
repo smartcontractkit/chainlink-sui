@@ -42,12 +42,12 @@ func TestEventsIndexer(t *testing.T) {
 	require.NoError(t, dbStore.EnsureSchema(ctx))
 
 	// Setup Sui node and account
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	env, err := testutils.StartSuiNode(testutils.CLI)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
+		if env.Cmd.Process != nil {
+			perr := env.Cmd.Process.Kill()
 			if perr != nil {
 				t.Logf("Failed to kill process: %v", perr)
 			}
@@ -63,11 +63,11 @@ func TestEventsIndexer(t *testing.T) {
 
 	// Fund the account multiple times to ensure sufficient balance
 	for i := 0; i < 3; i++ {
-		err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
+		err = testutils.FundWithFaucet(log, accountAddress, env.FaucetUrl)
 		require.NoError(t, err)
 	}
 
-	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
+	relayerClient, err := client.NewPTBClient(log, env.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
 	contractPath := testutils.BuildSetup(t, "contracts/test")

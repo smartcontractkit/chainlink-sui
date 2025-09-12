@@ -64,10 +64,10 @@ type EnvironmentSettings struct {
 
 // SetupClients creates and configures Sui client and signer for testing.
 // It generates a new key pair, creates a signer, and funds the signer address.
-func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI) {
+func SetupClients(t *testing.T, lggr logger.Logger, rpcUrl string, faucetUrl string) (rel.SuiSigner, sui.ISuiAPI) {
 	t.Helper()
 
-	client := sui.NewSuiClient(testutils.LocalUrl)
+	client := sui.NewSuiClient(rpcUrl)
 
 	// Generate key pair and create a signer.
 	pk, _, _, err := testutils.GenerateAccountKeyPair(t)
@@ -78,7 +78,7 @@ func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err)
 	for range 3 {
-		err = testutils.FundWithFaucet(lggr, "localnet", signerAddress)
+		err = testutils.FundWithFaucet(lggr, faucetUrl, signerAddress)
 		require.NoError(t, err)
 	}
 
@@ -87,12 +87,12 @@ func SetupClients(t *testing.T, lggr logger.Logger) (rel.SuiSigner, sui.ISuiAPI)
 
 // BasicSetUp performs basic environment setup including account creation, client setup,
 // and bundle initialization. This is the foundation for all test environments.
-func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.TestKeystore) (string, []byte, rel.SuiSigner, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
+func BasicSetUp(t *testing.T, lggr logger.Logger, keystoreInstance *testutils.TestKeystore, rpcUrl string, faucetUrl string) (string, []byte, rel.SuiSigner, sui.ISuiAPI, sui_ops.OpTxDeps, cld_ops.Bundle) {
 	t.Helper()
 
 	accountAddress, publicKeyBytes := testutils.GetAccountAndKeyFromSui(keystoreInstance)
 
-	signer, client := SetupClients(t, lggr)
+	signer, client := SetupClients(t, lggr, rpcUrl, faucetUrl)
 
 	deps := sui_ops.OpTxDeps{
 		Client: client,
@@ -290,13 +290,13 @@ func DeployCCIPAndOnrampAndTokens(
 
 // SetupTestEnvironment sets up a complete test environment with CCIP infrastructure
 // and both lock/release and burn/mint token pools.
-func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSelector uint64, keystoreInstance *testutils.TestKeystore) *EnvironmentSettings {
+func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSelector uint64, keystoreInstance *testutils.TestKeystore, rpcUrl string, faucetUrl string) *EnvironmentSettings {
 	t.Helper()
 
 	lggr := logger.Test(t)
 	lggr.Debugw("Starting Sui node")
 
-	accountAddress, _, signer, client, deps, bundle := BasicSetUp(t, lggr, keystoreInstance)
+	accountAddress, _, signer, client, deps, bundle := BasicSetUp(t, lggr, keystoreInstance, rpcUrl, faucetUrl)
 	signerAddr, err := signer.GetAddress()
 	require.NoError(t, err)
 
