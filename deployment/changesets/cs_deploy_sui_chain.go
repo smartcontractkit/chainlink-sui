@@ -118,8 +118,8 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		}
 
 		// save CCIP FeeQuoterCapObjectId address to the addressbook
-		typeAndVersionCCIPFeeQuoterCapIdRef := cldf.NewTypeAndVersion(deployment.SuiFeeQuoterCapType, deployment.Version1_0_0)
-		err = ab.Save(chainSel, ccipSeqReport.Output.Objects.FeeQuoterCapObjectId, typeAndVersionCCIPFeeQuoterCapIdRef)
+		typeAndVersionCCIPFeeQuoterCapIDRef := cldf.NewTypeAndVersion(deployment.SuiFeeQuoterCapType, deployment.Version1_0_0)
+		err = ab.Save(chainSel, ccipSeqReport.Output.Objects.FeeQuoterCapObjectId, typeAndVersionCCIPFeeQuoterCapIDRef)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP FeeQuoter CapId Id %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.FeeQuoterCapObjectId, chainSel, err)
 		}
@@ -182,9 +182,9 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp address %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.CCIPOnRampPackageId, chainSel, err)
 		}
 
-		// save onRampStateId address to the addressbook
-		typeAndVersionOnRampStateId := cldf.NewTypeAndVersion(deployment.SuiOnRampStateObjectIdType, deployment.Version1_0_0)
-		err = ab.Save(chainSel, ccipOnRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOnRampStateId)
+		// save onRampStateID address to the addressbook
+		typeAndVersionOnRampStateID := cldf.NewTypeAndVersion(deployment.SuiOnRampStateObjectIDType, deployment.Version1_0_0)
+		err = ab.Save(chainSel, ccipOnRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOnRampStateID)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp state object Id  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, chainSel, err)
 		}
@@ -219,16 +219,16 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp address %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.CCIPOffRampPackageId, chainSel, err)
 		}
 
-		// save offRamp ownerCapId to the addressbook
-		typeAndVersionOffRampOwnerCapId := cldf.NewTypeAndVersion(deployment.SuiOffRampOwnerCapObjectIdType, deployment.Version1_0_0)
-		err = ab.Save(chainSel, ccipOffRampSeqReport.Output.Objects.OwnerCapId, typeAndVersionOffRampOwnerCapId)
+		// save offRamp ownerCapID to the addressbook
+		typeAndVersionOffRampOwnerCapID := cldf.NewTypeAndVersion(deployment.SuiOffRampOwnerCapObjectIDType, deployment.Version1_0_0)
+		err = ab.Save(chainSel, ccipOffRampSeqReport.Output.Objects.OwnerCapId, typeAndVersionOffRampOwnerCapID)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp ObjectCapId address %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.CCIPOffRampPackageId, chainSel, err)
 		}
 
 		// save offRamp stateObjectId to the addressbook
-		typeAndVersionOffRampObjectStateId := cldf.NewTypeAndVersion(deployment.SuiOffRampStateObjectIdType, deployment.Version1_0_0)
-		err = ab.Save(chainSel, ccipOffRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOffRampObjectStateId)
+		typeAndVersionOffRampObjectStateID := cldf.NewTypeAndVersion(deployment.SuiOffRampStateObjectIDType, deployment.Version1_0_0)
+		err = ab.Save(chainSel, ccipOffRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOffRampObjectStateID)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp StateObjectId %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.Objects.StateObjectId, chainSel, err)
 		}
@@ -245,8 +245,8 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		}
 
 		// save tokenPool address in addressbook
-		typeAndVersionTokenPoolId := cldf.NewTypeAndVersion(deployment.SuiTokenPoolType, deployment.Version1_0_0)
-		err = ab.Save(chainSel, deployTp.Output.PackageId, typeAndVersionTokenPoolId)
+		typeAndVersionTokenPoolID := cldf.NewTypeAndVersion(deployment.SuiTokenPoolType, deployment.Version1_0_0)
+		err = ab.Save(chainSel, deployTp.Output.PackageId, typeAndVersionTokenPoolID)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp StateObjectId %s for Sui chain %d: %w", deployTp.Output.PackageId, chainSel, err)
 		}

@@ -14,16 +14,16 @@ type CCIPChainState struct {
 	MCMsAddress                string
 	TokenPoolAddress           string
 	LockReleaseAddress         string
-	LockReleaseStateId         string
-	FeeQuoterCapId             string
+	LockReleaseStateID         string
+	FeeQuoterCapID             string
 	OnRampAddress              string
-	OnRampStateObjectId        string
+	OnRampStateObjectID        string
 	OffRampAddress             string
-	OffRampOwnerCapId          string
-	OffRampStateObjectId       string
+	OffRampOwnerCapID          string
+	OffRampStateObjectID       string
 	LinkTokenAddress           string
-	LinkTokenCoinMetadataId    string
-	LinkTokenTreasuryCapId     string
+	LinkTokenCoinMetadataID    string
+	LinkTokenTreasuryCapID     string
 	CCIPBurnMintTokenPool      string
 	CCIPBurnMintTokenPoolState string
 }
@@ -34,7 +34,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 	suiChains := make(map[uint64]CCIPChainState)
 
 	for chainSelector := range rawChains {
-		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector) //nolint
+		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector) //nolint:staticcheck // we need to migrate to datastore
 		if err != nil {
 			// Chain not found in address book, initialize empty state
 			if !errors.Is(err, cldf.ErrChainNotFound) {
@@ -70,7 +70,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.LockReleaseAddress = addr
 
 		case SuiLockReleaseTPStateType:
-			chainState.LockReleaseStateId = addr
+			chainState.LockReleaseStateID = addr
 
 		case SuiMCMSType:
 			chainState.MCMsAddress = addr
@@ -82,31 +82,31 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPObjectRef = addr
 
 		case SuiFeeQuoterCapType:
-			chainState.FeeQuoterCapId = addr
+			chainState.FeeQuoterCapID = addr
 
 		case SuiOnRampType:
 			chainState.OnRampAddress = addr
 
-		case SuiOnRampStateObjectIdType:
-			chainState.OnRampStateObjectId = addr
+		case SuiOnRampStateObjectIDType:
+			chainState.OnRampStateObjectID = addr
 
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr
 
-		case SuiOffRampStateObjectIdType:
-			chainState.OffRampStateObjectId = addr
+		case SuiOffRampStateObjectIDType:
+			chainState.OffRampStateObjectID = addr
 
-		case SuiOffRampOwnerCapObjectIdType:
-			chainState.OffRampOwnerCapId = addr
+		case SuiOffRampOwnerCapObjectIDType:
+			chainState.OffRampOwnerCapID = addr
 
 		case SuiLinkTokenType:
 			chainState.LinkTokenAddress = addr
 
-		case SuiLinkTokenObjectMetadataId:
-			chainState.LinkTokenCoinMetadataId = addr
+		case SuiLinkTokenObjectMetadataID:
+			chainState.LinkTokenCoinMetadataID = addr
 
-		case SuiLinkTokenTreasuryCapId:
-			chainState.LinkTokenTreasuryCapId = addr
+		case SuiLinkTokenTreasuryCapID:
+			chainState.LinkTokenTreasuryCapID = addr
 
 		case SuiBnMTokenPoolType:
 			chainState.CCIPBurnMintTokenPool = addr
@@ -115,7 +115,6 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.CCIPBurnMintTokenPoolState = addr
 		}
 		// Set address based on type
-
 	}
 	return chainState, nil
 }
