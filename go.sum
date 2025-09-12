@@ -408,6 +408,10 @@ github.com/jhump/protoreflect v1.15.1 h1:HUMERORf3I3ZdX05WaQ6MIpd/NJ434hTp5YiKgf
 github.com/jhump/protoreflect v1.15.1/go.mod h1:jD/2GMKKE6OqX8qTjhADU1e6DShO+gavG9e0Q693nKo=
 github.com/jinzhu/copier v0.4.0 h1:w3ciUoD19shMCRargcpm0cm91ytaBhDvuRpz1ODO/U8=
 github.com/jinzhu/copier v0.4.0/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
+github.com/jmank88/gomods v0.1.6 h1:HNHM9x2QPdF7R72pm83MZpori5AlPiXiukTdLqrUJYE=
+github.com/jmank88/gomods v0.1.6/go.mod h1:mFFORqytinYpCj2zbyAqAka1R8LZOG9N34uvMzKVSyA=
+github.com/jmank88/modgraph v0.1.1 h1:Lz9XlGbsb//zsHRDPq+fbU28NaSgUwUY/1PjbOMLnew=
+github.com/jmank88/modgraph v0.1.1/go.mod h1:wECy/lrullAgq5p3K1CK0KvLlnIkxTc1V2u6p0bdT4s=
 github.com/jmoiron/sqlx v1.4.0 h1:1PLqN7S1UYp5t4SrVVnt4nUVNemrDAtxlulVe+Qgm3o=
 github.com/jmoiron/sqlx v1.4.0/go.mod h1:ZrZ7UsYB/weZdl2Bxg6jCRO9c3YHl8r3ahlKmRT4JLY=
 github.com/jpillora/backoff v1.0.0 h1:uvFg412JmmHBHw7iwprIxkPMI+sGQ4kzOWsMeHnm2EA=

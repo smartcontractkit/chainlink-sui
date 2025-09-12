@@ -106,6 +106,8 @@ require (
 	github.com/jackc/pgtype v1.14.4 // indirect
 	github.com/jackc/pgx/v4 v4.18.3 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
+	github.com/jmank88/gomods v0.1.6 // indirect
+	github.com/jmank88/modgraph v0.1.1 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -200,4 +202,9 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
 	google.golang.org/grpc v1.74.2 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
+)
+
+tool (
+	github.com/jmank88/gomods
+	github.com/jmank88/modgraph
 )
