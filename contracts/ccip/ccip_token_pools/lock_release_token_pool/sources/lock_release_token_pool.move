@@ -269,7 +269,7 @@ public fun apply_allowlist_updates<T>(
 }
 
 // ================================================================
-// |                         Burn/Mint                            |
+// |                        Lock/Release                          |
 // ================================================================
 
 public struct TypeProof has drop {}
