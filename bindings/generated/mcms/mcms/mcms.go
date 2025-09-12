@@ -50,6 +50,7 @@ type IMcms interface {
 	GetOpCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
 	GetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
 	GetConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
+	Signers(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error)
 	NumGroups(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	MaxNumSigners(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	BypasserRole(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -106,6 +107,7 @@ type IMcmsDevInspect interface {
 	GetOpCount(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (uint64, error)
 	GetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) ([]any, error)
 	GetConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (Config, error)
+	Signers(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (bind.Object, error)
 	NumGroups(ctx context.Context, opts *bind.CallOpts) (uint64, error)
 	MaxNumSigners(ctx context.Context, opts *bind.CallOpts) (uint64, error)
 	BypasserRole(ctx context.Context, opts *bind.CallOpts) (byte, error)
@@ -203,6 +205,8 @@ type McmsEncoder interface {
 	GetRootWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetConfig(state bind.Object, role byte) (*bind.EncodedCall, error)
 	GetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	Signers(state bind.Object, role byte) (*bind.EncodedCall, error)
+	SignersWithArgs(args ...any) (*bind.EncodedCall, error)
 	NumGroups() (*bind.EncodedCall, error)
 	NumGroupsWithArgs(args ...any) (*bind.EncodedCall, error)
 	MaxNumSigners() (*bind.EncodedCall, error)
@@ -1336,6 +1340,16 @@ func (c *McmsContract) GetConfig(ctx context.Context, opts *bind.CallOpts, state
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// Signers executes the signers Move function.
+func (c *McmsContract) Signers(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.Signers(state, role)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // NumGroups executes the num_groups Move function.
 func (c *McmsContract) NumGroups(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsEncoder.NumGroups()
@@ -2009,6 +2023,28 @@ func (d *McmsDevInspect) GetConfig(ctx context.Context, opts *bind.CallOpts, sta
 	result, ok := results[0].(Config)
 	if !ok {
 		return Config{}, fmt.Errorf("unexpected return type: expected Config, got %T", results[0])
+	}
+	return result, nil
+}
+
+// Signers executes the signers Move function using DevInspect to get return values.
+//
+// Returns: VecMap<vector<u8>, Signer>
+func (d *McmsDevInspect) Signers(ctx context.Context, opts *bind.CallOpts, state bind.Object, role byte) (bind.Object, error) {
+	encoded, err := d.contract.mcmsEncoder.Signers(state, role)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
 	}
 	return result, nil
 }
@@ -3788,6 +3824,39 @@ func (c mcmsEncoder) GetConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_config", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"mcms::mcms::Config",
+	})
+}
+
+// Signers encodes a call to the signers Move function.
+func (c mcmsEncoder) Signers(state bind.Object, role byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("signers", typeArgsList, typeParamsList, []string{
+		"&MultisigState",
+		"u8",
+	}, []any{
+		state,
+		role,
+	}, []string{
+		"VecMap<vector<u8>, Signer>",
+	})
+}
+
+// SignersWithArgs encodes a call to the signers Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsEncoder) SignersWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&MultisigState",
+		"u8",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("signers", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"VecMap<vector<u8>, Signer>",
 	})
 }
 

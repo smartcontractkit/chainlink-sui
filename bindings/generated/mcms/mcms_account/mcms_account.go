@@ -20,6 +20,7 @@ var (
 )
 
 type IMcmsAccount interface {
+	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	TransferOwnershipToSelf(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -35,12 +36,15 @@ type IMcmsAccount interface {
 }
 
 type IMcmsAccountDevInspect interface {
+	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*bool, error)
 }
 
 type McmsAccountEncoder interface {
+	Owner(state bind.Object) (*bind.EncodedCall, error)
+	OwnerWithArgs(args ...any) (*bind.EncodedCall, error)
 	TransferOwnership(param bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
 	TransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	TransferOwnershipToSelf(ownerCap bind.Object, state bind.Object) (*bind.EncodedCall, error)
@@ -287,6 +291,16 @@ func init() {
 	})
 }
 
+// Owner executes the owner Move function.
+func (c *McmsAccountContract) Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.Owner(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // TransferOwnership executes the transfer_ownership Move function.
 func (c *McmsAccountContract) TransferOwnership(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsAccountEncoder.TransferOwnership(param, state, to)
@@ -377,6 +391,28 @@ func (c *McmsAccountContract) PendingTransferAccepted(ctx context.Context, opts 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// Owner executes the owner Move function using DevInspect to get return values.
+//
+// Returns: address
+func (d *McmsAccountDevInspect) Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error) {
+	encoded, err := d.contract.mcmsAccountEncoder.Owner(state)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
 // PendingTransferFrom executes the pending_transfer_from Move function using DevInspect to get return values.
 //
 // Returns: 0x1::option::Option<address>
@@ -445,6 +481,36 @@ func (d *McmsAccountDevInspect) PendingTransferAccepted(ctx context.Context, opt
 
 type mcmsAccountEncoder struct {
 	*bind.BoundContract
+}
+
+// Owner encodes a call to the owner Move function.
+func (c mcmsAccountEncoder) Owner(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("owner", typeArgsList, typeParamsList, []string{
+		"&AccountState",
+	}, []any{
+		state,
+	}, []string{
+		"address",
+	})
+}
+
+// OwnerWithArgs encodes a call to the owner Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) OwnerWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&AccountState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("owner", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
+	})
 }
 
 // TransferOwnership encodes a call to the transfer_ownership Move function.

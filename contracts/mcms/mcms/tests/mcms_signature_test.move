@@ -1,7 +1,7 @@
 #[test_only]
 module mcms::mcms_signature_test;
 
-use mcms::mcms::{Self};
+use mcms::mcms;
 use sui::hash::keccak256;
 
 #[test]
@@ -17,7 +17,8 @@ fun test_ecdsa_recover_evm_addr() {
     assert!(move_signed_hash == go_signed_hash);
 
     // vector[191,131,46,209,180,199,136,235,95,80,234,47,111,183,245,233,219,11,130,237,242,152,45,154,107,188,164,60,228,105,166,62,60,185,39,100,63,128,40,63,206,104,210,94,14,80,192,59,246,55,253,49,118,139,7,98,94,21,39,20,68,11,18,248,28];
-    let mut sig = x"bf832ed1b4c788eb5f50ea2f6fb7f5e9db0b82edf2982d9a6bbca43ce469a63e3cb927643f80283fce68d25e0e50c03bf637fd31768b07625e152714440b12f81c";
+    let sig =
+        x"bf832ed1b4c788eb5f50ea2f6fb7f5e9db0b82edf2982d9a6bbca43ce469a63e3cb927643f80283fce68d25e0e50c03bf637fd31768b07625e152714440b12f81c";
     let addr_recovered = mcms::test_ecdsa_recover_evm_addr(message_hash, sig);
 
     let go_recovered_addr = x"35bc1834a0d8f8e116e4f2243c44088654139e9b";
