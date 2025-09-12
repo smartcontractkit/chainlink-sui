@@ -55,7 +55,7 @@ type TxmStore interface {
 
 	// GetTransactionsByState retrieves all transactions in a given state.
 	// Returns a slice of transactions and nil if successful, otherwise returns nil and an error.
-	GetTransactionsByState(state TransactionState) ([]SuiTx, error)
+	GetTransactionsByStates(states []TransactionState) ([]SuiTx, error)
 
 	GetInflightTransactions() ([]SuiTx, error)
 }
@@ -198,6 +198,9 @@ func (s *InMemoryStore) ChangeState(transactionID string, newState TransactionSt
 	// Update the transaction's state
 	tx.State = newState
 
+	// Update the transaction's last updated at
+	tx.LastUpdatedAt = GetCurrentUnixTimestamp()
+
 	// Add the transaction ID to the new state bucket
 	s.stateBuckets[newState][transactionID] = struct{}{}
 
@@ -272,19 +275,22 @@ func (s *InMemoryStore) GetTransactionsByState(state TransactionState) ([]SuiTx,
 	return transactions, nil
 }
 
+func (s *InMemoryStore) GetTransactionsByStates(states []TransactionState) ([]SuiTx, error) {
+	txs := []SuiTx{}
+	for _, state := range states {
+		txsByState, err := s.GetTransactionsByState(state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get transactions by state %v: %w", state, err)
+		}
+		txs = append(txs, txsByState...)
+	}
+	return txs, nil
+}
+
 // GetInflightTransactions implements TxmStore.
 func (s *InMemoryStore) GetInflightTransactions() ([]SuiTx, error) {
 	inFlightStatus := []TransactionState{StateSubmitted, StateRetriable}
-	txs := []SuiTx{}
-	for _, status := range inFlightStatus {
-		txsByStatus, err := s.GetTransactionsByState(status)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get transactions by state %v: %w", status, err)
-		}
-		txs = append(txs, txsByStatus...)
-	}
-
-	return txs, nil
+	return s.GetTransactionsByStates(inFlightStatus)
 }
 
 // UpdateTransactionGas implements TxmStore.
