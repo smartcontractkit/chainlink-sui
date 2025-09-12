@@ -16,7 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
-const numberGoroutines = 2
+const numberGoroutines = 3
 
 type TxManager interface {
 	services.Service
@@ -165,9 +165,10 @@ func (txm *SuiTxm) Start(_ context.Context) error {
 	//nolint:contextcheck
 	return txm.Starter.StartOnce("SuiTxm", func() error {
 		txm.lggr.Infow("Starting SuiTxm")
-		txm.done.Add(numberGoroutines) // waitgroup: broadcaster, confirmer
+		txm.done.Add(numberGoroutines) // waitgroup: broadcaster, confirmer, reaper
 		go txm.broadcastLoop()
 		go txm.confirmerLoop()
+		go txm.reaperLoop()
 
 		return nil
 	})

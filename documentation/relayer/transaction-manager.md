@@ -25,6 +25,7 @@ flowchart TD
     TXM[SuiTxm]
     Broadcaster[Broadcaster]
     Confirmer[Confirmer]
+    Reaper[Reaper]
     StateStore[StateStore]
     RetryManager[RetryManager]
     GasManager[GasManager]
@@ -32,6 +33,7 @@ flowchart TD
     
     TXM --> Broadcaster
     TXM --> Confirmer
+    TXM --> Reaper
     TXM --> RetryManager
     TXM --> GasManager
     
@@ -39,6 +41,7 @@ flowchart TD
     Broadcaster --> PTBClient
     Confirmer --> StateStore
     Confirmer --> PTBClient
+    Reaper --> StateStore
     GasManager --> PTBClient
     
     RetryManager --> Broadcaster
@@ -77,9 +80,10 @@ sequenceDiagram
     participant T as TXM
     participant B as Broadcaster
     participant F as Confirmer
+    participant RP as Reaper
     participant S as StateStore
     participant N as SuiNode
-    participant R as RetryManager
+    participant RM as RetryManager
 
     C->>T: Enqueue Transaction
     T->>N: Validate Gas
@@ -98,13 +102,18 @@ sequenceDiagram
     alt Success Path
         F->>S: Update to Finalized
     else Retry Path
-        F->>R: Check Retry
-        R-->>F: Retry Decision
+        F->>RM: Check Retry
+        RM-->>F: Retry Decision
         F->>S: Update to Retriable
         S->>B: Re-queue Transaction
     else Failure Path
         F->>S: Update to Failed
     end
+    
+    Note over RP,S: Periodic Cleanup
+    RP->>S: Get Old Finalized/Failed Transactions
+    S-->>RP: Old Transactions List
+    RP->>S: Delete Old Transactions
 ```
 
 ## Core Components
@@ -178,9 +187,10 @@ The TXM implements proper service lifecycle management:
 // Start the service and launch background goroutines
 func (txm *SuiTxm) Start(ctx context.Context) error {
     return txm.Starter.StartOnce("SuiTxm", func() error {
-        txm.done.Add(2) // broadcaster and confirmer goroutines
+        txm.done.Add(3) // broadcaster, confirmer, and reaper goroutines
         go txm.broadcastLoop()
         go txm.confirmerLoop()
+        go txm.reaperLoop()
         return nil
     })
 }
@@ -395,7 +405,58 @@ func handleTransactionError(ctx context.Context, txm *SuiTxm, tx SuiTx, result *
 }
 ```
 
-### 4. Retry Manager
+### 4. Reaper Routine
+
+The reaper routine performs periodic cleanup of old transactions to prevent memory/storage bloat and maintain optimal performance. It runs as a background goroutine alongside the broadcaster and confirmer.
+
+#### Responsibilities
+
+- **Periodic Cleanup**: Remove old finalized and failed transactions based on configured retention periods
+- **Storage Optimization**: Prevent unbounded growth of transaction storage
+- **Performance Maintenance**: Keep transaction queries fast by limiting dataset size
+- **Resource Management**: Free memory and storage resources from completed transactions
+
+#### Implementation Details
+
+The reaper runs on a jittered ticker similar to the confirmer to avoid thundering herd problems.
+
+#### Cleanup Logic
+
+The cleanup function implements the core reaper logic by querying for finalized and failed transactions, calculating their age based on the `LastUpdatedAt` timestamp, and removing those that exceed the configured retention period.
+
+#### Cleanup Criteria
+
+The reaper applies specific criteria for transaction cleanup:
+
+- **Finalized Transactions**: Removed after `TransactionRetentionSecs` seconds from last update
+- **Failed Transactions**: Removed after `TransactionRetentionSecs` seconds from last update
+- **Active Transactions**: Never cleaned up (Pending, Submitted, Retriable states)
+- **Time Calculation**: Uses `LastUpdatedAt` timestamp to determine age
+- **Boundary Logic**: Only transactions where `timeDiff > TransactionRetentionSecs` are cleaned up
+
+#### Safety Features
+
+The reaper includes several safety mechanisms:
+
+- **State Filtering**: Only targets terminal states (Finalized, Failed)
+- **Conservative Timing**: Uses strict greater-than comparison for retention period
+- **Error Isolation**: Individual transaction cleanup failures don't stop the entire process
+- **Graceful Shutdown**: Responds to stop signals and context cancellation
+- **Logging**: Comprehensive logging for monitoring and debugging
+
+#### Configuration Integration
+
+The reaper uses the existing TXM configuration structure with `ReaperPollSecs` controlling how often the reaper runs and `TransactionRetentionSecs` determining how long to keep finalized/failed transactions. Default values are 10 seconds for both polling interval and retention period.
+
+#### Performance Considerations
+
+- **Jittered Timing**: Prevents multiple instances from running cleanup simultaneously
+- **Batch Processing**: Processes all eligible transactions in a single pass
+- **Efficient Queries**: Uses state-based filtering to minimize database load
+- **Non-blocking**: Runs independently without affecting transaction processing
+- **Resource Bounded**: Only processes existing transactions, no unbounded operations
+
+### 5. Retry Manager
 
 Implements sophisticated retry logic using pluggable strategy functions for different error types.
 
@@ -474,7 +535,7 @@ customStrategy := func(tx *SuiTx, errorMsg string, maxRetries int) (bool, RetryS
 retryManager.RegisterStrategyFunc(customStrategy)
 ```
 
-### 5. State Store
+### 6. State Store
 
 Manages transaction state persistence with thread-safe operations and comprehensive transaction lifecycle support.
 
@@ -559,7 +620,7 @@ type InMemoryStore struct {
 
 <!-- tabs:end -->
 
-### 6. Gas Manager
+### 7. Gas Manager
 
 Handles gas estimation and gas bumping for Sui transactions with a focus on cost optimization and retry success.
 
@@ -631,33 +692,6 @@ const (
 gasManager := NewSuiGasManager(logger, ptbClient, maxGasBudget, percentualIncrease)
 ```
 
-### 7. Reaper Routine
-
-> **Note**: The reaper routine is not yet implemented in the current codebase. This section describes the planned implementation.
-
-The reaper routine will perform periodic cleanup of old transactions to prevent memory/storage bloat and maintain optimal performance.
-
-#### Planned Cleanup Criteria
-
-- **Finalized Transactions**: Remove after configured retention period
-- **Failed Transactions**: Remove after error analysis period  
-- **Stale Transactions**: Remove transactions stuck in intermediate states beyond timeout
-
-#### Future Configuration
-
-```go
-type ReaperConfig struct {
-    CleanupInterval    time.Duration  // How often to run cleanup
-    FinalizedRetention time.Duration  // How long to keep finalized transactions
-    FailedRetention    time.Duration  // How long to keep failed transactions
-    MaxBatchSize       int           // Maximum transactions to process per cleanup
-}
-```
-
-#### Implementation Status
-
-The reaper routine is planned for future implementation and will be added as a third goroutine in the TXM service lifecycle.
-
 ## Configuration
 
 ### Configuration Structure
@@ -666,13 +700,15 @@ The TXM uses a comprehensive configuration structure:
 
 ```go
 type Config struct {
-    BroadcastChanSize     uint      // Size of the broadcast channel buffer
-    RequestType           string    // Default request type for transactions
-    ConfirmPollSecs       uint      // Polling interval for confirmer in seconds
-    DefaultMaxGasAmount   uint64    // Default maximum gas amount
-    MaxTxRetryAttempts    uint64    // Maximum retry attempts per transaction
-    TransactionTimeout    string    // Transaction timeout duration
-    MaxConcurrentRequests uint64    // Maximum concurrent requests
+    BroadcastChanSize        uint      // Size of the broadcast channel buffer
+    RequestType              string    // Default request type for transactions
+    ConfirmPollSecs          uint      // Polling interval for confirmer in seconds
+    ReaperPollSecs           uint64    // Polling interval for reaper in seconds
+    TransactionRetentionSecs uint64    // How long to keep finalized/failed transactions
+    DefaultMaxGasAmount      uint64    // Default maximum gas amount
+    MaxTxRetryAttempts       uint64    // Maximum retry attempts per transaction
+    TransactionTimeout       string    // Transaction timeout duration
+    MaxConcurrentRequests    uint64    // Maximum concurrent requests
 }
 ```
 
@@ -680,13 +716,15 @@ type Config struct {
 
 ```go
 var DefaultConfigSet = Config{
-    BroadcastChanSize:     100,                    // Channel buffer size
-    RequestType:           "WaitForLocalExecution", // Wait for local execution
-    ConfirmPollSecs:       2,                      // Poll every 2 seconds
-    DefaultMaxGasAmount:   200000,                 // 200k gas units
-    MaxTxRetryAttempts:    5,                      // Up to 5 retries
-    TransactionTimeout:    "10s",                  // 10 second timeout
-    MaxConcurrentRequests: 5,                      // 5 concurrent requests
+    BroadcastChanSize:        100,                    // Channel buffer size
+    RequestType:              "WaitForLocalExecution", // Wait for local execution
+    ConfirmPollSecs:          2,                      // Poll every 2 seconds
+    ReaperPollSecs:           10,                     // Reaper runs every 10 seconds
+    TransactionRetentionSecs: 10,                     // Keep transactions for 10 seconds
+    DefaultMaxGasAmount:      200000,                 // 200k gas units
+    MaxTxRetryAttempts:       5,                      // Up to 5 retries
+    TransactionTimeout:       "10s",                  // 10 second timeout
+    MaxConcurrentRequests:    5,                      // 5 concurrent requests
 }
 ```
 
@@ -713,16 +751,20 @@ Different environments may require different configurations:
 ```go
 // High-throughput production configuration
 productionConfig := Config{
-    BroadcastChanSize:     500,     // Larger buffer for high volume
-    ConfirmPollSecs:       1,       // Faster polling
-    MaxConcurrentRequests: 20,      // More concurrent processing
+    BroadcastChanSize:        500,     // Larger buffer for high volume
+    ConfirmPollSecs:          1,       // Faster polling
+    ReaperPollSecs:           300,     // Less frequent cleanup (5 minutes)
+    TransactionRetentionSecs: 3600,    // Keep transactions for 1 hour
+    MaxConcurrentRequests:    20,      // More concurrent processing
 }
 
 // Development configuration
 devConfig := Config{
-    BroadcastChanSize:     50,      // Smaller buffer
-    ConfirmPollSecs:       5,       // Slower polling to reduce load
-    MaxConcurrentRequests: 2,       // Limited concurrency
+    BroadcastChanSize:        50,      // Smaller buffer
+    ConfirmPollSecs:          5,       // Slower polling to reduce load
+    ReaperPollSecs:           30,      // More frequent cleanup for testing
+    TransactionRetentionSecs: 60,      // Keep transactions for 1 minute
+    MaxConcurrentRequests:    2,       // Limited concurrency
 }
 ```
 
@@ -841,6 +883,12 @@ type TxmMetrics struct {
     // Resource usage
     StoreSize           prometheus.Gauge
     GoroutineCount      prometheus.Gauge
+    
+    // Reaper metrics
+    CleanupRuns         prometheus.Counter
+    TransactionsDeleted prometheus.Counter
+    CleanupErrors       prometheus.Counter
+    CleanupDuration     prometheus.Histogram
 }
 ```
 
@@ -875,6 +923,7 @@ func (txm *SuiTxm) HealthCheck() error {
 ✅ **Transaction Enqueueing**: Support for both Move function calls and PTBs  
 ✅ **Broadcaster Routine**: Intelligent batching and transaction submission  
 ✅ **Confirmer Routine**: Status monitoring with jittered polling  
+✅ **Reaper Routine**: Periodic cleanup of old finalized and failed transactions  
 ✅ **Retry Manager**: Pluggable retry strategies with error classification  
 ✅ **Gas Manager**: Gas estimation and intelligent gas bumping  
 ✅ **State Store Interface**: Comprehensive transaction state management  
@@ -883,8 +932,6 @@ func (txm *SuiTxm) HealthCheck() error {
 ### Future Enhancements
 
 🔄 **Exponential Backoff**: Currently marked as TODO in retry strategies  
-🔄 **Reaper Routine**: Planned for transaction cleanup and storage optimization  
-
 🔄 **Metrics and Monitoring**: Integration with prometheus metrics  
 
 ## Related Documentation
