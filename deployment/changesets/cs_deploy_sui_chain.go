@@ -124,6 +124,13 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP FeeQuoter CapId Id %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.FeeQuoterCapObjectId, config.SuiChainSelector, err)
 	}
 
+	// save CCIP ObjectRef address to the addressbook
+	typeAndVersionCCIPOwnerCapObjectId := cldf.NewTypeAndVersion(deployment.SuiCCIPOwnerCapObjectIdType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, ccipSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionCCIPOwnerCapObjectId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP ownerCapObjectId %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
+	}
+
 	// No need to store rn
 	// save CCIP TransferCapId address to the addressbook
 	// typeAndVersionTransferCapId := cldf.NewTypeAndVersion(deployment.SuiCCIPTransferCapIdType, deployment.Version1_0_0)
@@ -176,6 +183,12 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	// save onRampStateId address to the addressbook
 	typeAndVersionOnRampStateId := cldf.NewTypeAndVersion(deployment.SuiOnRampStateObjectIdType, deployment.Version1_0_0)
 	err = ab.Save(config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOnRampStateId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp state object Id  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
+	}
+
+	typeAndVersionOnRampOwnerCapObjectId := cldf.NewTypeAndVersion(deployment.SuiOnRampOwnerCapObjectIdType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionOnRampOwnerCapObjectId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp state object Id  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}

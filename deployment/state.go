@@ -11,6 +11,7 @@ type CCIPChainState struct {
 	CCIPRouterAddress          string
 	CCIPAddress                string
 	CCIPObjectRef              string
+	CCIPOwnerCapObjectId       string
 	MCMsAddress                string
 	TokenPoolAddress           string
 	LockReleaseAddress         string
@@ -18,6 +19,7 @@ type CCIPChainState struct {
 	FeeQuoterCapId             string
 	OnRampAddress              string
 	OnRampStateObjectId        string
+	OnRampOwnerCapObjectId     string
 	OffRampAddress             string
 	OffRampOwnerCapId          string
 	OffRampStateObjectId       string
@@ -81,6 +83,9 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
 
+		case SuiCCIPOwnerCapObjectIdType:
+			chainState.CCIPOwnerCapObjectId = addr
+
 		case SuiFeeQuoterCapType:
 			chainState.FeeQuoterCapId = addr
 
@@ -89,6 +94,9 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 
 		case SuiOnRampStateObjectIdType:
 			chainState.OnRampStateObjectId = addr
+
+		case SuiOnRampOwnerCapObjectIdType:
+			chainState.OnRampOwnerCapObjectId = addr
 
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr

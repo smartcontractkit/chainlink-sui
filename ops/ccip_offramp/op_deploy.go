@@ -146,6 +146,45 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 	}, err
 }
 
+type ApplySourceChainConfigUpdateInput struct {
+	OffRampPackageId                     string
+	OffRampStateId                       string
+	OwnerCapObjectId                     string
+	SourceChainsSelectors                []uint64
+	SourceChainsIsEnabled                []bool
+	SouceChainsIsRMNVerificationDisabled []bool
+	SourceChainsOnRamp                   [][]byte
+}
+
+var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplySourceChainConfigUpdateInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.ApplySourceChainConfigUpdates(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.OffRampStateId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.SourceChainsSelectors,
+		input.SourceChainsIsEnabled,
+		input.SouceChainsIsRMNVerificationDisabled,
+		input.SourceChainsOnRamp,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{}, fmt.Errorf("failed to execute applySourceChainConfigUpdate in offramp: %w", err)
+	}
+
+	return sui_ops.OpTxResult[DeployCCIPOffRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OffRampPackageId,
+		Objects:   DeployCCIPOffRampObjects{},
+	}, err
+}
+
 var DeployCCIPOffRampOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "deploy"),
 	semver.MustParse("0.1.0"),
@@ -154,7 +193,7 @@ var DeployCCIPOffRampOp = cld_ops.NewOperation(
 )
 
 var InitializeOffRampOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "configure"),
+	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "initialize"),
 	semver.MustParse("0.1.0"),
 	"Initialize the CCIP offramp package",
 	initializeHandler,
@@ -163,6 +202,13 @@ var InitializeOffRampOp = cld_ops.NewOperation(
 var SetOCR3ConfigOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "configure"),
 	semver.MustParse("0.1.0"),
-	"Initialize the CCIP setOCR3Config package",
+	"Running CCIP setOCR3Config package",
 	setOCR3ConfigHandler,
+)
+
+var ApplySourceChainConfigUpdatesOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-off-ramp", "package", "applysourcechainconfigupdate"),
+	semver.MustParse("0.1.0"),
+	"Running Offramp ApplySourceChainConfigUpdate operation",
+	applySourceChainConfigUpdateHandler,
 )

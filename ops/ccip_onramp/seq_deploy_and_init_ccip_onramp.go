@@ -11,7 +11,6 @@ import (
 )
 
 type DeployAndInitCCIPOnRampSeqInput struct {
-	Test []bool
 	DeployCCIPOnRampInput
 	OnRampInitializeInput
 	ApplyDestChainConfigureOnRampInput
@@ -19,7 +18,8 @@ type DeployAndInitCCIPOnRampSeqInput struct {
 }
 
 type DeployCCIPOnRampSeqObjects struct {
-	StateObjectId string
+	StateObjectId    string
+	OwnerCapObjectId string
 }
 
 type DeployCCIPOnRampSeqOutput struct {
@@ -66,7 +66,8 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		return DeployCCIPOnRampSeqOutput{
 			CCIPOnRampPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPOnRampSeqObjects{
-				StateObjectId: deployReport.Output.Objects.CCIPOnrampStateObjectId,
+				StateObjectId:    deployReport.Output.Objects.CCIPOnrampStateObjectId,
+				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 			},
 		}, nil
 	},
