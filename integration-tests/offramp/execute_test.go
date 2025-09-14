@@ -1,6 +1,6 @@
 //go:build hidden
 
-package offramp_test
+package ccip_test
 
 import (
 	"context"
