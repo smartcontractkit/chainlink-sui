@@ -330,6 +330,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/oklog/run v1.1.0 h1:GEenZ1cK0+q0+wsJew9qUg/DyD8k3JzYsZAi5gYi2mA=
 github.com/oklog/run v1.1.0/go.mod h1:sVPdnTZT1zYwAJeCMu2Th4T21pA3FPOQRfWjQlk7DVU=
+github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
+github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pelletier/go-toml v1.9.5 h1:4yBQzkHv+7BHq2PQUZF3Mx0IYxG7LsP222s7Agd3ve8=
 github.com/pelletier/go-toml v1.9.5/go.mod h1:u1nR/EPcESfeI/szUZKdtJ0xRNbUoANCkoOuaOx1Y+c=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
@@ -376,10 +378,10 @@ github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82 h1:6C8qej6f
 github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82/go.mod h1:xe4pgH49k4SsmkQq5OT8abwhWmnzkhpgnXeekbx2efw=
 github.com/smartcontractkit/chain-selectors v1.0.67 h1:gxTqP/JC40KDe3DE1SIsIKSTKTZEPyEU1YufO1admnw=
 github.com/smartcontractkit/chain-selectors v1.0.67/go.mod h1:xsKM0aN3YGcQKTPRPDDtPx2l4mlTN1Djmg0VVXV40b8=
-github.com/smartcontractkit/chainlink-aptos v0.0.0-20250626122206-319db248496a h1:45A1juQPvLV4xDt35wPiNpdzQwg2uGqbLQtHXLhZjWw=
-github.com/smartcontractkit/chainlink-aptos v0.0.0-20250626122206-319db248496a/go.mod h1:+LMKso9gI5B78xdk3uP69/WrsJTcalbKFO63amJexsE=
-github.com/smartcontractkit/chainlink-ccip v0.0.0-20250530084609-8529b8c89093 h1:HQuWKWQwN3ZJoYEvld0E6+gsb2Yk7nFgg3IVH1rthV8=
-github.com/smartcontractkit/chainlink-ccip v0.0.0-20250530084609-8529b8c89093/go.mod h1:Pw1pSK/XqEKELzGbZ5ht/xzja1iXpODqMqISQNlaZ9w=
+github.com/smartcontractkit/chainlink-aptos v0.0.0-20250905094443-ac02b032b32b h1:scWqERf9tWr5ocX/nENI1Kc9FqSl2y87bglwjXbe3XA=
+github.com/smartcontractkit/chainlink-aptos v0.0.0-20250905094443-ac02b032b32b/go.mod h1:zNZ5rtLkbqsGCjDWb1y8n7BRk2zgflkzmj2GjnLnj08=
+github.com/smartcontractkit/chainlink-ccip v0.0.0-20250805210128-7f8a0f403c3a h1:EqR0TWzpsIDhu28xromfL3/dfzx398rhUtucT4XLNGc=
+github.com/smartcontractkit/chainlink-ccip v0.0.0-20250805210128-7f8a0f403c3a/go.mod h1:4e+IBu7TJVlmL31sTDYyYEbwJXjFDbv0jot7QQmBZ9E=
 github.com/smartcontractkit/chainlink-ccip/chains/solana v0.0.0-20250805210128-7f8a0f403c3a h1:kQ8Zs6OzXizScIK8PEb8THxDUziGttGT9D6tTTAwmZk=
 github.com/smartcontractkit/chainlink-ccip/chains/solana v0.0.0-20250805210128-7f8a0f403c3a/go.mod h1:Ve1xD71bl193YIZQEoJMmBqLGQJdNs29bwbuObwvbhQ=
 github.com/smartcontractkit/chainlink-ccip/chains/solana/gobindings v0.0.0-20250805210128-7f8a0f403c3a h1:38dAlTPRUQHZus5dCnBnQyf/V4oYn0p2svWlbPgHDQ4=
@@ -390,8 +392,8 @@ github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1 h1:ca2z5OXgn
 github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1/go.mod h1:NZv/qKYGFRnkjOYBouajnDfFoZ+WDa6H2KNmSf1dnKc=
 github.com/smartcontractkit/chainlink-common/pkg/values v0.0.0-20250806152407-159881c7589c h1:QaImySzrLcGzQc4wCF2yDqqb73jA3+9EIqybgx8zT4w=
 github.com/smartcontractkit/chainlink-common/pkg/values v0.0.0-20250806152407-159881c7589c/go.mod h1:U1UAbPhy6D7Qz0wHKGPoQO+dpR0hsYjgUz8xwRrmKwI=
-github.com/smartcontractkit/chainlink-deployments-framework v0.41.0 h1:bjnvNqRtet0y/nEaJG1/Yg2INi/nC4R7ywM3BZKcwuc=
-github.com/smartcontractkit/chainlink-deployments-framework v0.41.0/go.mod h1:Xt3mw9e6GiDj25HIRUTynsuETd9pcT/OZbxlX9j9zm0=
+github.com/smartcontractkit/chainlink-deployments-framework v0.47.0 h1:2i3gAOatN333/GYje2FZqMMZBxSv4MBKLd0wSrziC2Q=
+github.com/smartcontractkit/chainlink-deployments-framework v0.47.0/go.mod h1:O/ZLVdh/28tHvcmkY1Cv3HZQevdzZlyoGz4ZL/Tx+4M=
 github.com/smartcontractkit/freeport v0.1.2 h1:xMZ0UFHmjfB4MwbDANae3RS7UKt7OJ0JVqhjPSXdKVk=
 github.com/smartcontractkit/freeport v0.1.2/go.mod h1:T4zH9R8R8lVWKfU7tUvYz2o2jMv1OpGCdpY2j2QZXzU=
 github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 h1:12ijqMM9tvYVEm+nR826WsrNi6zCKpwBhuApq127wHs=

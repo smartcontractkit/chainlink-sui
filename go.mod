@@ -21,10 +21,10 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/pkg/errors v0.9.1
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
-	github.com/smartcontractkit/chainlink-aptos v0.0.0-20250626122206-319db248496a
-	github.com/smartcontractkit/chainlink-ccip v0.0.0-20250530084609-8529b8c89093
+	github.com/smartcontractkit/chainlink-aptos v0.0.0-20250905094443-ac02b032b32b
+	github.com/smartcontractkit/chainlink-ccip v0.0.0-20250805210128-7f8a0f403c3a
 	github.com/smartcontractkit/chainlink-common v0.9.1-0.20250815142532-64e0a7965958
-	github.com/smartcontractkit/chainlink-deployments-framework v0.41.0
+	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/stretchr/testify v1.10.0
 	github.com/test-go/testify v1.1.4
 	go.opentelemetry.io/otel v1.37.0
@@ -101,6 +101,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/run v1.1.0 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
