@@ -7,8 +7,8 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
-	linkops "github.com/smartcontractkit/chainlink-sui/ops/link"
+	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 )
 
 type DeployLinkTokenConfig struct {

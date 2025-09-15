@@ -2025,3 +2025,30 @@ public fun test_timelock_unblock_function(
 ) {
     timelock_unblock_function(timelock, role, target, module_name, function_name, ctx)
 }
+
+#[test_only]
+public fun test_create_timelock_callback_params(
+    role: u8,
+    module_name: String,
+    function_name: String,
+    data: vector<u8>,
+): TimelockCallbackParams {
+    TimelockCallbackParams {
+        module_name,
+        function_name,
+        data,
+        role,
+    }
+}
+
+#[test_only]
+public fun test_timelock_bypasser_execute_batch(
+    role: u8,
+    targets: vector<address>,
+    module_names: vector<String>,
+    function_names: vector<String>,
+    datas: vector<vector<u8>>,
+    ctx: &mut TxContext,
+): vector<ExecutingCallbackParams> {
+    timelock_bypasser_execute_batch(role, targets, module_names, function_names, datas, ctx)
+}
