@@ -118,16 +118,43 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
 					},
+					"get_address_list_renamed": {
+						Name:          "get_address_list",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+						ResultFieldRenames: map[string]config.RenamedField{
+							"addresses": {NewName: "wallets"},
+							"count":     {NewName: "size"},
+						},
+					},
 					"get_simple_result": {
 						Name:          "get_simple_result",
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
+					"get_simple_result_renamed": {
+						Name:          "get_simple_result",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+						ResultFieldRenames: map[string]config.RenamedField{
+							"value": {NewName: "renamedValue"},
+						},
 					},
 					"get_tuple_struct": {
 						Name:                "get_tuple_struct",
 						SignerAddress:       accountAddress,
 						Params:              []codec.SuiFunctionParam{}, // No parameters needed
 						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
+					},
+					"get_tuple_struct_renamed": {
+						Name:                "get_tuple_struct",
+						SignerAddress:       accountAddress,
+						Params:              []codec.SuiFunctionParam{}, // No parameters needed
+						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
+						ResultFieldRenames: map[string]config.RenamedField{
+							"value":      {NewName: "answer"},
+							"struct_tag": {NewName: "tag"},
+						},
 					},
 					"get_count_using_pointer": {
 						Name:          "get_count_using_pointer",
@@ -272,6 +299,30 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			"value", retSimpleResult.Value)
 	})
 
+	// Verify renamed field on simple struct output
+	t.Run("GetLatestValue_SimpleStruct_Renamed", func(t *testing.T) {
+		var renamed map[string]any
+
+		log.Debugw("Testing get_simple_result with field rename",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "get_simple_result_renamed"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&renamed,
+		)
+		require.NoError(t, err)
+
+		require.NotNil(t, renamed)
+		// original key should not be present when renamed
+		_, hasOriginal := renamed["value"]
+		require.False(t, hasOriginal)
+		require.Equal(t, uint64(42), renamed["renamedValue"])
+	})
+
 	t.Run("GetLatestValue_AddressList", func(t *testing.T) {
 		var retAddressList AddressList
 
@@ -313,6 +364,32 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			"addresses", retAddressList.Addresses)
 	})
 
+	// Verify renamed fields on address list output
+	t.Run("GetLatestValue_AddressList_Renamed", func(t *testing.T) {
+		var renamed map[string]any
+
+		log.Debugw("Testing get_address_list with field rename",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "get_address_list_renamed"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&renamed,
+		)
+		require.NoError(t, err)
+
+		require.NotNil(t, renamed)
+		// renamed keys should be present
+		require.Contains(t, renamed, "wallets")
+		require.Contains(t, renamed, "size")
+		// original keys should not be present
+		require.NotContains(t, renamed, "addresses")
+		require.NotContains(t, renamed, "count")
+	})
+
 	t.Run("GetLatestValue_TupleToStruct", func(t *testing.T) {
 		var retTupleStruct map[string]any
 
@@ -340,6 +417,32 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			"address", retTupleStruct["address"],
 			"bool", retTupleStruct["bool"],
 			"struct_tag", retTupleStruct["struct_tag"])
+	})
+
+	// Verify renamed fields on tuple-to-struct output
+	t.Run("GetLatestValue_TupleToStruct_Renamed", func(t *testing.T) {
+		var renamed map[string]any
+
+		log.Debugw("Testing get_tuple_struct with field rename",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "get_tuple_struct_renamed"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&renamed,
+		)
+		require.NoError(t, err)
+
+		require.NotNil(t, renamed)
+		// renamed keys should be present
+		require.Contains(t, renamed, "answer")
+		require.Contains(t, renamed, "tag")
+		// original keys should not be present
+		require.NotContains(t, renamed, "value")
+		require.NotContains(t, renamed, "struct_tag")
 	})
 
 	t.Run("QueryKey_Events", func(t *testing.T) {
