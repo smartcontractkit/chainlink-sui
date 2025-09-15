@@ -195,6 +195,11 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			structResult[mapKey] = results[i]
 		}
 
+		// Apply result field renames if configured
+		if functionConfig.ResultFieldRenames != nil {
+			structResult = applyResultFieldRenames(structResult, functionConfig.ResultFieldRenames).(map[string]any)
+		}
+
 		// if we are running in loop plugin mode, we will want to encode the result into JSON bytes
 		if s.config.IsLoopPlugin {
 			return s.encodeLoopResult(structResult, returnVal)
@@ -205,13 +210,24 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 	// otherwise, no tuple to struct specification, just a slice of values
 	if s.config.IsLoopPlugin {
-		return s.encodeLoopResult(results, returnVal)
+		// Apply renames to the result slice or contained maps before encoding
+		var renamed any = results
+		if functionConfig.ResultFieldRenames != nil {
+			renamed = applyResultFieldRenames(renamed, functionConfig.ResultFieldRenames)
+		}
+		return s.encodeLoopResult(renamed, returnVal)
 	}
 
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
 
+	// Apply renames (if any) to the primary result element before decoding
+	var primary any = results[0]
+	if functionConfig.ResultFieldRenames != nil {
+		primary = applyResultFieldRenames(primary, functionConfig.ResultFieldRenames)
+	}
+
 	// handle multiple results for non-loop plugin mode
-	return codec.DecodeSuiJsonValue(results[0], returnVal)
+	return codec.DecodeSuiJsonValue(primary, returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -679,6 +695,47 @@ func (s *suiChainReader) encodeLoopResult(valueField any, returnVal any) error {
 	copy(*returnValPtr, resultBytes)
 
 	return nil
+}
+
+// applyResultFieldRenames applies field and sub-field renames to a value.
+// It supports:
+// - map[string]any: renames top-level keys and recurses for sub-fields if configured
+// - []any: applies renames to each element (useful when each element is a map)
+// - primitives or other types: returned as-is
+func applyResultFieldRenames(value any, renames map[string]config.RenamedField) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, val := range typed {
+			// Check if this field has a rename rule
+			if rule, ok := renames[key]; ok {
+				newKey := key
+				if rule.NewName != "" {
+					newKey = rule.NewName
+				}
+				// Recurse into sub-fields if both val and rule specify them
+				if rule.SubFieldRenames != nil {
+					result[newKey] = applyResultFieldRenames(val, rule.SubFieldRenames)
+				} else {
+					result[newKey] = val
+				}
+			} else {
+				// Preserve original field if no rename rule exists
+				result[key] = val
+			}
+		}
+		return result
+	case []any:
+		// Apply renames to each element; if the element is a map, it will be handled above
+		out := make([]any, len(typed))
+		for i := range typed {
+			out[i] = applyResultFieldRenames(typed[i], renames)
+		}
+		return out
+	default:
+		// No transformation for primitives or unsupported types
+		return value
+	}
 }
 
 // getEventConfig retrieves event configuration for the given key
