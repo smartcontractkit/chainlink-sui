@@ -7,13 +7,13 @@ import (
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
-	ccipops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
-	offrampops "github.com/smartcontractkit/chainlink-sui/ops/ccip_offramp"
-	onrampops "github.com/smartcontractkit/chainlink-sui/ops/ccip_onramp"
-	routerops "github.com/smartcontractkit/chainlink-sui/ops/ccip_router"
-	tokenpoolops "github.com/smartcontractkit/chainlink-sui/ops/ccip_token_pool"
-	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
+	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
+	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
+	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
+	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
 type DeploySuiChainConfig struct {
