@@ -7,6 +7,7 @@ use ccip::ownable::OwnerCap as CCIPOwnerCap;
 use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
+use ccip::upgrade_registry;
 use ccip_token_pool::ownable::OwnerCap;
 use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::ownable::OwnerCap as TokenOwnerCap;
@@ -45,6 +46,7 @@ fun setup_ccip_environment(scenario: &mut Scenario): (CCIPOwnerCap, CCIPObjectRe
 
     // Initialize required CCIP modules
     rmn_remote::initialize(&mut ccip_ref, &ccip_owner_cap, 1000, scenario.ctx()); // local chain selector = 1000
+    upgrade_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref, &ccip_owner_cap, scenario.ctx());
     onramp_sh::test_init(scenario.ctx());
     offramp_sh::test_init(scenario.ctx());
@@ -820,6 +822,7 @@ public fun test_invalid_owner_cap_error() {
     scenario.next_tx(@0x999);
     let ccip_owner_cap2 = scenario.take_from_sender<CCIPOwnerCap>();
     let mut ccip_ref2 = scenario.take_shared<CCIPObjectRef>();
+    upgrade_registry::initialize(&mut ccip_ref2, &ccip_owner_cap2, scenario.ctx());
     token_admin_registry::initialize(&mut ccip_ref2, &ccip_owner_cap2, scenario.ctx());
     rmn_remote::initialize(&mut ccip_ref2, &ccip_owner_cap2, 1000, scenario.ctx());
 

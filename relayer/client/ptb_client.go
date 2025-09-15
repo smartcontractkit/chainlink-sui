@@ -52,6 +52,8 @@ type SuiPTBClient interface {
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
 	GetNormalizedModule(ctx context.Context, packageId string, moduleId string) (models.GetNormalizedMoveModuleResponse, error)
 	GetSUIBalance(ctx context.Context, address string) (*big.Int, error)
+	LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error)
+	GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error)
 	GetClient() sui.ISuiAPI
 	HashTxBytes(txBytes []byte) []byte
 }
@@ -65,7 +67,8 @@ type PTBClient struct {
 	keystoreService    loop.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
-	normalizedModules  map[string]map[string]models.GetNormalizedMoveModuleResponse
+	// map of module name to normalized module definition (similar to an ABI)
+	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)

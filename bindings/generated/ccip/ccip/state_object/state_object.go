@@ -20,6 +20,8 @@ var (
 )
 
 type IStateObject interface {
+	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
+	RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	OwnerCapId(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Add(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, obj bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Contains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -35,6 +37,8 @@ type IStateObject interface {
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAddPackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsRemovePackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -58,6 +62,10 @@ type IStateObjectDevInspect interface {
 }
 
 type StateObjectEncoder interface {
+	AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
+	RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	RemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	OwnerCapId(ref bind.Object) (*bind.EncodedCall, error)
 	OwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	Add(typeArgs []string, ref bind.Object, ownerCap bind.Object, obj bind.Object) (*bind.EncodedCall, error)
@@ -88,6 +96,10 @@ type StateObjectEncoder interface {
 	PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error)
 	PendingTransferAccepted(ref bind.Object) (*bind.EncodedCall, error)
 	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsAddPackageId(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsRemovePackageId(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsRemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -137,6 +149,7 @@ func (c *StateObjectContract) DevInspect() IStateObjectDevInspect {
 
 type CCIPObjectRef struct {
 	Id           string      `move:"sui::object::UID"`
+	PackageIds   []string    `move:"vector<address>"`
 	OwnableState bind.Object `move:"OwnableState"`
 }
 
@@ -153,6 +166,27 @@ type CCIPAdminProof struct {
 }
 
 type McmsCallback struct {
+}
+
+type bcsCCIPObjectRef struct {
+	Id           string
+	PackageIds   [][32]byte
+	OwnableState bind.Object
+}
+
+func convertCCIPObjectRefFromBCS(bcs bcsCCIPObjectRef) (CCIPObjectRef, error) {
+
+	return CCIPObjectRef{
+		Id: bcs.Id,
+		PackageIds: func() []string {
+			addrs := make([]string, len(bcs.PackageIds))
+			for i, addr := range bcs.PackageIds {
+				addrs[i] = fmt.Sprintf("0x%x", addr)
+			}
+			return addrs
+		}(),
+		OwnableState: bcs.OwnableState,
+	}, nil
 }
 
 type bcsCCIPObjectRefPointer struct {
@@ -172,8 +206,13 @@ func convertCCIPObjectRefPointerFromBCS(bcs bcsCCIPObjectRefPointer) (CCIPObject
 
 func init() {
 	bind.RegisterStructDecoder("ccip::state_object::CCIPObjectRef", func(data []byte) (interface{}, error) {
-		var result CCIPObjectRef
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsCCIPObjectRef
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertCCIPObjectRefFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -216,6 +255,26 @@ func init() {
 		}
 		return result, nil
 	})
+}
+
+// AddPackageId executes the add_package_id Move function.
+func (c *StateObjectContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.AddPackageId(state, param, packageId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// RemovePackageId executes the remove_package_id Move function.
+func (c *StateObjectContract) RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.RemovePackageId(state, param, packageId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
 // OwnerCapId executes the owner_cap_id Move function.
@@ -361,6 +420,26 @@ func (c *StateObjectContract) PendingTransferTo(ctx context.Context, opts *bind.
 // PendingTransferAccepted executes the pending_transfer_accepted Move function.
 func (c *StateObjectContract) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.stateObjectEncoder.PendingTransferAccepted(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsAddPackageId executes the mcms_add_package_id Move function.
+func (c *StateObjectContract) McmsAddPackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.McmsAddPackageId(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsRemovePackageId executes the mcms_remove_package_id Move function.
+func (c *StateObjectContract) McmsRemovePackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.McmsRemovePackageId(ref, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -638,6 +717,70 @@ func (d *StateObjectDevInspect) McmsProofEntrypoint(ctx context.Context, opts *b
 
 type stateObjectEncoder struct {
 	*bind.BoundContract
+}
+
+// AddPackageId encodes a call to the add_package_id Move function.
+func (c stateObjectEncoder) AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"address",
+	}, []any{
+		state,
+		param,
+		packageId,
+	}, nil)
+}
+
+// AddPackageIdWithArgs encodes a call to the add_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// RemovePackageId encodes a call to the remove_package_id Move function.
+func (c stateObjectEncoder) RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("remove_package_id", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"address",
+	}, []any{
+		state,
+		param,
+		packageId,
+	}, nil)
+}
+
+// RemovePackageIdWithArgs encodes a call to the remove_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) RemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("remove_package_id", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // OwnerCapId encodes a call to the owner_cap_id Move function.
@@ -1118,6 +1261,70 @@ func (c stateObjectEncoder) PendingTransferAcceptedWithArgs(args ...any) (*bind.
 	return c.EncodeCallArgsWithGenerics("pending_transfer_accepted", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::option::Option<bool>",
 	})
+}
+
+// McmsAddPackageId encodes a call to the mcms_add_package_id Move function.
+func (c stateObjectEncoder) McmsAddPackageId(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_add_package_id", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsAddPackageIdWithArgs encodes a call to the mcms_add_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) McmsAddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_add_package_id", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsRemovePackageId encodes a call to the mcms_remove_package_id Move function.
+func (c stateObjectEncoder) McmsRemovePackageId(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_package_id", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsRemovePackageIdWithArgs encodes a call to the mcms_remove_package_id Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) McmsRemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_package_id", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.

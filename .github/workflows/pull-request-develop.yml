@@ -9,6 +9,7 @@ on:
     branches:
       - develop
       - staging
+  merge_group:
 
 jobs:
   fast-tests:
@@ -99,7 +100,8 @@ jobs:
         env:
           TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
         run: |
-          nix develop --command go test -v ./ops/... -count=1 -p=1 -tags="integration"
+          cd deployment/ops
+          nix develop --command go test -v ./... -count=1 -p=1 -tags="integration"
 
       - name: Run Relayer Integration Tests
         env:
@@ -142,7 +144,8 @@ jobs:
         env:
           TEST_DB_URL: postgres://localhost:5432/chainlink_test?sslmode=disable&user=postgres&password=postgres
         run: |
-          nix develop --command go test -count=1 -p=1 -tags="integration" ./integration-tests/...
+          cd integration-tests
+          nix develop --command go test -count=1 -p=1 -tags="integration" ./...
 
   testnet-integration-tests:
     name: Testnet Integration Tests
@@ -170,6 +173,12 @@ jobs:
 
       - name: Ensure modules are tidy
         run: |
-          nix develop -c go run github.com/jmank88/gomods@v0.1.6 tidy
+          nix develop -c go tool gomods tidy
+          git add --all
+          git diff --minimal --cached --exit-code
+
+      - name: Ensure go.md is up to date
+        run: |
+          nix develop -c ./scripts/modgraph.sh > go.md
           git add --all
           git diff --minimal --cached --exit-code

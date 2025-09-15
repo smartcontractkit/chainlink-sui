@@ -81,8 +81,9 @@ func (c *McmsDeployerContract) DevInspect() IMcmsDeployerDevInspect {
 }
 
 type DeployerState struct {
-	Id          string      `move:"sui::object::UID"`
-	UpgradeCaps bind.Object `move:"Table<address, UpgradeCap>"`
+	Id           string      `move:"sui::object::UID"`
+	UpgradeCaps  bind.Object `move:"Table<address, UpgradeCap>"`
+	CapToPackage bind.Object `move:"Table<ID, address>"`
 }
 
 type UpgradeCapRegistered struct {
@@ -99,9 +100,10 @@ type UpgradeTicketAuthorized struct {
 }
 
 type UpgradeReceiptCommitted struct {
-	PackageAddress string `move:"address"`
-	OldVersion     uint64 `move:"u64"`
-	NewVersion     uint64 `move:"u64"`
+	OldPackageAddress string `move:"address"`
+	NewPackageAddress string `move:"address"`
+	OldVersion        uint64 `move:"u64"`
+	NewVersion        uint64 `move:"u64"`
 }
 
 type MCMS_DEPLOYER struct {
@@ -140,17 +142,19 @@ func convertUpgradeTicketAuthorizedFromBCS(bcs bcsUpgradeTicketAuthorized) (Upgr
 }
 
 type bcsUpgradeReceiptCommitted struct {
-	PackageAddress [32]byte
-	OldVersion     uint64
-	NewVersion     uint64
+	OldPackageAddress [32]byte
+	NewPackageAddress [32]byte
+	OldVersion        uint64
+	NewVersion        uint64
 }
 
 func convertUpgradeReceiptCommittedFromBCS(bcs bcsUpgradeReceiptCommitted) (UpgradeReceiptCommitted, error) {
 
 	return UpgradeReceiptCommitted{
-		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
-		OldVersion:     bcs.OldVersion,
-		NewVersion:     bcs.NewVersion,
+		OldPackageAddress: fmt.Sprintf("0x%x", bcs.OldPackageAddress),
+		NewPackageAddress: fmt.Sprintf("0x%x", bcs.NewPackageAddress),
+		OldVersion:        bcs.OldVersion,
+		NewVersion:        bcs.NewVersion,
 	}, nil
 }
 

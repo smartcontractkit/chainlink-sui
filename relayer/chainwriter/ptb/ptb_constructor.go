@@ -191,7 +191,6 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		if _, ok := arguments.Args["clock"]; !ok {
 			arguments.Args["clock"] = am.ClockObject
 		}
-
 	}
 
 	// Create a map for caching objects
@@ -202,7 +201,15 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
-			_, err := p.ProcessMoveCall(ctx, ptb, cmd, &arguments, &cachedArgs)
+			// Override the package ID with the latest package ID of the module being called,
+			// fallback to the provided package ID if the module does not have the `get_latest_package_id` function
+			latestPackageId, err := p.client.(*client.PTBClient).GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
+			if err != nil {
+				return nil, err
+			}
+			cmd.PackageId = &latestPackageId
+
+			_, err = p.ProcessMoveCall(ctx, ptb, cmd, &arguments, &cachedArgs)
 			if err != nil {
 				p.log.Errorw("Error processing move call", "Error", err)
 				return nil, err

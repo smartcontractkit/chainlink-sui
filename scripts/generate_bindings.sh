@@ -15,6 +15,7 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/cc
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/receiver_registry.move --output ./bindings/generated/ccip/ccip/receiver_registry
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/rmn_remote.move --output ./bindings/generated/ccip/ccip/rmn_remote
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/token_admin_registry.move --output ./bindings/generated/ccip/ccip/token_admin_registry
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/upgrade_registry.move --output ./bindings/generated/ccip/ccip/upgrade_registry
 
 # CCIP - Onramp
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/onramp.move --output ./bindings/generated/ccip/ccip_onramp/onramp
@@ -42,6 +43,9 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/burn_mint_
 
 # CCIP - Managed Token Pool
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/managed_token_pool --input ./contracts/ccip/ccip_token_pools/managed_token_pool/sources/managed_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/managed_token_pool
+
+# CCIP - USDCTokenPool
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_token_pools/usdc_token_pool --input ./contracts/ccip/ccip_token_pools/usdc_token_pool/sources/usdc_token_pool.move --output ./bindings/generated/ccip/ccip_token_pools/usdc_token_pool
 
 # CCIP Router
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_router --input ./contracts/ccip/ccip_router/sources/router.move --output ./bindings/generated/ccip/ccip_router/

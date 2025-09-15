@@ -5,6 +5,7 @@ module ccip::fee_quoter_mcms_test;
 use ccip::fee_quoter;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry;
 use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
@@ -50,6 +51,7 @@ fun setup(): Env {
 
     // Initialize fee quoter
     let state_object_owner_cap = ts::take_from_sender<ccip::ownable::OwnerCap>(&scenario);
+    upgrade_registry::initialize(&mut ref, &state_object_owner_cap, scenario.ctx());
     fee_quoter::initialize(
         &mut ref,
         &state_object_owner_cap,
@@ -111,14 +113,15 @@ public fun test_mcms_apply_fee_token_updates() {
     let mut env = setup();
 
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     // Prepare data for mcms_apply_fee_token_updates
     let mut data = vector::empty<u8>();
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
-    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&vector<address>[])); // fee_tokens_to_remove
     data.append(bcs::to_bytes(&vector[TOKEN_1, TOKEN_2])); // fee_tokens_to_add
+
+    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip,
@@ -148,12 +151,11 @@ public fun test_mcms_apply_dest_chain_config_updates() {
     let mut env = setup();
 
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     // Prepare data for mcms_apply_dest_chain_config_updates
     let mut data = vector::empty<u8>();
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
-    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&DEST_CHAIN_SELECTOR_1)); // dest_chain_selector
     data.append(bcs::to_bytes(&true)); // is_enabled
     data.append(bcs::to_bytes(&(10 as u16))); // max_number_of_tokens_per_msg
@@ -174,6 +176,8 @@ public fun test_mcms_apply_dest_chain_config_updates() {
     data.append(bcs::to_bytes(&(1000000000000000000 as u64))); // gas_multiplier_wei_per_eth
     data.append(bcs::to_bytes(&(3600 as u32))); // gas_price_staleness_threshold
     data.append(bcs::to_bytes(&(100 as u32))); // network_fee_usd_cents
+
+    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip,
@@ -241,12 +245,11 @@ public fun test_mcms_apply_token_transfer_fee_config_updates() {
     let mut env = setup();
 
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     // Prepare data for mcms_apply_token_transfer_fee_config_updates
     let mut data = vector::empty<u8>();
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
-    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&DEST_CHAIN_SELECTOR_1)); // dest_chain_selector
     data.append(bcs::to_bytes(&vector[TOKEN_1, TOKEN_2])); // add_tokens
     data.append(bcs::to_bytes(&vector[25 as u32, 30 as u32])); // add_min_fee_usd_cents
@@ -256,6 +259,8 @@ public fun test_mcms_apply_token_transfer_fee_config_updates() {
     data.append(bcs::to_bytes(&vector[32 as u32, 64 as u32])); // add_dest_bytes_overhead
     data.append(bcs::to_bytes(&vector[true, true])); // add_is_enabled
     data.append(bcs::to_bytes(&vector<address>[])); // remove_tokens
+
+    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip,
@@ -322,14 +327,15 @@ public fun test_mcms_apply_premium_multiplier_wei_per_eth_updates() {
     let mut env = setup();
 
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     // Prepare data for mcms_apply_premium_multiplier_wei_per_eth_updates
     let mut data = vector::empty<u8>();
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
-    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&vector[TOKEN_1, TOKEN_2])); // tokens
     data.append(bcs::to_bytes(&vector[1100000000000000000 as u64, 1200000000000000000 as u64])); // premium_multiplier_wei_per_eth (110%, 120%)
+
+    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip,
@@ -360,7 +366,6 @@ public fun test_mcms_update_prices_with_owner_cap() {
     let mut env = setup();
 
     let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     // Set up clock with current timestamp for staleness validation
     let current_timestamp = 1000000000; // 1 billion ms
@@ -369,12 +374,14 @@ public fun test_mcms_update_prices_with_owner_cap() {
     // Prepare data for mcms_update_prices_with_owner_cap
     let mut data = vector::empty<u8>();
     data.append(bcs::to_bytes(&object::id_address(&env.ref)));
-    data.append(bcs::to_bytes(&object::id_address(&env.registry)));
+    data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&object::id_address(&env.clock)));
     data.append(bcs::to_bytes(&vector[TOKEN_1, TOKEN_2])); // source_tokens
     data.append(bcs::to_bytes(&vector[2000000000000000000 as u256, 500000000000000 as u256])); // source_usd_per_token (2 ETH, 0.0005 ETH in wei)
     data.append(bcs::to_bytes(&vector[DEST_CHAIN_SELECTOR_1])); // gas_dest_chain_selectors
     data.append(bcs::to_bytes(&vector[30000000 as u256])); // gas_usd_per_unit_gas (0.03 USD per gas unit)
+
+    transfer_ownership_to_mcms(&mut env, owner_cap);
 
     let params = mcms_registry::test_create_executing_callback_params(
         @ccip,

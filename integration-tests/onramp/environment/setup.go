@@ -15,16 +15,16 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	mockethtoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_eth_token"
 	mocklinktoken "github.com/smartcontractkit/chainlink-sui/bindings/packages/mock_link_token"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
-	ccipops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
-	burnmintops "github.com/smartcontractkit/chainlink-sui/ops/ccip_burn_mint_token_pool"
-	lockreleaseops "github.com/smartcontractkit/chainlink-sui/ops/ccip_lock_release_token_pool"
-	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/ops/ccip_managed_token_pool"
-	onrampops "github.com/smartcontractkit/chainlink-sui/ops/ccip_onramp"
-	managedtokenops "github.com/smartcontractkit/chainlink-sui/ops/managed_token"
-	mcmsops "github.com/smartcontractkit/chainlink-sui/ops/mcms"
-	mockethtokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_eth_token"
-	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/ops/mock_link_token"
+	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	burnmintops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
+	lockreleaseops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
+	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
+	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
+	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	mockethtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_eth_token"
+	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/stretchr/testify/require"
@@ -268,11 +268,13 @@ func DeployCCIPAndOnrampAndTokens(
 			DestChainAllowListEnabled: []bool{true},
 		},
 		ApplyDestChainConfigureOnRampInput: onrampops.ApplyDestChainConfigureOnRampInput{
+			CCIPObjectRefId:           reportCCIP.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:         []uint64{destChainSelector},
 			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{false},
 		},
 		ApplyAllowListUpdatesInput: onrampops.ApplyAllowListUpdatesInput{
+			CCIPObjectRefId:               reportCCIP.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:             []uint64{destChainSelector},
 			DestChainAllowListEnabled:     []bool{false},
 			DestChainAddAllowedSenders:    [][]string{{}},

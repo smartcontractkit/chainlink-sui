@@ -13,9 +13,11 @@ const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
+const EPackageIdNotFound: u64 = 5;
 
 public struct CCIPObjectRef has key, store {
     id: UID,
+    package_ids: vector<address>,
     ownable_state: OwnableState,
 }
 
@@ -30,8 +32,9 @@ public struct STATE_OBJECT has drop {}
 fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     let (ownable_state, owner_cap) = ownable::new(ctx);
 
-    let ref = CCIPObjectRef {
+    let mut ref = CCIPObjectRef {
         id: object::new(ctx),
+        package_ids: vector[],
         ownable_state,
     };
 
@@ -46,10 +49,21 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     let tn = type_name::get_with_original_ids<STATE_OBJECT>();
     let package_bytes = ascii::into_bytes(tn.get_address());
     let package_id = address::from_ascii_bytes(&package_bytes);
+    ref.package_ids.push_back(package_id);
 
     transfer::share_object(ref);
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
+}
+
+public fun add_package_id(state: &mut CCIPObjectRef, _: &OwnerCap, package_id: address) {
+    state.package_ids.push_back(package_id);
+}
+
+public fun remove_package_id(state: &mut CCIPObjectRef, _: &OwnerCap, package_id: address) {
+    let (found, idx) = state.package_ids.index_of(&package_id);
+    assert!(found, EPackageIdNotFound);
+    state.package_ids.remove(idx);
 }
 
 public fun owner_cap_id(ref: &CCIPObjectRef): ID {
@@ -163,6 +177,50 @@ public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
 
+public fun mcms_add_package_id(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"add_package_id"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let package_id = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+    add_package_id(ref, owner_cap, package_id);
+}
+
+public fun mcms_remove_package_id(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"remove_package_id"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let package_id = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+    remove_package_id(ref, owner_cap, package_id);
+}
+
 public fun mcms_transfer_ownership(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
@@ -178,7 +236,7 @@ public fun mcms_transfer_ownership(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -203,7 +261,7 @@ public fun mcms_execute_ownership_transfer(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref), object::id_address(_owner_cap)],
         &mut stream,
     );
 

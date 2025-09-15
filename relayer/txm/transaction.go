@@ -49,22 +49,23 @@ const (
 )
 
 type SuiTx struct {
-	TransactionID string
-	Sender        string
-	PublicKey     []byte
-	Metadata      *commontypes.TxMeta
-	Timestamp     uint64
-	Payload       string // BCS base64 encoded transaction bytes
-	Functions     []*SuiFunction
-	Signatures    []string
-	RequestType   string
-	Attempt       int
-	State         TransactionState
-	Digest        string
-	LastUpdatedAt uint64
-	TxError       *suierrors.SuiError
-	GasBudget     uint64
-	Ptb           *transaction.Transaction
+	TransactionID         string
+	Sender                string
+	PublicKey             []byte
+	Metadata              *commontypes.TxMeta
+	Timestamp             uint64
+	Payload               string // BCS base64 encoded transaction bytes
+	Functions             []*SuiFunction
+	Signatures            []string
+	RequestType           string
+	Attempt               int
+	State                 TransactionState
+	Digest                string
+	LastUpdatedAt         uint64
+	TxError               *suierrors.SuiError
+	GasBudget             uint64
+	Ptb                   *transaction.Transaction
+	PaymentCoinsObjectRef []transaction.SuiObjectRef
 }
 
 // UpdateBSCPayload regenerates the BCS payload and signatures for the SuiTx.
@@ -90,7 +91,7 @@ func (tx *SuiTx) UpdateBSCPayload(
 		return fmt.Errorf("failed to get address from public key: %w", err)
 	}
 
-	txBytes, _, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, tx.Ptb, tx.GasBudget, lggr)
 	if err != nil {
 		return fmt.Errorf("failed to prepare PTB transaction: %w", err)
 	}
@@ -116,6 +117,7 @@ func (tx *SuiTx) UpdateBSCPayload(
 	// Serialize signatures for new bcs payload
 	signatureStrings := []string{client.SerializeSuiSignature(signature, tx.PublicKey)}
 	tx.Signatures = signatureStrings
+	tx.PaymentCoinsObjectRef = paymentCoins
 
 	return nil
 }
@@ -206,7 +208,7 @@ func GeneratePTBTransactionWithGasEstimation(
 		if estimatedGas > preliminaryGasBudget {
 			return nil, fmt.Errorf("estimated gas is greater than preliminary gas budget: %d > %d", estimatedGas, preliminaryGasBudget)
 		} else {
-			finalGasBudget = preliminaryGasBudget
+			finalGasBudget = estimatedGas
 		}
 	}
 
@@ -223,6 +225,7 @@ func GeneratePTBTransactionWithGasEstimation(
 			GasLimit: big.NewInt(int64(finalGasBudget)),
 		},
 		ptb,
+		preliminaryTx.PaymentCoinsObjectRef,
 	)
 }
 
@@ -261,6 +264,7 @@ func generatePTBTransaction(
 	transactionID string,
 	txMetadata *commontypes.TxMeta,
 	ptb *transaction.Transaction,
+	paymentCoins []transaction.SuiObjectRef,
 ) (*SuiTx, error) {
 	signerAddress, err := client.GetAddressFromPublicKey(pubKey)
 	if err != nil {
@@ -315,22 +319,23 @@ func generatePTBTransaction(
 	// }
 
 	return &SuiTx{
-		TransactionID: transactionID,
-		PublicKey:     pubKey,
-		Sender:        signerAddress,
-		Metadata:      txMetadata,
-		Timestamp:     GetCurrentUnixTimestamp(),
-		Payload:       txBytes, // Use base64 encoded bytes
-		Functions:     functions,
-		Signatures:    signatureStrings,
-		RequestType:   requestType,
-		Attempt:       0,
-		State:         StatePending,
-		Digest:        "",
-		LastUpdatedAt: GetCurrentUnixTimestamp(),
-		TxError:       nil,
-		GasBudget:     gasBudget,
-		Ptb:           ptb,
+		TransactionID:         transactionID,
+		PublicKey:             pubKey,
+		Sender:                signerAddress,
+		Metadata:              txMetadata,
+		Timestamp:             GetCurrentUnixTimestamp(),
+		Payload:               txBytes, // Use base64 encoded bytes
+		Functions:             functions,
+		Signatures:            signatureStrings,
+		RequestType:           requestType,
+		Attempt:               0,
+		State:                 StatePending,
+		Digest:                "",
+		LastUpdatedAt:         GetCurrentUnixTimestamp(),
+		TxError:               nil,
+		GasBudget:             gasBudget,
+		Ptb:                   ptb,
+		PaymentCoinsObjectRef: paymentCoins,
 	}, nil
 }
 
@@ -478,16 +483,17 @@ func buildPreliminaryTransaction(
 	lggr logger.Logger,
 ) (*SuiTx, error) {
 	// Use common preparation logic
-	txBytes, _, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr)
+	txBytes, paymentCoins, err := preparePTBTransaction(ctx, signerAddress, suiClient, ptb, gasBudget, lggr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a minimal SuiTx for gas estimation (no signatures needed)
 	return &SuiTx{
-		Payload:  txBytes,
-		Metadata: &commontypes.TxMeta{GasLimit: big.NewInt(int64(gasBudget))},
-		Sender:   signerAddress,
+		Payload:               txBytes,
+		Metadata:              &commontypes.TxMeta{GasLimit: big.NewInt(int64(gasBudget))},
+		Sender:                signerAddress,
+		PaymentCoinsObjectRef: paymentCoins,
 	}, nil
 }
 

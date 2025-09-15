@@ -30,15 +30,12 @@ const VEC_NUM_GROUPS: vector<u8> = vector[
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-// TODO: Change hash to SUI (MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_SUI)
-// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_APTOS")
+// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_SUI")
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA: vector<u8> =
-    x"a71d47b6c00b64ee21af96a1d424cb2dcbbed12becdcd3b4e6c7fc4c2f80a697";
-
-// TODO: Change hash to SUI (MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_SUI)
-// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_APTOS")
+    x"8d82f6d1169cfb3fd9bc8641ea8b89677f50fe86e8d61d0d3fa6149778c934cf";
+// keccak256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_SUI")
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP: vector<u8> =
-    x"e5a6d1256b00d7ec22512b6b60a3f4d75c559745d2dbf309f77b8b756caabe14";
+    x"542b28b7edb99385286abe2b9c308f91a385cbcb48fc98127cfd13deb28a50b8";
 
 /// Special timestamp value indicating an operation is done
 const DONE_TIMESTAMP: u64 = 1;
@@ -273,7 +270,7 @@ fun create_multisig(role: u8): Multisig {
 ///
 /// @dev this method can be executed by anyone who has the root and valid signatures.
 /// as we validate the correctness of signatures, this imposes no risk.
-public entry fun set_root(
+public fun set_root(
     state: &mut MultisigState,
     clock: &Clock,
     role: u8,
@@ -448,6 +445,7 @@ public fun execute(
     function_name: String,
     data: vector<u8>,
     proof: vector<vector<u8>>,
+    _ctx: &mut TxContext,
 ): TimelockCallbackParams {
     assert!(is_valid_role(role), EInvalidRole);
 
@@ -972,7 +970,7 @@ public fun execute_set_config(
 }
 
 /// Updates the multisig configuration, including signer addresses and group settings.
-public entry fun set_config(
+public fun set_config(
     _: &OwnerCap,
     state: &mut MultisigState,
     role: u8,
@@ -1303,6 +1301,10 @@ public fun get_config(state: &MultisigState, role: u8): Config {
     borrow_multisig(state, role).config
 }
 
+public fun signers(state: &MultisigState, role: u8): VecMap<vector<u8>, Signer> {
+    borrow_multisig(state, role).signers
+}
+
 public fun num_groups(): u64 {
     NUM_GROUPS
 }
@@ -1342,9 +1344,9 @@ fun borrow_multisig(state: &MultisigState, role: u8): &Multisig {
         return &state.canceller
     } else if (role == PROPOSER_ROLE) {
         return &state.proposer
-    } else {
-        abort EInvalidRole
-    }
+    };
+
+    abort EInvalidRole
 }
 
 fun borrow_multisig_mut(state: &mut MultisigState, role: u8): &mut Multisig {
@@ -1354,9 +1356,9 @@ fun borrow_multisig_mut(state: &mut MultisigState, role: u8): &mut Multisig {
         return &mut state.canceller
     } else if (role == PROPOSER_ROLE) {
         return &mut state.proposer
-    } else {
-        abort EInvalidRole
-    }
+    };
+
+    abort EInvalidRole
 }
 
 public fun role(root_metadata: &RootMetadata): u8 {
@@ -1517,7 +1519,7 @@ fun timelock_schedule(timelock: &mut Timelock, clock: &Clock, id: vector<u8>, de
     assert!(!timelock_is_operation_internal(timelock, id), EOperationAlreadyScheduled);
     assert!(delay >= timelock.min_delay, EInsufficientDelay);
 
-    let timestamp = clock.timestamp_ms() + timelock.min_delay + delay;
+    let timestamp = get_timestamp_seconds(clock) + delay;
     timelock.timestamps.add(id, timestamp);
 }
 
@@ -1747,7 +1749,7 @@ public fun timelock_is_operation_ready(timelock: &Timelock, clock: &Clock, id: v
     };
 
     let timestamp_value = *timelock.timestamps.borrow(id);
-    timestamp_value > DONE_TIMESTAMP && timestamp_value <= clock.timestamp_ms()
+    timestamp_value > DONE_TIMESTAMP && timestamp_value <= get_timestamp_seconds(clock)
 }
 
 public fun timelock_is_operation_done(timelock: &Timelock, id: vector<u8>): bool {
@@ -1935,4 +1937,118 @@ public fun test_set_root_metadata(
     multisig.root_metadata.pre_op_count = pre_op_count;
     multisig.root_metadata.post_op_count = post_op_count;
     multisig.root_metadata.override_previous_root = override_previous_root;
+}
+
+#[test_only]
+public fun test_hash_metadata_leaf(
+    role: u8,
+    chain_id: u256,
+    multisig: address,
+    pre_op_count: u64,
+    post_op_count: u64,
+    override_previous_root: bool,
+): vector<u8> {
+    let metadata = RootMetadata {
+        role,
+        chain_id,
+        multisig,
+        pre_op_count,
+        post_op_count,
+        override_previous_root,
+    };
+    hash_metadata_leaf(metadata)
+}
+
+#[test_only]
+public fun test_create_op(
+    role: u8,
+    chain_id: u256,
+    multisig: address,
+    nonce: u64,
+    to: address,
+    module_name: String,
+    function_name: String,
+    data: vector<u8>,
+): Op {
+    Op {
+        role,
+        chain_id,
+        multisig,
+        nonce,
+        to,
+        module_name,
+        function_name,
+        data,
+    }
+}
+
+#[test_only]
+public fun test_timelock_cancel(
+    timelock: &mut Timelock,
+    role: u8,
+    id: vector<u8>,
+    ctx: &mut TxContext,
+) {
+    timelock_cancel(timelock, role, id, ctx)
+}
+
+#[test_only]
+public fun test_timelock_update_min_delay(
+    timelock: &mut Timelock,
+    role: u8,
+    new_min_delay: u64,
+    ctx: &mut TxContext,
+) {
+    timelock_update_min_delay(timelock, role, new_min_delay, ctx)
+}
+
+#[test_only]
+public fun test_timelock_block_function(
+    timelock: &mut Timelock,
+    role: u8,
+    target: address,
+    module_name: String,
+    function_name: String,
+    ctx: &mut TxContext,
+) {
+    timelock_block_function(timelock, role, target, module_name, function_name, ctx)
+}
+
+#[test_only]
+public fun test_timelock_unblock_function(
+    timelock: &mut Timelock,
+    role: u8,
+    target: address,
+    module_name: String,
+    function_name: String,
+    ctx: &mut TxContext,
+) {
+    timelock_unblock_function(timelock, role, target, module_name, function_name, ctx)
+}
+
+#[test_only]
+public fun test_create_timelock_callback_params(
+    role: u8,
+    module_name: String,
+    function_name: String,
+    data: vector<u8>,
+): TimelockCallbackParams {
+    TimelockCallbackParams {
+        module_name,
+        function_name,
+        data,
+        role,
+    }
+}
+
+#[test_only]
+public fun test_timelock_bypasser_execute_batch(
+    role: u8,
+    targets: vector<address>,
+    module_names: vector<String>,
+    function_names: vector<String>,
+    datas: vector<vector<u8>>,
+    ctx: &mut TxContext,
+): vector<ExecutingCallbackParams> {
+    timelock_bypasser_execute_batch(role, targets, module_names, function_names, datas, ctx)
 }

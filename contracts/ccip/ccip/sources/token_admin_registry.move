@@ -2,6 +2,7 @@ module ccip::token_admin_registry;
 
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
+use ccip::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
@@ -10,6 +11,8 @@ use std::type_name;
 use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
+
+const VERSION: u8 = 1;
 
 public struct TokenAdminRegistryState has key, store {
     id: UID,
@@ -91,6 +94,12 @@ public fun get_pools(
     ref: &CCIPObjectRef,
     coin_metadata_addresses: vector<address>,
 ): vector<address> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_pools"),
+        VERSION,
+    );
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     let mut token_pool_package_ids: vector<address> = vector[];
@@ -109,6 +118,12 @@ public fun get_pools(
 }
 
 public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): address {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_pool"),
+        VERSION,
+    );
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     if (state.token_configs.contains(coin_metadata_address)) {
@@ -121,6 +136,12 @@ public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): addres
 }
 
 public fun get_token_config(ref: &CCIPObjectRef, coin_metadata_address: address): TokenConfig {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_token_config"),
+        VERSION,
+    );
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     if (state.token_configs.contains(coin_metadata_address)) {
@@ -144,6 +165,12 @@ public fun get_token_configs(
     ref: &CCIPObjectRef,
     coin_metadata_addresses: vector<address>,
 ): vector<TokenConfig> {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_token_configs"),
+        VERSION,
+    );
     let mut token_configs: vector<TokenConfig> = vector[];
 
     coin_metadata_addresses.do_ref!(|coin_metadata_address| {
@@ -199,6 +226,12 @@ public fun get_all_configured_tokens(
     start_key: address,
     max_count: u64,
 ): (vector<address>, address, bool) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_all_configured_tokens"),
+        VERSION,
+    );
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     let mut i = 0;
@@ -251,6 +284,12 @@ public fun register_pool<T, TypeProof: drop>(
     release_or_mint_params: vector<address>,
     _proof: TypeProof,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"register_pool"),
+        VERSION,
+    );
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let token_type = type_name::get<T>().into_string();
     let proof_tn = type_name::get<TypeProof>();
@@ -282,6 +321,12 @@ public fun register_pool_by_admin(
     release_or_mint_params: vector<address>,
     _: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"register_pool_by_admin"),
+        VERSION,
+    );
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -335,6 +380,12 @@ public fun unregister_pool(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"unregister_pool"),
+        VERSION,
+    );
     unregister_pool_internal(ref, coin_metadata_address, ctx.sender());
 }
 
@@ -369,6 +420,12 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"set_pool"),
+        VERSION,
+    );
     let token_pool_type_proof_tn = type_name::get<TypeProof>();
     let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
     set_pool_internal(
@@ -428,6 +485,12 @@ public fun transfer_admin_role(
     new_admin: address,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"transfer_admin_role"),
+        VERSION,
+    );
     transfer_admin_role_internal(ref, coin_metadata_address, new_admin, ctx.sender());
 }
 
@@ -460,6 +523,12 @@ public fun accept_admin_role(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"accept_admin_role"),
+        VERSION,
+    );
     accept_admin_role_internal(ref, coin_metadata_address, ctx.sender());
 }
 
@@ -490,6 +559,12 @@ public fun is_administrator(
     coin_metadata_address: address,
     administrator: address,
 ): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"is_administrator"),
+        VERSION,
+    );
     let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -519,7 +594,7 @@ public fun mcms_unregister_pool(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 
@@ -544,7 +619,7 @@ public fun mcms_set_pool(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 
@@ -591,7 +666,7 @@ public fun mcms_transfer_admin_role(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 
@@ -622,7 +697,7 @@ public fun mcms_accept_admin_role(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(registry)],
+        vector[object::id_address(ref)],
         &mut stream,
     );
 

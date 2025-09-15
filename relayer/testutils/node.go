@@ -157,14 +157,34 @@ func FundWithFaucet(log logger.Logger, network string, recipient string) error {
 		},
 	}
 
-	// Request funds from faucet
-	faucetRequestErr := faucetRequest(faucetHost, body, map[string]string{})
-	if faucetRequestErr != nil {
-		log.Errorw("Failed to request funds from faucet", "err", faucetRequestErr)
-		return faucetRequestErr
+	const (
+		maxAttempts    = 5
+		initialBackoff = 500 * time.Millisecond
+		maxBackoff     = 5 * time.Second
+	)
+
+	var lastErr error
+	backoff := initialBackoff
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		faucetRequestErr := faucetRequest(faucetHost, body, map[string]string{})
+		if faucetRequestErr == nil {
+			return nil
+		}
+		lastErr = faucetRequestErr
+		log.Warnw("Faucet request failed, will retry", "attempt", attempt, "err", faucetRequestErr)
+
+		if attempt < maxAttempts {
+			time.Sleep(backoff)
+			backoff = backoff * 2
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+		}
 	}
 
-	return nil
+	log.Errorw("Failed to request funds from faucet after retries", "err", lastErr)
+	return lastErr
 }
 
 func faucetRequest(faucetUrl string, body any, headers map[string]string) error {
