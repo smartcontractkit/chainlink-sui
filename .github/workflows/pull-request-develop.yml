@@ -179,6 +179,6 @@ jobs:
 
       - name: Ensure go.md is up to date
         run: |
-          nix develop -c ./modgraph > go.md
+          nix develop -c ./scripts/modgraph.sh > go.md
           git add --all
           git diff --minimal --cached --exit-code
