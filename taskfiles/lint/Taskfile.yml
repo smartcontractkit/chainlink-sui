@@ -4,7 +4,7 @@ tasks:
   default:
     desc: "Run Go lint checks"
     cmds:
-      - golangci-lint run --new-from-rev=origin/develop --path-mode=abs
+      - golangci-lint run --new-from-rev=origin/develop
 
   fix:
     desc: "Fix Go lint issues"

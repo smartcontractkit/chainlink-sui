@@ -21,6 +21,8 @@ type DeployCCIPObjects struct {
 	SourceTransferCapObjectId string
 	// offramp_state_helper
 	DestTransferCapObjectId string
+
+	exampleLintIssueId string
 }
 
 type DeployCCIPInput struct {
