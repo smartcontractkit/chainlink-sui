@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/hex"
 	"math/big"
 	"slices"
 	"strings"
@@ -51,4 +52,28 @@ func SerializeUBigInt(size uint, v *big.Int) []byte {
 	slices.Reverse(ub)
 
 	return ub
+}
+
+// ConvertBytesToHex recursively walks through any value and hex-encodes all []byte values.
+func ConvertBytesToHex(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		for k, val := range v {
+			v[k] = ConvertBytesToHex(val) // recursive
+		}
+		return v
+
+	case []any:
+		for i, val := range v {
+			v[i] = ConvertBytesToHex(val) // recursive
+		}
+		return v
+
+	case []uint8:
+		// Confirm it's a real []byte and not some other []uint8 misuse
+		return "0x" + hex.EncodeToString(v)
+
+	default:
+		return value
+	}
 }

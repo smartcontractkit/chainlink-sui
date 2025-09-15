@@ -423,7 +423,9 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 					return fmt.Errorf("failed to parse struct into JSON: %w", err)
 				}
 
-				results[i] = jsonResult
+				// convert any []uint8 fields to hex strings
+				hexified := common.ConvertBytesToHex(jsonResult)
+				results[i] = hexified
 			}
 		}
 
