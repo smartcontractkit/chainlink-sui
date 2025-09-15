@@ -173,6 +173,12 @@ jobs:
 
       - name: Ensure modules are tidy
         run: |
-          nix develop -c go run github.com/jmank88/gomods@v0.1.6 tidy
+          nix develop -c go tool gomods tidy
+          git add --all
+          git diff --minimal --cached --exit-code
+
+      - name: Ensure go.md is up to date
+        run: |
+          nix develop -c ./modgraph > go.md
           git add --all
           git diff --minimal --cached --exit-code
