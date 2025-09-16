@@ -2,13 +2,14 @@ package offramp
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 func AnyPointer[T any](v T) *T {
@@ -307,35 +308,21 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 }
 
 func GetOffRampAddressMappingsHelper(ctx context.Context, lggr logger.Logger, ptbClient client.SuiPTBClient, offRampPackageID string, signerAddress string) (string, error) {
-	getCCIPPackageIdResponse, err := ptbClient.ReadFunction(ctx, signerAddress, offRampPackageID, "offramp", "get_ccip_package_id", []any{}, []string{})
+	offRamp, err := module_offramp.NewOfframp(offRampPackageID, ptbClient.GetClient())
 	if err != nil {
-		lggr.Errorw("Error reading ccip package id", "error", err)
 		return "", err
 	}
-	lggr.Debugw("getCCIPPackageIdResponse", "getCCIPPackageIdResponse", getCCIPPackageIdResponse)
-	// Parse the response to get the returned address as a hex string
-	var addressBytes []byte
 
-	// Handle both byte slice and base64 string responses
-	switch v := getCCIPPackageIdResponse[0].(type) {
-	case []byte:
-		// Response is already raw bytes ([]byte and []uint8 are the same type)
-		addressBytes = v
-	case string:
-		// Response is base64-encoded string, decode it
-		var decodeErr error
-		addressBytes, decodeErr = base64.StdEncoding.DecodeString(v)
-		if decodeErr != nil {
-			lggr.Errorw("Error decoding base64 ccip package id", "error", decodeErr)
-			return "", decodeErr
-		}
-	default:
-		lggr.Errorw("Unexpected type for ccip package id response", "type", fmt.Sprintf("%T", getCCIPPackageIdResponse[0]))
-		return "", fmt.Errorf("unexpected type for ccip package id response, got %T", getCCIPPackageIdResponse[0])
+	devInspectSigner := signer.NewDevInspectSigner(signerAddress)
+
+	ccipPkgId, err := offRamp.DevInspect().GetCcipPackageId(ctx, &bind.CallOpts{
+		Signer:           devInspectSigner,
+		WaitForExecution: true,
+	})
+	if err != nil {
+		return "", err
 	}
 
-	// Convert bytes to hex string with "0x" prefix
-	ccipPackageId := "0x" + hex.EncodeToString(addressBytes)
+	return ccipPkgId, nil
 
-	return ccipPackageId, nil
 }

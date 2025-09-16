@@ -634,14 +634,15 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 			if strings.Contains(obj.Data.Type, pointer) {
 				fields := obj.Data.Content.Fields
 				pointersValuesMap[pointer] = fields
+			}
+		}
 
-				// cache CCIPObjectRefID
-				if pointer == ccipPointerKey && s.ccipObjectRef == "" {
-					if refID, ok := fields["object_ref_id"].(string); ok {
-						s.ccipObjectRef = refID
-						s.logger.Debugw("Cached ccipObjectRef", "object_ref_id", refID)
-					}
-				}
+		// now handle caching separately
+		if strings.Contains(obj.Data.Type, ccipPointerKey) && s.ccipObjectRef == "" {
+			fields := obj.Data.Content.Fields
+			if refID, ok := fields["object_ref_id"].(string); ok {
+				s.ccipObjectRef = refID
+				s.logger.Debugw("Cached ccipObjectRef", "object_ref_id", refID)
 			}
 		}
 	}
