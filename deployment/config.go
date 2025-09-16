@@ -2,9 +2,9 @@ package deployment
 
 // this is config.go file
 import (
-	ccipops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
-	offrampops "github.com/smartcontractkit/chainlink-sui/ops/ccip_offramp"
-	onrampops "github.com/smartcontractkit/chainlink-sui/ops/ccip_onramp"
+	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
+	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 )
 
 // These are the static/default FeeQuoter + chain params

@@ -7,10 +7,10 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/ops"
-	ccip_ops "github.com/smartcontractkit/chainlink-sui/ops/ccip"
-	ccip_offramp_ops "github.com/smartcontractkit/chainlink-sui/ops/ccip_offramp"
-	ccip_onramp_ops "github.com/smartcontractkit/chainlink-sui/ops/ccip_onramp"
+	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
+	ccip_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	ccip_offramp_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
+	ccip_onramp_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 )
 
 type ConnectSuiToEVMConfig struct {
