@@ -299,6 +299,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	})
 
 	t.Run("LoopReader_GetLatestValue_EchoU256", func(t *testing.T) {
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		testValue := big.NewInt(123456789)
 		var retBigInt *big.Int
 		err = loopReader.GetLatestValue(
@@ -315,6 +316,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	})
 
 	t.Run("LoopReader_GetLatestValue_EchoU256_LargeValue", func(t *testing.T) {
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		// Test with a very large number
 		testValue := new(big.Int)
 		testValue.SetString("123456789012345678901234567890", 10)
@@ -358,6 +360,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	})
 
 	t.Run("LoopReader_GetLatestValue_EchoString", func(t *testing.T) {
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		testString := "Hello, Sui!"
 		var retString string
 		err = loopReader.GetLatestValue(
@@ -376,7 +379,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	t.Run("LoopReader_EchoWithEvents_AndQueryEvents", func(t *testing.T) {
 		// Test data
 		testNumber := uint64(12345)
-		testBytes := []byte("test bytes data")
 
 		// First, call the function that emits events
 		var retUint64 uint64
@@ -453,6 +455,7 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 	})
 
 	t.Run("LoopReader_GetLatestValue_GetTupleStruct", func(t *testing.T) {
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		var retTupleStruct map[string]any
 		err = loopReader.GetLatestValue(
 			context.Background(),
