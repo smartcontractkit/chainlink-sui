@@ -383,67 +383,14 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		for i, returnedValue := range functionReadResponse[0].ReturnValues {
 			returnedValue := returnedValue.([]any)
 			structTag := returnedValue[1].(string)
+			structPartsLen := 3
 
-			// create a bcs decoder from the return value for all result types
+			// create a bcs decoder from the return value
 			bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
 			if err != nil {
 				return fmt.Errorf("failed to convert return value to bytes: %w", err)
 			}
 			bcsDecoder := bcs.NewDeserializer(bcsBytes)
-
-			// Handle vector<...> types, including vector<Struct>
-			if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
-				innerTag := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
-				innerParts := strings.Split(innerTag, "::")
-				// Special-case vector<string>
-				if innerTag == "0x1::string::String" {
-					// Decode vector<string>
-					vecLen := bcsDecoder.Uleb128()
-					values := make([]any, vecLen)
-					for vi := range vecLen {
-						values[vi] = bcsDecoder.ReadString()
-					}
-					results[i] = values
-					continue
-				}
-
-				// If inner is a struct (pkg::module::Struct), decode each element
-				if len(innerParts) == 3 && strings.HasPrefix(innerParts[0], "0x") {
-					pkgId := innerParts[0]
-					moduleName := innerParts[1]
-					structName := innerParts[2]
-
-					normalizedModule, err := c.GetNormalizedModule(ctx, pkgId, moduleName)
-					c.log.Debugw("normalizedModule (vector)", "normalizedModule", normalizedModule)
-					if err != nil {
-						return fmt.Errorf("failed to get normalized struct for vector: %w", err)
-					}
-
-					// Read vector length then decode each struct element
-					vecLen := bcsDecoder.Uleb128()
-					items := make([]any, vecLen)
-					for vi := range vecLen {
-						item, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structName, bcsDecoder)
-						if err != nil {
-							return fmt.Errorf("failed to parse struct in vector into JSON: %w", err)
-						}
-						// convert any []uint8 fields to hex strings
-						items[vi] = common.ConvertBytesToHex(item)
-					}
-					results[i] = items
-					continue
-				}
-
-				// Otherwise, let primitive vector decoding handle it (e.g., vector<u64>, vector<address>)
-				primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
-				if err != nil {
-					return fmt.Errorf("failed to decode primitive vector: %w", err)
-				}
-				results[i] = primitive
-				continue
-			}
-
-			structParts := strings.Split(structTag, "::")
 
 			// This is a special case for Sui strings as they are represented as a struct with tag "0x1::string::String"
 			// Since we use the tag to fetch the normalized module, it causes a failure since a module "string" does not exist.
@@ -455,8 +402,49 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 				continue
 			}
 
+			// Check if this is a vector type first
+			if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
+				// Extract inner type to determine if it's a vector of structs or primitives
+				innerType := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
+				innerStructParts := strings.Split(innerType, "::")
+
+				// Check if inner type is a struct (3 parts: package::module::struct)
+				if len(innerStructParts) == structPartsLen {
+					// This is vector<Struct> - get normalized module for the inner struct
+					innerPackageId := innerStructParts[0]
+					innerModuleName := innerStructParts[1]
+
+					normalizedModule, err := c.GetNormalizedModule(ctx, innerPackageId, innerModuleName)
+					if err != nil {
+						return fmt.Errorf("failed to get normalized module for vector struct: %w", err)
+					}
+
+					c.log.Debugw("normalizedModule for vector", "normalizedModule", normalizedModule)
+
+					// Use the new DecodeVectorOfStructs function
+					jsonResult, err := codec.DecodeVectorOfStructs(bcsDecoder, structTag, normalizedModule.Structs)
+					if err != nil {
+						return fmt.Errorf("failed to decode vector of structs: %w", err)
+					}
+
+					// convert any []uint8 fields to hex strings
+					hexified := common.ConvertBytesToHex(jsonResult)
+					results[i] = hexified
+				} else {
+					// This is vector<primitive> - use existing primitive vector handling
+					primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
+					if err != nil {
+						return fmt.Errorf("failed to decode primitive vector: %w", err)
+					}
+					results[i] = primitive
+				}
+				continue
+			}
+
+			// Handle non-vector types (existing logic)
+			structParts := strings.Split(structTag, "::")
+
 			// if the response type is not a struct (primitive type), skip the result (keep it as is)
-			structPartsLen := 3
 			if len(structParts) != structPartsLen {
 				primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
 				if err != nil {

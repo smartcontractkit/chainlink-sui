@@ -4,6 +4,7 @@ package reader
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -250,13 +251,21 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txnIndexer,
 	)
 
+	// ChainReader in non-loop mode
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
 	require.NoError(t, err)
 
-	log.Debugw("ChainReader setup complete")
+	// ChainReader in loop mode
+	chainReaderConfigLoopMode := chainReaderConfig
+	chainReaderConfigLoopMode.IsLoopPlugin = true
+	chainReaderLoopMode, err := NewChainReader(ctx, log, relayerClient, chainReaderConfigLoopMode, db, indexerInstance)
+	require.NoError(t, err)
+
+	err = chainReaderLoopMode.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
+	require.NoError(t, err)
 
 	go func() {
 		err = chainReader.Start(ctx)
@@ -670,25 +679,29 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.Equal(t, expectedUint64, retUint64, "Expected value to be 0")
 	})
 
-	t.Run("GetLatestValue_GetAllSourceChainConfigs", func(t *testing.T) {
-		var retAllSourceChainConfigs map[string]any
+	t.Run("GetLatestValue_GetAllSourceChainConfigs_LoopMode", func(t *testing.T) {
+		var retAllSourceChainConfigs []byte
+		params, err := json.Marshal(map[string]any{})
+		require.NoError(t, err)
 
 		log.Debugw("Testing get_all_source_chain_configs function for BCS struct decoding",
 			"packageId", packageId,
 		)
 
-		err = chainReader.GetLatestValue(
+		err = chainReaderLoopMode.GetLatestValue(
 			context.Background(),
 			strings.Join([]string{packageId, "OffRamp", "get_all_source_chain_configs"}, "-"),
 			primitives.Finalized,
-			map[string]any{}, // No parameters needed
+			&params, // no parameters needed
 			&retAllSourceChainConfigs,
 		)
 		require.NoError(t, err)
 
-		// require.NotNil(t, retAllSourceChainConfigs)
-		// require.Equal(t, uint64(16015286), retAllSourceChainConfigs["chain_selectors"][0], "Expected chain selector to be 16015286")
-		// require.Equal(t, true, retAllSourceChainConfigs["chain_configs"][0]["is_enabled"], "Expected chain config to be enabled")
-		log.Debugw("retAllSourceChainConfigs", "retAllSourceChainConfigs", retAllSourceChainConfigs)
+		// Convert bytes to JSON
+		var jsonResult [][]any
+		err = json.Unmarshal(retAllSourceChainConfigs, &jsonResult)
+		require.NoError(t, err)
+
+		log.Debugw("jsonResult", "jsonResult", jsonResult)
 	})
 }

@@ -328,6 +328,35 @@ func DecodeSuiPrimative(bcsDecoder *aptosBCS.Deserializer, primativeType string)
 	return nil, fmt.Errorf("unsupported BCS primitive type: %s", primativeType)
 }
 
+// DecodeVectorOfStructs decodes a vector of structs from BCS bytes
+// vectorType should be in format "vector<0xpackage::module::StructName>"
+func DecodeVectorOfStructs(bcsDecoder *aptosBCS.Deserializer, vectorType string, normalizedStructs map[string]any) (any, error) {
+	// Check if it's actually a vector type
+	if !strings.HasPrefix(vectorType, "vector<") || !strings.HasSuffix(vectorType, ">") {
+		return nil, fmt.Errorf("not a vector type: %s", vectorType)
+	}
+
+	// Extract inner type
+	innerType := strings.TrimSuffix(strings.TrimPrefix(vectorType, "vector<"), ">")
+
+	// Check if inner type is a struct (has 3 parts when split by ::)
+	structParts := strings.Split(innerType, "::")
+	if len(structParts) != 3 {
+		return nil, fmt.Errorf("inner type is not a struct: %s", innerType)
+	}
+
+	structName := structParts[2]
+
+	// Create vector type definition compatible with decodeVectorField
+	vectorTypedef := map[string]any{
+		"Struct": map[string]any{
+			"name": structName,
+		},
+	}
+
+	return decodeVectorField(bcsDecoder, vectorTypedef, normalizedStructs)
+}
+
 // Helper function to decode primitive types
 func decodePrimitiveType(bcsDecoder *aptosBCS.Deserializer, primitiveType string) (any, error) {
 	switch primitiveType {
