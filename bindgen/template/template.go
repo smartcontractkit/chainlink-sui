@@ -54,12 +54,13 @@ func MustParseFunctionInfo(info ...string) []FunctionInfo {
 var tmpl string
 
 type tmplData struct {
-	Package  string
-	Module   string
-	Structs  []*tmplStruct
-	Funcs    []*tmplFunc
-	Imports  []*tmplImport
-	Artifact bind.PackageArtifact
+	Package      string
+	Module       string
+	FunctionInfo string
+	Structs      []*tmplStruct
+	Funcs        []*tmplFunc
+	Imports      []*tmplImport
+	Artifact     bind.PackageArtifact
 }
 
 func (d *tmplData) BuildStructMap() map[string]*tmplStruct {
@@ -289,7 +290,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 			})
 			functionInfo.Parameters = append(functionInfo.Parameters, FunctionParameter{
 				Name: param.Name,
-				Type: originalType,
+				Type: typ.GoType,
 			})
 		}
 		for _, returnType := range f.ReturnTypes {
@@ -314,6 +315,14 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 	slices.SortFunc(functionInfos, func(a, b FunctionInfo) int {
 		return strings.Compare(a.Name, b.Name)
 	})
+	marshalledInfo, err := json.Marshal(functionInfos)
+	if err != nil {
+		return tmplData{}, err
+	}
+	data.FunctionInfo = string(marshalledInfo)
+	for _, v := range importMap {
+		data.Imports = append(data.Imports, v)
+	}
 
 	for _, v := range importMap {
 		data.Imports = append(data.Imports, v)

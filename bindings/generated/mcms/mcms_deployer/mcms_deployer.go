@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"mcms","module":"mcms_deployer","name":"authorize_upgrade","parameters":[{"name":"_","type":"bind.Object"},{"name":"state","type":"bind.Object"},{"name":"policy","type":"byte"},{"name":"digest","type":"[]byte"},{"name":"package_address","type":"string"}]},{"package":"mcms","module":"mcms_deployer","name":"commit_upgrade","parameters":[{"name":"state","type":"bind.Object"},{"name":"receipt","type":"bind.Object"}]},{"package":"mcms","module":"mcms_deployer","name":"register_upgrade_cap","parameters":[{"name":"state","type":"bind.Object"},{"name":"registry","type":"bind.Object"},{"name":"upgrade_cap","type":"bind.Object"}]}]`
+
 type IMcmsDeployer interface {
 	RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, upgradeCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AuthorizeUpgrade(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, policy byte, digest []byte, packageAddress string) (*models.SuiTransactionBlockResponse, error)

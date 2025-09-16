@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"ccip","module":"nonce_manager","name":"get_incremented_outbound_nonce","parameters":[{"name":"ref","type":"bind.Object"},{"name":"_","type":"bind.Object"},{"name":"dest_chain_selector","type":"uint64"},{"name":"sender","type":"string"}]},{"package":"ccip","module":"nonce_manager","name":"get_outbound_nonce","parameters":[{"name":"ref","type":"bind.Object"},{"name":"dest_chain_selector","type":"uint64"},{"name":"sender","type":"string"}]},{"package":"ccip","module":"nonce_manager","name":"initialize","parameters":[{"name":"ref","type":"bind.Object"},{"name":"owner_cap","type":"bind.Object"}]},{"package":"ccip","module":"nonce_manager","name":"type_and_version","parameters":null}]`
+
 type INonceManager interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)

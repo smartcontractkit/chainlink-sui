@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"ccip","module":"upgrade_registry","name":"block_function","parameters":[{"name":"ref","type":"bind.Object"},{"name":"_","type":"bind.Object"},{"name":"module_name","type":"string"},{"name":"function_name","type":"string"},{"name":"version","type":"byte"}]},{"package":"ccip","module":"upgrade_registry","name":"block_version","parameters":[{"name":"ref","type":"bind.Object"},{"name":"_","type":"bind.Object"},{"name":"module_name","type":"string"},{"name":"version","type":"byte"}]},{"package":"ccip","module":"upgrade_registry","name":"get_module_restrictions","parameters":[{"name":"ref","type":"bind.Object"},{"name":"module_name","type":"string"}]},{"package":"ccip","module":"upgrade_registry","name":"initialize","parameters":[{"name":"ref","type":"bind.Object"},{"name":"owner_cap","type":"bind.Object"}]},{"package":"ccip","module":"upgrade_registry","name":"is_function_allowed","parameters":[{"name":"ref","type":"bind.Object"},{"name":"module_name","type":"string"},{"name":"function_name","type":"string"},{"name":"version","type":"byte"}]},{"package":"ccip","module":"upgrade_registry","name":"verify_function_allowed","parameters":[{"name":"ref","type":"bind.Object"},{"name":"module_name","type":"string"},{"name":"function_name","type":"string"},{"name":"version","type":"byte"}]}]`
+
 type IUpgradeRegistry interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error)

@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"ccip","module":"receiver_registry","name":"get_receiver_config","parameters":[{"name":"ref","type":"bind.Object"},{"name":"receiver_package_id","type":"string"}]},{"package":"ccip","module":"receiver_registry","name":"get_receiver_config_fields","parameters":[{"name":"rc","type":"ReceiverConfig"}]},{"package":"ccip","module":"receiver_registry","name":"get_receiver_info","parameters":[{"name":"ref","type":"bind.Object"},{"name":"receiver_package_id","type":"string"}]},{"package":"ccip","module":"receiver_registry","name":"initialize","parameters":[{"name":"ref","type":"bind.Object"},{"name":"owner_cap","type":"bind.Object"}]},{"package":"ccip","module":"receiver_registry","name":"is_registered_receiver","parameters":[{"name":"ref","type":"bind.Object"},{"name":"receiver_package_id","type":"string"}]},{"package":"ccip","module":"receiver_registry","name":"register_receiver","parameters":[{"name":"ref","type":"bind.Object"},{"name":"_proof","type":"bind.Object"}]},{"package":"ccip","module":"receiver_registry","name":"type_and_version","parameters":null},{"package":"ccip","module":"receiver_registry","name":"unregister_receiver","parameters":[{"name":"ref","type":"bind.Object"},{"name":"_","type":"bind.Object"},{"name":"receiver_package_id","type":"string"}]}]`
+
 type IReceiverRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
