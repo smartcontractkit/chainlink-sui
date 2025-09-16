@@ -198,6 +198,15 @@ func decodeVectorField(bcsDecoder *aptosBCS.Deserializer, vectorType any, normal
 
 			return bytes, nil
 		//nolint:goconst
+		case "U64":
+			// This is vector<u64> - read as uint64
+			uint64s := make([]uint64, vectorLength)
+			for i := range vectorLength {
+				uint64s[i] = bcsDecoder.U64()
+			}
+
+			return uint64s, nil
+		//nolint:goconst
 		case "Address":
 			// This is vector<address>
 			addresses := make([]any, vectorLength)
@@ -309,6 +318,8 @@ func DecodeSuiPrimative(bcsDecoder *aptosBCS.Deserializer, primativeType string)
 			return decodeVectorField(bcsDecoder, "Address", nil)
 		case "U8", "u8":
 			return decodeVectorField(bcsDecoder, "U8", nil)
+		case "U64", "u64":
+			return decodeVectorField(bcsDecoder, "U64", nil)
 		case "vector<U8>", "vector<u8>":
 			return decodeVectorField(bcsDecoder, map[string]any{"Vector": "U8"}, nil)
 		}

@@ -383,14 +383,67 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		for i, returnedValue := range functionReadResponse[0].ReturnValues {
 			returnedValue := returnedValue.([]any)
 			structTag := returnedValue[1].(string)
-			structParts := strings.Split(structTag, "::")
 
-			// create a bcs decoder from the return value
+			// create a bcs decoder from the return value for all result types
 			bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
 			if err != nil {
 				return fmt.Errorf("failed to convert return value to bytes: %w", err)
 			}
 			bcsDecoder := bcs.NewDeserializer(bcsBytes)
+
+			// Handle vector<...> types, including vector<Struct>
+			if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
+				innerTag := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
+				innerParts := strings.Split(innerTag, "::")
+				// Special-case vector<string>
+				if innerTag == "0x1::string::String" {
+					// Decode vector<string>
+					vecLen := bcsDecoder.Uleb128()
+					values := make([]any, vecLen)
+					for vi := range vecLen {
+						values[vi] = bcsDecoder.ReadString()
+					}
+					results[i] = values
+					continue
+				}
+
+				// If inner is a struct (pkg::module::Struct), decode each element
+				if len(innerParts) == 3 && strings.HasPrefix(innerParts[0], "0x") {
+					pkgId := innerParts[0]
+					moduleName := innerParts[1]
+					structName := innerParts[2]
+
+					normalizedModule, err := c.GetNormalizedModule(ctx, pkgId, moduleName)
+					c.log.Debugw("normalizedModule (vector)", "normalizedModule", normalizedModule)
+					if err != nil {
+						return fmt.Errorf("failed to get normalized struct for vector: %w", err)
+					}
+
+					// Read vector length then decode each struct element
+					vecLen := bcsDecoder.Uleb128()
+					items := make([]any, vecLen)
+					for vi := range vecLen {
+						item, err := codec.DecodeSuiStructToJSON(normalizedModule.Structs, structName, bcsDecoder)
+						if err != nil {
+							return fmt.Errorf("failed to parse struct in vector into JSON: %w", err)
+						}
+						// convert any []uint8 fields to hex strings
+						items[vi] = common.ConvertBytesToHex(item)
+					}
+					results[i] = items
+					continue
+				}
+
+				// Otherwise, let primitive vector decoding handle it (e.g., vector<u64>, vector<address>)
+				primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
+				if err != nil {
+					return fmt.Errorf("failed to decode primitive vector: %w", err)
+				}
+				results[i] = primitive
+				continue
+			}
+
+			structParts := strings.Split(structTag, "::")
 
 			// This is a special case for Sui strings as they are represented as a struct with tag "0x1::string::String"
 			// Since we use the tag to fetch the normalized module, it causes a failure since a module "string" does not exist.
@@ -409,7 +462,20 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 				if err != nil {
 					return fmt.Errorf("failed to decode primitive: %w", err)
 				}
-				results[i] = primitive
+				// Normalize large ints to decimal strings to be LOOP/JSON friendly
+				if structTag == "u128" || structTag == "u256" {
+					switch v := primitive.(type) {
+					case *big.Int:
+						results[i] = v.String()
+					case big.Int:
+						vv := v
+						results[i] = vv.String()
+					default:
+						results[i] = fmt.Sprint(v)
+					}
+				} else {
+					results[i] = primitive
+				}
 			} else {
 				// otherwise, get the normalized struct and attempt turning the result into JSON
 				normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
