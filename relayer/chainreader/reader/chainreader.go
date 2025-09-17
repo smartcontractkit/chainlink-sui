@@ -31,7 +31,6 @@ import (
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	offramphelpers "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 )
 
 const (
@@ -51,8 +50,6 @@ type suiChainReader struct {
 	client           *client.PTBClient
 	dbStore          *database.DBStore
 	indexer          indexer.IndexerApi
-
-	ccipObjectRef string // for caching
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
@@ -602,18 +599,16 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 	pointersValuesMap := make(map[string]map[string]any)
 
 	if slices.Contains(pointers, ccipPointerKey) {
-		if s.ccipObjectRef != "" {
+		if s.client.CCIPObjectPointerId != "" {
 			pointersValuesMap[ccipPointerKey] = map[string]any{
-				"object_ref_id": s.ccipObjectRef,
+				"object_ref_id": s.client.CCIPObjectPointerId,
 			}
 			return pointersValuesMap, nil
 		}
 
 		// only call this if not cached yet
 		// retrieves ccipPkgID and overwrites packageID
-		ccipPkgID, err := offramphelpers.GetOffRampAddressMappingsHelper(
-			ctx, s.logger, s.client, packageId, signerAddress,
-		)
+		ccipPkgID, err := s.client.GetCCIPPackageId(ctx, packageId, signerAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -638,10 +633,10 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 		}
 
 		// now handle caching separately
-		if strings.Contains(obj.Data.Type, ccipPointerKey) && s.ccipObjectRef == "" {
+		if strings.Contains(obj.Data.Type, ccipPointerKey) && s.client.CCIPObjectPointerId == "" {
 			fields := obj.Data.Content.Fields
 			if refID, ok := fields["object_ref_id"].(string); ok {
-				s.ccipObjectRef = refID
+				s.client.CCIPObjectPointerId = refID
 				s.logger.Debugw("Cached ccipObjectRef", "object_ref_id", refID)
 			}
 		}
