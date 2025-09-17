@@ -1,6 +1,8 @@
 package util
 
-import "unicode"
+import (
+	"unicode"
+)
 
 // SnakeToCamel converts "snake_case" to "SnakeCase".
 func SnakeToCamel(s string) string {
