@@ -11,13 +11,13 @@ import (
 
 // DeployMCMSSeqInput defines the input for deploying MCMS with timelock roles configuration
 type DeployMCMSSeqInput struct {
-	ChainSelector uint64 `json:"chainSelector"`
+	ChainSelector uint64 `json:"chainSelector" yaml:"chainSelector"`
 
 	// Optional configs for each timelock role
 	// If nil, the role will not be configured
-	Bypasser  *types.Config `json:"bypasser,omitempty"`
-	Proposer  *types.Config `json:"proposer,omitempty"`
-	Canceller *types.Config `json:"canceller,omitempty"`
+	Bypasser  *types.Config `json:"bypasser,omitempty" yaml:"bypasser,omitempty"`
+	Proposer  *types.Config `json:"proposer,omitempty" yaml:"proposer,omitempty"`
+	Canceller *types.Config `json:"canceller,omitempty" yaml:"canceller,omitempty"`
 }
 
 var DeployMCMSSequence = cld_ops.NewSequence(
