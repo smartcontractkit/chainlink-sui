@@ -231,17 +231,21 @@ var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to get dest chain config: %w", err)
 	}
 
-	// The first return value is isEnabled (bool)
-	isEnabled, ok := config[0].(bool)
+	// GetDestChainConfig returns (sequence_number: u64, allowlist_enabled: bool, router: address)
+	// The router address being non-zero indicates the destination chain is enabled
+	router, ok := config[2].(string)
 	if !ok {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to parse isEnabled from config")
+		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to parse router address from config")
 	}
+
+	// Chain is supported if router is not zero address
+	isSupported := router != "0x0" && router != "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
 		PackageId: input.OnRampPackageId,
 		Objects: IsChainSupportedOutput{
-			IsChainSupported: isEnabled,
+			IsChainSupported: isSupported,
 		},
 	}, nil
 }
