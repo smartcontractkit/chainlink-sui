@@ -192,6 +192,9 @@ const EXECUTION_STATE_UNTOUCHED: u8 = 0;
 // const EXECUTION_STATE_IN_PROGRESS: u8 = 1;
 const EXECUTION_STATE_SUCCESS: u8 = 2;
 // const EXECUTION_STATE_FAILURE: u8 = 3;
+const ZERO_MERKLE_ROOT: vector<u8> = vector[
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 
 const ESourceChainSelectorsMismatch: u64 = 1;
 const EZeroChainSelector: u64 = 2;
@@ -203,22 +206,26 @@ const ETokenDataMismatch: u64 = 7;
 const ERootNotCommitted: u64 = 8;
 const EManualExecutionNotYetEnabled: u64 = 9;
 const ESourceChainNotEnabled: u64 = 10;
-const EInvalidRoot: u64 = 11;
-const EStaleCommitReport: u64 = 12;
-const ECursedByRmn: u64 = 13;
-const ESignatureVerificationRequiredInCommitPlugin: u64 = 14;
-const ESignatureVerificationNotAllowedInExecutionPlugin: u64 = 15;
-const EFeeQuoterCapExists: u64 = 16;
-const ETokenAmountOverflow: u64 = 17;
-const EDestTransferCapExists: u64 = 18;
-const EUnsupportedToken: u64 = 19;
-const EInvalidOnRampUpdate: u64 = 20;
-const EDestTransferCapNotSet: u64 = 21;
-const ECalculateMessageHashInvalidArguments: u64 = 22;
-const EInvalidFunction: u64 = 23;
-const EInvalidTokenReceiver: u64 = 24;
-const ETokenTransferLimitExceeded: u64 = 25;
-const EPackageIdNotFound: u64 = 26;
+const ECommitOnRampMismatch: u64 = 11;
+const EInvalidInterval: u64 = 12;
+const EInvalidRoot: u64 = 13;
+const ERootAlreadyCommitted: u64 = 14;
+const EStaleCommitReport: u64 = 15;
+const ECursedByRmn: u64 = 16;
+const ESignatureVerificationRequiredInCommitPlugin: u64 = 17;
+const ESignatureVerificationNotAllowedInExecutionPlugin: u64 = 18;
+const EFeeQuoterCapExists: u64 = 19;
+const ETokenAmountOverflow: u64 = 20;
+const EDestTransferCapExists: u64 = 21;
+const ERmnBlessingMismatch: u64 = 22;
+const EUnsupportedToken: u64 = 23;
+const EInvalidOnRampUpdate: u64 = 24;
+const EDestTransferCapNotSet: u64 = 25;
+const ECalculateMessageHashInvalidArguments: u64 = 26;
+const EInvalidFunction: u64 = 27;
+const EInvalidTokenReceiver: u64 = 28;
+const ETokenTransferLimitExceeded: u64 = 29;
+const EPackageIdNotFound: u64 = 30;
 
 const VERSION: u8 = 1;
 
@@ -976,6 +983,16 @@ public fun commit(
     );
     let commit_report = deserialize_commit_report(report);
 
+    // // there will be no blessed merkle roots
+    // if (commit_report.blessed_merkle_roots.length() > 0) {
+    //     verify_blessed_roots(
+    //         ref,
+    //         object::uid_to_address(&state.id),
+    //         &commit_report.blessed_merkle_roots,
+    //         commit_report.rmn_signatures,
+    //     );
+    // };
+
     if (
         commit_report.price_updates.token_price_updates.length() > 0
             || commit_report.price_updates.gas_price_updates.length() > 0
@@ -1010,9 +1027,17 @@ public fun commit(
                 ctx,
             );
         } else {
-            abort EStaleCommitReport
+            // If no non-stale valid price updates are present and the report contains no unblessed merkle roots,
+            // report is stale and should be rejected. there will be no blessed merkle roots
+            assert!(commit_report.unblessed_merkle_roots.length() > 0, EStaleCommitReport);
         };
     };
+
+    // // Commit the roots that do require RMN blessing validation.
+    // // The blessings are checked at the start of this function.
+    // commit_merkle_roots(ref, state, clock, commit_report.blessed_merkle_roots, true);
+    // Commit the roots that do not require RMN blessing validation.
+    commit_merkle_roots(ref, state, clock, commit_report.unblessed_merkle_roots, false);
 
     event::emit(CommitReportAccepted {
         blessed_merkle_roots: commit_report.blessed_merkle_roots,
@@ -1029,6 +1054,47 @@ public fun commit(
         signatures,
         ctx,
     )
+}
+
+fun commit_merkle_roots(
+    ref: &CCIPObjectRef,
+    state: &mut OffRampState,
+    clock: &clock::Clock,
+    merkle_roots: vector<MerkleRoot>,
+    is_blessed: bool,
+) {
+    merkle_roots.do_ref!(|root| {
+        let root: &MerkleRoot = root;
+        let source_chain_selector = root.source_chain_selector;
+
+        assert!(!rmn_remote::is_cursed_u128(ref, source_chain_selector as u128), ECursedByRmn);
+
+        assert_source_chain_enabled(state, source_chain_selector);
+
+        let source_chain_config = state.source_chain_configs.get_mut(&source_chain_selector);
+
+        // If the root is blessed but RMN blessing is disabled for the source chain, or if the root is not
+        // blessed but RMN blessing is enabled, we revert.
+        assert!(
+            is_blessed != source_chain_config.is_rmn_verification_disabled,
+            ERmnBlessingMismatch,
+        );
+
+        assert!(source_chain_config.on_ramp == root.on_ramp_address, ECommitOnRampMismatch);
+        assert!(
+            source_chain_config.min_seq_nr == root.min_seq_nr
+                    && root.min_seq_nr <= root.max_seq_nr,
+            EInvalidInterval,
+        );
+
+        let merkle_root = root.merkle_root;
+        assert!(merkle_root.length() == 32 && merkle_root != ZERO_MERKLE_ROOT, EInvalidRoot);
+
+        assert!(!state.roots.contains(merkle_root), ERootAlreadyCommitted);
+
+        source_chain_config.min_seq_nr = root.max_seq_nr + 1;
+        state.roots.add(merkle_root, clock.timestamp_ms() / 1000);
+    })
 }
 
 public fun get_latest_price_sequence_number(state: &OffRampState): u64 {
