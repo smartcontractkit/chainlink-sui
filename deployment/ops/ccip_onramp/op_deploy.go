@@ -69,8 +69,8 @@ type OnRampInitializeInput struct {
 	FeeAggregator             string
 	AllowListAdmin            string
 	DestChainSelectors        []uint64
-	DestChainEnabled          []bool
 	DestChainAllowListEnabled []bool
+	DestChainRouters          []string
 }
 
 var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRampInitializeInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
@@ -92,8 +92,8 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 		input.FeeAggregator,
 		input.AllowListAdmin,
 		input.DestChainSelectors,
-		input.DestChainEnabled,
 		input.DestChainAllowListEnabled,
+		input.DestChainRouters,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute onRamp initialization: %w", err)
@@ -112,8 +112,8 @@ type ApplyDestChainConfigureOnRampInput struct {
 	OwnerCapObjectId          string
 	StateObjectId             string
 	DestChainSelector         []uint64
-	DestChainEnabled          []bool
 	DestChainAllowListEnabled []bool
+	DestChainRouters          []string
 }
 
 var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplyDestChainConfigureOnRampInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
@@ -131,8 +131,8 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
-		input.DestChainEnabled,
 		input.DestChainAllowListEnabled,
+		input.DestChainRouters,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute ApplyDestChainUpdate on onRamp: %w", err)
