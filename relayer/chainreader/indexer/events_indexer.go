@@ -60,7 +60,8 @@ func NewEventIndexer(
 }
 
 func (eIndexer *EventsIndexer) Start(ctx context.Context) error {
-	ticker := time.NewTicker(eIndexer.pollingInterval)
+	eIndexer.logger.Info("INDEXER LOGGER: ", eIndexer.pollingInterval)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {

@@ -92,7 +92,8 @@ func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
 	tIndexer.logger.Infow("Transaction polling goroutine started")
 	defer tIndexer.logger.Infow("Transaction polling goroutine exited")
 
-	ticker := time.NewTicker(tIndexer.pollingInterval)
+	tIndexer.logger.Info("INDEXER LOGGER: ", tIndexer.pollingInterval)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {
