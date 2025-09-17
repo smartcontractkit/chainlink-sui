@@ -205,9 +205,11 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 
 	// Process each command in order
 	for _, cmd := range txnConfig.PTBCommands {
+		p.log.Info("ENTEREED PTB COMMMANDS")
 		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
+			p.log.Info("CALLING SUI PTB MOVE CALL")
 			// Override the package ID with the latest package ID of the module being called,
 			// fallback to the provided package ID if the module does not have the `get_latest_package_id` function
 			latestPackageId, err := p.client.(*client.PTBClient).GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
@@ -215,6 +217,8 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 				return nil, err
 			}
 			cmd.PackageId = &latestPackageId
+
+			p.log.Info("LATESTPKGID: ", cmd.PackageId)
 
 			_, err = p.ProcessMoveCall(ctx, ptb, cmd, &arguments, &cachedArgs)
 			if err != nil {
@@ -241,6 +245,7 @@ func (p *PTBConstructor) ProcessMoveCall(
 	arguments *cwConfig.Arguments,
 	cachedArgs *map[string]transaction.Argument,
 ) (*transaction.Argument, error) {
+	p.log.Info("PROCESSING MOVE CALL")
 	p.log.Debugw("Processing move call", "Command", cmd, "Args", arguments)
 
 	// All three fields below are required for a successful move call
