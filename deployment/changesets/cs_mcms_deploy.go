@@ -11,16 +11,12 @@ import (
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
-type DeployMCMSConfig struct {
-	ChainSelector uint64 `yaml:"chainSelector"`
-}
-
-var _ cldf.ChangeSetV2[DeployMCMSConfig] = DeployMCMS{}
+var _ cldf.ChangeSetV2[mcmsops.DeployMCMSSeqInput] = DeployMCMS{}
 
 type DeployMCMS struct{}
 
 // Apply implements deployment.ChangeSetV2.
-func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.ChangesetOutput, error) {
+func (d DeployMCMS) Apply(e cldf.Environment, config mcmsops.DeployMCMSSeqInput) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
 	seqReports := make([]cld_ops.Report[any, any], 0)
 
@@ -40,8 +36,8 @@ func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.Cha
 		},
 	}
 
-	// Run DeployMCMS Operation
-	mcmsReport, err := cld_ops.ExecuteOperation(e.OperationsBundle, mcmsops.DeployMCMSOp, deps, cld_ops.EmptyInput{})
+	// Run DeployMCMS Sequence
+	mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, config)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.ChainSelector, err)
 	}
@@ -95,6 +91,6 @@ func (d DeployMCMS) Apply(e cldf.Environment, config DeployMCMSConfig) (cldf.Cha
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d DeployMCMS) VerifyPreconditions(e cldf.Environment, config DeployMCMSConfig) error {
+func (d DeployMCMS) VerifyPreconditions(e cldf.Environment, config mcmsops.DeployMCMSSeqInput) error {
 	return nil
 }
