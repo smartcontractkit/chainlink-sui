@@ -19,12 +19,21 @@ var (
 	SuiOffRampStateObjectIDType    deployment.ContractType = "SuiOffRampStateObjectId"
 	SuiLockReleaseTPType           deployment.ContractType = "SuiLockReleaseToken"
 	SuiLockReleaseTPStateType      deployment.ContractType = "SuiLockReleaseTokenState"
-	SuiMCMSType                    deployment.ContractType = "SuiManyChainMultisig"
-	SuiLinkTokenType               deployment.ContractType = "SuiLinkToken"
-	SuiBnMTokenPoolType            deployment.ContractType = "SuiBnMTokenPool"
-	SuiBnMTokenPoolStateType       deployment.ContractType = "SuiBnMTokenPoolState"
-	SuiLinkTokenObjectMetadataID   deployment.ContractType = "SuiLinkTokenObjectMetadataId"
-	SuiLinkTokenTreasuryCapID      deployment.ContractType = "SuiLinkTokenTreasuryCapId"
+
+	// MCMS Related
+	SuiMcmsPackageIDType               deployment.ContractType = "SuiManyChainMultisigPackageId"
+	SuiMcmsObjectIDType                deployment.ContractType = "SuiManyChainMultisigObjectId"
+	SuiMcmsRegistryObjectIdType        deployment.ContractType = "SuiManyChainMultisigRegistryObjectId"
+	SuiMcmsAccountStateObjectIdType    deployment.ContractType = "SuiManyChainMultisigAccountStateObjectId"
+	SuiMcmsAccountOwnerCapObjectIdType deployment.ContractType = "SuiManyChainMultisigAccountOwnerCapObjectId"
+	SuiMcmsTimelockObjectIdType        deployment.ContractType = "SuiManyChainMultisigTimelockObjectId"
+
+	// Link related
+	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
+	SuiBnMTokenPoolType          deployment.ContractType = "SuiBnMTokenPool"
+	SuiBnMTokenPoolStateType     deployment.ContractType = "SuiBnMTokenPoolState"
+	SuiLinkTokenObjectMetadataID deployment.ContractType = "SuiLinkTokenObjectMetadataId"
+	SuiLinkTokenTreasuryCapID    deployment.ContractType = "SuiLinkTokenTreasuryCapId"
 )
 
 var (

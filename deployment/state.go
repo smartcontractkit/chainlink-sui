@@ -72,7 +72,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiLockReleaseTPStateType:
 			chainState.LockReleaseStateID = addr
 
-		case SuiMCMSType:
+		case SuiMcmsPackageIDType:
 			chainState.MCMsAddress = addr
 
 		case SuiTokenPoolType:
