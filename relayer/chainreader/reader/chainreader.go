@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -30,12 +31,14 @@ import (
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
+	offramphelpers "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 )
 
 const (
 	defaultQueryLimit   = 25
 	readIdentifierParts = 3
 	objectIdPrefix      = "0x"
+	ccipPointerKey      = "state_object::CCIPObjectRefPointer"
 )
 
 type suiChainReader struct {
@@ -48,6 +51,8 @@ type suiChainReader struct {
 	client           *client.PTBClient
 	dbStore          *database.DBStore
 	indexer          indexer.IndexerApi
+
+	ccipObjectRef string // for caching
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
@@ -573,7 +578,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		// make a read request to the contract
 		pointersSet = append(pointersSet, pointer)
 	}
-	pointersValuesMap, err := s.fetchPointers(ctx, pointersSet, identifier.address)
+	pointersValuesMap, err := s.fetchPointers(ctx, pointersSet, identifier.address, functionConfig.SignerAddress)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch pointers: %w", err)
 	}
@@ -611,8 +616,27 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 // fetchPointers gets all the specified pointers from a specific contract.
 // Returns a map of { pointerTag: { ... } }
-func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, packageId string) (map[string]map[string]any, error) {
+func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, packageId, signerAddress string) (map[string]map[string]any, error) {
 	pointersValuesMap := make(map[string]map[string]any)
+
+	if slices.Contains(pointers, ccipPointerKey) {
+		if s.ccipObjectRef != "" {
+			pointersValuesMap[ccipPointerKey] = map[string]any{
+				"object_ref_id": s.ccipObjectRef,
+			}
+			return pointersValuesMap, nil
+		}
+
+		// only call this if not cached yet
+		// retrieves ccipPkgID and overwrites packageID
+		ccipPkgID, err := offramphelpers.GetOffRampAddressMappingsHelper(
+			ctx, s.logger, s.client, packageId, signerAddress,
+		)
+		if err != nil {
+			return nil, err
+		}
+		packageId = ccipPkgID
+	}
 
 	// fetch owned objects
 	ownedObjects, err := s.client.ReadOwnedObjects(ctx, packageId, nil)
@@ -620,13 +644,23 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 		return nil, err
 	}
 
-	// check each returned object
-	for _, ownedObject := range ownedObjects {
-		// check if it matches any of the pointers
+	for _, obj := range ownedObjects {
+		if obj.Data.Type == "" {
+			continue
+		}
 		for _, pointer := range pointers {
-			// object tag matches
-			if ownedObject.Data.Type != "" && strings.Contains(ownedObject.Data.Type, pointer) {
-				pointersValuesMap[pointer] = ownedObject.Data.Content.Fields
+			if strings.Contains(obj.Data.Type, pointer) {
+				fields := obj.Data.Content.Fields
+				pointersValuesMap[pointer] = fields
+			}
+		}
+
+		// now handle caching separately
+		if strings.Contains(obj.Data.Type, ccipPointerKey) && s.ccipObjectRef == "" {
+			fields := obj.Data.Content.Fields
+			if refID, ok := fields["object_ref_id"].(string); ok {
+				s.ccipObjectRef = refID
+				s.logger.Debugw("Cached ccipObjectRef", "object_ref_id", refID)
 			}
 		}
 	}
