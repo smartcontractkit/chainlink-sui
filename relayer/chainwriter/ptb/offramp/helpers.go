@@ -6,10 +6,7 @@ import (
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
-	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
 
 func AnyPointer[T any](v T) *T {
@@ -67,7 +64,7 @@ func GetOfframpAddressMappings(
 		return OffRampAddressMappings{}, err
 	}
 
-	ccipPkgID, err := GetOffRampAddressMappingsHelper(ctx, lggr, ptbClient, addressMappings.OffRampPackageId, signerAddress)
+	ccipPkgID, err := ptbClient.GetCCIPPackageId(ctx, addressMappings.OffRampPackageId, signerAddress)
 	if err != nil {
 		return OffRampAddressMappings{}, nil
 	}
@@ -77,56 +74,40 @@ func GetOfframpAddressMappings(
 	lggr.Debugw("ccipPackageId", "ccipPackageId", addressMappings.CcipPackageId)
 	lggr.Debugw("offRampPackageId", "offrampPackageId", addressMappings.OffRampPackageId)
 
-	// get the offramp state object
-	offrampOwnedObjects, err := ptbClient.ReadOwnedObjects(ctx, addressMappings.OffRampPackageId, nil)
-	if err != nil {
-		lggr.Errorw("Error reading offramp state object", "error", err)
-		return OffRampAddressMappings{}, err
-	}
-	for _, ccipOwnedObject := range offrampOwnedObjects {
-		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, "offramp::OffRampStatePointer") {
-			lggr.Debugw("Found offramp state object pointer", "fields", ccipOwnedObject.Data.Content.Fields)
-			// parse the object into a map
-			parsedObject := ccipOwnedObject.Data.Content.Fields
-			lggr.Debugw("offRampStatePointer Parsed", "offRampStatePointer", parsedObject)
-			addressMappings.OffRampState = parsedObject["off_ramp_state_id"].(string)
-
-			break
+	// get the offramp state object and check if it's cached
+	offrampPointerFieldKey := "off_ramp_state_id"
+	if offrampPointerFields, ok := ptbClient.GetCachedValue(offrampPointerFieldKey); ok {
+		addressMappings.OffRampState = offrampPointerFields.(string)
+	} else {
+		offrampPointerFields, err := ptbClient.GetValuesFromPackageOwnedObjectField(ctx, addressMappings.OffRampPackageId, "offramp", "OffRampStatePointer", []string{offrampPointerFieldKey})
+		if err != nil {
+			lggr.Errorw("Error getting offramp state object", "error", err)
+			return OffRampAddressMappings{}, err
 		}
-	}
-	if addressMappings.OffRampState == "" {
-		lggr.Errorw("Address mappings are not populated", "addressMappings", addressMappings)
-		return OffRampAddressMappings{}, fmt.Errorf("address mappings are missing required fields for expander (offRampState)")
+
+		addressMappings.OffRampState = offrampPointerFields[offrampPointerFieldKey]
+		ptbClient.SetCachedValue(offrampPointerFieldKey, addressMappings.OffRampState)
 	}
 
-	// Get the object pointer present in the CCIP package ID
-	ccipOwnedObjects, err := ptbClient.ReadOwnedObjects(ctx, addressMappings.CcipPackageId, nil)
-	if err != nil {
-		lggr.Errorw("Error reading ccip object ref", "error", err)
-		return OffRampAddressMappings{}, err
-	}
-	for _, ccipOwnedObject := range ccipOwnedObjects {
-		if ccipOwnedObject.Data.Type != "" && strings.Contains(ccipOwnedObject.Data.Type, "state_object::CCIPObjectRefPointer") {
-			// parse the object into a map
-			parsedObject := ccipOwnedObject.Data.Content.Fields
-			if err != nil {
-				lggr.Errorw("Error parsing ccip object ref", "error", err)
-				return OffRampAddressMappings{}, err
-			}
-			lggr.Debugw("ccipObjectRefPointer", "ccipObjectRefPointer", parsedObject)
-			addressMappings.CcipObjectRef = parsedObject["object_ref_id"].(string)
-			addressMappings.CcipOwnerCap = parsedObject["owner_cap_id"].(string)
-
-			break
+	// Get the object pointer present in the CCIP package ID (state_object module)
+	ccipPointerFieldKeys := []string{"object_ref_id", "owner_cap_id"}
+	if ccipPointerFields, ok := ptbClient.GetCachedValues(ccipPointerFieldKeys); ok {
+		addressMappings.CcipObjectRef = ccipPointerFields["object_ref_id"].(string)
+		addressMappings.CcipOwnerCap = ccipPointerFields["owner_cap_id"].(string)
+	} else {
+		ccipPointerFields, err := ptbClient.GetValuesFromPackageOwnedObjectField(ctx, ccipPkgID, "state_object", "CCIPObjectRefPointer", ccipPointerFieldKeys)
+		if err != nil {
+			lggr.Errorw("Error getting ccip object ref and owner cap", "error", err)
+			return OffRampAddressMappings{}, err
 		}
-	}
-	// check that address mappings are populated
-	if addressMappings.CcipObjectRef == "" || addressMappings.CcipOwnerCap == "" {
-		lggr.Errorw("Address mappings are not populated", "addressMappings", addressMappings)
-		return OffRampAddressMappings{}, fmt.Errorf("address mappings are missing required fields for expander (ccipObjectRef, ccipOwnerCap)")
-	}
 
-	lggr.Debugw("Address mappings for expander", "addressMappings", addressMappings)
+		addressMappings.CcipObjectRef = ccipPointerFields["object_ref_id"]
+		addressMappings.CcipOwnerCap = ccipPointerFields["owner_cap_id"]
+		ptbClient.SetCachedValues(map[string]any{
+			"object_ref_id": ccipPointerFields["object_ref_id"],
+			"owner_cap_id":  ccipPointerFields["owner_cap_id"],
+		})
+	}
 
 	return addressMappings, nil
 }
@@ -305,24 +286,4 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 	}
 
 	return paramTypes, nil
-}
-
-func GetOffRampAddressMappingsHelper(ctx context.Context, lggr logger.Logger, ptbClient client.SuiPTBClient, offRampPackageID string, signerAddress string) (string, error) {
-	offRamp, err := module_offramp.NewOfframp(offRampPackageID, ptbClient.GetClient())
-	if err != nil {
-		return "", err
-	}
-
-	devInspectSigner := signer.NewDevInspectSigner(signerAddress)
-
-	ccipPkgId, err := offRamp.DevInspect().GetCcipPackageId(ctx, &bind.CallOpts{
-		Signer:           devInspectSigner,
-		WaitForExecution: true,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return ccipPkgId, nil
-
 }
