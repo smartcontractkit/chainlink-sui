@@ -107,13 +107,9 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		} else {
 			s.lggr.Debugw("No gas budget found, using the transaction simulation")
 		}
-	case cwConfig.CCIPCommit:
-		// TODO: I don't think we need to do anything here
-		s.lggr.Infow("CCIPCommit not implemented", "transactionID", transactionID)
 	}
 
 	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, toAddress, functionConfig)
-
 	if err != nil {
 		s.lggr.Errorw("Error building PTB commands", "error", err)
 		return err

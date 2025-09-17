@@ -171,6 +171,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		return ptb, nil
 
 	case cwConfig.CCIPCommit:
+		p.log.Info("COMMIT BUILDPTBCOMMANDS")
 		// If it's just a commit, then we just need to get the address mappings and use the regular
 		// PTB builder to build the PTB.
 		am, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
@@ -178,6 +179,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 			return nil, err
 		}
 
+		p.log.Info("OFFRAMP ADDRESS MAPPINGS IN COMMIT: ", am)
 		// inject object_ids if missing
 		if arguments.Args == nil {
 			arguments.Args = map[string]any{}
@@ -193,6 +195,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		}
 	}
 
+	p.log.Info("TXCONFIG PTBCOMMANDS: ", txnConfig.PTBCommands)
 	// Create a map for caching objects
 	cachedArgs := make(map[string]transaction.Argument)
 
