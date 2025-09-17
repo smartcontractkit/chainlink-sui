@@ -149,7 +149,7 @@ func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundCo
 }
 
 // GetLatestValue retrieves the latest value from either an object or function call
-func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier string, confidenceLevel primitives.ConfidenceLevel, params, returnVal any) error {
+func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier string, _ primitives.ConfidenceLevel, params, returnVal any) error {
 	parsed, err := s.parseReadIdentifier(readIdentifier)
 	if err != nil {
 		return err
@@ -459,15 +459,17 @@ func (s *suiChainReader) validateContractBinding(contract pkgtypes.BoundContract
 
 // callFunction calls a contract function and returns the result
 func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifier, params any, functionConfig *config.ChainReaderFunction) ([]any, error) {
+	fmt.Println("CALLING CALL FUNCTION")
 	argMap, err := s.parseParams(params, functionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
+	fmt.Println("PASSED PARSE PARAMS")
 	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
 	}
-
+	fmt.Println("PASSED PREPARE ARGS")
 	responseValues, err := s.executeFunction(ctx, parsed, functionConfig, args, argTypes)
 	if err != nil {
 		return nil, err
@@ -565,6 +567,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		return nil, nil, fmt.Errorf("failed to fetch pointers: %w", err)
 	}
 
+	fmt.Println("POINTERS VALUE MAP: ", pointersValuesMap)
 	// for each param, if it has a pointer value, add it to the args map
 	for _, paramConfig := range functionConfig.Params {
 		if paramConfig.PointerTag != nil {
@@ -601,29 +604,19 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, packageId, signerAddress string) (map[string]map[string]any, error) {
 	pointersValuesMap := make(map[string]map[string]any)
 
+	// Handle CCIPObjectRefPointer fetch
 	if slices.Contains(pointers, ccipPointerKey) {
-		if s.ccipObjectRef != "" {
-			pointersValuesMap[ccipPointerKey] = map[string]any{
-				"object_ref_id": s.ccipObjectRef,
-			}
-			return pointersValuesMap, nil
-		}
-
-		// only call this if not cached yet
-		// retrieves ccipPkgID and overwrites packageID
-		ccipPkgID, err := offramphelpers.GetOffRampAddressMappingsHelper(
-			ctx, s.logger, s.client, packageId, signerAddress,
-		)
+		fields, err := s.fetchCCIPObjectRef(ctx, packageId, signerAddress)
 		if err != nil {
 			return nil, err
 		}
-		packageId = ccipPkgID
+		pointersValuesMap[ccipPointerKey] = fields
 	}
 
-	// fetch owned objects
+	// Handle all other pointers against the provided packageId
 	ownedObjects, err := s.client.ReadOwnedObjects(ctx, packageId, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read owned objects: %w", err)
 	}
 
 	for _, obj := range ownedObjects {
@@ -631,23 +624,55 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, p
 			continue
 		}
 		for _, pointer := range pointers {
-			if strings.Contains(obj.Data.Type, pointer) {
-				fields := obj.Data.Content.Fields
-				pointersValuesMap[pointer] = fields
+			// skip CCIP since it’s already handled above
+			if pointer == ccipPointerKey {
+				continue
 			}
-		}
-
-		// now handle caching separately
-		if strings.Contains(obj.Data.Type, ccipPointerKey) && s.ccipObjectRef == "" {
-			fields := obj.Data.Content.Fields
-			if refID, ok := fields["object_ref_id"].(string); ok {
-				s.ccipObjectRef = refID
-				s.logger.Debugw("Cached ccipObjectRef", "object_ref_id", refID)
+			if strings.HasSuffix(obj.Data.Type, pointer) {
+				pointersValuesMap[pointer] = obj.Data.Content.Fields
 			}
 		}
 	}
 
 	return pointersValuesMap, nil
+}
+
+// fetchCCIPObjectRef retrieves and caches the CCIPObjectRef from the CCIP package if not already cached.
+func (s *suiChainReader) fetchCCIPObjectRef(
+	ctx context.Context,
+	packageId, signerAddress string,
+) (map[string]any, error) {
+	// use cache if available
+	if s.ccipObjectRef != "" {
+		s.logger.Debugw("Using cached CCIPObjectRef", "object_ref_id", s.ccipObjectRef)
+		return map[string]any{"object_ref_id": s.ccipObjectRef}, nil
+	}
+
+	s.logger.Debugw("Fetching CCIP package ID for CCIPObjectRef", "packageId", packageId)
+	ccipPkgID, err := offramphelpers.GetOffRampAddressMappingsHelper(
+		ctx, s.logger, s.client, packageId, signerAddress,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ccipObjects, err := s.client.ReadOwnedObjects(ctx, ccipPkgID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CCIP owned objects: %w", err)
+	}
+
+	for _, obj := range ccipObjects {
+		if obj.Data.Type != "" && strings.HasSuffix(obj.Data.Type, ccipPointerKey) {
+			fields := obj.Data.Content.Fields
+			if refID, ok := fields["object_ref_id"].(string); ok {
+				s.ccipObjectRef = refID
+				s.logger.Debugw("Cached CCIPObjectRef", "object_ref_id", refID)
+			}
+			return fields, nil
+		}
+	}
+
+	return nil, fmt.Errorf("CCIPObjectRefPointer not found in CCIP package")
 }
 
 // executeFunction executes the actual function call
