@@ -135,7 +135,10 @@ public fun get_pool(ref: &CCIPObjectRef, coin_metadata_address: address): addres
     }
 }
 
-public fun get_token_config(ref: &CCIPObjectRef, coin_metadata_address: address): TokenConfig {
+public fun get_token_config_struct(
+    ref: &CCIPObjectRef,
+    coin_metadata_address: address,
+): TokenConfig {
     verify_function_allowed(
         ref,
         string::utf8(b"token_admin_registry"),
@@ -161,29 +164,54 @@ public fun get_token_config(ref: &CCIPObjectRef, coin_metadata_address: address)
     }
 }
 
-public fun get_token_configs(
+public fun get_token_config(
     ref: &CCIPObjectRef,
-    coin_metadata_addresses: vector<address>,
-): vector<TokenConfig> {
+    coin_metadata_address: address,
+): (address, address, address) {
     verify_function_allowed(
         ref,
         string::utf8(b"token_admin_registry"),
-        string::utf8(b"get_token_configs"),
+        string::utf8(b"get_token_config"),
         VERSION,
     );
-    let mut token_configs: vector<TokenConfig> = vector[];
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
 
-    coin_metadata_addresses.do_ref!(|coin_metadata_address| {
-        let coin_metadata_address: address = *coin_metadata_address;
-        let token_config = get_token_config(ref, coin_metadata_address);
-        token_configs.push_back(token_config);
-    });
-
-    token_configs
+    if (state.token_configs.contains(coin_metadata_address)) {
+        let token_config = state.token_configs.borrow(coin_metadata_address);
+        (
+            token_config.token_pool_package_id,
+            token_config.administrator,
+            token_config.pending_administrator,
+        )
+    } else {
+        (@0x0, @0x0, @0x0)
+    }
 }
 
+// public fun get_token_configs(
+//     ref: &CCIPObjectRef,
+//     coin_metadata_addresses: vector<address>,
+// ): vector<TokenConfig> {
+//     verify_function_allowed(
+//         ref,
+//         string::utf8(b"token_admin_registry"),
+//         string::utf8(b"get_token_configs"),
+//         VERSION,
+//     );
+//     let mut token_configs: vector<TokenConfig> = vector[];
+
+//     coin_metadata_addresses.do_ref!(|coin_metadata_address| {
+//         let coin_metadata_address: address = *coin_metadata_address;
+//         let token_config = get_token_config(ref, coin_metadata_address);
+//         token_configs.push_back(token_config);
+//     });
+
+//     token_configs
+// }
+
 public fun get_token_config_data(
-    token_config: TokenConfig,
+    ref: &CCIPObjectRef,
+    coin_metadata_address: address,
 ): (
     address,
     String,
@@ -194,17 +222,63 @@ public fun get_token_config_data(
     vector<address>,
     vector<address>,
 ) {
-    (
-        token_config.token_pool_package_id,
-        token_config.token_pool_module,
-        token_config.token_type,
-        token_config.administrator,
-        token_config.pending_administrator,
-        token_config.token_pool_type_proof,
-        token_config.lock_or_burn_params,
-        token_config.release_or_mint_params,
-    )
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"get_token_config"),
+        VERSION,
+    );
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+
+    if (state.token_configs.contains(coin_metadata_address)) {
+        let token_config = state.token_configs.borrow(coin_metadata_address);
+        (
+            token_config.token_pool_package_id,
+            token_config.token_pool_module,
+            token_config.token_type,
+            token_config.administrator,
+            token_config.pending_administrator,
+            token_config.token_pool_type_proof,
+            token_config.lock_or_burn_params,
+            token_config.release_or_mint_params,
+        )
+    } else {
+        (
+            @0x0,
+            string::utf8(b""),
+            ascii::string(b""),
+            @0x0,
+            @0x0,
+            ascii::string(b""),
+            vector[],
+            vector[],
+        )
+    }
 }
+
+// public fun get_token_config_data(
+//     token_config: TokenConfig,
+// ): (
+//     address,
+//     String,
+//     ascii::String,
+//     address,
+//     address,
+//     ascii::String,
+//     vector<address>,
+//     vector<address>,
+// ) {
+//     (
+//         token_config.token_pool_package_id,
+//         token_config.token_pool_module,
+//         token_config.token_type,
+//         token_config.administrator,
+//         token_config.pending_administrator,
+//         token_config.token_pool_type_proof,
+//         token_config.lock_or_burn_params,
+//         token_config.release_or_mint_params,
+//     )
+// }
 
 /// Get configured tokens paginated using a start key and limit.
 /// Caller should call this on a certain block to ensure you the same state for every call.

@@ -708,12 +708,11 @@ public fun test_get_static_config() {
     let ctx = scenario.ctx();
     initialize_fee_quoter(&mut ref, &owner_cap, ctx);
 
-    let static_config = fee_quoter::get_static_config(&ref);
     let (
         max_fee_juels_per_msg,
         link_token,
         token_price_staleness_threshold,
-    ) = fee_quoter::get_static_config_fields(static_config);
+    ) = fee_quoter::get_static_config(&ref);
 
     assert!(max_fee_juels_per_msg == DEFAULT_MAX_FEE_JUELS * ONE_E_18);
     assert!(link_token == MOCK_ADDRESS_1);

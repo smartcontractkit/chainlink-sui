@@ -25,6 +25,8 @@ const ALLOWED_SENDER_3: address = @0x33;
 const OWNER: address = @0x123;
 const FEE_AGGREGATOR: address = @0x456;
 const ALLOWLIST_ADMIN: address = @0x789;
+const DEST_CHAIN_ROUTER_1: address = @0x123;
+const DEST_CHAIN_ROUTER_2: address = @0x345;
 
 // Chain family selectors
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
@@ -160,8 +162,8 @@ fun initialize_onramp(
         FEE_AGGREGATOR,
         ALLOWLIST_ADMIN,
         vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // dest_chain_selectors
-        vector[true, false], // dest_chain_enabled
         vector[true, false], // dest_chain_allowlist_enabled
+        vector[DEST_CHAIN_ROUTER_1, DEST_CHAIN_ROUTER_2], // dest_chain_routers
         ctx,
     );
 }
@@ -312,7 +314,7 @@ fun setup_standalone_fee_test_env(): (
         ALLOWLIST_ADMIN,
         vector[DEST_CHAIN_SELECTOR_1],
         vector[true], // dest_chain_enabled
-        vector[false], // dest_chain_allowlist_enabled
+        vector[@0x0],
         scenario.ctx(),
     );
 
@@ -376,23 +378,21 @@ public fun test_initialize() {
     assert!(onramp::get_expected_next_sequence_number(&env.state, DEST_CHAIN_SELECTOR_1) == 1);
     assert!(onramp::get_expected_next_sequence_number(&env.state, DEST_CHAIN_SELECTOR_2) == 1);
 
-    let (enabled, seq, allowlist_enabled, allowed_senders) = onramp::get_dest_chain_config(
+    let (seq, allowlist_enabled, router) = onramp::get_dest_chain_config(
         &env.state,
         DEST_CHAIN_SELECTOR_1,
     );
-    assert!(enabled == true);
+    assert!(router == DEST_CHAIN_ROUTER_1);
     assert!(seq == 0);
     assert!(allowlist_enabled == true);
-    assert!(allowed_senders == vector[]);
 
-    let (enabled, seq, allowlist_enabled, allowed_senders) = onramp::get_dest_chain_config(
+    let (seq, allowlist_enabled, router) = onramp::get_dest_chain_config(
         &env.state,
         DEST_CHAIN_SELECTOR_2,
     );
-    assert!(enabled == false);
+    assert!(router == DEST_CHAIN_ROUTER_2);
     assert!(seq == 0);
     assert!(allowlist_enabled == false);
-    assert!(allowed_senders == vector[]);
 
     env.tear_down();
     ts::return_to_address(OWNER, owner_cap);
@@ -504,20 +504,19 @@ public fun test_apply_dest_chain_config_updates() {
         &mut env.state,
         &owner_cap,
         vector[new_chain_selector],
-        vector[true], // enabled
-        vector[false], // allowlist disabled
+        vector[true], // allowlist disabled
+        vector[@0x0],
     );
 
     // Verify new chain was added
     assert!(onramp::is_chain_supported(&env.state, new_chain_selector));
-    let (enabled, seq, allowlist_enabled, allowed_senders) = onramp::get_dest_chain_config(
+    let (seq, allowlist_enabled, router) = onramp::get_dest_chain_config(
         &env.state,
         new_chain_selector,
     );
-    assert!(enabled == true);
+    assert!(router == @0x0);
     assert!(seq == 0);
-    assert!(allowlist_enabled == false);
-    assert!(allowed_senders == vector[]);
+    assert!(allowlist_enabled == true);
 
     // Update existing chain config
     onramp::apply_dest_chain_config_updates(
@@ -525,19 +524,18 @@ public fun test_apply_dest_chain_config_updates() {
         &mut env.state,
         &owner_cap,
         vector[DEST_CHAIN_SELECTOR_2],
-        vector[true], // enable previously disabled chain
         vector[true], // enable allowlist
+        vector[DEST_CHAIN_ROUTER_2], // enable previously disabled chain
     );
 
     // Verify chain was updated
-    let (enabled, seq, allowlist_enabled, allowed_senders) = onramp::get_dest_chain_config(
+    let (seq, allowlist_enabled, router) = onramp::get_dest_chain_config(
         &env.state,
         DEST_CHAIN_SELECTOR_2,
     );
-    assert!(enabled == true);
+    assert!(router == DEST_CHAIN_ROUTER_2);
     assert!(seq == 0);
     assert!(allowlist_enabled == true);
-    assert!(allowed_senders == vector[]);
 
     env.tear_down();
     ts::return_to_address(OWNER, owner_cap);
@@ -872,7 +870,7 @@ public fun test_error_dest_chain_argument_mismatch() {
         ALLOWLIST_ADMIN,
         vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // 2 elements
         vector[true], // 1 element - mismatch!
-        vector[true, false], // 2 elements
+        vector[DEST_CHAIN_ROUTER_1, @0x0], // 2 elements
         env.scenario.ctx(),
     );
 
@@ -896,7 +894,7 @@ public fun test_error_invalid_dest_chain_selector() {
         ALLOWLIST_ADMIN,
         vector[0], // Invalid zero chain selector
         vector[true],
-        vector[false],
+        vector[@0x0],
         env.scenario.ctx(),
     );
 
@@ -912,12 +910,10 @@ public fun test_error_unknown_dest_chain_selector() {
     initialize_onramp(&mut env, &owner_cap, nonce_manager_cap, source_transfer_cap);
 
     // Test EUnknownDestChainSelector (3) - querying unknown chain
-    let (_enabled, _seq, _allowlist_enabled, _allowed_senders): (
-        bool,
-        u64,
-        bool,
-        vector<address>,
-    ) = onramp::get_dest_chain_config(&env.state, 999); // Unknown chain
+    let (_seq, _allowlist_enabled, _router): (u64, bool, address) = onramp::get_dest_chain_config(
+        &env.state,
+        999,
+    ); // Unknown chain
 
     env.tear_down();
     ts::return_to_address(OWNER, owner_cap);

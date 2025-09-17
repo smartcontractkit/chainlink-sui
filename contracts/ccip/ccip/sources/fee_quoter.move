@@ -114,11 +114,11 @@ public struct FeeQuoterCap has key, store {
     id: UID,
 }
 
-public struct StaticConfig has drop {
-    max_fee_juels_per_msg: u256,
-    link_token: address,
-    token_price_staleness_threshold: u64,
-}
+// public struct StaticConfig has drop {
+//     max_fee_juels_per_msg: u256,
+//     link_token: address,
+//     token_price_staleness_threshold: u64,
+// }
 
 public struct DestChainConfig has copy, drop, store {
     is_enabled: bool,
@@ -1440,7 +1440,26 @@ public fun apply_dest_chain_config_updates(
     }
 }
 
-public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
+// public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
+//     verify_function_allowed(
+//         ref,
+//         string::utf8(b"fee_quoter"),
+//         string::utf8(b"get_static_config"),
+//         VERSION,
+//     );
+//     let state = state_object::borrow<FeeQuoterState>(ref);
+//     StaticConfig {
+//         max_fee_juels_per_msg: state.max_fee_juels_per_msg,
+//         link_token: state.link_token,
+//         token_price_staleness_threshold: state.token_price_staleness_threshold,
+//     }
+// }
+
+// public fun get_static_config_fields(cfg: StaticConfig): (u256, address, u64) {
+//     (cfg.max_fee_juels_per_msg, cfg.link_token, cfg.token_price_staleness_threshold)
+// }
+
+public fun get_static_config(ref: &CCIPObjectRef): (u256, address, u64) {
     verify_function_allowed(
         ref,
         string::utf8(b"fee_quoter"),
@@ -1448,15 +1467,7 @@ public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
         VERSION,
     );
     let state = state_object::borrow<FeeQuoterState>(ref);
-    StaticConfig {
-        max_fee_juels_per_msg: state.max_fee_juels_per_msg,
-        link_token: state.link_token,
-        token_price_staleness_threshold: state.token_price_staleness_threshold,
-    }
-}
-
-public fun get_static_config_fields(cfg: StaticConfig): (u256, address, u64) {
-    (cfg.max_fee_juels_per_msg, cfg.link_token, cfg.token_price_staleness_threshold)
+    (state.max_fee_juels_per_msg, state.link_token, state.token_price_staleness_threshold)
 }
 
 fun get_validated_token_price(state: &FeeQuoterState, token: address): TimestampedPrice {
