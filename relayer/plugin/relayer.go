@@ -104,6 +104,12 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
+	fmt.Println("TICKET VALUES1: ", *cfg.TransactionsIndexer.PollingIntervalSecs)
+	fmt.Println("TICKET VALUES2: ", *cfg.TransactionsIndexer.PollingIntervalSecs)
+
+	fmt.Println("TICKET VALUES3: ", *cfg.EventsIndexer.PollingIntervalSecs)
+	fmt.Println("TICKET VALUES4: ", *cfg.EventsIndexer.PollingIntervalSecs)
+
 	// Setup indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
