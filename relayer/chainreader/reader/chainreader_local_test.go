@@ -122,7 +122,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						Name:          "get_address_list",
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
-						ResultFieldRenames: map[string]config.RenamedField{
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
 							"addresses": {NewName: "wallets"},
 							"count":     {NewName: "size"},
 						},
@@ -136,7 +136,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						Name:          "get_simple_result",
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
-						ResultFieldRenames: map[string]config.RenamedField{
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
 							"value": {NewName: "renamedValue"},
 						},
 					},
@@ -151,7 +151,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						SignerAddress:       accountAddress,
 						Params:              []codec.SuiFunctionParam{}, // No parameters needed
 						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
-						ResultFieldRenames: map[string]config.RenamedField{
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
 							"value":      {NewName: "answer"},
 							"struct_tag": {NewName: "tag"},
 						},
