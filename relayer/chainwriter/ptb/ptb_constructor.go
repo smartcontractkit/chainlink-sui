@@ -172,6 +172,10 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 
 	case cwConfig.CCIPCommit:
 		p.log.Info("COMMIT BUILDPTBCOMMANDS")
+		// unwrap if core wrapped with Args
+		if inner, ok := arguments.Args["Args"].(map[string]any); ok {
+			arguments.Args = inner
+		}
 		// If it's just a commit, then we just need to get the address mappings and use the regular
 		// PTB builder to build the PTB.
 		am, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
@@ -285,24 +289,24 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 	p.log.Debugw("Processing PTB parameter", "Param", params, "ARGUMENTSS: ", arguments.Args["Args"])
 
 	// if someone passed the wrapper here
-	if wrap, ok := arguments.Args["Args"].(map[string]any); ok {
-		// try to pull ArgTypes from the same wrapper map (or however it was passed)
-		if rawAT, ok := arguments.Args["ArgTypes"]; ok {
-			switch m := rawAT.(type) {
-			case map[string]string:
-				arguments.ArgTypes = m
-			case map[string]any:
-				at := make(map[string]string, len(m))
-				for k, v := range m {
-					if s, ok := v.(string); ok {
-						at[k] = s
-					}
-				}
-				arguments.ArgTypes = at
-			}
-		}
-		arguments.Args = wrap
-	}
+	// if wrap, ok := arguments.Args["Args"].(map[string]any); ok {
+	// 	// try to pull ArgTypes from the same wrapper map (or however it was passed)
+	// 	if rawAT, ok := arguments.Args["ArgTypes"]; ok {
+	// 		switch m := rawAT.(type) {
+	// 		case map[string]string:
+	// 			arguments.ArgTypes = m
+	// 		case map[string]any:
+	// 			at := make(map[string]string, len(m))
+	// 			for k, v := range m {
+	// 				if s, ok := v.(string); ok {
+	// 					at[k] = s
+	// 				}
+	// 			}
+	// 			arguments.ArgTypes = at
+	// 		}
+	// 	}
+	// 	arguments.Args = wrap
+	// }
 
 	for _, param := range params {
 		p.log.Debugw("Processing PTB parameter", "Param", param)
