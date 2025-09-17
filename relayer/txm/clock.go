@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"math/big"
 	"time"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 const (
@@ -35,6 +37,8 @@ func GetCurrentUnixTimestamp() uint64 {
 // The returned ticker should be stopped when no longer needed using ticker.Stop()
 // to prevent resource leaks.
 func GetTicker(basePeriod uint) (*time.Ticker, time.Duration) {
+	log, _ := logger.New()
+
 	// Convert uint seconds to time.Duration safely
 	var baseDuration time.Duration
 
@@ -49,11 +53,15 @@ func GetTicker(basePeriod uint) (*time.Ticker, time.Duration) {
 		baseDuration = time.Duration(maxSafeSeconds) * time.Second
 	}
 
+	log.Info("BASEDURATION: ", baseDuration)
+
 	// Add jitter to the base duration
 	jitteredDuration := AddJitter(baseDuration)
 
+	log.Info("JITTERDURATION: ", jitteredDuration)
+
 	// Create and return a ticker with the jittered duration
-	return time.NewTicker(jitteredDuration), jitteredDuration
+	return time.NewTicker(10 * time.Second), jitteredDuration
 }
 
 func AddJitter(d time.Duration) time.Duration {

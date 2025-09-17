@@ -152,13 +152,15 @@ func setFromNode(n, f *NodeConfig) {
 }
 
 type TransactionManagerConfig struct {
-	BroadcastChanSize     *uint64
-	ConfirmPollSecs       *uint64
-	DefaultMaxGasAmount   *uint64
-	MaxTxRetryAttempts    *uint64
-	RequestType           *string
-	TransactionTimeout    *string
-	MaxConcurrentRequests *uint64
+	BroadcastChanSize        *uint64
+	ConfirmPollSecs          *uint64
+	DefaultMaxGasAmount      *uint64
+	MaxTxRetryAttempts       *uint64
+	RequestType              *string
+	TransactionTimeout       *string
+	MaxConcurrentRequests    *uint64
+	ReaperPollSecs           *uint64
+	TransactionRetentionSecs *uint64
 }
 
 type IndexerConfig struct {
@@ -205,6 +207,14 @@ func (t *TransactionManagerConfig) setDefaults() {
 	if t.ConfirmPollSecs == nil {
 		defaultVal := uint64(DefaultConfirmPollSecs)
 		t.ConfirmPollSecs = &defaultVal
+	}
+	if t.ReaperPollSecs == nil {
+		defaultVal := uint64(DefaultReaperPollSecs)
+		t.ReaperPollSecs = &defaultVal
+	}
+	if t.TransactionRetentionSecs == nil {
+		defaultVal := uint64(DefaultTransactionRetentionSecs)
+		t.TransactionRetentionSecs = &defaultVal
 	}
 }
 
@@ -325,6 +335,12 @@ func setFromTransactionManager(c, f *TransactionManagerConfig) {
 	}
 	if f.MaxConcurrentRequests != nil {
 		c.MaxConcurrentRequests = f.MaxConcurrentRequests
+	}
+	if f.ReaperPollSecs != nil {
+		c.ReaperPollSecs = f.ReaperPollSecs
+	}
+	if f.TransactionRetentionSecs != nil {
+		c.TransactionRetentionSecs = f.TransactionRetentionSecs
 	}
 }
 

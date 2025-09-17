@@ -92,8 +92,7 @@ func (tIndexer *TransactionsIndexer) Start(ctx context.Context) error {
 	tIndexer.logger.Infow("Transaction polling goroutine started")
 	defer tIndexer.logger.Infow("Transaction polling goroutine exited")
 
-	tIndexer.logger.Info("TX INDEXER POLLING INTERVAL: ", tIndexer.pollingInterval)
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(tIndexer.pollingInterval)
 	defer ticker.Stop()
 
 	for {
@@ -187,10 +186,8 @@ func (tIndexer *TransactionsIndexer) waitForInitialEvent(ctx context.Context) er
 	}
 	tIndexer.logger.Infow("OffRamp package ready", "package", pkg)
 
-	tIndexer.logger.Info("TINDEXER LOGGER: ", tIndexer.pollingInterval)
-
 	// 2) Poll the DB for the first ConfigSet event
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(tIndexer.pollingInterval)
 	defer ticker.Stop()
 
 	for {

@@ -18,6 +18,9 @@ const (
 
 	DefaultIndexerPollIntervalSecs = uint64(3)
 	DefaultIndexerSyncTimeoutSecs  = uint64(3)
+
+	DefaultReaperPollSecs           = uint64(10)
+	DefaultTransactionRetentionSecs = uint64(10)
 )
 
 type ChainInfo struct {
