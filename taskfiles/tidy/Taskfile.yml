@@ -1,0 +1,10 @@
+version: "3"
+
+tasks:
+  default:
+    desc: "Run go mod tidy in all modules"
+    cmds:
+      - for:
+          matrix:
+            MODULE: [".", "./integration-tests", "./deployment"]
+        cmd: cd {{ .ITEM.MODULE }} && go mod tidy
