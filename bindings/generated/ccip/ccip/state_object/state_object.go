@@ -20,8 +20,8 @@ var (
 )
 
 type IStateObject interface {
-	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
-	RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
+	AddPackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
+	RemovePackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	OwnerCapId(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Add(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ownerCap bind.Object, obj bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Contains(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -62,9 +62,9 @@ type IStateObjectDevInspect interface {
 }
 
 type StateObjectEncoder interface {
-	AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	AddPackageId(ref bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error)
 	AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
-	RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	RemovePackageId(ref bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error)
 	RemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	OwnerCapId(ref bind.Object) (*bind.EncodedCall, error)
 	OwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -258,8 +258,8 @@ func init() {
 }
 
 // AddPackageId executes the add_package_id Move function.
-func (c *StateObjectContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.AddPackageId(state, param, packageId)
+func (c *StateObjectContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.AddPackageId(ref, ownerCap, packageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -268,8 +268,8 @@ func (c *StateObjectContract) AddPackageId(ctx context.Context, opts *bind.CallO
 }
 
 // RemovePackageId executes the remove_package_id Move function.
-func (c *StateObjectContract) RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.stateObjectEncoder.RemovePackageId(state, param, packageId)
+func (c *StateObjectContract) RemovePackageId(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.RemovePackageId(ref, ownerCap, packageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -720,7 +720,7 @@ type stateObjectEncoder struct {
 }
 
 // AddPackageId encodes a call to the add_package_id Move function.
-func (c stateObjectEncoder) AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+func (c stateObjectEncoder) AddPackageId(ref bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, []string{
@@ -728,8 +728,8 @@ func (c stateObjectEncoder) AddPackageId(state bind.Object, param bind.Object, p
 		"&OwnerCap",
 		"address",
 	}, []any{
-		state,
-		param,
+		ref,
+		ownerCap,
 		packageId,
 	}, nil)
 }
@@ -752,7 +752,7 @@ func (c stateObjectEncoder) AddPackageIdWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // RemovePackageId encodes a call to the remove_package_id Move function.
-func (c stateObjectEncoder) RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+func (c stateObjectEncoder) RemovePackageId(ref bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("remove_package_id", typeArgsList, typeParamsList, []string{
@@ -760,8 +760,8 @@ func (c stateObjectEncoder) RemovePackageId(state bind.Object, param bind.Object
 		"&OwnerCap",
 		"address",
 	}, []any{
-		state,
-		param,
+		ref,
+		ownerCap,
 		packageId,
 	}, nil)
 }

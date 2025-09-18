@@ -48,13 +48,10 @@ public struct OnRampStatePointer has key, store {
 }
 
 public struct DestChainConfig has drop, store {
-    // on EVM, transfers can be stopped by zeroing the router address,
-    // since we don't have a router address here, we add an is_enabled flag.
-    // ref: https://github.com/smartcontractkit/chainlink/blob/62a9b78e1c32174ccec11f1ed487edf3b0b4e8fd/contracts/src/v0.8/ccip/onRamp/OnRamp.sol#L181
-    is_enabled: bool,
     sequence_number: u64,
     allowlist_enabled: bool,
     allowed_senders: vector<address>,
+    router: address, // this address is also the indicator of whether the destination chain is enabled
 }
 
 public struct RampMessageHeader has copy, drop, store {
@@ -102,9 +99,9 @@ public struct ConfigSet has copy, drop {
 
 public struct DestChainConfigSet has copy, drop {
     dest_chain_selector: u64,
-    is_enabled: bool,
     sequence_number: u64,
     allowlist_enabled: bool,
+    router: address,
 }
 
 public struct CCIPMessageSent has copy, drop {
@@ -149,6 +146,7 @@ const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
 const EInvalidFeeTokenMetadataAddress: u64 = 19;
 const EPackageIdNotFound: u64 = 20;
+const EInvalidOwnerCap: u64 = 21;
 
 const VERSION: u8 = 1;
 
@@ -191,17 +189,18 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
 
 public fun initialize(
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     nonce_manager_cap: NonceManagerCap,
     source_transfer_cap: osh::SourceTransferCap,
     chain_selector: u64,
     fee_aggregator: address,
     allowlist_admin: address,
     dest_chain_selectors: vector<u64>,
-    dest_chain_enabled: vector<bool>,
     dest_chain_allowlist_enabled: vector<bool>,
+    dest_chain_routers: vector<address>,
     _ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(chain_selector != 0, EZeroChainSelector);
     state.chain_selector = chain_selector;
     assert!(state.nonce_manager_cap.is_none(), ENonceManagerCapExists);
@@ -214,8 +213,8 @@ public fun initialize(
     apply_dest_chain_config_updates_internal(
         state,
         dest_chain_selectors,
-        dest_chain_enabled,
         dest_chain_allowlist_enabled,
+        dest_chain_routers,
     );
 
     let tn = type_name::get_with_original_ids<ONRAMP>();
@@ -224,11 +223,13 @@ public fun initialize(
     state.package_ids.push_back(package_id);
 }
 
-public fun add_package_id(state: &mut OnRampState, _: &OwnerCap, package_id: address) {
+public fun add_package_id(state: &mut OnRampState, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     state.package_ids.push_back(package_id);
 }
 
-public fun remove_package_id(state: &mut OnRampState, _: &OwnerCap, package_id: address) {
+public fun remove_package_id(state: &mut OnRampState, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     let (found, idx) = state.package_ids.index_of(&package_id);
     assert!(found, EPackageIdNotFound);
     state.package_ids.remove(idx);
@@ -248,10 +249,11 @@ public fun get_expected_next_sequence_number(state: &OnRampState, dest_chain_sel
 public fun withdraw_fee_tokens<T>(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     fee_token_metadata: &CoinMetadata<T>,
 ) {
     assert!(state.fee_aggregator != @0x0, EFeeAggregatorNotSet);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
@@ -291,20 +293,20 @@ fun set_dynamic_config_internal(
 fun apply_dest_chain_config_updates_internal(
     state: &mut OnRampState,
     dest_chain_selectors: vector<u64>,
-    dest_chain_enabled: vector<bool>,
     dest_chain_allowlist_enabled: vector<bool>,
+    dest_chain_routers: vector<address>,
 ) {
     let dest_chains_len = dest_chain_selectors.length();
-    assert!(dest_chains_len == dest_chain_enabled.length(), EDestChainArgumentMismatch);
     assert!(dest_chains_len == dest_chain_allowlist_enabled.length(), EDestChainArgumentMismatch);
+    assert!(dest_chains_len == dest_chain_routers.length(), EDestChainArgumentMismatch);
 
     let mut i = 0;
     while (i < dest_chains_len) {
         let dest_chain_selector = dest_chain_selectors[i];
         assert!(dest_chain_selector != 0, EInvalidDestChainSelector);
 
-        let is_enabled = dest_chain_enabled[i];
         let allowlist_enabled = dest_chain_allowlist_enabled[i];
+        let router = dest_chain_routers[i];
 
         if (!state.dest_chain_configs.contains(dest_chain_selector)) {
             state
@@ -312,10 +314,10 @@ fun apply_dest_chain_config_updates_internal(
                 .add(
                     dest_chain_selector,
                     DestChainConfig {
-                        is_enabled: false,
                         sequence_number: 0,
                         allowlist_enabled: false,
                         allowed_senders: vector[],
+                        router: @0x0,
                     },
                 );
         };
@@ -325,14 +327,14 @@ fun apply_dest_chain_config_updates_internal(
             dest_chain_selector,
         );
 
-        dest_chain_config.is_enabled = is_enabled;
         dest_chain_config.allowlist_enabled = allowlist_enabled;
+        dest_chain_config.router = router;
 
         event::emit(DestChainConfigSet {
             dest_chain_selector,
-            is_enabled,
             sequence_number: dest_chain_config.sequence_number,
-            allowlist_enabled: dest_chain_config.allowlist_enabled,
+            allowlist_enabled,
+            router,
         });
 
         i = i + 1;
@@ -397,10 +399,11 @@ fun get_fee_internal(
 public fun set_dynamic_config(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     fee_aggregator: address,
     allowlist_admin: address,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
@@ -413,11 +416,12 @@ public fun set_dynamic_config(
 public fun apply_dest_chain_config_updates(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     dest_chain_selectors: vector<u64>,
-    dest_chain_enabled: vector<bool>,
     dest_chain_allowlist_enabled: vector<bool>,
+    dest_chain_routers: vector<address>,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
@@ -427,24 +431,23 @@ public fun apply_dest_chain_config_updates(
     apply_dest_chain_config_updates_internal(
         state,
         dest_chain_selectors,
-        dest_chain_enabled,
         dest_chain_allowlist_enabled,
+        dest_chain_routers,
     )
 }
 
 public fun get_dest_chain_config(
     state: &OnRampState,
     dest_chain_selector: u64,
-): (bool, u64, bool, vector<address>) {
+): (u64, bool, address) {
     assert!(state.dest_chain_configs.contains(dest_chain_selector), EUnknownDestChainSelector);
 
     let dest_chain_config = &state.dest_chain_configs[dest_chain_selector];
 
     (
-        dest_chain_config.is_enabled,
         dest_chain_config.sequence_number,
         dest_chain_config.allowlist_enabled,
-        dest_chain_config.allowed_senders,
+        dest_chain_config.router,
     )
 }
 
@@ -462,13 +465,14 @@ public fun get_allowed_senders_list(
 public fun apply_allowlist_updates(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     dest_chain_selectors: vector<u64>,
     dest_chain_allowlist_enabled: vector<bool>,
     dest_chain_add_allowed_senders: vector<vector<address>>,
     dest_chain_remove_allowed_senders: vector<vector<address>>,
     _ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
@@ -893,7 +897,7 @@ fun verify_sender(state: &OnRampState, dest_chain_selector: u64, sender: address
     assert!(state.dest_chain_configs.contains(dest_chain_selector), EUnknownDestChainSelector);
 
     let dest_chain_config = &state.dest_chain_configs[dest_chain_selector];
-    assert!(dest_chain_config.is_enabled, EDestChainNotEnabled);
+    assert!(dest_chain_config.router != @0x0, EDestChainNotEnabled);
 
     if (dest_chain_config.allowlist_enabled) {
         assert!(dest_chain_config.allowed_senders.contains(&sender), ESenderNotAllowed);
@@ -1226,13 +1230,13 @@ public fun mcms_apply_dest_chain_config_updates(
         &mut stream,
         |stream| bcs_stream::deserialize_u64(stream),
     );
-    let dest_chain_enabled = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_bool(stream),
-    );
     let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
         &mut stream,
         |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let dest_chain_routers = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
     );
     bcs_stream::assert_is_consumed(&stream);
 
@@ -1241,9 +1245,9 @@ public fun mcms_apply_dest_chain_config_updates(
         state,
         owner_cap,
         dest_chain_selectors,
-        dest_chain_enabled,
         dest_chain_allowlist_enabled,
-    );
+        dest_chain_routers,
+    )
 }
 
 public fun mcms_apply_allowlist_updates(
@@ -1383,13 +1387,13 @@ public fun mcms_initialize(
         &mut stream,
         |stream| bcs_stream::deserialize_u64(stream),
     );
-    let dest_chain_enabled = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_bool(stream),
-    );
     let dest_chain_allowlist_enabled = bcs_stream::deserialize_vector!(
         &mut stream,
         |stream| bcs_stream::deserialize_bool(stream),
+    );
+    let dest_chain_routers = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_address(stream),
     );
     bcs_stream::assert_is_consumed(&stream);
 
@@ -1402,8 +1406,8 @@ public fun mcms_initialize(
         fee_aggregator,
         allowlist_admin,
         dest_chain_selectors,
-        dest_chain_enabled,
         dest_chain_allowlist_enabled,
+        dest_chain_routers,
         ctx,
     );
 }

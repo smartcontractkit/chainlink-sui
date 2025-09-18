@@ -21,9 +21,9 @@ var (
 
 type IOfframp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
-	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
-	RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
+	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
+	RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
 	FinishExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -31,7 +31,7 @@ type IOfframp interface {
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
-	SetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error)
+	SetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error)
 	ConfigSigners(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ConfigTransmitters(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Commit(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
@@ -43,8 +43,8 @@ type IOfframp interface {
 	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
 	GetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error)
-	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error)
-	ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
+	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error)
+	ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -99,11 +99,11 @@ type IOfframpDevInspect interface {
 type OfframpEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error)
+	Initialize(state bind.Object, ownerCap bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	AddPackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error)
 	AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
-	RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	RemovePackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error)
 	RemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOcr3Base(state bind.Object) (*bind.EncodedCall, error)
 	GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -119,7 +119,7 @@ type OfframpEncoder interface {
 	CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error)
 	CalculateMessageHash(ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*bind.EncodedCall, error)
 	CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetOcr3Config(ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error)
+	SetOcr3Config(ref bind.Object, state bind.Object, ownerCap bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error)
 	SetOcr3ConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	ConfigSigners(state bind.Object) (*bind.EncodedCall, error)
 	ConfigSignersWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -143,9 +143,9 @@ type OfframpEncoder interface {
 	GetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetDynamicConfigFields(ref bind.Object, cfg DynamicConfig) (*bind.EncodedCall, error)
 	GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error)
+	SetDynamicConfig(ref bind.Object, state bind.Object, ownerCap bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error)
 	SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error)
+	ApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, ownerCap bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error)
 	ApplySourceChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCcipPackageId() (*bind.EncodedCall, error)
 	GetCcipPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -869,8 +869,8 @@ func (c *OfframpContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpt
 }
 
 // Initialize executes the initialize Move function.
-func (c *OfframpContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.Initialize(state, param, feeQuoterCap, destTransferCap, chainSelector, permissionlessExecutionThresholdSeconds, sourceChainsSelectors, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
+func (c *OfframpContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.Initialize(state, ownerCap, feeQuoterCap, destTransferCap, chainSelector, permissionlessExecutionThresholdSeconds, sourceChainsSelectors, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -879,8 +879,8 @@ func (c *OfframpContract) Initialize(ctx context.Context, opts *bind.CallOpts, s
 }
 
 // AddPackageId executes the add_package_id Move function.
-func (c *OfframpContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.AddPackageId(state, param, packageId)
+func (c *OfframpContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.AddPackageId(state, ownerCap, packageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -889,8 +889,8 @@ func (c *OfframpContract) AddPackageId(ctx context.Context, opts *bind.CallOpts,
 }
 
 // RemovePackageId executes the remove_package_id Move function.
-func (c *OfframpContract) RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.RemovePackageId(state, param, packageId)
+func (c *OfframpContract) RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.RemovePackageId(state, ownerCap, packageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -969,8 +969,8 @@ func (c *OfframpContract) CalculateMessageHash(ctx context.Context, opts *bind.C
 }
 
 // SetOcr3Config executes the set_ocr3_config Move function.
-func (c *OfframpContract) SetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.SetOcr3Config(ref, state, param, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
+func (c *OfframpContract) SetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.SetOcr3Config(ref, state, ownerCap, configDigest, ocrPluginType, bigF, isSignatureVerificationEnabled, signers, transmitters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1089,8 +1089,8 @@ func (c *OfframpContract) GetDynamicConfigFields(ctx context.Context, opts *bind
 }
 
 // SetDynamicConfig executes the set_dynamic_config Move function.
-func (c *OfframpContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.SetDynamicConfig(ref, state, param, permissionlessExecutionThresholdSeconds)
+func (c *OfframpContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, permissionlessExecutionThresholdSeconds uint32) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.SetDynamicConfig(ref, state, ownerCap, permissionlessExecutionThresholdSeconds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1099,8 +1099,8 @@ func (c *OfframpContract) SetDynamicConfig(ctx context.Context, opts *bind.CallO
 }
 
 // ApplySourceChainConfigUpdates executes the apply_source_chain_config_updates Move function.
-func (c *OfframpContract) ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ApplySourceChainConfigUpdates(ref, state, param, sourceChainsSelector, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
+func (c *OfframpContract) ApplySourceChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ApplySourceChainConfigUpdates(ref, state, ownerCap, sourceChainsSelector, sourceChainsIsEnabled, sourceChainsIsRmnVerificationDisabled, sourceChainsOnRamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1816,7 +1816,7 @@ func (c offrampEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, 
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c offrampEncoder) Initialize(state bind.Object, param bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) Initialize(state bind.Object, ownerCap bind.Object, feeQuoterCap bind.Object, destTransferCap bind.Object, chainSelector uint64, permissionlessExecutionThresholdSeconds uint32, sourceChainsSelectors []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
@@ -1832,7 +1832,7 @@ func (c offrampEncoder) Initialize(state bind.Object, param bind.Object, feeQuot
 		"vector<vector<u8>>",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		feeQuoterCap,
 		destTransferCap,
 		chainSelector,
@@ -1869,7 +1869,7 @@ func (c offrampEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, erro
 }
 
 // AddPackageId encodes a call to the add_package_id Move function.
-func (c offrampEncoder) AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) AddPackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, []string{
@@ -1878,7 +1878,7 @@ func (c offrampEncoder) AddPackageId(state bind.Object, param bind.Object, packa
 		"address",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		packageId,
 	}, nil)
 }
@@ -1901,7 +1901,7 @@ func (c offrampEncoder) AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, er
 }
 
 // RemovePackageId encodes a call to the remove_package_id Move function.
-func (c offrampEncoder) RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) RemovePackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("remove_package_id", typeArgsList, typeParamsList, []string{
@@ -1910,7 +1910,7 @@ func (c offrampEncoder) RemovePackageId(state bind.Object, param bind.Object, pa
 		"address",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		packageId,
 	}, nil)
 }
@@ -2232,7 +2232,7 @@ func (c offrampEncoder) CalculateMessageHashWithArgs(args ...any) (*bind.Encoded
 }
 
 // SetOcr3Config encodes a call to the set_ocr3_config Move function.
-func (c offrampEncoder) SetOcr3Config(ref bind.Object, state bind.Object, param bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) SetOcr3Config(ref bind.Object, state bind.Object, ownerCap bind.Object, configDigest []byte, ocrPluginType byte, bigF byte, isSignatureVerificationEnabled bool, signers [][]byte, transmitters []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_ocr3_config", typeArgsList, typeParamsList, []string{
@@ -2248,7 +2248,7 @@ func (c offrampEncoder) SetOcr3Config(ref bind.Object, state bind.Object, param 
 	}, []any{
 		ref,
 		state,
-		param,
+		ownerCap,
 		configDigest,
 		ocrPluginType,
 		bigF,
@@ -2668,7 +2668,7 @@ func (c offrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.Encod
 }
 
 // SetDynamicConfig encodes a call to the set_dynamic_config Move function.
-func (c offrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error) {
+func (c offrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, ownerCap bind.Object, permissionlessExecutionThresholdSeconds uint32) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_dynamic_config", typeArgsList, typeParamsList, []string{
@@ -2679,7 +2679,7 @@ func (c offrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, par
 	}, []any{
 		ref,
 		state,
-		param,
+		ownerCap,
 		permissionlessExecutionThresholdSeconds,
 	}, nil)
 }
@@ -2703,7 +2703,7 @@ func (c offrampEncoder) SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall
 }
 
 // ApplySourceChainConfigUpdates encodes a call to the apply_source_chain_config_updates Move function.
-func (c offrampEncoder) ApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ApplySourceChainConfigUpdates(ref bind.Object, state bind.Object, ownerCap bind.Object, sourceChainsSelector []uint64, sourceChainsIsEnabled []bool, sourceChainsIsRmnVerificationDisabled []bool, sourceChainsOnRamp [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_source_chain_config_updates", typeArgsList, typeParamsList, []string{
@@ -2717,7 +2717,7 @@ func (c offrampEncoder) ApplySourceChainConfigUpdates(ref bind.Object, state bin
 	}, []any{
 		ref,
 		state,
-		param,
+		ownerCap,
 		sourceChainsSelector,
 		sourceChainsIsEnabled,
 		sourceChainsIsRmnVerificationDisabled,

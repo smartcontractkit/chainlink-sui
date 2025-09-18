@@ -114,12 +114,6 @@ public struct FeeQuoterCap has key, store {
     id: UID,
 }
 
-public struct StaticConfig has drop {
-    max_fee_juels_per_msg: u256,
-    link_token: address,
-    token_price_staleness_threshold: u64,
-}
-
 public struct DestChainConfig has copy, drop, store {
     is_enabled: bool,
     max_number_of_tokens_per_msg: u16, // Maximum number of distinct tokens transferred per message.
@@ -256,6 +250,7 @@ public fun initialize(
     fee_tokens: vector<address>,
     ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     assert!(!state_object::contains<FeeQuoterState>(ref), EAlreadyInitialized);
 
     let state = FeeQuoterState {
@@ -270,12 +265,18 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
-    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    let fee_quoter_cap = new_fee_quoter_cap(ref, owner_cap, ctx);
     transfer::public_transfer(fee_quoter_cap, ctx.sender());
     state_object::add(ref, owner_cap, state, ctx);
 }
 
-public fun new_fee_quoter_cap(_: &OwnerCap, ctx: &mut TxContext): FeeQuoterCap {
+public fun new_fee_quoter_cap(
+    ref: &CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    ctx: &mut TxContext,
+): FeeQuoterCap {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     FeeQuoterCap {
         id: object::new(ctx),
     }
@@ -565,7 +566,7 @@ public fun update_prices_with_owner_cap(
     gas_usd_per_unit_gas: vector<u256>,
     ctx: &mut TxContext,
 ) {
-    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    let fee_quoter_cap = new_fee_quoter_cap(ref, owner_cap, ctx);
     update_prices(
         ref,
         &fee_quoter_cap,
@@ -576,7 +577,7 @@ public fun update_prices_with_owner_cap(
         gas_usd_per_unit_gas,
         ctx,
     );
-    destroy_fee_quoter_cap(owner_cap, fee_quoter_cap);
+    destroy_fee_quoter_cap(ref, owner_cap, fee_quoter_cap);
 }
 
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
@@ -1440,7 +1441,7 @@ public fun apply_dest_chain_config_updates(
     }
 }
 
-public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
+public fun get_static_config(ref: &CCIPObjectRef): (u256, address, u64) {
     verify_function_allowed(
         ref,
         string::utf8(b"fee_quoter"),
@@ -1448,15 +1449,7 @@ public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
         VERSION,
     );
     let state = state_object::borrow<FeeQuoterState>(ref);
-    StaticConfig {
-        max_fee_juels_per_msg: state.max_fee_juels_per_msg,
-        link_token: state.link_token,
-        token_price_staleness_threshold: state.token_price_staleness_threshold,
-    }
-}
-
-public fun get_static_config_fields(cfg: StaticConfig): (u256, address, u64) {
-    (cfg.max_fee_juels_per_msg, cfg.link_token, cfg.token_price_staleness_threshold)
+    (state.max_fee_juels_per_msg, state.link_token, state.token_price_staleness_threshold)
 }
 
 fun get_validated_token_price(state: &FeeQuoterState, token: address): TimestampedPrice {
@@ -1860,7 +1853,9 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     );
 }
 
-public fun destroy_fee_quoter_cap(_: &OwnerCap, cap: FeeQuoterCap) {
+public fun destroy_fee_quoter_cap(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let FeeQuoterCap { id } = cap;
     object::delete(id);
 }

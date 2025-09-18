@@ -18,6 +18,8 @@ public struct FunctionBlocked has copy, drop {
 }
 
 const EFunctionNotAllowed: u64 = 1;
+const EInvalidOwnerCap: u64 = 2;
+const EAlreadyInitialized: u64 = 3;
 
 public struct UpgradeRegistry has key, store {
     id: UID,
@@ -32,6 +34,8 @@ public struct UpgradeRegistry has key, store {
 }
 
 public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+    assert!(!state_object::contains<UpgradeRegistry>(ref), EAlreadyInitialized);
     let registry = UpgradeRegistry {
         id: object::new(ctx),
         function_restrictions: table::new(ctx),
@@ -44,11 +48,13 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
 
 public fun block_version(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     module_name: String,
     version: u8,
     _: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
     if (!registry.function_restrictions.contains(module_name)) {
         registry.function_restrictions.add(module_name, vector[]);
@@ -62,12 +68,14 @@ public fun block_version(
 
 public fun block_function(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     module_name: String,
     function_name: String,
     version: u8,
     _: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let registry = state_object::borrow_mut<UpgradeRegistry>(ref);
     if (!registry.function_restrictions.contains(module_name)) {
         registry.function_restrictions.add(module_name, vector[]);

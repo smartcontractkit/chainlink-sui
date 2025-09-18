@@ -268,6 +268,7 @@ func TestFeeQuoterOperations(t *testing.T) {
 			deps,
 			NewFeeQuoterCapInput{
 				CCIPPackageId:    ccipPackageId,
+				CCIPObjectRef:    ccipObjectRef,
 				OwnerCapObjectId: ownerCapId,
 			},
 		)
@@ -308,6 +309,7 @@ func TestFeeQuoterOperations(t *testing.T) {
 				deps,
 				DestroyFeeQuoterCapInput{
 					CCIPPackageId:        ccipPackageId,
+					CCIPObjectRef:        ccipObjectRef,
 					OwnerCapObjectId:     ownerCapId,
 					FeeQuoterCapObjectId: newCapReport.Output.Objects.FeeQuoterCapObjectId,
 				},

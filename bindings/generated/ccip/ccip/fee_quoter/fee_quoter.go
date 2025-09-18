@@ -22,7 +22,7 @@ var (
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
-	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error)
@@ -44,14 +44,13 @@ type IFeeQuoter interface {
 	GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error)
 	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error)
 	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
 	Bound() bind.IBoundContract
@@ -59,7 +58,7 @@ type IFeeQuoter interface {
 
 type IFeeQuoterDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
-	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (bind.Object, error)
+	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (TimestampedPrice, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) ([]any, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) ([]TimestampedPrice, error)
@@ -74,8 +73,7 @@ type IFeeQuoterDevInspect interface {
 	ProcessMessageArgs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) ([]any, error)
 	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (DestChainConfig, error)
 	GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) ([]any, error)
-	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (StaticConfig, error)
-	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) ([]any, error)
+	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error)
 	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) ([]any, error)
 }
 
@@ -84,7 +82,7 @@ type FeeQuoterEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error)
+	NewFeeQuoterCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error)
 	GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -128,8 +126,6 @@ type FeeQuoterEncoder interface {
 	ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetStaticConfig(ref bind.Object) (*bind.EncodedCall, error)
 	GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCall, error)
-	GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyFeeTokenUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -142,7 +138,7 @@ type FeeQuoterEncoder interface {
 	McmsUpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	DestroyFeeQuoterCap(param bind.Object, cap bind.Object) (*bind.EncodedCall, error)
+	DestroyFeeQuoterCap(ref bind.Object, ownerCap bind.Object, cap bind.Object) (*bind.EncodedCall, error)
 	DestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -200,12 +196,6 @@ type FeeQuoterState struct {
 
 type FeeQuoterCap struct {
 	Id string `move:"sui::object::UID"`
-}
-
-type StaticConfig struct {
-	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
-	LinkToken                    string   `move:"address"`
-	TokenPriceStalenessThreshold uint64   `move:"u64"`
 }
 
 type DestChainConfig struct {
@@ -332,25 +322,6 @@ func convertFeeQuoterStateFromBCS(bcs bcsFeeQuoterState) (FeeQuoterState, error)
 		DestChainConfigs:           bcs.DestChainConfigs,
 		TokenTransferFeeConfigs:    bcs.TokenTransferFeeConfigs,
 		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
-	}, nil
-}
-
-type bcsStaticConfig struct {
-	MaxFeeJuelsPerMsg            [32]byte
-	LinkToken                    [32]byte
-	TokenPriceStalenessThreshold uint64
-}
-
-func convertStaticConfigFromBCS(bcs bcsStaticConfig) (StaticConfig, error) {
-	MaxFeeJuelsPerMsgField, err := bind.DecodeU256Value(bcs.MaxFeeJuelsPerMsg)
-	if err != nil {
-		return StaticConfig{}, fmt.Errorf("failed to decode u256 field MaxFeeJuelsPerMsg: %w", err)
-	}
-
-	return StaticConfig{
-		MaxFeeJuelsPerMsg:            MaxFeeJuelsPerMsgField,
-		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
-		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
 	}, nil
 }
 
@@ -489,19 +460,6 @@ func init() {
 	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
 		var result FeeQuoterCap
 		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::StaticConfig", func(data []byte) (interface{}, error) {
-		var temp bcsStaticConfig
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertStaticConfigFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -682,8 +640,8 @@ func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts,
 }
 
 // NewFeeQuoterCap executes the new_fee_quoter_cap Move function.
-func (c *FeeQuoterContract) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.NewFeeQuoterCap(param)
+func (c *FeeQuoterContract) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.NewFeeQuoterCap(ref, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -901,16 +859,6 @@ func (c *FeeQuoterContract) GetStaticConfig(ctx context.Context, opts *bind.Call
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetStaticConfigFields executes the get_static_config_fields Move function.
-func (c *FeeQuoterContract) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.GetStaticConfigFields(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
 // GetTokenTransferFeeConfigFields executes the get_token_transfer_fee_config_fields Move function.
 func (c *FeeQuoterContract) GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.GetTokenTransferFeeConfigFields(cfg)
@@ -972,8 +920,8 @@ func (c *FeeQuoterContract) McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx conte
 }
 
 // DestroyFeeQuoterCap executes the destroy_fee_quoter_cap Move function.
-func (c *FeeQuoterContract) DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.DestroyFeeQuoterCap(param, cap)
+func (c *FeeQuoterContract) DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.DestroyFeeQuoterCap(ref, ownerCap, cap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1006,8 +954,8 @@ func (d *FeeQuoterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.Cal
 // NewFeeQuoterCap executes the new_fee_quoter_cap Move function using DevInspect to get return values.
 //
 // Returns: FeeQuoterCap
-func (d *FeeQuoterDevInspect) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.feeQuoterEncoder.NewFeeQuoterCap(param)
+func (d *FeeQuoterDevInspect) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.feeQuoterEncoder.NewFeeQuoterCap(ref, ownerCap)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1322,35 +1270,13 @@ func (d *FeeQuoterDevInspect) GetDestChainConfigFields(ctx context.Context, opts
 
 // GetStaticConfig executes the get_static_config Move function using DevInspect to get return values.
 //
-// Returns: StaticConfig
-func (d *FeeQuoterDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (StaticConfig, error) {
-	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfig(ref)
-	if err != nil {
-		return StaticConfig{}, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return StaticConfig{}, err
-	}
-	if len(results) == 0 {
-		return StaticConfig{}, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(StaticConfig)
-	if !ok {
-		return StaticConfig{}, fmt.Errorf("unexpected return type: expected StaticConfig, got %T", results[0])
-	}
-	return result, nil
-}
-
-// GetStaticConfigFields executes the get_static_config_fields Move function using DevInspect to get return values.
-//
 // Returns:
 //
 //	[0]: u256
 //	[1]: address
 //	[2]: u64
-func (d *FeeQuoterDevInspect) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, cfg StaticConfig) ([]any, error) {
-	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfigFields(cfg)
+func (d *FeeQuoterDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfig(ref)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1445,13 +1371,15 @@ func (c feeQuoterEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, er
 }
 
 // NewFeeQuoterCap encodes a call to the new_fee_quoter_cap Move function.
-func (c feeQuoterEncoder) NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) NewFeeQuoterCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 	}, []any{
-		param,
+		ref,
+		ownerCap,
 	}, []string{
 		"ccip::fee_quoter::FeeQuoterCap",
 	})
@@ -1461,6 +1389,7 @@ func (c feeQuoterEncoder) NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall,
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 	}
 
@@ -2345,7 +2274,9 @@ func (c feeQuoterEncoder) GetStaticConfig(ref bind.Object) (*bind.EncodedCall, e
 	}, []any{
 		ref,
 	}, []string{
-		"ccip::fee_quoter::StaticConfig",
+		"u256",
+		"address",
+		"u64",
 	})
 }
 
@@ -2362,38 +2293,6 @@ func (c feeQuoterEncoder) GetStaticConfigWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::StaticConfig",
-	})
-}
-
-// GetStaticConfigFields encodes a call to the get_static_config_fields Move function.
-func (c feeQuoterEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
-		"ccip::fee_quoter::StaticConfig",
-	}, []any{
-		cfg,
-	}, []string{
-		"u256",
-		"address",
-		"u64",
-	})
-}
-
-// GetStaticConfigFieldsWithArgs encodes a call to the get_static_config_fields Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c feeQuoterEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"ccip::fee_quoter::StaticConfig",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"u256",
 		"address",
 		"u64",
@@ -2604,14 +2503,16 @@ func (c feeQuoterEncoder) McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(arg
 }
 
 // DestroyFeeQuoterCap encodes a call to the destroy_fee_quoter_cap Move function.
-func (c feeQuoterEncoder) DestroyFeeQuoterCap(param bind.Object, cap bind.Object) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) DestroyFeeQuoterCap(ref bind.Object, ownerCap bind.Object, cap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("destroy_fee_quoter_cap", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 		"ccip::fee_quoter::FeeQuoterCap",
 	}, []any{
-		param,
+		ref,
+		ownerCap,
 		cap,
 	}, nil)
 }
@@ -2620,6 +2521,7 @@ func (c feeQuoterEncoder) DestroyFeeQuoterCap(param bind.Object, cap bind.Object
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) DestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 		"ccip::fee_quoter::FeeQuoterCap",
 	}

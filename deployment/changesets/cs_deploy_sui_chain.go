@@ -153,13 +153,13 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 				FeeAggregator:             signerAddr,
 				AllowListAdmin:            signerAddr,
 				DestChainSelectors:        []uint64{config.ContractParamsPerChain[chainSel].DestChainSelector}, // TODOD add this in input instead of hardcoding
-				DestChainEnabled:          []bool{true},
 				DestChainAllowListEnabled: []bool{true},
+				DestChainRouters:          []string{},
 			},
 			ApplyDestChainConfigureOnRampInput: onrampops.ApplyDestChainConfigureOnRampInput{
 				DestChainSelector:         []uint64{config.ContractParamsPerChain[chainSel].DestChainSelector},
-				DestChainEnabled:          []bool{true},
 				DestChainAllowListEnabled: []bool{false},
+				DestChainRouters:          []string{routerReport.Output.PackageId},
 			},
 			ApplyAllowListUpdatesInput: onrampops.ApplyAllowListUpdatesInput{
 				DestChainSelector:             []uint64{config.ContractParamsPerChain[chainSel].DestChainSelector},

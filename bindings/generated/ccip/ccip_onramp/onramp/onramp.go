@@ -21,18 +21,18 @@ var (
 
 type IOnramp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
-	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
-	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
-	RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
+	Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*models.SuiTransactionBlockResponse, error)
+	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
+	RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error)
+	WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
-	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error)
-	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error)
+	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error)
+	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*models.SuiTransactionBlockResponse, error)
 	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetAllowedSendersList(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error)
+	ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error)
 	ApplyAllowlistUpdatesByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error)
 	GetOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -95,29 +95,29 @@ type IOnrampDevInspect interface {
 type OnrampEncoder interface {
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	Initialize(state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
+	Initialize(state bind.Object, ownerCap bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	AddPackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error)
 	AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
-	RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error)
+	RemovePackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error)
 	RemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsChainSupported(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetExpectedNextSequenceNumber(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetExpectedNextSequenceNumberWithArgs(args ...any) (*bind.EncodedCall, error)
-	WithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error)
+	WithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error)
 	WithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetFee(typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
 	GetFeeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error)
+	SetDynamicConfig(ref bind.Object, state bind.Object, ownerCap bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error)
 	SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error)
+	ApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*bind.EncodedCall, error)
 	ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetDestChainConfig(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetDestChainConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetAllowedSendersList(state bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetAllowedSendersListWithArgs(args ...any) (*bind.EncodedCall, error)
-	ApplyAllowlistUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error)
+	ApplyAllowlistUpdates(ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdatesByAdmin(ref bind.Object, state bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error)
 	ApplyAllowlistUpdatesByAdminWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -242,10 +242,10 @@ type OnRampStatePointer struct {
 }
 
 type DestChainConfig struct {
-	IsEnabled        bool     `move:"bool"`
 	SequenceNumber   uint64   `move:"u64"`
 	AllowlistEnabled bool     `move:"bool"`
 	AllowedSenders   []string `move:"vector<address>"`
+	Router           string   `move:"address"`
 }
 
 type RampMessageHeader struct {
@@ -292,9 +292,9 @@ type ConfigSet struct {
 
 type DestChainConfigSet struct {
 	DestChainSelector uint64 `move:"u64"`
-	IsEnabled         bool   `move:"bool"`
 	SequenceNumber    uint64 `move:"u64"`
 	AllowlistEnabled  bool   `move:"bool"`
+	Router            string `move:"address"`
 }
 
 type CCIPMessageSent struct {
@@ -376,16 +376,15 @@ func convertOnRampStatePointerFromBCS(bcs bcsOnRampStatePointer) (OnRampStatePoi
 }
 
 type bcsDestChainConfig struct {
-	IsEnabled        bool
 	SequenceNumber   uint64
 	AllowlistEnabled bool
 	AllowedSenders   [][32]byte
+	Router           [32]byte
 }
 
 func convertDestChainConfigFromBCS(bcs bcsDestChainConfig) (DestChainConfig, error) {
 
 	return DestChainConfig{
-		IsEnabled:        bcs.IsEnabled,
 		SequenceNumber:   bcs.SequenceNumber,
 		AllowlistEnabled: bcs.AllowlistEnabled,
 		AllowedSenders: func() []string {
@@ -395,6 +394,7 @@ func convertDestChainConfigFromBCS(bcs bcsDestChainConfig) (DestChainConfig, err
 			}
 			return addrs
 		}(),
+		Router: fmt.Sprintf("0x%x", bcs.Router),
 	}, nil
 }
 
@@ -475,6 +475,23 @@ func convertConfigSetFromBCS(bcs bcsConfigSet) (ConfigSet, error) {
 	return ConfigSet{
 		StaticConfig:  bcs.StaticConfig,
 		DynamicConfig: DynamicConfigField,
+	}, nil
+}
+
+type bcsDestChainConfigSet struct {
+	DestChainSelector uint64
+	SequenceNumber    uint64
+	AllowlistEnabled  bool
+	Router            [32]byte
+}
+
+func convertDestChainConfigSetFromBCS(bcs bcsDestChainConfigSet) (DestChainConfigSet, error) {
+
+	return DestChainConfigSet{
+		DestChainSelector: bcs.DestChainSelector,
+		SequenceNumber:    bcs.SequenceNumber,
+		AllowlistEnabled:  bcs.AllowlistEnabled,
+		Router:            fmt.Sprintf("0x%x", bcs.Router),
 	}, nil
 }
 
@@ -659,8 +676,13 @@ func init() {
 		return result, nil
 	})
 	bind.RegisterStructDecoder("ccip_onramp::onramp::DestChainConfigSet", func(data []byte) (interface{}, error) {
-		var result DestChainConfigSet
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsDestChainConfigSet
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertDestChainConfigSetFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
@@ -747,8 +769,8 @@ func (c *OnrampContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts
 }
 
 // Initialize executes the initialize Move function.
-func (c *OnrampContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.Initialize(state, param, nonceManagerCap, sourceTransferCap, chainSelector, feeAggregator, allowlistAdmin, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
+func (c *OnrampContract) Initialize(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.Initialize(state, ownerCap, nonceManagerCap, sourceTransferCap, chainSelector, feeAggregator, allowlistAdmin, destChainSelectors, destChainAllowlistEnabled, destChainRouters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -757,8 +779,8 @@ func (c *OnrampContract) Initialize(ctx context.Context, opts *bind.CallOpts, st
 }
 
 // AddPackageId executes the add_package_id Move function.
-func (c *OnrampContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.AddPackageId(state, param, packageId)
+func (c *OnrampContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.AddPackageId(state, ownerCap, packageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -767,8 +789,8 @@ func (c *OnrampContract) AddPackageId(ctx context.Context, opts *bind.CallOpts, 
 }
 
 // RemovePackageId executes the remove_package_id Move function.
-func (c *OnrampContract) RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, param bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.RemovePackageId(state, param, packageId)
+func (c *OnrampContract) RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.RemovePackageId(state, ownerCap, packageId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -797,8 +819,8 @@ func (c *OnrampContract) GetExpectedNextSequenceNumber(ctx context.Context, opts
 }
 
 // WithdrawFeeTokens executes the withdraw_fee_tokens Move function.
-func (c *OnrampContract) WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.WithdrawFeeTokens(typeArgs, ref, state, param, feeTokenMetadata)
+func (c *OnrampContract) WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.WithdrawFeeTokens(typeArgs, ref, state, ownerCap, feeTokenMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -817,8 +839,8 @@ func (c *OnrampContract) GetFee(ctx context.Context, opts *bind.CallOpts, typeAr
 }
 
 // SetDynamicConfig executes the set_dynamic_config Move function.
-func (c *OnrampContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.SetDynamicConfig(ref, state, param, feeAggregator, allowlistAdmin)
+func (c *OnrampContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.SetDynamicConfig(ref, state, ownerCap, feeAggregator, allowlistAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -827,8 +849,8 @@ func (c *OnrampContract) SetDynamicConfig(ctx context.Context, opts *bind.CallOp
 }
 
 // ApplyDestChainConfigUpdates executes the apply_dest_chain_config_updates Move function.
-func (c *OnrampContract) ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.ApplyDestChainConfigUpdates(ref, state, param, destChainSelectors, destChainEnabled, destChainAllowlistEnabled)
+func (c *OnrampContract) ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.ApplyDestChainConfigUpdates(ref, state, ownerCap, destChainSelectors, destChainAllowlistEnabled, destChainRouters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -857,8 +879,8 @@ func (c *OnrampContract) GetAllowedSendersList(ctx context.Context, opts *bind.C
 }
 
 // ApplyAllowlistUpdates executes the apply_allowlist_updates Move function.
-func (c *OnrampContract) ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.ApplyAllowlistUpdates(ref, state, param, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
+func (c *OnrampContract) ApplyAllowlistUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.ApplyAllowlistUpdates(ref, state, ownerCap, destChainSelectors, destChainAllowlistEnabled, destChainAddAllowedSenders, destChainRemoveAllowedSenders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1268,10 +1290,9 @@ func (d *OnrampDevInspect) GetFee(ctx context.Context, opts *bind.CallOpts, type
 //
 // Returns:
 //
-//	[0]: bool
-//	[1]: u64
-//	[2]: bool
-//	[3]: vector<address>
+//	[0]: u64
+//	[1]: bool
+//	[2]: address
 func (d *OnrampDevInspect) GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) ([]any, error) {
 	encoded, err := d.contract.onrampEncoder.GetDestChainConfig(state, destChainSelector)
 	if err != nil {
@@ -1623,7 +1644,7 @@ func (c onrampEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, e
 }
 
 // Initialize encodes a call to the initialize Move function.
-func (c onrampEncoder) Initialize(state bind.Object, param bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error) {
+func (c onrampEncoder) Initialize(state bind.Object, ownerCap bind.Object, nonceManagerCap bind.Object, sourceTransferCap bind.Object, chainSelector uint64, feeAggregator string, allowlistAdmin string, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, []string{
@@ -1636,18 +1657,18 @@ func (c onrampEncoder) Initialize(state bind.Object, param bind.Object, nonceMan
 		"address",
 		"vector<u64>",
 		"vector<bool>",
-		"vector<bool>",
+		"vector<address>",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		nonceManagerCap,
 		sourceTransferCap,
 		chainSelector,
 		feeAggregator,
 		allowlistAdmin,
 		destChainSelectors,
-		destChainEnabled,
 		destChainAllowlistEnabled,
+		destChainRouters,
 	}, nil)
 }
 
@@ -1664,7 +1685,7 @@ func (c onrampEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, error
 		"address",
 		"vector<u64>",
 		"vector<bool>",
-		"vector<bool>",
+		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1676,7 +1697,7 @@ func (c onrampEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, error
 }
 
 // AddPackageId encodes a call to the add_package_id Move function.
-func (c onrampEncoder) AddPackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) AddPackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("add_package_id", typeArgsList, typeParamsList, []string{
@@ -1685,7 +1706,7 @@ func (c onrampEncoder) AddPackageId(state bind.Object, param bind.Object, packag
 		"address",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		packageId,
 	}, nil)
 }
@@ -1708,7 +1729,7 @@ func (c onrampEncoder) AddPackageIdWithArgs(args ...any) (*bind.EncodedCall, err
 }
 
 // RemovePackageId encodes a call to the remove_package_id Move function.
-func (c onrampEncoder) RemovePackageId(state bind.Object, param bind.Object, packageId string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) RemovePackageId(state bind.Object, ownerCap bind.Object, packageId string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("remove_package_id", typeArgsList, typeParamsList, []string{
@@ -1717,7 +1738,7 @@ func (c onrampEncoder) RemovePackageId(state bind.Object, param bind.Object, pac
 		"address",
 	}, []any{
 		state,
-		param,
+		ownerCap,
 		packageId,
 	}, nil)
 }
@@ -1806,7 +1827,7 @@ func (c onrampEncoder) GetExpectedNextSequenceNumberWithArgs(args ...any) (*bind
 }
 
 // WithdrawFeeTokens encodes a call to the withdraw_fee_tokens Move function.
-func (c onrampEncoder) WithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, param bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error) {
+func (c onrampEncoder) WithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1819,7 +1840,7 @@ func (c onrampEncoder) WithdrawFeeTokens(typeArgs []string, ref bind.Object, sta
 	}, []any{
 		ref,
 		state,
-		param,
+		ownerCap,
 		feeTokenMetadata,
 	}, nil)
 }
@@ -1903,7 +1924,7 @@ func (c onrampEncoder) GetFeeWithArgs(typeArgs []string, args ...any) (*bind.Enc
 }
 
 // SetDynamicConfig encodes a call to the set_dynamic_config Move function.
-func (c onrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, param bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, ownerCap bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_dynamic_config", typeArgsList, typeParamsList, []string{
@@ -1915,7 +1936,7 @@ func (c onrampEncoder) SetDynamicConfig(ref bind.Object, state bind.Object, para
 	}, []any{
 		ref,
 		state,
-		param,
+		ownerCap,
 		feeAggregator,
 		allowlistAdmin,
 	}, nil)
@@ -1941,7 +1962,7 @@ func (c onrampEncoder) SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall,
 }
 
 // ApplyDestChainConfigUpdates encodes a call to the apply_dest_chain_config_updates Move function.
-func (c onrampEncoder) ApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainEnabled []bool, destChainAllowlistEnabled []bool) (*bind.EncodedCall, error) {
+func (c onrampEncoder) ApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_dest_chain_config_updates", typeArgsList, typeParamsList, []string{
@@ -1950,14 +1971,14 @@ func (c onrampEncoder) ApplyDestChainConfigUpdates(ref bind.Object, state bind.O
 		"&OwnerCap",
 		"vector<u64>",
 		"vector<bool>",
-		"vector<bool>",
+		"vector<address>",
 	}, []any{
 		ref,
 		state,
-		param,
+		ownerCap,
 		destChainSelectors,
-		destChainEnabled,
 		destChainAllowlistEnabled,
+		destChainRouters,
 	}, nil)
 }
 
@@ -1970,7 +1991,7 @@ func (c onrampEncoder) ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.E
 		"&OwnerCap",
 		"vector<u64>",
 		"vector<bool>",
-		"vector<bool>",
+		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1992,10 +2013,9 @@ func (c onrampEncoder) GetDestChainConfig(state bind.Object, destChainSelector u
 		state,
 		destChainSelector,
 	}, []string{
-		"bool",
 		"u64",
 		"bool",
-		"vector<address>",
+		"address",
 	})
 }
 
@@ -2013,10 +2033,9 @@ func (c onrampEncoder) GetDestChainConfigWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dest_chain_config", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"bool",
 		"u64",
 		"bool",
-		"vector<address>",
+		"address",
 	})
 }
 
@@ -2056,7 +2075,7 @@ func (c onrampEncoder) GetAllowedSendersListWithArgs(args ...any) (*bind.Encoded
 }
 
 // ApplyAllowlistUpdates encodes a call to the apply_allowlist_updates Move function.
-func (c onrampEncoder) ApplyAllowlistUpdates(ref bind.Object, state bind.Object, param bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) ApplyAllowlistUpdates(ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainAddAllowedSenders [][]string, destChainRemoveAllowedSenders [][]string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("apply_allowlist_updates", typeArgsList, typeParamsList, []string{
@@ -2070,7 +2089,7 @@ func (c onrampEncoder) ApplyAllowlistUpdates(ref bind.Object, state bind.Object,
 	}, []any{
 		ref,
 		state,
-		param,
+		ownerCap,
 		destChainSelectors,
 		destChainAllowlistEnabled,
 		destChainAddAllowedSenders,
