@@ -56,14 +56,16 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     transfer::transfer(pointer, package_id);
 }
 
-public fun add_package_id(state: &mut CCIPObjectRef, _: &OwnerCap, package_id: address) {
-    state.package_ids.push_back(package_id);
+public fun add_package_id(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
+    ref.package_ids.push_back(package_id);
 }
 
-public fun remove_package_id(state: &mut CCIPObjectRef, _: &OwnerCap, package_id: address) {
-    let (found, idx) = state.package_ids.index_of(&package_id);
+public fun remove_package_id(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
+    let (found, idx) = ref.package_ids.index_of(&package_id);
     assert!(found, EPackageIdNotFound);
-    state.package_ids.remove(idx);
+    ref.package_ids.remove(idx);
 }
 
 public fun owner_cap_id(ref: &CCIPObjectRef): ID {

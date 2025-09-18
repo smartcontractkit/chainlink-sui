@@ -20,6 +20,7 @@ public struct NonceManagerState has key, store {
 }
 
 const EAlreadyInitialized: u64 = 1;
+const EInvalidOwnerCap: u64 = 2;
 
 public fun type_and_version(): String {
     string::utf8(b"NonceManager 1.6.0")
@@ -27,6 +28,7 @@ public fun type_and_version(): String {
 
 #[allow(lint(self_transfer))]
 public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     assert!(!state_object::contains<NonceManagerState>(ref), EAlreadyInitialized);
 
     let state = NonceManagerState {

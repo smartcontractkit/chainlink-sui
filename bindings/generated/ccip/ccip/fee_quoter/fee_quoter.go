@@ -22,7 +22,7 @@ var (
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*models.SuiTransactionBlockResponse, error)
-	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (*models.SuiTransactionBlockResponse, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) (*models.SuiTransactionBlockResponse, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) (*models.SuiTransactionBlockResponse, error)
@@ -50,7 +50,7 @@ type IFeeQuoter interface {
 	McmsApplyTokenTransferFeeConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUpdatePricesWithOwnerCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, clock bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
+	DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
 	Bound() bind.IBoundContract
@@ -58,7 +58,7 @@ type IFeeQuoter interface {
 
 type IFeeQuoterDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
-	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (bind.Object, error)
+	NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error)
 	GetTokenPrice(ctx context.Context, opts *bind.CallOpts, ref bind.Object, token string) (TimestampedPrice, error)
 	GetTimestampedPriceFields(ctx context.Context, opts *bind.CallOpts, tp TimestampedPrice) ([]any, error)
 	GetTokenPrices(ctx context.Context, opts *bind.CallOpts, ref bind.Object, tokens []string) ([]TimestampedPrice, error)
@@ -82,7 +82,7 @@ type FeeQuoterEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, maxFeeJuelsPerMsg *big.Int, linkToken string, tokenPriceStalenessThreshold uint64, feeTokens []string) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error)
+	NewFeeQuoterCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenPrice(ref bind.Object, token string) (*bind.EncodedCall, error)
 	GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -138,7 +138,7 @@ type FeeQuoterEncoder interface {
 	McmsUpdatePricesWithOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
-	DestroyFeeQuoterCap(param bind.Object, cap bind.Object) (*bind.EncodedCall, error)
+	DestroyFeeQuoterCap(ref bind.Object, ownerCap bind.Object, cap bind.Object) (*bind.EncodedCall, error)
 	DestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -640,8 +640,8 @@ func (c *FeeQuoterContract) Initialize(ctx context.Context, opts *bind.CallOpts,
 }
 
 // NewFeeQuoterCap executes the new_fee_quoter_cap Move function.
-func (c *FeeQuoterContract) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.NewFeeQuoterCap(param)
+func (c *FeeQuoterContract) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.NewFeeQuoterCap(ref, ownerCap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -920,8 +920,8 @@ func (c *FeeQuoterContract) McmsApplyPremiumMultiplierWeiPerEthUpdates(ctx conte
 }
 
 // DestroyFeeQuoterCap executes the destroy_fee_quoter_cap Move function.
-func (c *FeeQuoterContract) DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.DestroyFeeQuoterCap(param, cap)
+func (c *FeeQuoterContract) DestroyFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, cap bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.DestroyFeeQuoterCap(ref, ownerCap, cap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -954,8 +954,8 @@ func (d *FeeQuoterDevInspect) TypeAndVersion(ctx context.Context, opts *bind.Cal
 // NewFeeQuoterCap executes the new_fee_quoter_cap Move function using DevInspect to get return values.
 //
 // Returns: FeeQuoterCap
-func (d *FeeQuoterDevInspect) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, param bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.feeQuoterEncoder.NewFeeQuoterCap(param)
+func (d *FeeQuoterDevInspect) NewFeeQuoterCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.feeQuoterEncoder.NewFeeQuoterCap(ref, ownerCap)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1371,13 +1371,15 @@ func (c feeQuoterEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, er
 }
 
 // NewFeeQuoterCap encodes a call to the new_fee_quoter_cap Move function.
-func (c feeQuoterEncoder) NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) NewFeeQuoterCap(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 	}, []any{
-		param,
+		ref,
+		ownerCap,
 	}, []string{
 		"ccip::fee_quoter::FeeQuoterCap",
 	})
@@ -1387,6 +1389,7 @@ func (c feeQuoterEncoder) NewFeeQuoterCap(param bind.Object) (*bind.EncodedCall,
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 	}
 
@@ -2500,14 +2503,16 @@ func (c feeQuoterEncoder) McmsApplyPremiumMultiplierWeiPerEthUpdatesWithArgs(arg
 }
 
 // DestroyFeeQuoterCap encodes a call to the destroy_fee_quoter_cap Move function.
-func (c feeQuoterEncoder) DestroyFeeQuoterCap(param bind.Object, cap bind.Object) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) DestroyFeeQuoterCap(ref bind.Object, ownerCap bind.Object, cap bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("destroy_fee_quoter_cap", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 		"ccip::fee_quoter::FeeQuoterCap",
 	}, []any{
-		param,
+		ref,
+		ownerCap,
 		cap,
 	}, nil)
 }
@@ -2516,6 +2521,7 @@ func (c feeQuoterEncoder) DestroyFeeQuoterCap(param bind.Object, cap bind.Object
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) DestroyFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
+		"&CCIPObjectRef",
 		"&OwnerCap",
 		"ccip::fee_quoter::FeeQuoterCap",
 	}
