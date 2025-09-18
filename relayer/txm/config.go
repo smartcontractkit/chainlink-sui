@@ -9,20 +9,24 @@ const (
 	// DefaultRequestType is the default request type for transactions.
 	DefaultRequestType = "WaitForLocalExecution"
 
-	DefaultMaxGasAmount          = 200000
-	DefaultMaxTxRetryAttempts    = 5
-	DefaultTransactionTimeout    = "10s"
-	DefaultMaxConcurrentRequests = 5
+	DefaultMaxGasAmount             = 200000
+	DefaultMaxTxRetryAttempts       = 5
+	DefaultTransactionTimeout       = "10s"
+	DefaultMaxConcurrentRequests    = 5
+	DefaultReaperPollSecs           = 10
+	DefaultTransactionRetentionSecs = 10
 )
 
 type Config struct {
-	BroadcastChanSize     uint
-	RequestType           string
-	ConfirmPollSecs       uint
-	DefaultMaxGasAmount   uint64
-	MaxTxRetryAttempts    uint64
-	TransactionTimeout    string
-	MaxConcurrentRequests uint64
+	BroadcastChanSize        uint
+	RequestType              string
+	ConfirmPollSecs          uint
+	DefaultMaxGasAmount      uint64
+	MaxTxRetryAttempts       uint64
+	TransactionTimeout       string
+	MaxConcurrentRequests    uint64
+	ReaperPollSecs           uint64
+	TransactionRetentionSecs uint64
 }
 
 var DefaultConfigSet = Config{
@@ -35,4 +39,7 @@ var DefaultConfigSet = Config{
 
 	TransactionTimeout:    DefaultTransactionTimeout,
 	MaxConcurrentRequests: DefaultMaxConcurrentRequests,
+
+	ReaperPollSecs:           DefaultReaperPollSecs,
+	TransactionRetentionSecs: DefaultTransactionRetentionSecs,
 }

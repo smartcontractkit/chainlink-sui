@@ -30,7 +30,7 @@
     ];
 
   shellHook = ''
-    echo "Setting up clean Go environment (disabling GVM)..."
+    >&2 echo "Setting up clean Go environment (disabling GVM)..."
     # Unset GVM environment leakage
     unset GOROOT
     unset GOPATH
@@ -40,15 +40,15 @@
     # Optional: lock Go toolchain version if needed
     export GOTOOLCHAIN=go1.24.2+auto
     # Debug info
-    echo "Using Go at: $(which go)"
-    go version
-    bun --version
+    >&2 echo "Using Go at: $(which go)"
+    >&2 go version
+    >&2 bun --version
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
     alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"]' -) --path-mode \"abs\""
-    echo ""
-    echo "You can lint your code with:"
-    echo "    cd relayer && golint ./..."
-    echo "    cd integration-tests && golint ./..."
-    echo ""
+    >&2 echo ""
+    >&2 echo "You can lint your code with:"
+    >&2 echo "    cd relayer && golint ./..."
+    >&2 echo "    cd integration-tests && golint ./..."
+    >&2 echo ""
   '';
 })
