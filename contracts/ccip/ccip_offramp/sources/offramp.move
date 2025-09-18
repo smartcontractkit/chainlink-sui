@@ -192,10 +192,10 @@ const EXECUTION_STATE_UNTOUCHED: u8 = 0;
 // const EXECUTION_STATE_IN_PROGRESS: u8 = 1;
 const EXECUTION_STATE_SUCCESS: u8 = 2;
 // const EXECUTION_STATE_FAILURE: u8 = 3;
-
 const ZERO_MERKLE_ROOT: vector<u8> = vector[
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
+
 const ESourceChainSelectorsMismatch: u64 = 1;
 const EZeroChainSelector: u64 = 2;
 const EUnknownSourceChainSelector: u64 = 3;
@@ -983,14 +983,15 @@ public fun commit(
     );
     let commit_report = deserialize_commit_report(report);
 
-    if (commit_report.blessed_merkle_roots.length() > 0) {
-        verify_blessed_roots(
-            ref,
-            object::uid_to_address(&state.id),
-            &commit_report.blessed_merkle_roots,
-            commit_report.rmn_signatures,
-        );
-    };
+    // // there will be no blessed merkle roots
+    // if (commit_report.blessed_merkle_roots.length() > 0) {
+    //     verify_blessed_roots(
+    //         ref,
+    //         object::uid_to_address(&state.id),
+    //         &commit_report.blessed_merkle_roots,
+    //         commit_report.rmn_signatures,
+    //     );
+    // };
 
     if (
         commit_report.price_updates.token_price_updates.length() > 0
@@ -1026,19 +1027,15 @@ public fun commit(
                 ctx,
             );
         } else {
-            // If no non-stale valid price updates are present and the report contains no merkle roots,
-            // either blessed or unblesssed, the entire report is stale and should be rejected.
-            assert!(
-                commit_report.blessed_merkle_roots.length() > 0
-                        || commit_report.unblessed_merkle_roots.length() > 0,
-                EStaleCommitReport,
-            );
+            // If no non-stale valid price updates are present and the report contains no unblessed merkle roots,
+            // report is stale and should be rejected. there will be no blessed merkle roots
+            assert!(commit_report.unblessed_merkle_roots.length() > 0, EStaleCommitReport);
         };
     };
 
-    // Commit the roots that do require RMN blessing validation.
-    // The blessings are checked at the start of this function.
-    commit_merkle_roots(ref, state, clock, commit_report.blessed_merkle_roots, true);
+    // // Commit the roots that do require RMN blessing validation.
+    // // The blessings are checked at the start of this function.
+    // commit_merkle_roots(ref, state, clock, commit_report.blessed_merkle_roots, true);
     // Commit the roots that do not require RMN blessing validation.
     commit_merkle_roots(ref, state, clock, commit_report.unblessed_merkle_roots, false);
 
@@ -1057,37 +1054,6 @@ public fun commit(
         signatures,
         ctx,
     )
-}
-
-fun verify_blessed_roots(
-    ref: &CCIPObjectRef,
-    off_ramp_state_address: address,
-    blessed_merkle_roots: &vector<MerkleRoot>,
-    rmn_signatures: vector<vector<u8>>,
-) {
-    let mut merkle_root_source_chains_selector = vector[];
-    let mut merkle_root_on_ramp_addresses = vector[];
-    let mut merkle_root_min_seq_nrs = vector[];
-    let mut merkle_root_max_seq_nrs = vector[];
-    let mut merkle_root_values = vector[];
-    vector::do_ref!(blessed_merkle_roots, |merkle_root| {
-        let merkle_root: &MerkleRoot = merkle_root;
-        merkle_root_source_chains_selector.push_back(merkle_root.source_chain_selector);
-        merkle_root_on_ramp_addresses.push_back(merkle_root.on_ramp_address);
-        merkle_root_max_seq_nrs.push_back(merkle_root.max_seq_nr);
-        merkle_root_min_seq_nrs.push_back(merkle_root.min_seq_nr);
-        merkle_root_values.push_back(merkle_root.merkle_root);
-    });
-    rmn_remote::verify(
-        ref,
-        off_ramp_state_address,
-        merkle_root_source_chains_selector,
-        merkle_root_on_ramp_addresses,
-        merkle_root_min_seq_nrs,
-        merkle_root_max_seq_nrs,
-        merkle_root_values,
-        rmn_signatures,
-    );
 }
 
 fun commit_merkle_roots(
