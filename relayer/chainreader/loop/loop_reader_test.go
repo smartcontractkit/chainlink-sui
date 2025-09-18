@@ -260,7 +260,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 
 	log.Debugw("LoopChainReader setup complete")
 
-	// Test 1: echo_u64 function call
 	t.Run("LoopReader_GetLatestValue_EchoU64", func(t *testing.T) {
 		testValue := uint64(42)
 		var retUint64 uint64
@@ -278,7 +277,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.Equal(t, testValue, retUint64)
 	})
 
-	// Test 2: echo_u64 with different values
 	t.Run("LoopReader_GetLatestValue_EchoU64_VariousValues", func(t *testing.T) {
 		testCases := []uint64{0, 1, 100, 1000, 1000000000}
 
@@ -300,10 +298,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		}
 	})
 
-	// Test 3: echo_u256 function call
 	t.Run("LoopReader_GetLatestValue_EchoU256", func(t *testing.T) {
-		t.Skip("Skipping u256 test")
-
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		testValue := big.NewInt(123456789)
 		var retBigInt *big.Int
 		err = loopReader.GetLatestValue(
@@ -319,10 +315,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.Equal(t, testValue, retBigInt)
 	})
 
-	// Test 4: echo_u256 with large values
 	t.Run("LoopReader_GetLatestValue_EchoU256_LargeValue", func(t *testing.T) {
-		t.Skip("Skipping large value test")
-
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		// Test with a very large number
 		testValue := new(big.Int)
 		testValue.SetString("123456789012345678901234567890", 10)
@@ -340,7 +334,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.Equal(t, testValue, retBigInt)
 	})
 
-	// Test 5: echo_u32_u64_tuple function call
 	t.Run("LoopReader_GetLatestValue_EchoTuple", func(t *testing.T) {
 		testVal1 := uint32(100)
 		testVal2 := uint64(200)
@@ -366,10 +359,8 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.Equal(t, testVal2, retTuple.Second)
 	})
 
-	// Test 6: echo_string function call
 	t.Run("LoopReader_GetLatestValue_EchoString", func(t *testing.T) {
-		t.Skip("Skipping string test")
-
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		testString := "Hello, Sui!"
 		var retString string
 		err = loopReader.GetLatestValue(
@@ -385,12 +376,9 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		require.Equal(t, testString, retString)
 	})
 
-	// Test 7: echo_with_events function call and event querying
 	t.Run("LoopReader_EchoWithEvents_AndQueryEvents", func(t *testing.T) {
 		// Test data
 		testNumber := uint64(12345)
-		testText := "Hello Events!"
-		testBytes := []byte("test bytes data")
 
 		// First, call the function that emits events
 		var retUint64 uint64
@@ -408,15 +396,6 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 		// Define event structures to match the Move contract
 		type SingleValueEvent struct {
 			Value uint64 `json:"value"`
-		}
-
-		type DoubleValueEvent struct {
-			Number uint64 `json:"number"`
-			Text   string `json:"text"`
-		}
-
-		type TripleValueEvent struct {
-			Values [][]byte `json:"values"`
 		}
 
 		// Query for SingleValueEvent
@@ -473,59 +452,10 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			require.NotEmpty(t, sequences, "Expected to find SingleValueEvent")
 			log.Debugw("Sequences found", "sequences", sequences)
 		})
-
-		// Query for DoubleValueEvent
-		t.Run("QueryDoubleValueEvent", func(t *testing.T) {
-			t.Skip("Skipping double value test")
-			doubleValueEvent := &DoubleValueEvent{}
-			//nolint:govet
-			sequences, err := loopReader.QueryKey(
-				ctx,
-				echoBinding,
-				query.KeyFilter{
-					Key: "double_value_event",
-				},
-				query.LimitAndSort{
-					Limit: query.CountLimit(10),
-				},
-				doubleValueEvent,
-			)
-			require.NoError(t, err)
-			require.NotEmpty(t, sequences, "Expected to find DoubleValueEvent")
-
-			// Check the latest event
-			latestEvent := sequences[0].Data.(*DoubleValueEvent)
-			require.Equal(t, testNumber, latestEvent.Number)
-			require.Equal(t, testText, latestEvent.Text)
-		})
-
-		// Query for TripleValueEvent
-		t.Run("QueryTripleValueEvent", func(t *testing.T) {
-			t.Skip("Skipping triple value event test")
-			tripleValueEvent := &TripleValueEvent{}
-			//nolint:govet
-			sequences, err := loopReader.QueryKey(
-				ctx,
-				echoBinding,
-				query.KeyFilter{
-					Key: "triple_value_event",
-				},
-				query.LimitAndSort{
-					Limit: query.CountLimit(10),
-				},
-				tripleValueEvent,
-			)
-			require.NoError(t, err)
-			require.NotEmpty(t, sequences, "Expected to find TripleValueEvent")
-
-			// Check the latest event
-			latestEvent := sequences[0].Data.(*TripleValueEvent)
-			require.NotEmpty(t, latestEvent.Values, "Expected non-empty values array")
-			require.Equal(t, testBytes, latestEvent.Values[0])
-		})
 	})
 
 	t.Run("LoopReader_GetLatestValue_GetTupleStruct", func(t *testing.T) {
+		t.Skip("Skipping, the entire test suite will be removed in favor of DefaultAccessor")
 		var retTupleStruct map[string]any
 		err = loopReader.GetLatestValue(
 			context.Background(),
@@ -535,13 +465,50 @@ func runLoopChainReaderEchoTest(t *testing.T, log logger.Logger, rpcUrl string) 
 			&retTupleStruct,
 		)
 		require.NoError(t, err)
-		require.NotEmpty(t, retTupleStruct, "Expected to find TupleStruct")
+
 		log.Debugw("retTupleStruct", "retTupleStruct", retTupleStruct)
 
-		// require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
-		// require.Equal(t, "0x1", retTupleStruct["address"], "Expected address to be 0x1")
-		// require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
-		// require.Equal(t, "0x1", retTupleStruct["struct_tag"], "Expected struct_tag to be 0x1")
+		require.NotEmpty(t, retTupleStruct, "Expected to find TupleStruct")
+		// Accept either float64 (from generic JSON map) or uint64
+		if v, ok := retTupleStruct["value"].(float64); ok {
+			require.Equal(t, float64(42), v, "Expected value to be 42")
+		} else {
+			require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
+		}
+		require.Equal(t, "0x1", retTupleStruct["address"], "Expected address to be 0x1")
+		require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
+	})
+
+	t.Run("LoopReader_GetLatestValue_GetOCRConfig", func(t *testing.T) {
+		type ConfigInfo struct {
+			ConfigDigest                   []byte `json:"config_digest"`
+			BigF                           uint64 `json:"big_f"`
+			N                              uint64 `json:"n"`
+			IsSignatureVerificationEnabled bool   `json:"is_signature_verification_enabled"`
+		}
+
+		type OCRConfig struct {
+			ConfigInfo   ConfigInfo `json:"config_info"`
+			Signers      [][]byte   `json:"signers"`
+			Transmitters [][]byte   `json:"transmitters"`
+		}
+
+		type OCRConfigWrapped struct {
+			OCRConfig OCRConfig `json:"OCRConfig"`
+		}
+
+		var retOCRConfig OCRConfigWrapped
+		err = loopReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, counterBinding.Name, "get_ocr_config"}, "-"),
+			primitives.Finalized,
+			map[string]any{},
+			&retOCRConfig,
+		)
+
+		require.NoError(t, err)
+		require.NotEmpty(t, retOCRConfig, "Expected to find OCRConfig")
+		log.Debugw("retOCRConfig", "retOCRConfig", retOCRConfig)
 	})
 
 	t.Run("LoopReader_GetLatestValue_GetOCRConfig", func(t *testing.T) {

@@ -4,6 +4,7 @@ package reader
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -118,16 +119,43 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
 					},
+					"get_address_list_renamed": {
+						Name:          "get_address_list",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"addresses": {NewName: "wallets"},
+							"count":     {NewName: "size"},
+						},
+					},
 					"get_simple_result": {
 						Name:          "get_simple_result",
 						SignerAddress: accountAddress,
 						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
+					"get_simple_result_renamed": {
+						Name:          "get_simple_result",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"value": {NewName: "renamedValue"},
+						},
 					},
 					"get_tuple_struct": {
 						Name:                "get_tuple_struct",
 						SignerAddress:       accountAddress,
 						Params:              []codec.SuiFunctionParam{}, // No parameters needed
 						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
+					},
+					"get_tuple_struct_renamed": {
+						Name:                "get_tuple_struct",
+						SignerAddress:       accountAddress,
+						Params:              []codec.SuiFunctionParam{}, // No parameters needed
+						ResultTupleToStruct: []string{"value", "address", "bool", "struct_tag"},
+						ResultFieldRenames: map[string]aptosCRConfig.RenamedField{
+							"value":      {NewName: "answer"},
+							"struct_tag": {NewName: "tag"},
+						},
 					},
 					"get_count_using_pointer": {
 						Name:          "get_count_using_pointer",
@@ -163,12 +191,28 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 					},
 				},
 			},
+			"OffRamp": {
+				Name: "offramp",
+				Functions: map[string]*config.ChainReaderFunction{
+					"get_all_source_chain_configs": {
+						Name:          "get_all_source_chain_configs",
+						SignerAddress: accountAddress,
+						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+					},
+				},
+				Events: map[string]*config.ChainReaderEvent{},
+			},
 		},
 	}
 
 	counterBinding := types.BoundContract{
 		Name:    "Counter",
 		Address: packageId, // Package ID of the deployed counter contract
+	}
+
+	offRampBinding := types.BoundContract{
+		Name:    "OffRamp",
+		Address: packageId, // Package ID of the deployed offramp contract
 	}
 
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -207,13 +251,21 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		txnIndexer,
 	)
 
+	// ChainReader in non-loop mode
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
-	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding})
+	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
 	require.NoError(t, err)
 
-	log.Debugw("ChainReader setup complete")
+	// ChainReader in loop mode
+	chainReaderConfigLoopMode := chainReaderConfig
+	chainReaderConfigLoopMode.IsLoopPlugin = true
+	chainReaderLoopMode, err := NewChainReader(ctx, log, relayerClient, chainReaderConfigLoopMode, db, indexerInstance)
+	require.NoError(t, err)
+
+	err = chainReaderLoopMode.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
+	require.NoError(t, err)
 
 	go func() {
 		err = chainReader.Start(ctx)
@@ -272,6 +324,30 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			"value", retSimpleResult.Value)
 	})
 
+	// Verify renamed field on simple struct output
+	t.Run("GetLatestValue_SimpleStruct_Renamed", func(t *testing.T) {
+		var renamed map[string]any
+
+		log.Debugw("Testing get_simple_result with field rename",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "get_simple_result_renamed"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&renamed,
+		)
+		require.NoError(t, err)
+
+		require.NotNil(t, renamed)
+		// original key should not be present when renamed
+		_, hasOriginal := renamed["value"]
+		require.False(t, hasOriginal)
+		require.Equal(t, uint64(42), renamed["renamedValue"])
+	})
+
 	t.Run("GetLatestValue_AddressList", func(t *testing.T) {
 		var retAddressList AddressList
 
@@ -313,6 +389,32 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			"addresses", retAddressList.Addresses)
 	})
 
+	// Verify renamed fields on address list output
+	t.Run("GetLatestValue_AddressList_Renamed", func(t *testing.T) {
+		var renamed map[string]any
+
+		log.Debugw("Testing get_address_list with field rename",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "get_address_list_renamed"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&renamed,
+		)
+		require.NoError(t, err)
+
+		require.NotNil(t, renamed)
+		// renamed keys should be present
+		require.Contains(t, renamed, "wallets")
+		require.Contains(t, renamed, "size")
+		// original keys should not be present
+		require.NotContains(t, renamed, "addresses")
+		require.NotContains(t, renamed, "count")
+	})
+
 	t.Run("GetLatestValue_TupleToStruct", func(t *testing.T) {
 		var retTupleStruct map[string]any
 
@@ -340,6 +442,32 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			"address", retTupleStruct["address"],
 			"bool", retTupleStruct["bool"],
 			"struct_tag", retTupleStruct["struct_tag"])
+	})
+
+	// Verify renamed fields on tuple-to-struct output
+	t.Run("GetLatestValue_TupleToStruct_Renamed", func(t *testing.T) {
+		var renamed map[string]any
+
+		log.Debugw("Testing get_tuple_struct with field rename",
+			"packageId", packageId,
+		)
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "get_tuple_struct_renamed"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed
+			&renamed,
+		)
+		require.NoError(t, err)
+
+		require.NotNil(t, renamed)
+		// renamed keys should be present
+		require.Contains(t, renamed, "answer")
+		require.Contains(t, renamed, "tag")
+		// original keys should not be present
+		require.NotContains(t, renamed, "value")
+		require.NotContains(t, renamed, "struct_tag")
 	})
 
 	t.Run("QueryKey_Events", func(t *testing.T) {
@@ -549,5 +677,31 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Verify the returned struct
 		require.NotNil(t, retUint64)
 		require.Equal(t, expectedUint64, retUint64, "Expected value to be 0")
+	})
+
+	t.Run("GetLatestValue_GetAllSourceChainConfigs_LoopMode", func(t *testing.T) {
+		var retAllSourceChainConfigs []byte
+		params, err := json.Marshal(map[string]any{})
+		require.NoError(t, err)
+
+		log.Debugw("Testing get_all_source_chain_configs function for BCS struct decoding",
+			"packageId", packageId,
+		)
+
+		err = chainReaderLoopMode.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "OffRamp", "get_all_source_chain_configs"}, "-"),
+			primitives.Finalized,
+			&params, // no parameters needed
+			&retAllSourceChainConfigs,
+		)
+		require.NoError(t, err)
+
+		// Convert bytes to JSON
+		var jsonResult [][]any
+		err = json.Unmarshal(retAllSourceChainConfigs, &jsonResult)
+		require.NoError(t, err)
+
+		log.Debugw("jsonResult", "jsonResult", jsonResult)
 	})
 }
