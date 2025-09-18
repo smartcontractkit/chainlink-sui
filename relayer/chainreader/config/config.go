@@ -31,6 +31,8 @@ type ChainReaderFunction struct {
 	Params        []codec.SuiFunctionParam
 	// Defines a way to transform a tuple result into a JSON object
 	ResultTupleToStruct []string
+	// Defines a mapping for renaming response fields
+	ResultFieldRenames map[string]RenamedField
 }
 
 type ChainReaderEvent struct {
