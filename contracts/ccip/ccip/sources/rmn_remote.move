@@ -88,6 +88,7 @@ const ESignersMismatch: u64 = 15;
 const EInvalidSubjectLength: u64 = 16;
 const EInvalidPublicKeyLength: u64 = 17;
 const EInvalidFunction: u64 = 18;
+const EInvalidOwnerCap: u64 = 19;
 
 const VERSION: u8 = 1;
 
@@ -110,6 +111,7 @@ public fun initialize(
     local_chain_selector: u64,
     ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     assert!(!state_object::contains<RMNRemoteState>(ref), EAlreadyInitialized);
     assert!(local_chain_selector != 0, EZeroValueNotAllowed);
 
@@ -234,7 +236,7 @@ public fun verify(
 
 public fun set_config(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     rmn_home_contract_config_digest: vector<u8>,
     signer_onchain_public_keys: vector<vector<u8>>,
     node_indexes: vector<u64>,
@@ -246,6 +248,8 @@ public fun set_config(
         string::utf8(b"set_config"),
         VERSION,
     );
+
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
@@ -339,16 +343,24 @@ public fun curse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<
         string::utf8(b"curse"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     curse_multiple(ref, owner_cap, vector[subject]);
 }
 
-public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+public fun curse_multiple(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    subjects: vector<vector<u8>>,
+) {
     verify_function_allowed(
         ref,
         string::utf8(b"rmn_remote"),
         string::utf8(b"curse_multiple"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
@@ -367,16 +379,24 @@ public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vecto
         string::utf8(b"uncurse"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     uncurse_multiple(ref, owner_cap, vector[subject]);
 }
 
-public fun uncurse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+public fun uncurse_multiple(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    subjects: vector<vector<u8>>,
+) {
     verify_function_allowed(
         ref,
         string::utf8(b"rmn_remote"),
         string::utf8(b"uncurse_multiple"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {

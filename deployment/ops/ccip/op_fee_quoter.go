@@ -357,6 +357,7 @@ type NewFeeQuoterCapObjects struct {
 
 type NewFeeQuoterCapInput struct {
 	CCIPPackageId    string
+	CCIPObjectRef    string
 	OwnerCapObjectId string
 }
 
@@ -371,6 +372,7 @@ var newFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 	tx, err := contract.NewFeeQuoterCap(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRef},
 		bind.Object{Id: input.OwnerCapObjectId},
 	)
 	if err != nil {
@@ -401,6 +403,7 @@ var FeeQuoterNewFeeQuoterCapOp = cld_ops.NewOperation(
 // FEE QUOTER -- destroy_fee_quoter_cap
 type DestroyFeeQuoterCapInput struct {
 	CCIPPackageId        string
+	CCIPObjectRef        string
 	OwnerCapObjectId     string
 	FeeQuoterCapObjectId string
 }
@@ -416,6 +419,7 @@ var destroyFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 	tx, err := contract.DestroyFeeQuoterCap(
 		b.GetContext(),
 		opts,
+		bind.Object{Id: input.CCIPObjectRef},
 		bind.Object{Id: input.OwnerCapObjectId},
 		bind.Object{Id: input.FeeQuoterCapObjectId},
 	)
