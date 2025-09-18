@@ -1,7 +1,7 @@
 #[test_only]
 module ccip::state_object_test;
 
-use ccip::ownable::OwnerCap;
+use ccip::ownable::{Self, OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
 use sui::test_scenario::{Self, Scenario};
 
@@ -184,4 +184,30 @@ public fun test_accept_and_execute_ownership() {
     transfer::public_transfer(owner_cap_2, @0x0);
     test_scenario::return_shared(ref);
     test_scenario::end(scenario_4);
+}
+
+#[test]
+#[expected_failure(abort_code = state_object::EInvalidOwnerCap)]
+public fun test_add_package_id_with_invalid_owner_cap() {
+    let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
+    let ctx = scenario.ctx();
+
+    // Create a different owner cap using ownable::new
+    let (ownable_state, fake_owner_cap) = ownable::new(ctx);
+
+    // Try to add a package ID using the fake owner cap - this should fail at line 60
+    // The test should abort here with EInvalidOwnerCap
+    state_object::add_package_id(&mut ref, &fake_owner_cap, @0x123);
+
+    // This code should never be reached due to the expected failure above
+    // Cleanup
+    let TestObject { id } = obj;
+    object::delete(id);
+    transfer::public_transfer(ownable_state, @0x0);
+    transfer::public_transfer(fake_owner_cap, @0x0);
+
+    // Cleanup the original scenario objects
+    test_scenario::return_to_sender(&scenario, owner_cap);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
 }
