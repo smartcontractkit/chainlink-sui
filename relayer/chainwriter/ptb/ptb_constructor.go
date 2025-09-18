@@ -214,6 +214,7 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 			// fallback to the provided package ID if the module does not have the `get_latest_package_id` function
 			latestPackageId, err := p.client.(*client.PTBClient).GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
 			if err != nil {
+				p.log.Info("ERROR GETLATESTPKGID: ", err)
 				return nil, err
 			}
 			cmd.PackageId = &latestPackageId

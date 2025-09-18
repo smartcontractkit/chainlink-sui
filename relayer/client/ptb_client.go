@@ -800,7 +800,7 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		return nil, fmt.Errorf("pointer object not found for package %s and module %s", packageId, module)
 	}
 
-	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
+	c.log.Debugw("pointer ref object NEW", "pointerObject", pointerObject)
 
 	stateObjectId := ""
 	switch module {
@@ -817,17 +817,23 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		return nil, fmt.Errorf("state object id not found for package %s and module %s", packageId, module)
 	}
 
+	c.log.Info("READOBJECTID", stateObjectId)
+
 	// Read the state object
 	stateObject, err := c.ReadObjectId(ctx, stateObjectId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
 
+	c.log.Info("FINISHED READING STATEOBJECTID")
+
 	// Read the package IDs from the state object
 	packageIds := []string{}
 	for _, packageId := range stateObject.Content.SuiMoveObject.Fields["package_ids"].([]any) {
 		packageIds = append(packageIds, packageId.(string))
 	}
+
+	c.log.Info("RETURNING PACKAGEIDS")
 
 	return packageIds, nil
 }
