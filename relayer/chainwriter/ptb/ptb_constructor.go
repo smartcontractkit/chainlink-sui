@@ -209,17 +209,20 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
-			p.log.Info("CALLING SUI PTB MOVE CALL")
+			p.log.Infof("CALLING SUI PTB MOVE CALL: pkg=%v mod=%v", cmd.PackageId, cmd.ModuleId)
 			// Override the package ID with the latest package ID of the module being called,
 			// fallback to the provided package ID if the module does not have the `get_latest_package_id` function
-			latestPackageId, err := p.client.(*client.PTBClient).GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
-			if err != nil {
-				p.log.Info("ERROR GETLATESTPKGID: ", err)
-				return nil, err
+			if cmd.PackageId != nil && cmd.ModuleId != nil {
+				latestPackageId, err := p.client.GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get latest package id: %w", err)
+				}
+				cmd.PackageId = &latestPackageId
+			} else {
+				p.log.Info("missing PackageId or ModuleId in PTB command")
 			}
 			p.log.Info("LATESTPKGID ABOUT TO BE OVERWRITTEN: ")
 			p.log.Info("LATESTPKGID BEFORE: ", cmd.PackageId)
-			cmd.PackageId = &latestPackageId
 
 			p.log.Info("LATESTPKGID: ", cmd.PackageId)
 
