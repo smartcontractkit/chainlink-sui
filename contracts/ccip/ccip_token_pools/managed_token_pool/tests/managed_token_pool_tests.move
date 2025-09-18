@@ -1181,7 +1181,6 @@ public fun test_initialize_with_managed_token_function() {
         let pool_address = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
         assert!(pool_address == actual_package_id); // Should match the dynamically calculated package id
 
-        let token_config = token_admin_registry::get_token_config(&ccip_ref, coin_metadata_address);
         let (
             pool_package_id,
             pool_module,
@@ -1191,7 +1190,10 @@ public fun test_initialize_with_managed_token_function() {
             type_proof,
             _lock_or_burn_params,
             _release_or_mint_params,
-        ) = token_admin_registry::get_token_config_data(token_config);
+        ) = token_admin_registry::get_token_config_data(
+            &ccip_ref,
+            coin_metadata_address,
+        );
 
         assert!(pool_package_id == actual_package_id);
         assert!(pool_module == string::utf8(b"managed_token_pool"));
