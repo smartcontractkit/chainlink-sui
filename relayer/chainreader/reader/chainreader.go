@@ -231,8 +231,6 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		primary = applyResultFieldRenames(primary, functionConfig.ResultFieldRenames)
 	}
 
-	s.logger.Debugw("GLV primary after applying renames", "primary", primary)
-
 	// TODO: handle multiple results for non-loop plugin mode
 	return codec.DecodeSuiJsonValue(primary, returnVal)
 }
