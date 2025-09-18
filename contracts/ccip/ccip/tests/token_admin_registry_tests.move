@@ -82,23 +82,6 @@ fun create_test_token(
     )
 }
 
-// fun create_named_test_token(
-//     scenario: &mut Scenario,
-//     symbol: vector<u8>,
-//     name: vector<u8>,
-//     description: vector<u8>,
-// ): (coin::TreasuryCap<TOKEN_ADMIN_REGISTRY_TESTS>, coin::CoinMetadata<TOKEN_ADMIN_REGISTRY_TESTS>) {
-//     coin::create_currency(
-//         TOKEN_ADMIN_REGISTRY_TESTS {},
-//         DECIMALS,
-//         symbol,
-//         name,
-//         description,
-//         option::none(),
-//         scenario.ctx(),
-//     )
-// }
-
 fun register_test_pool<T>(
     ref: &mut CCIPObjectRef,
     treasury_cap: &coin::TreasuryCap<T>,
@@ -419,106 +402,6 @@ public fun test_register_and_set_pool() {
     transfer::public_freeze_object(coin_metadata);
     ts::end(scenario);
 }
-
-// // === Pool Information Retrieval Tests ===
-
-// #[test]
-// public fun test_get_token_configs() {
-//     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
-
-//     // Create two test tokens
-//     let (treasury_cap_1, coin_metadata_1) = create_named_test_token(
-//         &mut scenario,
-//         b"TEST1",
-//         b"TestToken1",
-//         b"test_token_1",
-//     );
-//     let token_1 = object::id_to_address(&object::id(&coin_metadata_1));
-
-//     let (treasury_cap_2, coin_metadata_2) = create_named_test_token(
-//         &mut scenario,
-//         b"TEST2",
-//         b"TestToken2",
-//         b"test_token_2",
-//     );
-//     let token_2 = object::id_to_address(&object::id(&coin_metadata_2));
-
-//     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
-
-//     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
-//     {
-//         let mut ref = scenario.take_shared<CCIPObjectRef>();
-
-//         // Register both tokens
-//         register_test_pool(
-//             &mut ref,
-//             &treasury_cap_1,
-//             &coin_metadata_1,
-//             MOCK_TOKEN_POOL_PACKAGE_ID_1,
-//             b"mock_token_pool_1",
-//             TOKEN_ADMIN_ADDRESS,
-//         );
-
-//         registry::register_pool(
-//             &mut ref,
-//             &treasury_cap_2,
-//             &coin_metadata_2,
-//             MOCK_TOKEN_POOL_PACKAGE_ID_2,
-//             string::utf8(b"mock_token_pool_2"),
-//             TOKEN_ADMIN_ADDRESS,
-//             vector[],
-//             vector[],
-//             TypeProof2 {},
-//         );
-
-//         // Test various scenarios
-//         let token_configs = registry::get_token_configs(&ref, vector[token_1, token_2]);
-//         let unregistered_token = @0x999;
-//         let mixed_token_configs = registry::get_token_configs(
-//             &ref,
-//             vector[token_1, unregistered_token],
-//         );
-//         let empty_token_configs = registry::get_token_configs(&ref, vector[]);
-
-//         // Verify functionality through get_token_configs results
-//         assert!(token_configs.length() == 2);
-//         let (token_pool_package_id_1, _, _, _, _, _, _, _) = registry::get_token_config_data(
-//             &ref,
-//             token_configs[0],
-//         );
-//         let (token_pool_package_id_2, _, _, _, _, _, _, _) = registry::get_token_config_data(
-//             &ref,
-//             token_configs[1],
-//         );
-//         assert!(token_pool_package_id_1 == MOCK_TOKEN_POOL_PACKAGE_ID_1);
-//         assert!(token_pool_package_id_2 == MOCK_TOKEN_POOL_PACKAGE_ID_2);
-
-//         // Test with mixed registered/unregistered tokens
-//         assert!(mixed_token_configs.length() == 2);
-//         let (mixed_token_pool_package_id_1, _, _, _, _, _, _, _) = registry::get_token_config_data(
-//             &ref,
-//             mixed_token_configs[0],
-//         );
-//         let (mixed_token_pool_package_id_2, _, _, _, _, _, _, _) = registry::get_token_config_data(
-//             &ref,
-//             mixed_token_configs[1],
-//         );
-//         assert!(mixed_token_pool_package_id_1 == MOCK_TOKEN_POOL_PACKAGE_ID_1);
-//         assert!(mixed_token_pool_package_id_2 == @0x0); // unregistered token
-
-//         // Test with empty vector
-//         assert!(empty_token_configs.length() == 0);
-
-//         let ctx = scenario.ctx();
-//         transfer::public_transfer(treasury_cap_1, ctx.sender());
-//         transfer::public_transfer(treasury_cap_2, ctx.sender());
-//         ts::return_shared(ref);
-//     };
-
-//     transfer::public_freeze_object(coin_metadata_1);
-//     transfer::public_freeze_object(coin_metadata_2);
-//     ts::end(scenario);
-// }
 
 // === Token Pagination Tests ===
 
