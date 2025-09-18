@@ -256,6 +256,7 @@ public fun initialize(
     fee_tokens: vector<address>,
     ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     assert!(!state_object::contains<FeeQuoterState>(ref), EAlreadyInitialized);
 
     let state = FeeQuoterState {
@@ -270,12 +271,18 @@ public fun initialize(
         token_transfer_fee_configs: table::new(ctx),
         premium_multiplier_wei_per_eth: table::new(ctx),
     };
-    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    let fee_quoter_cap = new_fee_quoter_cap(ref, owner_cap, ctx);
     transfer::public_transfer(fee_quoter_cap, ctx.sender());
     state_object::add(ref, owner_cap, state, ctx);
 }
 
-public fun new_fee_quoter_cap(_: &OwnerCap, ctx: &mut TxContext): FeeQuoterCap {
+public fun new_fee_quoter_cap(
+    ref: &CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    ctx: &mut TxContext,
+): FeeQuoterCap {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     FeeQuoterCap {
         id: object::new(ctx),
     }
@@ -565,7 +572,7 @@ public fun update_prices_with_owner_cap(
     gas_usd_per_unit_gas: vector<u256>,
     ctx: &mut TxContext,
 ) {
-    let fee_quoter_cap = new_fee_quoter_cap(owner_cap, ctx);
+    let fee_quoter_cap = new_fee_quoter_cap(ref, owner_cap, ctx);
     update_prices(
         ref,
         &fee_quoter_cap,
@@ -576,7 +583,7 @@ public fun update_prices_with_owner_cap(
         gas_usd_per_unit_gas,
         ctx,
     );
-    destroy_fee_quoter_cap(owner_cap, fee_quoter_cap);
+    destroy_fee_quoter_cap(ref, owner_cap, fee_quoter_cap);
 }
 
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
@@ -1860,7 +1867,9 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     );
 }
 
-public fun destroy_fee_quoter_cap(_: &OwnerCap, cap: FeeQuoterCap) {
+public fun destroy_fee_quoter_cap(ref: &CCIPObjectRef, owner_cap: &OwnerCap, cap: FeeQuoterCap) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let FeeQuoterCap { id } = cap;
     object::delete(id);
 }

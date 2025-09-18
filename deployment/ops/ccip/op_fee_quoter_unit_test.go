@@ -167,21 +167,25 @@ func TestFeeQuoterInputValidation(t *testing.T) {
 	t.Run("NewFeeQuoterCapInput", func(t *testing.T) {
 		input := NewFeeQuoterCapInput{
 			CCIPPackageId:    "0x123",
+			CCIPObjectRef:    "0xabc",
 			OwnerCapObjectId: "0x456",
 		}
 
 		require.NotEmpty(t, input.CCIPPackageId)
+		require.NotEmpty(t, input.CCIPObjectRef)
 		require.NotEmpty(t, input.OwnerCapObjectId)
 	})
 
 	t.Run("DestroyFeeQuoterCapInput", func(t *testing.T) {
 		input := DestroyFeeQuoterCapInput{
 			CCIPPackageId:        "0x123",
+			CCIPObjectRef:        "0xabc",
 			OwnerCapObjectId:     "0x456",
 			FeeQuoterCapObjectId: "0x789",
 		}
 
 		require.NotEmpty(t, input.CCIPPackageId)
+		require.NotEmpty(t, input.CCIPObjectRef)
 		require.NotEmpty(t, input.OwnerCapObjectId)
 		require.NotEmpty(t, input.FeeQuoterCapObjectId)
 	})
