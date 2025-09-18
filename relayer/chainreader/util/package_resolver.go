@@ -252,6 +252,31 @@ func (pr *PackageResolver) InvalidateCache(moduleName string) {
 	pr.log.Debugw("Cache invalidated for module", "module", moduleName)
 }
 
+func (pr *PackageResolver) ValidateBinding(moduleName string, packageAddress string) error {
+	moduleName = pr.normalizeName(moduleName)
+
+	pr.mutex.RLock()
+	boundPackageAddress := pr.packageAddresses[moduleName]
+	pr.mutex.RUnlock()
+
+	// If the key exists but the address does not match
+	if boundPackageAddress == packageAddress {
+		return nil
+	}
+
+	// If the key does not exist, check the cache
+	if boundPackageAddress == "" {
+		cacheKey := packageAddressCachePrefix + moduleName
+		if cachedAddr, found := pr.cache.Get(cacheKey); found {
+			if cachedAddr.(string) == packageAddress {
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("invalid binding for module: %s and address: %s", moduleName, packageAddress)
+}
+
 // ClearCache clears all cached entries
 func (pr *PackageResolver) ClearCache() {
 	items := pr.cache.Items()

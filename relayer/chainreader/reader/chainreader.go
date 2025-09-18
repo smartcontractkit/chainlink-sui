@@ -35,7 +35,6 @@ import (
 const (
 	defaultQueryLimit   = 25
 	readIdentifierParts = 3
-	objectIdPrefix      = "0x"
 	offrampName         = "OffRamp"
 	ccipPointerKey      = "state_object::CCIPObjectRefPointer"
 )
@@ -43,14 +42,13 @@ const (
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
-	logger           logger.Logger
-	config           config.ChainReaderConfig
-	starter          services.StateMachine
-	packageAddresses map[string]string
-	packageResolver  *util.PackageResolver
-	client           *client.PTBClient
-	dbStore          *database.DBStore
-	indexer          indexer.IndexerApi
+	logger          logger.Logger
+	config          config.ChainReaderConfig
+	starter         services.StateMachine
+	packageResolver *util.PackageResolver
+	client          *client.PTBClient
+	dbStore         *database.DBStore
+	indexer         indexer.IndexerApi
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
@@ -119,9 +117,6 @@ func (s *suiChainReader) Close() error {
 
 func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
 	for _, binding := range bindings {
-		if !strings.HasPrefix(binding.Address, objectIdPrefix) {
-			return fmt.Errorf("invalid Sui package address format: %s", binding.Address)
-		}
 		err := s.packageResolver.BindPackage(binding.Name, binding.Address)
 		if err != nil {
 			return fmt.Errorf("failed to bind package: %w", err)
@@ -151,7 +146,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	}
 	_, contractName, method := parsed.address, parsed.contractName, parsed.readName
 
-	if err = s.validateBinding(parsed); err != nil {
+	if err = s.validateContractBindingAndConfig(parsed.contractName, parsed.address); err != nil {
 		return err
 	}
 
@@ -372,7 +367,7 @@ func (s *suiChainReader) parseReadIdentifier(identifier string) (*readIdentifier
 
 func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter) (*config.ChainReaderEvent, error) {
 	// Validate contract binding
-	if err := s.validateContractBinding(contract); err != nil {
+	if err := s.validateContractBindingAndConfig(contract.Name, contract.Address); err != nil {
 		return nil, err
 	}
 
@@ -439,39 +434,15 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	return eventConfig, nil
 }
 
-// validateBinding validates that the contract is bound and addresses match
-func (s *suiChainReader) validateBinding(parsed *readIdentifier) error {
-	boundAddress, ok := s.packageAddresses[parsed.contractName]
-	if !ok {
-		return fmt.Errorf("no bound address for contract: %s", parsed.contractName)
-	}
-
-	if boundAddress != parsed.address {
-		return fmt.Errorf("bound address %s for contract %s does not match read address %s",
-			boundAddress, parsed.contractName, parsed.address)
-	}
-
-	if _, ok := s.config.Modules[parsed.contractName]; !ok {
-		return fmt.Errorf("no configuration for contract: %s", parsed.contractName)
-	}
-
-	return nil
-}
-
 // validateContractBinding validates the contract binding for QueryKey
-func (s *suiChainReader) validateContractBinding(contract pkgtypes.BoundContract) error {
-	address, ok := s.packageAddresses[contract.Name]
-	if !ok {
-		return fmt.Errorf("no bound address for package %s", contract.Name)
+func (s *suiChainReader) validateContractBindingAndConfig(name string, address string) error {
+	err := s.packageResolver.ValidateBinding(name, address)
+	if err != nil {
+		return fmt.Errorf("invalid binding for contract: %s", name)
 	}
 
-	if address != contract.Address {
-		return fmt.Errorf("bound address %s for package %s does not match provided address %s",
-			address, contract.Name, contract.Address)
-	}
-
-	if _, ok := s.config.Modules[contract.Name]; !ok {
-		return fmt.Errorf("no configuration for contract: %s", contract.Name)
+	if _, ok := s.config.Modules[name]; !ok {
+		return fmt.Errorf("no configuration for contract: %s", name)
 	}
 
 	return nil
