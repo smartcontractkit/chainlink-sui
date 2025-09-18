@@ -290,7 +290,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 			})
 			functionInfo.Parameters = append(functionInfo.Parameters, FunctionParameter{
 				Name: param.Name,
-				Type: typ.GoType,
+				Type: typ.MoveType,
 			})
 		}
 		for _, returnType := range f.ReturnTypes {
@@ -310,7 +310,10 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 			continue
 		}
 		data.Funcs = append(data.Funcs, out)
-		functionInfos = append(functionInfos, functionInfo)
+		if !strings.HasPrefix(f.Name, "mcms_") {
+			// Only add actual functions to the JSON info. Ignore MCMS wrappers
+			functionInfos = append(functionInfos, functionInfo)
+		}
 	}
 	slices.SortFunc(functionInfos, func(a, b FunctionInfo) int {
 		return strings.Compare(a.Name, b.Name)
