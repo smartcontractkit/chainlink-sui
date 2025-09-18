@@ -20,6 +20,7 @@ const ALLOWED_SENDER_1: address = @0x11;
 const ALLOWED_SENDER_2: address = @0x22;
 const ALLOWED_SENDER_3: address = @0x33;
 const OWNER: address = @0x123;
+const DEST_CHAIN_ROUTER_1: address = @0x123;
 
 const MODULE_NAME: vector<u8> = b"onramp";
 
@@ -98,8 +99,8 @@ fun initialize_onramp(
         ctx.sender(),
         ctx.sender(),
         vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2], // dest_chain_selectors
-        vector[true, false], // dest_chain_enabled
         vector[true, false], // dest_chain_allowlist_enabled
+        vector[@0x123, @0x345], // dest_chain_routers
         ctx,
     );
 }
@@ -192,8 +193,8 @@ public fun test_mcms_apply_dest_chain_config_updates() {
     data.append(bcs::to_bytes(&object::id_address(&env.state)));
     data.append(bcs::to_bytes(&object::id_address(&owner_cap)));
     data.append(bcs::to_bytes(&vector[DEST_CHAIN_SELECTOR_1, DEST_CHAIN_SELECTOR_2])); // dest_chain_selectors
-    data.append(bcs::to_bytes(&vector[true, false])); // dest_chain_enabled
     data.append(bcs::to_bytes(&vector[false, true])); // dest_chain_allowlist_enabled
+    data.append(bcs::to_bytes(&vector[DEST_CHAIN_ROUTER_1, @0x0])); // dest_chain_routers
 
     // Initialize owner_cap with MCMS
     transfer_to_mcms(
@@ -218,22 +219,18 @@ public fun test_mcms_apply_dest_chain_config_updates() {
         params,
     );
 
-    let (
-        is_enabled,
-        _sequence_number,
-        allowlist_enabled,
-        _allowed_senders,
-    ) = onramp::get_dest_chain_config(&env.state, DEST_CHAIN_SELECTOR_1);
-    assert!(is_enabled == true);
+    let (_sequence_number, allowlist_enabled, router) = onramp::get_dest_chain_config(
+        &env.state,
+        DEST_CHAIN_SELECTOR_1,
+    );
     assert!(allowlist_enabled == false);
+    assert!(router == DEST_CHAIN_ROUTER_1);
 
-    let (
-        is_enabled,
-        _sequence_number,
-        allowlist_enabled,
-        _allowed_senders,
-    ) = onramp::get_dest_chain_config(&env.state, DEST_CHAIN_SELECTOR_2);
-    assert!(is_enabled == false);
+    let (_sequence_number, allowlist_enabled, router) = onramp::get_dest_chain_config(
+        &env.state,
+        DEST_CHAIN_SELECTOR_2,
+    );
+    assert!(router == @0x0);
     assert!(allowlist_enabled == true);
 
     env.tear_down();

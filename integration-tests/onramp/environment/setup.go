@@ -264,14 +264,14 @@ func DeployCCIPAndOnrampAndTokens(
 			FeeAggregator:             signerAddr,
 			AllowListAdmin:            signerAddr,
 			DestChainSelectors:        []uint64{destChainSelector},
-			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{true},
+			DestChainRouters:          []string{"0x0"},
 		},
 		ApplyDestChainConfigureOnRampInput: onrampops.ApplyDestChainConfigureOnRampInput{
 			CCIPObjectRefId:           reportCCIP.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:         []uint64{destChainSelector},
-			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{false},
+			DestChainRouters:          []string{"0x1"},
 		},
 		ApplyAllowListUpdatesInput: onrampops.ApplyAllowListUpdatesInput{
 			CCIPObjectRefId:               reportCCIP.Output.Objects.CCIPObjectRefObjectId,

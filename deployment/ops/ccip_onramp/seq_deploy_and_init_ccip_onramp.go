@@ -50,8 +50,8 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 			OwnerCapObjectId:          deployReport.Output.Objects.OwnerCapObjectId,
 			StateObjectId:             deployReport.Output.Objects.CCIPOnrampStateObjectId,
 			DestChainSelector:         input.ApplyDestChainConfigureOnRampInput.DestChainSelector,
-			DestChainEnabled:          input.ApplyDestChainConfigureOnRampInput.DestChainEnabled,
 			DestChainAllowListEnabled: input.ApplyDestChainConfigureOnRampInput.DestChainAllowListEnabled,
+			DestChainRouters:          input.ApplyDestChainConfigureOnRampInput.DestChainRouters,
 		}
 
 		_, err = cld_ops.ExecuteOperation(env, ApplyDestChainConfigUpdateOp, deps, applyDestChainConfigUpdateInput)

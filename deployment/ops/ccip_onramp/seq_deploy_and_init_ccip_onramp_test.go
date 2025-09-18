@@ -43,6 +43,7 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 		reporter,
 	)
 
+	routerAddress := "0x1234567890123456789012345678901234567890"
 	signerAddress, err := signer.GetAddress()
 	require.NoError(t, err, "failed to get signer address")
 
@@ -89,14 +90,14 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 			FeeAggregator:             signerAddress,
 			AllowListAdmin:            signerAddress,
 			DestChainSelectors:        []uint64{909606746561742123},
-			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{true},
+			DestChainRouters:          []string{routerAddress},
 		},
 		ApplyDestChainConfigureOnRampInput: ApplyDestChainConfigureOnRampInput{
 			CCIPObjectRefId:           report.Output.Objects.CCIPObjectRefObjectId,
 			DestChainSelector:         []uint64{909606746561742123},
-			DestChainEnabled:          []bool{true},
 			DestChainAllowListEnabled: []bool{false},
+			DestChainRouters:          []string{routerAddress},
 		},
 		ApplyAllowListUpdatesInput: ApplyAllowListUpdatesInput{
 			CCIPObjectRefId:               report.Output.Objects.CCIPObjectRefObjectId,
