@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
+	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
@@ -32,7 +33,7 @@ type ChainReaderFunction struct {
 	// Defines a way to transform a tuple result into a JSON object
 	ResultTupleToStruct []string
 	// Defines a mapping for renaming response fields
-	ResultFieldRenames map[string]RenamedField
+	ResultFieldRenames map[string]aptosCRConfig.RenamedField
 }
 
 type ChainReaderEvent struct {
@@ -45,19 +46,10 @@ type ChainReaderEvent struct {
 	client.EventSelector
 
 	// Renames of event field names (optional). When not provided, the field names are used as-is.
-	EventFieldRenames map[string]RenamedField
+	EventFieldRenames map[string]aptosCRConfig.RenamedField
 
 	// Renames provided filters to match the event field names (optional). When not provided, the filters are used as-is.
 	EventFilterRenames map[string]string
-}
-
-type RenamedField struct {
-	// The new field name (optional). This does not need to be provided if this field does not need
-	// to be renamed.
-	NewName string
-
-	// Rename sub-fields. This assumes that the event field value is a struct or a map with string keys.
-	SubFieldRenames map[string]RenamedField
 }
 
 type EventsIndexerConfig struct {
