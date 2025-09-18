@@ -217,6 +217,8 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 				p.log.Info("ERROR GETLATESTPKGID: ", err)
 				return nil, err
 			}
+			p.log.Info("LATESTPKGID ABOUT TO BE OVERWRITTEN: ")
+			p.log.Info("LATESTPKGID BEFORE: ", cmd.PackageId)
 			cmd.PackageId = &latestPackageId
 
 			p.log.Info("LATESTPKGID: ", cmd.PackageId)
