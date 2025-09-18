@@ -23,7 +23,6 @@ type IRmnRemote interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetArm(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	Verify(ctx context.Context, opts *bind.CallOpts, ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
 	SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetLocalChainSelector(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -49,7 +48,6 @@ type IRmnRemote interface {
 type IRmnRemoteDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetArm(ctx context.Context, opts *bind.CallOpts) (string, error)
-	Verify(ctx context.Context, opts *bind.CallOpts, ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (bool, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error)
 	GetLocalChainSelector(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (uint64, error)
 	GetReportDigestHeader(ctx context.Context, opts *bind.CallOpts) ([]byte, error)
@@ -66,8 +64,6 @@ type RmnRemoteEncoder interface {
 	GetArmWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	Verify(ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (*bind.EncodedCall, error)
-	VerifyWithArgs(args ...any) (*bind.EncodedCall, error)
 	SetConfig(ref bind.Object, param bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*bind.EncodedCall, error)
 	SetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetVersionedConfig(ref bind.Object) (*bind.EncodedCall, error)
@@ -163,22 +159,6 @@ type Signer struct {
 	NodeIndex        uint64 `move:"u64"`
 }
 
-type Report struct {
-	DestChainSelector           uint64       `move:"u64"`
-	RmnRemoteContractAddress    string       `move:"address"`
-	OffRampAddress              string       `move:"address"`
-	RmnHomeContractConfigDigest []byte       `move:"vector<u8>"`
-	MerkleRoots                 []MerkleRoot `move:"vector<MerkleRoot>"`
-}
-
-type MerkleRoot struct {
-	SourceChainSelector uint64 `move:"u64"`
-	OnRampAddress       []byte `move:"vector<u8>"`
-	MinSeqNr            uint64 `move:"u64"`
-	MaxSeqNr            uint64 `move:"u64"`
-	MerkleRoot          []byte `move:"vector<u8>"`
-}
-
 type ConfigSet struct {
 	Version uint32 `move:"u32"`
 	Config  Config `move:"Config"`
@@ -193,25 +173,6 @@ type Uncursed struct {
 }
 
 type McmsCallback struct {
-}
-
-type bcsReport struct {
-	DestChainSelector           uint64
-	RmnRemoteContractAddress    [32]byte
-	OffRampAddress              [32]byte
-	RmnHomeContractConfigDigest []byte
-	MerkleRoots                 []MerkleRoot
-}
-
-func convertReportFromBCS(bcs bcsReport) (Report, error) {
-
-	return Report{
-		DestChainSelector:           bcs.DestChainSelector,
-		RmnRemoteContractAddress:    fmt.Sprintf("0x%x", bcs.RmnRemoteContractAddress),
-		OffRampAddress:              fmt.Sprintf("0x%x", bcs.OffRampAddress),
-		RmnHomeContractConfigDigest: bcs.RmnHomeContractConfigDigest,
-		MerkleRoots:                 bcs.MerkleRoots,
-	}, nil
 }
 
 func init() {
@@ -233,27 +194,6 @@ func init() {
 	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::Signer", func(data []byte) (interface{}, error) {
 		var result Signer
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::Report", func(data []byte) (interface{}, error) {
-		var temp bcsReport
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertReportFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::MerkleRoot", func(data []byte) (interface{}, error) {
-		var result MerkleRoot
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
@@ -317,16 +257,6 @@ func (c *RmnRemoteContract) GetArm(ctx context.Context, opts *bind.CallOpts) (*m
 // Initialize executes the initialize Move function.
 func (c *RmnRemoteContract) Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.rmnRemoteEncoder.Initialize(ref, ownerCap, localChainSelector)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// Verify executes the verify Move function.
-func (c *RmnRemoteContract) Verify(ctx context.Context, opts *bind.CallOpts, ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.Verify(ref, offRampStateAddress, merkleRootSourceChainSelectors, merkleRootOnRampAddresses, merkleRootMinSeqNrs, merkleRootMaxSeqNrs, merkleRootValues, signatures)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -544,28 +474,6 @@ func (d *RmnRemoteDevInspect) GetArm(ctx context.Context, opts *bind.CallOpts) (
 	result, ok := results[0].(string)
 	if !ok {
 		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
-	}
-	return result, nil
-}
-
-// Verify executes the verify Move function using DevInspect to get return values.
-//
-// Returns: bool
-func (d *RmnRemoteDevInspect) Verify(ctx context.Context, opts *bind.CallOpts, ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (bool, error) {
-	encoded, err := d.contract.rmnRemoteEncoder.Verify(ref, offRampStateAddress, merkleRootSourceChainSelectors, merkleRootOnRampAddresses, merkleRootMinSeqNrs, merkleRootMaxSeqNrs, merkleRootValues, signatures)
-	if err != nil {
-		return false, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return false, err
-	}
-	if len(results) == 0 {
-		return false, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].(bool)
-	if !ok {
-		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
 	}
 	return result, nil
 }
@@ -798,57 +706,6 @@ func (c rmnRemoteEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, er
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("initialize", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// Verify encodes a call to the verify Move function.
-func (c rmnRemoteEncoder) Verify(ref bind.Object, offRampStateAddress string, merkleRootSourceChainSelectors []uint64, merkleRootOnRampAddresses [][]byte, merkleRootMinSeqNrs []uint64, merkleRootMaxSeqNrs []uint64, merkleRootValues [][]byte, signatures [][]byte) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("verify", typeArgsList, typeParamsList, []string{
-		"&CCIPObjectRef",
-		"address",
-		"vector<u64>",
-		"vector<vector<u8>>",
-		"vector<u64>",
-		"vector<u64>",
-		"vector<vector<u8>>",
-		"vector<vector<u8>>",
-	}, []any{
-		ref,
-		offRampStateAddress,
-		merkleRootSourceChainSelectors,
-		merkleRootOnRampAddresses,
-		merkleRootMinSeqNrs,
-		merkleRootMaxSeqNrs,
-		merkleRootValues,
-		signatures,
-	}, []string{
-		"bool",
-	})
-}
-
-// VerifyWithArgs encodes a call to the verify Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c rmnRemoteEncoder) VerifyWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&CCIPObjectRef",
-		"address",
-		"vector<u64>",
-		"vector<vector<u8>>",
-		"vector<u64>",
-		"vector<u64>",
-		"vector<vector<u8>>",
-		"vector<vector<u8>>",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("verify", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"bool",
-	})
 }
 
 // SetConfig encodes a call to the set_config Move function.

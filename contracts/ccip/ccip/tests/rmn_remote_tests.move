@@ -12,7 +12,6 @@ use sui::test_scenario::{Self, Scenario};
 
 // Test addresses and identifiers
 const ADMIN_ADDRESS: address = @0x1;
-const OFFRAMP_STATE_ADDRESS: address = @0x123;
 const TEST_CHAIN_SELECTOR: u64 = 1;
 
 // Test data constants
@@ -24,8 +23,6 @@ const INVALID_SHORT_DIGEST: vector<u8> = b"000000000000000000000000000000";
 const SIGNER_PUBKEY_1: vector<u8> = b"00000000000000000002";
 const SIGNER_PUBKEY_2: vector<u8> = b"00000000000000000003";
 const SIGNER_PUBKEY_3: vector<u8> = b"00000000000000000004";
-const SIGNER_PUBKEY_4: vector<u8> = b"00000000000000000005";
-const SIGNER_PUBKEY_5: vector<u8> = b"00000000000000000006";
 const INVALID_SHORT_PUBKEY: vector<u8> = b"000000000000000000"; // 18 bytes
 
 // Subject identifiers (16 bytes each)
@@ -35,28 +32,10 @@ const SUBJECT_U128: vector<u8> = x"00000000000000000000000000000100"; // hex(256
 const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
 const INVALID_SHORT_SUBJECT: vector<u8> = b"00003";
 
-// Merkle root test data
-const MERKLE_ROOT_VALUE_1: vector<u8> = b"merkle_root_value_32_bytes_long";
-const MERKLE_ROOT_VALUE_2: vector<u8> = b"merkle_root_value_32_bytes_lon2";
-const ONRAMP_ADDRESS: vector<u8> = b"onramp_addr";
-
-// Signature test data (64 bytes each)
-const VALID_SIGNATURE_1: vector<u8> =
-    b"signature_64_bytes_long_signature_64_bytes_long_signature_64_by";
-const VALID_SIGNATURE_2: vector<u8> =
-    b"signature_64_bytes_long_signature_64_bytes_long_signature_64_b2";
-const INVALID_SHORT_SIGNATURE: vector<u8> = b"invalid_signature_too_short"; // 28 bytes
-
 // Numerical constants
 const F_SIGN_VALUE: u64 = 1;
 const F_SIGN_HIGH_VALUE: u64 = 2;
 const VERSION_1: u32 = 1;
-const CHAIN_SELECTOR_100: u64 = 100;
-const CHAIN_SELECTOR_200: u64 = 200;
-const SEQ_NR_1: u64 = 1;
-const SEQ_NR_2: u64 = 2;
-const SEQ_NR_10: u64 = 10;
-const SEQ_NR_20: u64 = 20;
 const U128_VALUE_256: u128 = 256;
 const U128_VALUE_100: u128 = 100;
 
@@ -108,37 +87,6 @@ fun setup_basic_config(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap) {
         vector[0, 1, 2],
         F_SIGN_VALUE,
     );
-}
-
-fun setup_high_threshold_config(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap) {
-    rmn_remote::set_config(
-        ref,
-        owner_cap,
-        VALID_DIGEST,
-        vector[SIGNER_PUBKEY_1, SIGNER_PUBKEY_2, SIGNER_PUBKEY_3, SIGNER_PUBKEY_4, SIGNER_PUBKEY_5],
-        vector[0, 1, 2, 3, 4],
-        F_SIGN_HIGH_VALUE, // f_sign = 2, requires at least 3 signatures
-    );
-}
-
-fun create_basic_verify_params(): (
-    address, // off_ramp_state_address
-    vector<u64>, // merkle_root_source_chain_selectors
-    vector<vector<u8>>, // merkle_root_on_ramp_addresses
-    vector<u64>, // merkle_root_min_seq_nrs
-    vector<u64>, // merkle_root_max_seq_nrs
-    vector<vector<u8>>, // merkle_root_values
-    vector<vector<u8>>, // signatures
-) {
-    (
-        OFFRAMP_STATE_ADDRESS,
-        vector[CHAIN_SELECTOR_100],
-        vector[ONRAMP_ADDRESS],
-        vector[SEQ_NR_1],
-        vector[SEQ_NR_10],
-        vector[MERKLE_ROOT_VALUE_1],
-        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2],
-    )
 }
 
 // === Basic Initialization Tests ===
@@ -563,111 +511,6 @@ public fun test_uncurse_multiple_not_cursed() {
         &mut ref,
         &owner_cap,
         vector[SUBJECT_1, SUBJECT_2], // not cursed
-    );
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-#[expected_failure(abort_code = rmn_remote::EConfigNotSet)]
-public fun test_verify_config_not_set() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-    let ctx = scenario.ctx();
-
-    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-
-    // Try to verify without setting config first
-    let (
-        off_ramp_state_address,
-        merkle_root_source_chain_selectors,
-        merkle_root_on_ramp_addresses,
-        merkle_root_min_seq_nrs,
-        merkle_root_max_seq_nrs,
-        merkle_root_values,
-        signatures,
-    ) = create_basic_verify_params();
-
-    let _result = rmn_remote::verify(
-        &ref,
-        off_ramp_state_address,
-        merkle_root_source_chain_selectors,
-        merkle_root_on_ramp_addresses,
-        merkle_root_min_seq_nrs,
-        merkle_root_max_seq_nrs,
-        merkle_root_values,
-        signatures,
-    );
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-#[expected_failure(abort_code = rmn_remote::EThresholdNotMet)]
-public fun test_verify_threshold_not_met() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-    let ctx = scenario.ctx();
-
-    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    setup_high_threshold_config(&mut ref, &owner_cap);
-
-    // Try to verify with only 2 signatures (less than f_sign + 1)
-    let _result = rmn_remote::verify(
-        &ref,
-        OFFRAMP_STATE_ADDRESS,
-        vector[CHAIN_SELECTOR_100],
-        vector[ONRAMP_ADDRESS],
-        vector[SEQ_NR_1],
-        vector[SEQ_NR_10],
-        vector[MERKLE_ROOT_VALUE_1],
-        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2], // only 2 signatures
-    );
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-#[expected_failure(abort_code = rmn_remote::EMerkleRootLengthMismatch)]
-public fun test_verify_merkle_root_length_mismatch() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-    let ctx = scenario.ctx();
-
-    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    setup_basic_config(&mut ref, &owner_cap);
-
-    // Mismatched array lengths for merkle root components
-    let _result = rmn_remote::verify(
-        &ref,
-        OFFRAMP_STATE_ADDRESS,
-        vector[CHAIN_SELECTOR_100, CHAIN_SELECTOR_200], // 2 elements
-        vector[ONRAMP_ADDRESS], // 1 element - mismatch!
-        vector[SEQ_NR_1, SEQ_NR_2], // 2 elements
-        vector[SEQ_NR_10, SEQ_NR_20], // 2 elements
-        vector[MERKLE_ROOT_VALUE_1, MERKLE_ROOT_VALUE_2], // 2 elements
-        vector[VALID_SIGNATURE_1, VALID_SIGNATURE_2],
-    );
-
-    tear_down_test(scenario, owner_cap, ref);
-}
-
-#[test]
-#[expected_failure(abort_code = rmn_remote::EInvalidSignature)]
-public fun test_verify_invalid_signature_length() {
-    let (mut scenario, owner_cap, mut ref) = set_up_test();
-    let ctx = scenario.ctx();
-
-    initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
-    setup_basic_config(&mut ref, &owner_cap);
-
-    // Try to verify with invalid signature length (not 64 bytes)
-    let _result = rmn_remote::verify(
-        &ref,
-        OFFRAMP_STATE_ADDRESS,
-        vector[CHAIN_SELECTOR_100],
-        vector[ONRAMP_ADDRESS],
-        vector[SEQ_NR_1],
-        vector[SEQ_NR_10],
-        vector[MERKLE_ROOT_VALUE_1],
-        vector[INVALID_SHORT_SIGNATURE, VALID_SIGNATURE_2], // only 28 bytes, should be 64
     );
 
     tear_down_test(scenario, owner_cap, ref);
