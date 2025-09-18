@@ -833,17 +833,18 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		packageIds = append(packageIds, packageId.(string))
 	}
 
-	c.log.Info("RETURNING PACKAGEIDS")
+	c.log.Info("RETURNING PACKAGEIDS", packageIds)
 
 	return packageIds, nil
 }
 
 func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error) {
+	c.log.Info("GETLATESTPKGID: ", packageId, module, signerAddress)
 	packageIds, err := c.LoadModulePackageIds(ctx, packageId, module, signerAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to load module package ids: %w", err)
 	}
-
+	c.log.Info("GETLATESTPKGID RETRNED: ", packageIds)
 	return packageIds[len(packageIds)-1], nil
 }
 
