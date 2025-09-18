@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -547,19 +546,21 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			if _, ok := pointersMap[appendTag]; !ok {
 				pointersMap[appendTag] = make([]string, 0)
 			}
+
+			// TODO: make pointersMap a map of string to map instead of string to array
+			// each map to contain the following keys: 'field_name', 'parameter_name', '...'
+			// add the field name to the set
+			pointersMap[appendTag] = append(pointersMap[appendTag], tag[3])
+			// add the function parameter name to the set
 			pointersMap[appendTag] = append(pointersMap[appendTag], paramConfig.Name)
 		}
 	}
 
 	// fetch pointers
-	pointersSet := []string{}
-	for pointer := range pointersMap {
-		// make a read request to the contract
-		pointersSet = append(pointersSet, pointer)
-	}
-	pointersValuesMap, err := s.fetchPointers(ctx, pointersSet, identifier.address, functionConfig.SignerAddress)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch pointers: %w", err)
+	pointersValuesMap := make(map[string]map[string]any)
+	for pointerName, pointerVals := range pointersMap {
+
+		s.client.GetValuesFromPackageOwnedObjectField(ctx, identifier.address, pointer, []string{pointer})
 	}
 
 	// for each param, if it has a pointer value, add it to the args map
@@ -591,58 +592,6 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 	}
 
 	return args, argTypes, nil
-}
-
-// fetchPointers gets all the specified pointers from a specific contract.
-// Returns a map of { pointerTag: { ... } }
-func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, packageId, signerAddress string) (map[string]map[string]any, error) {
-	pointersValuesMap := make(map[string]map[string]any)
-
-	if slices.Contains(pointers, ccipPointerKey) {
-		if s.client.CCIPObjectPointerId != "" {
-			pointersValuesMap[ccipPointerKey] = map[string]any{
-				"object_ref_id": s.client.CCIPObjectPointerId,
-			}
-			return pointersValuesMap, nil
-		}
-
-		// only call this if not cached yet
-		// retrieves ccipPkgID and overwrites packageID
-		ccipPkgID, err := s.client.GetCCIPPackageId(ctx, packageId, signerAddress)
-		if err != nil {
-			return nil, err
-		}
-		packageId = ccipPkgID
-	}
-
-	// fetch owned objects
-	ownedObjects, err := s.client.ReadOwnedObjects(ctx, packageId, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, obj := range ownedObjects {
-		if obj.Data.Type == "" {
-			continue
-		}
-		for _, pointer := range pointers {
-			if strings.Contains(obj.Data.Type, pointer) {
-				fields := obj.Data.Content.Fields
-				pointersValuesMap[pointer] = fields
-			}
-		}
-
-		// now handle caching separately
-		if strings.Contains(obj.Data.Type, ccipPointerKey) && s.client.CCIPObjectPointerId == "" {
-			fields := obj.Data.Content.Fields
-			if refID, ok := fields["object_ref_id"].(string); ok {
-				s.client.CCIPObjectPointerId = refID
-				s.logger.Debugw("Cached ccipObjectRef", "object_ref_id", refID)
-			}
-		}
-	}
-
-	return pointersValuesMap, nil
 }
 
 // executeFunction executes the actual function call
