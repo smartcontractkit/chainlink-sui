@@ -51,6 +51,9 @@ func convertToByteArray(value any) ([]uint8, error) {
 	switch v := value.(type) {
 	case []uint8:
 		return v, nil
+	case [32]uint8:
+		// convert fixed-length array to slice
+		return v[:], nil
 	case string:
 		v = strings.TrimPrefix(v, "0x")
 		byteSlice := []uint8{}
@@ -63,7 +66,6 @@ func convertToByteArray(value any) ([]uint8, error) {
 				byteSlice = append(byteSlice, uint8(b))
 			}
 		}
-
 		return byteSlice, nil
 	default:
 		return nil, fmt.Errorf("cannot convert %T to vector<u8>", value)
