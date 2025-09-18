@@ -2878,7 +2878,279 @@ fun test_timelock_dispatch_to_deployer() {
     env.destroy();
 }
 
-// Helper function to execute timelock batch without borrowing conflicts
+#[test]
+#[expected_failure(abort_code = mcms_registry::EModuleNameMismatch, location = mcms_registry)]
+fun test_timelock_dispatch_to_registry_invalid_module() {
+    let mut env = setup();
+
+    // First, we need to register an owner cap in the registry for dispatch to work
+    let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    mcms_registry::register_entrypoint(
+        &mut env.registry,
+        mcms_registry::create_mcms_proof(),
+        owner_cap,
+        env.scenario.ctx(),
+    );
+
+    // Test dispatch to registry with invalid module name (should trigger validation error)
+    let params = mcms_registry::test_create_executing_callback_params(
+        mcms_registry::get_multisig_address(),
+        string::utf8(b"invalid_module"), // Wrong module name
+        string::utf8(b"is_package_registered"), // Valid function name
+        vector[1, 2, 3],
+    );
+
+    // This should fail with EModuleNameMismatch when the registry validates the module name
+    let (_cap, _function_name, _data) = mcms_registry::get_callback_params<
+        mcms_registry::McmsProof,
+        mcms_account::OwnerCap,
+    >(
+        &mut env.registry,
+        mcms_registry::create_mcms_proof(),
+        params,
+    );
+
+    env.destroy();
+}
+
+#[test]
+fun test_dispatch_timelock_execute_batch() {
+    let mut env = setup();
+
+    // First schedule a batch operation so we have something to execute
+    let clock = &env.clock;
+    mcms::test_timelock_schedule_batch(
+        &mut env.timelock,
+        clock,
+        mcms::proposer_role(),
+        vector[mcms_registry::get_multisig_address()], // targets
+        vector[string::utf8(b"mcms")], // module_names
+        vector[string::utf8(b"timelock_update_min_delay")], // function_names
+        vector[bcs::to_bytes(&1000u64)], // datas - new min delay
+        mcms::zero_hash(), // predecessor
+        vector[1u8], // salt
+        0u64, // delay
+        env.scenario.ctx(),
+    );
+
+    // Create serialized data for timelock_execute_batch parameters
+    let targets = vector[mcms_registry::get_multisig_address()];
+    let module_names = vector[string::utf8(b"mcms")];
+    let function_names = vector[string::utf8(b"timelock_update_min_delay")];
+    let datas = vector[bcs::to_bytes(&1000u64)];
+    let predecessor = mcms::zero_hash();
+    let salt = vector[1u8];
+
+    let mut serialized_data = bcs::to_bytes(&targets);
+    serialized_data.append(bcs::to_bytes(&module_names));
+    serialized_data.append(bcs::to_bytes(&function_names));
+    serialized_data.append(bcs::to_bytes(&datas));
+    serialized_data.append(bcs::to_bytes(&predecessor));
+    serialized_data.append(bcs::to_bytes(&salt));
+
+    // Create TimelockCallbackParams for dispatch_timelock_execute_batch
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_execute_batch"),
+        serialized_data,
+    );
+
+    // Test the dispatch function
+    let mut executing_params = mcms::dispatch_timelock_execute_batch(
+        &mut env.timelock,
+        clock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+    assert!(executing_params.length() == 1);
+
+    // Verify the ExecutingCallbackParams has the correct structure
+    let params = &executing_params[0];
+    assert!(mcms_registry::target(params) == mcms_registry::get_multisig_address());
+    assert!(mcms_registry::module_name(params) == string::utf8(b"mcms"));
+    assert!(mcms_registry::function_name(params) == string::utf8(b"timelock_update_min_delay"));
+
+    mcms::execute_timelock_update_min_delay(
+        &mut env.timelock,
+        executing_params.pop_back(),
+        env.scenario.ctx(),
+    );
+    executing_params.destroy_empty();
+
+    env.destroy();
+}
+
+#[test]
+fun test_dispatch_timelock_bypasser_execute_batch() {
+    let mut env = setup();
+
+    // Create serialized data for timelock_bypasser_execute_batch parameters
+    let targets = vector[mcms_registry::get_multisig_address()];
+    let module_names = vector[string::utf8(b"mcms")];
+    let function_names = vector[string::utf8(b"timelock_update_min_delay")];
+    let datas = vector[bcs::to_bytes(&2000)]; // new min delay
+
+    let mut serialized_data = bcs::to_bytes(&targets);
+    serialized_data.append(bcs::to_bytes(&module_names));
+    serialized_data.append(bcs::to_bytes(&function_names));
+    serialized_data.append(bcs::to_bytes(&datas));
+
+    // Create TimelockCallbackParams for dispatch_timelock_bypasser_execute_batch
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::bypasser_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_bypasser_execute_batch"),
+        serialized_data,
+    );
+
+    let mut executing_params = mcms::dispatch_timelock_bypasser_execute_batch(
+        callback_params,
+        env.scenario.ctx(),
+    );
+    assert!(executing_params.length() == 1);
+
+    // Verify the ExecutingCallbackParams has the correct structure
+    let params = &executing_params[0];
+    assert!(mcms_registry::target(params) == mcms_registry::get_multisig_address());
+    assert!(mcms_registry::module_name(params) == string::utf8(b"mcms"));
+    assert!(mcms_registry::function_name(params) == string::utf8(b"timelock_update_min_delay"));
+
+    mcms::execute_timelock_update_min_delay(
+        &mut env.timelock,
+        executing_params.pop_back(),
+        env.scenario.ctx(),
+    );
+    executing_params.destroy_empty();
+
+    env.destroy();
+}
+
+#[test]
+fun test_dispatch_timelock_cancel() {
+    let mut env = setup();
+
+    // First schedule an operation so we have something to cancel
+    let clock = &env.clock;
+    let salt = vector[2];
+
+    mcms::test_timelock_schedule_batch(
+        &mut env.timelock,
+        clock,
+        mcms::proposer_role(),
+        vector[mcms_registry::get_multisig_address()], // targets
+        vector[string::utf8(b"mcms")], // module_names
+        vector[string::utf8(b"timelock_update_min_delay")], // function_names
+        vector[bcs::to_bytes(&3000)], // datas - new min delay
+        mcms::zero_hash(), // predecessor
+        salt, // salt
+        1000, // delay (so it's pending, not immediate)
+        env.scenario.ctx(),
+    );
+
+    // Calculate the operation ID to cancel
+    let calls = mcms::create_calls(
+        vector[mcms_registry::get_multisig_address()],
+        vector[string::utf8(b"mcms")],
+        vector[string::utf8(b"timelock_update_min_delay")],
+        vector[bcs::to_bytes(&3000)],
+    );
+    let operation_id = mcms::hash_operation_batch(calls, mcms::zero_hash(), salt);
+
+    // Verify the operation is pending before cancellation
+    assert!(mcms::timelock_is_operation_pending(&env.timelock, operation_id));
+
+    // Create TimelockCallbackParams for dispatch_timelock_cancel
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::canceller_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_cancel"),
+        bcs::to_bytes(&operation_id),
+    );
+
+    mcms::dispatch_timelock_cancel(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    // Verify the operation is no longer pending
+    assert!(!mcms::timelock_is_operation_pending(&env.timelock, operation_id));
+
+    env.destroy();
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::EInvalidModuleName, location = mcms)]
+fun test_dispatch_timelock_execute_batch_invalid_module() {
+    let mut env = setup();
+
+    // Create TimelockCallbackParams with invalid module name
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"invalid_module"), // Wrong module name
+        string::utf8(b"timelock_execute_batch"),
+        vector[], // Empty data
+    );
+
+    let clock = &env.clock;
+    let executing_params = mcms::dispatch_timelock_execute_batch(
+        &mut env.timelock,
+        clock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    executing_params.destroy_empty();
+    env.destroy();
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::EInvalidFunctionName, location = mcms)]
+fun test_dispatch_timelock_bypasser_execute_batch_invalid_function() {
+    let mut env = setup();
+
+    // Create TimelockCallbackParams with invalid function name
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::bypasser_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"invalid_function"), // Wrong function name
+        vector[], // Empty data
+    );
+
+    // This should fail with EInvalidFunctionName
+    let executing_params = mcms::dispatch_timelock_bypasser_execute_batch(
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    executing_params.destroy_empty();
+    env.destroy();
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::EInvalidFunctionName, location = mcms)]
+fun test_dispatch_timelock_cancel_invalid_function() {
+    let mut env = setup();
+
+    // Create TimelockCallbackParams with invalid function name
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::canceller_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"invalid_function"), // Wrong function name
+        vector[], // Empty data
+    );
+
+    // This should fail with EInvalidFunctionName
+    mcms::dispatch_timelock_cancel(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    env.destroy();
+}
+
 fun timelock_execute_dispatch_to_acc_helper(
     env: &mut Env,
     targets: vector<address>,
@@ -2900,14 +3172,12 @@ fun timelock_execute_dispatch_to_acc_helper(
         env.scenario.ctx(),
     );
 
-    while (!executing_callback_params.is_empty()) {
-        mcms::execute_dispatch_to_account(
-            &mut env.registry,
-            &mut env.account_state,
-            executing_callback_params.pop_back(),
-            env.scenario.ctx(),
-        );
-    };
+    mcms::execute_dispatch_to_account(
+        &mut env.registry,
+        &mut env.account_state,
+        executing_callback_params.pop_back(),
+        env.scenario.ctx(),
+    );
     executing_callback_params.destroy_empty();
 }
 
@@ -2930,4 +3200,276 @@ fun destroy(env: Env) {
     clock.destroy_for_testing();
 
     scenario.end();
+}
+
+#[test]
+fun test_dispatch_timelock_schedule_batch() {
+    let mut env = setup();
+
+    // Create serialized data for timelock_schedule_batch parameters
+    let targets = vector[mcms_registry::get_multisig_address()];
+    let module_names = vector[string::utf8(b"mcms")];
+    let function_names = vector[string::utf8(b"timelock_update_min_delay")];
+    let datas = vector[bcs::to_bytes(&5000)]; // new min delay
+    let predecessor = mcms::zero_hash();
+    let salt = vector[3];
+    let delay = 1000;
+
+    let mut serialized_data = bcs::to_bytes(&targets);
+    serialized_data.append(bcs::to_bytes(&module_names));
+    serialized_data.append(bcs::to_bytes(&function_names));
+    serialized_data.append(bcs::to_bytes(&datas));
+    serialized_data.append(bcs::to_bytes(&predecessor));
+    serialized_data.append(bcs::to_bytes(&salt));
+    serialized_data.append(bcs::to_bytes(&delay));
+
+    // Create TimelockCallbackParams for dispatch_timelock_schedule_batch
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::proposer_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_schedule_batch"),
+        serialized_data,
+    );
+
+    // Test the dispatch function
+    let clock = &env.clock;
+    mcms::dispatch_timelock_schedule_batch(
+        &mut env.timelock,
+        clock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    // Verify the operation was scheduled by checking if it's pending
+    let calls = mcms::create_calls(targets, module_names, function_names, datas);
+    let operation_id = mcms::hash_operation_batch(calls, predecessor, salt);
+    assert!(mcms::timelock_is_operation_pending(&env.timelock, operation_id));
+
+    env.destroy();
+}
+
+#[test]
+fun test_dispatch_timelock_update_min_delay() {
+    let mut env = setup();
+
+    // Get initial min_delay value
+    let initial_delay = mcms::timelock_min_delay(&env.timelock);
+    let new_delay = initial_delay + 2000;
+
+    // Create TimelockCallbackParams for dispatch_timelock_update_min_delay
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_update_min_delay"),
+        bcs::to_bytes(&new_delay),
+    );
+
+    // Test the dispatch function
+    mcms::dispatch_timelock_update_min_delay(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    // Verify the min_delay was updated
+    let updated_delay = mcms::timelock_min_delay(&env.timelock);
+    assert!(updated_delay == new_delay);
+    assert!(updated_delay != initial_delay);
+
+    env.destroy();
+}
+
+#[test]
+fun test_dispatch_timelock_block_function() {
+    let mut env = setup();
+
+    // Target function to block
+    let target = mcms_registry::get_multisig_address();
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+
+    // Create serialized data for timelock_block_function parameters
+    let mut serialized_data = bcs::to_bytes(&target);
+    serialized_data.append(bcs::to_bytes(&module_name));
+    serialized_data.append(bcs::to_bytes(&function_name));
+
+    // Create TimelockCallbackParams for dispatch_timelock_block_function
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_block_function"),
+        serialized_data,
+    );
+
+    // Get initial blocked functions count
+    let initial_count = mcms::timelock_get_blocked_functions_count(&env.timelock);
+
+    // Test the dispatch function
+    mcms::dispatch_timelock_block_function(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    // Verify the function was blocked
+    let updated_count = mcms::timelock_get_blocked_functions_count(&env.timelock);
+    assert!(updated_count == initial_count + 1);
+
+    // Verify the specific function is in the blocked list
+    // Check if our function is in the blocked list by examining the first (and only) blocked function
+    assert!(updated_count == 1); // Should have exactly 1 blocked function
+    let blocked_function = mcms::timelock_get_blocked_function(&env.timelock, 0);
+    assert!(mcms::target(blocked_function) == target);
+    assert!(mcms::module_name(blocked_function) == module_name);
+    assert!(mcms::function_name(blocked_function) == function_name);
+
+    env.destroy();
+}
+
+#[test]
+fun test_dispatch_timelock_unblock_function() {
+    let mut env = setup();
+
+    // Target function to block and then unblock
+    let target = mcms_registry::get_multisig_address();
+    let module_name = string::utf8(b"test_module");
+    let function_name = string::utf8(b"test_function");
+
+    // First block the function using the direct test function
+    mcms::test_timelock_block_function(
+        &mut env.timelock,
+        mcms::timelock_role(),
+        target,
+        module_name,
+        function_name,
+        env.scenario.ctx(),
+    );
+
+    // Verify function is blocked
+    let initial_count = mcms::timelock_get_blocked_functions_count(&env.timelock);
+    assert!(initial_count > 0);
+
+    // Create serialized data for timelock_unblock_function parameters
+    let mut serialized_data = bcs::to_bytes(&target);
+    serialized_data.append(bcs::to_bytes(&module_name));
+    serialized_data.append(bcs::to_bytes(&function_name));
+
+    // Create TimelockCallbackParams for dispatch_timelock_unblock_function
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"timelock_unblock_function"),
+        serialized_data,
+    );
+
+    // Test the dispatch function
+    mcms::dispatch_timelock_unblock_function(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    // Verify the function was unblocked
+    let updated_count = mcms::timelock_get_blocked_functions_count(&env.timelock);
+    assert!(updated_count == initial_count - 1);
+
+    // Verify the specific function is no longer in the blocked list
+    // Since we unblocked the only function, the count should be back to 0
+    assert!(updated_count == 0);
+
+    env.destroy();
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::EInvalidModuleName, location = mcms)]
+fun test_dispatch_timelock_schedule_batch_invalid_module() {
+    let mut env = setup();
+
+    // Create TimelockCallbackParams with invalid module name
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::proposer_role(),
+        string::utf8(b"invalid_module"), // Wrong module name
+        string::utf8(b"timelock_schedule_batch"),
+        vector[], // Empty data
+    );
+
+    // This should fail with EInvalidModuleName
+    let clock = &env.clock;
+    mcms::dispatch_timelock_schedule_batch(
+        &mut env.timelock,
+        clock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    env.destroy();
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::EInvalidFunctionName, location = mcms)]
+fun test_dispatch_timelock_update_min_delay_invalid_function() {
+    let mut env = setup();
+
+    // Create TimelockCallbackParams with invalid function name
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"invalid_function"), // Wrong function name
+        vector[], // Empty data
+    );
+
+    // This should fail with EInvalidFunctionName
+    mcms::dispatch_timelock_update_min_delay(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    env.destroy();
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::EInvalidFunctionName, location = mcms)]
+fun test_dispatch_timelock_block_function_invalid_function() {
+    let mut env = setup();
+
+    // Create TimelockCallbackParams with invalid function name
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"invalid_function"), // Wrong function name
+        vector[], // Empty data
+    );
+
+    // This should fail with EInvalidFunctionName
+    mcms::dispatch_timelock_block_function(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    env.destroy();
+}
+
+#[test]
+#[expected_failure(abort_code = mcms::EInvalidFunctionName, location = mcms)]
+fun test_dispatch_timelock_unblock_function_invalid_function() {
+    let mut env = setup();
+
+    // Create TimelockCallbackParams with invalid function name
+    let callback_params = mcms::test_create_timelock_callback_params(
+        mcms::timelock_role(),
+        string::utf8(b"mcms"),
+        string::utf8(b"invalid_function"), // Wrong function name
+        vector[], // Empty data
+    );
+
+    // This should fail with EInvalidFunctionName
+    mcms::dispatch_timelock_unblock_function(
+        &mut env.timelock,
+        callback_params,
+        env.scenario.ctx(),
+    );
+
+    env.destroy();
 }
