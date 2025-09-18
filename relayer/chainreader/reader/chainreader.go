@@ -515,6 +515,11 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 	return argMap, nil
 }
 
+type pointerMapEntry struct {
+	field     string // the field name from the Sui object
+	paramName string // the parameter name from the function config
+}
+
 // prepareArguments prepares function arguments and types for the call
 func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
 	if functionConfig.Params == nil {
@@ -523,9 +528,13 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 	// referring to the tag parts "_::module::Pointer::field"
 	tagLength := 4
+
 	// a map of object selector "module::object" to array of fields
-	pointersMap := make(map[string]map[string]string)
-	// make a set of pointers that need to fetched
+	pointersMap := make(map[string][]pointerMapEntry)
+	pointerSelectors := make(map[string]readIdentifier)
+
+	// make a set of object pointers that need to fetched
+	// to read more about pointer tags, see the documentation in "/relayer/documentation/relayer/pointer-tags-in-cr.md"
 	for _, paramConfig := range functionConfig.Params {
 		// the parameter has a pointer tag, add it to the set
 		if paramConfig.PointerTag != nil {
@@ -534,45 +543,71 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			if len(tag) != tagLength {
 				return nil, nil, fmt.Errorf("invalid pointer tag: %s", *paramConfig.PointerTag)
 			}
-			// replace the initial underscore with the package ID from the read identifier
-			tag[0] = identifier.address
+
+			moduleName, pointerName, fieldName := tag[1], tag[2], tag[3]
+
 			// append only the middle 2 parts of the tag to represent the pointer
-			appendTag := strings.Join(tag[1:3], "::")
+			appendTag := strings.Join([]string{moduleName, pointerName}, "::")
 			if _, ok := pointersMap[appendTag]; !ok {
-				pointersMap[appendTag] = make([]string, 0)
+				pointersMap[appendTag] = make([]pointerMapEntry, 0)
+			}
+			// add the pointer selector to the map which will later be used to fetch the values from the package owned object fields
+			if _, ok := pointerSelectors[appendTag]; !ok {
+				readIdentifierForPointer := readIdentifier{
+					address:      identifier.address,
+					contractName: moduleName,
+					readName:     pointerName,
+				}
+
+				// special case for pointers from the CCIP package object pointer
+				// this is needed to override the specified address (will be offramp package ID) with the CCIP package ID
+				if appendTag == ccipPointerKey {
+					ccipPackageId, err := s.client.GetCCIPPackageId(ctx, identifier.address, functionConfig.SignerAddress)
+					if err != nil {
+						return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
+					}
+					readIdentifierForPointer.address = ccipPackageId
+				}
+
+				pointerSelectors[appendTag] = readIdentifierForPointer
 			}
 
-			// TODO: make pointersMap a map of string to map instead of string to array
-			// each map to contain the following keys: 'field_name', 'parameter_name', '...'
-			// add the field name to the set
-			pointersMap[appendTag] = append(pointersMap[appendTag], tag[3])
-			// add the function parameter name to the set
-			pointersMap[appendTag] = append(pointersMap[appendTag], paramConfig.Name)
+			// each entry within the pointersMap contains an entry for the field name and
+			// an entry for the (function config) parameter name
+			pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
+				field:     fieldName,
+				paramName: paramConfig.Name,
+			})
 		}
 	}
 
 	// fetch pointers
-	pointersValuesMap := make(map[string]map[string]any)
-	for pointerName, pointerVals := range pointersMap {
+	for pointerTag, pointerVals := range pointersMap {
+		fields := make([]string, 0, len(pointerVals))
 
-		s.client.GetValuesFromPackageOwnedObjectField(ctx, identifier.address, pointer, []string{pointer})
-	}
+		// get the fields from the pointer values
+		for _, pointerVal := range pointerVals {
+			fields = append(fields, pointerVal.field)
+		}
 
-	// for each param, if it has a pointer value, add it to the args map
-	for _, paramConfig := range functionConfig.Params {
-		if paramConfig.PointerTag != nil {
-			tag := strings.Split(*paramConfig.PointerTag, "::")
-			pointerTag := strings.Join(tag[1:3], "::")
-			// if the value exists in the fetched pointers maps
-			if pointerValue, ok := pointersValuesMap[pointerTag][paramConfig.Name]; ok {
-				argMap[paramConfig.Name] = pointerValue.(string)
-			}
+		selector := pointerSelectors[pointerTag]
+		pointerFieldValues, err := s.client.GetValuesFromPackageOwnedObjectField(
+			ctx, selector.address, selector.contractName, selector.readName, fields,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get values from package owned object fields: %w", err)
+		}
+
+		// add the values to the arg map
+		for _, pointerVal := range pointerVals {
+			argMap[pointerVal.paramName] = pointerFieldValues[pointerVal.field]
 		}
 	}
 
 	args := make([]any, 0, len(functionConfig.Params))
 	argTypes := make([]string, 0, len(functionConfig.Params))
 
+	// ensure that all the required arguments are present
 	for _, paramConfig := range functionConfig.Params {
 		argValue, ok := argMap[paramConfig.Name]
 		if !ok {
