@@ -28,6 +28,11 @@ var (
 	SuiMcmsAccountOwnerCapObjectIdType deployment.ContractType = "SuiManyChainMultisigAccountOwnerCapObjectId"
 	SuiMcmsTimelockObjectIdType        deployment.ContractType = "SuiManyChainMultisigTimelockObjectId"
 
+	// MCMS User Related
+	SuiMcmsUserPackageIDType        deployment.ContractType = "SuiMcmsUserPackageId"
+	SuiMcmsUserDataObjectIDType     deployment.ContractType = "SuiMcmsUserDataObjectId"
+	SuiMcmsUserOwnerCapObjectIDType deployment.ContractType = "SuiMcmsUserOwnerCapObjectId"
+
 	// Link related
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
 	SuiBnMTokenPoolType          deployment.ContractType = "SuiBnMTokenPool"
