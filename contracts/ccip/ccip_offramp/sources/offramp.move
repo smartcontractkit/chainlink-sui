@@ -1028,9 +1028,6 @@ public fun commit(
         };
     };
 
-    // // Commit the roots that do require RMN blessing validation.
-    // // The blessings are checked at the start of this function.
-    // commit_merkle_roots(ref, state, clock, commit_report.blessed_merkle_roots, true);
     // Commit the roots that do not require RMN blessing validation.
     commit_merkle_roots(ref, state, clock, commit_report.unblessed_merkle_roots, false);
 
