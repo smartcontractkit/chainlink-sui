@@ -57,14 +57,14 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		}
 
 		// Deploy MCMS
-		mcmsSeqReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, cld_ops.EmptyInput{})
+		mcmsSeqReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, mcmsops.DeployMCMSSeqInput{})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for Sui chain %d: %w", chainSel, err)
 		}
 		seqReports = append(seqReports, mcmsSeqReport.ExecutionReports...)
 
-		// save MCMs address to the addressbook
-		typeAndVersionMCMS := cldf.NewTypeAndVersion(deployment.SuiMCMSType, deployment.Version1_0_0)
+		// save MCMS address to the addressbook
+		typeAndVersionMCMS := cldf.NewTypeAndVersion(deployment.SuiMcmsPackageIDType, deployment.Version1_0_0)
 		err = ab.Save(chainSel, mcmsSeqReport.Output.PackageId, typeAndVersionMCMS)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS address %s for Sui chain %d: %w", mcmsSeqReport.Output.PackageId, chainSel, err)

@@ -12,7 +12,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./relayer"]
+            MODULE: [".", "./integration-tests", "./deployment"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -tags="unit" ./...
 
   integration-setup:
@@ -26,10 +26,10 @@ tasks:
     cmds:
       - go test -v ./bindings/... -tags="integration"
 
-  operations:
-    desc: "Run operation tests"
+  deployment:
+    desc: "Run deployment tests"
     cmds:
-      - go test -v ./ops/... -count=1 -p=1 -tags="integration"
+      - cd deployment && go test -v ./... -count=1 -p=1 -tags="integration" {{.CLI_ARGS}}
 
   integration:
     desc: "Run integration tests"
@@ -37,7 +37,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./relayer"]
+            MODULE: [".", "./integration-tests", "./deployment"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -count=1 -tags="integration" ./...
 
   integration-testnet:
@@ -46,7 +46,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./relayer"]
+            MODULE: [".", "./integration-tests", "./deployment"]
         cmd: cd {{ .ITEM.MODULE }} && go test {{.CLI_ARGS}} -p=1 -tags="integration testnet" ./...
 
   integration-with-db:
@@ -56,5 +56,5 @@ tasks:
     cmds:
       - for:
           matrix:
-            MODULE: [".", "./relayer"]
+            MODULE: [".", "./integration-tests", "./deployment"]
         cmd: cd {{ .ITEM.MODULE }} && TEST_DB_URL={{.TEST_DB_URL}} go test {{.CLI_ARGS}} -count=1 -p=1 -tags="integration" ./...
