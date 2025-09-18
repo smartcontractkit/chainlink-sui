@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -23,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
@@ -36,6 +36,7 @@ const (
 	defaultQueryLimit   = 25
 	readIdentifierParts = 3
 	objectIdPrefix      = "0x"
+	offrampName         = "OffRamp"
 	ccipPointerKey      = "state_object::CCIPObjectRefPointer"
 )
 
@@ -46,6 +47,7 @@ type suiChainReader struct {
 	config           config.ChainReaderConfig
 	starter          services.StateMachine
 	packageAddresses map[string]string
+	packageResolver  *util.PackageResolver
 	client           *client.PTBClient
 	dbStore          *database.DBStore
 	indexer          indexer.IndexerApi
@@ -68,7 +70,7 @@ type readIdentifier struct {
 func NewChainReader(
 	ctx context.Context,
 	lgr logger.Logger,
-	abstractClient *client.PTBClient,
+	ptbClient *client.PTBClient,
 	configs config.ChainReaderConfig,
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
@@ -81,11 +83,11 @@ func NewChainReader(
 	}
 
 	return &suiChainReader{
-		logger:           logger.Named(lgr, "SuiChainReader"),
-		client:           abstractClient,
-		config:           configs,
-		dbStore:          dbStore,
-		packageAddresses: map[string]string{},
+		logger:          logger.Named(lgr, "SuiChainReader"),
+		client:          ptbClient,
+		config:          configs,
+		dbStore:         dbStore,
+		packageResolver: util.NewPackageResolver(lgr, ptbClient),
 		// indexers
 		indexer: indexer,
 	}, nil
@@ -116,18 +118,18 @@ func (s *suiChainReader) Close() error {
 }
 
 func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
-	newBindings := map[string]string{}
 	for _, binding := range bindings {
 		if !strings.HasPrefix(binding.Address, objectIdPrefix) {
 			return fmt.Errorf("invalid Sui package address format: %s", binding.Address)
 		}
-		newBindings[binding.Name] = binding.Address
+		err := s.packageResolver.BindPackage(binding.Name, binding.Address)
+		if err != nil {
+			return fmt.Errorf("failed to bind package: %w", err)
+		}
 	}
 
-	maps.Copy(s.packageAddresses, newBindings)
-
-	// Only need the OffRamp package for the tx indexer
-	if pkg, ok := newBindings["OffRamp"]; ok {
+	// If the "OffRamp" package/module is now bound, set the offramp package ID for the tx indexer
+	if pkg, err := s.packageResolver.ResolvePackageAddress(offrampName); err == nil {
 		s.indexer.GetTransactionIndexer().SetOffRampPackage(pkg)
 	}
 	return nil
@@ -135,10 +137,7 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
 	for _, binding := range bindings {
-		if _, ok := s.packageAddresses[binding.Name]; !ok {
-			return fmt.Errorf("no such binding: %s", binding.Name)
-		}
-		delete(s.packageAddresses, binding.Name)
+		s.packageResolver.UnbindPackage(binding.Name)
 	}
 
 	return nil
@@ -554,7 +553,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 	// referring to the tag parts "_::module::Pointer::field"
 	tagLength := 4
 	// a map of object selector "module::object" to array of fields
-	pointersMap := make(map[string][]string)
+	pointersMap := make(map[string]map[string]string)
 	// make a set of pointers that need to fetched
 	for _, paramConfig := range functionConfig.Params {
 		// the parameter has a pointer tag, add it to the set
