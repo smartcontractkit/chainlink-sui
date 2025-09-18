@@ -138,12 +138,24 @@ func (s *SuiGasManager) EstimateGasBudget(ctx context.Context, tx *SuiTx) (uint6
 //   - error: An error if estimation is not implemented or fails.
 func (s *SuiGasManager) CalculateOfframpExecuteGasBudget(ctx context.Context, arguments offramp.SuiOffRampExecCallArgs) (*big.Int, error) {
 	gasLimit := big.NewInt(0)
+	fmt.Println("VALUEEE: ", arguments)
 	if val, ok := arguments.ExtraData.ExtraArgsDecoded["gasLimit"]; ok {
-		if gl, ok := val.(*big.Int); ok {
-			gasLimit.Add(gasLimit, gl)
-		} else {
-			return nil, fmt.Errorf("gasLimit in ExtraArgsDecoded is not *big.Int, got %T", val)
+		var gl *big.Int
+
+		switch v := val.(type) {
+		case *big.Int:
+			gl = v
+		case uint64:
+			gl = new(big.Int).SetUint64(v)
+		default:
+			return nil, fmt.Errorf("gasLimit is not *big.Int or uint64, got %T", val)
 		}
+
+		if gl == nil {
+			return nil, fmt.Errorf("gasLimit is nil")
+		}
+
+		gasLimit.Add(gasLimit, gl)
 	}
 
 	for _, destExecData := range arguments.ExtraData.DestExecDataDecoded {

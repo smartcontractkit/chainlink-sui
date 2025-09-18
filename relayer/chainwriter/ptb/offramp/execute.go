@@ -109,7 +109,7 @@ func BuildOffRampExecutePTB(
 	offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
 	offrampEncoder := offrampContract.Encoder()
 
-	tokenReceiverBytes, ok := offrampArgs.ExtraData.ExtraArgsDecoded["token_receiver"]
+	tokenReceiverBytes, ok := offrampArgs.ExtraData.ExtraArgsDecoded["tokenReceiver"]
 	if !ok {
 		return fmt.Errorf("missing token receiver in extra args")
 	}

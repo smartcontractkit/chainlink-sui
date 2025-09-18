@@ -65,7 +65,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 
 	moduleConfig, exists := s.config.Modules[ptbName]
 	if !exists {
-		s.lggr.Errorw("PBT not found", "PTB name", ptbName)
+		s.lggr.Errorw("PTB not found", "PTB name", ptbName)
 		return commonTypes.ErrNotFound
 	}
 
@@ -95,6 +95,11 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 	// Get gas budget from CCIP message if available
 	switch method {
 	case cwConfig.CCIPExecute:
+		if inner, ok := arguments.Args["Args"].(map[string]any); ok {
+			arguments.Args = inner
+		}
+
+		fmt.Println("EXECUTE CALL ESTIMAGE GAS BUDGET")
 		gasBudget, err := s.EstimateGasBudgetFromCCIPExecuteMessage(ctx, arguments.Args, meta)
 		if err != nil {
 			s.lggr.Errorw("Error estimating gas budget", "error", err)
@@ -174,6 +179,7 @@ func (s *SuiChainWriter) Start(ctx context.Context) error {
 }
 
 func (s *SuiChainWriter) EstimateGasBudgetFromCCIPExecuteMessage(ctx context.Context, arguments map[string]any, meta *commonTypes.TxMeta) (*big.Int, error) {
+	fmt.Println("DECODE: ", arguments)
 	offrampArgs, err := offramp.DecodeOffRampExecCallArgs(arguments)
 	if err != nil {
 		return nil, err
