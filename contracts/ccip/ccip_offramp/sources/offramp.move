@@ -226,6 +226,7 @@ const EInvalidFunction: u64 = 27;
 const EInvalidTokenReceiver: u64 = 28;
 const ETokenTransferLimitExceeded: u64 = 29;
 const EPackageIdNotFound: u64 = 30;
+const EInvalidOwnerCap: u64 = 31;
 
 const VERSION: u8 = 1;
 
@@ -270,7 +271,7 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
 public fun initialize(
     state: &mut OffRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     fee_quoter_cap: FeeQuoterCap,
     dest_transfer_cap: osh::DestTransferCap,
     chain_selector: u64,
@@ -281,6 +282,7 @@ public fun initialize(
     source_chains_on_ramp: vector<vector<u8>>,
     ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     state.chain_selector = chain_selector;
 
     assert!(state.fee_quoter_cap.is_none(), EFeeQuoterCapExists);
@@ -309,11 +311,13 @@ public fun initialize(
     state.package_ids.push_back(package_id);
 }
 
-public fun add_package_id(state: &mut OffRampState, _: &OwnerCap, package_id: address) {
+public fun add_package_id(state: &mut OffRampState, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     state.package_ids.push_back(package_id);
 }
 
-public fun remove_package_id(state: &mut OffRampState, _: &OwnerCap, package_id: address) {
+public fun remove_package_id(state: &mut OffRampState, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     let (found, idx) = state.package_ids.index_of(&package_id);
     assert!(found, EPackageIdNotFound);
     state.package_ids.remove(idx);
@@ -901,7 +905,7 @@ fun parse_merkle_root(stream: &mut BCSStream): vector<MerkleRoot> {
 public fun set_ocr3_config(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     config_digest: vector<u8>,
     ocr_plugin_type: u8,
     big_f: u8,
@@ -915,6 +919,7 @@ public fun set_ocr3_config(
         string::utf8(b"set_ocr3_config"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     ocr3_base::set_ocr3_config(
         ref,
         &mut state.ocr3_base_state,
@@ -982,16 +987,6 @@ public fun commit(
         VERSION,
     );
     let commit_report = deserialize_commit_report(report);
-
-    // // there will be no blessed merkle roots
-    // if (commit_report.blessed_merkle_roots.length() > 0) {
-    //     verify_blessed_roots(
-    //         ref,
-    //         object::uid_to_address(&state.id),
-    //         &commit_report.blessed_merkle_roots,
-    //         commit_report.rmn_signatures,
-    //     );
-    // };
 
     if (
         commit_report.price_updates.token_price_updates.length() > 0
@@ -1221,7 +1216,7 @@ public fun get_dynamic_config_fields(ref: &CCIPObjectRef, cfg: DynamicConfig): (
 public fun set_dynamic_config(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     permissionless_execution_threshold_seconds: u32,
 ) {
     verify_function_allowed(
@@ -1230,6 +1225,7 @@ public fun set_dynamic_config(
         string::utf8(b"set_dynamic_config"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     set_dynamic_config_internal(
         state,
         permissionless_execution_threshold_seconds,
@@ -1248,7 +1244,7 @@ fun create_static_config(chain_selector: u64): StaticConfig {
 public fun apply_source_chain_config_updates(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     source_chains_selector: vector<u64>,
     source_chains_is_enabled: vector<bool>,
     source_chains_is_rmn_verification_disabled: vector<bool>,
@@ -1261,6 +1257,7 @@ public fun apply_source_chain_config_updates(
         string::utf8(b"apply_source_chain_config_updates"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     apply_source_chain_config_updates_internal(
         state,
         source_chains_selector,
