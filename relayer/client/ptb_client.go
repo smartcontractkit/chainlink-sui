@@ -402,7 +402,17 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 				continue
 			}
 
-			// Check if this is a vector type first
+			// Handle vector<T> types. We need to distinguish between vectors of structs
+			// (e.g. vector<0x123::module::MyStruct>) and vectors of primitive values
+			// (e.g. vector<u8>, vector<u64>).
+			//
+			// - For vector<Struct>, fetch the normalized module metadata and decode each
+			//   element into a JSON object using DecodeVectorOfStructs.
+			// - For vector<primitive>, fall back to DecodeSuiPrimative to decode the raw
+			//   values.
+			// In both cases, run the result through ConvertBytesToHex so that any []byte
+			// fields (vector<u8> especially) are hex-encoded instead of base64 when
+			// marshalled to JSON.
 			if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
 				// Extract inner type to determine if it's a vector of structs or primitives
 				innerType := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
@@ -436,7 +446,8 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 					if err != nil {
 						return fmt.Errorf("failed to decode primitive vector: %w", err)
 					}
-					results[i] = primitive
+
+					results[i] = common.ConvertBytesToHex(primitive)
 				}
 				continue
 			}
