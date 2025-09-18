@@ -2,22 +2,26 @@ package reader
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/loop"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	rmnDigestHeader cciptypes.RMNDigestHeader
 )
 
 func TestGetLatestValue(t *testing.T) {
@@ -34,7 +38,7 @@ func TestGetLatestValue(t *testing.T) {
 	require.NoError(t, clientErr)
 
 	ccipObjectRefStatePointer := "_::state_object::CCIPObjectRefPointer::object_ref_id"
-	offRampStatePointer := "_::offramp::OffRampStatePointer::off_ramp_state_id"
+	// offRampStatePointer := "_::offramp::OffRampStatePointer::off_ramp_state_id"
 
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: true,
@@ -47,11 +51,43 @@ func TestGetLatestValue(t *testing.T) {
 			SyncTimeout:     10 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
-			"OffRamp": {
-				Name: "offramp",
+			// "OffRamp": {
+			// 	Name: "offramp",
+			// 	Functions: map[string]*config.ChainReaderFunction{
+			// 		consts.MethodNameGetSourceChainConfig: {
+			// 			Name:          "get_source_chain_config",
+			// 			SignerAddress: accountAddress,
+			// 			Params: []codec.SuiFunctionParam{
+			// 				{
+			// 					Name:       "object_ref_id",
+			// 					Type:       "object_id",
+			// 					PointerTag: &ccipObjectRefStatePointer,
+			// 					Required:   true,
+			// 				},
+			// 				{
+			// 					Name:       "off_ramp_state_id",
+			// 					PointerTag: &offRampStatePointer,
+			// 					Type:       "object_id",
+			// 					Required:   true,
+			// 				},
+			// 				{
+			// 					Name:     "sourceChainSelector",
+			// 					Type:     "u64",
+			// 					Required: true,
+			// 				},
+			// 			},
+			// 		},
+			// 	},
+			// },
+			"RMNRemote": {
+				Name: "rmn_remote",
 				Functions: map[string]*config.ChainReaderFunction{
-					consts.MethodNameGetSourceChainConfig: {
-						Name:          "get_source_chain_config",
+					"GetReportDigestHeader": {
+						SignerAddress: accountAddress,
+						Name:          "get_report_digest_header",
+					},
+					"GetVersionedConfig": {
+						Name:          "get_versioned_config",
 						SignerAddress: accountAddress,
 						Params: []codec.SuiFunctionParam{
 							{
@@ -60,16 +96,19 @@ func TestGetLatestValue(t *testing.T) {
 								PointerTag: &ccipObjectRefStatePointer,
 								Required:   true,
 							},
+						},
+						// ref: https://github.com/smartcontractkit/chainlink-ccip/blob/bee7c32c71cf0aec594c051fef328b4a7281a1fc/pkg/reader/ccip.go#L1440
+						ResultTupleToStruct: []string{"version", "config"},
+					},
+					"GetCursedSubjects": {
+						Name:          "get_cursed_subjects",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
 							{
-								Name:       "off_ramp_state_id",
-								PointerTag: &offRampStatePointer,
+								Name:       "object_ref_id",
 								Type:       "object_id",
+								PointerTag: &ccipObjectRefStatePointer,
 								Required:   true,
-							},
-							{
-								Name:     "sourceChainSelector",
-								Type:     "u64",
-								Required: true,
 							},
 						},
 					},
@@ -79,8 +118,8 @@ func TestGetLatestValue(t *testing.T) {
 	}
 
 	counterBinding := types.BoundContract{
-		Name:    "OffRamp",
-		Address: "0xab21eb88ffdd8ba2eabed19dbfdf0b2f94da5edd34441e6a9da6c0850c3be284", // Package ID of the deployed counter contract
+		Name:    "RMNRemote",
+		Address: "0x26a9d52afda0e5061d7619dd4bbac4e5dd2e47dd18d9ae42864023aad033ff83", // Package ID of the deployed counter contract
 	}
 
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -122,7 +161,9 @@ func TestGetLatestValue(t *testing.T) {
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
-	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding})
+	lrReader := loop.NewLoopChainReader(log, chainReader)
+
+	err = lrReader.Bind(context.Background(), []types.BoundContract{counterBinding})
 	require.NoError(t, err)
 
 	log.Debugw("ChainReader setup complete")
@@ -139,12 +180,10 @@ func TestGetLatestValue(t *testing.T) {
 	}()
 
 	params := map[string]any{
-		"sourceChainSelector": "16015286601757825753",
+		// "sourceChainSelector": "16015286601757825753",
 	}
 
-	paramBytes, _ := json.Marshal(params)
-
-	err = chainReader.GetLatestValue(ctx, "0xab21eb88ffdd8ba2eabed19dbfdf0b2f94da5edd34441e6a9da6c0850c3be284-OffRamp-GetSourceChainConfig", "", &paramBytes, "")
+	err = lrReader.GetLatestValue(ctx, "0x26a9d52afda0e5061d7619dd4bbac4e5dd2e47dd18d9ae42864023aad033ff83-RMNRemote-GetReportDigestHeader", "", params, &rmnDigestHeader)
 
 	fmt.Println("ERROR: ", err)
 }

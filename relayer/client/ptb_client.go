@@ -424,8 +424,8 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 				}
 
 				// convert any []uint8 fields to hex strings
-				// hexified := common.ConvertBytesToHex(jsonResult)
-				results[i] = jsonResult
+				hexified := common.ConvertBytesToHex(jsonResult)
+				results[i] = hexified
 			}
 		}
 
