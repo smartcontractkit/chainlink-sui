@@ -149,6 +149,7 @@ const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
 const EInvalidFeeTokenMetadataAddress: u64 = 19;
 const EPackageIdNotFound: u64 = 20;
+const EInvalidOwnerCap: u64 = 21;
 
 const VERSION: u8 = 1;
 
@@ -191,7 +192,7 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
 
 public fun initialize(
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     nonce_manager_cap: NonceManagerCap,
     source_transfer_cap: osh::SourceTransferCap,
     chain_selector: u64,
@@ -202,6 +203,7 @@ public fun initialize(
     dest_chain_allowlist_enabled: vector<bool>,
     _ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     assert!(chain_selector != 0, EZeroChainSelector);
     state.chain_selector = chain_selector;
     assert!(state.nonce_manager_cap.is_none(), ENonceManagerCapExists);
@@ -224,11 +226,13 @@ public fun initialize(
     state.package_ids.push_back(package_id);
 }
 
-public fun add_package_id(state: &mut OnRampState, _: &OwnerCap, package_id: address) {
+public fun add_package_id(state: &mut OnRampState, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     state.package_ids.push_back(package_id);
 }
 
-public fun remove_package_id(state: &mut OnRampState, _: &OwnerCap, package_id: address) {
+public fun remove_package_id(state: &mut OnRampState, owner_cap: &OwnerCap, package_id: address) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     let (found, idx) = state.package_ids.index_of(&package_id);
     assert!(found, EPackageIdNotFound);
     state.package_ids.remove(idx);
@@ -248,10 +252,11 @@ public fun get_expected_next_sequence_number(state: &OnRampState, dest_chain_sel
 public fun withdraw_fee_tokens<T>(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     fee_token_metadata: &CoinMetadata<T>,
 ) {
     assert!(state.fee_aggregator != @0x0, EFeeAggregatorNotSet);
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
@@ -397,10 +402,11 @@ fun get_fee_internal(
 public fun set_dynamic_config(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     fee_aggregator: address,
     allowlist_admin: address,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
@@ -413,11 +419,12 @@ public fun set_dynamic_config(
 public fun apply_dest_chain_config_updates(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     dest_chain_selectors: vector<u64>,
     dest_chain_enabled: vector<bool>,
     dest_chain_allowlist_enabled: vector<bool>,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
@@ -462,13 +469,14 @@ public fun get_allowed_senders_list(
 public fun apply_allowlist_updates(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     dest_chain_selectors: vector<u64>,
     dest_chain_allowlist_enabled: vector<bool>,
     dest_chain_add_allowed_senders: vector<vector<address>>,
     dest_chain_remove_allowed_senders: vector<vector<address>>,
     _ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),

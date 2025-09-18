@@ -21,8 +21,8 @@ var (
 
 type IUpgradeRegistry interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
-	BlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error)
-	BlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
+	BlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error)
+	BlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
 	GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string) (*models.SuiTransactionBlockResponse, error)
 	IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
 	VerifyFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
@@ -39,9 +39,9 @@ type IUpgradeRegistryDevInspect interface {
 type UpgradeRegistryEncoder interface {
 	Initialize(ref bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	BlockVersion(ref bind.Object, param bind.Object, moduleName string, version byte) (*bind.EncodedCall, error)
+	BlockVersion(ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*bind.EncodedCall, error)
 	BlockVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	BlockFunction(ref bind.Object, param bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error)
+	BlockFunction(ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error)
 	BlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetModuleRestrictions(ref bind.Object, moduleName string) (*bind.EncodedCall, error)
 	GetModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -144,8 +144,8 @@ func (c *UpgradeRegistryContract) Initialize(ctx context.Context, opts *bind.Cal
 }
 
 // BlockVersion executes the block_version Move function.
-func (c *UpgradeRegistryContract) BlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.BlockVersion(ref, param, moduleName, version)
+func (c *UpgradeRegistryContract) BlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.BlockVersion(ref, ownerCap, moduleName, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -154,8 +154,8 @@ func (c *UpgradeRegistryContract) BlockVersion(ctx context.Context, opts *bind.C
 }
 
 // BlockFunction executes the block_function Move function.
-func (c *UpgradeRegistryContract) BlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.upgradeRegistryEncoder.BlockFunction(ref, param, moduleName, functionName, version)
+func (c *UpgradeRegistryContract) BlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.BlockFunction(ref, ownerCap, moduleName, functionName, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -271,7 +271,7 @@ func (c upgradeRegistryEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCa
 }
 
 // BlockVersion encodes a call to the block_version Move function.
-func (c upgradeRegistryEncoder) BlockVersion(ref bind.Object, param bind.Object, moduleName string, version byte) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) BlockVersion(ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("block_version", typeArgsList, typeParamsList, []string{
@@ -281,7 +281,7 @@ func (c upgradeRegistryEncoder) BlockVersion(ref bind.Object, param bind.Object,
 		"u8",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		moduleName,
 		version,
 	}, nil)
@@ -306,7 +306,7 @@ func (c upgradeRegistryEncoder) BlockVersionWithArgs(args ...any) (*bind.Encoded
 }
 
 // BlockFunction encodes a call to the block_function Move function.
-func (c upgradeRegistryEncoder) BlockFunction(ref bind.Object, param bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error) {
+func (c upgradeRegistryEncoder) BlockFunction(ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("block_function", typeArgsList, typeParamsList, []string{
@@ -317,7 +317,7 @@ func (c upgradeRegistryEncoder) BlockFunction(ref bind.Object, param bind.Object
 		"u8",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		moduleName,
 		functionName,
 		version,

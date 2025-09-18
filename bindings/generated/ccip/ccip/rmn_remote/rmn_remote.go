@@ -23,14 +23,14 @@ type IRmnRemote interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	GetArm(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error)
+	SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error)
 	GetVersionedConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetLocalChainSelector(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetReportDigestHeader(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Curse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
-	CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
+	CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
 	Uncurse(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
-	UncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
+	UncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetCursedSubjects(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IsCursedGlobal(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	IsCursed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, subject []byte) (*models.SuiTransactionBlockResponse, error)
@@ -64,7 +64,7 @@ type RmnRemoteEncoder interface {
 	GetArmWithArgs(args ...any) (*bind.EncodedCall, error)
 	Initialize(ref bind.Object, ownerCap bind.Object, localChainSelector uint64) (*bind.EncodedCall, error)
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetConfig(ref bind.Object, param bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*bind.EncodedCall, error)
+	SetConfig(ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*bind.EncodedCall, error)
 	SetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetVersionedConfig(ref bind.Object) (*bind.EncodedCall, error)
 	GetVersionedConfigWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -74,11 +74,11 @@ type RmnRemoteEncoder interface {
 	GetReportDigestHeaderWithArgs(args ...any) (*bind.EncodedCall, error)
 	Curse(ref bind.Object, ownerCap bind.Object, subject []byte) (*bind.EncodedCall, error)
 	CurseWithArgs(args ...any) (*bind.EncodedCall, error)
-	CurseMultiple(ref bind.Object, param bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
+	CurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
 	CurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
 	Uncurse(ref bind.Object, ownerCap bind.Object, subject []byte) (*bind.EncodedCall, error)
 	UncurseWithArgs(args ...any) (*bind.EncodedCall, error)
-	UncurseMultiple(ref bind.Object, param bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
+	UncurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error)
 	UncurseMultipleWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetCursedSubjects(ref bind.Object) (*bind.EncodedCall, error)
 	GetCursedSubjectsWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -265,8 +265,8 @@ func (c *RmnRemoteContract) Initialize(ctx context.Context, opts *bind.CallOpts,
 }
 
 // SetConfig executes the set_config Move function.
-func (c *RmnRemoteContract) SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.SetConfig(ref, param, rmnHomeContractConfigDigest, signerOnchainPublicKeys, nodeIndexes, fSign)
+func (c *RmnRemoteContract) SetConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.SetConfig(ref, ownerCap, rmnHomeContractConfigDigest, signerOnchainPublicKeys, nodeIndexes, fSign)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -315,8 +315,8 @@ func (c *RmnRemoteContract) Curse(ctx context.Context, opts *bind.CallOpts, ref 
 }
 
 // CurseMultiple executes the curse_multiple Move function.
-func (c *RmnRemoteContract) CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.CurseMultiple(ref, param, subjects)
+func (c *RmnRemoteContract) CurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.CurseMultiple(ref, ownerCap, subjects)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -335,8 +335,8 @@ func (c *RmnRemoteContract) Uncurse(ctx context.Context, opts *bind.CallOpts, re
 }
 
 // UncurseMultiple executes the uncurse_multiple Move function.
-func (c *RmnRemoteContract) UncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.UncurseMultiple(ref, param, subjects)
+func (c *RmnRemoteContract) UncurseMultiple(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.UncurseMultiple(ref, ownerCap, subjects)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -709,7 +709,7 @@ func (c rmnRemoteEncoder) InitializeWithArgs(args ...any) (*bind.EncodedCall, er
 }
 
 // SetConfig encodes a call to the set_config Move function.
-func (c rmnRemoteEncoder) SetConfig(ref bind.Object, param bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) SetConfig(ref bind.Object, ownerCap bind.Object, rmnHomeContractConfigDigest []byte, signerOnchainPublicKeys [][]byte, nodeIndexes []uint64, fSign uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("set_config", typeArgsList, typeParamsList, []string{
@@ -721,7 +721,7 @@ func (c rmnRemoteEncoder) SetConfig(ref bind.Object, param bind.Object, rmnHomeC
 		"u64",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		rmnHomeContractConfigDigest,
 		signerOnchainPublicKeys,
 		nodeIndexes,
@@ -868,7 +868,7 @@ func (c rmnRemoteEncoder) CurseWithArgs(args ...any) (*bind.EncodedCall, error) 
 }
 
 // CurseMultiple encodes a call to the curse_multiple Move function.
-func (c rmnRemoteEncoder) CurseMultiple(ref bind.Object, param bind.Object, subjects [][]byte) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) CurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("curse_multiple", typeArgsList, typeParamsList, []string{
@@ -877,7 +877,7 @@ func (c rmnRemoteEncoder) CurseMultiple(ref bind.Object, param bind.Object, subj
 		"vector<vector<u8>>",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		subjects,
 	}, nil)
 }
@@ -932,7 +932,7 @@ func (c rmnRemoteEncoder) UncurseWithArgs(args ...any) (*bind.EncodedCall, error
 }
 
 // UncurseMultiple encodes a call to the uncurse_multiple Move function.
-func (c rmnRemoteEncoder) UncurseMultiple(ref bind.Object, param bind.Object, subjects [][]byte) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) UncurseMultiple(ref bind.Object, ownerCap bind.Object, subjects [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("uncurse_multiple", typeArgsList, typeParamsList, []string{
@@ -941,7 +941,7 @@ func (c rmnRemoteEncoder) UncurseMultiple(ref bind.Object, param bind.Object, su
 		"vector<vector<u8>>",
 	}, []any{
 		ref,
-		param,
+		ownerCap,
 		subjects,
 	}, nil)
 }
