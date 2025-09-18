@@ -46,6 +46,11 @@ func safeUint32(val uint64) (uint32, error) {
 }
 
 func EncodeToSuiValue(typeName string, value any) (any, error) {
+	// Normalize fully-qualified Sui string type to logical "string"
+	if strings.Contains(typeName, "::string::String") {
+		typeName = "string"
+	}
+
 	switch typeName {
 	case "address":
 		return encodeAddress(value)
@@ -128,7 +133,13 @@ func encodeUint(typeName string, value any) (any, error) {
 		baseValue = uint64(v)
 	case json.Number:
 		// Handle JSON numbers properly
-		if strings.Contains(string(v), ".") {
+		numStr := v.String()
+		if typeName == "u128" || typeName == "u256" {
+			bigIntValue = new(big.Int)
+			if _, ok := bigIntValue.SetString(numStr, base10); !ok {
+				return nil, fmt.Errorf("cannot convert json.Number %s to %s", v, typeName)
+			}
+		} else if strings.Contains(numStr, ".") {
 			f, err := v.Float64()
 			if err != nil {
 				return nil, fmt.Errorf("cannot convert json.Number %s to %s: %w", v, typeName, err)
@@ -136,7 +147,7 @@ func encodeUint(typeName string, value any) (any, error) {
 			baseValue = uint64(f)
 		} else {
 			// json parsing int64 for selector was going out of range
-			i, err := strconv.ParseUint(v.String(), base10, 64)
+			i, err := strconv.ParseUint(numStr, base10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("cannot convert json.Number %s to %s: %w", v, typeName, err)
 			}
