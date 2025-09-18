@@ -35,6 +35,7 @@ public struct ReceiverUnregistered has copy, drop {
 const EAlreadyRegistered: u64 = 1;
 const EAlreadyInitialized: u64 = 2;
 const EUnknownReceiver: u64 = 3;
+const EInvalidOwnerCap: u64 = 4;
 
 const VERSION: u8 = 1;
 
@@ -43,6 +44,7 @@ public fun type_and_version(): String {
 }
 
 public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     assert!(!state_object::contains<ReceiverRegistry>(ref), EAlreadyInitialized);
     let state = ReceiverRegistry {
         id: object::new(ctx),
@@ -82,7 +84,7 @@ public fun register_receiver<ProofType: drop>(ref: &mut CCIPObjectRef, _proof: P
 
 public fun unregister_receiver(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     receiver_package_id: address,
     _: &TxContext,
 ) {
@@ -92,6 +94,8 @@ public fun unregister_receiver(
         string::utf8(b"unregister_receiver"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
 
     assert!(registry.receiver_configs.contains(&receiver_package_id), EUnknownReceiver);

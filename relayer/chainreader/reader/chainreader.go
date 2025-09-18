@@ -19,7 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/loop"
 
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
-	craptosutils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
+	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
@@ -200,6 +200,14 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 			structResult[mapKey] = results[i]
 		}
 
+		// Apply result field renames if configured
+		if functionConfig.ResultFieldRenames != nil {
+			err = aptosCRUtils.MaybeRenameFields(structResult, functionConfig.ResultFieldRenames)
+			if err != nil {
+				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+			}
+		}
+
 		// if we are running in loop plugin mode, we will want to encode the result into JSON bytes
 		if s.config.IsLoopPlugin {
 			return s.encodeLoopResult(structResult, returnVal)
@@ -210,13 +218,30 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 
 	// otherwise, no tuple to struct specification, just a slice of values
 	if s.config.IsLoopPlugin {
-		return s.encodeLoopResult(results, returnVal)
+		// Apply renames to the result slice or contained maps before encoding
+		var renamed any = results
+		if functionConfig.ResultFieldRenames != nil {
+			err = aptosCRUtils.MaybeRenameFields(renamed, functionConfig.ResultFieldRenames)
+			if err != nil {
+				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+			}
+		}
+		return s.encodeLoopResult(renamed, returnVal)
 	}
 
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
 
-	// handle multiple results for non-loop plugin mode
-	return codec.DecodeSuiJsonValue(results[0], returnVal)
+	// Apply renames (if any) to the primary result element before decoding
+	var primary any = results[0]
+	if functionConfig.ResultFieldRenames != nil {
+		err = aptosCRUtils.MaybeRenameFields(primary, functionConfig.ResultFieldRenames)
+		if err != nil {
+			return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+		}
+	}
+
+	// TODO: handle multiple results for non-loop plugin mode
+	return codec.DecodeSuiJsonValue(primary, returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -777,7 +802,7 @@ func (s *suiChainReader) queryEvents(ctx context.Context, eventConfig *config.Ch
 	}
 
 	if eventConfig.EventFilterRenames != nil {
-		expressions = craptosutils.ApplyEventFilterRenames(expressions, eventConfig.EventFilterRenames)
+		expressions = aptosCRUtils.ApplyEventFilterRenames(expressions, eventConfig.EventFilterRenames)
 	}
 
 	// Query events from database

@@ -1,7 +1,6 @@
 module ccip::rmn_remote;
 
 use ccip::eth_abi;
-use ccip::merkle_proof;
 use ccip::ownable::OwnerCap;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::upgrade_registry::verify_function_allowed;
@@ -11,12 +10,10 @@ use std::bcs;
 use std::string::{Self, String};
 use std::type_name;
 use sui::address;
-use sui::ecdsa_k1;
 use sui::event;
 use sui::hash;
 use sui::vec_map::{Self, VecMap};
 
-const SIGNATURE_NUM_BYTES: u64 = 64;
 const GLOBAL_CURSE_SUBJECT: vector<u8> = x"01000000000000000000000000000001";
 
 public struct RMNRemoteState has key, store {
@@ -40,23 +37,6 @@ public struct Signer has copy, drop, store {
     node_index: u64,
 }
 
-// TODO: figure out what to do with chain_id. Cannot get it from Sui library.
-public struct Report has drop {
-    dest_chain_selector: u64,
-    rmn_remote_contract_address: address,
-    off_ramp_address: address,
-    rmn_home_contract_config_digest: vector<u8>,
-    merkle_roots: vector<MerkleRoot>,
-}
-
-public struct MerkleRoot has drop {
-    source_chain_selector: u64,
-    on_ramp_address: vector<u8>,
-    min_seq_nr: u64,
-    max_seq_nr: u64,
-    merkle_root: vector<u8>,
-}
-
 public struct ConfigSet has copy, drop {
     version: u32,
     config: Config,
@@ -72,22 +52,17 @@ public struct Uncursed has copy, drop {
 
 const EAlreadyInitialized: u64 = 1;
 const EAlreadyCursed: u64 = 2;
-const EConfigNotSet: u64 = 3;
-const EDuplicateSigner: u64 = 4;
-const EInvalidSignature: u64 = 5;
-const EInvalidSignerOrder: u64 = 6;
-const ENotEnoughSigners: u64 = 7;
-const ENotCursed: u64 = 8;
-const EOutOfOrderSignatures: u64 = 9;
-const EThresholdNotMet: u64 = 10;
-const EUnexpectedSigner: u64 = 11;
-const EZeroValueNotAllowed: u64 = 12;
-const EMerkleRootLengthMismatch: u64 = 13;
-const EInvalidDigestLength: u64 = 14;
-const ESignersMismatch: u64 = 15;
-const EInvalidSubjectLength: u64 = 16;
-const EInvalidPublicKeyLength: u64 = 17;
-const EInvalidFunction: u64 = 18;
+const EDuplicateSigner: u64 = 3;
+const EInvalidSignerOrder: u64 = 4;
+const ENotEnoughSigners: u64 = 5;
+const ENotCursed: u64 = 6;
+const EZeroValueNotAllowed: u64 = 7;
+const EInvalidDigestLength: u64 = 8;
+const ESignersMismatch: u64 = 9;
+const EInvalidSubjectLength: u64 = 10;
+const EInvalidPublicKeyLength: u64 = 11;
+const EInvalidFunction: u64 = 12;
+const EInvalidOwnerCap: u64 = 13;
 
 const VERSION: u8 = 1;
 
@@ -110,6 +85,7 @@ public fun initialize(
     local_chain_selector: u64,
     ctx: &mut TxContext,
 ) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     assert!(!state_object::contains<RMNRemoteState>(ref), EAlreadyInitialized);
     assert!(local_chain_selector != 0, EZeroValueNotAllowed);
 
@@ -129,112 +105,9 @@ public fun initialize(
     state_object::add(ref, owner_cap, state, ctx);
 }
 
-fun calculate_report(report: &Report): vector<u8> {
-    let mut digest = vector[];
-    eth_abi::encode_right_padded_bytes32(&mut digest, get_report_digest_header());
-    eth_abi::encode_u64(&mut digest, report.dest_chain_selector);
-    eth_abi::encode_address(&mut digest, report.rmn_remote_contract_address);
-    eth_abi::encode_address(&mut digest, report.off_ramp_address);
-    eth_abi::encode_right_padded_bytes32(&mut digest, report.rmn_home_contract_config_digest);
-    report.merkle_roots.do_ref!(|merkle_root| {
-        let merkle_root: &MerkleRoot = merkle_root;
-        eth_abi::encode_u64(&mut digest, merkle_root.source_chain_selector);
-        eth_abi::encode_bytes(&mut digest, merkle_root.on_ramp_address);
-        eth_abi::encode_u64(&mut digest, merkle_root.min_seq_nr);
-        eth_abi::encode_u64(&mut digest, merkle_root.max_seq_nr);
-        eth_abi::encode_right_padded_bytes32(&mut digest, merkle_root.merkle_root);
-    });
-    digest
-}
-
-public fun verify(
-    ref: &CCIPObjectRef,
-    off_ramp_state_address: address,
-    merkle_root_source_chain_selectors: vector<u64>,
-    merkle_root_on_ramp_addresses: vector<vector<u8>>,
-    merkle_root_min_seq_nrs: vector<u64>,
-    merkle_root_max_seq_nrs: vector<u64>,
-    merkle_root_values: vector<vector<u8>>,
-    signatures: vector<vector<u8>>,
-): bool {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"rmn_remote"),
-        string::utf8(b"verify"),
-        VERSION,
-    );
-
-    let state = state_object::borrow<RMNRemoteState>(ref);
-
-    assert!(state.config_count > 0, EConfigNotSet);
-
-    let signatures_len = signatures.length();
-    assert!(signatures_len >= (state.config.f_sign + 1), EThresholdNotMet);
-
-    let merkle_root_len = merkle_root_source_chain_selectors.length();
-    assert!(merkle_root_len == merkle_root_on_ramp_addresses.length(), EMerkleRootLengthMismatch);
-    assert!(merkle_root_len == merkle_root_min_seq_nrs.length(), EMerkleRootLengthMismatch);
-    assert!(merkle_root_len == merkle_root_max_seq_nrs.length(), EMerkleRootLengthMismatch);
-    assert!(merkle_root_len == merkle_root_values.length(), EMerkleRootLengthMismatch);
-
-    // Since we cannot pass public structs, we need to reconpublic struct it from the individual components.
-    let mut merkle_roots = vector[];
-    let mut i = 0;
-    while (i < merkle_root_len) {
-        let source_chain_selector = merkle_root_source_chain_selectors[i];
-        let on_ramp_address = merkle_root_on_ramp_addresses[i];
-        let min_seq_nr = merkle_root_min_seq_nrs[i];
-        let max_seq_nr = merkle_root_max_seq_nrs[i];
-        let merkle_root = merkle_root_values[i];
-        merkle_roots.push_back(MerkleRoot {
-            source_chain_selector,
-            on_ramp_address,
-            min_seq_nr,
-            max_seq_nr,
-            merkle_root,
-        });
-        i = i + 1;
-    };
-
-    // TODO: verify this.
-    // currently we use the CCIP state object id as rmn_remote_contract_address and offramp state address as off_ramp_address.
-    let report = Report {
-        dest_chain_selector: state.local_chain_selector,
-        rmn_remote_contract_address: object::id_to_address(&object::id(ref)),
-        off_ramp_address: off_ramp_state_address,
-        rmn_home_contract_config_digest: state.config.rmn_home_contract_config_digest,
-        merkle_roots,
-    };
-
-    let digest = calculate_report(&report);
-
-    let mut previous_eth_address = vector[];
-    let mut i = 0;
-    while (i < signatures_len) {
-        let signature_bytes = signatures[i];
-
-        assert!(signature_bytes.length() == SIGNATURE_NUM_BYTES, EInvalidSignature);
-
-        let eth_address = ecrecover_to_eth_address(signature_bytes, digest);
-
-        assert!(state.signers.contains(&eth_address), EUnexpectedSigner);
-        if (i > 0) {
-            assert!(
-                merkle_proof::vector_u8_gt(&eth_address, &previous_eth_address),
-                EOutOfOrderSignatures,
-            );
-        };
-        previous_eth_address = eth_address;
-
-        i = i + 1;
-    };
-
-    true
-}
-
 public fun set_config(
     ref: &mut CCIPObjectRef,
-    _: &OwnerCap,
+    owner_cap: &OwnerCap,
     rmn_home_contract_config_digest: vector<u8>,
     signer_onchain_public_keys: vector<vector<u8>>,
     node_indexes: vector<u64>,
@@ -246,6 +119,8 @@ public fun set_config(
         string::utf8(b"set_config"),
         VERSION,
     );
+
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
 
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
@@ -339,16 +214,24 @@ public fun curse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vector<
         string::utf8(b"curse"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     curse_multiple(ref, owner_cap, vector[subject]);
 }
 
-public fun curse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+public fun curse_multiple(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    subjects: vector<vector<u8>>,
+) {
     verify_function_allowed(
         ref,
         string::utf8(b"rmn_remote"),
         string::utf8(b"curse_multiple"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
@@ -367,16 +250,24 @@ public fun uncurse(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, subject: vecto
         string::utf8(b"uncurse"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     uncurse_multiple(ref, owner_cap, vector[subject]);
 }
 
-public fun uncurse_multiple(ref: &mut CCIPObjectRef, _: &OwnerCap, subjects: vector<vector<u8>>) {
+public fun uncurse_multiple(
+    ref: &mut CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    subjects: vector<vector<u8>>,
+) {
     verify_function_allowed(
         ref,
         string::utf8(b"rmn_remote"),
         string::utf8(b"uncurse_multiple"),
         VERSION,
     );
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
     let state = state_object::borrow_mut<RMNRemoteState>(ref);
 
     subjects.do_ref!(|subject| {
@@ -434,37 +325,6 @@ public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {
     let mut subject = bcs::to_bytes(&subject_value);
     subject.reverse();
     is_cursed(ref, subject)
-}
-
-/// Recover the Ethereum address using the signature and message, assuming the signature was
-/// produced over the Keccak256 hash of the message.
-/// this implementation is based on the SUI example: https://github.com/MystenLabs/sui/blob/main/examples/move/crypto/ecdsa_k1/sources/example.move#L62
-fun ecrecover_to_eth_address(mut signature: vector<u8>, msg: vector<u8>): vector<u8> {
-    // no normalization is done bc the signature only includes 64 bytes.
-    // add a 0 byte to the end of the signature to make it 65 bytes.
-    signature.push_back(0);
-    // Ethereum signature is produced with Keccak256 hash of the message, so the last param is
-    // 0.
-    let pubkey = ecdsa_k1::secp256k1_ecrecover(&signature, &msg, 0);
-    let uncompressed = ecdsa_k1::decompress_pubkey(&pubkey);
-
-    // Take the last 64 bytes of the uncompressed pubkey.
-    let mut uncompressed_64 = vector[];
-    let mut i = 1;
-    while (i < 65) {
-        uncompressed_64.push_back(uncompressed[i]);
-        i = i + 1;
-    };
-
-    // Take the last 20 bytes of the hash of the 64-bytes uncompressed pubkey.
-    let hashed = sui::hash::keccak256(&uncompressed_64);
-    let mut addr = vector[];
-    let mut i = 12;
-    while (i < 32) {
-        addr.push_back(hashed[i]);
-        i = i + 1;
-    };
-    addr
 }
 
 // ================================================================

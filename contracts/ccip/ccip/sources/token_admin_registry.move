@@ -75,12 +75,14 @@ const ENotAdministrator: u64 = 5;
 const ETokenAddressNotRegistered: u64 = 6;
 const ENotAllowed: u64 = 7;
 const EInvalidFunction: u64 = 8;
+const EInvalidOwnerCap: u64 = 9;
 
 public fun type_and_version(): String {
     string::utf8(b"TokenAdminRegistry 1.6.0")
 }
 
 public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut TxContext) {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
     assert!(!state_object::contains<TokenAdminRegistryState>(ref), EAlreadyInitialized);
     let state = TokenAdminRegistryState {
         id: object::new(ctx),

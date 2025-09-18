@@ -383,7 +383,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		for i, returnedValue := range functionReadResponse[0].ReturnValues {
 			returnedValue := returnedValue.([]any)
 			structTag := returnedValue[1].(string)
-			structParts := strings.Split(structTag, "::")
+			structPartsLen := 3
 
 			// create a bcs decoder from the return value
 			bcsBytes, err := codec.AnySliceToBytes(returnedValue[0].([]any))
@@ -402,14 +402,68 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 				continue
 			}
 
+			// Check if this is a vector type first
+			if strings.HasPrefix(structTag, "vector<") && strings.HasSuffix(structTag, ">") {
+				// Extract inner type to determine if it's a vector of structs or primitives
+				innerType := strings.TrimSuffix(strings.TrimPrefix(structTag, "vector<"), ">")
+				innerStructParts := strings.Split(innerType, "::")
+
+				// Check if inner type is a struct (3 parts: package::module::struct)
+				if len(innerStructParts) == structPartsLen {
+					// This is vector<Struct> - get normalized module for the inner struct
+					innerPackageId := innerStructParts[0]
+					innerModuleName := innerStructParts[1]
+
+					normalizedModule, err := c.GetNormalizedModule(ctx, innerPackageId, innerModuleName)
+					if err != nil {
+						return fmt.Errorf("failed to get normalized module for vector struct: %w", err)
+					}
+
+					c.log.Debugw("normalizedModule for vector", "normalizedModule", normalizedModule)
+
+					// Use the new DecodeVectorOfStructs function
+					jsonResult, err := codec.DecodeVectorOfStructs(bcsDecoder, structTag, normalizedModule.Structs)
+					if err != nil {
+						return fmt.Errorf("failed to decode vector of structs: %w", err)
+					}
+
+					// convert any []uint8 fields to hex strings
+					hexified := common.ConvertBytesToHex(jsonResult)
+					results[i] = hexified
+				} else {
+					// This is vector<primitive> - use existing primitive vector handling
+					primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
+					if err != nil {
+						return fmt.Errorf("failed to decode primitive vector: %w", err)
+					}
+					results[i] = primitive
+				}
+				continue
+			}
+
+			// Handle non-vector types (existing logic)
+			structParts := strings.Split(structTag, "::")
+
 			// if the response type is not a struct (primitive type), skip the result (keep it as is)
-			structPartsLen := 3
 			if len(structParts) != structPartsLen {
 				primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
 				if err != nil {
 					return fmt.Errorf("failed to decode primitive: %w", err)
 				}
-				results[i] = primitive
+				// Normalize large ints to decimal strings to be LOOP/JSON friendly
+				if structTag == "u128" || structTag == "u256" {
+					switch v := primitive.(type) {
+					case *big.Int:
+						results[i] = v.String()
+					case big.Int:
+						vv := v
+						results[i] = vv.String()
+					default:
+						results[i] = fmt.Sprint(v)
+					}
+				} else {
+					results[i] = primitive
+				}
 			} else {
 				// otherwise, get the normalized struct and attempt turning the result into JSON
 				normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
@@ -789,7 +843,7 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 
 	for _, ownedObject := range ownedObjects {
 		c.log.Debugw("ownedObject", "ownedObject", ownedObject.Data.Type)
-		if strings.Contains(ownedObject.Data.Type, pointerStructName) {
+		if ownedObject.Data.Type == fmt.Sprintf("%s::%s::%s", packageId, module, pointerStructName) {
 			pointerObject = *ownedObject.Data
 			pointerObjectFound = true
 			break

@@ -349,3 +349,141 @@ var FeeQuoterUpdateTokenPricesOp = cld_ops.NewOperation(
 	"Apply update prices in CCIP Fee Quoter contract",
 	updateTokenPrices,
 )
+
+// FEE QUOTER -- new_fee_quoter_cap
+type NewFeeQuoterCapObjects struct {
+	FeeQuoterCapObjectId string
+}
+
+type NewFeeQuoterCapInput struct {
+	CCIPPackageId    string
+	CCIPObjectRef    string
+	OwnerCapObjectId string
+}
+
+var newFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input NewFeeQuoterCapInput) (output sui_ops.OpTxResult[NewFeeQuoterCapObjects], err error) {
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.NewFeeQuoterCap(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.CCIPObjectRef},
+		bind.Object{Id: input.OwnerCapObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to execute new_fee_quoter_cap: %w", err)
+	}
+
+	feeQuoterCapObjectId, err1 := bind.FindObjectIdFromPublishTx(*tx, "fee_quoter", "FeeQuoterCap")
+	if err1 != nil {
+		return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{}, fmt.Errorf("failed to find fee quoter cap object ID in tx: %w", err1)
+	}
+
+	return sui_ops.OpTxResult[NewFeeQuoterCapObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects: NewFeeQuoterCapObjects{
+			FeeQuoterCapObjectId: feeQuoterCapObjectId,
+		},
+	}, err
+}
+
+var FeeQuoterNewFeeQuoterCapOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "fee_quoter", "new_fee_quoter_cap"),
+	semver.MustParse("0.1.0"),
+	"Create a new fee quoter cap in the CCIP Fee Quoter contract",
+	newFeeQuoterCapHandler,
+)
+
+// FEE QUOTER -- destroy_fee_quoter_cap
+type DestroyFeeQuoterCapInput struct {
+	CCIPPackageId        string
+	CCIPObjectRef        string
+	OwnerCapObjectId     string
+	FeeQuoterCapObjectId string
+}
+
+var destroyFeeQuoterCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DestroyFeeQuoterCapInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.DestroyFeeQuoterCap(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.CCIPObjectRef},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: input.FeeQuoterCapObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute destroy_fee_quoter_cap: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+	}, err
+}
+
+var FeeQuoterDestroyFeeQuoterCapOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "fee_quoter", "destroy_fee_quoter_cap"),
+	semver.MustParse("0.1.0"),
+	"Destroy a fee quoter cap in the CCIP Fee Quoter contract",
+	destroyFeeQuoterCapHandler,
+)
+
+// FEE QUOTER -- update_prices_with_owner_cap
+type FeeQuoterUpdatePricesWithOwnerCapInput struct {
+	CCIPPackageId         string
+	CCIPObjectRef         string
+	OwnerCapObjectId      string
+	SourceTokens          []string
+	SourceUsdPerToken     []*big.Int
+	GasDestChainSelectors []uint64
+	GasUsdPerUnitGas      []*big.Int
+}
+
+var updatePricesWithOwnerCapHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input FeeQuoterUpdatePricesWithOwnerCapInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_fee_quoter.NewFeeQuoter(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.UpdatePricesWithOwnerCap(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.CCIPObjectRef},
+		bind.Object{Id: input.OwnerCapObjectId},
+		bind.Object{Id: "0x6"}, // Clock object
+		input.SourceTokens,
+		input.SourceUsdPerToken,
+		input.GasDestChainSelectors,
+		input.GasUsdPerUnitGas,
+	)
+
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute updatePricesWithOwnerCap on SUI: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+	}, err
+}
+
+var FeeQuoterUpdatePricesWithOwnerCapOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "fee_quoter", "update_prices_with_owner_cap"),
+	semver.MustParse("0.1.0"),
+	"Update prices using owner cap in CCIP Fee Quoter contract",
+	updatePricesWithOwnerCapHandler,
+)
