@@ -15,20 +15,27 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
+	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
+
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 	"github.com/smartcontractkit/chainlink-sui/shared"
 )
 
 const (
-	maxCoinsPageSize uint   = 50
-	Base10           int    = 10
-	DefaultGasPrice  uint64 = 10_000
-	DefaultGasBudget uint64 = 1_000_000_000
+	maxCoinsPageSize            uint          = 50
+	Base10                      int           = 10
+	DefaultGasPrice             uint64        = 10_000
+	DefaultGasBudget            uint64        = 1_000_000_000
+	DefaultCacheExpiration      time.Duration = 120 * time.Minute
+	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
 )
 
 // var since it's passed via pointer
@@ -55,7 +62,14 @@ type SuiPTBClient interface {
 	LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error)
 	GetLatestPackageId(ctx context.Context, packageId string, module string, signerAddress string) (string, error)
 	GetClient() sui.ISuiAPI
+	GetCache() *cache.Cache
+	GetCachedValue(key string) (any, bool)
+	SetCachedValue(key string, value any)
+	GetCachedValues(keys []string) (map[string]any, bool)
+	SetCachedValues(keyValues map[string]any)
 	HashTxBytes(txBytes []byte) []byte
+	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
+	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -67,8 +81,11 @@ type PTBClient struct {
 	keystoreService    loop.Keystore
 	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
+
 	// map of module name to normalized module definition (similar to an ABI)
 	normalizedModules map[string]map[string]models.GetNormalizedMoveModuleResponse
+
+	cache *cache.Cache // used for caching object IDs (e.g. offramp state object ID or state pointers)
 }
 
 var _ SuiPTBClient = (*PTBClient)(nil)
@@ -99,6 +116,7 @@ func NewPTBClient(
 		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
+		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
 	}, nil
 }
 
@@ -897,4 +915,85 @@ func (c *PTBClient) GetLatestPackageId(ctx context.Context, packageId string, mo
 
 func (c *PTBClient) GetClient() sui.ISuiAPI {
 	return c.client
+}
+
+func (c *PTBClient) GetCache() *cache.Cache {
+	return c.cache
+}
+
+func (c *PTBClient) GetCachedValue(key string) (any, bool) {
+	return c.cache.Get(key)
+}
+
+func (c *PTBClient) GetCachedValues(keys []string) (map[string]any, bool) {
+	result := make(map[string]any)
+	for _, key := range keys {
+		value, found := c.cache.Get(key)
+		if !found {
+			return nil, false
+		}
+		result[key] = value
+	}
+	return result, true
+}
+
+func (c *PTBClient) SetCachedValue(key string, value any) {
+	c.cache.Set(key, value, cache.NoExpiration)
+}
+
+func (c *PTBClient) SetCachedValues(keyValues map[string]any) {
+	for key, value := range keyValues {
+		c.cache.Set(key, value, cache.NoExpiration)
+	}
+}
+
+// GetCCIPPackageId gets the CCIP package ID from the offramp package ID.
+// IMPORTANT: This function expects to call the original (un-upgraded / first version) offramp package ID.
+func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
+	offRamp, err := module_offramp.NewOfframp(offRampPackageID, c.GetClient())
+	if err != nil {
+		return "", err
+	}
+
+	devInspectSigner := suiSigner.NewDevInspectSigner(signerAddress)
+
+	ccipPkgID, err := offRamp.DevInspect().GetCcipPackageId(ctx, &bind.CallOpts{
+		Signer:           devInspectSigner,
+		WaitForExecution: true,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return ccipPkgID, nil
+}
+
+// GetValueFromPackageOwnedObjectField gets the value of a field from a package owned object.
+// This is used to get addresses stored within pointer objects on-chain. For example, the state object ID of a package is stored in the pointer object,
+// so we need to get the value of the pointer object's field to get the state object ID.
+func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
+	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
+	if err != nil {
+		c.log.Errorw("Error reading owned objects", "error", err)
+		return nil, err
+	}
+
+	foundValues := make(map[string]string)
+	for _, ownedObject := range ownedObjects {
+		qualifiedName := fmt.Sprintf("%s::%s::%s", packageID, moduleID, objectName)
+		if ownedObject.Data.Type != "" && ownedObject.Data.Type == qualifiedName {
+			// parse the object into a map
+			parsedObject := ownedObject.Data.Content.Fields
+			for _, fieldKey := range fieldKeys {
+				fieldValue, ok := parsedObject[fieldKey].(string)
+				if !ok {
+					return nil, fmt.Errorf("field %s not found in object %s", fieldKey, qualifiedName)
+				}
+
+				foundValues[fieldKey] = fieldValue
+			}
+		}
+	}
+
+	return foundValues, nil
 }
