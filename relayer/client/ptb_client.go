@@ -792,7 +792,7 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 	if ok {
 		return normalizedModule, nil
 	}
-
+	fmt.Println("NORMALIZED MODULE: ", packageId, module)
 	normalizedModule, err := c.client.SuiGetNormalizedMoveModule(ctx, models.GetNormalizedMoveModuleRequest{
 		Package:    packageId,
 		ModuleName: module,

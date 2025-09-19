@@ -205,7 +205,9 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 
 	// Process each command in order
 	for _, cmd := range txnConfig.PTBCommands {
-		cmd.PackageId = &toAddress
+		if cmd.PackageId == nil {
+			cmd.PackageId = &toAddress
+		}
 		p.log.Info("ENTEREED PTB COMMMANDS")
 		// Process the command based on its type
 		switch cmd.Type {
