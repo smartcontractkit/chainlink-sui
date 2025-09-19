@@ -57,28 +57,28 @@ func (d DeployMCMS) Apply(e cldf.Environment, config mcmsops.DeployMCMSSeqInput)
 	}
 
 	// save MCMS Registry object ID to the addressbook
-	typeAndVersionMCMSRegistry := cldf.NewTypeAndVersion(deployment.SuiMcmsRegistryObjectIdType, deployment.Version1_0_0)
+	typeAndVersionMCMSRegistry := cldf.NewTypeAndVersion(deployment.SuiMcmsRegistryObjectIDType, deployment.Version1_0_0)
 	err = ab.Save(config.ChainSelector, mcmsReport.Output.Objects.McmsRegistryObjectId, typeAndVersionMCMSRegistry)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS Registry object ID %s for Sui chain %d: %w", mcmsReport.Output.Objects.McmsRegistryObjectId, config.ChainSelector, err)
 	}
 
 	// save MCMS AccountState object ID to the addressbook
-	typeAndVersionMCMSAccountState := cldf.NewTypeAndVersion(deployment.SuiMcmsAccountStateObjectIdType, deployment.Version1_0_0)
+	typeAndVersionMCMSAccountState := cldf.NewTypeAndVersion(deployment.SuiMcmsAccountStateObjectIDType, deployment.Version1_0_0)
 	err = ab.Save(config.ChainSelector, mcmsReport.Output.Objects.McmsAccountStateObjectId, typeAndVersionMCMSAccountState)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS AccountState object ID %s for Sui chain %d: %w", mcmsReport.Output.Objects.McmsAccountStateObjectId, config.ChainSelector, err)
 	}
 
 	// save MCMS AccountOwnerCap object ID to the addressbook
-	typeAndVersionMCMSAccountOwnerCap := cldf.NewTypeAndVersion(deployment.SuiMcmsAccountOwnerCapObjectIdType, deployment.Version1_0_0)
+	typeAndVersionMCMSAccountOwnerCap := cldf.NewTypeAndVersion(deployment.SuiMcmsAccountOwnerCapObjectIDType, deployment.Version1_0_0)
 	err = ab.Save(config.ChainSelector, mcmsReport.Output.Objects.McmsAccountOwnerCapObjectId, typeAndVersionMCMSAccountOwnerCap)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS AccountOwnerCap object ID %s for Sui chain %d: %w", mcmsReport.Output.Objects.McmsAccountOwnerCapObjectId, config.ChainSelector, err)
 	}
 
 	// save MCMS Timelock object ID to the addressbook
-	typeAndVersionMCMSTimelock := cldf.NewTypeAndVersion(deployment.SuiMcmsTimelockObjectIdType, deployment.Version1_0_0)
+	typeAndVersionMCMSTimelock := cldf.NewTypeAndVersion(deployment.SuiMcmsTimelockObjectIDType, deployment.Version1_0_0)
 	err = ab.Save(config.ChainSelector, mcmsReport.Output.Objects.TimelockObjectId, typeAndVersionMCMSTimelock)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS Timelock object ID %s for Sui chain %d: %w", mcmsReport.Output.Objects.TimelockObjectId, config.ChainSelector, err)

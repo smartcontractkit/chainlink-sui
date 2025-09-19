@@ -4,6 +4,7 @@ package deployment
 import (
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
+	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 )
 
 // These are the static/default FeeQuoter + chain params
@@ -33,7 +34,7 @@ var DefaultCCIPSeqConfig = ccipops.DeployAndInitCCIPSeqInput{
 	DestDataAvailabilityOverheadGas:   100,
 	DestGasPerDataAvailabilityByte:    16,
 	DestDataAvailabilityMultiplierBps: 1,
-	ChainFamilySelector:               []byte{40, 18, 213, 44},
+	ChainFamilySelector:               []byte{40, 18, 213, 44}, //   bytes4 public constant CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c;
 	EnforceOutOfOrder:                 false,
 	DefaultTokenFeeUsdCents:           25,
 	DefaultTokenDestGasOverhead:       90_000,
@@ -51,5 +52,23 @@ var DefaultOffRampSeqConfig = offrampops.DeployAndInitCCIPOffRampSeqInput{
 		PremissionExecThresholdSeconds:        uint32(60 * 60 * 8), // 8 hours
 		SourceChainsIsEnabled:                 []bool{true},
 		SourceChainsIsRMNVerificationDisabled: []bool{true},
+	},
+}
+
+var DefaultOnRampSeqConfig = onrampops.DeployAndInitCCIPOnRampSeqInput{
+	OnRampInitializeInput: onrampops.OnRampInitializeInput{
+		DestChainAllowListEnabled: []bool{true},
+	},
+
+	ApplyDestChainConfigureOnRampInput: onrampops.ApplyDestChainConfigureOnRampInput{
+		// DestChainSelector injected at runtime
+		DestChainAllowListEnabled: []bool{false},
+	},
+
+	ApplyAllowListUpdatesInput: onrampops.ApplyAllowListUpdatesInput{
+		// DestChainSelector injected at runtime
+		DestChainAllowListEnabled:     []bool{false},
+		DestChainAddAllowedSenders:    [][]string{{}},
+		DestChainRemoveAllowedSenders: [][]string{{}},
 	},
 }

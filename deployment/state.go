@@ -11,19 +11,21 @@ type CCIPChainState struct {
 	CCIPRouterAddress          string
 	CCIPAddress                string
 	CCIPObjectRef              string
+	CCIPOwnerCapObjectId       string
 	MCMsAddress                string
 	TokenPoolAddress           string
 	LockReleaseAddress         string
-	LockReleaseStateID         string
-	FeeQuoterCapID             string
+	LockReleaseStateId         string
+	FeeQuoterCapId             string
 	OnRampAddress              string
-	OnRampStateObjectID        string
+	OnRampStateObjectId        string
+	OnRampOwnerCapObjectId     string
 	OffRampAddress             string
-	OffRampOwnerCapID          string
-	OffRampStateObjectID       string
+	OffRampOwnerCapId          string
+	OffRampStateObjectId       string
 	LinkTokenAddress           string
-	LinkTokenCoinMetadataID    string
-	LinkTokenTreasuryCapID     string
+	LinkTokenCoinMetadataId    string
+	LinkTokenTreasuryCapId     string
 	CCIPBurnMintTokenPool      string
 	CCIPBurnMintTokenPoolState string
 }
@@ -34,7 +36,7 @@ func LoadOnchainStatesui(env cldf.Environment) (map[uint64]CCIPChainState, error
 	suiChains := make(map[uint64]CCIPChainState)
 
 	for chainSelector := range rawChains {
-		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector) //nolint:staticcheck // we need to migrate to datastore
+		addresses, err := env.ExistingAddresses.AddressesForChain(chainSelector)
 		if err != nil {
 			// Chain not found in address book, initialize empty state
 			if !errors.Is(err, cldf.ErrChainNotFound) {
@@ -70,7 +72,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 			chainState.LockReleaseAddress = addr
 
 		case SuiLockReleaseTPStateType:
-			chainState.LockReleaseStateID = addr
+			chainState.LockReleaseStateId = addr
 
 		case SuiMcmsPackageIDType:
 			chainState.MCMsAddress = addr
@@ -81,32 +83,38 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
 
+		case SuiCCIPOwnerCapObjectIDType:
+			chainState.CCIPOwnerCapObjectId = addr
+
 		case SuiFeeQuoterCapType:
-			chainState.FeeQuoterCapID = addr
+			chainState.FeeQuoterCapId = addr
 
 		case SuiOnRampType:
 			chainState.OnRampAddress = addr
 
 		case SuiOnRampStateObjectIDType:
-			chainState.OnRampStateObjectID = addr
+			chainState.OnRampStateObjectId = addr
+
+		case SuiOnRampOwnerCapObjectIDType:
+			chainState.OnRampOwnerCapObjectId = addr
 
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr
 
 		case SuiOffRampStateObjectIDType:
-			chainState.OffRampStateObjectID = addr
+			chainState.OffRampStateObjectId = addr
 
 		case SuiOffRampOwnerCapObjectIDType:
-			chainState.OffRampOwnerCapID = addr
+			chainState.OffRampOwnerCapId = addr
 
 		case SuiLinkTokenType:
 			chainState.LinkTokenAddress = addr
 
 		case SuiLinkTokenObjectMetadataID:
-			chainState.LinkTokenCoinMetadataID = addr
+			chainState.LinkTokenCoinMetadataId = addr
 
 		case SuiLinkTokenTreasuryCapID:
-			chainState.LinkTokenTreasuryCapID = addr
+			chainState.LinkTokenTreasuryCapId = addr
 
 		case SuiBnMTokenPoolType:
 			chainState.CCIPBurnMintTokenPool = addr
