@@ -21,7 +21,7 @@ public struct UserData has key, store {
 }
 
 public fun type_and_version(): String {
-    string::utf8(b"MCMSUser 1.0.0")
+    string::utf8(b"MCMSUser 2.0.0")
 }
 
 public fun function_one(
@@ -181,6 +181,123 @@ public fun get_field_c(user_data: &UserData): address {
 
 public fun get_field_d(user_data: &UserData): u128 {
     user_data.d
+}
+
+public fun transfer_ownership(
+    user_data: &mut UserData,
+    owner_cap: &OwnerCap,
+    new_owner: address,
+    ctx: &mut TxContext,
+) {
+    ownable::transfer_ownership(owner_cap, &mut user_data.ownable_state, new_owner, ctx);
+}
+
+public fun accept_ownership(user_data: &mut UserData, ctx: &mut TxContext) {
+    ownable::accept_ownership(&mut user_data.ownable_state, ctx);
+}
+
+public fun accept_ownership_from_object(
+    user_data: &mut UserData,
+    from: &mut UID,
+    ctx: &mut TxContext,
+) {
+    ownable::accept_ownership_from_object(&mut user_data.ownable_state, from, ctx);
+}
+
+public fun mcms_accept_ownership(
+    user_data: &mut UserData,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+        params,
+        SampleMcmsCallback {},
+    );
+    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(user_data), &mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let mcms = mcms_registry::get_multisig_address();
+    ownable::mcms_accept_ownership(&mut user_data.ownable_state, mcms, ctx);
+}
+
+public fun execute_ownership_transfer(
+    user_data: &mut UserData,
+    owner_cap: OwnerCap,
+    to: address,
+    ctx: &mut TxContext,
+) {
+    ownable::execute_ownership_transfer(owner_cap, &mut user_data.ownable_state, to, ctx);
+}
+
+public fun execute_ownership_transfer_to_mcms(
+    user_data: &mut UserData,
+    owner_cap: OwnerCap,
+    registry: &mut Registry,
+    to: address,
+    ctx: &mut TxContext,
+) {
+    ownable::execute_ownership_transfer_to_mcms(
+        owner_cap,
+        &mut user_data.ownable_state,
+        registry,
+        to,
+        SampleMcmsCallback {},
+        ctx,
+    );
+}
+
+public fun mcms_transfer_ownership(
+    user_data: &mut UserData,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<SampleMcmsCallback, OwnerCap>(
+        registry,
+        SampleMcmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"transfer_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(user_data), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    transfer_ownership(user_data, owner_cap, to, ctx);
+}
+
+public fun mcms_execute_ownership_transfer(
+    user_data: &mut UserData,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<SampleMcmsCallback, OwnerCap>(
+        registry,
+        SampleMcmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"execute_ownership_transfer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(user_data), object::id_address(owner_cap)],
+        &mut stream,
+    );
+
+    let to = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let owner_cap = mcms_registry::release_cap(registry, SampleMcmsCallback {});
+    execute_ownership_transfer(user_data, owner_cap, to, ctx);
 }
 
 // ===================== Test Functions =====================

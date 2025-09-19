@@ -3,7 +3,9 @@ module mcms_test::mcms_user_test;
 
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry};
-use mcms_test::mcms_user::{Self, UserData, OwnerCap};
+use mcms_test::mcms_user::{Self, UserData};
+use mcms_test::ownable::{OwnerCap};
+
 use std::string;
 use sui::bcs;
 use sui::package;
@@ -134,7 +136,7 @@ fun test_mcms_function_one() {
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
+        vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -187,7 +189,7 @@ fun test_mcms_function_two() {
 
         let mut data = vector::empty<u8>();
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
+        vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -319,7 +321,7 @@ fun test_sequential_function_calls() {
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
+        vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -355,14 +357,13 @@ fun test_sequential_function_calls() {
 
         let mut registry = ts::take_shared<Registry>(&scenario);
         let mut user_data = ts::take_shared<UserData>(&scenario);
-
         let arg1 = TEST_ARG_ADDRESS;
         let arg2 = TEST_ARG_U128;
 
         // Serialize arguments for BCS
         let mut data = vector::empty<u8>();
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
+        vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -402,7 +403,7 @@ fun test_sequential_function_calls() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_user::EInvalidAdminCap)]
+#[expected_failure(abort_code = mcms::bcs_stream::E_INVALID_OBJECT_ADDRESS)]
 fun test_call_function_with_invalid_user_data() {
     let mut scenario = create_test_scenario();
 
@@ -414,16 +415,15 @@ fun test_call_function_with_invalid_user_data() {
         let mut registry = ts::take_shared<Registry>(&scenario);
 
         let ctx = ts::ctx(&mut scenario);
-        let fake_owner_cap = object::new(ctx);
         // Create a fake user_data
-        let mut fake_user_data = mcms_user::test_create_user_data(ctx, fake_owner_cap.to_inner());
+        let (mut fake_user_data, fake_owner_cap) = mcms_user::test_create_user_data(ctx);
 
         let arg1 = string::utf8(TEST_ARG_STRING);
         let arg2 = TEST_ARG_BYTES;
 
         let mut data = vector::empty<u8>();
         vector::append(&mut data, bcs::to_bytes(&object::id_address(&fake_user_data)));
-        vector::append(&mut data, bcs::to_bytes(&object::id_address(&registry)));
+        vector::append(&mut data, bcs::to_bytes(&mcms_user::get_owner_cap_id(&fake_user_data)));
         vector::append(&mut data, bcs::to_bytes(&arg1));
         vector::append(&mut data, bcs::to_bytes(&arg2));
 
@@ -435,7 +435,7 @@ fun test_call_function_with_invalid_user_data() {
         );
 
         // Command 2: This should fail because we provide an unregistered user_data
-        // The cap does not exist for this user_data
+        // The cap does not exist for this user_data, so validating the owner_cap fails
         mcms_user::mcms_function_one(
             &mut fake_user_data,
             &mut registry,

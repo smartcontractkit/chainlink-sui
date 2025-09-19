@@ -29,8 +29,9 @@ const (
 	// LINK
 	LINK = Package("link")
 	// MCMS
-	MCMS     = Package("mcms")
-	MCMSUser = Package("mcms_user")
+	MCMS       = Package("mcms")
+	MCMSUser   = Package("mcms_user")
+	MCMSUserV2 = Package("mcms_user_v2")
 	// Other
 	Test = Package("test")
 )
@@ -55,8 +56,9 @@ var Contracts map[Package]string = map[Package]string{
 	// LINK
 	LINK: filepath.Join("link"),
 	// MCMS
-	MCMS:     filepath.Join("mcms", "mcms"),
-	MCMSUser: filepath.Join("mcms", "mcms_test"),
+	MCMS:       filepath.Join("mcms", "mcms"),
+	MCMSUser:   filepath.Join("mcms", "mcms_test"),
+	MCMSUserV2: filepath.Join("mcms", "mcms_test_v2"),
 	// Other
 	Test: filepath.Join("test"),
 }
