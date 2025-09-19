@@ -171,6 +171,8 @@ func BuildOffRampExecutePTB(
 		return err
 	}
 
+	lggr.Info("FINISHED PROCESSING RECIEVERSS", addressMappings.CcipObjectRef, addressMappings.OffRampPackageId)
+
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
 	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.CcipObjectRef}, bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
 	if err != nil {
@@ -374,6 +376,8 @@ func ProcessReceivers(
 			return nil, fmt.Errorf("failed to get normalized module for token pool: %w", err)
 		}
 
+		lggr.Info("APPENDPTBCMDFORRECIEVERS START")
+
 		receiverCommandResult, err := AppendPTBCommandForReceiver(
 			ctx,
 			lggr,
@@ -392,6 +396,8 @@ func ProcessReceivers(
 		if err != nil {
 			return nil, err
 		}
+		lggr.Info("APPENDPTBCMDFORRECIEVERS COMPLETE")
+
 		receiverCommandsResults = append(receiverCommandsResults, *receiverCommandResult)
 	}
 
