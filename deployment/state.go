@@ -83,7 +83,7 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
 
-		case SuiCCIPOwnerCapObjectIdType:
+		case SuiCCIPOwnerCapObjectIDType:
 			chainState.CCIPOwnerCapObjectId = addr
 
 		case SuiFeeQuoterCapType:
@@ -92,28 +92,28 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiOnRampType:
 			chainState.OnRampAddress = addr
 
-		case SuiOnRampStateObjectIdType:
+		case SuiOnRampStateObjectIDType:
 			chainState.OnRampStateObjectId = addr
 
-		case SuiOnRampOwnerCapObjectIdType:
+		case SuiOnRampOwnerCapObjectIDType:
 			chainState.OnRampOwnerCapObjectId = addr
 
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr
 
-		case SuiOffRampStateObjectIdType:
+		case SuiOffRampStateObjectIDType:
 			chainState.OffRampStateObjectId = addr
 
-		case SuiOffRampOwnerCapObjectIdType:
+		case SuiOffRampOwnerCapObjectIDType:
 			chainState.OffRampOwnerCapId = addr
 
 		case SuiLinkTokenType:
 			chainState.LinkTokenAddress = addr
 
-		case SuiLinkTokenObjectMetadataId:
+		case SuiLinkTokenObjectMetadataID:
 			chainState.LinkTokenCoinMetadataId = addr
 
-		case SuiLinkTokenTreasuryCapId:
+		case SuiLinkTokenTreasuryCapID:
 			chainState.LinkTokenTreasuryCapId = addr
 
 		case SuiBnMTokenPoolType:

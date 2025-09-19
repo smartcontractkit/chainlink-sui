@@ -57,13 +57,11 @@ var DefaultOffRampSeqConfig = offrampops.DeployAndInitCCIPOffRampSeqInput{
 
 var DefaultOnRampSeqConfig = onrampops.DeployAndInitCCIPOnRampSeqInput{
 	OnRampInitializeInput: onrampops.OnRampInitializeInput{
-		DestChainEnabled:          []bool{true},
 		DestChainAllowListEnabled: []bool{true},
 	},
 
 	ApplyDestChainConfigureOnRampInput: onrampops.ApplyDestChainConfigureOnRampInput{
 		// DestChainSelector injected at runtime
-		DestChainEnabled:          []bool{true},
 		DestChainAllowListEnabled: []bool{false},
 	},
 

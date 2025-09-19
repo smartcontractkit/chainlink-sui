@@ -491,7 +491,6 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 		return nil, fmt.Errorf("expected *[]byte for LOOP plugin params, got %T", params)
 	}
 
-	fmt.Println("PARAM BYTES ", paramBytes, params)
 	decoder := json.NewDecoder(bytes.NewReader(*paramBytes))
 	decoder.UseNumber()
 
