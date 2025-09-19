@@ -8,6 +8,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
+	"github.com/patrickmn/go-cache"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
@@ -134,6 +135,32 @@ func (c *FakeSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId str
 func (c *FakeSuiPTBClient) LoadModulePackageIds(ctx context.Context, packageId string, module string, signerAddress string) ([]string, error) {
 	// Return a single package ID for testing
 	return []string{packageId}, nil
+}
+
+func (c *FakeSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
+	return map[string]string{}, nil
+}
+
+func (c *FakeSuiPTBClient) GetCache() *cache.Cache {
+	return nil
+}
+
+func (c *FakeSuiPTBClient) GetCachedValue(key string) (any, bool) {
+	return nil, false
+}
+
+func (c *FakeSuiPTBClient) GetCachedValues(keys []string) (map[string]any, bool) {
+	return nil, false
+}
+
+func (c *FakeSuiPTBClient) SetCachedValue(key string, value any) {
+}
+
+func (c *FakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
+}
+
+func (c *FakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
+	return "", nil
 }
 
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
@@ -268,4 +295,30 @@ func (c *StatefulFakeSuiPTBClient) HashTxBytes(txBytes []byte) []byte {
 
 func (c *StatefulFakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context) (string, error) {
 	return "1000", nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
+	return map[string]string{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetCache() *cache.Cache {
+	return nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetCachedValue(key string) (any, bool) {
+	return nil, false
+}
+
+func (c *StatefulFakeSuiPTBClient) GetCachedValues(keys []string) (map[string]any, bool) {
+	return nil, false
+}
+
+func (c *StatefulFakeSuiPTBClient) SetCachedValue(key string, value any) {
+}
+
+func (c *StatefulFakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
+}
+
+func (c *StatefulFakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
+	return "", nil
 }
