@@ -64,7 +64,7 @@ func GetOfframpAddressMappings(
 		return OffRampAddressMappings{}, err
 	}
 
-	ccipPkgID, err := ptbClient.GetCCIPPackageId(ctx, addressMappings.OffRampPackageId, signerAddress)
+	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId, signerAddress)
 	if err != nil {
 		return OffRampAddressMappings{}, nil
 	}

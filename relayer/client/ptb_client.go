@@ -16,11 +16,12 @@ import (
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	cache "github.com/patrickmn/go-cache"
+	"golang.org/x/sync/semaphore"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
-	"golang.org/x/sync/semaphore"
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
@@ -67,8 +68,8 @@ type SuiPTBClient interface {
 	GetCachedValues(keys []string) (map[string]any, bool)
 	SetCachedValues(keyValues map[string]any)
 	HashTxBytes(txBytes []byte) []byte
-	GetCCIPPackageId(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
-	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageId string, moduleId string, objectName string, fieldKeys []string) (map[string]string, error)
+	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
+	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -927,11 +928,11 @@ func (c *PTBClient) GetCachedValue(key string) (any, bool) {
 func (c *PTBClient) GetCachedValues(keys []string) (map[string]any, bool) {
 	result := make(map[string]any)
 	for _, key := range keys {
-		if value, found := c.cache.Get(key); found {
-			result[key] = value
-		} else {
+		value, found := c.cache.Get(key)
+		if !found {
 			return nil, false
 		}
+		result[key] = value
 	}
 	return result, true
 }
@@ -948,7 +949,7 @@ func (c *PTBClient) SetCachedValues(keyValues map[string]any) {
 
 // GetCCIPPackageId gets the CCIP package ID from the offramp package ID.
 // IMPORTANT: This function expects to call the original (un-upgraded / first version) offramp package ID.
-func (c *PTBClient) GetCCIPPackageId(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
+func (c *PTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
 	offRamp, err := module_offramp.NewOfframp(offRampPackageID, c.GetClient())
 	if err != nil {
 		return "", err
@@ -956,7 +957,7 @@ func (c *PTBClient) GetCCIPPackageId(ctx context.Context, offRampPackageID strin
 
 	devInspectSigner := suiSigner.NewDevInspectSigner(signerAddress)
 
-	ccipPkgId, err := offRamp.DevInspect().GetCcipPackageId(ctx, &bind.CallOpts{
+	ccipPkgID, err := offRamp.DevInspect().GetCcipPackageId(ctx, &bind.CallOpts{
 		Signer:           devInspectSigner,
 		WaitForExecution: true,
 	})
@@ -964,14 +965,14 @@ func (c *PTBClient) GetCCIPPackageId(ctx context.Context, offRampPackageID strin
 		return "", err
 	}
 
-	return ccipPkgId, nil
+	return ccipPkgID, nil
 }
 
 // GetValueFromPackageOwnedObjectField gets the value of a field from a package owned object.
 // This is used to get addresses stored within pointer objects on-chain. For example, the state object ID of a package is stored in the pointer object,
 // so we need to get the value of the pointer object's field to get the state object ID.
-func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageId string, moduleId string, objectName string, fieldKeys []string) (map[string]string, error) {
-	ownedObjects, err := c.ReadOwnedObjects(ctx, packageId, nil)
+func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
+	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
 	if err != nil {
 		c.log.Errorw("Error reading owned objects", "error", err)
 		return nil, err
@@ -979,7 +980,7 @@ func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, pa
 
 	foundValues := make(map[string]string)
 	for _, ownedObject := range ownedObjects {
-		qualifiedName := fmt.Sprintf("%s::%s::%s", packageId, moduleId, objectName)
+		qualifiedName := fmt.Sprintf("%s::%s::%s", packageID, moduleID, objectName)
 		if ownedObject.Data.Type != "" && ownedObject.Data.Type == qualifiedName {
 			// parse the object into a map
 			parsedObject := ownedObject.Data.Content.Fields

@@ -17,9 +17,9 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
@@ -406,7 +406,7 @@ func (tIndexer *TransactionsIndexer) syncTransmitterTransactions(ctx context.Con
 			tIndexer.logger.Debugw("Source chain config", "sourceChainConfig", sourceChainConfig)
 			tIndexer.logger.Debugw("Execution report", "execReport", execReport)
 
-			hasher := util.NewMessageHasherV1(tIndexer.logger)
+			hasher := crUtil.NewMessageHasherV1(tIndexer.logger)
 			messageHash, err := hasher.Hash(ctx, execReport, sourceChainConfig.OnRamp)
 			if err != nil {
 				tIndexer.logger.Errorw("Failed to calculate message hash",

@@ -19,10 +19,10 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
+	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
@@ -45,7 +45,7 @@ type suiChainReader struct {
 	logger          logger.Logger
 	config          config.ChainReaderConfig
 	starter         services.StateMachine
-	packageResolver *util.PackageResolver
+	packageResolver *crUtil.PackageResolver
 	client          *client.PTBClient
 	dbStore         *database.DBStore
 	indexer         indexer.IndexerApi
@@ -85,7 +85,7 @@ func NewChainReader(
 		client:          ptbClient,
 		config:          configs,
 		dbStore:         dbStore,
-		packageResolver: util.NewPackageResolver(lgr, ptbClient),
+		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
 		// indexers
 		indexer: indexer,
 	}, nil
@@ -132,7 +132,9 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
 	for _, binding := range bindings {
-		s.packageResolver.UnbindPackage(binding.Name)
+		if err := s.packageResolver.UnbindPackage(binding.Name); err != nil {
+			return fmt.Errorf("failed to unbind package %s: %w", binding.Name, err)
+		}
 	}
 
 	return nil
@@ -562,11 +564,11 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				// special case for pointers from the CCIP package object pointer
 				// this is needed to override the specified address (will be offramp package ID) with the CCIP package ID
 				if appendTag == ccipPointerKey {
-					ccipPackageId, err := s.client.GetCCIPPackageId(ctx, identifier.address, functionConfig.SignerAddress)
+					ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
 					if err != nil {
 						return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
 					}
-					readIdentifierForPointer.address = ccipPackageId
+					readIdentifierForPointer.address = ccipPackageID
 				}
 
 				pointerSelectors[appendTag] = readIdentifierForPointer

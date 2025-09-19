@@ -1,4 +1,4 @@
-package util
+package chainreaderutil
 
 import (
 	"context"
@@ -8,14 +8,15 @@ import (
 	"time"
 
 	cache "github.com/patrickmn/go-cache"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
 const (
 	packageAddressCachePrefix = "pkg_addr:"
-	packageIdsCachePrefix     = "pkg_ids:"
-	latestPackageIdPrefix     = "latest_pkg:"
+	packageIDsCachePrefix     = "pkg_ids:"
+	latestPackageIDPrefix     = "latest_pkg:"
 	defaultCacheTTL           = 10 * time.Minute
 	identifierParts           = 3
 )
@@ -31,7 +32,7 @@ type PackageResolver struct {
 
 // ResolvedIdentifier represents a parsed Sui identifier
 type ResolvedIdentifier struct {
-	PackageId    string
+	PackageID    string
 	ModuleName   string
 	FunctionName string
 	Identifier   string
@@ -113,7 +114,7 @@ func (pr *PackageResolver) ResolvePackageAddress(moduleName string) (string, err
 }
 
 // ResolvePackageIds gets all package IDs for a module (including upgrades)
-func (pr *PackageResolver) ResolvePackageIds(ctx context.Context, moduleName string, signerAddress string) ([]string, error) {
+func (pr *PackageResolver) ResolvePackageIDs(ctx context.Context, moduleName string, signerAddress string) ([]string, error) {
 	moduleName = pr.normalizeName(moduleName)
 
 	packageAddress, err := pr.ResolvePackageAddress(moduleName)
@@ -121,30 +122,30 @@ func (pr *PackageResolver) ResolvePackageIds(ctx context.Context, moduleName str
 		return nil, fmt.Errorf("failed to resolve package address for module %s: %w", moduleName, err)
 	}
 
-	cacheKey := packageIdsCachePrefix + packageAddress + ":" + moduleName
-	if cachedIds, found := pr.cache.Get(cacheKey); found {
-		if ids, ok := cachedIds.([]string); ok {
+	cacheKey := packageIDsCachePrefix + packageAddress + ":" + moduleName
+	if cachedIDs, found := pr.cache.Get(cacheKey); found {
+		if ids, ok := cachedIDs.([]string); ok {
 			return ids, nil
 		}
 	}
 
-	packageIds, err := pr.client.LoadModulePackageIds(ctx, packageAddress, moduleName, signerAddress)
+	packageIDs, err := pr.client.LoadModulePackageIds(ctx, packageAddress, moduleName, signerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load package IDs for module %s: %w", moduleName, err)
 	}
 
-	pr.cache.Set(cacheKey, packageIds, defaultCacheTTL)
+	pr.cache.Set(cacheKey, packageIDs, defaultCacheTTL)
 
 	pr.log.Debugw("Package IDs resolved",
 		"module", moduleName,
 		"address", packageAddress,
-		"packageIds", packageIds)
+		"packageIDs", packageIDs)
 
-	return packageIds, nil
+	return packageIDs, nil
 }
 
 // ResolveLatestPackageId gets the latest (most recent) package ID for a module
-func (pr *PackageResolver) ResolveLatestPackageId(ctx context.Context, moduleName string, signerAddress string) (string, error) {
+func (pr *PackageResolver) ResolveLatestPackageID(ctx context.Context, moduleName string, signerAddress string) (string, error) {
 	moduleName = pr.normalizeName(moduleName)
 
 	packageAddress, err := pr.ResolvePackageAddress(moduleName)
@@ -152,26 +153,26 @@ func (pr *PackageResolver) ResolveLatestPackageId(ctx context.Context, moduleNam
 		return "", fmt.Errorf("failed to resolve package address for module %s: %w", moduleName, err)
 	}
 
-	cacheKey := latestPackageIdPrefix + packageAddress + ":" + moduleName
-	if cachedId, found := pr.cache.Get(cacheKey); found {
-		if id, ok := cachedId.(string); ok {
+	cacheKey := latestPackageIDPrefix + packageAddress + ":" + moduleName
+	if cachedID, found := pr.cache.Get(cacheKey); found {
+		if id, ok := cachedID.(string); ok {
 			return id, nil
 		}
 	}
 
-	latestId, err := pr.client.GetLatestPackageId(ctx, packageAddress, moduleName, signerAddress)
+	latestID, err := pr.client.GetLatestPackageId(ctx, packageAddress, moduleName, signerAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest package ID for module %s: %w", moduleName, err)
 	}
 
-	pr.cache.Set(cacheKey, latestId, defaultCacheTTL)
+	pr.cache.Set(cacheKey, latestID, defaultCacheTTL)
 
 	pr.log.Debugw("Latest package ID resolved",
 		"module", moduleName,
 		"address", packageAddress,
-		"latestId", latestId)
+		"latestID", latestID)
 
-	return latestId, nil
+	return latestID, nil
 }
 
 // ParseIdentifier parses a Sui identifier in the format "packageId::moduleName::functionName"
@@ -181,20 +182,20 @@ func (pr *PackageResolver) ParseIdentifier(identifier string) (*ResolvedIdentifi
 		return nil, fmt.Errorf("invalid identifier format, expected 'packageId::moduleName::functionName', got: %s", identifier)
 	}
 
-	packageId := strings.TrimSpace(parts[0])
+	packageID := strings.TrimSpace(parts[0])
 	moduleName := strings.TrimSpace(parts[1])
 	functionName := strings.TrimSpace(parts[2])
 
-	if packageId == "" || moduleName == "" || functionName == "" {
+	if packageID == "" || moduleName == "" || functionName == "" {
 		return nil, fmt.Errorf("identifier parts cannot be empty: %s", identifier)
 	}
 
-	if !isValidSuiAddress(packageId) {
-		return nil, fmt.Errorf("invalid package ID format: %s", packageId)
+	if !isValidSuiAddress(packageID) {
+		return nil, fmt.Errorf("invalid package ID format: %s", packageID)
 	}
 
 	return &ResolvedIdentifier{
-		PackageId:    packageId,
+		PackageID:    packageID,
 		ModuleName:   moduleName,
 		FunctionName: functionName,
 		Identifier:   identifier,
@@ -203,15 +204,15 @@ func (pr *PackageResolver) ParseIdentifier(identifier string) (*ResolvedIdentifi
 
 // ResolveIdentifier resolves a module name to latest package ID and creates full identifier
 func (pr *PackageResolver) ResolveIdentifier(ctx context.Context, moduleName string, functionName string, signerAddress string) (*ResolvedIdentifier, error) {
-	latestPackageId, err := pr.ResolveLatestPackageId(ctx, moduleName, signerAddress)
+	latestPackageID, err := pr.ResolveLatestPackageID(ctx, moduleName, signerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve latest package ID: %w", err)
 	}
 
-	identifier := fmt.Sprintf("%s::%s::%s", latestPackageId, moduleName, functionName)
+	identifier := fmt.Sprintf("%s::%s::%s", latestPackageID, moduleName, functionName)
 
 	return &ResolvedIdentifier{
-		PackageId:    latestPackageId,
+		PackageID:    latestPackageID,
 		ModuleName:   moduleName,
 		FunctionName: functionName,
 		Identifier:   identifier,
@@ -241,8 +242,8 @@ func (pr *PackageResolver) InvalidateCache(moduleName string) {
 
 	keys := []string{
 		packageAddressCachePrefix + moduleName,
-		packageIdsCachePrefix + packageAddress + ":" + moduleName,
-		latestPackageIdPrefix + packageAddress + ":" + moduleName,
+		packageIDsCachePrefix + packageAddress + ":" + moduleName,
+		latestPackageIDPrefix + packageAddress + ":" + moduleName,
 	}
 
 	for _, key := range keys {
@@ -282,8 +283,8 @@ func (pr *PackageResolver) ClearCache() {
 	items := pr.cache.Items()
 	for key := range items {
 		if strings.HasPrefix(key, packageAddressCachePrefix) ||
-			strings.HasPrefix(key, packageIdsCachePrefix) ||
-			strings.HasPrefix(key, latestPackageIdPrefix) {
+			strings.HasPrefix(key, packageIDsCachePrefix) ||
+			strings.HasPrefix(key, latestPackageIDPrefix) {
 			pr.cache.Delete(key)
 		}
 	}
@@ -307,5 +308,5 @@ func (ri *ResolvedIdentifier) String() string {
 
 // ToIdentifier converts ResolvedIdentifier back to identifier string
 func (ri *ResolvedIdentifier) ToIdentifier() string {
-	return fmt.Sprintf("%s::%s::%s", ri.PackageId, ri.ModuleName, ri.FunctionName)
+	return fmt.Sprintf("%s::%s::%s", ri.PackageID, ri.ModuleName, ri.FunctionName)
 }
