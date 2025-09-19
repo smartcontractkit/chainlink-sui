@@ -108,6 +108,11 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
 		}
 	}
+	if packageName == contracts.MCMSUserV2 {
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMsV2 published-at: %w", err)
+		}
+	}
 
 	// Special-case: update published-at of CCIP, CCIP Token Pool, & MCMs if it's a token pool package
 	if packageName == contracts.LockReleaseTokenPool || packageName == contracts.BurnMintTokenPool || packageName == contracts.ManagedTokenPool || packageName == contracts.USDCTokenPool {

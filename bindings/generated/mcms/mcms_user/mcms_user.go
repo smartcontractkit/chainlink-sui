@@ -20,13 +20,14 @@ var (
 )
 
 type IMcmsUser interface {
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	FunctionOne(ctx context.Context, opts *bind.CallOpts, userData bind.Object, ownerCap bind.Object, arg1 string, arg2 []byte) (*models.SuiTransactionBlockResponse, error)
 	FunctionTwo(ctx context.Context, opts *bind.CallOpts, userData bind.Object, ownerCap bind.Object, arg1 string, arg2 *big.Int) (*models.SuiTransactionBlockResponse, error)
 	RegisterMcmsEntrypoint(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, registry bind.Object, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, upgradeCap bind.Object, registry bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsFunctionOne(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsFunctionTwo(ctx context.Context, opts *bind.CallOpts, userData bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetOwnerCap(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetOwnerCapId(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetInvocations(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetFieldA(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetFieldB(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -38,7 +39,8 @@ type IMcmsUser interface {
 }
 
 type IMcmsUserDevInspect interface {
-	GetOwnerCap(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (bind.Object, error)
+	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
+	GetOwnerCapId(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (bind.Object, error)
 	GetInvocations(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (byte, error)
 	GetFieldA(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (string, error)
 	GetFieldB(ctx context.Context, opts *bind.CallOpts, userData bind.Object) ([]byte, error)
@@ -47,6 +49,8 @@ type IMcmsUserDevInspect interface {
 }
 
 type McmsUserEncoder interface {
+	TypeAndVersion() (*bind.EncodedCall, error)
+	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	FunctionOne(userData bind.Object, ownerCap bind.Object, arg1 string, arg2 []byte) (*bind.EncodedCall, error)
 	FunctionOneWithArgs(args ...any) (*bind.EncodedCall, error)
 	FunctionTwo(userData bind.Object, ownerCap bind.Object, arg1 string, arg2 *big.Int) (*bind.EncodedCall, error)
@@ -59,8 +63,8 @@ type McmsUserEncoder interface {
 	McmsFunctionOneWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsFunctionTwo(userData bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsFunctionTwoWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetOwnerCap(userData bind.Object) (*bind.EncodedCall, error)
-	GetOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetOwnerCapId(userData bind.Object) (*bind.EncodedCall, error)
+	GetOwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetInvocations(userData bind.Object) (*bind.EncodedCall, error)
 	GetInvocationsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetFieldA(userData bind.Object) (*bind.EncodedCall, error)
@@ -113,17 +117,13 @@ func (c *McmsUserContract) DevInspect() IMcmsUserDevInspect {
 }
 
 type UserData struct {
-	Id          string      `move:"sui::object::UID"`
-	Invocations byte        `move:"u8"`
-	A           string      `move:"0x1::string::String"`
-	B           []byte      `move:"vector<u8>"`
-	C           string      `move:"address"`
-	D           *big.Int    `move:"u128"`
-	OwnerCap    bind.Object `move:"ID"`
-}
-
-type OwnerCap struct {
-	Id string `move:"sui::object::UID"`
+	Id           string      `move:"sui::object::UID"`
+	Invocations  byte        `move:"u8"`
+	A            string      `move:"0x1::string::String"`
+	B            []byte      `move:"vector<u8>"`
+	C            string      `move:"address"`
+	D            *big.Int    `move:"u128"`
+	OwnableState bind.Object `move:"OwnableState"`
 }
 
 type MCMS_USER struct {
@@ -133,13 +133,13 @@ type SampleMcmsCallback struct {
 }
 
 type bcsUserData struct {
-	Id          string
-	Invocations byte
-	A           string
-	B           []byte
-	C           [32]byte
-	D           [16]byte
-	OwnerCap    bind.Object
+	Id           string
+	Invocations  byte
+	A            string
+	B            []byte
+	C            [32]byte
+	D            [16]byte
+	OwnableState bind.Object
 }
 
 func convertUserDataFromBCS(bcs bcsUserData) (UserData, error) {
@@ -149,13 +149,13 @@ func convertUserDataFromBCS(bcs bcsUserData) (UserData, error) {
 	}
 
 	return UserData{
-		Id:          bcs.Id,
-		Invocations: bcs.Invocations,
-		A:           bcs.A,
-		B:           bcs.B,
-		C:           fmt.Sprintf("0x%x", bcs.C),
-		D:           DField,
-		OwnerCap:    bcs.OwnerCap,
+		Id:           bcs.Id,
+		Invocations:  bcs.Invocations,
+		A:            bcs.A,
+		B:            bcs.B,
+		C:            fmt.Sprintf("0x%x", bcs.C),
+		D:            DField,
+		OwnableState: bcs.OwnableState,
 	}, nil
 }
 
@@ -168,14 +168,6 @@ func init() {
 		}
 
 		result, err := convertUserDataFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("mcms_test::mcms_user::OwnerCap", func(data []byte) (interface{}, error) {
-		var result OwnerCap
-		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
 		}
@@ -197,6 +189,16 @@ func init() {
 		}
 		return result, nil
 	})
+}
+
+// TypeAndVersion executes the type_and_version Move function.
+func (c *McmsUserContract) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsUserEncoder.TypeAndVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
 // FunctionOne executes the function_one Move function.
@@ -259,9 +261,9 @@ func (c *McmsUserContract) McmsFunctionTwo(ctx context.Context, opts *bind.CallO
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetOwnerCap executes the get_owner_cap Move function.
-func (c *McmsUserContract) GetOwnerCap(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsUserEncoder.GetOwnerCap(userData)
+// GetOwnerCapId executes the get_owner_cap_id Move function.
+func (c *McmsUserContract) GetOwnerCapId(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsUserEncoder.GetOwnerCapId(userData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -319,11 +321,33 @@ func (c *McmsUserContract) GetFieldD(ctx context.Context, opts *bind.CallOpts, u
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetOwnerCap executes the get_owner_cap Move function using DevInspect to get return values.
+// TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
+//
+// Returns: 0x1::string::String
+func (d *McmsUserDevInspect) TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error) {
+	encoded, err := d.contract.mcmsUserEncoder.TypeAndVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetOwnerCapId executes the get_owner_cap_id Move function using DevInspect to get return values.
 //
 // Returns: ID
-func (d *McmsUserDevInspect) GetOwnerCap(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.mcmsUserEncoder.GetOwnerCap(userData)
+func (d *McmsUserDevInspect) GetOwnerCapId(ctx context.Context, opts *bind.CallOpts, userData bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.mcmsUserEncoder.GetOwnerCapId(userData)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -455,6 +479,30 @@ type mcmsUserEncoder struct {
 	*bind.BoundContract
 }
 
+// TypeAndVersion encodes a call to the type_and_version Move function.
+func (c mcmsUserEncoder) TypeAndVersion() (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, []string{}, []any{}, []string{
+		"0x1::string::String",
+	})
+}
+
+// TypeAndVersionWithArgs encodes a call to the type_and_version Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsUserEncoder) TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("type_and_version", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"0x1::string::String",
+	})
+}
+
 // FunctionOne encodes a call to the function_one Move function.
 func (c mcmsUserEncoder) FunctionOne(userData bind.Object, ownerCap bind.Object, arg1 string, arg2 []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -530,7 +578,7 @@ func (c mcmsUserEncoder) RegisterMcmsEntrypoint(ownerCap bind.Object, registry b
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("register_mcms_entrypoint", typeArgsList, typeParamsList, []string{
-		"mcms_test::mcms_user::OwnerCap",
+		"OwnerCap",
 		"&mut Registry",
 		"&UserData",
 	}, []any{
@@ -544,7 +592,7 @@ func (c mcmsUserEncoder) RegisterMcmsEntrypoint(ownerCap bind.Object, registry b
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c mcmsUserEncoder) RegisterMcmsEntrypointWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"mcms_test::mcms_user::OwnerCap",
+		"OwnerCap",
 		"&mut Registry",
 		"&UserData",
 	}
@@ -653,11 +701,11 @@ func (c mcmsUserEncoder) McmsFunctionTwoWithArgs(args ...any) (*bind.EncodedCall
 	return c.EncodeCallArgsWithGenerics("mcms_function_two", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// GetOwnerCap encodes a call to the get_owner_cap Move function.
-func (c mcmsUserEncoder) GetOwnerCap(userData bind.Object) (*bind.EncodedCall, error) {
+// GetOwnerCapId encodes a call to the get_owner_cap_id Move function.
+func (c mcmsUserEncoder) GetOwnerCapId(userData bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_owner_cap", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("get_owner_cap_id", typeArgsList, typeParamsList, []string{
 		"&UserData",
 	}, []any{
 		userData,
@@ -666,9 +714,9 @@ func (c mcmsUserEncoder) GetOwnerCap(userData bind.Object) (*bind.EncodedCall, e
 	})
 }
 
-// GetOwnerCapWithArgs encodes a call to the get_owner_cap Move function using arbitrary arguments.
+// GetOwnerCapIdWithArgs encodes a call to the get_owner_cap_id Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsUserEncoder) GetOwnerCapWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsUserEncoder) GetOwnerCapIdWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&UserData",
 	}
@@ -678,7 +726,7 @@ func (c mcmsUserEncoder) GetOwnerCapWithArgs(args ...any) (*bind.EncodedCall, er
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_owner_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("get_owner_cap_id", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"ID",
 	})
 }
