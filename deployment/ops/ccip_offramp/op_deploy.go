@@ -189,6 +189,45 @@ var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 	}, err
 }
 
+type AddPackageIdOffRampInput struct {
+	OffRampPackageId string
+	StateObjectId    string
+	OwnerCapObjectId string
+	PackageId        string
+}
+
+type AddPackageIdOffRampObjects struct {
+	// No specific objects are returned from add_package_id
+}
+
+var addPackageIdOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AddPackageIdOffRampInput) (output sui_ops.OpTxResult[AddPackageIdOffRampObjects], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.AddPackageId(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.PackageId,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{}, fmt.Errorf("failed to execute AddPackageId on offRamp: %w", err)
+	}
+
+	b.Logger.Infow("Package ID added to OffRamp", "packageId", input.PackageId)
+
+	return sui_ops.OpTxResult[AddPackageIdOffRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OffRampPackageId,
+		Objects:   AddPackageIdOffRampObjects{},
+	}, nil
+}
+
 type RemovePackageIdOffRampInput struct {
 	OffRampPackageId string
 	StateObjectId    string
@@ -254,6 +293,13 @@ var ApplySourceChainConfigUpdatesOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Running Offramp ApplySourceChainConfigUpdate operation",
 	applySourceChainConfigUpdateHandler,
+)
+
+var AddPackageIdOffRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-offramp-add-package-id", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Adds a new package ID to the OffRamp state for upgrade tracking",
+	addPackageIdOffRampHandler,
 )
 
 var RemovePackageIdOffRampOp = cld_ops.NewOperation(
