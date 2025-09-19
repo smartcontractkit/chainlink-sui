@@ -99,6 +99,8 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 			arguments.Args = inner
 		}
 
+		// default min gas for sui mainnet
+		defaultGas := big.NewInt(200000000) // 0.2 sui
 		fmt.Println("EXECUTE CALL ESTIMAGE GAS BUDGET")
 		gasBudget, err := s.EstimateGasBudgetFromCCIPExecuteMessage(ctx, arguments.Args, meta)
 		if err != nil {
@@ -108,7 +110,7 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		if gasBudget != nil {
 			s.lggr.Infow("Using gas budget from CCIP message", "gasBudget", gasBudget, "transactionID", transactionID)
 			meta = &commonTypes.TxMeta{
-				GasLimit: gasBudget,
+				GasLimit: gasBudget.Add(gasBudget, defaultGas),
 			}
 		} else {
 			s.lggr.Debugw("No gas budget found, using the transaction simulation")
