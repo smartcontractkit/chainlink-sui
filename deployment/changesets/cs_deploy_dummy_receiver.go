@@ -55,6 +55,8 @@ func (d DeployDummyReciever) Apply(e cldf.Environment, config DeployDummyRecieve
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy LinkToken for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
+	// register reciever
+
 	seqReports = append(seqReports, []operations.Report[any, any]{DeployDummyReceiverOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
