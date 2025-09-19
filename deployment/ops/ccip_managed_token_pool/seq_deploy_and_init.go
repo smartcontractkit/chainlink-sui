@@ -124,27 +124,6 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 			return DeployManagedTokenPoolOutput{}, err
 		}
 
-		for i, chainSelector := range input.RemoteChainSelectors {
-			for _, poolAddr := range input.RemotePoolAddressesToAdd[i] {
-				_, err = cld_ops.ExecuteOperation(
-					env,
-					ManagedTokenPoolAddRemotePoolOp,
-					deps,
-					ManagedTokenPoolAddRemotePoolInput{
-						ManagedTokenPoolPackageId: deployReport.Output.PackageId,
-						CoinObjectTypeArg:         input.CoinObjectTypeArg,
-						StateObjectId:             initReport.Output.Objects.StateObjectId,
-						OwnerCap:                  initReport.Output.Objects.OwnerCapObjectId,
-						RemoteChainSelector:       chainSelector,
-						RemotePoolAddress:         poolAddr, // one address at a time
-					},
-				)
-				if err != nil {
-					return DeployManagedTokenPoolOutput{}, err
-				}
-			}
-		}
-
 		return DeployManagedTokenPoolOutput{
 			ManagedTPPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenPoolObjects{
