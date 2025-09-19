@@ -491,14 +491,35 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
 	}
 	lggr.Info("RECEIVEROBJECTIDS: ", receiverObjectIds)
-	extraArgsValues := receiverObjectIds.([][]byte)
+	lggr.Info("RECEIVEROBJECTIDS (raw):",
+		"value", receiverObjectIds,
+		"type", fmt.Sprintf("%T", receiverObjectIds))
+
+	var extraArgsValues [][]byte
+	switch vals := receiverObjectIds.(type) {
+	case [][]byte:
+		extraArgsValues = vals
+	case []any:
+		for _, v := range vals {
+			b, ok := v.([]byte)
+			if !ok {
+				lggr.Error("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
+				continue
+			}
+			extraArgsValues = append(extraArgsValues, b)
+		}
+	default:
+		lggr.Error("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", receiverObjectIds))
+	}
+
+	lggr.Info("ABOUT TOE EXPAND PARAMVALUES ")
 
 	for _, value := range extraArgsValues {
 		objectId := hex.EncodeToString(value)
 		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
 	}
 
-	lggr.Info("EXPANDED PARAMS VALUES: ", paramValues)
+	lggr.Info("EXPANDED PARAMS VALUES: ", paramValues, paramTypes)
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
 		functionName,
 		typeArgsList,
