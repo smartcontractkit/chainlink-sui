@@ -484,11 +484,13 @@ func AppendPTBCommandForReceiver(
 
 	lggr.Debugw("calling receiver", "paramTypes", paramTypes, "paramValues", paramValues)
 
+	lggr.Info("EXTRAARGS: ", extraArgs)
 	// Append extra args to the paramValues for the receiver call.
 	receiverObjectIds, ok := extraArgs["receiverObjectIds"]
 	if !ok {
 		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
 	}
+	lggr.Info("RECEIVEROBJECTIDS: ", receiverObjectIds)
 	extraArgsValues := receiverObjectIds.([][]byte)
 
 	for _, value := range extraArgsValues {
@@ -496,6 +498,7 @@ func AppendPTBCommandForReceiver(
 		paramValues = append(paramValues, bind.Object{Id: "0x" + objectId})
 	}
 
+	lggr.Info("EXPANDED PARAMS VALUES: ", paramValues)
 	encodedReceiverCall, err := boundReceiverContract.EncodeCallArgsWithGenerics(
 		functionName,
 		typeArgsList,
@@ -508,10 +511,15 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("failed to encode receiver call: %w", err)
 	}
 
+	lggr.Info("ENCODE CALL ARGS WITH GENERICS COMPLETE")
+	lggr.Info("ENCODE CALL ARGS WITH GENERICS SUCCESS ", encodedReceiverCall)
+
 	receiverCommandResult, err := boundReceiverContract.AppendPTB(ctx, callOpts, ptb, encodedReceiverCall)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build PTB (receiver call) using bindings: %w", err)
 	}
+
+	lggr.Info("PTB APPEND SUCCESS")
 
 	return receiverCommandResult, nil
 }
