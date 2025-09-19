@@ -13,6 +13,7 @@ import (
 	signer "github.com/block-vision/sui-go-sdk/signer"
 	sui "github.com/block-vision/sui-go-sdk/sui"
 	transaction "github.com/block-vision/sui-go-sdk/transaction"
+	"github.com/patrickmn/go-cache"
 	client "github.com/smartcontractkit/chainlink-sui/relayer/client"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -352,4 +353,102 @@ func (m *MockSuiPTBClient) GetLatestPackageId(ctx context.Context, packageId, mo
 func (mr *MockSuiPTBClientMockRecorder) GetLatestPackageId(ctx, packageId, module, signerAddress interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestPackageId", reflect.TypeOf((*MockSuiPTBClient)(nil).GetLatestPackageId), ctx, packageId, module, signerAddress)
+}
+
+// GetCCIPPackageID mocks base method.
+func (m *MockSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCCIPPackageID", ctx, offRampPackageID, signerAddress)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCCIPPackageID indicates an expected call of GetCCIPPackageID.
+func (mr *MockSuiPTBClientMockRecorder) GetCCIPPackageID(ctx, offRampPackageID, signerAddress interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCCIPPackageID", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCCIPPackageID), ctx, offRampPackageID, signerAddress)
+}
+
+// GetValuesFromPackageOwnedObjectField mocks base method.
+func (m *MockSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetValuesFromPackageOwnedObjectField", ctx, packageID, moduleID, objectName, fieldKeys)
+	ret0, _ := ret[0].(map[string]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetValuesFromPackageOwnedObjectField indicates an expected call of GetValuesFromPackageOwnedObjectField.
+func (mr *MockSuiPTBClientMockRecorder) GetValuesFromPackageOwnedObjectField(ctx, packageID, moduleID, objectName, fieldKeys interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValuesFromPackageOwnedObjectField", reflect.TypeOf((*MockSuiPTBClient)(nil).GetValuesFromPackageOwnedObjectField), ctx, packageID, moduleID, objectName, fieldKeys)
+}
+
+// GetCache mocks base method.
+func (m *MockSuiPTBClient) GetCache() *cache.Cache {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCache")
+	ret0, _ := ret[0].(*cache.Cache)
+	return ret0
+}
+
+// GetCache indicates an expected call of GetCache.
+func (mr *MockSuiPTBClientMockRecorder) GetCache() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCache", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCache))
+}
+
+// GetCachedValue mocks base method.
+func (m *MockSuiPTBClient) GetCachedValue(key string) (any, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCachedValue", key)
+	ret0, _ := ret[0].(any)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// GetCachedValue indicates an expected call of GetCachedValue.
+func (mr *MockSuiPTBClientMockRecorder) GetCachedValue(key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCachedValue", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCachedValue), key)
+}
+
+// SetCachedValue mocks base method.
+func (m *MockSuiPTBClient) SetCachedValue(key string, value any) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCachedValue", key, value)
+}
+
+// SetCachedValue indicates an expected call of SetCachedValue.
+func (mr *MockSuiPTBClientMockRecorder) SetCachedValue(key, value interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCachedValue", reflect.TypeOf((*MockSuiPTBClient)(nil).SetCachedValue), key, value)
+}
+
+// GetCachedValues mocks base method.
+func (m *MockSuiPTBClient) GetCachedValues(keys []string) (map[string]any, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCachedValues", keys)
+	ret0, _ := ret[0].(map[string]any)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// GetCachedValues indicates an expected call of GetCachedValues.
+func (mr *MockSuiPTBClientMockRecorder) GetCachedValues(keys interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCachedValues", reflect.TypeOf((*MockSuiPTBClient)(nil).GetCachedValues), keys)
+}
+
+// SetCachedValues mocks base method.
+func (m *MockSuiPTBClient) SetCachedValues(keyValues map[string]any) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCachedValues", keyValues)
+}
+
+// SetCachedValues indicates an expected call of SetCachedValues.
+func (mr *MockSuiPTBClientMockRecorder) SetCachedValues(keyValues interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCachedValues", reflect.TypeOf((*MockSuiPTBClient)(nil).SetCachedValues), keyValues)
 }
