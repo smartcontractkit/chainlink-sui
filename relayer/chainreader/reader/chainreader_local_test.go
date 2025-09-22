@@ -197,10 +197,37 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 					"get_all_source_chain_configs": {
 						Name:          "get_all_source_chain_configs",
 						SignerAddress: accountAddress,
-						Params:        []codec.SuiFunctionParam{}, // No parameters needed
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:     "object_id", // just a placeholder for testing to avoid bindings errors
+								Name:     "ref",
+								Required: true,
+							},
+							{
+								Type:     "object_id", // just a placeholder for testing to avoid bindings errors
+								Name:     "state",
+								Required: true,
+							},
+						},
 					},
 				},
 				Events: map[string]*config.ChainReaderEvent{},
+			},
+			"FeeQuoter": {
+				Name: "fee_quoter",
+				Functions: map[string]*config.ChainReaderFunction{
+					"get_static_config": {
+						Name:          "get_static_config",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:     "object_id", // just a placeholder for testing to avoid bindings errors
+								Name:     "ref",
+								Required: true,
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -213,6 +240,11 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	offRampBinding := types.BoundContract{
 		Name:    "OffRamp",
 		Address: packageId, // Package ID of the deployed offramp contract
+	}
+
+	feeQuoterBinding := types.BoundContract{
+		Name:    "FeeQuoter",
+		Address: packageId, // Package ID of the deployed fee_quoter contract
 	}
 
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -255,7 +287,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	chainReader, err := NewChainReader(ctx, log, relayerClient, chainReaderConfig, db, indexerInstance)
 	require.NoError(t, err)
 
-	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
+	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, feeQuoterBinding})
 	require.NoError(t, err)
 
 	// ChainReader in loop mode
@@ -264,7 +296,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	chainReaderLoopMode, err := NewChainReader(ctx, log, relayerClient, chainReaderConfigLoopMode, db, indexerInstance)
 	require.NoError(t, err)
 
-	err = chainReaderLoopMode.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
+	err = chainReaderLoopMode.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding, feeQuoterBinding})
 	require.NoError(t, err)
 
 	go func() {
@@ -434,7 +466,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Verify the returned struct
 		require.NotNil(t, retTupleStruct)
 		require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
-		require.Len(t, retTupleStruct["address"].([]byte), 32, "Expected address to be 0x1")
+		require.Equal(t, retTupleStruct["address"], "0x0000000000000000000000000000000000000000000000000000000000000001", "Expected address to be 0x1")
 		require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
 
 		log.Debugw("TupleStruct test completed successfully",
@@ -681,7 +713,10 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 	t.Run("GetLatestValue_GetAllSourceChainConfigs_LoopMode", func(t *testing.T) {
 		var retAllSourceChainConfigs []byte
-		params, err := json.Marshal(map[string]any{})
+		params, err := json.Marshal(map[string]any{
+			"ref":   counterObjectId, // this is just a placeholder for testing to avoid bindings errors
+			"state": counterObjectId, // this is just a placeholder for testing to avoid bindings errors
+		})
 		require.NoError(t, err)
 
 		log.Debugw("Testing get_all_source_chain_configs function for BCS struct decoding",
@@ -698,8 +733,36 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NoError(t, err)
 
 		// Convert bytes to JSON
-		var jsonResult [][]any
+		var jsonResult []any
 		err = json.Unmarshal(retAllSourceChainConfigs, &jsonResult)
+		require.NoError(t, err)
+
+		log.Debugw("jsonResult", "jsonResult", jsonResult)
+	})
+
+	t.Run("GetLatestValue_GetStaticConfig", func(t *testing.T) {
+		var retStaticConfig []byte
+		params, err := json.Marshal(map[string]any{
+			"ref": counterObjectId, // this is just a placeholder for testing to avoid bindings errors
+		})
+		require.NoError(t, err)
+
+		log.Debugw("Testing get_static_config function for BCS struct decoding",
+			"packageId", packageId,
+		)
+
+		err = chainReaderLoopMode.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "FeeQuoter", "get_static_config"}, "-"),
+			primitives.Finalized,
+			&params, // provide object reference parameter
+			&retStaticConfig,
+		)
+		require.NoError(t, err)
+
+		// Convert bytes to JSON
+		var jsonResult []any
+		err = json.Unmarshal(retStaticConfig, &jsonResult)
 		require.NoError(t, err)
 
 		log.Debugw("jsonResult", "jsonResult", jsonResult)

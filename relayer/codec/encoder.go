@@ -79,6 +79,8 @@ func encodeObject(value any) (bind.Object, error) {
 	switch v := value.(type) {
 	case bind.Object:
 		return bind.Object{Id: v.Id}, nil
+	case string:
+		return bind.Object{Id: v}, nil
 	default:
 		return bind.Object{}, fmt.Errorf("cannot convert %T to object", value)
 	}

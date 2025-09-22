@@ -47,6 +47,7 @@ type suiChainReader struct {
 	starter         services.StateMachine
 	packageResolver *crUtil.PackageResolver
 	client          *client.PTBClient
+	clientReader    client.ClientReader
 	dbStore         *database.DBStore
 	indexer         indexer.IndexerApi
 }
@@ -83,6 +84,7 @@ func NewChainReader(
 	return &suiChainReader{
 		logger:          logger.Named(lgr, "SuiChainReader"),
 		client:          ptbClient,
+		clientReader:    client.NewClientReader(ptbClient),
 		config:          configs,
 		dbStore:         dbStore,
 		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
@@ -636,6 +638,25 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 		"argTypes", argTypes,
 	)
 
+	// try the ClientReader's DevInspect bindings first (if available)
+	if handled, values, err := s.clientReader.TryReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes); handled {
+		if err != nil {
+			s.logger.Errorw("ClientReader DevInspect call failed",
+				"error", err,
+				"address", parsed.address,
+				"module", parsed.contractName,
+				"method", parsed.readName,
+				"args", args,
+				"argTypes", argTypes,
+			)
+			return nil, fmt.Errorf("failed to call function %s via ClientReader: %w", parsed.readName, err)
+		}
+
+		s.logger.Debugw("ClientReader DevInspect response", "returnValues", values)
+		return values, nil
+	}
+
+	// otherwise, fallback to the generic ReadFunction
 	values, err := s.client.ReadFunction(ctx, functionConfig.SignerAddress, parsed.address, parsed.contractName, parsed.readName, args, argTypes)
 	if err != nil {
 		s.logger.Errorw("ReadFunction failed",
