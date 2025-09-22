@@ -259,7 +259,14 @@ func (pr *PackageResolver) ValidateBinding(moduleName string, packageAddress str
 
 	pr.mutex.RLock()
 	boundPackageAddress := pr.packageAddresses[moduleName]
+	pr.log.Info("Bound packageAddress: ", boundPackageAddress, pr.packageAddresses)
 	pr.mutex.RUnlock()
+
+	pr.log.Debugw("ValidateBinding compare",
+		"bound", fmt.Sprintf("%q", boundPackageAddress),
+		"incoming", fmt.Sprintf("%q", packageAddress),
+		"equal", boundPackageAddress == packageAddress,
+	)
 
 	// If the key exists but the address does not match
 	if boundPackageAddress == packageAddress {

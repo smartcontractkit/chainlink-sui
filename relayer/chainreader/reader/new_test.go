@@ -125,7 +125,7 @@ func TestGetLatestValue(t *testing.T) {
 	}
 
 	counterBinding := types.BoundContract{
-		Name:    "OffRamp",
+		Name:    "",
 		Address: "0x295765b8d45339a4e401f6b63cc30ca98d689be3f15beaa555d41ba77470a5d0", // Package ID of the deployed counter contract
 	}
 

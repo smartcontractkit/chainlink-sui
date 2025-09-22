@@ -149,7 +149,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	_, contractName, method := parsed.address, parsed.contractName, parsed.readName
 
 	if err = s.validateContractBindingAndConfig(parsed.contractName, parsed.address); err != nil {
-		return err
+		return fmt.Errorf("error validating contract binding and config: %w", err)
 	}
 
 	// this ensures we are using values from chain-reader config set in core
