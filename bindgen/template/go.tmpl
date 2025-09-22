@@ -180,6 +180,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for {{.Name}}
+	bind.RegisterStructDecoder("vector<{{$.Package}}::{{$.Module}}::{{.Name}}>", func(data []byte) (interface{}, error) {
+		var temps []bcs{{.Name}}
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]{{.Name}}, len(temps))
+		for i, temp := range temps {
+			result, err := convert{{.Name}}FromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	{{- else}}
 	bind.RegisterStructDecoder("{{$.Package}}::{{$.Module}}::{{.Name}}", func(data []byte) (interface{}, error) {
 		var result {{.Name}}
@@ -188,6 +206,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for {{.Name}}
+	bind.RegisterStructDecoder("vector<{{$.Package}}::{{$.Module}}::{{.Name}}>", func(data []byte) (interface{}, error) {
+		var results []{{.Name}}
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	{{- end}}
 {{- end}}
