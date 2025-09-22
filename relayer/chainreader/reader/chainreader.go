@@ -631,6 +631,7 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, c
 	pointersValuesMap := make(map[string]map[string]any)
 
 	// Handle CCIPObjectRefPointer fetch
+	// only fetch if it's offRamp because offramp module is seperate from ccip hence, different pkgId
 	if contractName == "offramp" && slices.Contains(pointers, ccipPointerKey) {
 		fields, err := s.fetchCCIPObjectRef(ctx, packageId, signerAddress)
 		if err != nil {

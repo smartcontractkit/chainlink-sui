@@ -120,23 +120,26 @@ func (c *PTBClient) TransformTransactionArg(
 			return &pureArg, nil
 		}
 	case "vector<address>":
-		// Handle vector of addresses
+		// Already []string
 		if addresses, ok := arg.([]string); ok {
-			// Convert each address string to proper Sui address bytes
-			convertedAddresses := make([]models.SuiAddressBytes, len(addresses))
-			for i, addr := range addresses {
-				addressBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(addr))
-				if err != nil {
-					return nil, fmt.Errorf("failed to convert address %s to Sui address: %w", addr, err)
-				}
-				convertedAddresses[i] = *addressBytes
-			}
-			pureArg := tx.Pure(convertedAddresses)
+			return convertAddresses(tx, addresses)
+		}
 
-			return &pureArg, nil
+		// Fallback: JSON gave us []interface{}
+		if rawSlice, ok := arg.([]interface{}); ok {
+			addresses := make([]string, len(rawSlice))
+			for i, v := range rawSlice {
+				s, ok := v.(string)
+				if !ok {
+					return nil, fmt.Errorf("vector<address> contains non-string element: %T", v)
+				}
+				addresses[i] = s
+			}
+			return convertAddresses(tx, addresses)
 		}
 
 		return nil, fmt.Errorf("expected []string for vector<address>, got %T", arg)
+
 	default:
 		pureArg := tx.Pure(arg)
 		return &pureArg, nil
@@ -232,4 +235,17 @@ func (c *PTBClient) HashTxBytes(txBytes []byte) []byte {
 	intentMessage := append([]byte{0, 0, 0}, txBytes...)
 	digest := blake2b.Sum256(intentMessage)
 	return digest[:]
+}
+
+func convertAddresses(tx *transaction.Transaction, addresses []string) (*transaction.Argument, error) {
+	converted := make([]models.SuiAddressBytes, len(addresses))
+	for i, addr := range addresses {
+		addressBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(addr))
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert address %s to Sui address: %w", addr, err)
+		}
+		converted[i] = *addressBytes
+	}
+	pureArg := tx.Pure(converted)
+	return &pureArg, nil
 }
