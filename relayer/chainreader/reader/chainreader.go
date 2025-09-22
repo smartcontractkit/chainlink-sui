@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -51,6 +52,9 @@ type suiChainReader struct {
 	client           *client.PTBClient
 	dbStore          *database.DBStore
 	indexer          indexer.IndexerApi
+
+	// Mutex to protect concurrent access to maps
+	mu sync.RWMutex
 
 	ccipObjectRef string // for caching
 }
@@ -120,6 +124,9 @@ func (s *suiChainReader) Close() error {
 }
 
 func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	newBindings := map[string]string{}
 	for _, binding := range bindings {
 		if !strings.HasPrefix(binding.Address, objectIdPrefix) {
@@ -446,6 +453,9 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 
 // validateBinding validates that the contract is bound and addresses match
 func (s *suiChainReader) validateBinding(parsed *readIdentifier) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	boundAddress, ok := s.packageAddresses[parsed.contractName]
 	if !ok {
 		return fmt.Errorf("no bound address for contract: %s", parsed.contractName)
@@ -465,6 +475,9 @@ func (s *suiChainReader) validateBinding(parsed *readIdentifier) error {
 
 // validateContractBinding validates the contract binding for QueryKey
 func (s *suiChainReader) validateContractBinding(contract pkgtypes.BoundContract) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	address, ok := s.packageAddresses[contract.Name]
 	if !ok {
 		return fmt.Errorf("no bound address for package %s", contract.Name)
