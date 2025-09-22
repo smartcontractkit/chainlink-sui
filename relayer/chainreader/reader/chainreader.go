@@ -565,7 +565,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 				// special case for pointers from the CCIP package object pointer
 				// this is needed to override the specified address (will be offramp package ID) with the CCIP package ID
-				if appendTag == ccipPointerKey {
+				if identifier.contractName == "offramp" && appendTag == ccipPointerKey {
 					ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
 					if err != nil {
 						return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
