@@ -89,6 +89,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for LINK
+	bind.RegisterStructDecoder("vector<link::link::LINK>", func(data []byte) (interface{}, error) {
+		var results []LINK
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.

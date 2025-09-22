@@ -183,6 +183,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OwnerCap
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::OwnerCap>", func(data []byte) (interface{}, error) {
+		var temps []bcsOwnerCap
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OwnerCap, len(temps))
+		for i, temp := range temps {
+			result, err := convertOwnerCapFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::ReceivedMessage", func(data []byte) (interface{}, error) {
 		var result ReceivedMessage
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -190,6 +208,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ReceivedMessage
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::ReceivedMessage>", func(data []byte) (interface{}, error) {
+		var results []ReceivedMessage
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::CCIPReceiverState", func(data []byte) (interface{}, error) {
 		var result CCIPReceiverState
@@ -199,6 +226,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CCIPReceiverState
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::CCIPReceiverState>", func(data []byte) (interface{}, error) {
+		var results []CCIPReceiverState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::DummyReceiverProof", func(data []byte) (interface{}, error) {
 		var result DummyReceiverProof
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -206,6 +242,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for DummyReceiverProof
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::DummyReceiverProof>", func(data []byte) (interface{}, error) {
+		var results []DummyReceiverProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::TokenAmount", func(data []byte) (interface{}, error) {
 		var temp bcsTokenAmount
@@ -219,6 +264,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TokenAmount
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::TokenAmount>", func(data []byte) (interface{}, error) {
+		var temps []bcsTokenAmount
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TokenAmount, len(temps))
+		for i, temp := range temps {
+			result, err := convertTokenAmountFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 

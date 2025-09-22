@@ -261,6 +261,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Domain
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::Domain>", func(data []byte) (interface{}, error) {
+		var results []Domain
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::DomainsSet", func(data []byte) (interface{}, error) {
 		var result DomainsSet
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -268,6 +277,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for DomainsSet
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::DomainsSet>", func(data []byte) (interface{}, error) {
+		var results []DomainsSet
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::USDCTokenPoolState", func(data []byte) (interface{}, error) {
 		var result USDCTokenPoolState
@@ -277,6 +295,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for USDCTokenPoolState
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::USDCTokenPoolState>", func(data []byte) (interface{}, error) {
+		var results []USDCTokenPoolState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::TypeProof", func(data []byte) (interface{}, error) {
 		var result TypeProof
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -285,6 +312,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TypeProof
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::TypeProof>", func(data []byte) (interface{}, error) {
+		var results []TypeProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("usdc_token_pool::usdc_token_pool::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -292,6 +328,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<usdc_token_pool::usdc_token_pool::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

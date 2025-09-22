@@ -323,6 +323,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TokenAdminRegistryState
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::TokenAdminRegistryState>", func(data []byte) (interface{}, error) {
+		var results []TokenAdminRegistryState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::TokenConfig", func(data []byte) (interface{}, error) {
 		var temp bcsTokenConfig
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -335,6 +344,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TokenConfig
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::TokenConfig>", func(data []byte) (interface{}, error) {
+		var temps []bcsTokenConfig
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TokenConfig, len(temps))
+		for i, temp := range temps {
+			result, err := convertTokenConfigFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolSet", func(data []byte) (interface{}, error) {
 		var temp bcsPoolSet
@@ -349,6 +376,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for PoolSet
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::PoolSet>", func(data []byte) (interface{}, error) {
+		var temps []bcsPoolSet
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]PoolSet, len(temps))
+		for i, temp := range temps {
+			result, err := convertPoolSetFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolRegistered", func(data []byte) (interface{}, error) {
 		var temp bcsPoolRegistered
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -361,6 +406,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for PoolRegistered
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::PoolRegistered>", func(data []byte) (interface{}, error) {
+		var temps []bcsPoolRegistered
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]PoolRegistered, len(temps))
+		for i, temp := range temps {
+			result, err := convertPoolRegisteredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::PoolUnregistered", func(data []byte) (interface{}, error) {
 		var temp bcsPoolUnregistered
@@ -375,6 +438,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for PoolUnregistered
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::PoolUnregistered>", func(data []byte) (interface{}, error) {
+		var temps []bcsPoolUnregistered
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]PoolUnregistered, len(temps))
+		for i, temp := range temps {
+			result, err := convertPoolUnregisteredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferRequested", func(data []byte) (interface{}, error) {
 		var temp bcsAdministratorTransferRequested
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -387,6 +468,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for AdministratorTransferRequested
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::AdministratorTransferRequested>", func(data []byte) (interface{}, error) {
+		var temps []bcsAdministratorTransferRequested
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]AdministratorTransferRequested, len(temps))
+		for i, temp := range temps {
+			result, err := convertAdministratorTransferRequestedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::AdministratorTransferred", func(data []byte) (interface{}, error) {
 		var temp bcsAdministratorTransferred
@@ -401,6 +500,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for AdministratorTransferred
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::AdministratorTransferred>", func(data []byte) (interface{}, error) {
+		var temps []bcsAdministratorTransferred
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]AdministratorTransferred, len(temps))
+		for i, temp := range temps {
+			result, err := convertAdministratorTransferredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::token_admin_registry::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -408,6 +525,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

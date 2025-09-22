@@ -88,6 +88,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MOCK_ETH_TOKEN
+	bind.RegisterStructDecoder("vector<mock_eth_token::mock_eth_token::MOCK_ETH_TOKEN>", func(data []byte) (interface{}, error) {
+		var results []MOCK_ETH_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.

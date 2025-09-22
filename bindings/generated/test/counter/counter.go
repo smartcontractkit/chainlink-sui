@@ -361,6 +361,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for COUNTER
+	bind.RegisterStructDecoder("vector<test::counter::COUNTER>", func(data []byte) (interface{}, error) {
+		var results []COUNTER
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::counter::CounterIncremented", func(data []byte) (interface{}, error) {
 		var result CounterIncremented
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -368,6 +377,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for CounterIncremented
+	bind.RegisterStructDecoder("vector<test::counter::CounterIncremented>", func(data []byte) (interface{}, error) {
+		var results []CounterIncremented
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::counter::CounterDecremented", func(data []byte) (interface{}, error) {
 		var result CounterDecremented
@@ -377,6 +395,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CounterDecremented
+	bind.RegisterStructDecoder("vector<test::counter::CounterDecremented>", func(data []byte) (interface{}, error) {
+		var results []CounterDecremented
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::counter::AdminCap", func(data []byte) (interface{}, error) {
 		var result AdminCap
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -385,6 +412,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for AdminCap
+	bind.RegisterStructDecoder("vector<test::counter::AdminCap>", func(data []byte) (interface{}, error) {
+		var results []AdminCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::counter::Counter", func(data []byte) (interface{}, error) {
 		var result Counter
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -392,6 +428,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Counter
+	bind.RegisterStructDecoder("vector<test::counter::Counter>", func(data []byte) (interface{}, error) {
+		var results []Counter
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::counter::CounterPointer", func(data []byte) (interface{}, error) {
 		var temp bcsCounterPointer
@@ -406,6 +451,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CounterPointer
+	bind.RegisterStructDecoder("vector<test::counter::CounterPointer>", func(data []byte) (interface{}, error) {
+		var temps []bcsCounterPointer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]CounterPointer, len(temps))
+		for i, temp := range temps {
+			result, err := convertCounterPointerFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::counter::AddressList", func(data []byte) (interface{}, error) {
 		var temp bcsAddressList
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -419,6 +482,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for AddressList
+	bind.RegisterStructDecoder("vector<test::counter::AddressList>", func(data []byte) (interface{}, error) {
+		var temps []bcsAddressList
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]AddressList, len(temps))
+		for i, temp := range temps {
+			result, err := convertAddressListFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::counter::SimpleResult", func(data []byte) (interface{}, error) {
 		var result SimpleResult
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -426,6 +507,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for SimpleResult
+	bind.RegisterStructDecoder("vector<test::counter::SimpleResult>", func(data []byte) (interface{}, error) {
+		var results []SimpleResult
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::counter::ComplexResult", func(data []byte) (interface{}, error) {
 		var temp bcsComplexResult
@@ -440,6 +530,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ComplexResult
+	bind.RegisterStructDecoder("vector<test::counter::ComplexResult>", func(data []byte) (interface{}, error) {
+		var temps []bcsComplexResult
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ComplexResult, len(temps))
+		for i, temp := range temps {
+			result, err := convertComplexResultFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::counter::NestedStruct", func(data []byte) (interface{}, error) {
 		var temp bcsNestedStruct
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -452,6 +560,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for NestedStruct
+	bind.RegisterStructDecoder("vector<test::counter::NestedStruct>", func(data []byte) (interface{}, error) {
+		var temps []bcsNestedStruct
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]NestedStruct, len(temps))
+		for i, temp := range temps {
+			result, err := convertNestedStructFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::counter::MultiNestedStruct", func(data []byte) (interface{}, error) {
 		var temp bcsMultiNestedStruct
@@ -466,6 +592,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MultiNestedStruct
+	bind.RegisterStructDecoder("vector<test::counter::MultiNestedStruct>", func(data []byte) (interface{}, error) {
+		var temps []bcsMultiNestedStruct
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]MultiNestedStruct, len(temps))
+		for i, temp := range temps {
+			result, err := convertMultiNestedStructFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::counter::ConfigInfo", func(data []byte) (interface{}, error) {
 		var result ConfigInfo
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -473,6 +617,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ConfigInfo
+	bind.RegisterStructDecoder("vector<test::counter::ConfigInfo>", func(data []byte) (interface{}, error) {
+		var results []ConfigInfo
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::counter::OCRConfig", func(data []byte) (interface{}, error) {
 		var temp bcsOCRConfig
@@ -486,6 +639,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for OCRConfig
+	bind.RegisterStructDecoder("vector<test::counter::OCRConfig>", func(data []byte) (interface{}, error) {
+		var temps []bcsOCRConfig
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OCRConfig, len(temps))
+		for i, temp := range temps {
+			result, err := convertOCRConfigFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 

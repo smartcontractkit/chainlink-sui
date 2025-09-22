@@ -103,6 +103,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for NonceManagerCap
+	bind.RegisterStructDecoder("vector<ccip::nonce_manager::NonceManagerCap>", func(data []byte) (interface{}, error) {
+		var results []NonceManagerCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::nonce_manager::NonceManagerState", func(data []byte) (interface{}, error) {
 		var result NonceManagerState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -110,6 +119,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for NonceManagerState
+	bind.RegisterStructDecoder("vector<ccip::nonce_manager::NonceManagerState>", func(data []byte) (interface{}, error) {
+		var results []NonceManagerState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

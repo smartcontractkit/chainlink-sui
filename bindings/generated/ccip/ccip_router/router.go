@@ -208,6 +208,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ROUTER
+	bind.RegisterStructDecoder("vector<ccip_router::router::ROUTER>", func(data []byte) (interface{}, error) {
+		var results []ROUTER
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_router::router::OnRampSet", func(data []byte) (interface{}, error) {
 		var temp bcsOnRampSet
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -220,6 +229,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for OnRampSet
+	bind.RegisterStructDecoder("vector<ccip_router::router::OnRampSet>", func(data []byte) (interface{}, error) {
+		var temps []bcsOnRampSet
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OnRampSet, len(temps))
+		for i, temp := range temps {
+			result, err := convertOnRampSetFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_router::router::OnRampInfo", func(data []byte) (interface{}, error) {
 		var temp bcsOnRampInfo
@@ -234,6 +261,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OnRampInfo
+	bind.RegisterStructDecoder("vector<ccip_router::router::OnRampInfo>", func(data []byte) (interface{}, error) {
+		var temps []bcsOnRampInfo
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OnRampInfo, len(temps))
+		for i, temp := range temps {
+			result, err := convertOnRampInfoFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_router::router::RouterState", func(data []byte) (interface{}, error) {
 		var result RouterState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -242,6 +287,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for RouterState
+	bind.RegisterStructDecoder("vector<ccip_router::router::RouterState>", func(data []byte) (interface{}, error) {
+		var results []RouterState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_router::router::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -249,6 +303,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<ccip_router::router::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

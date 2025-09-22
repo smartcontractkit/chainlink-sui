@@ -343,6 +343,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TokenState
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::TokenState>", func(data []byte) (interface{}, error) {
+		var results []TokenState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MintCap", func(data []byte) (interface{}, error) {
 		var result MintCap
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -351,6 +360,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MintCap
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MintCap>", func(data []byte) (interface{}, error) {
+		var results []MintCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MintCapCreated", func(data []byte) (interface{}, error) {
 		var result MintCapCreated
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -358,6 +376,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for MintCapCreated
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MintCapCreated>", func(data []byte) (interface{}, error) {
+		var results []MintCapCreated
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MinterConfigured", func(data []byte) (interface{}, error) {
 		var temp bcsMinterConfigured
@@ -372,6 +399,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MinterConfigured
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterConfigured>", func(data []byte) (interface{}, error) {
+		var temps []bcsMinterConfigured
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]MinterConfigured, len(temps))
+		for i, temp := range temps {
+			result, err := convertMinterConfiguredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Minted", func(data []byte) (interface{}, error) {
 		var temp bcsMinted
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -384,6 +429,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Minted
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Minted>", func(data []byte) (interface{}, error) {
+		var temps []bcsMinted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Minted, len(temps))
+		for i, temp := range temps {
+			result, err := convertMintedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Burnt", func(data []byte) (interface{}, error) {
 		var temp bcsBurnt
@@ -398,6 +461,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Burnt
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Burnt>", func(data []byte) (interface{}, error) {
+		var temps []bcsBurnt
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Burnt, len(temps))
+		for i, temp := range temps {
+			result, err := convertBurntFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Blocklisted", func(data []byte) (interface{}, error) {
 		var temp bcsBlocklisted
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -410,6 +491,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Blocklisted
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Blocklisted>", func(data []byte) (interface{}, error) {
+		var temps []bcsBlocklisted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Blocklisted, len(temps))
+		for i, temp := range temps {
+			result, err := convertBlocklistedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Unblocklisted", func(data []byte) (interface{}, error) {
 		var temp bcsUnblocklisted
@@ -424,6 +523,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Unblocklisted
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Unblocklisted>", func(data []byte) (interface{}, error) {
+		var temps []bcsUnblocklisted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Unblocklisted, len(temps))
+		for i, temp := range temps {
+			result, err := convertUnblocklistedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Paused", func(data []byte) (interface{}, error) {
 		var result Paused
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -431,6 +548,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Paused
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Paused>", func(data []byte) (interface{}, error) {
+		var results []Paused
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Unpaused", func(data []byte) (interface{}, error) {
 		var result Unpaused
@@ -440,6 +566,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Unpaused
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Unpaused>", func(data []byte) (interface{}, error) {
+		var results []Unpaused
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MinterAllowanceIncremented", func(data []byte) (interface{}, error) {
 		var result MinterAllowanceIncremented
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -447,6 +582,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for MinterAllowanceIncremented
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterAllowanceIncremented>", func(data []byte) (interface{}, error) {
+		var results []MinterAllowanceIncremented
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MinterUnlimitedAllowanceSet", func(data []byte) (interface{}, error) {
 		var result MinterUnlimitedAllowanceSet
@@ -456,6 +600,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MinterUnlimitedAllowanceSet
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterUnlimitedAllowanceSet>", func(data []byte) (interface{}, error) {
+		var results []MinterUnlimitedAllowanceSet
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -463,6 +616,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

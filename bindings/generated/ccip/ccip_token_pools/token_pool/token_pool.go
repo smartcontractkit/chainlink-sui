@@ -346,6 +346,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TokenPoolState
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::TokenPoolState>", func(data []byte) (interface{}, error) {
+		var temps []bcsTokenPoolState
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TokenPoolState, len(temps))
+		for i, temp := range temps {
+			result, err := convertTokenPoolStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::RemoteChainConfig", func(data []byte) (interface{}, error) {
 		var result RemoteChainConfig
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -353,6 +371,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for RemoteChainConfig
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::RemoteChainConfig>", func(data []byte) (interface{}, error) {
+		var results []RemoteChainConfig
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::LockedOrBurned", func(data []byte) (interface{}, error) {
 		var temp bcsLockedOrBurned
@@ -367,6 +394,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for LockedOrBurned
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::LockedOrBurned>", func(data []byte) (interface{}, error) {
+		var temps []bcsLockedOrBurned
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]LockedOrBurned, len(temps))
+		for i, temp := range temps {
+			result, err := convertLockedOrBurnedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::ReleasedOrMinted", func(data []byte) (interface{}, error) {
 		var temp bcsReleasedOrMinted
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -380,6 +425,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ReleasedOrMinted
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::ReleasedOrMinted>", func(data []byte) (interface{}, error) {
+		var temps []bcsReleasedOrMinted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ReleasedOrMinted, len(temps))
+		for i, temp := range temps {
+			result, err := convertReleasedOrMintedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::RemotePoolAdded", func(data []byte) (interface{}, error) {
 		var result RemotePoolAdded
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -387,6 +450,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for RemotePoolAdded
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::RemotePoolAdded>", func(data []byte) (interface{}, error) {
+		var results []RemotePoolAdded
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::RemotePoolRemoved", func(data []byte) (interface{}, error) {
 		var result RemotePoolRemoved
@@ -396,6 +468,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for RemotePoolRemoved
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::RemotePoolRemoved>", func(data []byte) (interface{}, error) {
+		var results []RemotePoolRemoved
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::ChainAdded", func(data []byte) (interface{}, error) {
 		var result ChainAdded
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -404,6 +485,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ChainAdded
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::ChainAdded>", func(data []byte) (interface{}, error) {
+		var results []ChainAdded
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::ChainRemoved", func(data []byte) (interface{}, error) {
 		var result ChainRemoved
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -411,6 +501,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ChainRemoved
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::ChainRemoved>", func(data []byte) (interface{}, error) {
+		var results []ChainRemoved
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::LiquidityAdded", func(data []byte) (interface{}, error) {
 		var temp bcsLiquidityAdded
@@ -425,6 +524,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for LiquidityAdded
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::LiquidityAdded>", func(data []byte) (interface{}, error) {
+		var temps []bcsLiquidityAdded
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]LiquidityAdded, len(temps))
+		for i, temp := range temps {
+			result, err := convertLiquidityAddedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::LiquidityRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsLiquidityRemoved
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -438,6 +555,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for LiquidityRemoved
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::LiquidityRemoved>", func(data []byte) (interface{}, error) {
+		var temps []bcsLiquidityRemoved
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]LiquidityRemoved, len(temps))
+		for i, temp := range temps {
+			result, err := convertLiquidityRemovedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_token_pool::token_pool::RebalancerSet", func(data []byte) (interface{}, error) {
 		var temp bcsRebalancerSet
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -450,6 +585,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for RebalancerSet
+	bind.RegisterStructDecoder("vector<ccip_token_pool::token_pool::RebalancerSet>", func(data []byte) (interface{}, error) {
+		var temps []bcsRebalancerSet
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]RebalancerSet, len(temps))
+		for i, temp := range temps {
+			result, err := convertRebalancerSetFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 

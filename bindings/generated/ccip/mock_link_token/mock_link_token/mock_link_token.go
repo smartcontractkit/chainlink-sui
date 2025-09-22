@@ -88,6 +88,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MOCK_LINK_TOKEN
+	bind.RegisterStructDecoder("vector<mock_link_token::mock_link_token::MOCK_LINK_TOKEN>", func(data []byte) (interface{}, error) {
+		var results []MOCK_LINK_TOKEN
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // MintAndTransfer executes the mint_and_transfer Move function.
