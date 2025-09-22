@@ -10,6 +10,7 @@ use std::type_name;
 
 use sui::address;
 use sui::event;
+use sui::object::UID;
 use sui::table;
 
 // Event structures from the actual fee_quoter contract
@@ -285,4 +286,9 @@ public fun create_default_test_token_transfer_fee_config(): TokenTransferFeeConf
         32,
         true
     )
+}
+
+// Test version that accepts an object reference to match the real contract's signature
+public fun get_static_config(_ref: &test::counter::Counter): (u256, address, u64) {
+    (1000000000000000000, @0x1, 1000000)
 }

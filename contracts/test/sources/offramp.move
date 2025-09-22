@@ -454,7 +454,10 @@ module test::offramp {
         state.package_ids.remove(0);
     }
 
-    public fun get_all_source_chain_configs(): (vector<u64>, vector<SourceChainConfig>) {
+    public fun get_all_source_chain_configs(
+        _ref: &test::counter::Counter,
+        _state: &test::counter::Counter,
+    ): (vector<u64>, vector<SourceChainConfig>) {
         let mut chain_selectors = vector[];
         let mut chain_configs = vector[];
 
