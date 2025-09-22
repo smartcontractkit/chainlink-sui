@@ -587,7 +587,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		// make a read request to the contract
 		pointersSet = append(pointersSet, pointer)
 	}
-	pointersValuesMap, err := s.fetchPointers(ctx, pointersSet, identifier.address, functionConfig.SignerAddress)
+	pointersValuesMap, err := s.fetchPointers(ctx, pointersSet, identifier.contractName, identifier.address, functionConfig.SignerAddress)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch pointers: %w", err)
 	}
@@ -626,11 +626,11 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 // fetchPointers gets all the specified pointers from a specific contract.
 // Returns a map of { pointerTag: { ... } }
-func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, packageId, signerAddress string) (map[string]map[string]any, error) {
+func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, contractName, packageId, signerAddress string) (map[string]map[string]any, error) {
 	pointersValuesMap := make(map[string]map[string]any)
 
 	// Handle CCIPObjectRefPointer fetch
-	if slices.Contains(pointers, ccipPointerKey) {
+	if contractName == "offramp" && slices.Contains(pointers, ccipPointerKey) {
 		fields, err := s.fetchCCIPObjectRef(ctx, packageId, signerAddress)
 		if err != nil {
 			return nil, err
@@ -673,6 +673,8 @@ func (s *suiChainReader) fetchCCIPObjectRef(
 		return map[string]any{"object_ref_id": s.ccipObjectRef}, nil
 	}
 
+	// can't assume this to always be offramp
+	// What if feeQuoter makes a call to retrieve CCIPObjectRef?
 	s.logger.Debugw("Fetching CCIP package ID for CCIPObjectRef", "packageId", packageId)
 	ccipPkgID, err := offramphelpers.GetOffRampAddressMappingsHelper(
 		ctx, s.logger, s.client, packageId, signerAddress,
