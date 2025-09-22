@@ -64,6 +64,7 @@ func (pr *PackageResolver) BindPackage(moduleName string, packageAddress string)
 	cacheKey := packageAddressCachePrefix + moduleName
 	pr.cache.Set(cacheKey, packageAddress, defaultCacheTTL)
 
+	pr.log.Info("NEW BINDINGS: ", pr.packageAddresses)
 	pr.log.Debugw("Package bound", "module", moduleName, "address", packageAddress)
 	return nil
 }
@@ -299,6 +300,8 @@ func isValidSuiAddress(address string) bool {
 
 func (pr *PackageResolver) normalizeName(moduleName string) string {
 	return strings.ToLower(moduleName)
+	// return strings.ToLower(strings.ReplaceAll(moduleName, "_", ""))
+	// return moduleName
 }
 
 // String returns string representation of ResolvedIdentifier

@@ -440,7 +440,7 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 func (s *suiChainReader) validateContractBindingAndConfig(name string, address string) error {
 	err := s.packageResolver.ValidateBinding(name, address)
 	if err != nil {
-		return fmt.Errorf("invalid binding for contract: %s", name)
+		return fmt.Errorf("invalid binding for contract: %s. err: %w", name, err)
 	}
 
 	if _, ok := s.config.Modules[name]; !ok {
@@ -565,7 +565,7 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 				// special case for pointers from the CCIP package object pointer
 				// this is needed to override the specified address (will be offramp package ID) with the CCIP package ID
-				if identifier.contractName == "offramp" && appendTag == ccipPointerKey {
+				if identifier.contractName == strings.ToLower(offrampName) && appendTag == ccipPointerKey {
 					ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
 					if err != nil {
 						return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
