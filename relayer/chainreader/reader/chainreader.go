@@ -592,7 +592,8 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		return nil, nil, fmt.Errorf("failed to fetch pointers: %w", err)
 	}
 
-	fmt.Println("POINTERS VALUE MAP: ", pointersValuesMap)
+	s.logger.Info("POINTERS VALUE MAP: ", pointersValuesMap)
+	s.logger.Info("FUNCTION CONFIG PARAMS: ", functionConfig.Params)
 	// for each param, if it has a pointer value, add it to the args map
 	for _, paramConfig := range functionConfig.Params {
 		if paramConfig.PointerTag != nil {
@@ -650,7 +651,7 @@ func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, c
 		}
 		for _, pointer := range pointers {
 			// skip CCIP since it’s already handled above
-			if pointer == ccipPointerKey {
+			if contractName == "offramp" && pointer == ccipPointerKey {
 				continue
 			}
 			if strings.HasSuffix(obj.Data.Type, pointer) {

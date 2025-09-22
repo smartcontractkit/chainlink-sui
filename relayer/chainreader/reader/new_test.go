@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -39,8 +38,8 @@ func TestGetLatestValue(t *testing.T) {
 	relayerClient, clientErr := client.NewPTBClient(log, "", nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, clientErr)
 
-	// ccipObjectRefStatePointer := "_::state_object::CCIPObjectRefPointer::object_ref_id"
-	offRampStatePointer := "_::offramp::OffRampStatePointer::off_ramp_state_id"
+	ccipObjectRefStatePointer := "_::state_object::CCIPObjectRefPointer::object_ref_id"
+	// offRampStatePointer := "_::offramp::OffRampStatePointer::off_ramp_state_id"
 
 	chainReaderConfig := config.ChainReaderConfig{
 		IsLoopPlugin: true,
@@ -53,59 +52,80 @@ func TestGetLatestValue(t *testing.T) {
 			SyncTimeout:     10 * time.Second,
 		},
 		Modules: map[string]*config.ChainReaderModule{
-			"OffRamp": {
-				Name: "offramp",
+			"FeeQuoter": {
+				Name: "fee_quoter",
 				Functions: map[string]*config.ChainReaderFunction{
-					// consts.MethodNameGetSourceChainConfig: {
-					// 	Name:          "get_source_chain_config",
-					// 	SignerAddress: accountAddress,
-					// 	Params: []codec.SuiFunctionParam{
-					// 		{
-					// 			Name:       "object_ref_id",
-					// 			Type:       "object_id",
-					// 			PointerTag: &ccipObjectRefStatePointer,
-					// 			Required:   true,
-					// 		},
-					// 		{
-					// 			Name:       "off_ramp_state_id",
-					// 			PointerTag: &offRampStatePointer,
-					// 			Type:       "object_id",
-					// 			Required:   true,
-					// 		},
-					// 		{
-					// 			Name:     "sourceChainSelector",
-					// 			Type:     "u64",
-					// 			Required: true,
-					// 		},
-					// 	},
-					// },
-
-					consts.MethodNameOffRampLatestConfigDetails: {
-						Name:          "latest_config_details",
+					"GetTokenPrices": {
+						Name:          "get_token_prices",
 						SignerAddress: accountAddress,
 						Params: []codec.SuiFunctionParam{
 							{
-								Name:       "off_ramp_state_id",
-								PointerTag: &offRampStatePointer,
+								Name:       "object_ref_id",
 								Type:       "object_id",
+								PointerTag: &ccipObjectRefStatePointer,
 								Required:   true,
 							},
 							{
-								Name:     "ocrPluginType",
-								Type:     "u8",
+								Name:     "tokens",
+								Type:     "vector<address>",
 								Required: true,
 							},
 						},
-						ResultTupleToStruct: []string{"ocr_config"},
 					},
 				},
 			},
+			// "OffRamp": {
+			// 	Name: "offramp",
+			// 	Functions: map[string]*config.ChainReaderFunction{
+			// 		// consts.MethodNameGetSourceChainConfig: {
+			// 		// 	Name:          "get_source_chain_config",
+			// 		// 	SignerAddress: accountAddress,
+			// 		// 	Params: []codec.SuiFunctionParam{
+			// 		// 		{
+			// 		// 			Name:       "object_ref_id",
+			// 		// 			Type:       "object_id",
+			// 		// 			PointerTag: &ccipObjectRefStatePointer,
+			// 		// 			Required:   true,
+			// 		// 		},
+			// 		// 		{
+			// 		// 			Name:       "off_ramp_state_id",
+			// 		// 			PointerTag: &offRampStatePointer,
+			// 		// 			Type:       "object_id",
+			// 		// 			Required:   true,
+			// 		// 		},
+			// 		// 		{
+			// 		// 			Name:     "sourceChainSelector",
+			// 		// 			Type:     "u64",
+			// 		// 			Required: true,
+			// 		// 		},
+			// 		// 	},
+			// 		// },
+			// 		consts.MethodNameOffRampLatestConfigDetails: {
+			// 			Name:          "latest_config_details",
+			// 			SignerAddress: accountAddress,
+			// 			Params: []codec.SuiFunctionParam{
+			// 				{
+			// 					Name:       "off_ramp_state_id",
+			// 					PointerTag: &offRampStatePointer,
+			// 					Type:       "object_id",
+			// 					Required:   true,
+			// 				},
+			// 				{
+			// 					Name:     "ocrPluginType",
+			// 					Type:     "u8",
+			// 					Required: true,
+			// 				},
+			// 			},
+			// 			ResultTupleToStruct: []string{"ocr_config"},
+			// 		},
+			// 	},
+			// },
 		},
 	}
 
 	counterBinding := types.BoundContract{
-		Name:    "OffRamp",
-		Address: "0xcea836b828b80a8dc5eee57a7d61feb8e1ce96a6a88d3cf08e393e193b9aabb3", // Package ID of the deployed counter contract
+		Name:    "FeeQuoter",
+		Address: "0x3b2e7d0d2a548a865af92b8238d576b6809b0b9cb611125a959153effbaf5e70", // Package ID of the deployed counter contract
 	}
 
 	datastoreUrl := os.Getenv("TEST_DB_URL")
@@ -166,10 +186,10 @@ func TestGetLatestValue(t *testing.T) {
 	}()
 
 	params := map[string]any{
-		"ocrPluginType": consts.PluginTypeCommit,
+		"tokens": []byte{},
 	}
 
-	err = lrReader.GetLatestValue(ctx, "0xcea836b828b80a8dc5eee57a7d61feb8e1ce96a6a88d3cf08e393e193b9aabb3-OffRamp-OffRampLatestConfigDetails", "", params, &commitLatestOCRConfig)
+	err = lrReader.GetLatestValue(ctx, "0x3b2e7d0d2a548a865af92b8238d576b6809b0b9cb611125a959153effbaf5e70-FeeQuoter-GetTokenPrices", "", params, &commitLatestOCRConfig)
 
 	fmt.Println("ERROR: ", err)
 }
