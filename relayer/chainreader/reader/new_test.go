@@ -186,7 +186,9 @@ func TestGetLatestValue(t *testing.T) {
 	}()
 
 	params := map[string]any{
-		"tokens": []byte{},
+		"tokens": [][]byte{
+			make([]byte, 32), // 0x000000...0000 (32 zero bytes)
+		},
 	}
 
 	err = lrReader.GetLatestValue(ctx, "0x3b2e7d0d2a548a865af92b8238d576b6809b0b9cb611125a959153effbaf5e70-FeeQuoter-GetTokenPrices", "", params, &commitLatestOCRConfig)

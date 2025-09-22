@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/blake2b"
 
@@ -120,25 +122,45 @@ func (c *PTBClient) TransformTransactionArg(
 			return &pureArg, nil
 		}
 	case "vector<address>":
-		// Already []string
-		if addresses, ok := arg.([]string); ok {
-			return convertAddresses(tx, addresses)
-		}
+		switch v := arg.(type) {
+		case []string:
+			// Already []string, convert directly
+			return convertAddresses(tx, v)
 
-		// Fallback: JSON gave us []interface{}
-		if rawSlice, ok := arg.([]interface{}); ok {
-			addresses := make([]string, len(rawSlice))
-			for i, v := range rawSlice {
-				s, ok := v.(string)
+		case []interface{}:
+			// JSON-decoded slice → could be hex or base64 strings
+			addresses := make([]models.SuiAddressBytes, len(v))
+			for i, raw := range v {
+				s, ok := raw.(string)
 				if !ok {
-					return nil, fmt.Errorf("vector<address> contains non-string element: %T", v)
+					return nil, fmt.Errorf("vector<address> element is not string: %T", raw)
 				}
-				addresses[i] = s
-			}
-			return convertAddresses(tx, addresses)
-		}
 
-		return nil, fmt.Errorf("expected []string for vector<address>, got %T", arg)
+				s = strings.TrimPrefix(s, "0x")
+				b, err := hex.DecodeString(s)
+				if err != nil {
+					// fallback: base64 decode (Go JSON encodes []byte → base64 string)
+					b, err = base64.StdEncoding.DecodeString(s)
+					if err != nil {
+						return nil, fmt.Errorf("failed to decode address %q: %w", s, err)
+					}
+				}
+
+				if len(b) != 32 {
+					return nil, fmt.Errorf("address at index %d has wrong length %d, want 32", i, len(b))
+				}
+
+				var addr models.SuiAddressBytes
+				copy(addr[:], b)
+				addresses[i] = addr
+			}
+
+			pureArg := tx.Pure(addresses)
+			return &pureArg, nil
+
+		default:
+			return nil, fmt.Errorf("expected []string or []interface{} for vector<address>, got %T", arg)
+		}
 
 	default:
 		pureArg := tx.Pure(arg)
