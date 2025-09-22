@@ -217,7 +217,7 @@ func ProcessTokenPools(
 	// as they are provided in the form of an array from the core node. We can alternatively simply read
 	// the first index but we do this to allow for simplified future updates.
 	for _, coinMetadataAddress := range coinMetadataAddresses {
-		tokenConfig, err := tokenAdminRegistryDevInspect.GetTokenConfig(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddress)
+		tokenConfig, err := tokenAdminRegistryDevInspect.GetTokenConfigStruct(ctx, callOpts, bind.Object{Id: addressMappings.CcipObjectRef}, coinMetadataAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get token configs for offramp execution: %w", err)
 		}

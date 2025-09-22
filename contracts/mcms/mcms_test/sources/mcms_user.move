@@ -5,6 +5,7 @@ use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, ExecutingCallbackParams, Registry};
 use std::string::{Self, String};
 use sui::package::UpgradeCap;
+use mcms_test::ownable::{Self, OwnableState, OwnerCap};
 
 const EInvalidAdminCap: u64 = 1;
 const EInvalidFunction: u64 = 2;
@@ -16,11 +17,11 @@ public struct UserData has key, store {
     b: vector<u8>,
     c: address,
     d: u128,
-    owner_cap: ID,
+    ownable_state: OwnableState,
 }
 
-public struct OwnerCap has key, store {
-    id: UID,
+public fun type_and_version(): String {
+    string::utf8(b"MCMSUser 1.0.0")
 }
 
 public fun function_one(
@@ -52,9 +53,7 @@ public fun function_two(
 public struct MCMS_USER has drop {}
 
 fun init(_witness: MCMS_USER, ctx: &mut TxContext) {
-    let owner_cap = OwnerCap {
-        id: object::new(ctx),
-    };
+    let (ownable_state, owner_cap) = ownable::new(ctx);
 
     transfer::share_object(UserData {
         id: object::new(ctx),
@@ -63,10 +62,10 @@ fun init(_witness: MCMS_USER, ctx: &mut TxContext) {
         b: vector[],
         c: @0x0,
         d: 0,
-        owner_cap: object::id(&owner_cap),
+        ownable_state,
     });
 
-    transfer::transfer(owner_cap, ctx.sender());
+    transfer::public_transfer(owner_cap, ctx.sender());
 }
 
 public fun register_mcms_entrypoint(
@@ -97,7 +96,7 @@ public fun register_upgrade_cap(
 }
 
 fun assert_valid_owner_cap(user_data: &UserData, owner_cap: &OwnerCap) {
-    assert!(user_data.owner_cap == object::id(owner_cap), EInvalidAdminCap);
+    assert!(ownable::owner_cap_id(&user_data.ownable_state) == object::id(owner_cap), EInvalidAdminCap);
 }
 
 public struct SampleMcmsCallback has drop {}
@@ -160,8 +159,8 @@ public fun mcms_function_two(
     function_two(user_data, owner_cap, arg1, arg2);
 }
 
-public fun get_owner_cap(user_data: &UserData): ID {
-    user_data.owner_cap
+public fun get_owner_cap_id(user_data: &UserData): ID {
+    ownable::owner_cap_id(&user_data.ownable_state)
 }
 
 public fun get_invocations(user_data: &UserData): u8 {
@@ -194,15 +193,16 @@ public fun test_init(ctx: &mut TxContext) {
 #[test_only]
 public fun test_create_user_data(
     ctx: &mut TxContext,
-    owner_cap: ID,
-): UserData {
-    UserData {
+): (UserData, OwnerCap) {
+    let (ownable_state, owner_cap) = ownable::new(ctx);
+
+    (UserData {
         id: object::new(ctx),
         invocations: 0,
         a: string::utf8(b""),
         b: vector[],
         c: @0x0,
         d: 0,
-        owner_cap,
-    }
+        ownable_state,
+    }, owner_cap)
 }

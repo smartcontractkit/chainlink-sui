@@ -109,16 +109,21 @@ public fun commit_upgrade(
     let old_package_address = *state.cap_to_package.borrow(receipt.cap());
     assert!(state.upgrade_caps.contains(old_package_address), EPackageAddressNotRegistered);
 
-    let cap = state.upgrade_caps.borrow_mut(old_package_address);
+    let mut cap = state.upgrade_caps.remove(old_package_address);
+    state.cap_to_package.remove(object::id(&cap));
     let old_version = cap.version();
 
-    package::commit_upgrade(cap, receipt);
+    package::commit_upgrade(&mut cap, receipt);
+
+    let new_version = cap.version();
+    state.cap_to_package.add(object::id(&cap), new_package_address);
+    state.upgrade_caps.add(new_package_address, cap);
 
     event::emit(UpgradeReceiptCommitted {
         old_package_address,
         new_package_address,
         old_version,
-        new_version: cap.version(),
+        new_version,
     });
 }
 

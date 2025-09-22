@@ -15,4 +15,7 @@ includes:
   bindings:
     taskfile: ./taskfiles/bindings/Taskfile.yml
 
+  tidy:
+    taskfile: ./taskfiles/tidy/Taskfile.yml
+
   # Keep adding as needed

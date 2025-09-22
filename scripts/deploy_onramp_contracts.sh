@@ -145,6 +145,10 @@ sui client call --package "$CCIP_PKG_ID" --module token_admin_registry --functio
   --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.token_admin_registry.init.json >/dev/null
 
+sui client call --package "$CCIP_PKG_ID" --module upgrade_registry --function initialize \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
+  --gas-budget "$GAS" --json | tee artifacts.ccip.upgrade_registry.init.json >/dev/null
+
 echo "--- Deploying OnRamp ---"
 ONRAMP_DIR="$ROOT_DIR/ccip/ccip_onramp"
 patch_move_toml "$ONRAMP_DIR/Move.toml" "ccip" "$CCIP_PKG_ID"

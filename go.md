@@ -125,7 +125,6 @@ flowchart LR
 	chainlink-sui --> chainlink-ccip
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/deployment --> chainlink-deployments-framework
-	chainlink-sui/deployment --> chainlink-sui
 	click chainlink-sui/deployment href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-sui/integration-tests --> chainlink-sui/deployment
 	click chainlink-sui/integration-tests href "https://github.com/smartcontractkit/chainlink-sui"
@@ -141,8 +140,8 @@ flowchart LR
 	click grpc-proxy href "https://github.com/smartcontractkit/grpc-proxy"
 	libocr
 	click libocr href "https://github.com/smartcontractkit/libocr"
-	mcms --> chainlink-aptos
 	mcms --> chainlink-ccip/chains/solana
+	mcms --> chainlink-sui
 	mcms --> chainlink-testing-framework/framework
 	click mcms href "https://github.com/smartcontractkit/mcms"
 

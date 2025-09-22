@@ -5,12 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -22,6 +19,7 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
+	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
@@ -32,31 +30,25 @@ import (
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	offramphelpers "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 )
 
 const (
 	defaultQueryLimit   = 25
 	readIdentifierParts = 3
-	objectIdPrefix      = "0x"
+	offrampName         = "OffRamp"
 	ccipPointerKey      = "state_object::CCIPObjectRefPointer"
 )
 
 type suiChainReader struct {
 	pkgtypes.UnimplementedContractReader
 
-	logger           logger.Logger
-	config           config.ChainReaderConfig
-	starter          services.StateMachine
-	packageAddresses map[string]string
-	client           *client.PTBClient
-	dbStore          *database.DBStore
-	indexer          indexer.IndexerApi
-
-	// Mutex to protect concurrent access to maps
-	mu sync.RWMutex
-
-	ccipObjectRef string // for caching
+	logger          logger.Logger
+	config          config.ChainReaderConfig
+	starter         services.StateMachine
+	packageResolver *crUtil.PackageResolver
+	client          *client.PTBClient
+	dbStore         *database.DBStore
+	indexer         indexer.IndexerApi
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
@@ -76,7 +68,7 @@ type readIdentifier struct {
 func NewChainReader(
 	ctx context.Context,
 	lgr logger.Logger,
-	abstractClient *client.PTBClient,
+	ptbClient *client.PTBClient,
 	configs config.ChainReaderConfig,
 	db sqlutil.DataSource,
 	indexer indexer.IndexerApi,
@@ -89,11 +81,11 @@ func NewChainReader(
 	}
 
 	return &suiChainReader{
-		logger:           logger.Named(lgr, "SuiChainReader"),
-		client:           abstractClient,
-		config:           configs,
-		dbStore:          dbStore,
-		packageAddresses: map[string]string{},
+		logger:          logger.Named(lgr, "SuiChainReader"),
+		client:          ptbClient,
+		config:          configs,
+		dbStore:         dbStore,
+		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
 		// indexers
 		indexer: indexer,
 	}, nil
@@ -124,21 +116,15 @@ func (s *suiChainReader) Close() error {
 }
 
 func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	newBindings := map[string]string{}
 	for _, binding := range bindings {
-		if !strings.HasPrefix(binding.Address, objectIdPrefix) {
-			return fmt.Errorf("invalid Sui package address format: %s", binding.Address)
+		err := s.packageResolver.BindPackage(binding.Name, binding.Address)
+		if err != nil {
+			return fmt.Errorf("failed to bind package: %w", err)
 		}
-		newBindings[binding.Name] = binding.Address
 	}
 
-	maps.Copy(s.packageAddresses, newBindings)
-
-	// Only need the OffRamp package for the tx indexer
-	if pkg, ok := newBindings["OffRamp"]; ok {
+	// If the "OffRamp" package/module is now bound, set the offramp package ID for the tx indexer
+	if pkg, err := s.packageResolver.ResolvePackageAddress(offrampName); err == nil {
 		s.indexer.GetTransactionIndexer().SetOffRampPackage(pkg)
 	}
 	return nil
@@ -146,10 +132,9 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 
 func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundContract) error {
 	for _, binding := range bindings {
-		if _, ok := s.packageAddresses[binding.Name]; !ok {
-			return fmt.Errorf("no such binding: %s", binding.Name)
+		if err := s.packageResolver.UnbindPackage(binding.Name); err != nil {
+			return fmt.Errorf("failed to unbind package %s: %w", binding.Name, err)
 		}
-		delete(s.packageAddresses, binding.Name)
 	}
 
 	return nil
@@ -163,7 +148,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	}
 	_, contractName, method := parsed.address, parsed.contractName, parsed.readName
 
-	if err = s.validateBinding(parsed); err != nil {
+	if err = s.validateContractBindingAndConfig(parsed.contractName, parsed.address); err != nil {
 		return err
 	}
 
@@ -384,7 +369,7 @@ func (s *suiChainReader) parseReadIdentifier(identifier string) (*readIdentifier
 
 func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtypes.BoundContract, filter query.KeyFilter) (*config.ChainReaderEvent, error) {
 	// Validate contract binding
-	if err := s.validateContractBinding(contract); err != nil {
+	if err := s.validateContractBindingAndConfig(contract.Name, contract.Address); err != nil {
 		return nil, err
 	}
 
@@ -451,45 +436,15 @@ func (s *suiChainReader) updateEventConfigs(ctx context.Context, contract pkgtyp
 	return eventConfig, nil
 }
 
-// validateBinding validates that the contract is bound and addresses match
-func (s *suiChainReader) validateBinding(parsed *readIdentifier) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	boundAddress, ok := s.packageAddresses[parsed.contractName]
-	if !ok {
-		return fmt.Errorf("no bound address for contract: %s", parsed.contractName)
-	}
-
-	if boundAddress != parsed.address {
-		return fmt.Errorf("bound address %s for contract %s does not match read address %s",
-			boundAddress, parsed.contractName, parsed.address)
-	}
-
-	if _, ok := s.config.Modules[parsed.contractName]; !ok {
-		return fmt.Errorf("no configuration for contract: %s", parsed.contractName)
-	}
-
-	return nil
-}
-
 // validateContractBinding validates the contract binding for QueryKey
-func (s *suiChainReader) validateContractBinding(contract pkgtypes.BoundContract) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	address, ok := s.packageAddresses[contract.Name]
-	if !ok {
-		return fmt.Errorf("no bound address for package %s", contract.Name)
+func (s *suiChainReader) validateContractBindingAndConfig(name string, address string) error {
+	err := s.packageResolver.ValidateBinding(name, address)
+	if err != nil {
+		return fmt.Errorf("invalid binding for contract: %s", name)
 	}
 
-	if address != contract.Address {
-		return fmt.Errorf("bound address %s for package %s does not match provided address %s",
-			address, contract.Name, contract.Address)
-	}
-
-	if _, ok := s.config.Modules[contract.Name]; !ok {
-		return fmt.Errorf("no configuration for contract: %s", contract.Name)
+	if _, ok := s.config.Modules[name]; !ok {
+		return fmt.Errorf("no configuration for contract: %s", name)
 	}
 
 	return nil
@@ -564,6 +519,11 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 	return argMap, nil
 }
 
+type pointerMapEntry struct {
+	field     string // the field name from the Sui object
+	paramName string // the parameter name from the function config
+}
+
 // prepareArguments prepares function arguments and types for the call
 func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
 	if functionConfig.Params == nil {
@@ -572,9 +532,13 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 	// referring to the tag parts "_::module::Pointer::field"
 	tagLength := 4
+
 	// a map of object selector "module::object" to array of fields
-	pointersMap := make(map[string][]string)
-	// make a set of pointers that need to fetched
+	pointersMap := make(map[string][]pointerMapEntry)
+	pointerSelectors := make(map[string]readIdentifier)
+
+	// make a set of object pointers that need to fetched
+	// to read more about pointer tags, see the documentation in "/relayer/documentation/relayer/pointer-tags-in-cr.md"
 	for _, paramConfig := range functionConfig.Params {
 		// the parameter has a pointer tag, add it to the set
 		if paramConfig.PointerTag != nil {
@@ -583,45 +547,71 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			if len(tag) != tagLength {
 				return nil, nil, fmt.Errorf("invalid pointer tag: %s", *paramConfig.PointerTag)
 			}
-			// replace the initial underscore with the package ID from the read identifier
-			tag[0] = identifier.address
+
+			moduleName, pointerName, fieldName := tag[1], tag[2], tag[3]
+
 			// append only the middle 2 parts of the tag to represent the pointer
-			appendTag := strings.Join(tag[1:3], "::")
+			appendTag := strings.Join([]string{moduleName, pointerName}, "::")
 			if _, ok := pointersMap[appendTag]; !ok {
-				pointersMap[appendTag] = make([]string, 0)
+				pointersMap[appendTag] = make([]pointerMapEntry, 0)
 			}
-			pointersMap[appendTag] = append(pointersMap[appendTag], paramConfig.Name)
+			// add the pointer selector to the map which will later be used to fetch the values from the package owned object fields
+			if _, ok := pointerSelectors[appendTag]; !ok {
+				readIdentifierForPointer := readIdentifier{
+					address:      identifier.address,
+					contractName: moduleName,
+					readName:     pointerName,
+				}
+
+				// special case for pointers from the CCIP package object pointer
+				// this is needed to override the specified address (will be offramp package ID) with the CCIP package ID
+				if appendTag == ccipPointerKey {
+					ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
+					if err != nil {
+						return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
+					}
+					readIdentifierForPointer.address = ccipPackageID
+				}
+
+				pointerSelectors[appendTag] = readIdentifierForPointer
+			}
+
+			// each entry within the pointersMap contains an entry for the field name and
+			// an entry for the (function config) parameter name
+			pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
+				field:     fieldName,
+				paramName: paramConfig.Name,
+			})
 		}
 	}
 
 	// fetch pointers
-	pointersSet := []string{}
-	for pointer := range pointersMap {
-		// make a read request to the contract
-		pointersSet = append(pointersSet, pointer)
-	}
-	pointersValuesMap, err := s.fetchPointers(ctx, pointersSet, identifier.contractName, identifier.address, functionConfig.SignerAddress)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch pointers: %w", err)
-	}
+	for pointerTag, pointerVals := range pointersMap {
+		fields := make([]string, 0, len(pointerVals))
 
-	s.logger.Info("POINTERS VALUE MAP: ", pointersValuesMap)
-	s.logger.Info("FUNCTION CONFIG PARAMS: ", functionConfig.Params)
-	// for each param, if it has a pointer value, add it to the args map
-	for _, paramConfig := range functionConfig.Params {
-		if paramConfig.PointerTag != nil {
-			tag := strings.Split(*paramConfig.PointerTag, "::")
-			pointerTag := strings.Join(tag[1:3], "::")
-			// if the value exists in the fetched pointers maps
-			if pointerValue, ok := pointersValuesMap[pointerTag][paramConfig.Name]; ok {
-				argMap[paramConfig.Name] = pointerValue.(string)
-			}
+		// get the fields from the pointer values
+		for _, pointerVal := range pointerVals {
+			fields = append(fields, pointerVal.field)
+		}
+
+		selector := pointerSelectors[pointerTag]
+		pointerFieldValues, err := s.client.GetValuesFromPackageOwnedObjectField(
+			ctx, selector.address, selector.contractName, selector.readName, fields,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get values from package owned object fields: %w", err)
+		}
+
+		// add the values to the arg map
+		for _, pointerVal := range pointerVals {
+			argMap[pointerVal.paramName] = pointerFieldValues[pointerVal.field]
 		}
 	}
 
 	args := make([]any, 0, len(functionConfig.Params))
 	argTypes := make([]string, 0, len(functionConfig.Params))
 
+	// ensure that all the required arguments are present
 	for _, paramConfig := range functionConfig.Params {
 		argValue, ok := argMap[paramConfig.Name]
 		if !ok {
@@ -636,85 +626,6 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 	}
 
 	return args, argTypes, nil
-}
-
-// fetchPointers gets all the specified pointers from a specific contract.
-// Returns a map of { pointerTag: { ... } }
-func (s *suiChainReader) fetchPointers(ctx context.Context, pointers []string, contractName, packageId, signerAddress string) (map[string]map[string]any, error) {
-	pointersValuesMap := make(map[string]map[string]any)
-
-	// Handle CCIPObjectRefPointer fetch
-	// only fetch if it's offRamp because offramp module is seperate from ccip hence, different pkgId
-	if contractName == "offramp" && slices.Contains(pointers, ccipPointerKey) {
-		fields, err := s.fetchCCIPObjectRef(ctx, packageId, signerAddress)
-		if err != nil {
-			return nil, err
-		}
-		pointersValuesMap[ccipPointerKey] = fields
-	}
-
-	// Handle all other pointers against the provided packageId
-	ownedObjects, err := s.client.ReadOwnedObjects(ctx, packageId, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read owned objects: %w", err)
-	}
-
-	for _, obj := range ownedObjects {
-		if obj.Data.Type == "" {
-			continue
-		}
-		for _, pointer := range pointers {
-			// skip CCIP since it’s already handled above
-			if contractName == "offramp" && pointer == ccipPointerKey {
-				continue
-			}
-			if strings.HasSuffix(obj.Data.Type, pointer) {
-				pointersValuesMap[pointer] = obj.Data.Content.Fields
-			}
-		}
-	}
-
-	return pointersValuesMap, nil
-}
-
-// fetchCCIPObjectRef retrieves and caches the CCIPObjectRef from the CCIP package if not already cached.
-func (s *suiChainReader) fetchCCIPObjectRef(
-	ctx context.Context,
-	packageId, signerAddress string,
-) (map[string]any, error) {
-	// use cache if available
-	if s.ccipObjectRef != "" {
-		s.logger.Debugw("Using cached CCIPObjectRef", "object_ref_id", s.ccipObjectRef)
-		return map[string]any{"object_ref_id": s.ccipObjectRef}, nil
-	}
-
-	// can't assume this to always be offramp
-	// What if feeQuoter makes a call to retrieve CCIPObjectRef?
-	s.logger.Debugw("Fetching CCIP package ID for CCIPObjectRef", "packageId", packageId)
-	ccipPkgID, err := offramphelpers.GetOffRampAddressMappingsHelper(
-		ctx, s.logger, s.client, packageId, signerAddress,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	ccipObjects, err := s.client.ReadOwnedObjects(ctx, ccipPkgID, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CCIP owned objects: %w", err)
-	}
-
-	for _, obj := range ccipObjects {
-		if obj.Data.Type != "" && strings.HasSuffix(obj.Data.Type, ccipPointerKey) {
-			fields := obj.Data.Content.Fields
-			if refID, ok := fields["object_ref_id"].(string); ok {
-				s.ccipObjectRef = refID
-				s.logger.Debugw("Cached CCIPObjectRef", "object_ref_id", refID)
-			}
-			return fields, nil
-		}
-	}
-
-	return nil, fmt.Errorf("CCIPObjectRefPointer not found in CCIP package")
 }
 
 // executeFunction executes the actual function call

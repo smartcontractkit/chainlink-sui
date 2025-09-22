@@ -69,8 +69,8 @@ type OnRampInitializeInput struct {
 	FeeAggregator             string
 	AllowListAdmin            string
 	DestChainSelectors        []uint64
-	DestChainEnabled          []bool
 	DestChainAllowListEnabled []bool
+	DestChainRouters          []string
 }
 
 var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRampInitializeInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
@@ -92,8 +92,8 @@ var InitializeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input OnRa
 		input.FeeAggregator,
 		input.AllowListAdmin,
 		input.DestChainSelectors,
-		input.DestChainEnabled,
 		input.DestChainAllowListEnabled,
+		input.DestChainRouters,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute onRamp initialization: %w", err)
@@ -112,8 +112,8 @@ type ApplyDestChainConfigureOnRampInput struct {
 	OwnerCapObjectId          string
 	StateObjectId             string
 	DestChainSelector         []uint64
-	DestChainEnabled          []bool
 	DestChainAllowListEnabled []bool
+	DestChainRouters          []string
 }
 
 var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplyDestChainConfigureOnRampInput) (output sui_ops.OpTxResult[DeployCCIPOnRampObjects], err error) {
@@ -131,8 +131,8 @@ var ApplyDestChainUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
-		input.DestChainEnabled,
 		input.DestChainAllowListEnabled,
+		input.DestChainRouters,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to execute ApplyDestChainUpdate on onRamp: %w", err)
@@ -231,17 +231,21 @@ var GetDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, in
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to get dest chain config: %w", err)
 	}
 
-	// The first return value is isEnabled (bool)
-	isEnabled, ok := config[0].(bool)
+	// GetDestChainConfig returns (sequence_number: u64, allowlist_enabled: bool, router: address)
+	// The router address being non-zero indicates the destination chain is enabled
+	router, ok := config[2].(string)
 	if !ok {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to parse isEnabled from config")
+		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to parse router address from config")
 	}
+
+	// Chain is supported if router is not zero address
+	isSupported := router != "0x0" && router != "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 	return sui_ops.OpTxResult[IsChainSupportedOutput]{
 		Digest:    "",
 		PackageId: input.OnRampPackageId,
 		Objects: IsChainSupportedOutput{
-			IsChainSupported: isEnabled,
+			IsChainSupported: isSupported,
 		},
 	}, nil
 }
