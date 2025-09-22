@@ -283,7 +283,7 @@ func (pr *PackageResolver) ValidateBinding(moduleName string, packageAddress str
 		}
 	}
 
-	return fmt.Errorf("invalid binding for module: %s and address: %s", moduleName, packageAddress)
+	return fmt.Errorf("invalid binding for module: %s and address: %s, %v", moduleName, packageAddress, pr.packageAddresses)
 }
 
 // ClearCache clears all cached entries
