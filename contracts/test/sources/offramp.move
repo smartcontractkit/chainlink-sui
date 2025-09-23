@@ -168,15 +168,26 @@ module test::offramp {
     }
 
     /// Emit a DynamicConfigSet event
-    public fun emit_dynamic_config_set_event(dynamic_config: DynamicConfig) {
+    public fun emit_dynamic_config_set_event() {
+        let dynamic_config = create_test_dynamic_config(
+            @0x2,
+            3600
+        );
         event::emit(DynamicConfigSet { dynamic_config });
     }
 
     /// Emit a SourceChainConfigSet event
     public fun emit_source_chain_config_set_event(
         source_chain_selector: u64,
-        source_chain_config: SourceChainConfig
     ) {
+        let onramp_address = vector[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1];
+        let source_chain_config = create_test_source_chain_config(
+            @0x1,
+            true,
+            1,
+            false,
+            onramp_address
+        );
         event::emit(SourceChainConfigSet {
             source_chain_selector,
             source_chain_config
@@ -212,11 +223,41 @@ module test::offramp {
     }
 
     /// Emit a CommitReportAccepted event
-    public fun emit_commit_report_accepted_event(
-        blessed_merkle_roots: vector<MerkleRoot>,
-        unblessed_merkle_roots: vector<MerkleRoot>,
-        price_updates: PriceUpdates
-    ) {
+    public fun emit_commit_report_accepted_event() {
+        let blessed_merkle_roots = vector[
+            MerkleRoot {
+                source_chain_selector: 1,
+                on_ramp_address: vector[1, 2, 3, 4],
+                min_seq_nr: 1,
+                max_seq_nr: 1,
+                merkle_root: vector[1, 2, 3, 4]
+            }
+        ];
+        let unblessed_merkle_roots = vector[
+            MerkleRoot {
+                source_chain_selector: 3,
+                on_ramp_address: vector[1, 2, 3, 4],
+                min_seq_nr: 1,
+                max_seq_nr: 1,
+                merkle_root: vector[1, 2, 3, 4]
+            }
+        ];
+
+        let price_updates = PriceUpdates {
+            token_price_updates: vector[
+                TokenPriceUpdate {
+                    source_token: @0x1,
+                    usd_per_token: 1
+                }
+            ],
+            gas_price_updates: vector[
+                GasPriceUpdate {
+                    dest_chain_selector: 1,
+                    usd_per_unit_gas: 1
+                }
+            ]
+        };
+
         event::emit(CommitReportAccepted {
             blessed_merkle_roots,
             unblessed_merkle_roots,
