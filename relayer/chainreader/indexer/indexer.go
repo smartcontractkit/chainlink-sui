@@ -45,9 +45,9 @@ func (i *Indexer) Name() string {
 	return i.log.Name()
 }
 
-func (i *Indexer) Start(ctx context.Context) error {
+func (i *Indexer) Start(_ context.Context) error {
 	return i.starter.StartOnce(i.Name(), func() error {
-		eventsIndexerCtx, eventsIndexerCancel := context.WithCancel(ctx)
+		eventsIndexerCtx, eventsIndexerCancel := context.WithCancel(context.Background())
 		// set the cancel function
 		i.eventsIndexerCancel = &eventsIndexerCancel
 
