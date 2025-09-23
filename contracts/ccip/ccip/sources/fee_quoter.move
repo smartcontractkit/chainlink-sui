@@ -569,7 +569,7 @@ public fun update_prices_with_owner_cap(
     let fee_quoter_cap = new_fee_quoter_cap(ref, owner_cap, ctx);
     update_prices(
         ref,
-        // &fee_quoter_cap,
+        &fee_quoter_cap,
         clock,
         source_tokens,
         source_usd_per_token,
@@ -583,7 +583,7 @@ public fun update_prices_with_owner_cap(
 // this should only be called from offramp, hence gated by a fee quoter cap stored in offramp
 public fun update_prices(
     ref: &mut CCIPObjectRef,
-    // _: &FeeQuoterCap,
+    _: &FeeQuoterCap,
     clock: &clock::Clock,
     source_tokens: vector<address>,
     source_usd_per_token: vector<u256>,
