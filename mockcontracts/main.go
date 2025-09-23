@@ -191,56 +191,15 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
-	err = events.EmitOffRampEvents(ctx, lggr, packageId, signer, callOpts, client, accountAddress, DEFAULT_GAS_BUDGET)
+	offrampEmitter := events.NewOffRampEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+
+	tx, err := offrampEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
 	if err != nil {
 		lggr.Errorw("Failed to emit offramp events", "error", err)
 		return
 	}
 
-	if err != nil {
-		lggr.Errorw("Failed to create offramp bound contract", "error", err)
-		return
-	}
-
-	// offrampBoundContract, err := bind.NewBoundContract(
-	// 	packageId,
-	// 	"test",
-	// 	"offramp",
-	// 	client,
-	// )
-
-	// if err != nil {
-	// 	lggr.Errorw("Failed to create offramp bound contract", "error", err)
-	// 	return
-	// }
-
-	// ptb := transaction.NewTransaction()
-
-	// call, err := offrampBoundContract.EncodeCallArgsWithGenerics(
-	// 	"emit_static_config_set_event",
-	// 	[]string{},
-	// 	[]string{},
-	// 	[]string{"u64"},
-	// 	[]any{1},
-	// 	nil,
-	// )
-	// if err != nil {
-	// 	lggr.Errorw("Failed to encode call", "error", err)
-	// 	return
-	// }
-
-	// _, err = offrampBoundContract.AppendPTB(ctx, &callOpts, ptb, call)
-	// if err != nil {
-	// 	lggr.Errorw("Failed to append PTB", "error", err)
-	// 	return
-	// }
-
-	// tx, err := bind.ExecutePTB(ctx, &callOpts, client, ptb)
-	// if err != nil {
-	// 	lggr.Errorw("Failed to execute transaction", "error", err)
-	// 	return
-	// }
-
+	lggr.Infow("Executed PTB", "tx", tx)
 	lggr.Infow("Event emission completed (scaffolding)")
 
 }
