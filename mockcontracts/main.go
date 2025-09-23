@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -40,10 +41,13 @@ func main() {
 
 	switch command {
 	case "setup":
+		lggr.Infow("Starting setup command")
 		runSetup(lggr)
 	case "post-publish":
+		lggr.Infow("Starting post-publish command")
 		runPostPublish(lggr, os.Args[2:])
 	case "emit-events":
+		lggr.Infow("Starting emit-events command")
 		packageIdFile := os.Args[2]
 		packageId, err := os.ReadFile(packageIdFile)
 		if err != nil {
@@ -54,6 +58,27 @@ func main() {
 		lggr.Infow("Package ID", "packageId", string(packageId))
 
 		runEmitEvents(lggr, string(packageId))
+	case "emit-single-event":
+		lggr.Infow("Starting emit-single-event command")
+		var packageIdFile string
+		var eventName string
+		var contractName string
+
+		// Create a new FlagSet for this subcommand
+		flagSet := flag.NewFlagSet("emit-single-event", flag.ExitOnError)
+		flagSet.StringVar(&packageIdFile, "package-id-file", "package_id.txt", "File containing the package ID")
+		flagSet.StringVar(&eventName, "event-name", "", "Name of the event to emit")
+		flagSet.StringVar(&contractName, "contract-name", "", "Name of the contract to emit the event from")
+
+		// Parse the remaining arguments (excluding the command name)
+		flagSet.Parse(os.Args[2:])
+
+		packageId, err := os.ReadFile(packageIdFile)
+		if err != nil {
+			lggr.Errorw("Failed to read package ID file", "error", err)
+			os.Exit(1)
+		}
+		runEmitSingleEvent(lggr, string(packageId), eventName, contractName)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -72,6 +97,7 @@ COMMANDS:
     setup                    Setup local Sui chain and fund the active account
     post-publish <file>      Parse the output of the publish command
     emit-events [options]    Emit events (scaffolding)
+	emit-single-event [options] Emit a single event
 
 EXAMPLES:
     # Setup environment
@@ -82,6 +108,9 @@ EXAMPLES:
 
     # Emit events
     go run mockcontracts/main.go emit-events
+
+	# Emit single event
+    go run mockcontracts/main.go emit-single-event -package-id-file package_id.txt -event-name emit_static_config_set_event -contract-name offramp
 `)
 }
 
@@ -209,5 +238,42 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 
 	lggr.Infow("Executed PTB", "tx", tx)
 	lggr.Infow("Event emission completed (scaffolding)")
+}
 
+func runEmitSingleEvent(lggr logger.Logger, packageId string, eventName string, contractName string) {
+	lggr.Infow("Starting emit-single-event command", "packageId", packageId, "eventName", eventName)
+
+	client := sui.NewSuiClient(testutils.LocalUrl)
+	ctx := context.Background()
+
+	signer, accountAddress, _, err := events.GenerateAccount(lggr)
+	if err != nil {
+		lggr.Errorw("Failed to generate account", "error", err)
+		return
+	}
+
+	fundWithFaucetErr := testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress)
+	if fundWithFaucetErr != nil {
+		lggr.Errorw("Failed to fund account", "error", fundWithFaucetErr)
+		return
+	}
+
+	callOpts := bind.CallOpts{
+		Signer:           signer,
+		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
+	}
+
+	switch contractName {
+	case "offramp":
+		offrampEmitter := events.NewOffRampEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+		tx, err := offrampEmitter.EmitEvent(ctx, DEFAULT_GAS_BUDGET, eventName)
+		if err != nil {
+			lggr.Errorw("Failed to emit offramp event", "error", err)
+			return
+		}
+		lggr.Infow("Executed PTB", "tx", tx)
+		lggr.Infow("Event emission completed (scaffolding)")
+		return
+	}
 }

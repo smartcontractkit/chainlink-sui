@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
@@ -12,6 +13,7 @@ import (
 )
 
 type OffRampEmitter interface {
+	EmitEvent(ctx context.Context, gasBudget uint64, ptb *transaction.Transaction, addToPTB bool, eventName string) (*models.SuiTransactionBlockResponse, error)
 	BatchEmitEvents(ctx context.Context, gasBudget uint64, ptb *transaction.Transaction) error
 	EmitStaticConfigSetEvent(ctx context.Context, gasBudget uint64, ptb *transaction.Transaction, addToPTB bool) (*models.SuiTransactionBlockResponse, error)
 	EmitDynamicConfigSetEvent(ctx context.Context, gasBudget uint64, ptb *transaction.Transaction, addToPTB bool) (*models.SuiTransactionBlockResponse, error)
@@ -91,6 +93,35 @@ func (e *OffRampEmitterImpl) executePTBCall(ctx context.Context, ptb *transactio
 	e.lggr.Infow("Executed PTB", "tx", tx, "operation", operationName)
 
 	return tx, nil
+}
+
+func (e *OffRampEmitterImpl) EmitEvent(ctx context.Context, gasBudget uint64, eventName string) (*models.SuiTransactionBlockResponse, error) {
+	e.lggr.Infow("Emitting event", "eventName", eventName)
+
+	ptb := transaction.NewTransaction()
+	addToPTB := false
+
+	switch eventName {
+	case "emit_static_config_set_event":
+		return e.EmitStaticConfigSetEvent(ctx, gasBudget, ptb, addToPTB)
+	case "emit_dynamic_config_set_event":
+		return e.EmitDynamicConfigSetEvent(ctx, gasBudget, ptb, addToPTB)
+	case "emit_source_chain_config_set_event":
+		return e.EmitSourceChainConfigSetEvent(ctx, gasBudget, ptb, addToPTB)
+	case "emit_skipped_already_executed_event":
+		return e.EmitSkippedAlreadyExecutedEvent(ctx, gasBudget, ptb, addToPTB)
+	case "emit_execution_state_changed_event":
+		return e.EmitExecutionStateChangedEvent(ctx, gasBudget, ptb, addToPTB)
+	case "emit_commit_report_accepted_event":
+		return e.EmitCommitReportAcceptedEvent(ctx, gasBudget, ptb, addToPTB)
+	case "emit_skipped_report_execution_event":
+		return e.EmitSkippedReportExecutionEvent(ctx, gasBudget, ptb, addToPTB)
+	case "emit_ocr_config_event":
+		return e.EmitOcrConfigEvent(ctx, gasBudget, ptb, addToPTB)
+	default:
+		e.lggr.Errorw("Invalid event name", "eventName", eventName)
+		return nil, fmt.Errorf("invalid event name: %s", eventName)
+	}
 }
 
 func (e *OffRampEmitterImpl) BatchEmitEvents(ctx context.Context, gasBudget uint64, ptb *transaction.Transaction) (*models.SuiTransactionBlockResponse, error) {
