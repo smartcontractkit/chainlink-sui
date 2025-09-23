@@ -29,8 +29,12 @@ public struct OnRampInfo has copy, store, drop {
 /// Emit an OnRampSet event
 public fun emit_on_ramp_set_event(
     dest_chain_selector: u64,
-    on_ramp_info: OnRampInfo
 ) {
+
+    let on_ramp_info = OnRampInfo {
+        onramp_address: @0x1,
+        onramp_version: vector[1, 6, 0]
+    };
     event::emit(OnRampSet {
         dest_chain_selector,
         on_ramp_info

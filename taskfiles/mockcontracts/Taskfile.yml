@@ -1,0 +1,8 @@
+# Deployment tasks for Sui mock contracts
+version: "3"
+
+tasks:
+  deploy:
+    desc: "Build and deploy test contracts to local network"
+    cmds:
+      - go run mockcontracts/main.go

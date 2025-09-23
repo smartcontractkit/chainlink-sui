@@ -29,6 +29,32 @@ public struct TokenReleasedOrMinted has copy, drop {
     remote_chain_selector: u64,
 }
 
+public struct ChainAdded has copy, drop {
+    remote_chain_selector: u64,
+    remote_token_address: vector<u8>,
+}
+
+public struct ChainRemoved has copy, drop {
+    remote_chain_selector: u64,
+}
+
+
+public struct RemotePoolAdded has copy, drop {
+    remote_chain_selector: u64,
+    remote_pool_address: vector<u8>
+}
+
+public struct RemotePoolRemoved has copy, drop {
+    remote_chain_selector: u64,
+    remote_pool_address: vector<u8>
+}
+
+public struct LiquidityAdded has copy, drop {
+    local_token: address,
+    provider: address,
+    amount: u64,
+}
+
 // Supporting structures needed for the events
 public struct ManagedTokenPoolState<phantom T> has key {
     id: UID,
@@ -91,6 +117,48 @@ public fun emit_token_locked_or_burned_event(
         amount,
         remote_chain_selector,
         token
+    });
+}
+
+// Emit Chain Added event
+public fun emit_chain_added_event(
+    remote_chain_selector: u64,
+    remote_token_address: vector<u8>
+) {
+    event::emit(ChainAdded {
+        remote_chain_selector,
+        remote_token_address
+    });
+}
+
+// Emit Chain Removed event
+public fun emit_chain_removed_event(
+    remote_chain_selector: u64
+) {
+    event::emit(ChainRemoved {
+        remote_chain_selector
+    });
+}
+
+// Emit Remote Pool Added event
+public fun emit_remote_pool_added_event(
+    remote_chain_selector: u64,
+    remote_pool_address: vector<u8>
+) {
+    event::emit(RemotePoolAdded {
+        remote_chain_selector,
+        remote_pool_address
+    });
+}
+
+// Emit Remote Pool Removed event
+public fun emit_remote_pool_removed_event(
+    remote_chain_selector: u64,
+    remote_pool_address: vector<u8>
+) {
+    event::emit(RemotePoolRemoved {
+        remote_chain_selector,
+        remote_pool_address
     });
 }
 

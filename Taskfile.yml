@@ -18,4 +18,7 @@ includes:
   tidy:
     taskfile: ./taskfiles/tidy/Taskfile.yml
 
+  mockcontracts:
+    taskfile: ./taskfiles/mockcontracts/Taskfile.yml
+
   # Keep adding as needed

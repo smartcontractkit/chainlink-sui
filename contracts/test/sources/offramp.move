@@ -229,6 +229,17 @@ module test::offramp {
         event::emit(SkippedReportExecution { source_chain_selector });
     }
 
+    // Emit an OCRConfig event
+    public fun emit_ocr_config_event() {
+        let config_digest: vector<u8> = vector[1, 2, 3, 4];
+        let ocr_plugin_type: u8 = 1;
+        let big_f: u8 = 1;
+        let signers: vector<vector<u8>> = vector[vector[1, 2, 3, 4]];
+        let transmitters: vector<address> = vector[@0x1];
+
+        test::ocr3_base::set_ocr3_config(config_digest, ocr_plugin_type, big_f, signers, transmitters)
+    }
+
     // Helper functions to create test structures
 
     /// Create a test SourceChainConfig
