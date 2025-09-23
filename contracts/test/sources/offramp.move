@@ -208,11 +208,11 @@ module test::offramp {
     /// Emit an ExecutionStateChanged event
     public fun emit_execution_state_changed_event(
         source_chain_selector: u64,
-        sequence_number: u64,
-        message_id: vector<u8>,
-        message_hash: vector<u8>,
-        state: u8
     ) {
+        let sequence_number = 1;
+        let message_id = vector[1, 2, 3, 4];
+        let message_hash = vector[1, 2, 3, 4];
+        let state = 1;
         event::emit(ExecutionStateChanged {
             source_chain_selector,
             sequence_number,
