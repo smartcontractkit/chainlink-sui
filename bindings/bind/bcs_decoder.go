@@ -1,9 +1,12 @@
 package bind
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"reflect"
+	"strings"
 
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
 )
@@ -277,4 +280,57 @@ func DecodeU128Value(bcsBytes [16]byte) (*big.Int, error) {
 	result := new(big.Int)
 	result.SetBytes(reverseBytes(bcsBytes[:]))
 	return result, nil
+}
+
+// DeserializeBCS consumes a slice of bytes containing multiple BCS-encoded values
+// and decodes them according to the provided Move types.
+// TODO: this function should also serve extractBCSBytes, but currently
+// getElementType handles objects as their ID (32-byte address)
+func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
+	deserializer := mystenbcs.NewDecoder(bytes.NewReader(data))
+	ret := make([]any, 0, len(moveTypes))
+	for _, moveType := range moveTypes {
+		decoded, err := decodeType(deserializer, moveType)
+		if err != nil {
+			return ret, err
+		}
+		ret = append(ret, decoded)
+	}
+	return ret, nil
+}
+
+func decodeType(deserializer *mystenbcs.Decoder, moveType string) (any, error) {
+	refType := getElementType(moveType)
+	res := reflect.New(refType)
+	_, err := deserializer.Decode(res.Interface())
+	return res.Elem().Interface(), err
+}
+
+// TODO: treat big.int since it's a structure with unexported fields
+// encoder doesn't work. So does decoder. To return as a proper big.Int
+// we'll need to handle it in DeserializeBCS
+func getElementType(moveType string) reflect.Type {
+	switch {
+	case moveType == "bool":
+		return reflect.TypeOf(false)
+	case moveType == "u8":
+		return reflect.TypeOf(uint8(0))
+	case moveType == "u16":
+		return reflect.TypeOf(uint16(0))
+	case moveType == "u32":
+		return reflect.TypeOf(uint32(0))
+	case moveType == "u64":
+		return reflect.TypeOf(uint64(0))
+	case moveType == "0x1::string::String":
+		return reflect.TypeOf("")
+	case strings.HasPrefix(moveType, "vector"):
+		// Extract the inner type from "vector<innerType>"
+		innerType := moveType[7 : len(moveType)-1]
+		return reflect.SliceOf(getElementType(innerType))
+	case moveType == "address":
+		return reflect.TypeOf([32]byte{})
+	default:
+		// Custom move structs are deserialized as their ID (32-byte address)
+		return reflect.TypeOf([32]byte{})
+	}
 }
