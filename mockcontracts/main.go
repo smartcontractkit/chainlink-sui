@@ -44,8 +44,16 @@ func main() {
 	case "post-publish":
 		runPostPublish(lggr, os.Args[2:])
 	case "emit-events":
-		packageId := os.Args[2]
-		runEmitEvents(lggr, packageId)
+		packageIdFile := os.Args[2]
+		packageId, err := os.ReadFile(packageIdFile)
+		if err != nil {
+			lggr.Errorw("Failed to read package ID file", "error", err)
+			os.Exit(1)
+		}
+
+		lggr.Infow("Package ID", "packageId", string(packageId))
+
+		runEmitEvents(lggr, string(packageId))
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
