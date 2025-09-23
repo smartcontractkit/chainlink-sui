@@ -1,40 +1,199 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
+	"os"
+	"strconv"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/mockcontracts/deploy"
+	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"go.uber.org/zap"
 )
 
+const pidFile = "sui.pid"
+
 func main() {
-	fmt.Println("Hello, World!")
+	// Parse command line arguments
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
+	}
 
-	// Build and publish contracts
-	gasBudget := int(200000000)
+	command := os.Args[1]
 
+	// Create logger
 	lggr, err := logger.NewWith(func(cfg *zap.Config) {
 		cfg.Level.SetLevel(zap.InfoLevel)
 	})
 	if err != nil {
-		lggr.Errorw("Failed to create logger", "error", err)
+		fmt.Printf("Failed to create logger: %v\n", err)
+		os.Exit(1)
+	}
+
+	switch command {
+	case "setup":
+		runSetup(lggr)
+	case "post-publish":
+		runPostPublish(lggr, os.Args[2:])
+	case "emit-events":
+		runEmitEvents(lggr, os.Args[2:])
+	default:
+		fmt.Printf("Unknown command: %s\n", command)
+		printUsage()
+		os.Exit(1)
+	}
+}
+
+func printUsage() {
+	fmt.Println(`
+🚀 Sui Mock Contracts CLI
+
+USAGE:
+    go run mockcontracts/main.go <COMMAND> [OPTIONS]
+
+COMMANDS:
+    setup                    Setup local Sui chain and fund the active account
+    post-publish <file>      Parse the output of the publish command
+    emit-events [options]    Emit events (scaffolding)
+
+EXAMPLES:
+    # Setup environment
+    go run mockcontracts/main.go setup
+
+    # Parse deployment output
+    go run mockcontracts/main.go post-publish deployment_output.json
+
+    # Emit events
+    go run mockcontracts/main.go emit-events
+`)
+}
+
+func runSetup(lggr logger.Logger) {
+	lggr.Infow("Starting setup command")
+
+	if _, err := os.Stat(pidFile); err == nil {
+		// File exists, do nothing
+		lggr.Infow("sui.pid file exists, not starting Sui node")
+	} else if os.IsNotExist(err) {
+		// File does not exist, start Sui node
+		cmd, err := testutils.StartSuiNode(testutils.CLI)
+		if err != nil {
+			lggr.Errorw("Failed to start Sui node", "error", err)
+			return
+		}
+		pid := cmd.Process.Pid
+		lggr.Infow("Sui node PID", "pid", pid)
+		// Write PID to file
+		if err := os.WriteFile(pidFile, []byte(strconv.Itoa(pid)), 0644); err != nil {
+			lggr.Errorw("Failed to write sui.pid file", "error", err)
+			return
+		}
+	} else {
+		// Some other error accessing the file
+		lggr.Errorw("Error checking sui.pid file", "error", err)
 		return
 	}
 
-	contractPath, err := deploy.BuildSetup(lggr, "contracts/test/sources/")
+	activeAddress, err := deploy.GetActiveAddress(lggr)
 	if err != nil {
-		lggr.Errorw("Failed to build contract", "error", err)
+		lggr.Errorw("Failed to get active address", "error", err)
 		return
 	}
+	lggr.Infow("Active address", "activeAddress", activeAddress)
 
-	lggr.Infow("Published contracts", "contractPath", contractPath)
+	for range 3 {
+		fundErr := testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, activeAddress)
+		if fundErr != nil {
+			lggr.Errorw("Failed to fund account", "error", fundErr)
+			return
+		}
+	}
 
-	onrampRouterPackageId, onrampRouterPublishOutput, err := deploy.PublishContract(lggr, "test", contractPath, &gasBudget)
+	lggr.Infow("Setup completed successfully", "activeAddress", activeAddress)
+}
+
+func runPostPublish(lggr logger.Logger, args []string) {
+	lggr.Infow("Starting post-publish command")
+
+	if len(args) == 0 {
+		lggr.Errorw("Missing output file argument")
+		fmt.Println("Usage: go run mockcontracts/main.go post-publish <output-file>")
+		os.Exit(1)
+	}
+
+	outputFile := args[0]
+	lggr.Infow("Parsing deployment output", "file", outputFile)
+
+	// Read the deployment output file
+	data, err := os.ReadFile(outputFile)
 	if err != nil {
-		lggr.Errorw("Failed to publish contract", "error", err)
+		lggr.Errorw("Failed to read output file", "error", err, "file", outputFile)
 		return
 	}
 
-	lggr.Infow("Published contracts", "onrampRouterPackageId", onrampRouterPackageId, "onrampRouterPublishOutput", onrampRouterPublishOutput)
+	// Parse JSON
+	var deploymentOutput map[string]interface{}
+	if err := json.Unmarshal(data, &deploymentOutput); err != nil {
+		lggr.Errorw("Failed to parse JSON", "error", err)
+		return
+	}
+
+	// Extract package ID from objectChanges
+	if objectChanges, ok := deploymentOutput["objectChanges"].([]interface{}); ok {
+		for _, change := range objectChanges {
+			if changeMap, ok := change.(map[string]interface{}); ok {
+				if changeType, ok := changeMap["type"].(string); ok && changeType == "published" {
+					if packageId, ok := changeMap["packageId"].(string); ok {
+						lggr.Infow("Found published package", "packageId", packageId)
+
+						// Write package ID to a file for easy access
+						if err := os.WriteFile("package_id.txt", []byte(packageId), 0644); err != nil {
+							lggr.Errorw("Failed to write package ID file", "error", err)
+						} else {
+							lggr.Infow("Package ID saved to package_id.txt")
+						}
+						return
+					}
+				}
+			}
+		}
+	}
+
+	lggr.Errorw("No published package found in output")
+}
+
+func runEmitEvents(lggr logger.Logger, args []string) {
+	lggr.Infow("Starting emit-events command")
+
+	// Parse flags for emit-events command
+	flagSet := flag.NewFlagSet("emit-events", flag.ExitOnError)
+	packageId := flagSet.String("package-id", "", "Package ID of deployed contracts")
+	eventCount := flagSet.Int("count", 1, "Number of events to emit")
+
+	flagSet.Parse(args)
+
+	if *packageId == "" {
+		// Try to read from package_id.txt
+		if data, err := os.ReadFile("package_id.txt"); err == nil {
+			*packageId = string(data)
+			lggr.Infow("Using package ID from file", "packageId", *packageId)
+		} else {
+			lggr.Errorw("Package ID not provided and package_id.txt not found")
+			fmt.Println("Usage: go run mockcontracts/main.go emit-events --package-id <PACKAGE_ID> [--count <COUNT>]")
+			os.Exit(1)
+		}
+	}
+
+	lggr.Infow("Emit events scaffolding", "packageId", *packageId, "count", *eventCount)
+
+	// TODO: Implement actual event emission logic here
+	// This is scaffolding for now
+	for i := 0; i < *eventCount; i++ {
+		lggr.Infow("Would emit event", "index", i+1, "packageId", *packageId)
+	}
+
+	lggr.Infow("Event emission completed (scaffolding)")
 }

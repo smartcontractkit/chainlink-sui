@@ -2,7 +2,23 @@
 version: "3"
 
 tasks:
-  deploy:
-    desc: "Build and deploy test contracts to local network"
+  setup:
+    desc: "setup the environment"
     cmds:
-      - go run mockcontracts/main.go
+      - go run mockcontracts/main.go setup
+
+  publish:
+    desc: "Publish contracts directly using Sui CLI"
+    deps: [setup]
+    cmds:
+      - sui client publish --gas-budget 2000000000 --json --silence-warnings --dev --with-unpublished-dependencies $PWD/contracts/test/sources/ > deployment_output.json
+  
+  post-publish:
+    desc: "Post-publish the contracts"
+    cmds:
+      - go run mockcontracts/main.go post-publish deployment_output.json
+
+  emit-events:
+    desc: "Emit events"
+    cmds:
+      - go run mockcontracts/main.go emit-events

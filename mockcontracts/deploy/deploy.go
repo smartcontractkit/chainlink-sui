@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -117,6 +118,39 @@ func PublishContract(lggr logger.Logger, packageName string, contractPath string
 	return packageId, parsedPublishTxn, nil
 }
 
+func ParsePublishOutputFromFile(filename string) (string, TxnMetaWithObjectChanges, error) {
+	jsonData, err := os.ReadFile(filename)
+	if err != nil {
+		return "", TxnMetaWithObjectChanges{}, err
+	}
+
+	// This is a hack to skip the warnings from the CLI output by searching for "digest" with regex
+	// and then extracting the JSON from there.
+	idx, err := findDigestIndex(string(jsonData))
+	if err != nil {
+		return "", TxnMetaWithObjectChanges{}, err
+	}
+	cleanedOutput := "{" + string(jsonData)[idx:]
+
+	// Unmarshal the JSON into a map.
+	var parsedPublishTxn TxnMetaWithObjectChanges
+	if err := json.Unmarshal([]byte(cleanedOutput), &parsedPublishTxn); err != nil {
+		log.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	changes := parsedPublishTxn.ObjectChanges
+
+	var packageId string
+	for _, change := range changes {
+		if change.Type == "published" {
+			packageId = change.PackageID
+			break
+		}
+	}
+
+	return packageId, parsedPublishTxn, nil
+}
+
 func findDigestIndex(input string) (int, error) {
 	digestRegex := regexp.MustCompile(`"digest":\s*"[A-Za-z0-9]+"`)
 	loc := digestRegex.FindStringIndex(input)
@@ -162,4 +196,23 @@ func BuildContract(lggr logger.Logger, contractPath string) error {
 	}
 
 	return nil
+}
+
+// GetActiveAddress returns the active Sui client address
+func GetActiveAddress(lggr logger.Logger) (string, error) {
+	lggr.Debugw("Getting active Sui address")
+
+	cmd := exec.Command("sui", "client", "active-address")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		lggr.Errorw("Failed to get active address", "error", err, "output", string(output))
+		return "", fmt.Errorf("failed to get active address: %w", err)
+	}
+
+	// Trim whitespace and return the address
+	address := string(output)
+	address = regexp.MustCompile(`\s+`).ReplaceAllString(address, "")
+
+	lggr.Infow("Retrieved active address", "address", address)
+	return address, nil
 }
