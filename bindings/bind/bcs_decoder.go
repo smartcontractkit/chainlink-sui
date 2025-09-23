@@ -300,10 +300,45 @@ func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 }
 
 func decodeType(deserializer *mystenbcs.Decoder, moveType string) (any, error) {
+	// Handle special cases first
+	switch moveType {
+	case "u128":
+		return decodeBigInt(deserializer, moveType, 16)
+	case "u256":
+		return decodeBigInt(deserializer, moveType, 32)
+	default:
+		// Handle regular types with reflection
+		return decodeRegularType(deserializer, moveType)
+	}
+}
+
+func decodeBigInt(deserializer *mystenbcs.Decoder, moveType string, size int) (*big.Int, error) {
+	// Direct decoding based on size
+	switch size {
+	case 16:
+		var bytes [16]byte
+		if _, err := deserializer.Decode(&bytes); err != nil {
+			return nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
+		}
+		return DecodeU128Value(bytes)
+	case 32:
+		var bytes [32]byte
+		if _, err := deserializer.Decode(&bytes); err != nil {
+			return nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
+		}
+		return DecodeU256Value(bytes)
+	default:
+		return nil, fmt.Errorf("unsupported big int size %d for type %s", size, moveType)
+	}
+}
+
+func decodeRegularType(deserializer *mystenbcs.Decoder, moveType string) (any, error) {
 	refType := getElementType(moveType)
 	res := reflect.New(refType)
-	_, err := deserializer.Decode(res.Interface())
-	return res.Elem().Interface(), err
+	if _, err := deserializer.Decode(res.Interface()); err != nil {
+		return nil, fmt.Errorf("failed to decode type %s: %w", moveType, err)
+	}
+	return res.Elem().Interface(), nil
 }
 
 // TODO: treat big.int since it's a structure with unexported fields

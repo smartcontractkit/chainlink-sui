@@ -261,9 +261,15 @@ func TestSpecificDecodeFunctions(t *testing.T) {
 }
 
 func TestDeserializer(t *testing.T) {
+	// Address values
 	mockAddr := "0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968"
 	addr, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(mockAddr))
 	require.NoError(t, err)
+	// u128 and u256 values
+	u128 := new(big.Int)
+	u128.SetString("12345678901234567890", 10)
+	u256 := new(big.Int)
+	u256.SetString("1234567890123456789012345678901234567890", 10)
 
 	// Encode BCS
 	bcsEncodedMsg := bytes.Buffer{}
@@ -277,9 +283,15 @@ func TestDeserializer(t *testing.T) {
 	encoder.Encode(^uint32(0))
 	encoder.Encode([][]string{{"hello", "hi"}, {"world", "sui"}})
 	encoder.Encode(^uint64(0))
+	bcsMsg := bcsEncodedMsg.Bytes()
+	// mystenbcs encoder treats [n]byte as a regular slice and encodes the length, so we cannot use it directly.
+	// we'll append the encoded u128 and u256 bytes manually
+	u128AsByte := [16]byte{0xd2, 0xa, 0x1f, 0xeb, 0x8c, 0xa9, 0x54, 0xab}
+	u256AsByte := [32]byte{0xd2, 0xa, 0x3f, 0xce, 0x96, 0x5f, 0xbc, 0xac, 0xb8, 0xf3, 0xdb, 0xc0, 0x75, 0x20, 0xc9, 0xa0, 0x3}
+	bcsMsg = append(bcsMsg, u128AsByte[:]...)
+	bcsMsg = append(bcsMsg, u256AsByte[:]...)
 
 	// Deserialize BCS
-	bcsMsg := bcsEncodedMsg.Bytes()
 	des, err := DeserializeBCS(
 		bcsMsg,
 		[]string{
@@ -292,6 +304,8 @@ func TestDeserializer(t *testing.T) {
 			"u32",
 			"vector<vector<0x1::string::String>>",
 			"u64",
+			"u128",
+			"u256",
 		},
 	)
 	require.NoError(t, err)
@@ -305,7 +319,10 @@ func TestDeserializer(t *testing.T) {
 			[]uint8{0, 1, 2, 3, 4, 5, 6},
 			^uint32(0),
 			[][]string{{"hello", "hi"}, {"world", "sui"}},
-			^uint64(0)},
+			^uint64(0),
+			u128,
+			u256,
+		},
 		des,
 	)
 }
