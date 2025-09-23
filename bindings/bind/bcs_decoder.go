@@ -341,9 +341,6 @@ func decodeRegularType(deserializer *mystenbcs.Decoder, moveType string) (any, e
 	return res.Elem().Interface(), nil
 }
 
-// TODO: treat big.int since it's a structure with unexported fields
-// encoder doesn't work. So does decoder. To return as a proper big.Int
-// we'll need to handle it in DeserializeBCS
 func getElementType(moveType string) reflect.Type {
 	switch {
 	case moveType == "bool":
