@@ -44,6 +44,9 @@ type SuiRelayer struct {
 	txm            *txm.SuiTxm
 	balanceMonitor services.Service
 
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	indexer *indexer.Indexer
 }
 
@@ -200,18 +203,27 @@ func (r *SuiRelayer) TxManager() *txm.SuiTxm {
 	return r.txm
 }
 
-func (r *SuiRelayer) Start(ctx context.Context) error {
+func (r *SuiRelayer) Start(_ context.Context) error {
 	return r.StartOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Starting Sui Relayer")
 
+		// Create a long-lived context just for this relayer instance
+		r.ctx, r.cancel = context.WithCancel(context.Background())
+
 		var ms services.MultiStart
-		return ms.Start(ctx, r.txm, r.indexer, r.balanceMonitor)
+		// Pass in r.ctx so all sub-services share this lifecycle
+		return ms.Start(r.ctx, r.txm, r.indexer, r.balanceMonitor)
 	})
 }
 
 func (r *SuiRelayer) Close() error {
 	return r.StopOnce("SuiRelayer", func() error {
 		r.lggr.Debug("Stopping Sui Relayer")
+
+		// Cancel relayer’s own context to stop sub-services
+		if r.cancel != nil {
+			r.cancel()
+		}
 
 		return services.CloseAll(r.txm, r.indexer, r.balanceMonitor)
 	})

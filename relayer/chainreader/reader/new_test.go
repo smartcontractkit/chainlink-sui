@@ -2,7 +2,6 @@ package reader
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -125,7 +124,7 @@ func TestGetLatestValue(t *testing.T) {
 	}
 
 	counterBinding := types.BoundContract{
-		Name:    "",
+		Name:    "offramps",
 		Address: "0x295765b8d45339a4e401f6b63cc30ca98d689be3f15beaa555d41ba77470a5d0", // Package ID of the deployed counter contract
 	}
 
@@ -190,7 +189,8 @@ func TestGetLatestValue(t *testing.T) {
 		"ocrPluginType": consts.PluginTypeCommit,
 	}
 
-	err = lrReader.GetLatestValue(ctx, "0x295765b8d45339a4e401f6b63cc30ca98d689be3f15beaa555d41ba77470a5d0-OffRamp-OffRampLatestConfigDetails", "", params, &commitLatestOCRConfig)
+	lrReader.GetLatestValue(ctx, "0x295765b8d45339a4e401f6b63cc30ca98d689be3f15beaa555d41ba77470a5d0-OffRamp-OffRampLatestConfigDetails", "", params, &commitLatestOCRConfig)
+	// Give them 2 minutes to run
+	time.Sleep(2 * time.Minute)
 
-	fmt.Println("ERROR: ", err)
 }
