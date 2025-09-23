@@ -21,4 +21,4 @@ tasks:
   emit-events:
     desc: "Emit events"
     cmds:
-      - go run mockcontracts/main.go emit-events
+      - go run mockcontracts/main.go emit-events 0x5699284b52db31a398892713f8e864f0c6a3a5112865bddfbceb8d388a943ff9

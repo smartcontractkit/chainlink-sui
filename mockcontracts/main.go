@@ -1,19 +1,25 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"strconv"
 
+	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/mockcontracts/deploy"
+	"github.com/smartcontractkit/chainlink-sui/mockcontracts/events"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 	"go.uber.org/zap"
 )
 
 const pidFile = "sui.pid"
+
+var DEFAULT_GAS_BUDGET = uint64(1000000000)
 
 func main() {
 	// Parse command line arguments
@@ -39,7 +45,8 @@ func main() {
 	case "post-publish":
 		runPostPublish(lggr, os.Args[2:])
 	case "emit-events":
-		runEmitEvents(lggr, os.Args[2:])
+		packageId := os.Args[2]
+		runEmitEvents(lggr, packageId)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -165,35 +172,64 @@ func runPostPublish(lggr logger.Logger, args []string) {
 	lggr.Errorw("No published package found in output")
 }
 
-func runEmitEvents(lggr logger.Logger, args []string) {
+func runEmitEvents(lggr logger.Logger, packageId string) {
 	lggr.Infow("Starting emit-events command")
 
-	// Parse flags for emit-events command
-	flagSet := flag.NewFlagSet("emit-events", flag.ExitOnError)
-	packageId := flagSet.String("package-id", "", "Package ID of deployed contracts")
-	eventCount := flagSet.Int("count", 1, "Number of events to emit")
+	client := sui.NewSuiClient(testutils.LocalUrl)
+	ctx := context.Background()
 
-	flagSet.Parse(args)
+	signer, accountAddress, _, err := events.GenerateAccount(lggr)
 
-	if *packageId == "" {
-		// Try to read from package_id.txt
-		if data, err := os.ReadFile("package_id.txt"); err == nil {
-			*packageId = string(data)
-			lggr.Infow("Using package ID from file", "packageId", *packageId)
-		} else {
-			lggr.Errorw("Package ID not provided and package_id.txt not found")
-			fmt.Println("Usage: go run mockcontracts/main.go emit-events --package-id <PACKAGE_ID> [--count <COUNT>]")
-			os.Exit(1)
-		}
+	fundWithFaucetErr := testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress)
+	if fundWithFaucetErr != nil {
+		lggr.Errorw("Failed to fund account", "error", fundWithFaucetErr)
+		return
 	}
 
-	lggr.Infow("Emit events scaffolding", "packageId", *packageId, "count", *eventCount)
-
-	// TODO: Implement actual event emission logic here
-	// This is scaffolding for now
-	for i := 0; i < *eventCount; i++ {
-		lggr.Infow("Would emit event", "index", i+1, "packageId", *packageId)
+	callOpts := bind.CallOpts{
+		Signer:           signer,
+		WaitForExecution: true,
+		GasBudget:        &DEFAULT_GAS_BUDGET,
 	}
 
-	lggr.Infow("Event emission completed (scaffolding)")
+	ptb := transaction.NewTransaction()
+
+	offrampBoundContract, err := bind.NewBoundContract(
+		packageId,
+		"test",
+		"offramp",
+		client,
+	)
+	if err != nil {
+		lggr.Errorw("Failed to create offramp bound contract", "error", err)
+		return
+	}
+
+	call, err := offrampBoundContract.EncodeCallArgsWithGenerics(
+		"emit_static_config_set_event",
+		[]string{},
+		[]string{},
+		[]string{"u64"},
+		[]any{1},
+		nil,
+	)
+	if err != nil {
+		lggr.Errorw("Failed to encode call", "error", err)
+		return
+	}
+
+	_, err = offrampBoundContract.AppendPTB(ctx, &callOpts, ptb, call)
+	if err != nil {
+		lggr.Errorw("Failed to append PTB", "error", err)
+		return
+	}
+
+	tx, err := bind.ExecutePTB(ctx, &callOpts, client, ptb)
+	if err != nil {
+		lggr.Errorw("Failed to execute transaction", "error", err)
+		return
+	}
+
+	lggr.Infow("Event emission completed (scaffolding)", "tx", tx)
+
 }
