@@ -10,7 +10,11 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	module_receiver_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/receiver_registry"
+	module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
+	module_token_admin_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/token_admin_registry"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
+	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
 	module_counter "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/counter"
 	suiSigner "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 )
@@ -209,12 +213,186 @@ func NewClientReader(client SuiPTBClient) ClientReader {
 }
 
 func (c *clientReader) registerHandlers() {
-	// Offramp handlers
-	c.register("offramp", "get_ccip_package_id", &SimpleDevInspectHandler{
+	// TokenAdminRegistry module handlers
+	c.register("token_admin_registry", "type_and_version", &SimpleDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_token_admin_registry.NewTokenAdminRegistry(packageId, client)
+		},
+		MethodName: "TypeAndVersion",
+	})
+
+	c.register("token_admin_registry", "get_token_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_token_admin_registry.NewTokenAdminRegistry(packageId, client)
+		},
+		MethodName: "GetTokenConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 2 {
+				return nil, fmt.Errorf("get_token_config requires 2 args (object_ref_id, token)")
+			}
+			refObj := convertToBindingObject(args[0], argTypes[0])
+			token := fmt.Sprint(args[1])
+			return []any{refObj, token}, nil
+		},
+		ResultMapper: createStructToMapConverter(),
+	})
+
+	// RMN Remote module handlers (RMNProxy contract)
+	c.register("rmn_remote", "type_and_version", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_rmn_remote.NewRmnRemote(packageId, client)
+		},
+		MethodName: "TypeAndVersion",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("type_and_version requires 1 arg (object_ref_id)")
+			}
+			refObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{refObj}, nil
+		},
+	})
+
+	c.register("rmn_remote", "get_report_digest_header", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_rmn_remote.NewRmnRemote(packageId, client)
+		},
+		MethodName: "GetReportDigestHeader",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_report_digest_header requires 1 arg (object_ref_id)")
+			}
+			refObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{refObj}, nil
+		},
+	})
+
+	c.register("rmn_remote", "get_versioned_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_rmn_remote.NewRmnRemote(packageId, client)
+		},
+		MethodName: "GetVersionedConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_versioned_config requires 1 arg (object_ref_id)")
+			}
+			refObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{refObj}, nil
+		},
+		// Note: ResultTupleToStruct handling would be done at chainreader level
+	})
+
+	c.register("rmn_remote", "get_cursed_subjects", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_rmn_remote.NewRmnRemote(packageId, client)
+		},
+		MethodName: "GetCursedSubjects",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_cursed_subjects requires 1 arg (object_ref_id)")
+			}
+			refObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{refObj}, nil
+		},
+	})
+
+	// RMNRemote contract
+	c.register("rmn_remote", "get_arm", &SimpleDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_rmn_remote.NewRmnRemote(packageId, client)
+		},
+		MethodName: "GetArm",
+	})
+
+	// FeeQuoter module handlers
+	c.register("fee_quoter", "type_and_version", &SimpleDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_fee_quoter.NewFeeQuoter(packageId, client)
+		},
+		MethodName: "TypeAndVersion",
+	})
+
+	c.register("fee_quoter", "get_static_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_fee_quoter.NewFeeQuoter(packageId, client)
+		},
+		MethodName: "GetStaticConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_static_config requires 1 arg (object_ref_id)")
+			}
+			refObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{refObj}, nil
+		},
+	})
+
+	c.register("fee_quoter", "get_dest_chain_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_fee_quoter.NewFeeQuoter(packageId, client)
+		},
+		MethodName: "GetDestChainConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 2 {
+				return nil, fmt.Errorf("get_dest_chain_config requires 2 args (object_ref_id, destChainSelector)")
+			}
+			refObj := convertToBindingObject(args[0], argTypes[0])
+			destChainSelector := args[1] // uint64
+			return []any{refObj, destChainSelector}, nil
+		},
+		ResultMapper: createStructToMapConverter(), // For field renames at chainreader level
+	})
+
+	// OffRamp module handlers
+	c.register("offramp", "type_and_version", &SimpleDevInspectHandler{
 		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
 			return module_offramp.NewOfframp(packageId, client)
 		},
-		MethodName: "GetCcipPackageId",
+		MethodName: "TypeAndVersion",
+	})
+
+	c.register("offramp", "get_static_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_offramp.NewOfframp(packageId, client)
+		},
+		MethodName: "GetStaticConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_static_config requires 1 arg (off_ramp_state_id)")
+			}
+			stateObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{stateObj}, nil
+		},
+		ResultMapper: createStructToMapConverter(), // For field renames
+	})
+
+	c.register("offramp", "get_dynamic_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_offramp.NewOfframp(packageId, client)
+		},
+		MethodName: "GetDynamicConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_dynamic_config requires 1 arg (off_ramp_state_id)")
+			}
+			stateObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{stateObj}, nil
+		},
+		ResultMapper: createStructToMapConverter(),
+	})
+
+	c.register("offramp", "get_source_chain_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_offramp.NewOfframp(packageId, client)
+		},
+		MethodName: "GetSourceChainConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 2 {
+				return nil, fmt.Errorf("get_source_chain_config requires 2 args (off_ramp_state_id, sourceChainSelector)")
+			}
+			stateObj := convertToBindingObject(args[0], argTypes[0])
+			sourceChainSelector := args[1] // uint64
+			return []any{stateObj, sourceChainSelector}, nil
+		},
+		ResultMapper: createStructToMapConverter(),
 	})
 
 	c.register("offramp", "get_all_source_chain_configs", &ParameterizedDevInspectHandler{
@@ -224,17 +402,93 @@ func (c *clientReader) registerHandlers() {
 		MethodName: "GetAllSourceChainConfigs",
 		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
 			if len(args) < 2 {
-				return nil, fmt.Errorf("get_all_source_chain_configs requires 2 args (ref, state)")
+				return nil, fmt.Errorf("get_all_source_chain_configs requires 2 args (object_ref_id, off_ramp_state_id)")
 			}
-
 			refObj := convertToBindingObject(args[0], argTypes[0])
 			stateObj := convertToBindingObject(args[1], argTypes[1])
-
 			return []any{refObj, stateObj}, nil
+		},
+		ResultMapper: createStructToMapConverter(),
+	})
+
+	// Router module handlers
+	c.register("router", "type_and_version", &SimpleDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_router.NewRouter(packageId, client)
+		},
+		MethodName: "TypeAndVersion",
+	})
+
+	c.register("router", "get_on_ramp", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_router.NewRouter(packageId, client)
+		},
+		MethodName: "GetOnRamp",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 2 {
+				return nil, fmt.Errorf("get_on_ramp requires 2 args (off_ramp_state_id, destChainSelector)")
+			}
+			stateObj := convertToBindingObject(args[0], argTypes[0])
+			destChainSelector := args[1] // uint64
+			return []any{stateObj, destChainSelector}, nil
 		},
 	})
 
-	// ReceiverRegistry handlers
+	// OnRamp module handlers
+	c.register("onramp", "type_and_version", &SimpleDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_onramp.NewOnramp(packageId, client)
+		},
+		MethodName: "TypeAndVersion",
+	})
+
+	c.register("onramp", "get_dynamic_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_onramp.NewOnramp(packageId, client)
+		},
+		MethodName: "GetDynamicConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_dynamic_config requires 1 arg (on_ramp_state_id)")
+			}
+			stateObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{stateObj}, nil
+		},
+		ResultMapper: createStructToMapConverter(),
+	})
+
+	c.register("onramp", "get_static_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_onramp.NewOnramp(packageId, client)
+		},
+		MethodName: "GetStaticConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("get_static_config requires 1 arg (on_ramp_state_id)")
+			}
+			stateObj := convertToBindingObject(args[0], argTypes[0])
+			return []any{stateObj}, nil
+		},
+		ResultMapper: createStructToMapConverter(),
+	})
+
+	c.register("onramp", "get_dest_chain_config", &ParameterizedDevInspectHandler{
+		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
+			return module_onramp.NewOnramp(packageId, client)
+		},
+		MethodName: "GetDestChainConfig",
+		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
+			if len(args) < 2 {
+				return nil, fmt.Errorf("get_dest_chain_config requires 2 args (on_ramp_state_id, destChainSelector)")
+			}
+			stateObj := convertToBindingObject(args[0], argTypes[0])
+			destChainSelector := args[1] // uint64
+			return []any{stateObj, destChainSelector}, nil
+		},
+		// Note: ResultTupleToStruct handling would be done at chainreader level
+	})
+
+	// ReceiverRegistry module handlers
 	c.register("receiver_registry", "is_registered_receiver", &ParameterizedDevInspectHandler{
 		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
 			return module_receiver_registry.NewReceiverRegistry(packageId, client)
@@ -244,10 +498,8 @@ func (c *clientReader) registerHandlers() {
 			if len(args) < 2 {
 				return nil, fmt.Errorf("is_registered_receiver requires 2 args (ref, receiverPackageId)")
 			}
-
 			refObj := convertToBindingObject(args[0], argTypes[0])
 			receiverPkg := fmt.Sprint(args[1])
-
 			return []any{refObj, receiverPkg}, nil
 		},
 	})
@@ -261,15 +513,13 @@ func (c *clientReader) registerHandlers() {
 			if len(args) < 2 {
 				return nil, fmt.Errorf("get_receiver_config requires 2 args (ref, receiverPackageId)")
 			}
-
 			refObj := convertToBindingObject(args[0], argTypes[0])
 			receiverPkg := fmt.Sprint(args[1])
-
 			return []any{refObj, receiverPkg}, nil
 		},
 	})
 
-	// Counter handlers (for testing)
+	// Counter module handlers (for testing)
 	c.register("counter", "get_count", &ParameterizedDevInspectHandler{
 		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
 			return module_counter.NewCounter(packageId, client)
@@ -279,7 +529,6 @@ func (c *clientReader) registerHandlers() {
 			if len(args) < 1 {
 				return nil, fmt.Errorf("get_count requires 1 arg (counter)")
 			}
-
 			counterObj := convertToBindingObject(args[0], argTypes[0])
 			return []any{counterObj}, nil
 		},
@@ -320,25 +569,8 @@ func (c *clientReader) registerHandlers() {
 				}
 				return convertedElements, nil
 			}
-
 			// If not a tuple slice, just convert normally
 			return convertStructToMap(result)
-		},
-	})
-
-	// Fee Quoter handlers
-	c.register("fee_quoter", "get_static_config", &ParameterizedDevInspectHandler{
-		BindingFactory: func(packageId string, client sui.ISuiAPI) (any, error) {
-			return module_fee_quoter.NewFeeQuoter(packageId, client)
-		},
-		MethodName: "GetStaticConfig",
-		ArgumentParser: func(args []any, argTypes []string) ([]any, error) {
-			if len(args) < 1 {
-				return nil, fmt.Errorf("get_static_config requires 1 arg (ref)")
-			}
-
-			refObj := convertToBindingObject(args[0], argTypes[0])
-			return []any{refObj}, nil
 		},
 	})
 }
@@ -370,8 +602,6 @@ func (c *clientReader) TryReadFunction(
 
 	return true, results, nil
 }
-
-// -------------------- Helper functions --------------------
 
 func normalizeKey(module, function string) string {
 	return strings.ToLower(strings.TrimSpace(module)) + "::" + strings.ToLower(strings.TrimSpace(function))

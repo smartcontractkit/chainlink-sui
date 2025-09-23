@@ -740,7 +740,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		log.Debugw("jsonResult", "jsonResult", jsonResult)
 	})
 
-	t.Run("GetLatestValue_GetStaticConfig", func(t *testing.T) {
+	t.Run("GetLatestValue_GetStaticConfig_LoopMode", func(t *testing.T) {
 		var retStaticConfig []byte
 		params, err := json.Marshal(map[string]any{
 			"ref": counterObjectId, // this is just a placeholder for testing to avoid bindings errors

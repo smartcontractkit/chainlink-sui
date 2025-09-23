@@ -298,7 +298,7 @@ func isValidSuiAddress(address string) bool {
 }
 
 func (pr *PackageResolver) normalizeName(moduleName string) string {
-	return strings.ToLower(moduleName)
+	return strings.ToLower(strings.ReplaceAll(moduleName, "_", ""))
 }
 
 // String returns string representation of ResolvedIdentifier

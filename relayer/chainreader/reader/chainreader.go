@@ -234,7 +234,7 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 		}
 	}
 
-	// TODO: handle multiple results for non-loop plugin mode
+	// handle multiple results for non-loop plugin mode
 	return codec.DecodeSuiJsonValue(primary, returnVal)
 }
 
