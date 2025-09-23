@@ -67,3 +67,11 @@ go run bindgen/main.go --moveConfig ./contracts/mcms/mcms_test --input ./contrac
 
 # Update global function info file
 go run bindgen/main.go --function-info-only --output ./bindings/generated
+# Test Mock Contracts
+
+go run bindgen/main.go --moveConfig ./contracts/test --input ./contracts/test/sources/managed_token_pool.move --output ./bindings/generated/test/managed_token_pool
+go run bindgen/main.go --moveConfig ./contracts/test --input ./contracts/test/sources/offramp.move --output ./bindings/generated/test/offramp
+go run bindgen/main.go --moveConfig ./contracts/test --input ./contracts/test/sources/router.move --output ./bindings/generated/test/router
+go run bindgen/main.go --moveConfig ./contracts/test --input ./contracts/test/sources/onramp.move --output ./bindings/generated/test/onramp
+go run bindgen/main.go --moveConfig ./contracts/test --input ./contracts/test/sources/fee_quoter.move --output ./bindings/generated/test/fee_quoter
+go run bindgen/main.go --moveConfig ./contracts/test --input ./contracts/test/sources/rmn_remote.move --output ./bindings/generated/test/rmn_remote
