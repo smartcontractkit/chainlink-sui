@@ -240,6 +240,14 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 
 	lggr.Infow("Emitting token admin registry events", "tx", tx)
 
+	feeQuoterEmitter := events.NewFeeQuoterEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = feeQuoterEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit fee quoter events", "error", err)
+		return
+	}
+	lggr.Infow("Emitting fee quoter events", "tx", tx)
+
 	lggr.Infow("Event emission completed (scaffolding)")
 }
 

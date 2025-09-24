@@ -10,6 +10,7 @@ use std::type_name;
 
 use sui::address;
 use sui::event;
+use sui::clock;
 use sui::table;
 
 // Event structures from the actual fee_quoter contract
@@ -94,21 +95,30 @@ public struct DestChainConfig has copy, drop, store {
 // Simple methods to emit events for testing purposes
 
 /// Emit a FeeTokenAdded event
-public fun emit_fee_token_added_event(fee_token: address) {
+public fun emit_fee_token_added_event() {
+    let fee_token = @0x1;
     event::emit(FeeTokenAdded { fee_token });
 }
 
 /// Emit a FeeTokenRemoved event
-public fun emit_fee_token_removed_event(fee_token: address) {
+public fun emit_fee_token_removed_event() {
+    let fee_token = @0x1;
     event::emit(FeeTokenRemoved { fee_token });
 }
 
 /// Emit a TokenTransferFeeConfigAdded event
 public fun emit_token_transfer_fee_config_added_event(
     dest_chain_selector: u64,
-    token: address,
-    token_transfer_fee_config: TokenTransferFeeConfig
 ) {
+    let token = @0x1;
+    let token_transfer_fee_config = create_test_token_transfer_fee_config(
+        25,
+        100,
+        50,
+        25000,
+        32,
+        true
+    );
     event::emit(TokenTransferFeeConfigAdded {
         dest_chain_selector,
         token,
@@ -119,8 +129,8 @@ public fun emit_token_transfer_fee_config_added_event(
 /// Emit a TokenTransferFeeConfigRemoved event
 public fun emit_token_transfer_fee_config_removed_event(
     dest_chain_selector: u64,
-    token: address
 ) {
+    let token = @0x1;
     event::emit(TokenTransferFeeConfigRemoved {
         dest_chain_selector,
         token
@@ -129,10 +139,11 @@ public fun emit_token_transfer_fee_config_removed_event(
 
 /// Emit a UsdPerTokenUpdated event
 public fun emit_usd_per_token_updated_event(
-    token: address,
-    usd_per_token: u256,
-    timestamp: u64
+    clock: &clock::Clock,
 ) {
+    let token = @0x1;
+    let usd_per_token = 1000000000000000000;
+    let timestamp = clock.timestamp_ms() / 1000;
     event::emit(UsdPerTokenUpdated {
         token,
         usd_per_token,
@@ -142,10 +153,11 @@ public fun emit_usd_per_token_updated_event(
 
 /// Emit a UsdPerUnitGasUpdated event
 public fun emit_usd_per_unit_gas_updated_event(
-    dest_chain_selector: u64,
-    usd_per_unit_gas: u256,
-    timestamp: u64
+    clock: &clock::Clock,
 ) {
+    let dest_chain_selector = 1;
+    let usd_per_unit_gas = 1000000000000000000;
+    let timestamp = clock.timestamp_ms() / 1000;
     event::emit(UsdPerUnitGasUpdated {
         dest_chain_selector,
         usd_per_unit_gas,
@@ -156,8 +168,8 @@ public fun emit_usd_per_unit_gas_updated_event(
 /// Emit a DestChainAdded event
 public fun emit_dest_chain_added_event(
     dest_chain_selector: u64,
-    dest_chain_config: DestChainConfig
 ) {
+    let dest_chain_config = create_default_test_dest_chain_config();
     event::emit(DestChainAdded {
         dest_chain_selector,
         dest_chain_config
@@ -167,8 +179,8 @@ public fun emit_dest_chain_added_event(
 /// Emit a DestChainConfigUpdated event
 public fun emit_dest_chain_config_updated_event(
     dest_chain_selector: u64,
-    dest_chain_config: DestChainConfig
 ) {
+    let dest_chain_config = create_default_test_dest_chain_config();
     event::emit(DestChainConfigUpdated {
         dest_chain_selector,
         dest_chain_config
@@ -177,9 +189,9 @@ public fun emit_dest_chain_config_updated_event(
 
 /// Emit a PremiumMultiplierWeiPerEthUpdated event
 public fun emit_premium_multiplier_wei_per_eth_updated_event(
-    token: address,
-    premium_multiplier_wei_per_eth: u64
 ) {
+    let token = @0x1;
+    let premium_multiplier_wei_per_eth = 1000000000000000000;
     event::emit(PremiumMultiplierWeiPerEthUpdated {
         token,
         premium_multiplier_wei_per_eth
