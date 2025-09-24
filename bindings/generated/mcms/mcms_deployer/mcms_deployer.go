@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_deployer","name":"authorize_upgrade","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"DeployerState"},{"name":"policy","type":"u8"},{"name":"digest","type":"vector\u003cu8\u003e"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_deployer","name":"commit_upgrade","parameters":[{"name":"state","type":"DeployerState"},{"name":"receipt","type":"UpgradeReceipt"}]},{"package":"mcms","module":"mcms_deployer","name":"register_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"registry","type":"Registry"},{"name":"upgrade_cap","type":"UpgradeCap"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_deployer","name":"authorize_upgrade","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"DeployerState"},{"name":"policy","type":"u8"},{"name":"digest","type":"vector<u8>"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_deployer","name":"commit_upgrade","parameters":[{"name":"state","type":"DeployerState"},{"name":"receipt","type":"UpgradeReceipt"}]},{"package":"mcms","module":"mcms_deployer","name":"register_upgrade_cap","parameters":[{"name":"state","type":"DeployerState"},{"name":"registry","type":"Registry"},{"name":"upgrade_cap","type":"UpgradeCap"}]}]`
 
 type IMcmsDeployer interface {
 	RegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, upgradeCap bind.Object) (*models.SuiTransactionBlockResponse, error)

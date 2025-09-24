@@ -318,15 +318,16 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 	slices.SortFunc(functionInfos, func(a, b FunctionInfo) int {
 		return strings.Compare(a.Name, b.Name)
 	})
-	marshalledInfo, err := json.Marshal(functionInfos)
-	if err != nil {
+
+	// Use a buffer with custom encoder to disable HTML escaping
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(functionInfos); err != nil {
 		return tmplData{}, err
 	}
-	data.FunctionInfo = string(marshalledInfo)
-	for _, v := range importMap {
-		data.Imports = append(data.Imports, v)
-	}
-
+	// Remove the trailing newline that Encode() adds
+	data.FunctionInfo = strings.TrimSpace(buf.String())
 	for _, v := range importMap {
 		data.Imports = append(data.Imports, v)
 	}
