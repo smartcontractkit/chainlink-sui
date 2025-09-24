@@ -281,6 +281,21 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 	}
 	lggr.Infow("Emitting managed token pool events", "tx", tx)
 
+	burnMintTokenPoolEmitter := events.NewBurnMintTokenPoolEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = burnMintTokenPoolEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit burn mint token pool events", "error", err)
+		return
+	}
+	lggr.Infow("Emitting burn mint token pool events", "tx", tx)
+
+	lockReleaseTokenPoolEmitter := events.NewLockReleaseTokenPoolEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = lockReleaseTokenPoolEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit lock release token pool events", "error", err)
+		return
+	}
+	lggr.Infow("Emitting lock release token pool events", "tx", tx)
 	lggr.Infow("Event emission completed (scaffolding)")
 }
 
