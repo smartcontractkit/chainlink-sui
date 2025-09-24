@@ -20,15 +20,15 @@ var (
 )
 
 type IFeeQuoter interface {
-	EmitFeeTokenAddedEvent(ctx context.Context, opts *bind.CallOpts, feeToken string) (*models.SuiTransactionBlockResponse, error)
-	EmitFeeTokenRemovedEvent(ctx context.Context, opts *bind.CallOpts, feeToken string) (*models.SuiTransactionBlockResponse, error)
-	EmitTokenTransferFeeConfigAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, token string, tokenTransferFeeConfig TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error)
-	EmitTokenTransferFeeConfigRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error)
-	EmitUsdPerTokenUpdatedEvent(ctx context.Context, opts *bind.CallOpts, token string, usdPerToken *big.Int, timestamp uint64) (*models.SuiTransactionBlockResponse, error)
-	EmitUsdPerUnitGasUpdatedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, usdPerUnitGas *big.Int, timestamp uint64) (*models.SuiTransactionBlockResponse, error)
-	EmitDestChainAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error)
-	EmitDestChainConfigUpdatedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error)
-	EmitPremiumMultiplierWeiPerEthUpdatedEvent(ctx context.Context, opts *bind.CallOpts, token string, premiumMultiplierWeiPerEth uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitFeeTokenAddedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitFeeTokenRemovedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitTokenTransferFeeConfigAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitTokenTransferFeeConfigRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitUsdPerTokenUpdatedEvent(ctx context.Context, opts *bind.CallOpts, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
+	EmitUsdPerUnitGasUpdatedEvent(ctx context.Context, opts *bind.CallOpts, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
+	EmitDestChainAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitDestChainConfigUpdatedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitPremiumMultiplierWeiPerEthUpdatedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IFeeQuoterDevInspect
 	Encoder() FeeQuoterEncoder
 	Bound() bind.IBoundContract
@@ -38,23 +38,23 @@ type IFeeQuoterDevInspect interface {
 }
 
 type FeeQuoterEncoder interface {
-	EmitFeeTokenAddedEvent(feeToken string) (*bind.EncodedCall, error)
+	EmitFeeTokenAddedEvent() (*bind.EncodedCall, error)
 	EmitFeeTokenAddedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitFeeTokenRemovedEvent(feeToken string) (*bind.EncodedCall, error)
+	EmitFeeTokenRemovedEvent() (*bind.EncodedCall, error)
 	EmitFeeTokenRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitTokenTransferFeeConfigAddedEvent(destChainSelector uint64, token string, tokenTransferFeeConfig TokenTransferFeeConfig) (*bind.EncodedCall, error)
+	EmitTokenTransferFeeConfigAddedEvent(destChainSelector uint64) (*bind.EncodedCall, error)
 	EmitTokenTransferFeeConfigAddedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitTokenTransferFeeConfigRemovedEvent(destChainSelector uint64, token string) (*bind.EncodedCall, error)
+	EmitTokenTransferFeeConfigRemovedEvent(destChainSelector uint64) (*bind.EncodedCall, error)
 	EmitTokenTransferFeeConfigRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitUsdPerTokenUpdatedEvent(token string, usdPerToken *big.Int, timestamp uint64) (*bind.EncodedCall, error)
+	EmitUsdPerTokenUpdatedEvent(clock bind.Object) (*bind.EncodedCall, error)
 	EmitUsdPerTokenUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitUsdPerUnitGasUpdatedEvent(destChainSelector uint64, usdPerUnitGas *big.Int, timestamp uint64) (*bind.EncodedCall, error)
+	EmitUsdPerUnitGasUpdatedEvent(clock bind.Object) (*bind.EncodedCall, error)
 	EmitUsdPerUnitGasUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitDestChainAddedEvent(destChainSelector uint64, destChainConfig DestChainConfig) (*bind.EncodedCall, error)
+	EmitDestChainAddedEvent(destChainSelector uint64) (*bind.EncodedCall, error)
 	EmitDestChainAddedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitDestChainConfigUpdatedEvent(destChainSelector uint64, destChainConfig DestChainConfig) (*bind.EncodedCall, error)
+	EmitDestChainConfigUpdatedEvent(destChainSelector uint64) (*bind.EncodedCall, error)
 	EmitDestChainConfigUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitPremiumMultiplierWeiPerEthUpdatedEvent(token string, premiumMultiplierWeiPerEth uint64) (*bind.EncodedCall, error)
+	EmitPremiumMultiplierWeiPerEthUpdatedEvent() (*bind.EncodedCall, error)
 	EmitPremiumMultiplierWeiPerEthUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -402,8 +402,8 @@ func init() {
 }
 
 // EmitFeeTokenAddedEvent executes the emit_fee_token_added_event Move function.
-func (c *FeeQuoterContract) EmitFeeTokenAddedEvent(ctx context.Context, opts *bind.CallOpts, feeToken string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitFeeTokenAddedEvent(feeToken)
+func (c *FeeQuoterContract) EmitFeeTokenAddedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitFeeTokenAddedEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -412,8 +412,8 @@ func (c *FeeQuoterContract) EmitFeeTokenAddedEvent(ctx context.Context, opts *bi
 }
 
 // EmitFeeTokenRemovedEvent executes the emit_fee_token_removed_event Move function.
-func (c *FeeQuoterContract) EmitFeeTokenRemovedEvent(ctx context.Context, opts *bind.CallOpts, feeToken string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitFeeTokenRemovedEvent(feeToken)
+func (c *FeeQuoterContract) EmitFeeTokenRemovedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitFeeTokenRemovedEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -422,8 +422,8 @@ func (c *FeeQuoterContract) EmitFeeTokenRemovedEvent(ctx context.Context, opts *
 }
 
 // EmitTokenTransferFeeConfigAddedEvent executes the emit_token_transfer_fee_config_added_event Move function.
-func (c *FeeQuoterContract) EmitTokenTransferFeeConfigAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, token string, tokenTransferFeeConfig TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitTokenTransferFeeConfigAddedEvent(destChainSelector, token, tokenTransferFeeConfig)
+func (c *FeeQuoterContract) EmitTokenTransferFeeConfigAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitTokenTransferFeeConfigAddedEvent(destChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -432,8 +432,8 @@ func (c *FeeQuoterContract) EmitTokenTransferFeeConfigAddedEvent(ctx context.Con
 }
 
 // EmitTokenTransferFeeConfigRemovedEvent executes the emit_token_transfer_fee_config_removed_event Move function.
-func (c *FeeQuoterContract) EmitTokenTransferFeeConfigRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitTokenTransferFeeConfigRemovedEvent(destChainSelector, token)
+func (c *FeeQuoterContract) EmitTokenTransferFeeConfigRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitTokenTransferFeeConfigRemovedEvent(destChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -442,8 +442,8 @@ func (c *FeeQuoterContract) EmitTokenTransferFeeConfigRemovedEvent(ctx context.C
 }
 
 // EmitUsdPerTokenUpdatedEvent executes the emit_usd_per_token_updated_event Move function.
-func (c *FeeQuoterContract) EmitUsdPerTokenUpdatedEvent(ctx context.Context, opts *bind.CallOpts, token string, usdPerToken *big.Int, timestamp uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitUsdPerTokenUpdatedEvent(token, usdPerToken, timestamp)
+func (c *FeeQuoterContract) EmitUsdPerTokenUpdatedEvent(ctx context.Context, opts *bind.CallOpts, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitUsdPerTokenUpdatedEvent(clock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -452,8 +452,8 @@ func (c *FeeQuoterContract) EmitUsdPerTokenUpdatedEvent(ctx context.Context, opt
 }
 
 // EmitUsdPerUnitGasUpdatedEvent executes the emit_usd_per_unit_gas_updated_event Move function.
-func (c *FeeQuoterContract) EmitUsdPerUnitGasUpdatedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, usdPerUnitGas *big.Int, timestamp uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitUsdPerUnitGasUpdatedEvent(destChainSelector, usdPerUnitGas, timestamp)
+func (c *FeeQuoterContract) EmitUsdPerUnitGasUpdatedEvent(ctx context.Context, opts *bind.CallOpts, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitUsdPerUnitGasUpdatedEvent(clock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -462,8 +462,8 @@ func (c *FeeQuoterContract) EmitUsdPerUnitGasUpdatedEvent(ctx context.Context, o
 }
 
 // EmitDestChainAddedEvent executes the emit_dest_chain_added_event Move function.
-func (c *FeeQuoterContract) EmitDestChainAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitDestChainAddedEvent(destChainSelector, destChainConfig)
+func (c *FeeQuoterContract) EmitDestChainAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitDestChainAddedEvent(destChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -472,8 +472,8 @@ func (c *FeeQuoterContract) EmitDestChainAddedEvent(ctx context.Context, opts *b
 }
 
 // EmitDestChainConfigUpdatedEvent executes the emit_dest_chain_config_updated_event Move function.
-func (c *FeeQuoterContract) EmitDestChainConfigUpdatedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitDestChainConfigUpdatedEvent(destChainSelector, destChainConfig)
+func (c *FeeQuoterContract) EmitDestChainConfigUpdatedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitDestChainConfigUpdatedEvent(destChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -482,8 +482,8 @@ func (c *FeeQuoterContract) EmitDestChainConfigUpdatedEvent(ctx context.Context,
 }
 
 // EmitPremiumMultiplierWeiPerEthUpdatedEvent executes the emit_premium_multiplier_wei_per_eth_updated_event Move function.
-func (c *FeeQuoterContract) EmitPremiumMultiplierWeiPerEthUpdatedEvent(ctx context.Context, opts *bind.CallOpts, token string, premiumMultiplierWeiPerEth uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.feeQuoterEncoder.EmitPremiumMultiplierWeiPerEthUpdatedEvent(token, premiumMultiplierWeiPerEth)
+func (c *FeeQuoterContract) EmitPremiumMultiplierWeiPerEthUpdatedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.EmitPremiumMultiplierWeiPerEthUpdatedEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -496,22 +496,16 @@ type feeQuoterEncoder struct {
 }
 
 // EmitFeeTokenAddedEvent encodes a call to the emit_fee_token_added_event Move function.
-func (c feeQuoterEncoder) EmitFeeTokenAddedEvent(feeToken string) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitFeeTokenAddedEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_fee_token_added_event", typeArgsList, typeParamsList, []string{
-		"address",
-	}, []any{
-		feeToken,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_fee_token_added_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitFeeTokenAddedEventWithArgs encodes a call to the emit_fee_token_added_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) EmitFeeTokenAddedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"address",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -522,22 +516,16 @@ func (c feeQuoterEncoder) EmitFeeTokenAddedEventWithArgs(args ...any) (*bind.Enc
 }
 
 // EmitFeeTokenRemovedEvent encodes a call to the emit_fee_token_removed_event Move function.
-func (c feeQuoterEncoder) EmitFeeTokenRemovedEvent(feeToken string) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitFeeTokenRemovedEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_fee_token_removed_event", typeArgsList, typeParamsList, []string{
-		"address",
-	}, []any{
-		feeToken,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_fee_token_removed_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitFeeTokenRemovedEventWithArgs encodes a call to the emit_fee_token_removed_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) EmitFeeTokenRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"address",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -548,17 +536,13 @@ func (c feeQuoterEncoder) EmitFeeTokenRemovedEventWithArgs(args ...any) (*bind.E
 }
 
 // EmitTokenTransferFeeConfigAddedEvent encodes a call to the emit_token_transfer_fee_config_added_event Move function.
-func (c feeQuoterEncoder) EmitTokenTransferFeeConfigAddedEvent(destChainSelector uint64, token string, tokenTransferFeeConfig TokenTransferFeeConfig) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitTokenTransferFeeConfigAddedEvent(destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_token_transfer_fee_config_added_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"address",
-		"test::fee_quoter::TokenTransferFeeConfig",
 	}, []any{
 		destChainSelector,
-		token,
-		tokenTransferFeeConfig,
 	}, nil)
 }
 
@@ -567,8 +551,6 @@ func (c feeQuoterEncoder) EmitTokenTransferFeeConfigAddedEvent(destChainSelector
 func (c feeQuoterEncoder) EmitTokenTransferFeeConfigAddedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"address",
-		"test::fee_quoter::TokenTransferFeeConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -580,15 +562,13 @@ func (c feeQuoterEncoder) EmitTokenTransferFeeConfigAddedEventWithArgs(args ...a
 }
 
 // EmitTokenTransferFeeConfigRemovedEvent encodes a call to the emit_token_transfer_fee_config_removed_event Move function.
-func (c feeQuoterEncoder) EmitTokenTransferFeeConfigRemovedEvent(destChainSelector uint64, token string) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitTokenTransferFeeConfigRemovedEvent(destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_token_transfer_fee_config_removed_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"address",
 	}, []any{
 		destChainSelector,
-		token,
 	}, nil)
 }
 
@@ -597,7 +577,6 @@ func (c feeQuoterEncoder) EmitTokenTransferFeeConfigRemovedEvent(destChainSelect
 func (c feeQuoterEncoder) EmitTokenTransferFeeConfigRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -609,17 +588,13 @@ func (c feeQuoterEncoder) EmitTokenTransferFeeConfigRemovedEventWithArgs(args ..
 }
 
 // EmitUsdPerTokenUpdatedEvent encodes a call to the emit_usd_per_token_updated_event Move function.
-func (c feeQuoterEncoder) EmitUsdPerTokenUpdatedEvent(token string, usdPerToken *big.Int, timestamp uint64) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitUsdPerTokenUpdatedEvent(clock bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_usd_per_token_updated_event", typeArgsList, typeParamsList, []string{
-		"address",
-		"u256",
-		"u64",
+		"&clock::Clock",
 	}, []any{
-		token,
-		usdPerToken,
-		timestamp,
+		clock,
 	}, nil)
 }
 
@@ -627,9 +602,7 @@ func (c feeQuoterEncoder) EmitUsdPerTokenUpdatedEvent(token string, usdPerToken 
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) EmitUsdPerTokenUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"address",
-		"u256",
-		"u64",
+		"&clock::Clock",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -641,17 +614,13 @@ func (c feeQuoterEncoder) EmitUsdPerTokenUpdatedEventWithArgs(args ...any) (*bin
 }
 
 // EmitUsdPerUnitGasUpdatedEvent encodes a call to the emit_usd_per_unit_gas_updated_event Move function.
-func (c feeQuoterEncoder) EmitUsdPerUnitGasUpdatedEvent(destChainSelector uint64, usdPerUnitGas *big.Int, timestamp uint64) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitUsdPerUnitGasUpdatedEvent(clock bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_usd_per_unit_gas_updated_event", typeArgsList, typeParamsList, []string{
-		"u64",
-		"u256",
-		"u64",
+		"&clock::Clock",
 	}, []any{
-		destChainSelector,
-		usdPerUnitGas,
-		timestamp,
+		clock,
 	}, nil)
 }
 
@@ -659,9 +628,7 @@ func (c feeQuoterEncoder) EmitUsdPerUnitGasUpdatedEvent(destChainSelector uint64
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) EmitUsdPerUnitGasUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"u64",
-		"u256",
-		"u64",
+		"&clock::Clock",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -673,15 +640,13 @@ func (c feeQuoterEncoder) EmitUsdPerUnitGasUpdatedEventWithArgs(args ...any) (*b
 }
 
 // EmitDestChainAddedEvent encodes a call to the emit_dest_chain_added_event Move function.
-func (c feeQuoterEncoder) EmitDestChainAddedEvent(destChainSelector uint64, destChainConfig DestChainConfig) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitDestChainAddedEvent(destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_dest_chain_added_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"test::fee_quoter::DestChainConfig",
 	}, []any{
 		destChainSelector,
-		destChainConfig,
 	}, nil)
 }
 
@@ -690,7 +655,6 @@ func (c feeQuoterEncoder) EmitDestChainAddedEvent(destChainSelector uint64, dest
 func (c feeQuoterEncoder) EmitDestChainAddedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"test::fee_quoter::DestChainConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -702,15 +666,13 @@ func (c feeQuoterEncoder) EmitDestChainAddedEventWithArgs(args ...any) (*bind.En
 }
 
 // EmitDestChainConfigUpdatedEvent encodes a call to the emit_dest_chain_config_updated_event Move function.
-func (c feeQuoterEncoder) EmitDestChainConfigUpdatedEvent(destChainSelector uint64, destChainConfig DestChainConfig) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitDestChainConfigUpdatedEvent(destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_dest_chain_config_updated_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"test::fee_quoter::DestChainConfig",
 	}, []any{
 		destChainSelector,
-		destChainConfig,
 	}, nil)
 }
 
@@ -719,7 +681,6 @@ func (c feeQuoterEncoder) EmitDestChainConfigUpdatedEvent(destChainSelector uint
 func (c feeQuoterEncoder) EmitDestChainConfigUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"test::fee_quoter::DestChainConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -731,25 +692,16 @@ func (c feeQuoterEncoder) EmitDestChainConfigUpdatedEventWithArgs(args ...any) (
 }
 
 // EmitPremiumMultiplierWeiPerEthUpdatedEvent encodes a call to the emit_premium_multiplier_wei_per_eth_updated_event Move function.
-func (c feeQuoterEncoder) EmitPremiumMultiplierWeiPerEthUpdatedEvent(token string, premiumMultiplierWeiPerEth uint64) (*bind.EncodedCall, error) {
+func (c feeQuoterEncoder) EmitPremiumMultiplierWeiPerEthUpdatedEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_premium_multiplier_wei_per_eth_updated_event", typeArgsList, typeParamsList, []string{
-		"address",
-		"u64",
-	}, []any{
-		token,
-		premiumMultiplierWeiPerEth,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_premium_multiplier_wei_per_eth_updated_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitPremiumMultiplierWeiPerEthUpdatedEventWithArgs encodes a call to the emit_premium_multiplier_wei_per_eth_updated_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) EmitPremiumMultiplierWeiPerEthUpdatedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"address",
-		"u64",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))

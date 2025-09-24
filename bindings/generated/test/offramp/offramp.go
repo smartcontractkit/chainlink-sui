@@ -21,11 +21,11 @@ var (
 
 type IOfframp interface {
 	EmitStaticConfigSetEvent(ctx context.Context, opts *bind.CallOpts, chainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	EmitDynamicConfigSetEvent(ctx context.Context, opts *bind.CallOpts, dynamicConfig DynamicConfig) (*models.SuiTransactionBlockResponse, error)
-	EmitSourceChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, sourceChainConfig SourceChainConfig) (*models.SuiTransactionBlockResponse, error)
+	EmitDynamicConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitSourceChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	EmitSkippedAlreadyExecutedEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
-	EmitExecutionStateChangedEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, sequenceNumber uint64, messageId []byte, messageHash []byte, state byte) (*models.SuiTransactionBlockResponse, error)
-	EmitCommitReportAcceptedEvent(ctx context.Context, opts *bind.CallOpts, blessedMerkleRoots []MerkleRoot, unblessedMerkleRoots []MerkleRoot, priceUpdates PriceUpdates) (*models.SuiTransactionBlockResponse, error)
+	EmitExecutionStateChangedEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitCommitReportAcceptedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	EmitSkippedReportExecutionEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	EmitOcrConfigEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -47,15 +47,15 @@ type IOfframpDevInspect interface {
 type OfframpEncoder interface {
 	EmitStaticConfigSetEvent(chainSelector uint64) (*bind.EncodedCall, error)
 	EmitStaticConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitDynamicConfigSetEvent(dynamicConfig DynamicConfig) (*bind.EncodedCall, error)
+	EmitDynamicConfigSetEvent() (*bind.EncodedCall, error)
 	EmitDynamicConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitSourceChainConfigSetEvent(sourceChainSelector uint64, sourceChainConfig SourceChainConfig) (*bind.EncodedCall, error)
+	EmitSourceChainConfigSetEvent(sourceChainSelector uint64) (*bind.EncodedCall, error)
 	EmitSourceChainConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error)
 	EmitSkippedAlreadyExecutedEvent(sourceChainSelector uint64, sequenceNumber uint64) (*bind.EncodedCall, error)
 	EmitSkippedAlreadyExecutedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitExecutionStateChangedEvent(sourceChainSelector uint64, sequenceNumber uint64, messageId []byte, messageHash []byte, state byte) (*bind.EncodedCall, error)
+	EmitExecutionStateChangedEvent(sourceChainSelector uint64) (*bind.EncodedCall, error)
 	EmitExecutionStateChangedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitCommitReportAcceptedEvent(blessedMerkleRoots []MerkleRoot, unblessedMerkleRoots []MerkleRoot, priceUpdates PriceUpdates) (*bind.EncodedCall, error)
+	EmitCommitReportAcceptedEvent() (*bind.EncodedCall, error)
 	EmitCommitReportAcceptedEventWithArgs(args ...any) (*bind.EncodedCall, error)
 	EmitSkippedReportExecutionEvent(sourceChainSelector uint64) (*bind.EncodedCall, error)
 	EmitSkippedReportExecutionEventWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -726,8 +726,8 @@ func (c *OfframpContract) EmitStaticConfigSetEvent(ctx context.Context, opts *bi
 }
 
 // EmitDynamicConfigSetEvent executes the emit_dynamic_config_set_event Move function.
-func (c *OfframpContract) EmitDynamicConfigSetEvent(ctx context.Context, opts *bind.CallOpts, dynamicConfig DynamicConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.EmitDynamicConfigSetEvent(dynamicConfig)
+func (c *OfframpContract) EmitDynamicConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.EmitDynamicConfigSetEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -736,8 +736,8 @@ func (c *OfframpContract) EmitDynamicConfigSetEvent(ctx context.Context, opts *b
 }
 
 // EmitSourceChainConfigSetEvent executes the emit_source_chain_config_set_event Move function.
-func (c *OfframpContract) EmitSourceChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, sourceChainConfig SourceChainConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.EmitSourceChainConfigSetEvent(sourceChainSelector, sourceChainConfig)
+func (c *OfframpContract) EmitSourceChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.EmitSourceChainConfigSetEvent(sourceChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -756,8 +756,8 @@ func (c *OfframpContract) EmitSkippedAlreadyExecutedEvent(ctx context.Context, o
 }
 
 // EmitExecutionStateChangedEvent executes the emit_execution_state_changed_event Move function.
-func (c *OfframpContract) EmitExecutionStateChangedEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64, sequenceNumber uint64, messageId []byte, messageHash []byte, state byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.EmitExecutionStateChangedEvent(sourceChainSelector, sequenceNumber, messageId, messageHash, state)
+func (c *OfframpContract) EmitExecutionStateChangedEvent(ctx context.Context, opts *bind.CallOpts, sourceChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.EmitExecutionStateChangedEvent(sourceChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -766,8 +766,8 @@ func (c *OfframpContract) EmitExecutionStateChangedEvent(ctx context.Context, op
 }
 
 // EmitCommitReportAcceptedEvent executes the emit_commit_report_accepted_event Move function.
-func (c *OfframpContract) EmitCommitReportAcceptedEvent(ctx context.Context, opts *bind.CallOpts, blessedMerkleRoots []MerkleRoot, unblessedMerkleRoots []MerkleRoot, priceUpdates PriceUpdates) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.EmitCommitReportAcceptedEvent(blessedMerkleRoots, unblessedMerkleRoots, priceUpdates)
+func (c *OfframpContract) EmitCommitReportAcceptedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.EmitCommitReportAcceptedEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -922,22 +922,16 @@ func (c offrampEncoder) EmitStaticConfigSetEventWithArgs(args ...any) (*bind.Enc
 }
 
 // EmitDynamicConfigSetEvent encodes a call to the emit_dynamic_config_set_event Move function.
-func (c offrampEncoder) EmitDynamicConfigSetEvent(dynamicConfig DynamicConfig) (*bind.EncodedCall, error) {
+func (c offrampEncoder) EmitDynamicConfigSetEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_dynamic_config_set_event", typeArgsList, typeParamsList, []string{
-		"test::offramp::DynamicConfig",
-	}, []any{
-		dynamicConfig,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_dynamic_config_set_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitDynamicConfigSetEventWithArgs encodes a call to the emit_dynamic_config_set_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) EmitDynamicConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"test::offramp::DynamicConfig",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -948,15 +942,13 @@ func (c offrampEncoder) EmitDynamicConfigSetEventWithArgs(args ...any) (*bind.En
 }
 
 // EmitSourceChainConfigSetEvent encodes a call to the emit_source_chain_config_set_event Move function.
-func (c offrampEncoder) EmitSourceChainConfigSetEvent(sourceChainSelector uint64, sourceChainConfig SourceChainConfig) (*bind.EncodedCall, error) {
+func (c offrampEncoder) EmitSourceChainConfigSetEvent(sourceChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_source_chain_config_set_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"test::offramp::SourceChainConfig",
 	}, []any{
 		sourceChainSelector,
-		sourceChainConfig,
 	}, nil)
 }
 
@@ -965,7 +957,6 @@ func (c offrampEncoder) EmitSourceChainConfigSetEvent(sourceChainSelector uint64
 func (c offrampEncoder) EmitSourceChainConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"test::offramp::SourceChainConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1006,21 +997,13 @@ func (c offrampEncoder) EmitSkippedAlreadyExecutedEventWithArgs(args ...any) (*b
 }
 
 // EmitExecutionStateChangedEvent encodes a call to the emit_execution_state_changed_event Move function.
-func (c offrampEncoder) EmitExecutionStateChangedEvent(sourceChainSelector uint64, sequenceNumber uint64, messageId []byte, messageHash []byte, state byte) (*bind.EncodedCall, error) {
+func (c offrampEncoder) EmitExecutionStateChangedEvent(sourceChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_execution_state_changed_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"u64",
-		"vector<u8>",
-		"vector<u8>",
-		"u8",
 	}, []any{
 		sourceChainSelector,
-		sequenceNumber,
-		messageId,
-		messageHash,
-		state,
 	}, nil)
 }
 
@@ -1029,10 +1012,6 @@ func (c offrampEncoder) EmitExecutionStateChangedEvent(sourceChainSelector uint6
 func (c offrampEncoder) EmitExecutionStateChangedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"u64",
-		"vector<u8>",
-		"vector<u8>",
-		"u8",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1044,28 +1023,16 @@ func (c offrampEncoder) EmitExecutionStateChangedEventWithArgs(args ...any) (*bi
 }
 
 // EmitCommitReportAcceptedEvent encodes a call to the emit_commit_report_accepted_event Move function.
-func (c offrampEncoder) EmitCommitReportAcceptedEvent(blessedMerkleRoots []MerkleRoot, unblessedMerkleRoots []MerkleRoot, priceUpdates PriceUpdates) (*bind.EncodedCall, error) {
+func (c offrampEncoder) EmitCommitReportAcceptedEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_commit_report_accepted_event", typeArgsList, typeParamsList, []string{
-		"vector<test::offramp::MerkleRoot>",
-		"vector<test::offramp::MerkleRoot>",
-		"test::offramp::PriceUpdates",
-	}, []any{
-		blessedMerkleRoots,
-		unblessedMerkleRoots,
-		priceUpdates,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_commit_report_accepted_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitCommitReportAcceptedEventWithArgs encodes a call to the emit_commit_report_accepted_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c offrampEncoder) EmitCommitReportAcceptedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"vector<test::offramp::MerkleRoot>",
-		"vector<test::offramp::MerkleRoot>",
-		"test::offramp::PriceUpdates",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))

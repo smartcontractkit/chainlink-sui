@@ -2,11 +2,13 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
@@ -100,7 +102,7 @@ func (e *OffRampEmitterImpl) EmitEvent(ctx context.Context, gasBudget uint64, fu
 
 	if functionName == "" {
 		e.lggr.Errorw("Function name is required")
-		return nil, fmt.Errorf("function name is required")
+		return nil, errors.New("function name is required")
 	}
 
 	ptb := transaction.NewTransaction()
@@ -139,7 +141,7 @@ func (e *OffRampEmitterImpl) BatchEmitEvents(ctx context.Context, gasBudget uint
 	e.EmitSourceChainConfigSetEvent(ctx, gasBudget, ptb, true)
 	e.EmitCommitReportAcceptedEvent(ctx, gasBudget, ptb, true)
 	e.EmitSkippedAlreadyExecutedEvent(ctx, gasBudget, ptb, true)
-	//e.EmitExecutionStateChangedEvent(ctx, gasBudget, ptb, true)
+	// e.EmitExecutionStateChangedEvent(ctx, gasBudget, ptb, true)
 	e.EmitSkippedReportExecutionEvent(ctx, gasBudget, ptb, true)
 	e.EmitOcrConfigEvent(ctx, gasBudget, ptb, true)
 	tx, err := bind.ExecutePTB(ctx, &e.callOpts, e.client, ptb)

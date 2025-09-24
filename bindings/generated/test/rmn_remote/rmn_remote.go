@@ -20,11 +20,11 @@ var (
 )
 
 type IRmnRemote interface {
-	EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts, version uint32, config Config) (*models.SuiTransactionBlockResponse, error)
-	EmitCursedEvent(ctx context.Context, opts *bind.CallOpts, subject []byte) (*models.SuiTransactionBlockResponse, error)
-	EmitCursedMultipleEvent(ctx context.Context, opts *bind.CallOpts, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
-	EmitUncursedEvent(ctx context.Context, opts *bind.CallOpts, subject []byte) (*models.SuiTransactionBlockResponse, error)
-	EmitUncursedMultipleEvent(ctx context.Context, opts *bind.CallOpts, subjects [][]byte) (*models.SuiTransactionBlockResponse, error)
+	EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts, version uint32) (*models.SuiTransactionBlockResponse, error)
+	EmitCursedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitCursedMultipleEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitUncursedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitUncursedMultipleEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRmnRemoteDevInspect
 	Encoder() RmnRemoteEncoder
 	Bound() bind.IBoundContract
@@ -34,15 +34,15 @@ type IRmnRemoteDevInspect interface {
 }
 
 type RmnRemoteEncoder interface {
-	EmitConfigSetEvent(version uint32, config Config) (*bind.EncodedCall, error)
+	EmitConfigSetEvent(version uint32) (*bind.EncodedCall, error)
 	EmitConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitCursedEvent(subject []byte) (*bind.EncodedCall, error)
+	EmitCursedEvent() (*bind.EncodedCall, error)
 	EmitCursedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitCursedMultipleEvent(subjects [][]byte) (*bind.EncodedCall, error)
+	EmitCursedMultipleEvent() (*bind.EncodedCall, error)
 	EmitCursedMultipleEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitUncursedEvent(subject []byte) (*bind.EncodedCall, error)
+	EmitUncursedEvent() (*bind.EncodedCall, error)
 	EmitUncursedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitUncursedMultipleEvent(subjects [][]byte) (*bind.EncodedCall, error)
+	EmitUncursedMultipleEvent() (*bind.EncodedCall, error)
 	EmitUncursedMultipleEventWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -226,8 +226,8 @@ func init() {
 }
 
 // EmitConfigSetEvent executes the emit_config_set_event Move function.
-func (c *RmnRemoteContract) EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts, version uint32, config Config) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.EmitConfigSetEvent(version, config)
+func (c *RmnRemoteContract) EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts, version uint32) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.EmitConfigSetEvent(version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -236,8 +236,8 @@ func (c *RmnRemoteContract) EmitConfigSetEvent(ctx context.Context, opts *bind.C
 }
 
 // EmitCursedEvent executes the emit_cursed_event Move function.
-func (c *RmnRemoteContract) EmitCursedEvent(ctx context.Context, opts *bind.CallOpts, subject []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.EmitCursedEvent(subject)
+func (c *RmnRemoteContract) EmitCursedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.EmitCursedEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -246,8 +246,8 @@ func (c *RmnRemoteContract) EmitCursedEvent(ctx context.Context, opts *bind.Call
 }
 
 // EmitCursedMultipleEvent executes the emit_cursed_multiple_event Move function.
-func (c *RmnRemoteContract) EmitCursedMultipleEvent(ctx context.Context, opts *bind.CallOpts, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.EmitCursedMultipleEvent(subjects)
+func (c *RmnRemoteContract) EmitCursedMultipleEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.EmitCursedMultipleEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -256,8 +256,8 @@ func (c *RmnRemoteContract) EmitCursedMultipleEvent(ctx context.Context, opts *b
 }
 
 // EmitUncursedEvent executes the emit_uncursed_event Move function.
-func (c *RmnRemoteContract) EmitUncursedEvent(ctx context.Context, opts *bind.CallOpts, subject []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.EmitUncursedEvent(subject)
+func (c *RmnRemoteContract) EmitUncursedEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.EmitUncursedEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -266,8 +266,8 @@ func (c *RmnRemoteContract) EmitUncursedEvent(ctx context.Context, opts *bind.Ca
 }
 
 // EmitUncursedMultipleEvent executes the emit_uncursed_multiple_event Move function.
-func (c *RmnRemoteContract) EmitUncursedMultipleEvent(ctx context.Context, opts *bind.CallOpts, subjects [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.rmnRemoteEncoder.EmitUncursedMultipleEvent(subjects)
+func (c *RmnRemoteContract) EmitUncursedMultipleEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.rmnRemoteEncoder.EmitUncursedMultipleEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -280,15 +280,13 @@ type rmnRemoteEncoder struct {
 }
 
 // EmitConfigSetEvent encodes a call to the emit_config_set_event Move function.
-func (c rmnRemoteEncoder) EmitConfigSetEvent(version uint32, config Config) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) EmitConfigSetEvent(version uint32) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_config_set_event", typeArgsList, typeParamsList, []string{
 		"u32",
-		"test::rmn_remote::Config",
 	}, []any{
 		version,
-		config,
 	}, nil)
 }
 
@@ -297,7 +295,6 @@ func (c rmnRemoteEncoder) EmitConfigSetEvent(version uint32, config Config) (*bi
 func (c rmnRemoteEncoder) EmitConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u32",
-		"test::rmn_remote::Config",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -309,22 +306,16 @@ func (c rmnRemoteEncoder) EmitConfigSetEventWithArgs(args ...any) (*bind.Encoded
 }
 
 // EmitCursedEvent encodes a call to the emit_cursed_event Move function.
-func (c rmnRemoteEncoder) EmitCursedEvent(subject []byte) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) EmitCursedEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_cursed_event", typeArgsList, typeParamsList, []string{
-		"vector<u8>",
-	}, []any{
-		subject,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_cursed_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitCursedEventWithArgs encodes a call to the emit_cursed_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c rmnRemoteEncoder) EmitCursedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"vector<u8>",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -335,22 +326,16 @@ func (c rmnRemoteEncoder) EmitCursedEventWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // EmitCursedMultipleEvent encodes a call to the emit_cursed_multiple_event Move function.
-func (c rmnRemoteEncoder) EmitCursedMultipleEvent(subjects [][]byte) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) EmitCursedMultipleEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_cursed_multiple_event", typeArgsList, typeParamsList, []string{
-		"vector<vector<u8>>",
-	}, []any{
-		subjects,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_cursed_multiple_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitCursedMultipleEventWithArgs encodes a call to the emit_cursed_multiple_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c rmnRemoteEncoder) EmitCursedMultipleEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"vector<vector<u8>>",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -361,22 +346,16 @@ func (c rmnRemoteEncoder) EmitCursedMultipleEventWithArgs(args ...any) (*bind.En
 }
 
 // EmitUncursedEvent encodes a call to the emit_uncursed_event Move function.
-func (c rmnRemoteEncoder) EmitUncursedEvent(subject []byte) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) EmitUncursedEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_uncursed_event", typeArgsList, typeParamsList, []string{
-		"vector<u8>",
-	}, []any{
-		subject,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_uncursed_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitUncursedEventWithArgs encodes a call to the emit_uncursed_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c rmnRemoteEncoder) EmitUncursedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"vector<u8>",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -387,22 +366,16 @@ func (c rmnRemoteEncoder) EmitUncursedEventWithArgs(args ...any) (*bind.EncodedC
 }
 
 // EmitUncursedMultipleEvent encodes a call to the emit_uncursed_multiple_event Move function.
-func (c rmnRemoteEncoder) EmitUncursedMultipleEvent(subjects [][]byte) (*bind.EncodedCall, error) {
+func (c rmnRemoteEncoder) EmitUncursedMultipleEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_uncursed_multiple_event", typeArgsList, typeParamsList, []string{
-		"vector<vector<u8>>",
-	}, []any{
-		subjects,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_uncursed_multiple_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitUncursedMultipleEventWithArgs encodes a call to the emit_uncursed_multiple_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c rmnRemoteEncoder) EmitUncursedMultipleEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"vector<vector<u8>>",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))

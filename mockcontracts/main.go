@@ -9,13 +9,14 @@ import (
 	"strconv"
 
 	"github.com/block-vision/sui-go-sdk/sui"
+	"go.uber.org/zap"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/mockcontracts/account"
 	"github.com/smartcontractkit/chainlink-sui/mockcontracts/deploy"
 	"github.com/smartcontractkit/chainlink-sui/mockcontracts/events"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
-	"go.uber.org/zap"
 )
 
 const pidFile = "sui.pid"

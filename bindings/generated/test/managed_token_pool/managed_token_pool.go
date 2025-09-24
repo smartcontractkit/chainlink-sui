@@ -20,12 +20,12 @@ var (
 )
 
 type IManagedTokenPool interface {
-	EmitTokenLockedOrBurnedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error)
-	EmitChainAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64, remoteTokenAddress []byte) (*models.SuiTransactionBlockResponse, error)
+	EmitTokenLockedOrBurnedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitChainAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	EmitChainRemovedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	EmitRemotePoolAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
-	EmitRemotePoolRemovedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error)
-	EmitTokenReleasedOrMintedEvent(ctx context.Context, opts *bind.CallOpts, receiver string, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitRemotePoolAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitRemotePoolRemovedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitTokenReleasedOrMintedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	CreatePendingTransferRequest(ctx context.Context, opts *bind.CallOpts, from string, to string) (*models.SuiTransactionBlockResponse, error)
 	CreateAcceptedTransferRequest(ctx context.Context, opts *bind.CallOpts, from string, to string) (*models.SuiTransactionBlockResponse, error)
 	CreateRejectedTransferRequest(ctx context.Context, opts *bind.CallOpts, from string, to string) (*models.SuiTransactionBlockResponse, error)
@@ -41,17 +41,17 @@ type IManagedTokenPoolDevInspect interface {
 }
 
 type ManagedTokenPoolEncoder interface {
-	EmitTokenLockedOrBurnedEvent(amount uint64, remoteChainSelector uint64, token string) (*bind.EncodedCall, error)
+	EmitTokenLockedOrBurnedEvent(amount uint64, remoteChainSelector uint64) (*bind.EncodedCall, error)
 	EmitTokenLockedOrBurnedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitChainAddedEvent(remoteChainSelector uint64, remoteTokenAddress []byte) (*bind.EncodedCall, error)
+	EmitChainAddedEvent(remoteChainSelector uint64) (*bind.EncodedCall, error)
 	EmitChainAddedEventWithArgs(args ...any) (*bind.EncodedCall, error)
 	EmitChainRemovedEvent(remoteChainSelector uint64) (*bind.EncodedCall, error)
 	EmitChainRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitRemotePoolAddedEvent(remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error)
+	EmitRemotePoolAddedEvent(remoteChainSelector uint64) (*bind.EncodedCall, error)
 	EmitRemotePoolAddedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitRemotePoolRemovedEvent(remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error)
+	EmitRemotePoolRemovedEvent(remoteChainSelector uint64) (*bind.EncodedCall, error)
 	EmitRemotePoolRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitTokenReleasedOrMintedEvent(receiver string, amount uint64, remoteChainSelector uint64) (*bind.EncodedCall, error)
+	EmitTokenReleasedOrMintedEvent(amount uint64, remoteChainSelector uint64) (*bind.EncodedCall, error)
 	EmitTokenReleasedOrMintedEventWithArgs(args ...any) (*bind.EncodedCall, error)
 	CreatePendingTransferRequest(from string, to string) (*bind.EncodedCall, error)
 	CreatePendingTransferRequestWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -135,13 +135,6 @@ type LiquidityAdded struct {
 	LocalToken string `move:"address"`
 	Provider   string `move:"address"`
 	Amount     uint64 `move:"u64"`
-}
-
-type ManagedTokenPoolState struct {
-	Id             string      `move:"sui::object::UID"`
-	TokenPoolState bind.Object `move:"TokenPoolState"`
-	MintCap        bind.Object `move:"MintCap<T>"`
-	OwnableState   bind.Object `move:"OwnableState"`
 }
 
 type TokenPoolState struct {
@@ -228,31 +221,6 @@ func convertLiquidityAddedFromBCS(bcs bcsLiquidityAdded) (LiquidityAdded, error)
 		LocalToken: fmt.Sprintf("0x%x", bcs.LocalToken),
 		Provider:   fmt.Sprintf("0x%x", bcs.Provider),
 		Amount:     bcs.Amount,
-	}, nil
-}
-
-type bcsManagedTokenPoolState struct {
-	Id             string
-	TokenPoolState bcsTokenPoolState
-	MintCap        bind.Object
-	OwnableState   bcsOwnableState
-}
-
-func convertManagedTokenPoolStateFromBCS(bcs bcsManagedTokenPoolState) (ManagedTokenPoolState, error) {
-	TokenPoolStateField, err := convertTokenPoolStateFromBCS(bcs.TokenPoolState)
-	if err != nil {
-		return ManagedTokenPoolState{}, fmt.Errorf("failed to convert nested struct TokenPoolState: %w", err)
-	}
-	OwnableStateField, err := convertOwnableStateFromBCS(bcs.OwnableState)
-	if err != nil {
-		return ManagedTokenPoolState{}, fmt.Errorf("failed to convert nested struct OwnableState: %w", err)
-	}
-
-	return ManagedTokenPoolState{
-		Id:             bcs.Id,
-		TokenPoolState: TokenPoolStateField,
-		MintCap:        bcs.MintCap,
-		OwnableState:   OwnableStateField,
 	}, nil
 }
 
@@ -393,19 +361,6 @@ func init() {
 		}
 		return result, nil
 	})
-	bind.RegisterStructDecoder("test::managed_token_pool::ManagedTokenPoolState", func(data []byte) (interface{}, error) {
-		var temp bcsManagedTokenPoolState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertManagedTokenPoolStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
 	bind.RegisterStructDecoder("test::managed_token_pool::TokenPoolState", func(data []byte) (interface{}, error) {
 		var temp bcsTokenPoolState
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -464,8 +419,8 @@ func init() {
 }
 
 // EmitTokenLockedOrBurnedEvent executes the emit_token_locked_or_burned_event Move function.
-func (c *ManagedTokenPoolContract) EmitTokenLockedOrBurnedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64, token string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.EmitTokenLockedOrBurnedEvent(amount, remoteChainSelector, token)
+func (c *ManagedTokenPoolContract) EmitTokenLockedOrBurnedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.EmitTokenLockedOrBurnedEvent(amount, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -474,8 +429,8 @@ func (c *ManagedTokenPoolContract) EmitTokenLockedOrBurnedEvent(ctx context.Cont
 }
 
 // EmitChainAddedEvent executes the emit_chain_added_event Move function.
-func (c *ManagedTokenPoolContract) EmitChainAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64, remoteTokenAddress []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.EmitChainAddedEvent(remoteChainSelector, remoteTokenAddress)
+func (c *ManagedTokenPoolContract) EmitChainAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.EmitChainAddedEvent(remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -494,8 +449,8 @@ func (c *ManagedTokenPoolContract) EmitChainRemovedEvent(ctx context.Context, op
 }
 
 // EmitRemotePoolAddedEvent executes the emit_remote_pool_added_event Move function.
-func (c *ManagedTokenPoolContract) EmitRemotePoolAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.EmitRemotePoolAddedEvent(remoteChainSelector, remotePoolAddress)
+func (c *ManagedTokenPoolContract) EmitRemotePoolAddedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.EmitRemotePoolAddedEvent(remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -504,8 +459,8 @@ func (c *ManagedTokenPoolContract) EmitRemotePoolAddedEvent(ctx context.Context,
 }
 
 // EmitRemotePoolRemovedEvent executes the emit_remote_pool_removed_event Move function.
-func (c *ManagedTokenPoolContract) EmitRemotePoolRemovedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64, remotePoolAddress []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.EmitRemotePoolRemovedEvent(remoteChainSelector, remotePoolAddress)
+func (c *ManagedTokenPoolContract) EmitRemotePoolRemovedEvent(ctx context.Context, opts *bind.CallOpts, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.EmitRemotePoolRemovedEvent(remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -514,8 +469,8 @@ func (c *ManagedTokenPoolContract) EmitRemotePoolRemovedEvent(ctx context.Contex
 }
 
 // EmitTokenReleasedOrMintedEvent executes the emit_token_released_or_minted_event Move function.
-func (c *ManagedTokenPoolContract) EmitTokenReleasedOrMintedEvent(ctx context.Context, opts *bind.CallOpts, receiver string, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenPoolEncoder.EmitTokenReleasedOrMintedEvent(receiver, amount, remoteChainSelector)
+func (c *ManagedTokenPoolContract) EmitTokenReleasedOrMintedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenPoolEncoder.EmitTokenReleasedOrMintedEvent(amount, remoteChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -624,17 +579,15 @@ type managedTokenPoolEncoder struct {
 }
 
 // EmitTokenLockedOrBurnedEvent encodes a call to the emit_token_locked_or_burned_event Move function.
-func (c managedTokenPoolEncoder) EmitTokenLockedOrBurnedEvent(amount uint64, remoteChainSelector uint64, token string) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) EmitTokenLockedOrBurnedEvent(amount uint64, remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_token_locked_or_burned_event", typeArgsList, typeParamsList, []string{
 		"u64",
 		"u64",
-		"address",
 	}, []any{
 		amount,
 		remoteChainSelector,
-		token,
 	}, nil)
 }
 
@@ -644,7 +597,6 @@ func (c managedTokenPoolEncoder) EmitTokenLockedOrBurnedEventWithArgs(args ...an
 	expectedParams := []string{
 		"u64",
 		"u64",
-		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -656,15 +608,13 @@ func (c managedTokenPoolEncoder) EmitTokenLockedOrBurnedEventWithArgs(args ...an
 }
 
 // EmitChainAddedEvent encodes a call to the emit_chain_added_event Move function.
-func (c managedTokenPoolEncoder) EmitChainAddedEvent(remoteChainSelector uint64, remoteTokenAddress []byte) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) EmitChainAddedEvent(remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_chain_added_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"vector<u8>",
 	}, []any{
 		remoteChainSelector,
-		remoteTokenAddress,
 	}, nil)
 }
 
@@ -673,7 +623,6 @@ func (c managedTokenPoolEncoder) EmitChainAddedEvent(remoteChainSelector uint64,
 func (c managedTokenPoolEncoder) EmitChainAddedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"vector<u8>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -711,15 +660,13 @@ func (c managedTokenPoolEncoder) EmitChainRemovedEventWithArgs(args ...any) (*bi
 }
 
 // EmitRemotePoolAddedEvent encodes a call to the emit_remote_pool_added_event Move function.
-func (c managedTokenPoolEncoder) EmitRemotePoolAddedEvent(remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) EmitRemotePoolAddedEvent(remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_remote_pool_added_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"vector<u8>",
 	}, []any{
 		remoteChainSelector,
-		remotePoolAddress,
 	}, nil)
 }
 
@@ -728,7 +675,6 @@ func (c managedTokenPoolEncoder) EmitRemotePoolAddedEvent(remoteChainSelector ui
 func (c managedTokenPoolEncoder) EmitRemotePoolAddedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"vector<u8>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -740,15 +686,13 @@ func (c managedTokenPoolEncoder) EmitRemotePoolAddedEventWithArgs(args ...any) (
 }
 
 // EmitRemotePoolRemovedEvent encodes a call to the emit_remote_pool_removed_event Move function.
-func (c managedTokenPoolEncoder) EmitRemotePoolRemovedEvent(remoteChainSelector uint64, remotePoolAddress []byte) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) EmitRemotePoolRemovedEvent(remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_remote_pool_removed_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"vector<u8>",
 	}, []any{
 		remoteChainSelector,
-		remotePoolAddress,
 	}, nil)
 }
 
@@ -757,7 +701,6 @@ func (c managedTokenPoolEncoder) EmitRemotePoolRemovedEvent(remoteChainSelector 
 func (c managedTokenPoolEncoder) EmitRemotePoolRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"vector<u8>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -769,15 +712,13 @@ func (c managedTokenPoolEncoder) EmitRemotePoolRemovedEventWithArgs(args ...any)
 }
 
 // EmitTokenReleasedOrMintedEvent encodes a call to the emit_token_released_or_minted_event Move function.
-func (c managedTokenPoolEncoder) EmitTokenReleasedOrMintedEvent(receiver string, amount uint64, remoteChainSelector uint64) (*bind.EncodedCall, error) {
+func (c managedTokenPoolEncoder) EmitTokenReleasedOrMintedEvent(amount uint64, remoteChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_token_released_or_minted_event", typeArgsList, typeParamsList, []string{
-		"address",
 		"u64",
 		"u64",
 	}, []any{
-		receiver,
 		amount,
 		remoteChainSelector,
 	}, nil)
@@ -787,7 +728,6 @@ func (c managedTokenPoolEncoder) EmitTokenReleasedOrMintedEvent(receiver string,
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c managedTokenPoolEncoder) EmitTokenReleasedOrMintedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"address",
 		"u64",
 		"u64",
 	}

@@ -20,12 +20,12 @@ var (
 )
 
 type IOnramp interface {
-	EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts, staticConfig StaticConfig, dynamicConfig DynamicConfig) (*models.SuiTransactionBlockResponse, error)
-	EmitDestChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, isEnabled bool, sequenceNumber uint64, allowlistEnabled bool) (*models.SuiTransactionBlockResponse, error)
-	EmitCcipMessageSentEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, sequenceNumber uint64, message Sui2AnyRampMessage) (*models.SuiTransactionBlockResponse, error)
-	EmitAllowlistSendersAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, senders []string) (*models.SuiTransactionBlockResponse, error)
-	EmitAllowlistSendersRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, senders []string) (*models.SuiTransactionBlockResponse, error)
-	EmitFeeTokenWithdrawnEvent(ctx context.Context, opts *bind.CallOpts, feeAggregator string, feeToken string, amount uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitDestChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
+	EmitCcipMessageSentEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitAllowlistSendersAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitAllowlistSendersRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	EmitFeeTokenWithdrawnEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOnrampDevInspect
 	Encoder() OnrampEncoder
 	Bound() bind.IBoundContract
@@ -35,17 +35,17 @@ type IOnrampDevInspect interface {
 }
 
 type OnrampEncoder interface {
-	EmitConfigSetEvent(staticConfig StaticConfig, dynamicConfig DynamicConfig) (*bind.EncodedCall, error)
+	EmitConfigSetEvent() (*bind.EncodedCall, error)
 	EmitConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitDestChainConfigSetEvent(destChainSelector uint64, isEnabled bool, sequenceNumber uint64, allowlistEnabled bool) (*bind.EncodedCall, error)
+	EmitDestChainConfigSetEvent() (*bind.EncodedCall, error)
 	EmitDestChainConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitCcipMessageSentEvent(destChainSelector uint64, sequenceNumber uint64, message Sui2AnyRampMessage) (*bind.EncodedCall, error)
+	EmitCcipMessageSentEvent(destChainSelector uint64, sequenceNumber uint64) (*bind.EncodedCall, error)
 	EmitCcipMessageSentEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitAllowlistSendersAddedEvent(destChainSelector uint64, senders []string) (*bind.EncodedCall, error)
+	EmitAllowlistSendersAddedEvent(destChainSelector uint64) (*bind.EncodedCall, error)
 	EmitAllowlistSendersAddedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitAllowlistSendersRemovedEvent(destChainSelector uint64, senders []string) (*bind.EncodedCall, error)
+	EmitAllowlistSendersRemovedEvent(destChainSelector uint64) (*bind.EncodedCall, error)
 	EmitAllowlistSendersRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error)
-	EmitFeeTokenWithdrawnEvent(feeAggregator string, feeToken string, amount uint64) (*bind.EncodedCall, error)
+	EmitFeeTokenWithdrawnEvent() (*bind.EncodedCall, error)
 	EmitFeeTokenWithdrawnEventWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
@@ -523,8 +523,8 @@ func init() {
 }
 
 // EmitConfigSetEvent executes the emit_config_set_event Move function.
-func (c *OnrampContract) EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts, staticConfig StaticConfig, dynamicConfig DynamicConfig) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.EmitConfigSetEvent(staticConfig, dynamicConfig)
+func (c *OnrampContract) EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.EmitConfigSetEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -533,8 +533,8 @@ func (c *OnrampContract) EmitConfigSetEvent(ctx context.Context, opts *bind.Call
 }
 
 // EmitDestChainConfigSetEvent executes the emit_dest_chain_config_set_event Move function.
-func (c *OnrampContract) EmitDestChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, isEnabled bool, sequenceNumber uint64, allowlistEnabled bool) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.EmitDestChainConfigSetEvent(destChainSelector, isEnabled, sequenceNumber, allowlistEnabled)
+func (c *OnrampContract) EmitDestChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.EmitDestChainConfigSetEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -543,8 +543,8 @@ func (c *OnrampContract) EmitDestChainConfigSetEvent(ctx context.Context, opts *
 }
 
 // EmitCcipMessageSentEvent executes the emit_ccip_message_sent_event Move function.
-func (c *OnrampContract) EmitCcipMessageSentEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, sequenceNumber uint64, message Sui2AnyRampMessage) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.EmitCcipMessageSentEvent(destChainSelector, sequenceNumber, message)
+func (c *OnrampContract) EmitCcipMessageSentEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.EmitCcipMessageSentEvent(destChainSelector, sequenceNumber)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -553,8 +553,8 @@ func (c *OnrampContract) EmitCcipMessageSentEvent(ctx context.Context, opts *bin
 }
 
 // EmitAllowlistSendersAddedEvent executes the emit_allowlist_senders_added_event Move function.
-func (c *OnrampContract) EmitAllowlistSendersAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, senders []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.EmitAllowlistSendersAddedEvent(destChainSelector, senders)
+func (c *OnrampContract) EmitAllowlistSendersAddedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.EmitAllowlistSendersAddedEvent(destChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -563,8 +563,8 @@ func (c *OnrampContract) EmitAllowlistSendersAddedEvent(ctx context.Context, opt
 }
 
 // EmitAllowlistSendersRemovedEvent executes the emit_allowlist_senders_removed_event Move function.
-func (c *OnrampContract) EmitAllowlistSendersRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64, senders []string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.EmitAllowlistSendersRemovedEvent(destChainSelector, senders)
+func (c *OnrampContract) EmitAllowlistSendersRemovedEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.EmitAllowlistSendersRemovedEvent(destChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -573,8 +573,8 @@ func (c *OnrampContract) EmitAllowlistSendersRemovedEvent(ctx context.Context, o
 }
 
 // EmitFeeTokenWithdrawnEvent executes the emit_fee_token_withdrawn_event Move function.
-func (c *OnrampContract) EmitFeeTokenWithdrawnEvent(ctx context.Context, opts *bind.CallOpts, feeAggregator string, feeToken string, amount uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.EmitFeeTokenWithdrawnEvent(feeAggregator, feeToken, amount)
+func (c *OnrampContract) EmitFeeTokenWithdrawnEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.EmitFeeTokenWithdrawnEvent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -587,25 +587,16 @@ type onrampEncoder struct {
 }
 
 // EmitConfigSetEvent encodes a call to the emit_config_set_event Move function.
-func (c onrampEncoder) EmitConfigSetEvent(staticConfig StaticConfig, dynamicConfig DynamicConfig) (*bind.EncodedCall, error) {
+func (c onrampEncoder) EmitConfigSetEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_config_set_event", typeArgsList, typeParamsList, []string{
-		"test::onramp::StaticConfig",
-		"test::onramp::DynamicConfig",
-	}, []any{
-		staticConfig,
-		dynamicConfig,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_config_set_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitConfigSetEventWithArgs encodes a call to the emit_config_set_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) EmitConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"test::onramp::StaticConfig",
-		"test::onramp::DynamicConfig",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -616,31 +607,16 @@ func (c onrampEncoder) EmitConfigSetEventWithArgs(args ...any) (*bind.EncodedCal
 }
 
 // EmitDestChainConfigSetEvent encodes a call to the emit_dest_chain_config_set_event Move function.
-func (c onrampEncoder) EmitDestChainConfigSetEvent(destChainSelector uint64, isEnabled bool, sequenceNumber uint64, allowlistEnabled bool) (*bind.EncodedCall, error) {
+func (c onrampEncoder) EmitDestChainConfigSetEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_dest_chain_config_set_event", typeArgsList, typeParamsList, []string{
-		"u64",
-		"bool",
-		"u64",
-		"bool",
-	}, []any{
-		destChainSelector,
-		isEnabled,
-		sequenceNumber,
-		allowlistEnabled,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_dest_chain_config_set_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitDestChainConfigSetEventWithArgs encodes a call to the emit_dest_chain_config_set_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) EmitDestChainConfigSetEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"u64",
-		"bool",
-		"u64",
-		"bool",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
@@ -651,17 +627,15 @@ func (c onrampEncoder) EmitDestChainConfigSetEventWithArgs(args ...any) (*bind.E
 }
 
 // EmitCcipMessageSentEvent encodes a call to the emit_ccip_message_sent_event Move function.
-func (c onrampEncoder) EmitCcipMessageSentEvent(destChainSelector uint64, sequenceNumber uint64, message Sui2AnyRampMessage) (*bind.EncodedCall, error) {
+func (c onrampEncoder) EmitCcipMessageSentEvent(destChainSelector uint64, sequenceNumber uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_ccip_message_sent_event", typeArgsList, typeParamsList, []string{
 		"u64",
 		"u64",
-		"test::onramp::Sui2AnyRampMessage",
 	}, []any{
 		destChainSelector,
 		sequenceNumber,
-		message,
 	}, nil)
 }
 
@@ -671,7 +645,6 @@ func (c onrampEncoder) EmitCcipMessageSentEventWithArgs(args ...any) (*bind.Enco
 	expectedParams := []string{
 		"u64",
 		"u64",
-		"test::onramp::Sui2AnyRampMessage",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -683,15 +656,13 @@ func (c onrampEncoder) EmitCcipMessageSentEventWithArgs(args ...any) (*bind.Enco
 }
 
 // EmitAllowlistSendersAddedEvent encodes a call to the emit_allowlist_senders_added_event Move function.
-func (c onrampEncoder) EmitAllowlistSendersAddedEvent(destChainSelector uint64, senders []string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) EmitAllowlistSendersAddedEvent(destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_allowlist_senders_added_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"vector<address>",
 	}, []any{
 		destChainSelector,
-		senders,
 	}, nil)
 }
 
@@ -700,7 +671,6 @@ func (c onrampEncoder) EmitAllowlistSendersAddedEvent(destChainSelector uint64, 
 func (c onrampEncoder) EmitAllowlistSendersAddedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -712,15 +682,13 @@ func (c onrampEncoder) EmitAllowlistSendersAddedEventWithArgs(args ...any) (*bin
 }
 
 // EmitAllowlistSendersRemovedEvent encodes a call to the emit_allowlist_senders_removed_event Move function.
-func (c onrampEncoder) EmitAllowlistSendersRemovedEvent(destChainSelector uint64, senders []string) (*bind.EncodedCall, error) {
+func (c onrampEncoder) EmitAllowlistSendersRemovedEvent(destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("emit_allowlist_senders_removed_event", typeArgsList, typeParamsList, []string{
 		"u64",
-		"vector<address>",
 	}, []any{
 		destChainSelector,
-		senders,
 	}, nil)
 }
 
@@ -729,7 +697,6 @@ func (c onrampEncoder) EmitAllowlistSendersRemovedEvent(destChainSelector uint64
 func (c onrampEncoder) EmitAllowlistSendersRemovedEventWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"u64",
-		"vector<address>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -741,28 +708,16 @@ func (c onrampEncoder) EmitAllowlistSendersRemovedEventWithArgs(args ...any) (*b
 }
 
 // EmitFeeTokenWithdrawnEvent encodes a call to the emit_fee_token_withdrawn_event Move function.
-func (c onrampEncoder) EmitFeeTokenWithdrawnEvent(feeAggregator string, feeToken string, amount uint64) (*bind.EncodedCall, error) {
+func (c onrampEncoder) EmitFeeTokenWithdrawnEvent() (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("emit_fee_token_withdrawn_event", typeArgsList, typeParamsList, []string{
-		"address",
-		"address",
-		"u64",
-	}, []any{
-		feeAggregator,
-		feeToken,
-		amount,
-	}, nil)
+	return c.EncodeCallArgsWithGenerics("emit_fee_token_withdrawn_event", typeArgsList, typeParamsList, []string{}, []any{}, nil)
 }
 
 // EmitFeeTokenWithdrawnEventWithArgs encodes a call to the emit_fee_token_withdrawn_event Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) EmitFeeTokenWithdrawnEventWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"address",
-		"address",
-		"u64",
-	}
+	expectedParams := []string{}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))

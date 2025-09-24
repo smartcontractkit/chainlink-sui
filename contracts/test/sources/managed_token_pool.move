@@ -55,14 +55,6 @@ public struct LiquidityAdded has copy, drop {
     amount: u64,
 }
 
-// Supporting structures needed for the events
-public struct ManagedTokenPoolState<phantom T> has key {
-    id: UID,
-    token_pool_state: TokenPoolState,
-    mint_cap: MintCap<T>,
-    ownable_state: OwnableState,
-}
-
 public struct TokenPoolState has key, store {
     id: UID,
     token: address,
@@ -271,14 +263,4 @@ public fun create_test_chain_selectors(): vector<u64> {
 /// Create test allowlist addresses
 public fun create_test_allowlist(): vector<address> {
     vector[@0x1, @0x2, @0x3, @0x4]
-}
-
-/// Create test lock_or_burn_params
-public fun create_test_lock_or_burn_params(): vector<address> {
-    vector[@0x6, @0x403, @0x1, @0x2]  // Clock, DenyList, ManagedTokenState, ManagedTokenPoolState
-}
-
-/// Create test release_or_mint_params
-public fun create_test_release_or_mint_params(): vector<address> {
-    vector[@0x6, @0x403, @0x1, @0x2]  // Clock, DenyList, ManagedTokenState, ManagedTokenPoolState
 }
