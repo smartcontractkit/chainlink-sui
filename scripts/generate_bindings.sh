@@ -64,3 +64,6 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_dummy_receiver --input
 
 # MCMS User for testing
 go run bindgen/main.go --moveConfig ./contracts/mcms/mcms_test --input ./contracts/mcms/mcms_test/sources/mcms_user.move --output ./bindings/generated/mcms/mcms_user
+
+# Update global function info file
+go run bindgen/main.go --function-info-only --output ./bindings/generated

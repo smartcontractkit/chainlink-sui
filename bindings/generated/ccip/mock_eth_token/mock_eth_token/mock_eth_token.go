@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"mock_eth_token","module":"mock_eth_token","name":"mint","parameters":[{"name":"treasury_cap","type":"TreasuryCap<MOCK_ETH_TOKEN>"},{"name":"amount","type":"u64"}]},{"package":"mock_eth_token","module":"mock_eth_token","name":"mint_and_transfer","parameters":[{"name":"treasury_cap","type":"TreasuryCap<MOCK_ETH_TOKEN>"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]}]`
+
 type IMockEthToken interface {
 	MintAndTransfer(ctx context.Context, opts *bind.CallOpts, treasuryCap bind.Object, amount uint64, recipient string) (*models.SuiTransactionBlockResponse, error)
 	Mint(ctx context.Context, opts *bind.CallOpts, treasuryCap bind.Object, amount uint64) (*models.SuiTransactionBlockResponse, error)

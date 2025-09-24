@@ -40,7 +40,7 @@ The devShell provides all the system tools and dependencies required to develop 
 (nix:nix-shell-env) $ sui version # sui 1.44.3-615516edb0ed
 ```
 
-To make sure that you're `sui` environment is ready, you can first check the active
+To make sure that your `sui` environment is ready, you can first check the active
 address using the cli
 
 ```bash

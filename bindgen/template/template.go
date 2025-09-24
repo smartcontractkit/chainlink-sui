@@ -54,12 +54,13 @@ func MustParseFunctionInfo(info ...string) []FunctionInfo {
 var tmpl string
 
 type tmplData struct {
-	Package  string
-	Module   string
-	Structs  []*tmplStruct
-	Funcs    []*tmplFunc
-	Imports  []*tmplImport
-	Artifact bind.PackageArtifact
+	Package      string
+	Module       string
+	FunctionInfo string
+	Structs      []*tmplStruct
+	Funcs        []*tmplFunc
+	Imports      []*tmplImport
+	Artifact     bind.PackageArtifact
 }
 
 func (d *tmplData) BuildStructMap() map[string]*tmplStruct {
@@ -289,7 +290,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 			})
 			functionInfo.Parameters = append(functionInfo.Parameters, FunctionParameter{
 				Name: param.Name,
-				Type: originalType,
+				Type: typ.MoveType,
 			})
 		}
 		for _, returnType := range f.ReturnTypes {
@@ -309,12 +310,24 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 			continue
 		}
 		data.Funcs = append(data.Funcs, out)
-		functionInfos = append(functionInfos, functionInfo)
+		if !strings.HasPrefix(f.Name, "mcms_") {
+			// Only add actual functions to the JSON info. Ignore MCMS wrappers
+			functionInfos = append(functionInfos, functionInfo)
+		}
 	}
 	slices.SortFunc(functionInfos, func(a, b FunctionInfo) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 
+	// Use a buffer with custom encoder to disable HTML escaping
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(functionInfos); err != nil {
+		return tmplData{}, err
+	}
+	// Remove the trailing newline that Encode() adds
+	data.FunctionInfo = strings.TrimSpace(buf.String())
 	for _, v := range importMap {
 		data.Imports = append(data.Imports, v)
 	}
