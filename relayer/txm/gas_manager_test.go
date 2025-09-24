@@ -206,7 +206,7 @@ func TestSuiGasManager_CalculateOfframpExecuteGasBudget(t *testing.T) {
 				},
 			},
 			expectedGas:   nil,
-			expectedError: errors.New("gasLimit in ExtraArgsDecoded is not *big.Int, got string"),
+			expectedError: errors.New("gasLimit in ExtraArgsDecoded is not *big.Int or uint64, got string"),
 		},
 		{
 			name: "error when destGasAmount is not uint64",
