@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"test","module":"generics","name":"balance","parameters":[{"name":"token","type":"Token<T>"}]},{"package":"test","module":"generics","name":"create_and_transfer_box","parameters":[{"name":"value","type":"T"}]},{"package":"test","module":"generics","name":"create_and_transfer_sui_token","parameters":null},{"package":"test","module":"generics","name":"create_and_transfer_token","parameters":null},{"package":"test","module":"generics","name":"create_box","parameters":[{"name":"value","type":"T"}]},{"package":"test","module":"generics","name":"create_pair","parameters":[{"name":"first","type":"T"},{"name":"second","type":"U"}]},{"package":"test","module":"generics","name":"create_sui_token","parameters":null},{"package":"test","module":"generics","name":"deposit","parameters":[{"name":"token","type":"Token<T>"},{"name":"coin","type":"Token<T>"}]},{"package":"test","module":"generics","name":"unbox","parameters":[{"name":"box","type":"Box<T>"}]}]`
+
 type IGenerics interface {
 	CreateBox(ctx context.Context, opts *bind.CallOpts, typeArgs []string, value bind.Object) (*models.SuiTransactionBlockResponse, error)
 	Unbox(ctx context.Context, opts *bind.CallOpts, typeArgs []string, box bind.Object) (*models.SuiTransactionBlockResponse, error)
