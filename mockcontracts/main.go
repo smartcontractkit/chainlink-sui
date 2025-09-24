@@ -248,6 +248,14 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 	}
 	lggr.Infow("Emitting fee quoter events", "tx", tx)
 
+	rmnRemoteEmitter := events.NewRMNRemoteEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = rmnRemoteEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit RMN remote events", "error", err)
+		return
+	}
+	lggr.Infow("Emitting RMN remote events", "tx", tx)
+
 	lggr.Infow("Event emission completed (scaffolding)")
 }
 

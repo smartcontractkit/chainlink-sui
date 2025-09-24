@@ -68,26 +68,52 @@ public struct Uncursed has copy, drop {
 // Simple methods to emit events for testing purposes
 
 /// Emit a ConfigSet event
-public fun emit_config_set_event(version: u32, config: Config) {
+public fun emit_config_set_event(version: u32) {
+    let config = create_default_test_config();
     event::emit(ConfigSet { version, config });
 }
 
 /// Emit a Cursed event for a single subject
-public fun emit_cursed_event(subject: vector<u8>) {
+public fun emit_cursed_event() {
+    let subject = b"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
     event::emit(Cursed { subjects: vector[subject] });
 }
 
 /// Emit a Cursed event for multiple subjects
-public fun emit_cursed_multiple_event(subjects: vector<vector<u8>>) {
+public fun emit_cursed_multiple_event() {
+    let subjects = vector[b"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"];
     event::emit(Cursed { subjects });
 }
 
 /// Emit an Uncursed event for a single subject
-public fun emit_uncursed_event(subject: vector<u8>) {
+public fun emit_uncursed_event() {
+    let subject = b"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
     event::emit(Uncursed { subjects: vector[subject] });
 }
 
 /// Emit an Uncursed event for multiple subjects
-public fun emit_uncursed_multiple_event(subjects: vector<vector<u8>>) {
+public fun emit_uncursed_multiple_event() {
+    let subjects = vector[b"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"];
     event::emit(Uncursed { subjects });
+}
+
+// Helper functions to create test structures
+
+/// Create a test Config
+public fun create_test_config(): Config {
+    Config {
+        rmn_home_contract_config_digest: b"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        signers: vector[
+            Signer {
+                onchain_public_key: b"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+                node_index: 1
+            }
+        ],
+        f_sign: 1000000,
+    }
+}
+
+/// Create a default test Config with reasonable values
+public fun create_default_test_config(): Config {
+    create_test_config()
 }
