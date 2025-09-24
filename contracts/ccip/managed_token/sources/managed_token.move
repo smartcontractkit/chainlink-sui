@@ -452,8 +452,7 @@ public fun destroy_managed_token<T>(
     };
     mint_allowances_map.destroy_empty();
 
-    ownable::destroy_ownable_state(ownable_state, ctx);
-    ownable::destroy_owner_cap(owner_cap, ctx);
+    ownable::destroy(ownable_state, owner_cap, ctx);
 
     (treasury_cap, deny_cap)
 }

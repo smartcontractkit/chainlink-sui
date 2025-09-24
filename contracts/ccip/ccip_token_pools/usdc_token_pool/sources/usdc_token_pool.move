@@ -1008,8 +1008,7 @@ public fun destroy_token_pool<T>(
     object::delete(state_id);
 
     // Destroy ownable state and owner cap using helper functions
-    ownable::destroy_ownable_state(ownable_state, ctx);
-    ownable::destroy_owner_cap(owner_cap, ctx);
+    ownable::destroy(ownable_state, owner_cap, ctx);
 }
 
 public fun mcms_transfer_ownership<T>(

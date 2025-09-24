@@ -465,8 +465,7 @@ public fun destroy_token_pool<T>(
     token_pool::destroy_token_pool(token_pool_state);
     object::delete(state_id);
 
-    ownable::destroy_ownable_state(ownable_state, ctx);
-    ownable::destroy_owner_cap(owner_cap, ctx);
+    ownable::destroy(ownable_state, owner_cap, ctx);
 
     treasury_cap
 }
