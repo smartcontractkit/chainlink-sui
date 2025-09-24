@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/blake2b"
 
@@ -120,23 +122,46 @@ func (c *PTBClient) TransformTransactionArg(
 			return &pureArg, nil
 		}
 	case "vector<address>":
-		// Handle vector of addresses
-		if addresses, ok := arg.([]string); ok {
-			// Convert each address string to proper Sui address bytes
-			convertedAddresses := make([]models.SuiAddressBytes, len(addresses))
-			for i, addr := range addresses {
-				addressBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(addr))
-				if err != nil {
-					return nil, fmt.Errorf("failed to convert address %s to Sui address: %w", addr, err)
-				}
-				convertedAddresses[i] = *addressBytes
-			}
-			pureArg := tx.Pure(convertedAddresses)
+		switch v := arg.(type) {
+		case []string:
+			// Already []string, convert directly
+			return convertAddresses(tx, v)
 
+		case []interface{}:
+			// JSON-decoded slice -> could be []byte or hex or base64 strings
+			addresses := make([]models.SuiAddressBytes, len(v))
+			for i, raw := range v {
+				s, ok := raw.(string)
+				if !ok {
+					return nil, fmt.Errorf("vector<address> element is not string: %T", raw)
+				}
+
+				s = strings.TrimPrefix(s, "0x")
+				b, err := hex.DecodeString(s)
+				if err != nil {
+					// fallback: base64 decode (Go JSON encodes []byte → base64 string)
+					b, err = base64.StdEncoding.DecodeString(s)
+					if err != nil {
+						return nil, fmt.Errorf("failed to decode address %q: %w", s, err)
+					}
+				}
+
+				if len(b) != 32 {
+					return nil, fmt.Errorf("address at index %d has wrong length %d, want 32", i, len(b))
+				}
+
+				var addr models.SuiAddressBytes
+				copy(addr[:], b)
+				addresses[i] = addr
+			}
+
+			pureArg := tx.Pure(addresses)
 			return &pureArg, nil
+
+		default:
+			return nil, fmt.Errorf("expected []string or []interface{} for vector<address>, got %T", arg)
 		}
 
-		return nil, fmt.Errorf("expected []string for vector<address>, got %T", arg)
 	default:
 		pureArg := tx.Pure(arg)
 		return &pureArg, nil
@@ -232,4 +257,18 @@ func (c *PTBClient) HashTxBytes(txBytes []byte) []byte {
 	intentMessage := append([]byte{0, 0, 0}, txBytes...)
 	digest := blake2b.Sum256(intentMessage)
 	return digest[:]
+}
+
+// convertAddresses converts string address to sui address bytes
+func convertAddresses(tx *transaction.Transaction, addresses []string) (*transaction.Argument, error) {
+	converted := make([]models.SuiAddressBytes, len(addresses))
+	for i, addr := range addresses {
+		addressBytes, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(addr))
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert address %s to Sui address: %w", addr, err)
+		}
+		converted[i] = *addressBytes
+	}
+	pureArg := tx.Pure(converted)
+	return &pureArg, nil
 }
