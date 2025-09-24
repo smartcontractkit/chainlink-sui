@@ -268,7 +268,12 @@ func DecodeParameters(lggr logger.Logger, function map[string]any, key string) (
 		}
 
 		if param.Reference == "Reference" {
-			paramTypes = append(paramTypes, "&object")
+			if strings.HasPrefix(param.Type, "u") || param.Type == "bool" {
+				// It's a primitive, not an object reference
+				paramTypes = append(paramTypes, param.Type)
+			} else {
+				paramTypes = append(paramTypes, "&object")
+			}
 			continue
 		}
 
