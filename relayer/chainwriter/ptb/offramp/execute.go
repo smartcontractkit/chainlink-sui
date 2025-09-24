@@ -109,7 +109,7 @@ func BuildOffRampExecutePTB(
 	offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
 	offrampEncoder := offrampContract.Encoder()
 
-	tokenReceiverBytes, ok := offrampArgs.ExtraData.ExtraArgsDecoded["token_receiver"]
+	tokenReceiverBytes, ok := offrampArgs.ExtraData.ExtraArgsDecoded["tokenReceiver"]
 	if !ok {
 		return fmt.Errorf("missing token receiver in extra args")
 	}
@@ -172,7 +172,7 @@ func BuildOffRampExecutePTB(
 	}
 
 	// add the final PTB command (finish_execute) to the PTB using the interface from bindings
-	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
+	encodedFinishExecute, err := offrampEncoder.FinishExecuteWithArgs(bind.Object{Id: addressMappings.CcipObjectRef}, bind.Object{Id: addressMappings.OffRampState}, initExecuteResult)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (finish_execute) using bindings: %w", err)
 	}
@@ -483,7 +483,24 @@ func AppendPTBCommandForReceiver(
 	if !ok {
 		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
 	}
-	extraArgsValues := receiverObjectIds.([][]byte)
+
+	// note: we cannot expect recieverObjectIds to be [][]byte, so check for []any type
+	var extraArgsValues [][]byte
+	switch vals := receiverObjectIds.(type) {
+	case [][]byte:
+		extraArgsValues = vals
+	case []any:
+		for _, v := range vals {
+			b, ok := v.([]byte)
+			if !ok {
+				lggr.Error("unexpected element type in receiverObjectIds", "type", fmt.Sprintf("%T", v))
+				continue
+			}
+			extraArgsValues = append(extraArgsValues, b)
+		}
+	default:
+		lggr.Error("unexpected receiverObjectIds type", "type", fmt.Sprintf("%T", receiverObjectIds))
+	}
 
 	for _, value := range extraArgsValues {
 		objectId := hex.EncodeToString(value)
