@@ -95,13 +95,18 @@ func (e *OffRampEmitterImpl) executePTBCall(ctx context.Context, ptb *transactio
 	return tx, nil
 }
 
-func (e *OffRampEmitterImpl) EmitEvent(ctx context.Context, gasBudget uint64, eventName string) (*models.SuiTransactionBlockResponse, error) {
-	e.lggr.Infow("Emitting event", "eventName", eventName)
+func (e *OffRampEmitterImpl) EmitEvent(ctx context.Context, gasBudget uint64, functionName string) (*models.SuiTransactionBlockResponse, error) {
+	e.lggr.Infow("Emitting event", "functionName", functionName)
+
+	if functionName == "" {
+		e.lggr.Errorw("Function name is required")
+		return nil, fmt.Errorf("function name is required")
+	}
 
 	ptb := transaction.NewTransaction()
 	addToPTB := false
 
-	switch eventName {
+	switch functionName {
 	case "emit_static_config_set_event":
 		return e.EmitStaticConfigSetEvent(ctx, gasBudget, ptb, addToPTB)
 	case "emit_dynamic_config_set_event":
@@ -119,8 +124,8 @@ func (e *OffRampEmitterImpl) EmitEvent(ctx context.Context, gasBudget uint64, ev
 	case "emit_ocr_config_event":
 		return e.EmitOcrConfigEvent(ctx, gasBudget, ptb, addToPTB)
 	default:
-		e.lggr.Errorw("Invalid event name", "eventName", eventName)
-		return nil, fmt.Errorf("invalid event name: %s", eventName)
+		e.lggr.Errorw("Invalid event name", "functionName", functionName)
+		return nil, fmt.Errorf("invalid function name: %s", functionName)
 	}
 }
 
