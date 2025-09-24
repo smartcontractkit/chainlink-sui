@@ -524,7 +524,7 @@ public fun mcms_accept_ownership<T>(
         params,
         McmsCallback<T> {},
     );
-    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -535,13 +535,13 @@ public fun mcms_accept_ownership<T>(
     ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
-public fun execute_ownership_transfer(
+public fun execute_ownership_transfer<T>(
     owner_cap: OwnerCap,
-    ownable_state: &mut OwnableState,
+    state: &mut BurnMintTokenPoolState<T>,
     to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
+    ownable::execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
 public fun execute_ownership_transfer_to_mcms<T>(
@@ -887,5 +887,5 @@ public fun mcms_execute_ownership_transfer<T>(
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback<T> {});
-    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+    execute_ownership_transfer(owner_cap, state, to, ctx);
 }

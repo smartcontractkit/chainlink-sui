@@ -3,9 +3,9 @@ module mcms_test::mcms_user;
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, ExecutingCallbackParams, Registry};
+use mcms_test::ownable::{Self, OwnableState, OwnerCap};
 use std::string::{Self, String};
 use sui::package::UpgradeCap;
-use mcms_test::ownable::{Self, OwnableState, OwnerCap};
 
 const EInvalidAdminCap: u64 = 1;
 const EInvalidFunction: u64 = 2;
@@ -37,12 +37,7 @@ public fun function_one(
     user_data.b = arg2;
 }
 
-public fun function_two(
-    user_data: &mut UserData,
-    owner_cap: &OwnerCap,
-    arg1: address,
-    arg2: u128,
-) {
+public fun function_two(user_data: &mut UserData, owner_cap: &OwnerCap, arg1: address, arg2: u128) {
     assert_valid_owner_cap(user_data, owner_cap);
 
     user_data.invocations = user_data.invocations + 1;
@@ -96,7 +91,10 @@ public fun register_upgrade_cap(
 }
 
 fun assert_valid_owner_cap(user_data: &UserData, owner_cap: &OwnerCap) {
-    assert!(ownable::owner_cap_id(&user_data.ownable_state) == object::id(owner_cap), EInvalidAdminCap);
+    assert!(
+        ownable::owner_cap_id(&user_data.ownable_state) == object::id(owner_cap),
+        EInvalidAdminCap,
+    );
 }
 
 public struct SampleMcmsCallback has drop {}
@@ -213,7 +211,7 @@ public fun mcms_accept_ownership(
         params,
         SampleMcmsCallback {},
     );
-    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(user_data), &mut stream);
@@ -255,7 +253,10 @@ public fun mcms_transfer_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<SampleMcmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<
+        SampleMcmsCallback,
+        OwnerCap,
+    >(
         registry,
         SampleMcmsCallback {},
         params,
@@ -280,7 +281,10 @@ public fun mcms_execute_ownership_transfer(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<SampleMcmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params<
+        SampleMcmsCallback,
+        OwnerCap,
+    >(
         registry,
         SampleMcmsCallback {},
         params,
@@ -308,18 +312,19 @@ public fun test_init(ctx: &mut TxContext) {
 }
 
 #[test_only]
-public fun test_create_user_data(
-    ctx: &mut TxContext,
-): (UserData, OwnerCap) {
+public fun test_create_user_data(ctx: &mut TxContext): (UserData, OwnerCap) {
     let (ownable_state, owner_cap) = ownable::new(ctx);
 
-    (UserData {
-        id: object::new(ctx),
-        invocations: 0,
-        a: string::utf8(b""),
-        b: vector[],
-        c: @0x0,
-        d: 0,
-        ownable_state,
-    }, owner_cap)
+    (
+        UserData {
+            id: object::new(ctx),
+            invocations: 0,
+            a: string::utf8(b""),
+            b: vector[],
+            c: @0x0,
+            d: 0,
+            ownable_state,
+        },
+        owner_cap,
+    )
 }
