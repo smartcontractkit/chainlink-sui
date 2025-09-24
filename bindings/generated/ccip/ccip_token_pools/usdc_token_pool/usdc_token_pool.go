@@ -52,7 +52,7 @@ type IUsdcTokenPool interface {
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -64,7 +64,6 @@ type IUsdcTokenPool interface {
 	McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsMcmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IUsdcTokenPoolDevInspect
 	Encoder() UsdcTokenPoolEncoder
@@ -156,8 +155,8 @@ type UsdcTokenPoolEncoder interface {
 	AcceptOwnershipFromObjectWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsAcceptOwnership(typeArgs []string, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
@@ -180,8 +179,6 @@ type UsdcTokenPoolEncoder interface {
 	DestroyTokenPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsMcmsAcceptOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsMcmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
@@ -616,8 +613,8 @@ func (c *UsdcTokenPoolContract) McmsAcceptOwnership(ctx context.Context, opts *b
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *UsdcTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.ExecuteOwnershipTransfer(ownerCap, ownableState, to)
+func (c *UsdcTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.ExecuteOwnershipTransfer(typeArgs, ownerCap, state, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -728,16 +725,6 @@ func (c *UsdcTokenPoolContract) DestroyTokenPool(ctx context.Context, opts *bind
 // McmsTransferOwnership executes the mcms_transfer_ownership Move function.
 func (c *UsdcTokenPoolContract) McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.usdcTokenPoolEncoder.McmsTransferOwnership(typeArgs, state, registry, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// McmsMcmsAcceptOwnership executes the mcms_mcms_accept_ownership Move function.
-func (c *UsdcTokenPoolContract) McmsMcmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.usdcTokenPoolEncoder.McmsMcmsAcceptOwnership(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2356,34 +2343,38 @@ func (c usdcTokenPoolEncoder) McmsAcceptOwnershipWithArgs(typeArgs []string, arg
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c usdcTokenPoolEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+func (c usdcTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut USDCTokenPoolState<T>",
 		"address",
 	}, []any{
 		ownerCap,
-		ownableState,
+		state,
 		to,
 	}, nil)
 }
 
 // ExecuteOwnershipTransferWithArgs encodes a call to the execute_ownership_transfer Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c usdcTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c usdcTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut USDCTokenPoolState<T>",
 		"address",
 	}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
 	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
@@ -2783,42 +2774,6 @@ func (c usdcTokenPoolEncoder) McmsTransferOwnershipWithArgs(typeArgs []string, a
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_transfer_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
-}
-
-// McmsMcmsAcceptOwnership encodes a call to the mcms_mcms_accept_ownership Move function.
-func (c usdcTokenPoolEncoder) McmsMcmsAcceptOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("mcms_mcms_accept_ownership", typeArgsList, typeParamsList, []string{
-		"&mut USDCTokenPoolState<T>",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}, []any{
-		state,
-		registry,
-		params,
-	}, nil)
-}
-
-// McmsMcmsAcceptOwnershipWithArgs encodes a call to the mcms_mcms_accept_ownership Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c usdcTokenPoolEncoder) McmsMcmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&mut USDCTokenPoolState<T>",
-		"&mut Registry",
-		"ExecutingCallbackParams",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
-	return c.EncodeCallArgsWithGenerics("mcms_mcms_accept_ownership", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsExecuteOwnershipTransfer encodes a call to the mcms_execute_ownership_transfer Move function.

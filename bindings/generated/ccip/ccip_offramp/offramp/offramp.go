@@ -55,7 +55,7 @@ type IOfframp interface {
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, ref bind.Object, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -167,7 +167,7 @@ type OfframpEncoder interface {
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsAcceptOwnership(ref bind.Object, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(ref bind.Object, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -1209,8 +1209,8 @@ func (c *OfframpContract) McmsAcceptOwnership(ctx context.Context, opts *bind.Ca
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *OfframpContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ExecuteOwnershipTransfer(ref, ownerCap, ownableState, to)
+func (c *OfframpContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ExecuteOwnershipTransfer(ref, ownerCap, state, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -3049,18 +3049,18 @@ func (c offrampEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedC
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c offrampEncoder) ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ExecuteOwnershipTransfer(ref bind.Object, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut OffRampState",
 		"address",
 	}, []any{
 		ref,
 		ownerCap,
-		ownableState,
+		state,
 		to,
 	}, nil)
 }
@@ -3071,7 +3071,7 @@ func (c offrampEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.Enc
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut OffRampState",
 		"address",
 	}
 

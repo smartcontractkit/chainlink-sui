@@ -51,7 +51,7 @@ type IBurnMintTokenPool interface {
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -150,8 +150,8 @@ type BurnMintTokenPoolEncoder interface {
 	AcceptOwnershipFromObjectWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsAcceptOwnership(typeArgs []string, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
@@ -566,8 +566,8 @@ func (c *BurnMintTokenPoolContract) McmsAcceptOwnership(ctx context.Context, opt
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.ExecuteOwnershipTransfer(ownerCap, ownableState, to)
+func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.ExecuteOwnershipTransfer(typeArgs, ownerCap, state, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2199,34 +2199,38 @@ func (c burnMintTokenPoolEncoder) McmsAcceptOwnershipWithArgs(typeArgs []string,
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut BurnMintTokenPoolState<T>",
 		"address",
 	}, []any{
 		ownerCap,
-		ownableState,
+		state,
 		to,
 	}, nil)
 }
 
 // ExecuteOwnershipTransferWithArgs encodes a call to the execute_ownership_transfer Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut BurnMintTokenPoolState<T>",
 		"address",
 	}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
 	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 

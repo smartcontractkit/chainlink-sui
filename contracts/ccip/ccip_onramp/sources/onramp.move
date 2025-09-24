@@ -1051,14 +1051,14 @@ public fun mcms_accept_ownership(
     verify_function_allowed(
         ref,
         string::utf8(b"onramp"),
-        string::utf8(b"mcms_accept_ownership"),
+        string::utf8(b"accept_ownership"),
         VERSION,
     );
     let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
         params,
         McmsCallback {},
     );
-    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
@@ -1071,7 +1071,7 @@ public fun mcms_accept_ownership(
 public fun execute_ownership_transfer(
     ref: &CCIPObjectRef,
     owner_cap: OwnerCap,
-    ownable_state: &mut OwnableState,
+    state: &mut OnRampState,
     to: address,
     ctx: &mut TxContext,
 ) {
@@ -1081,7 +1081,7 @@ public fun execute_ownership_transfer(
         string::utf8(b"execute_ownership_transfer"),
         VERSION,
     );
-    ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
+    ownable::execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
 public fun execute_ownership_transfer_to_mcms(
@@ -1196,7 +1196,7 @@ public fun mcms_set_dynamic_config(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -1222,7 +1222,7 @@ public fun mcms_apply_dest_chain_config_updates(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -1266,7 +1266,7 @@ public fun mcms_apply_allowlist_updates(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -1322,7 +1322,7 @@ public fun mcms_transfer_ownership(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -1348,7 +1348,7 @@ public fun mcms_execute_ownership_transfer(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(_owner_cap), object::id_address(state)],
+        vector[object::id_address(ref), object::id_address(_owner_cap), object::id_address(state)],
         &mut stream,
     );
 
@@ -1356,7 +1356,7 @@ public fun mcms_execute_ownership_transfer(
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-    execute_ownership_transfer(ref, owner_cap, &mut state.ownable_state, to, ctx);
+    execute_ownership_transfer(ref, owner_cap, state, to, ctx);
 }
 
 public fun mcms_initialize(
@@ -1428,7 +1428,7 @@ public fun mcms_withdraw_fee_tokens<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 

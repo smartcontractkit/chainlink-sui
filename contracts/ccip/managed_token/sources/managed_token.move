@@ -530,7 +530,7 @@ public fun mcms_accept_ownership<T>(
         params,
         McmsCallback {},
     );
-    assert!(function_name == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+    assert!(function_name == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     let state_address = bcs_stream::deserialize_address(&mut stream);
