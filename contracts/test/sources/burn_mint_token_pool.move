@@ -3,15 +3,7 @@
 // ================================================================
 
 module test::burn_mint_token_pool;
-
-use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use std::option::{Self, Option};
-
-use sui::address;
 use sui::event;
-use sui::object::{Self, UID};
-use sui::table::{Self, Table};
 
 // Event structures from the actual burn_mint_token_pool and token_pool contracts
 public struct LockedOrBurned has copy, drop {
@@ -64,35 +56,8 @@ public struct RebalancerSet has copy, drop {
     rebalancer: address,
 }
 
-// Supporting structures needed for the events
-public struct BurnMintTokenPoolState<phantom T> has key, store {
-    id: UID,
-    token_pool_state: TokenPoolState,
-    treasury_cap: TreasuryCap<T>,
-    ownable_state: OwnableState,
-}
-
-public struct TokenPoolState has key, store {
-    id: UID,
-    token: address,
-    local_decimals: u8,
-    remote_chain_selectors: vector<u64>,
-    remote_pools: Table<u64, vector<vector<u8>>>,
-    remote_tokens: Table<u64, vector<u8>>,
-    allowlist_enabled: bool,
-    allowlist: vector<address>,
-    rate_limiters: Table<u64, RateLimiter>,
-}
-
 public struct TreasuryCap<phantom T> has key, store {
     id: UID,
-}
-
-public struct OwnableState has key, store {
-    id: UID,
-    owner: address,
-    pending_owner: Option<address>,
-    pending_transfer: Option<TransferRequest>,
 }
 
 public struct TransferRequest has store, drop {

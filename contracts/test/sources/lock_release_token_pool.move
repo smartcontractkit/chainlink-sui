@@ -3,15 +3,7 @@
 // ================================================================
 
 module test::lock_release_token_pool;
-
-use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use std::option::{Self, Option};
-
-use sui::address;
 use sui::event;
-use sui::object::{Self, UID};
-use sui::table::{Self, Table};
 
 // Event structures from the actual lock_release_token_pool and token_pool contracts
 public struct LockedOrBurned has copy, drop {
@@ -62,39 +54,6 @@ public struct RebalancerSet has copy, drop {
     local_token: address,
     previous_rebalancer: address,
     rebalancer: address,
-}
-
-// Supporting structures needed for the events
-public struct LockReleaseTokenPoolState<phantom T> has key, store {
-    id: UID,
-    token_pool_state: TokenPoolState,
-    reserve: Coin<T>,
-    rebalancer: address,
-    ownable_state: OwnableState,
-}
-
-public struct TokenPoolState has key, store {
-    id: UID,
-    token: address,
-    local_decimals: u8,
-    remote_chain_selectors: vector<u64>,
-    remote_pools: Table<u64, vector<vector<u8>>>,
-    remote_tokens: Table<u64, vector<u8>>,
-    allowlist_enabled: bool,
-    allowlist: vector<address>,
-    rate_limiters: Table<u64, RateLimiter>,
-}
-
-public struct Coin<phantom T> has key, store {
-    id: UID,
-    balance: u64,
-}
-
-public struct OwnableState has key, store {
-    id: UID,
-    owner: address,
-    pending_owner: Option<address>,
-    pending_transfer: Option<TransferRequest>,
 }
 
 public struct TransferRequest has store, drop {

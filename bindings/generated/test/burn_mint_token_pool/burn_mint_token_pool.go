@@ -109,12 +109,6 @@ func (c *BurnMintTokenPoolContract) DevInspect() IBurnMintTokenPoolDevInspect {
 	return c.devInspect
 }
 
-type LockedOrBurned struct {
-	RemoteChainSelector uint64 `move:"u64"`
-	LocalToken          string `move:"address"`
-	Amount              uint64 `move:"u64"`
-}
-
 type ReleasedOrMinted struct {
 	RemoteChainSelector uint64 `move:"u64"`
 	LocalToken          string `move:"address"`
@@ -159,34 +153,8 @@ type RebalancerSet struct {
 	Rebalancer         string `move:"address"`
 }
 
-type BurnMintTokenPoolState struct {
-	Id             string      `move:"sui::object::UID"`
-	TokenPoolState bind.Object `move:"TokenPoolState"`
-	TreasuryCap    bind.Object `move:"TreasuryCap<T>"`
-	OwnableState   bind.Object `move:"OwnableState"`
-}
-
-type TokenPoolState struct {
-	Id                   string      `move:"sui::object::UID"`
-	Token                string      `move:"address"`
-	LocalDecimals        byte        `move:"u8"`
-	RemoteChainSelectors []uint64    `move:"vector<u64>"`
-	RemotePools          bind.Object `move:"Table<u64, vector<vector<u8>>>"`
-	RemoteTokens         bind.Object `move:"Table<u64, vector<u8>>"`
-	AllowlistEnabled     bool        `move:"bool"`
-	Allowlist            []string    `move:"vector<address>"`
-	RateLimiters         bind.Object `move:"Table<u64, RateLimiter>"`
-}
-
 type TreasuryCap struct {
 	Id string `move:"sui::object::UID"`
-}
-
-type OwnableState struct {
-	Id              string           `move:"sui::object::UID"`
-	Owner           string           `move:"address"`
-	PendingOwner    *string          `move:"0x1::option::Option<address>"`
-	PendingTransfer *TransferRequest `move:"0x1::option::Option<TransferRequest>"`
 }
 
 type TransferRequest struct {
@@ -206,21 +174,6 @@ type RateLimiter struct {
 	InboundRate       uint64 `move:"u64"`
 	InboundCurrent    uint64 `move:"u64"`
 	InboundLastReset  uint64 `move:"u64"`
-}
-
-type bcsLockedOrBurned struct {
-	RemoteChainSelector uint64
-	LocalToken          [32]byte
-	Amount              uint64
-}
-
-func convertLockedOrBurnedFromBCS(bcs bcsLockedOrBurned) (LockedOrBurned, error) {
-
-	return LockedOrBurned{
-		RemoteChainSelector: bcs.RemoteChainSelector,
-		LocalToken:          fmt.Sprintf("0x%x", bcs.LocalToken),
-		Amount:              bcs.Amount,
-	}, nil
 }
 
 type bcsReleasedOrMinted struct {
@@ -285,81 +238,6 @@ func convertRebalancerSetFromBCS(bcs bcsRebalancerSet) (RebalancerSet, error) {
 	}, nil
 }
 
-type bcsBurnMintTokenPoolState struct {
-	Id             string
-	TokenPoolState bcsTokenPoolState
-	TreasuryCap    bind.Object
-	OwnableState   bcsOwnableState
-}
-
-func convertBurnMintTokenPoolStateFromBCS(bcs bcsBurnMintTokenPoolState) (BurnMintTokenPoolState, error) {
-	TokenPoolStateField, err := convertTokenPoolStateFromBCS(bcs.TokenPoolState)
-	if err != nil {
-		return BurnMintTokenPoolState{}, fmt.Errorf("failed to convert nested struct TokenPoolState: %w", err)
-	}
-	OwnableStateField, err := convertOwnableStateFromBCS(bcs.OwnableState)
-	if err != nil {
-		return BurnMintTokenPoolState{}, fmt.Errorf("failed to convert nested struct OwnableState: %w", err)
-	}
-
-	return BurnMintTokenPoolState{
-		Id:             bcs.Id,
-		TokenPoolState: TokenPoolStateField,
-		TreasuryCap:    bcs.TreasuryCap,
-		OwnableState:   OwnableStateField,
-	}, nil
-}
-
-type bcsTokenPoolState struct {
-	Id                   string
-	Token                [32]byte
-	LocalDecimals        byte
-	RemoteChainSelectors []uint64
-	RemotePools          bind.Object
-	RemoteTokens         bind.Object
-	AllowlistEnabled     bool
-	Allowlist            [][32]byte
-	RateLimiters         bind.Object
-}
-
-func convertTokenPoolStateFromBCS(bcs bcsTokenPoolState) (TokenPoolState, error) {
-
-	return TokenPoolState{
-		Id:                   bcs.Id,
-		Token:                fmt.Sprintf("0x%x", bcs.Token),
-		LocalDecimals:        bcs.LocalDecimals,
-		RemoteChainSelectors: bcs.RemoteChainSelectors,
-		RemotePools:          bcs.RemotePools,
-		RemoteTokens:         bcs.RemoteTokens,
-		AllowlistEnabled:     bcs.AllowlistEnabled,
-		Allowlist: func() []string {
-			addrs := make([]string, len(bcs.Allowlist))
-			for i, addr := range bcs.Allowlist {
-				addrs[i] = fmt.Sprintf("0x%x", addr)
-			}
-			return addrs
-		}(),
-		RateLimiters: bcs.RateLimiters,
-	}, nil
-}
-
-type bcsOwnableState struct {
-	Id              string
-	Owner           [32]byte
-	PendingOwner    *string
-	PendingTransfer *TransferRequest
-}
-
-func convertOwnableStateFromBCS(bcs bcsOwnableState) (OwnableState, error) {
-
-	return OwnableState{
-		Id:              bcs.Id,
-		Owner:           fmt.Sprintf("0x%x", bcs.Owner),
-		PendingOwner:    bcs.PendingOwner,
-		PendingTransfer: bcs.PendingTransfer,
-	}, nil
-}
-
 type bcsTransferRequest struct {
 	From     [32]byte
 	To       [32]byte
@@ -376,19 +254,6 @@ func convertTransferRequestFromBCS(bcs bcsTransferRequest) (TransferRequest, err
 }
 
 func init() {
-	bind.RegisterStructDecoder("test::burn_mint_token_pool::LockedOrBurned", func(data []byte) (interface{}, error) {
-		var temp bcsLockedOrBurned
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertLockedOrBurnedFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::ReleasedOrMinted", func(data []byte) (interface{}, error) {
 		var temp bcsReleasedOrMinted
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -473,48 +338,9 @@ func init() {
 		}
 		return result, nil
 	})
-	bind.RegisterStructDecoder("test::burn_mint_token_pool::BurnMintTokenPoolState", func(data []byte) (interface{}, error) {
-		var temp bcsBurnMintTokenPoolState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertBurnMintTokenPoolStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("test::burn_mint_token_pool::TokenPoolState", func(data []byte) (interface{}, error) {
-		var temp bcsTokenPoolState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertTokenPoolStateFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::TreasuryCap", func(data []byte) (interface{}, error) {
 		var result TreasuryCap
 		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	bind.RegisterStructDecoder("test::burn_mint_token_pool::OwnableState", func(data []byte) (interface{}, error) {
-		var temp bcsOwnableState
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOwnableStateFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
