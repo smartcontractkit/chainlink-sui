@@ -10,20 +10,19 @@ import (
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 )
 
-type MintSuiTokenConfig struct {
+type MintLinkTokenConfig struct {
 	ChainSelector  uint64
 	TokenPackageId string
 	TreasuryCapId  string
 	Amount         uint64
 }
 
-var _ cldf.ChangeSetV2[MintSuiTokenConfig] = MintSuiToken{}
+var _ cldf.ChangeSetV2[MintLinkTokenConfig] = MintLinkToken{}
 
-// DeployAptosChain deploys Aptos chain packages and modules
-type MintSuiToken struct{}
+type MintLinkToken struct{}
 
 // Apply implements deployment.ChangeSetV2.
-func (d MintSuiToken) Apply(e cldf.Environment, config MintSuiTokenConfig) (cldf.ChangesetOutput, error) {
+func (d MintLinkToken) Apply(e cldf.Environment, config MintLinkTokenConfig) (cldf.ChangesetOutput, error) {
 
 	ab := cldf.NewMemoryAddressBook()
 	seqReports := make([]operations.Report[any, any], 0)
@@ -44,7 +43,7 @@ func (d MintSuiToken) Apply(e cldf.Environment, config MintSuiTokenConfig) (cldf
 		},
 	}
 
-	// Run MintSuiToken Operation
+	// Run MintLinkToken Operation
 	mintLinkTokenReport, err := operations.ExecuteOperation(e.OperationsBundle, linkops.MintLinkOp, deps,
 		linkops.MintLinkTokenInput{
 			LinkTokenPackageId: config.TokenPackageId,
@@ -52,7 +51,7 @@ func (d MintSuiToken) Apply(e cldf.Environment, config MintSuiTokenConfig) (cldf
 			Amount:             config.Amount, // 1099999999999999984
 		})
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to Mint SuiToken for Sui chain %d: %w", config.ChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to Mint LinkToken for Sui chain %d: %w", config.ChainSelector, err)
 	}
 
 	seqReports = append(seqReports, mintLinkTokenReport.ToGenericReport())
@@ -66,6 +65,6 @@ func (d MintSuiToken) Apply(e cldf.Environment, config MintSuiTokenConfig) (cldf
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d MintSuiToken) VerifyPreconditions(e cldf.Environment, config MintSuiTokenConfig) error {
+func (d MintLinkToken) VerifyPreconditions(e cldf.Environment, config MintLinkTokenConfig) error {
 	return nil
 }

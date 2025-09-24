@@ -158,7 +158,6 @@ func (store *DBStore) GetLatestOffset(ctx context.Context, eventAccountAddress, 
 	var totalCount uint64
 	err := store.ds.QueryRowxContext(ctx, QueryEventsOffset, eventAccountAddress, eventHandle).Scan(&offset, &txDigest, &totalCount)
 	if err != nil {
-		store.lgr.Errorw("failed to get latest offset", "error", err, "eventAccountAddress", eventAccountAddress, "eventHandle", eventHandle)
 		// no rows found in DB, return a nil index
 		//nolint:nilnil
 		if errors.Is(err, sql.ErrNoRows) {
