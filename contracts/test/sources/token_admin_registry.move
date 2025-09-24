@@ -63,14 +63,14 @@ public struct TokenConfig has store, drop, copy {
 // Simple methods to emit events for testing purposes
 
 /// Emit a PoolSet event
-public fun emit_pool_set_event(
-    coin_metadata_address: address,
-    previous_pool_package_id: address,
-    new_pool_package_id: address,
-    token_pool_type_proof: ascii::String,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>
-) {
+public fun emit_pool_set_event() {
+    let coin_metadata_address = @0x1;
+    let previous_pool_package_id = @0x1989101;
+    let new_pool_package_id = @0x2;
+    let token_pool_type_proof = ascii::string(b"TestProof");
+    let lock_or_burn_params = vector[@0x1, @0x2, @0x3];
+    let release_or_mint_params = vector[@0x4, @0x5, @0x6];
+
     event::emit(PoolSet {
         coin_metadata_address,
         previous_pool_package_id,
@@ -82,12 +82,12 @@ public fun emit_pool_set_event(
 }
 
 /// Emit a PoolRegistered event
-public fun emit_pool_registered_event(
-    coin_metadata_address: address,
-    token_pool_package_id: address,
-    administrator: address,
-    token_pool_type_proof: ascii::String
-) {
+public fun emit_pool_registered_event() {
+    let coin_metadata_address = @0x1;
+    let token_pool_package_id = @0x1989101;
+    let administrator = @0x2;
+    let token_pool_type_proof = ascii::string(b"TestProof");
+
     event::emit(PoolRegistered {
         coin_metadata_address,
         token_pool_package_id,
@@ -97,10 +97,10 @@ public fun emit_pool_registered_event(
 }
 
 /// Emit a PoolUnregistered event
-public fun emit_pool_unregistered_event(
-    coin_metadata_address: address,
-    previous_pool_address: address
-) {
+public fun emit_pool_unregistered_event() {
+    let coin_metadata_address = @0x1;
+    let previous_pool_address = @0x1989101;
+
     event::emit(PoolUnregistered {
         coin_metadata_address,
         previous_pool_address
@@ -108,11 +108,12 @@ public fun emit_pool_unregistered_event(
 }
 
 /// Emit an AdministratorTransferRequested event
-public fun emit_administrator_transfer_requested_event(
-    coin_metadata_address: address,
-    current_admin: address,
-    new_admin: address
-) {
+public fun emit_administrator_transfer_requested_event() {
+
+    let coin_metadata_address = @0x1;
+    let current_admin = @0x1989101;
+    let new_admin = @0x2;
+
     event::emit(AdministratorTransferRequested {
         coin_metadata_address,
         current_admin,
@@ -121,10 +122,10 @@ public fun emit_administrator_transfer_requested_event(
 }
 
 /// Emit an AdministratorTransferred event
-public fun emit_administrator_transferred_event(
-    coin_metadata_address: address,
-    new_admin: address
-) {
+public fun emit_administrator_transferred_event() {
+    let coin_metadata_address = @0x1;
+    let new_admin = @0x2;
+
     event::emit(AdministratorTransferred {
         coin_metadata_address,
         new_admin
