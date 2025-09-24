@@ -43,44 +43,13 @@ func main() {
 
 	switch command {
 	case "setup":
-		lggr.Infow("Starting setup command")
-		runSetup(lggr)
+		runSetupCommand(lggr, os.Args[2:])
 	case "post-publish":
-		lggr.Infow("Starting post-publish command")
-		runPostPublish(lggr, os.Args[2:])
+		runPostPublishCommand(lggr, os.Args[2:])
 	case "emit-events":
-		lggr.Infow("Starting emit-events command")
-		packageIdFile := os.Args[2]
-		packageId, err := os.ReadFile(packageIdFile)
-		if err != nil {
-			lggr.Errorw("Failed to read package ID file", "error", err)
-			os.Exit(1)
-		}
-
-		lggr.Infow("Package ID", "packageId", string(packageId))
-
-		runEmitEvents(lggr, string(packageId))
+		runEmitEventsCommand(lggr, os.Args[2:])
 	case "emit-single-event":
-		lggr.Infow("Starting emit-single-event command")
-		var packageIdFile string
-		var functionName string
-		var contractName string
-
-		// Create a new FlagSet for this subcommand
-		flagSet := flag.NewFlagSet("emit-single-event", flag.ExitOnError)
-		flagSet.StringVar(&packageIdFile, "package-id-file", "package_id.txt", "File containing the package ID")
-		flagSet.StringVar(&functionName, "function-name", "", "Name of the function to emit")
-		flagSet.StringVar(&contractName, "contract-name", "", "Name of the contract to emit the event from")
-
-		// Parse the remaining arguments (excluding the command name)
-		flagSet.Parse(os.Args[2:])
-
-		packageId, err := os.ReadFile(packageIdFile)
-		if err != nil {
-			lggr.Errorw("Failed to read package ID file", "error", err)
-			os.Exit(1)
-		}
-		runEmitSingleEvent(lggr, string(packageId), functionName, contractName)
+		runEmitSingleEventCommand(lggr, os.Args[2:])
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -95,26 +64,49 @@ USAGE:
     go run mockcontracts/main.go <COMMAND> [OPTIONS]
 
 COMMANDS:
-    setup                    Setup local Sui chain and fund the active account
-    post-publish <file>      Parse the output of the publish command
-    emit-events [options]    Emit events (scaffolding)
-	emit-single-event [options] Emit a single event
+    setup                     Setup local Sui chain and fund the active account
+    post-publish [options]    Parse the output of the publish command
+    emit-events [options]     Emit events from all contracts
+    emit-single-event [opts]  Emit a single event from a specific contract
+
+OPTIONS:
+    Use -h or --help after any command to see command-specific options.
 
 EXAMPLES:
     # Setup environment
     go run mockcontracts/main.go setup
 
-    # Parse deployment output
+    # Parse deployment output (flag-based)
+    go run mockcontracts/main.go post-publish -file deployment_output.json
+    # Or backwards-compatible positional argument
     go run mockcontracts/main.go post-publish deployment_output.json
 
-    # Emit events
-    go run mockcontracts/main.go emit-events
+    # Emit events from all contracts
+    go run mockcontracts/main.go emit-events -package-id-file package_id.txt
 
-	# Emit single event
-    go run mockcontracts/main.go emit-single-event -package-id-file package_id.txt -event-name emit_static_config_set_event -contract-name offramp`)
+    # Emit single event
+    go run mockcontracts/main.go emit-single-event -package-id-file package_id.txt -function-name emit_static_config_set_event -contract-name offramp
+
+    # Get help for specific commands
+    go run mockcontracts/main.go setup -h
+    go run mockcontracts/main.go emit-single-event -h`)
 }
 
-func runSetup(lggr logger.Logger) {
+func runSetupCommand(lggr logger.Logger, args []string) {
+	// Parse flags for setup command
+	flagSet := flag.NewFlagSet("setup", flag.ExitOnError)
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s setup [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Setup local Sui chain and fund the active account\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flagSet.PrintDefaults()
+	}
+
+	if err := flagSet.Parse(args); err != nil {
+		lggr.Errorw("Failed to parse setup flags", "error", err)
+		os.Exit(1)
+	}
+
 	lggr.Infow("Starting setup command")
 
 	// stop sui node if it is running
@@ -151,16 +143,35 @@ func runSetup(lggr logger.Logger) {
 	lggr.Infow("Setup completed successfully", "activeAddress", activeAddress)
 }
 
-func runPostPublish(lggr logger.Logger, args []string) {
-	lggr.Infow("Starting post-publish command")
+func runPostPublishCommand(lggr logger.Logger, args []string) {
+	// Parse flags for post-publish command
+	var outputFile string
+	flagSet := flag.NewFlagSet("post-publish", flag.ExitOnError)
+	flagSet.StringVar(&outputFile, "file", "", "Deployment output file (required)")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s post-publish [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Parse the output of the publish command\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flagSet.PrintDefaults()
+	}
 
-	if len(args) == 0 {
-		lggr.Errorw("Missing output file argument")
-		fmt.Println("Usage: go run mockcontracts/main.go post-publish <output-file>")
+	if err := flagSet.Parse(args); err != nil {
+		lggr.Errorw("Failed to parse post-publish flags", "error", err)
 		os.Exit(1)
 	}
 
-	outputFile := args[0]
+	// Support positional argument for backwards compatibility
+	if outputFile == "" && flagSet.NArg() > 0 {
+		outputFile = flagSet.Arg(0)
+	}
+
+	if outputFile == "" {
+		lggr.Errorw("Missing output file argument")
+		flagSet.Usage()
+		os.Exit(1)
+	}
+
+	lggr.Infow("Starting post-publish command")
 	lggr.Infow("Parsing deployment output", "file", outputFile)
 
 	// Read the deployment output file
@@ -199,6 +210,35 @@ func runPostPublish(lggr logger.Logger, args []string) {
 	}
 
 	lggr.Errorw("No published package found in output")
+}
+
+func runEmitEventsCommand(lggr logger.Logger, args []string) {
+	// Parse flags for emit-events command
+	var packageIdFile string
+	flagSet := flag.NewFlagSet("emit-events", flag.ExitOnError)
+	flagSet.StringVar(&packageIdFile, "package-id-file", "package_id.txt", "File containing the package ID")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s emit-events [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Emit events from all contracts\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flagSet.PrintDefaults()
+	}
+
+	if err := flagSet.Parse(args); err != nil {
+		lggr.Errorw("Failed to parse emit-events flags", "error", err)
+		os.Exit(1)
+	}
+
+	packageId, err := os.ReadFile(packageIdFile)
+	if err != nil {
+		lggr.Errorw("Failed to read package ID file", "error", err)
+		os.Exit(1)
+	}
+
+	lggr.Infow("Starting emit-events command")
+	lggr.Infow("Package ID", "packageId", string(packageId))
+
+	runEmitEvents(lggr, string(packageId))
 }
 
 func runEmitEvents(lggr logger.Logger, packageId string) {
@@ -298,6 +338,42 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 	lggr.Infow("Event emission completed (scaffolding)")
 }
 
+func runEmitSingleEventCommand(lggr logger.Logger, args []string) {
+	// Parse flags for emit-single-event command
+	var packageIdFile string
+	var functionName string
+	var contractName string
+	flagSet := flag.NewFlagSet("emit-single-event", flag.ExitOnError)
+	flagSet.StringVar(&packageIdFile, "package-id-file", "package_id.txt", "File containing the package ID")
+	flagSet.StringVar(&functionName, "function-name", "", "Name of the function to emit (required)")
+	flagSet.StringVar(&contractName, "contract-name", "", "Name of the contract to emit the event from (required)")
+	flagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s emit-single-event [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Emit a single event from a specific contract\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flagSet.PrintDefaults()
+	}
+
+	if err := flagSet.Parse(args); err != nil {
+		lggr.Errorw("Failed to parse emit-single-event flags", "error", err)
+		os.Exit(1)
+	}
+
+	if functionName == "" || contractName == "" {
+		lggr.Errorw("Missing required arguments")
+		flagSet.Usage()
+		os.Exit(1)
+	}
+
+	packageId, err := os.ReadFile(packageIdFile)
+	if err != nil {
+		lggr.Errorw("Failed to read package ID file", "error", err)
+		os.Exit(1)
+	}
+
+	runEmitSingleEvent(lggr, string(packageId), functionName, contractName)
+}
+
 func runEmitSingleEvent(lggr logger.Logger, packageId string, functionName string, contractName string) {
 	lggr.Infow("Starting emit-single-event command", "packageId", packageId, "functionName", functionName)
 
@@ -332,6 +408,11 @@ func runEmitSingleEvent(lggr logger.Logger, packageId string, functionName strin
 		}
 		lggr.Infow("Executed PTB", "tx", tx)
 		lggr.Infow("Event emission completed (scaffolding)")
+		return
+	default:
+		lggr.Errorw("Unknown contract name", "contractName", contractName)
+		fmt.Printf("Unknown contract: %s\n", contractName)
+		fmt.Println("Available contracts: offramp")
 		return
 	}
 }

@@ -3,7 +3,7 @@ version: "3"
 
 tasks:
   setup:
-    desc: "setup the environment"
+    desc: "Setup the environment (local Sui node and fund account)"
     cmds:
       - go run mockcontracts/main.go setup
 
@@ -14,12 +14,32 @@ tasks:
       - sui client publish --gas-budget 2000000000 --json --silence-warnings --dev --with-unpublished-dependencies $PWD/contracts/test/sources/ > deployment_output.json
   
   post-publish:
-    desc: "Post-publish the contracts"
+    desc: "Post-publish the contracts (parse deployment output and extract package ID)"
     deps: [publish]
     cmds:
-      - go run mockcontracts/main.go post-publish deployment_output.json
+      - go run mockcontracts/main.go post-publish -file deployment_output.json
 
   emit-events:
-    desc: "Emit events"
+    desc: "Emit events from all contracts"
     cmds:
-      - go run mockcontracts/main.go emit-events package_id.txt
+      - go run mockcontracts/main.go emit-events -package-id-file package_id.txt
+
+  emit-single-event:
+    desc: "Emit a single event from a specific contract"
+    cmds:
+      - |
+        echo "Usage: task mockcontracts:emit-single-event -- -function-name <FUNCTION> -contract-name <CONTRACT>"
+        echo "Example: task mockcontracts:emit-single-event -- -function-name emit_static_config_set_event -contract-name offramp"
+      - go run mockcontracts/main.go emit-single-event {{.CLI_ARGS}}
+
+  help:
+    desc: "Show CLI help and available commands"
+    cmds:
+      - go run mockcontracts/main.go -h
+      - echo ""
+      - echo "For command-specific help, use:"
+      - echo "  go run mockcontracts/main.go <command> -h"
+      - echo ""
+      - echo "Examples:"
+      - echo "  go run mockcontracts/main.go setup -h"
+      - echo "  go run mockcontracts/main.go emit-single-event -h"
