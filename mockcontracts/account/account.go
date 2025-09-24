@@ -1,4 +1,4 @@
-package events
+package account
 
 import (
 	"crypto/ed25519"
