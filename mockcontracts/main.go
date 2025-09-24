@@ -87,8 +87,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println(`
-🚀 Sui Mock Contracts CLI
+	fmt.Println(`🚀 Sui Mock Contracts CLI
 
 USAGE:
     go run mockcontracts/main.go <COMMAND> [OPTIONS]
