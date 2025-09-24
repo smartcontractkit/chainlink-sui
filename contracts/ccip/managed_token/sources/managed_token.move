@@ -452,8 +452,7 @@ public fun destroy_managed_token<T>(
     };
     mint_allowances_map.destroy_empty();
 
-    ownable::destroy_ownable_state(ownable_state, ctx);
-    ownable::destroy_owner_cap(owner_cap, ctx);
+    ownable::destroy(ownable_state, owner_cap, ctx);
 
     (treasury_cap, deny_cap)
 }
@@ -530,7 +529,7 @@ public fun mcms_accept_ownership<T>(
         params,
         McmsCallback {},
     );
-    assert!(function_name == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+    assert!(function_name == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     let state_address = bcs_stream::deserialize_address(&mut stream);

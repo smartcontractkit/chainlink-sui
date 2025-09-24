@@ -173,7 +173,7 @@ public fun test_transfer_ownership_unauthorized() {
         env.scenario.ctx(),
     );
 
-    ownable::destroy_owner_cap(other_user_owner_cap, env.scenario.ctx());
+    ownable::test_destroy_owner_cap(other_user_owner_cap);
     tear_down(env);
     ts::return_to_address(OWNER, owner_cap);
 }
