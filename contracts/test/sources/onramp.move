@@ -98,10 +98,9 @@ public struct Sui2AnyTokenTransfer has store, drop, copy {
 // Simple methods to emit events for testing purposes
 
 /// Emit a ConfigSet event
-public fun emit_config_set_event(
-    static_config: StaticConfig,
-    dynamic_config: DynamicConfig
-) {
+public fun emit_config_set_event() {
+    let static_config = create_test_static_config(1);
+    let dynamic_config = create_default_test_dynamic_config();
     event::emit(ConfigSet {
         static_config,
         dynamic_config
@@ -109,12 +108,11 @@ public fun emit_config_set_event(
 }
 
 /// Emit a DestChainConfigSet event
-public fun emit_dest_chain_config_set_event(
-    dest_chain_selector: u64,
-    is_enabled: bool,
-    sequence_number: u64,
-    allowlist_enabled: bool
-) {
+public fun emit_dest_chain_config_set_event() {
+    let dest_chain_selector = 1;
+    let is_enabled = true;
+    let sequence_number = 1;
+    let allowlist_enabled = false;
     event::emit(DestChainConfigSet {
         dest_chain_selector,
         is_enabled,
@@ -127,8 +125,30 @@ public fun emit_dest_chain_config_set_event(
 public fun emit_ccip_message_sent_event(
     dest_chain_selector: u64,
     sequence_number: u64,
-    message: Sui2AnyRampMessage
 ) {
+    let message = Sui2AnyRampMessage {
+        header: RampMessageHeader {
+            message_id: vector[1, 2, 3, 4],
+            source_chain_selector: 1,
+            dest_chain_selector: dest_chain_selector,
+            sequence_number: sequence_number,
+            nonce: 1
+        },
+        sender: @0x1,
+        data: vector[1, 2, 3, 4],
+        receiver: vector[1, 2, 3, 4],
+        extra_args: vector[1, 2, 3, 4],
+        fee_token: @0x1,
+        fee_token_amount: 1,
+        fee_value_juels: 1,
+        token_amounts: vector[Sui2AnyTokenTransfer {
+            source_pool_address: @0x1,
+            dest_token_address: vector[1, 2, 3, 4],
+            extra_data: vector[1, 2, 3, 4],
+            amount: 1,
+            dest_exec_data: vector[1, 2, 3, 4]
+        }]
+    };
     event::emit(CCIPMessageSent {
         dest_chain_selector,
         sequence_number,
@@ -139,8 +159,8 @@ public fun emit_ccip_message_sent_event(
 /// Emit an AllowlistSendersAdded event
 public fun emit_allowlist_senders_added_event(
     dest_chain_selector: u64,
-    senders: vector<address>
 ) {
+    let senders = vector[@0x3, @0x4];
     event::emit(AllowlistSendersAdded {
         dest_chain_selector,
         senders
@@ -150,8 +170,8 @@ public fun emit_allowlist_senders_added_event(
 /// Emit an AllowlistSendersRemoved event
 public fun emit_allowlist_senders_removed_event(
     dest_chain_selector: u64,
-    senders: vector<address>
 ) {
+    let senders = vector[@0x3, @0x4];
     event::emit(AllowlistSendersRemoved {
         dest_chain_selector,
         senders
@@ -159,11 +179,10 @@ public fun emit_allowlist_senders_removed_event(
 }
 
 /// Emit a FeeTokenWithdrawn event
-public fun emit_fee_token_withdrawn_event(
-    fee_aggregator: address,
-    fee_token: address,
-    amount: u64
-) {
+public fun emit_fee_token_withdrawn_event() {
+    let fee_aggregator = @0x1;
+    let fee_token = @0x1;
+    let amount = 1;
     event::emit(FeeTokenWithdrawn {
         fee_aggregator,
         fee_token,

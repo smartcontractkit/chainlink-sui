@@ -256,6 +256,22 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 	}
 	lggr.Infow("Emitting RMN remote events", "tx", tx)
 
+	routerEmitter := events.NewRouterEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = routerEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit router events", "error", err)
+		return
+	}
+	lggr.Infow("Emitting router events", "tx", tx)
+
+	onrampEmitter := events.NewOnRampEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = onrampEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit onramp events", "error", err)
+		return
+	}
+	lggr.Infow("Emitting onramp events", "tx", tx)
+
 	lggr.Infow("Event emission completed (scaffolding)")
 }
 

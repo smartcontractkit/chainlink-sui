@@ -44,10 +44,10 @@ type TxnMetaWithObjectChanges struct {
 }
 
 func StopSuiNode(lggr logger.Logger, pidFile string) {
-	lggr.Infow("Stopping Sui node if it is running")
+	lggr.Infow("Stopping Sui node if it is running", "pidFile", pidFile)
 	pid, err := os.ReadFile(pidFile)
 	if err != nil {
-		lggr.Errorw("Failed to read pid file", "error", err)
+		lggr.Warnw("Failed to read pid file", "error", err)
 		return
 	}
 
@@ -56,21 +56,10 @@ func StopSuiNode(lggr logger.Logger, pidFile string) {
 		lggr.Infow("Removed pid file", "pidFile", pidFile)
 	}()
 
-	// check process exists
-	cmd := exec.Command("ps", "-p", string(pid))
-	if err := cmd.Run(); err != nil {
-		lggr.Infow("Sui node process does not exist", "error", err)
-		return
-	}
-	if err != nil {
-		lggr.Infow("Sui node process does not exist", "error", err)
-		return
-	}
-
-	cmd = exec.Command("kill", "-9", string(pid))
+	cmd := exec.Command("kill", "-9", string(pid))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		lggr.Errorw("Failed to stop Sui node", "error", err, "output", string(output))
+		lggr.Warnw("Failed to stop Sui node", "error", err, "output", string(output))
 	}
 	lggr.Infow("Stopped Sui node", "output", string(output))
 }
