@@ -1,10 +1,13 @@
 package bind
 
 import (
+	"bytes"
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -255,4 +258,71 @@ func TestSpecificDecodeFunctions(t *testing.T) {
 		assert.Equal(t, 0, result128.Cmp(result256), "u128 and u256 decoding should give same result for same value")
 		assert.Equal(t, 0, result128.Cmp(testValue), "Decoded value should match original")
 	})
+}
+
+func TestDeserializer(t *testing.T) {
+	// Address values
+	mockAddr := "0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968"
+	addr, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(mockAddr))
+	require.NoError(t, err)
+	// u128 and u256 values
+	u128 := new(big.Int)
+	u128.SetString("12345678901234567890", 10)
+	u256 := new(big.Int)
+	u256.SetString("1234567890123456789012345678901234567890", 10)
+
+	// Encode BCS
+	bcsEncodedMsg := bytes.Buffer{}
+	encoder := mystenbcs.NewEncoder(&bcsEncodedMsg)
+	encoder.Encode(true)
+	encoder.Encode([][]*models.SuiAddressBytes{{addr, addr}, {addr}})
+	encoder.Encode(uint8(7))
+	encoder.Encode("hello sui")
+	encoder.Encode(uint16(7))
+	encoder.Encode([]uint8{0, 1, 2, 3, 4, 5, 6})
+	encoder.Encode(^uint32(0))
+	encoder.Encode([][]string{{"hello", "hi"}, {"world", "sui"}})
+	encoder.Encode(^uint64(0))
+	bcsMsg := bcsEncodedMsg.Bytes()
+	// mystenbcs encoder treats [n]byte as a regular slice and encodes the length, so we cannot use it directly.
+	// we'll append the encoded u128 and u256 bytes manually
+	u128AsByte := [16]byte{0xd2, 0xa, 0x1f, 0xeb, 0x8c, 0xa9, 0x54, 0xab}
+	u256AsByte := [32]byte{0xd2, 0xa, 0x3f, 0xce, 0x96, 0x5f, 0xbc, 0xac, 0xb8, 0xf3, 0xdb, 0xc0, 0x75, 0x20, 0xc9, 0xa0, 0x3}
+	bcsMsg = append(bcsMsg, u128AsByte[:]...)
+	bcsMsg = append(bcsMsg, u256AsByte[:]...)
+
+	// Deserialize BCS
+	des, err := DeserializeBCS(
+		bcsMsg,
+		[]string{
+			"bool",
+			"vector<vector<address>>",
+			"u8",
+			"0x1::string::String",
+			"u16",
+			"vector\u003cu8\u003e",
+			"u32",
+			"vector<vector<0x1::string::String>>",
+			"u64",
+			"u128",
+			"u256",
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t,
+		[]any{
+			true,
+			[][][32]byte{{*addr, *addr}, {*addr}},
+			uint8(7),
+			"hello sui",
+			uint16(7),
+			[]uint8{0, 1, 2, 3, 4, 5, 6},
+			^uint32(0),
+			[][]string{{"hello", "hi"}, {"world", "sui"}},
+			^uint64(0),
+			u128,
+			u256,
+		},
+		des,
+	)
 }

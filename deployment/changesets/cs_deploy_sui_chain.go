@@ -160,8 +160,10 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipOnRampSeqInput.OnRampInitializeInput.FeeAggregator = signerAddr
 	ccipOnRampSeqInput.OnRampInitializeInput.AllowListAdmin = signerAddr
 	ccipOnRampSeqInput.OnRampInitializeInput.DestChainSelectors = []uint64{config.DestChainSelector}
+	ccipOnRampSeqInput.OnRampInitializeInput.DestChainRouters = []string{routerReport.Output.PackageId}
 	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.DestChainSelector = []uint64{config.DestChainSelector}
 	ccipOnRampSeqInput.ApplyAllowListUpdatesInput.DestChainSelector = []uint64{config.DestChainSelector}
+	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.DestChainRouters = []string{routerReport.Output.PackageId}
 	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId = ccipSeqReport.Output.Objects.CCIPObjectRefObjectId
 
 	ccipOnRampSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, onrampops.DeployAndInitCCIPOnRampSequence, deps, ccipOnRampSeqInput)
