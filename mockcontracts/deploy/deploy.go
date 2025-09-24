@@ -43,7 +43,39 @@ type TxnMetaWithObjectChanges struct {
 	ObjectChanges []ObjectChange `json:"objectChanges"`
 }
 
-func ParsePublishOutputFromFile(filename string) (string, TxnMetaWithObjectChanges, error) {
+func StopSuiNode(lggr logger.Logger, pidFile string) {
+	lggr.Infow("Stopping Sui node if it is running")
+	pid, err := os.ReadFile(pidFile)
+	if err != nil {
+		lggr.Errorw("Failed to read pid file", "error", err)
+		return
+	}
+
+	defer func() {
+		os.Remove(pidFile)
+		lggr.Infow("Removed pid file", "pidFile", pidFile)
+	}()
+
+	// check process exists
+	cmd := exec.Command("ps", "-p", string(pid))
+	if err := cmd.Run(); err != nil {
+		lggr.Infow("Sui node process does not exist", "error", err)
+		return
+	}
+	if err != nil {
+		lggr.Infow("Sui node process does not exist", "error", err)
+		return
+	}
+
+	cmd = exec.Command("kill", "-9", string(pid))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		lggr.Errorw("Failed to stop Sui node", "error", err, "output", string(output))
+	}
+	lggr.Infow("Stopped Sui node", "output", string(output))
+}
+
+func ParsePublishOutputFromFile(lggr logger.Logger, filename string) (string, TxnMetaWithObjectChanges, error) {
 	jsonData, err := os.ReadFile(filename)
 	if err != nil {
 		return "", TxnMetaWithObjectChanges{}, err
@@ -72,6 +104,8 @@ func ParsePublishOutputFromFile(filename string) (string, TxnMetaWithObjectChang
 			break
 		}
 	}
+
+	lggr.Infow("Parsed publish transaction", "packageId", packageId)
 
 	return packageId, parsedPublishTxn, nil
 }

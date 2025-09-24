@@ -11,6 +11,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/mockcontracts/account"
 	"github.com/smartcontractkit/chainlink-sui/mockcontracts/deploy"
 	"github.com/smartcontractkit/chainlink-sui/mockcontracts/events"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
@@ -61,13 +62,13 @@ func main() {
 	case "emit-single-event":
 		lggr.Infow("Starting emit-single-event command")
 		var packageIdFile string
-		var eventName string
+		var functionName string
 		var contractName string
 
 		// Create a new FlagSet for this subcommand
 		flagSet := flag.NewFlagSet("emit-single-event", flag.ExitOnError)
 		flagSet.StringVar(&packageIdFile, "package-id-file", "package_id.txt", "File containing the package ID")
-		flagSet.StringVar(&eventName, "event-name", "", "Name of the event to emit")
+		flagSet.StringVar(&functionName, "function-name", "", "Name of the function to emit")
 		flagSet.StringVar(&contractName, "contract-name", "", "Name of the contract to emit the event from")
 
 		// Parse the remaining arguments (excluding the command name)
@@ -78,7 +79,7 @@ func main() {
 			lggr.Errorw("Failed to read package ID file", "error", err)
 			os.Exit(1)
 		}
-		runEmitSingleEvent(lggr, string(packageId), eventName, contractName)
+		runEmitSingleEvent(lggr, string(packageId), functionName, contractName)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -116,26 +117,19 @@ EXAMPLES:
 func runSetup(lggr logger.Logger) {
 	lggr.Infow("Starting setup command")
 
-	if _, err := os.Stat(pidFile); err == nil {
-		// File exists, do nothing
-		lggr.Infow("sui.pid file exists, not starting Sui node")
-	} else if os.IsNotExist(err) {
-		// File does not exist, start Sui node
-		cmd, err := testutils.StartSuiNode(testutils.CLI)
-		if err != nil {
-			lggr.Errorw("Failed to start Sui node", "error", err)
-			return
-		}
-		pid := cmd.Process.Pid
-		lggr.Infow("Sui node PID", "pid", pid)
-		// Write PID to file
-		if err := os.WriteFile(pidFile, []byte(strconv.Itoa(pid)), 0644); err != nil {
-			lggr.Errorw("Failed to write sui.pid file", "error", err)
-			return
-		}
-	} else {
-		// Some other error accessing the file
-		lggr.Errorw("Error checking sui.pid file", "error", err)
+	// stop sui node if it is running
+	deploy.StopSuiNode(lggr, pidFile)
+
+	cmd, err := testutils.StartSuiNode(testutils.CLI)
+	if err != nil {
+		lggr.Errorw("Failed to start Sui node", "error", err)
+		return
+	}
+	pid := cmd.Process.Pid
+	lggr.Infow("Sui node PID", "pid", pid)
+	// Write PID to file
+	if err := os.WriteFile(pidFile, []byte(strconv.Itoa(pid)), 0644); err != nil {
+		lggr.Errorw("Failed to write sui.pid file", "error", err)
 		return
 	}
 
@@ -213,7 +207,7 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 	client := sui.NewSuiClient(testutils.LocalUrl)
 	ctx := context.Background()
 
-	signer, accountAddress, _, err := events.GenerateAccount(lggr)
+	signer, accountAddress, _, err := account.GenerateAccount(lggr)
 
 	fundWithFaucetErr := testutils.FundWithFaucet(lggr, testutils.SuiLocalnet, accountAddress)
 	if fundWithFaucetErr != nil {
@@ -235,17 +229,27 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 		return
 	}
 
-	lggr.Infow("Executed PTB", "tx", tx)
+	lggr.Infow("Emitting offramp events", "tx", tx)
+
+	tokenAdminRegistryEmitter := events.NewTokenAdminRegistryEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = tokenAdminRegistryEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit token admin registry events", "error", err)
+		return
+	}
+
+	lggr.Infow("Emitting token admin registry events", "tx", tx)
+
 	lggr.Infow("Event emission completed (scaffolding)")
 }
 
-func runEmitSingleEvent(lggr logger.Logger, packageId string, eventName string, contractName string) {
-	lggr.Infow("Starting emit-single-event command", "packageId", packageId, "eventName", eventName)
+func runEmitSingleEvent(lggr logger.Logger, packageId string, functionName string, contractName string) {
+	lggr.Infow("Starting emit-single-event command", "packageId", packageId, "functionName", functionName)
 
 	client := sui.NewSuiClient(testutils.LocalUrl)
 	ctx := context.Background()
 
-	signer, accountAddress, _, err := events.GenerateAccount(lggr)
+	signer, accountAddress, _, err := account.GenerateAccount(lggr)
 	if err != nil {
 		lggr.Errorw("Failed to generate account", "error", err)
 		return
@@ -266,7 +270,7 @@ func runEmitSingleEvent(lggr logger.Logger, packageId string, eventName string, 
 	switch contractName {
 	case "offramp":
 		offrampEmitter := events.NewOffRampEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
-		tx, err := offrampEmitter.EmitEvent(ctx, DEFAULT_GAS_BUDGET, eventName)
+		tx, err := offrampEmitter.EmitEvent(ctx, DEFAULT_GAS_BUDGET, functionName)
 		if err != nil {
 			lggr.Errorw("Failed to emit offramp event", "error", err)
 			return
