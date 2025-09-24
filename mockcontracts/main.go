@@ -111,8 +111,7 @@ EXAMPLES:
     go run mockcontracts/main.go emit-events
 
 	# Emit single event
-    go run mockcontracts/main.go emit-single-event -package-id-file package_id.txt -event-name emit_static_config_set_event -contract-name offramp
-`)
+    go run mockcontracts/main.go emit-single-event -package-id-file package_id.txt -event-name emit_static_config_set_event -contract-name offramp`)
 }
 
 func runSetup(lggr logger.Logger) {
