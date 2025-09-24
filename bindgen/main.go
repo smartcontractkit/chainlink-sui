@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	functioninfo "github.com/smartcontractkit/chainlink-sui/bindgen/function"
 	"github.com/smartcontractkit/chainlink-sui/bindgen/parse"
 	"github.com/smartcontractkit/chainlink-sui/bindgen/template"
 )
@@ -20,14 +21,25 @@ func main() {
 	outputFolder := flag.String("output", "", "path to output directory")
 	moveConfigPath := flag.String("moveConfig", "", "path to Move.toml file")
 	uppercase := flag.String("uppercase", "", "list of words to convert to uppercase")
+	functionInfoOnly := flag.Bool("function-info-only", false, "generate only the global function_info.go file")
 
 	flag.Parse()
 
-	fmt.Println(fmt.Sprintf(`
+	// Only generate global function info file and exit.
+	if *functionInfoOnly {
+		GenerateGlobalFunctionInfo(outputFolder)
+		return
+	}
+
+	GenerateBindings(inputFile, outputFolder, moveConfigPath, uppercase)
+}
+
+func GenerateBindings(inputFile, outputFolder, moveConfigPath, uppercase *string) {
+	fmt.Printf(`
 	##############################################################
 	Generating Go bindings for: %s
 	##############################################################
-	`, *inputFile))
+	\n`, *inputFile)
 
 	// Validate the move config path exists before using it
 	if *moveConfigPath == "" {
@@ -83,6 +95,17 @@ func main() {
 	log.Printf("Writing output to %s", outputFile)
 	_ = os.MkdirAll(filepath.Dir(outputFile), os.ModePerm)
 	if err := os.WriteFile(outputFile, []byte(t), 0600); err != nil {
+		panic(err)
+	}
+}
+
+func GenerateGlobalFunctionInfo(outputFolder *string) {
+	baseDir := *outputFolder
+	if baseDir == "" {
+		log.Fatal("Output directory is required for function-info-only mode")
+	}
+	err := functioninfo.GenerateGlobalFunctionInfo(baseDir)
+	if err != nil {
 		panic(err)
 	}
 }
