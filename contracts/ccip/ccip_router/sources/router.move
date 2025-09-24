@@ -201,7 +201,7 @@ public fun mcms_accept_ownership(
         params,
         McmsCallback {},
     );
-    assert!(function == string::utf8(b"mcms_accept_ownership"), EInvalidFunction);
+    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     let state_address = bcs_stream::deserialize_address(&mut stream);
@@ -215,11 +215,11 @@ public fun mcms_accept_ownership(
 
 public fun execute_ownership_transfer(
     owner_cap: OwnerCap,
-    ownable_state: &mut OwnableState,
+    state: &mut RouterState,
     to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::execute_ownership_transfer(owner_cap, ownable_state, to, ctx);
+    ownable::execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
 public fun execute_ownership_transfer_to_mcms(
@@ -351,7 +351,7 @@ public fun mcms_execute_ownership_transfer(
     bcs_stream::assert_is_consumed(&stream);
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-    execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+    execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
 fun validate_obj_addrs(addrs: vector<address>, stream: &mut BCSStream) {
