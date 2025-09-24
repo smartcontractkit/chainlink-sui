@@ -272,6 +272,14 @@ func runEmitEvents(lggr logger.Logger, packageId string) {
 	}
 	lggr.Infow("Emitting onramp events", "tx", tx)
 
+	managedTokenPoolEmitter := events.NewManagedTokenPoolEmitter(lggr, packageId, signer, callOpts, client, accountAddress)
+	tx, err = managedTokenPoolEmitter.BatchEmitEvents(ctx, DEFAULT_GAS_BUDGET, nil)
+	if err != nil {
+		lggr.Errorw("Failed to emit managed token pool events", "error", err)
+		return
+	}
+	lggr.Infow("Emitting managed token pool events", "tx", tx)
+
 	lggr.Infow("Event emission completed (scaffolding)")
 }
 

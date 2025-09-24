@@ -111,8 +111,8 @@ public struct RateLimiter has store, drop {
 public fun emit_token_locked_or_burned_event(
     amount: u64,
     remote_chain_selector: u64,
-    token: address
 ) {
+    let token = @0x1;
     event::emit(TokenLockedOrBurned {
         amount,
         remote_chain_selector,
@@ -123,8 +123,8 @@ public fun emit_token_locked_or_burned_event(
 // Emit Chain Added event
 public fun emit_chain_added_event(
     remote_chain_selector: u64,
-    remote_token_address: vector<u8>
 ) {
+    let remote_token_address = x"1234567890abcdef1234567890abcdef1234567890abcdef";
     event::emit(ChainAdded {
         remote_chain_selector,
         remote_token_address
@@ -143,8 +143,8 @@ public fun emit_chain_removed_event(
 // Emit Remote Pool Added event
 public fun emit_remote_pool_added_event(
     remote_chain_selector: u64,
-    remote_pool_address: vector<u8>
 ) {
+    let remote_pool_address = x"1234567890abcdef1234567890abcdef1234567890abcdef";
     event::emit(RemotePoolAdded {
         remote_chain_selector,
         remote_pool_address
@@ -154,8 +154,9 @@ public fun emit_remote_pool_added_event(
 // Emit Remote Pool Removed event
 public fun emit_remote_pool_removed_event(
     remote_chain_selector: u64,
-    remote_pool_address: vector<u8>
+
 ) {
+    let remote_pool_address = x"1234567890abcdef1234567890abcdef1234567890abcdef";
     event::emit(RemotePoolRemoved {
         remote_chain_selector,
         remote_pool_address
@@ -164,10 +165,10 @@ public fun emit_remote_pool_removed_event(
 
 /// Emit a TokenReleasedOrMinted event
 public fun emit_token_released_or_minted_event(
-    receiver: address,
     amount: u64,
     remote_chain_selector: u64
 ) {
+    let receiver = @0x1;
     event::emit(TokenReleasedOrMinted {
         receiver,
         amount,
