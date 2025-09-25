@@ -380,14 +380,14 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		}
 
 		response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
-		if err != nil {
+		if err != nil && response.Effects.Status.Status != "success" {
 			return fmt.Errorf("failed to read function: %w", err)
 		}
 
 		c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
 
 		if len(response.Results) == 0 {
-			return fmt.Errorf("no results from function call")
+			return fmt.Errorf("no results from function call: %+v", response)
 		}
 
 		resultsMarshalled, err := response.Results.MarshalJSON()
