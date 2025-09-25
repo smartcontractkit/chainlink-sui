@@ -128,7 +128,7 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 		return f(timeoutCtx)
 	}
 
-	if err := c.rateLimiter.Acquire(ctx, 1); err != nil {
+	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
 		return fmt.Errorf("failed to acquire rate limit: %w", err)
 	}
 	defer c.rateLimiter.Release(1)
@@ -495,7 +495,7 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			} else {
 				// otherwise, get the normalized struct and attempt turning the result into JSON
 				normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
-				c.log.Debugw("normalizedModule", "normalizedModule", normalizedModule)
+				// c.log.Debugw("normalizedModule", "normalizedModule", normalizedModule) // THIS LOG IS TOOOOO BIG
 				if err != nil {
 					return fmt.Errorf("failed to get normalized struct: %w", err)
 				}

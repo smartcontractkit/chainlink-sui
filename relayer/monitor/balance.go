@@ -2,7 +2,9 @@ package monitor
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/config"
@@ -42,8 +44,11 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 			return balanceClient{client: ptbClient}, nil
 		},
 		KeyToAccountMapper: func(ctx context.Context, pubKey string) (string, error) {
-			// We need to convert the Sui public key to an account address
-			return client.GetAddressFromPublicKey([]byte(pubKey))
+			keyBytes, err := hex.DecodeString(strings.TrimPrefix(pubKey, "0x"))
+			if err != nil {
+				return "", fmt.Errorf("invalid hex pubkey: %w", err)
+			}
+			return client.GetAddressFromPublicKey(keyBytes)
 		},
 	})
 }

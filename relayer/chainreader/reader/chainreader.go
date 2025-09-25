@@ -104,6 +104,14 @@ func (s *suiChainReader) HealthReport() map[string]error {
 }
 
 func (s *suiChainReader) Start(ctx context.Context) error {
+	deadline, hasDeadline := ctx.Deadline()
+	s.logger.Infow("ChainReader Start() called",
+		"ctx_err", ctx.Err(),
+		"has_deadline", hasDeadline,
+		"deadline", deadline,
+		"ctx_type", fmt.Sprintf("%T", ctx),
+	)
+
 	return s.starter.StartOnce(s.Name(), func() error {
 		return nil
 	})
