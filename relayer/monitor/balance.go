@@ -54,7 +54,7 @@ type balanceClient struct {
 	client client.SuiPTBClient
 }
 
-// GetAccountBalance returns the account balance in APT.
+// GetAccountBalance returns the account balance in SUI
 func (c balanceClient) GetAccountBalance(address string) (float64, error) {
 	// TODO: is this safe?
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
