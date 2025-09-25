@@ -3,10 +3,11 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/config"
 
+	aptosBalanceMonitor "github.com/smartcontractkit/chainlink-aptos/relayer/monitor"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
@@ -17,9 +18,9 @@ const SuiDecimalsDenominator = 10 ^ SuiDecimals
 
 // BalanceMonitorOpts contains the options for creating a new Sui account balance monitor.
 type BalanceMonitorOpts struct {
-	ChainInfo config.ChainInfo
+	ChainInfo aptosBalanceMonitor.ChainInfo
 
-	Config    GenericBalanceConfig
+	Config    aptosBalanceMonitor.GenericBalanceConfig
 	Logger    logger.Logger
 	Keystore  core.Keystore
 	NewClient func() (client.SuiPTBClient, error)
@@ -27,13 +28,13 @@ type BalanceMonitorOpts struct {
 
 // NewBalanceMonitor returns a balance monitoring services.Service which reports balance of all Keystore accounts.
 func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
-	return NewGenericBalanceMonitor(GenericBalanceMonitorOpts{
+	return aptosBalanceMonitor.NewGenericBalanceMonitor(aptosBalanceMonitor.GenericBalanceMonitorOpts{
 		ChainInfo:           opts.ChainInfo,
 		ChainNativeCurrency: "SUI",
 		Config:              opts.Config,
 		Logger:              opts.Logger,
 		Keystore:            opts.Keystore,
-		NewGenericBalanceClient: func() (GenericBalanceClient, error) {
+		NewGenericBalanceClient: func() (aptosBalanceMonitor.GenericBalanceClient, error) {
 			ptbClient, err := opts.NewClient()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get new client: %w", err)
@@ -54,7 +55,11 @@ type balanceClient struct {
 }
 
 // GetAccountBalance returns the account balance in APT.
-func (c balanceClient) GetAccountBalance(ctx context.Context, address string) (float64, error) {
+func (c balanceClient) GetAccountBalance(address string) (float64, error) {
+	// TODO: is this safe?
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	// Get the account balance
 	balance, err := c.client.GetSUIBalance(ctx, address)
 	if err != nil {
