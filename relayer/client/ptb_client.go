@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,7 @@ const (
 	DefaultGasBudget            uint64        = 1_000_000_000
 	DefaultCacheExpiration      time.Duration = 120 * time.Minute
 	DefaultCacheCleanupInterval time.Duration = 240 * time.Minute
+	DefaultHTTPTimeout          time.Duration = 15 * time.Second
 )
 
 // var since it's passed via pointer
@@ -101,7 +103,10 @@ func NewPTBClient(
 ) (*PTBClient, error) {
 	log.Infof("Creating new SUI client with blockvision SDK")
 
-	client := sui.NewSuiClient(rpcUrl)
+	httpClient := &http.Client{
+		Timeout: DefaultHTTPTimeout,
+	}
+	client := sui.NewSuiClientWithCustomClient(rpcUrl, httpClient)
 
 	if maxConcurrentRequests <= 0 {
 		maxConcurrentRequests = 100 // Default value
