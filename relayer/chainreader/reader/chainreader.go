@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -314,8 +315,12 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgty
 			result pkgtypes.BatchReadResult
 		}, len(batch))
 
+		var waitgroup sync.WaitGroup
+		waitgroup.Add(len(batch))
+
 		for i, read := range batch {
-			go func(index int, read pkgtypes.BatchRead) {
+			go func(index int, read pkgtypes.BatchRead, contract pkgtypes.BoundContract) {
+				defer waitgroup.Done()
 				readResult := pkgtypes.BatchReadResult{ReadName: read.ReadName}
 
 				err := s.GetLatestValue(ctx, contract.ReadIdentifier(read.ReadName), primitives.Finalized, read.Params, read.ReturnVal)
@@ -329,16 +334,27 @@ func (s *suiChainReader) BatchGetLatestValues(ctx context.Context, request pkgty
 				case <-ctx.Done():
 					return
 				}
-			}(i, read)
+			}(i, read, contract)
 		}
 
-		for range batch {
-			select {
-			case res := <-resultChan:
-				batchResults[res.index] = res.result
-			case <-ctx.Done():
-				return nil, ctx.Err()
+		// wait for all the results to be processed then close the channel
+		go func() {
+			waitgroup.Wait()
+			close(resultChan)
+		}()
+
+		resultsReceived := 0
+		for res := range resultChan {
+			batchResults[res.index] = res.result
+			resultsReceived++
+		}
+
+		// check if all the results were received
+		if resultsReceived != len(batch) {
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
+			return nil, fmt.Errorf("batch processing failed: expected %d results, received %d", len(batch), resultsReceived)
 		}
 
 		result[contract] = batchResults
