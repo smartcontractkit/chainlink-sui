@@ -81,13 +81,15 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	requestType := *cfg.TransactionManager.RequestType
 
 	txmConfig := txm.Config{
-		BroadcastChanSize:     uint(*cfg.TransactionManager.BroadcastChanSize),
-		RequestType:           requestType,
-		ConfirmPollSecs:       uint(*cfg.TransactionManager.ConfirmPollSecs),
-		DefaultMaxGasAmount:   *cfg.TransactionManager.DefaultMaxGasAmount,
-		MaxTxRetryAttempts:    *cfg.TransactionManager.MaxTxRetryAttempts,
-		TransactionTimeout:    *cfg.TransactionManager.TransactionTimeout,
-		MaxConcurrentRequests: *cfg.TransactionManager.MaxConcurrentRequests,
+		BroadcastChanSize:        uint(*cfg.TransactionManager.BroadcastChanSize),
+		RequestType:              requestType,
+		ConfirmPollSecs:          uint(*cfg.TransactionManager.ConfirmPollSecs),
+		DefaultMaxGasAmount:      *cfg.TransactionManager.DefaultMaxGasAmount,
+		MaxTxRetryAttempts:       *cfg.TransactionManager.MaxTxRetryAttempts,
+		TransactionTimeout:       *cfg.TransactionManager.TransactionTimeout,
+		MaxConcurrentRequests:    *cfg.TransactionManager.MaxConcurrentRequests,
+		ReaperPollSecs:           *cfg.TransactionManager.ReaperPollSecs,
+		TransactionRetentionSecs: *cfg.TransactionManager.TransactionRetentionSecs,
 	}
 
 	// Use config values instead of constants

@@ -171,6 +171,11 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 		return ptb, nil
 
 	case cwConfig.CCIPCommit:
+		// unwrap if core wrapped with Args
+		if inner, ok := arguments.Args["Args"].(map[string]any); ok {
+			arguments.Args = inner
+		}
+
 		// If it's just a commit, then we just need to get the address mappings and use the regular
 		// PTB builder to build the PTB.
 		am, err := offramp.GetOfframpAddressMappings(ctx, p.log, p.client, toAddress, txnConfig.PublicKey)
@@ -198,16 +203,24 @@ func (p *PTBConstructor) BuildPTBCommands(ctx context.Context, moduleName string
 
 	// Process each command in order
 	for _, cmd := range txnConfig.PTBCommands {
+		if cmd.PackageId == nil {
+			cmd.PackageId = &toAddress
+		}
+
 		// Process the command based on its type
 		switch cmd.Type {
 		case codec.SuiPTBCommandMoveCall:
 			// Override the package ID with the latest package ID of the module being called,
 			// fallback to the provided package ID if the module does not have the `get_latest_package_id` function
-			latestPackageId, err := p.client.(*client.PTBClient).GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
-			if err != nil {
-				return nil, err
+			if cmd.PackageId != nil && cmd.ModuleId != nil {
+				latestPackageId, err := p.client.GetLatestPackageId(ctx, *cmd.PackageId, *cmd.ModuleId, signerAddress)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get latest package id: %w", err)
+				}
+				cmd.PackageId = &latestPackageId
+			} else {
+				p.log.Info("missing PackageId or ModuleId in PTB command")
 			}
-			cmd.PackageId = &latestPackageId
 
 			_, err = p.ProcessMoveCall(ctx, ptb, cmd, &arguments, &cachedArgs)
 			if err != nil {
@@ -279,6 +292,25 @@ func (p *PTBConstructor) ProcessArgsForCommand(
 ) ([]transaction.Argument, error) {
 	processedArgs := make([]transaction.Argument, 0, len(params))
 
+	// Handle wrapped Args/ArgTypes (depends on how core node provided them)
+	if wrap, ok := arguments.Args["Args"].(map[string]any); ok {
+		// try to pull ArgTypes from the same wrapper
+		if rawAT, ok := arguments.Args["ArgTypes"]; ok {
+			switch m := rawAT.(type) {
+			case map[string]string:
+				arguments.ArgTypes = m
+			case map[string]any:
+				at := make(map[string]string, len(m))
+				for k, v := range m {
+					if s, ok := v.(string); ok {
+						at[k] = s
+					}
+				}
+				arguments.ArgTypes = at
+			}
+		}
+		arguments.Args = wrap
+	}
 	for _, param := range params {
 		p.log.Debugw("Processing PTB parameter", "Param", param)
 

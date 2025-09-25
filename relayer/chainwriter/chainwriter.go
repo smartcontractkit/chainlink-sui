@@ -19,6 +19,9 @@ import (
 
 const ServiceName = "SuiChainWriter"
 
+// default min gas for sui mainnet
+const defaultGas = 200000000 // 0.2 sui
+
 type SuiChainWriter struct {
 	lggr       logger.Logger
 	txm        txm.TxManager
@@ -92,8 +95,11 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 	}
 
 	// Get gas budget from CCIP message if available
-	switch method {
-	case cwConfig.CCIPExecute:
+	if method == cwConfig.CCIPExecute {
+		if inner, ok := arguments.Args["Args"].(map[string]any); ok {
+			arguments.Args = inner
+		}
+
 		gasBudget, err := s.EstimateGasBudgetFromCCIPExecuteMessage(ctx, arguments.Args, meta)
 		if err != nil {
 			s.lggr.Errorw("Error estimating gas budget", "error", err)
@@ -102,14 +108,11 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 		if gasBudget != nil {
 			s.lggr.Infow("Using gas budget from CCIP message", "gasBudget", gasBudget, "transactionID", transactionID)
 			meta = &commonTypes.TxMeta{
-				GasLimit: gasBudget,
+				GasLimit: gasBudget.Add(gasBudget, big.NewInt(defaultGas)),
 			}
 		} else {
 			s.lggr.Debugw("No gas budget found, using the transaction simulation")
 		}
-	case cwConfig.CCIPCommit:
-		// TODO: I don't think we need to do anything here
-		s.lggr.Infow("CCIPCommit not implemented", "transactionID", transactionID)
 	}
 
 	ptbService, err := s.ptbFactory.BuildPTBCommands(ctx, ptbName, method, arguments, toAddress, functionConfig)
