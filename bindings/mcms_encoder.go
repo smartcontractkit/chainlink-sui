@@ -27,19 +27,6 @@ func NewCCIPEntrypointArgEncoder() *CCIPEntrypointArgEncoder {
 	return &CCIPEntrypointArgEncoder{}
 }
 
-// package-level constructor variables so tests can inject fakes
-var (
-	newFeeQuoter            = module_fee_quoter.NewFeeQuoter
-	newOfframp              = module_offramp.NewOfframp
-	newOnramp               = module_onramp.NewOnramp
-	newRouter               = module_router.NewRouter
-	newBurnMintTokenPool    = module_burn_mint_token_pool.NewBurnMintTokenPool
-	newLockReleaseTokenPool = module_lock_release_token_pool.NewLockReleaseTokenPool
-	newManagedTokenPool     = module_managed_token_pool.NewManagedTokenPool
-	newUsdcTokenPool        = module_usdc_token_pool.NewUsdcTokenPool
-	newManagedToken         = module_managed_token.NewManagedToken
-)
-
 // MCMS SDK will call this to encode the entrypoint call
 // Data is the raw BCS encoded bytes of the final function call
 func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *transaction.Argument, target, module, function, stateObjID string, data []byte) (*bind.EncodedCall, error) {
