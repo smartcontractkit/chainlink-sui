@@ -12,12 +12,12 @@ const (
 	DefaultMaxConcurrentRequests      = int64(5)
 	DefaultRetryCount                 = int64(5)
 	DefaultMaxGasLimit                = int64(10000000)
-	DefaultTxTimeoutSeconds           = 10
+	DefaultTxTimeoutSeconds           = 20
 	DefaultConfirmPollSecs            = int64(1)
 	DefaultBalancePollIntervalSeconds = int64(10)
 
 	DefaultIndexerPollIntervalSecs = uint64(3)
-	DefaultIndexerSyncTimeoutSecs  = uint64(3)
+	DefaultIndexerSyncTimeoutSecs  = uint64(10)
 
 	DefaultReaperPollSecs           = uint64(10)
 	DefaultTransactionRetentionSecs = uint64(10)

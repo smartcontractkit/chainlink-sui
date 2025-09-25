@@ -124,6 +124,18 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
+	// 🔎 log the deadline before rate limit acquire
+	if deadline, ok := timeoutCtx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		c.log.Debugw("RPC call deadline",
+			"timeout", c.transactionTimeout,
+			"deadline", deadline,
+			"remaining", remaining,
+		)
+	} else {
+		c.log.Debug("RPC call has no deadline")
+	}
+
 	if c.rateLimiter == nil {
 		return f(timeoutCtx)
 	}
