@@ -302,7 +302,6 @@ func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 }
 
 func decodeType(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
-	// Handle special cases first
 	switch {
 	case moveType == "bool":
 		var res bool
@@ -343,13 +342,14 @@ func decodeType(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.
 	}
 }
 
+// decodeSlice handles decoding of Move vectors and keeps track of inner types, including nested vectors
 func decodeSlice(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
-	var length uint8
-
 	// Decode length prefix
+	var length uint8
 	deserializer.Decode(&length)
 	innerType := moveType[7 : len(moveType)-1]
 
+	// decode elements recursively
 	elements := make([]any, length)
 	var elemType reflect.Type
 	for i := range elements {
@@ -364,8 +364,6 @@ func decodeSlice(deserializer *mystenbcs.Decoder, moveType string) (any, reflect
 	// Create properly typed slice using reflection
 	sliceType := reflect.SliceOf(elemType)
 	slice := reflect.MakeSlice(sliceType, int(length), int(length))
-
-	// Set each element in the slice
 	for i, elem := range elements {
 		slice.Index(i).Set(reflect.ValueOf(elem))
 	}
@@ -373,6 +371,7 @@ func decodeSlice(deserializer *mystenbcs.Decoder, moveType string) (any, reflect
 	return slice.Interface(), sliceType, nil
 }
 
+// decodeAddress transforms a 32-byte array address into a SuiAddress string
 func decodeAddress(deserializer *mystenbcs.Decoder) (models.SuiAddress, reflect.Type, error) {
 	var res [32]byte
 	_, err := decode(deserializer, &res)
@@ -384,7 +383,6 @@ func decodeAddress(deserializer *mystenbcs.Decoder) (models.SuiAddress, reflect.
 }
 
 func decodeBigInt(deserializer *mystenbcs.Decoder, moveType string, size int) (*big.Int, reflect.Type, error) {
-	// Direct decoding based on size
 	switch size {
 	case 16:
 		var bytes [16]byte
@@ -405,6 +403,7 @@ func decodeBigInt(deserializer *mystenbcs.Decoder, moveType string, size int) (*
 	}
 }
 
+// decode decodes any regular type supported by mystenbcs that doesn't need special handling
 func decode[T any](deserializer *mystenbcs.Decoder, target *T) (reflect.Type, error) {
 	_, err := deserializer.Decode(target)
 	if err != nil {
