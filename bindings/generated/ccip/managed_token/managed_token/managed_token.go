@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"managed_token","module":"managed_token","name":"accept_ownership","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"managed_token","module":"managed_token","name":"blocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"borrow_treasury_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"burn","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"coin","type":"Coin<T>"},{"name":"from","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"configure_new_minter","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"minter","type":"address"},{"name":"allowance","type":"u64"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"destroy_managed_token","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"state","type":"TokenState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"get_all_mint_caps","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"has_pending_transfer","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"increment_mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"allowance_increment","type":"u64"}]},{"package":"managed_token","module":"managed_token","name":"initialize","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"}]},{"package":"managed_token","module":"managed_token","name":"initialize_with_deny_cap","parameters":[{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"deny_cap","type":"DenyCapV2<T>"}]},{"package":"managed_token","module":"managed_token","name":"is_authorized_mint_cap","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"id","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"mint_allowance","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"ID"}]},{"package":"managed_token","module":"managed_token","name":"mint_and_transfer","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"mint_cap","type":"MintCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"amount","type":"u64"},{"name":"recipient","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"owner","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_from","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"pending_transfer_to","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"set_unlimited_mint_allowances","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"mint_cap_id","type":"ID"},{"name":"deny_list","type":"DenyList"},{"name":"is_unlimited","type":"bool"}]},{"package":"managed_token","module":"managed_token","name":"total_supply","parameters":[{"name":"state","type":"TokenState<T>"}]},{"package":"managed_token","module":"managed_token","name":"transfer_ownership","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"new_owner","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"type_and_version","parameters":null},{"package":"managed_token","module":"managed_token","name":"unblocklist","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"},{"name":"addr","type":"address"}]},{"package":"managed_token","module":"managed_token","name":"unpause","parameters":[{"name":"state","type":"TokenState<T>"},{"name":"owner_cap","type":"OwnerCap<T>"},{"name":"deny_list","type":"DenyList"}]}]`
+
 type IManagedToken interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, treasuryCap bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -51,7 +53,7 @@ type IManagedToken interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsIncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetUnlimitedMintAllowances(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsBlocklist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -142,7 +144,7 @@ type ManagedTokenEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsConfigureNewMinterWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsIncrementMintAllowance(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsIncrementMintAllowanceWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -939,8 +941,8 @@ func (c *ManagedTokenContract) McmsRegisterUpgradeCap(ctx context.Context, opts 
 }
 
 // McmsConfigureNewMinter executes the mcms_configure_new_minter Move function.
-func (c *ManagedTokenContract) McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.McmsConfigureNewMinter(typeArgs, state, registry, denyList, params)
+func (c *ManagedTokenContract) McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsConfigureNewMinter(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2397,7 +2399,7 @@ func (c managedTokenEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.
 }
 
 // McmsConfigureNewMinter encodes a call to the mcms_configure_new_minter Move function.
-func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2405,12 +2407,10 @@ func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bin
 	return c.EncodeCallArgsWithGenerics("mcms_configure_new_minter", typeArgsList, typeParamsList, []string{
 		"&mut TokenState<T>",
 		"&mut Registry",
-		"&mut DenyList",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
 		registry,
-		denyList,
 		params,
 	}, nil)
 }
@@ -2421,7 +2421,6 @@ func (c managedTokenEncoder) McmsConfigureNewMinterWithArgs(typeArgs []string, a
 	expectedParams := []string{
 		"&mut TokenState<T>",
 		"&mut Registry",
-		"&mut DenyList",
 		"ExecutingCallbackParams",
 	}
 

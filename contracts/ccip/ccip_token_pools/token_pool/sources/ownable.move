@@ -223,20 +223,20 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
     event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
 }
 
-public fun destroy_ownable_state(state: OwnableState, _ctx: &mut TxContext) {
+public fun destroy(state: OwnableState, owner_cap: OwnerCap, _ctx: &mut TxContext) {
     let OwnableState {
-        id,
+        id: state_id,
         owner: _,
         pending_transfer: _,
-        owner_cap_id: _,
+        owner_cap_id: state_owner_cap_id,
     } = state;
 
-    object::delete(id);
-}
+    let OwnerCap { id: owner_cap_id } = owner_cap;
 
-public fun destroy_owner_cap(owner_cap: OwnerCap, _ctx: &mut TxContext) {
-    let OwnerCap { id } = owner_cap;
-    object::delete(id);
+    assert!(owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
+
+    object::delete(state_id);
+    object::delete(owner_cap_id);
 }
 
 #[test_only]
@@ -244,4 +244,10 @@ public fun create_test_owner_cap(ctx: &mut TxContext): OwnerCap {
     OwnerCap {
         id: object::new(ctx),
     }
+}
+
+#[test_only]
+public fun test_destroy_owner_cap(owner_cap: OwnerCap) {
+    let OwnerCap { id } = owner_cap;
+    object::delete(id);
 }

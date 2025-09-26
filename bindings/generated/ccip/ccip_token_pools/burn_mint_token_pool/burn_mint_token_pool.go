@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"destroy_token_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"initialize_by_ccip_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"ccip_admin_proof","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"owner","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"pool","type":"BurnMintTokenPoolState<T>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"BurnMintTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"burn_mint_token_pool","module":"burn_mint_token_pool","name":"type_and_version","parameters":null}]`
+
 type IBurnMintTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string) (*models.SuiTransactionBlockResponse, error)
@@ -51,7 +53,7 @@ type IBurnMintTokenPool interface {
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetAllowlistEnabled(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -150,8 +152,8 @@ type BurnMintTokenPoolEncoder interface {
 	AcceptOwnershipFromObjectWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsAcceptOwnership(typeArgs []string, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
@@ -593,8 +595,8 @@ func (c *BurnMintTokenPoolContract) McmsAcceptOwnership(ctx context.Context, opt
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, ownableState bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.burnMintTokenPoolEncoder.ExecuteOwnershipTransfer(ownerCap, ownableState, to)
+func (c *BurnMintTokenPoolContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.burnMintTokenPoolEncoder.ExecuteOwnershipTransfer(typeArgs, ownerCap, state, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2226,34 +2228,38 @@ func (c burnMintTokenPoolEncoder) McmsAcceptOwnershipWithArgs(typeArgs []string,
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, ownableState bind.Object, to string) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut BurnMintTokenPoolState<T>",
 		"address",
 	}, []any{
 		ownerCap,
-		ownableState,
+		state,
 		to,
 	}, nil)
 }
 
 // ExecuteOwnershipTransferWithArgs encodes a call to the execute_ownership_transfer Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c burnMintTokenPoolEncoder) ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"OwnerCap",
-		"&mut OwnableState",
+		"&mut BurnMintTokenPoolState<T>",
 		"address",
 	}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
 	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 

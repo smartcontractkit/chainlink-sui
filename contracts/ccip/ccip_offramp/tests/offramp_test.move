@@ -684,8 +684,7 @@ public fun test_remove_package_id_invalid_owner_cap() {
     offramp::remove_package_id(&mut env.state, &wrong_owner_cap, test_package_id);
 
     // Clean up the wrong owner cap and ownable state before tear_down
-    ccip_offramp::ownable::destroy_ownable_state(wrong_ownable_state, env.scenario.ctx());
-    ccip_offramp::ownable::destroy_owner_cap(wrong_owner_cap, env.scenario.ctx());
+    ccip_offramp::ownable::destroy(wrong_ownable_state, wrong_owner_cap, env.scenario.ctx());
 
     tear_down(env);
     ts::return_to_address(OWNER, owner_cap);

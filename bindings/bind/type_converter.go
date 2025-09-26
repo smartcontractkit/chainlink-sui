@@ -51,6 +51,9 @@ func convertToByteArray(value any) ([]uint8, error) {
 	switch v := value.(type) {
 	case []uint8:
 		return v, nil
+	case [32]uint8:
+		// convert fixed-length array to slice
+		return v[:], nil
 	case string:
 		v = strings.TrimPrefix(v, "0x")
 		byteSlice := []uint8{}

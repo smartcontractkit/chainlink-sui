@@ -24,6 +24,8 @@ var (
   _ = big.NewInt
 )
 
+const FunctionInfo = `{{.FunctionInfo}}`
+
 type I{{toUpperCamel .Module}} interface {
 {{ range .Funcs}}
   {{.Name}}(ctx context.Context, opts *bind.CallOpts, {{if .HasTypeParams}}typeArgs []string, {{end}}{{range .Params}}{{.Name}} {{.Type.GoType}},{{end}}) (*models.SuiTransactionBlockResponse, error)

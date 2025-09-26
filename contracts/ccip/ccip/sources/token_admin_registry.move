@@ -411,12 +411,6 @@ public fun unregister_pool(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"token_admin_registry"),
-        string::utf8(b"unregister_pool"),
-        VERSION,
-    );
     unregister_pool_internal(ref, coin_metadata_address, ctx.sender());
 }
 
@@ -425,6 +419,12 @@ fun unregister_pool_internal(
     coin_metadata_address: address,
     caller: address,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"unregister_pool"),
+        VERSION,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -451,12 +451,6 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"token_admin_registry"),
-        string::utf8(b"set_pool"),
-        VERSION,
-    );
     let token_pool_type_proof_tn = type_name::get<TypeProof>();
     let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
     set_pool_internal(
@@ -481,6 +475,12 @@ fun set_pool_internal(
     token_pool_type_proof: ascii::String,
     caller: address,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"set_pool"),
+        VERSION,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -516,12 +516,6 @@ public fun transfer_admin_role(
     new_admin: address,
     ctx: &mut TxContext,
 ) {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"token_admin_registry"),
-        string::utf8(b"transfer_admin_role"),
-        VERSION,
-    );
     transfer_admin_role_internal(ref, coin_metadata_address, new_admin, ctx.sender());
 }
 
@@ -531,6 +525,12 @@ fun transfer_admin_role_internal(
     new_admin: address,
     caller: address,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"transfer_admin_role"),
+        VERSION,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
@@ -554,12 +554,6 @@ public fun accept_admin_role(
     coin_metadata_address: address,
     ctx: &mut TxContext,
 ) {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"token_admin_registry"),
-        string::utf8(b"accept_admin_role"),
-        VERSION,
-    );
     accept_admin_role_internal(ref, coin_metadata_address, ctx.sender());
 }
 
@@ -568,6 +562,12 @@ fun accept_admin_role_internal(
     coin_metadata_address: address,
     caller: address,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"accept_admin_role"),
+        VERSION,
+    );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
     assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);

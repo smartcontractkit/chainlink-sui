@@ -1,0 +1,15 @@
+// Code generated - DO NOT EDIT.
+// This file is a generated binding and any manual changes will be lost.
+package generated
+
+import (
+    {{- range .}}
+    module_{{.ModuleName}} "{{.ImportPath}}"
+    {{- end}}
+)
+
+var functionInfoGlobal = map[string]string{
+{{- range .}}
+    "{{.ModuleName}}": module_{{.ModuleName}}.FunctionInfo,
+{{- end}}
+}

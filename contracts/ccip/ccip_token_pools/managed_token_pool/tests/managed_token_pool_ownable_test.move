@@ -18,7 +18,6 @@ public fun test_ownable_module_functions_exist() {
     let _pending_accepted = ownable::pending_transfer_accepted(&ownable_state);
 
     // Clean up
-    ownable::destroy_ownable_state(ownable_state, scenario.ctx());
-    ownable::destroy_owner_cap(owner_cap, scenario.ctx());
+    ownable::destroy(ownable_state, owner_cap, scenario.ctx());
     scenario.end();
 }
