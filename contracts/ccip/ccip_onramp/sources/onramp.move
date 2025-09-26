@@ -1376,7 +1376,12 @@ public fun mcms_initialize(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[
+            object::id_address(state),
+            object::id_address(owner_cap),
+            object::id_address(&nonce_manager_cap),
+            object::id_address(&source_transfer_cap),
+        ],
         &mut stream,
     );
 
@@ -1428,7 +1433,12 @@ public fun mcms_withdraw_fee_tokens<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
+        vector[
+            object::id_address(ref),
+            object::id_address(state),
+            object::id_address(owner_cap),
+            object::id_address(fee_token_metadata),
+        ],
         &mut stream,
     );
 

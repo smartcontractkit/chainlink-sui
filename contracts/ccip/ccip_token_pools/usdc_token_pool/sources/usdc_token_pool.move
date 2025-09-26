@@ -740,7 +740,7 @@ public fun mcms_set_allowlist_enabled<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -764,7 +764,7 @@ public fun mcms_apply_allowlist_updates<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -795,7 +795,7 @@ public fun mcms_apply_chain_updates<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -844,7 +844,7 @@ public fun mcms_add_remote_pool<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
@@ -869,7 +869,7 @@ public fun mcms_remove_remote_pool<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
     let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
@@ -894,7 +894,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap), object::id_address(clock)],
         &mut stream,
     );
 
@@ -957,7 +957,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap), object::id_address(clock)],
         &mut stream,
     );
 
@@ -1026,7 +1026,7 @@ public fun mcms_transfer_ownership<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(registry)],
+        vector[object::id_address(state), object::id_address(owner_cap)],
         &mut stream,
     );
 
