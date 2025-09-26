@@ -788,6 +788,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MultisigState
+	bind.RegisterStructDecoder("vector<mcms::mcms::MultisigState>", func(data []byte) (interface{}, error) {
+		var temps []bcsMultisigState
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]MultisigState, len(temps))
+		for i, temp := range temps {
+			result, err := convertMultisigStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::Multisig", func(data []byte) (interface{}, error) {
 		var temp bcsMultisig
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -801,6 +819,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Multisig
+	bind.RegisterStructDecoder("vector<mcms::mcms::Multisig>", func(data []byte) (interface{}, error) {
+		var temps []bcsMultisig
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Multisig, len(temps))
+		for i, temp := range temps {
+			result, err := convertMultisigFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::Signer", func(data []byte) (interface{}, error) {
 		var result Signer
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -808,6 +844,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Signer
+	bind.RegisterStructDecoder("vector<mcms::mcms::Signer>", func(data []byte) (interface{}, error) {
+		var results []Signer
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Config", func(data []byte) (interface{}, error) {
 		var result Config
@@ -817,6 +862,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Config
+	bind.RegisterStructDecoder("vector<mcms::mcms::Config>", func(data []byte) (interface{}, error) {
+		var results []Config
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::ExpiringRootAndOpCount", func(data []byte) (interface{}, error) {
 		var result ExpiringRootAndOpCount
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -824,6 +878,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ExpiringRootAndOpCount
+	bind.RegisterStructDecoder("vector<mcms::mcms::ExpiringRootAndOpCount>", func(data []byte) (interface{}, error) {
+		var results []ExpiringRootAndOpCount
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Op", func(data []byte) (interface{}, error) {
 		var temp bcsOp
@@ -838,6 +901,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Op
+	bind.RegisterStructDecoder("vector<mcms::mcms::Op>", func(data []byte) (interface{}, error) {
+		var temps []bcsOp
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Op, len(temps))
+		for i, temp := range temps {
+			result, err := convertOpFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::RootMetadata", func(data []byte) (interface{}, error) {
 		var temp bcsRootMetadata
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -851,6 +932,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for RootMetadata
+	bind.RegisterStructDecoder("vector<mcms::mcms::RootMetadata>", func(data []byte) (interface{}, error) {
+		var temps []bcsRootMetadata
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]RootMetadata, len(temps))
+		for i, temp := range temps {
+			result, err := convertRootMetadataFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::TimelockCallbackParams", func(data []byte) (interface{}, error) {
 		var result TimelockCallbackParams
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -858,6 +957,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TimelockCallbackParams
+	bind.RegisterStructDecoder("vector<mcms::mcms::TimelockCallbackParams>", func(data []byte) (interface{}, error) {
+		var results []TimelockCallbackParams
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::MultisigStateInitialized", func(data []byte) (interface{}, error) {
 		var result MultisigStateInitialized
@@ -867,6 +975,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MultisigStateInitialized
+	bind.RegisterStructDecoder("vector<mcms::mcms::MultisigStateInitialized>", func(data []byte) (interface{}, error) {
+		var results []MultisigStateInitialized
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::ConfigSet", func(data []byte) (interface{}, error) {
 		var result ConfigSet
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -874,6 +991,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ConfigSet
+	bind.RegisterStructDecoder("vector<mcms::mcms::ConfigSet>", func(data []byte) (interface{}, error) {
+		var results []ConfigSet
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::NewRoot", func(data []byte) (interface{}, error) {
 		var temp bcsNewRoot
@@ -888,6 +1014,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for NewRoot
+	bind.RegisterStructDecoder("vector<mcms::mcms::NewRoot>", func(data []byte) (interface{}, error) {
+		var temps []bcsNewRoot
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]NewRoot, len(temps))
+		for i, temp := range temps {
+			result, err := convertNewRootFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::OpExecuted", func(data []byte) (interface{}, error) {
 		var temp bcsOpExecuted
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -901,6 +1045,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OpExecuted
+	bind.RegisterStructDecoder("vector<mcms::mcms::OpExecuted>", func(data []byte) (interface{}, error) {
+		var temps []bcsOpExecuted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OpExecuted, len(temps))
+		for i, temp := range temps {
+			result, err := convertOpExecutedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::MCMS", func(data []byte) (interface{}, error) {
 		var result MCMS
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -908,6 +1070,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for MCMS
+	bind.RegisterStructDecoder("vector<mcms::mcms::MCMS>", func(data []byte) (interface{}, error) {
+		var results []MCMS
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
@@ -917,6 +1088,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<mcms::mcms::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::Timelock", func(data []byte) (interface{}, error) {
 		var result Timelock
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -924,6 +1104,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Timelock
+	bind.RegisterStructDecoder("vector<mcms::mcms::Timelock>", func(data []byte) (interface{}, error) {
+		var results []Timelock
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::Call", func(data []byte) (interface{}, error) {
 		var temp bcsCall
@@ -938,6 +1127,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Call
+	bind.RegisterStructDecoder("vector<mcms::mcms::Call>", func(data []byte) (interface{}, error) {
+		var temps []bcsCall
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Call, len(temps))
+		for i, temp := range temps {
+			result, err := convertCallFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::Function", func(data []byte) (interface{}, error) {
 		var temp bcsFunction
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -951,6 +1158,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Function
+	bind.RegisterStructDecoder("vector<mcms::mcms::Function>", func(data []byte) (interface{}, error) {
+		var temps []bcsFunction
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Function, len(temps))
+		for i, temp := range temps {
+			result, err := convertFunctionFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::TimelockInitialized", func(data []byte) (interface{}, error) {
 		var result TimelockInitialized
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -958,6 +1183,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TimelockInitialized
+	bind.RegisterStructDecoder("vector<mcms::mcms::TimelockInitialized>", func(data []byte) (interface{}, error) {
+		var results []TimelockInitialized
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::BypasserCallInitiated", func(data []byte) (interface{}, error) {
 		var temp bcsBypasserCallInitiated
@@ -972,6 +1206,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for BypasserCallInitiated
+	bind.RegisterStructDecoder("vector<mcms::mcms::BypasserCallInitiated>", func(data []byte) (interface{}, error) {
+		var temps []bcsBypasserCallInitiated
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]BypasserCallInitiated, len(temps))
+		for i, temp := range temps {
+			result, err := convertBypasserCallInitiatedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::Cancelled", func(data []byte) (interface{}, error) {
 		var result Cancelled
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -979,6 +1231,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Cancelled
+	bind.RegisterStructDecoder("vector<mcms::mcms::Cancelled>", func(data []byte) (interface{}, error) {
+		var results []Cancelled
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::CallScheduled", func(data []byte) (interface{}, error) {
 		var temp bcsCallScheduled
@@ -993,6 +1254,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CallScheduled
+	bind.RegisterStructDecoder("vector<mcms::mcms::CallScheduled>", func(data []byte) (interface{}, error) {
+		var temps []bcsCallScheduled
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]CallScheduled, len(temps))
+		for i, temp := range temps {
+			result, err := convertCallScheduledFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::CallInitiated", func(data []byte) (interface{}, error) {
 		var temp bcsCallInitiated
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -1006,6 +1285,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CallInitiated
+	bind.RegisterStructDecoder("vector<mcms::mcms::CallInitiated>", func(data []byte) (interface{}, error) {
+		var temps []bcsCallInitiated
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]CallInitiated, len(temps))
+		for i, temp := range temps {
+			result, err := convertCallInitiatedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::UpdateMinDelay", func(data []byte) (interface{}, error) {
 		var result UpdateMinDelay
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -1013,6 +1310,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for UpdateMinDelay
+	bind.RegisterStructDecoder("vector<mcms::mcms::UpdateMinDelay>", func(data []byte) (interface{}, error) {
+		var results []UpdateMinDelay
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms::FunctionBlocked", func(data []byte) (interface{}, error) {
 		var temp bcsFunctionBlocked
@@ -1027,6 +1333,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for FunctionBlocked
+	bind.RegisterStructDecoder("vector<mcms::mcms::FunctionBlocked>", func(data []byte) (interface{}, error) {
+		var temps []bcsFunctionBlocked
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]FunctionBlocked, len(temps))
+		for i, temp := range temps {
+			result, err := convertFunctionBlockedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms::FunctionUnblocked", func(data []byte) (interface{}, error) {
 		var temp bcsFunctionUnblocked
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -1039,6 +1363,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for FunctionUnblocked
+	bind.RegisterStructDecoder("vector<mcms::mcms::FunctionUnblocked>", func(data []byte) (interface{}, error) {
+		var temps []bcsFunctionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]FunctionUnblocked, len(temps))
+		for i, temp := range temps {
+			result, err := convertFunctionUnblockedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 
