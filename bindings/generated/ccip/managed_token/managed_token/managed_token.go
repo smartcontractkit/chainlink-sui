@@ -53,7 +53,7 @@ type IManagedToken interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsIncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetUnlimitedMintAllowances(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsBlocklist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -144,7 +144,7 @@ type ManagedTokenEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsConfigureNewMinterWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsIncrementMintAllowance(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsIncrementMintAllowanceWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -779,8 +779,8 @@ func (c *ManagedTokenContract) McmsRegisterUpgradeCap(ctx context.Context, opts 
 }
 
 // McmsConfigureNewMinter executes the mcms_configure_new_minter Move function.
-func (c *ManagedTokenContract) McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.McmsConfigureNewMinter(typeArgs, state, registry, denyList, params)
+func (c *ManagedTokenContract) McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsConfigureNewMinter(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2237,7 +2237,7 @@ func (c managedTokenEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.
 }
 
 // McmsConfigureNewMinter encodes a call to the mcms_configure_new_minter Move function.
-func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2245,12 +2245,10 @@ func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bin
 	return c.EncodeCallArgsWithGenerics("mcms_configure_new_minter", typeArgsList, typeParamsList, []string{
 		"&mut TokenState<T>",
 		"&mut Registry",
-		"&mut DenyList",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
 		registry,
-		denyList,
 		params,
 	}, nil)
 }
@@ -2261,7 +2259,6 @@ func (c managedTokenEncoder) McmsConfigureNewMinterWithArgs(typeArgs []string, a
 	expectedParams := []string{
 		"&mut TokenState<T>",
 		"&mut Registry",
-		"&mut DenyList",
 		"ExecutingCallbackParams",
 	}
 
