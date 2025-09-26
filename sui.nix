@@ -4,7 +4,7 @@
 }:
 stdenv.mkDerivation rec {
   name = "sui-cli-${version}";
-  version = "1.54.2"; # Update as needed. Should be a mainnet release version from https://github.com/MystenLabs/sui/releases
+  version = "1.56.2"; # Update as needed. Should be a mainnet release version from https://github.com/MystenLabs/sui/releases
 
   src = if stdenv.hostPlatform.isDarwin then
     pkgs.fetchzip {
