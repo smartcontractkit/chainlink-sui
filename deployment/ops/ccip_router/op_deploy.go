@@ -3,8 +3,6 @@
 // Available operations:
 //   - DeployCCIPRouterOp: Deploys the CCIP router package
 //   - SetOnRampsOp: Sets on-ramp addresses for destination chains
-//   - GetOnRampOp: Gets the on-ramp address for a specific destination chain
-//   - IsChainSupportedOp: Checks if a destination chain is supported
 //
 // Example usage:
 //
@@ -126,103 +124,9 @@ var DeployCCIPRouterOp = cld_ops.NewOperation(
 	deployHandler,
 )
 
-type GetOnRampInput struct {
-	RouterPackageId     string
-	RouterStateObjectId string
-	DestChainSelector   uint64
-}
-
-type GetOnRampOutput struct {
-	OnRampAddress string
-}
-
-var getOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetOnRampInput) (output sui_ops.OpTxResult[GetOnRampOutput], err error) {
-	routerPackage, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[GetOnRampOutput]{}, err
-	}
-
-	opts := deps.GetCallOpts()
-	onRampAddress, err := routerPackage.DevInspect().GetOnRamp(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.RouterStateObjectId},
-		input.DestChainSelector,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[GetOnRampOutput]{}, fmt.Errorf("failed to get on-ramp address: %w", err)
-	}
-
-	b.Logger.Infow("Retrieved on-ramp address",
-		"destChainSelector", input.DestChainSelector,
-		"onRampAddress", onRampAddress)
-
-	return sui_ops.OpTxResult[GetOnRampOutput]{
-		Digest:    "",
-		PackageId: input.RouterPackageId,
-		Objects: GetOnRampOutput{
-			OnRampAddress: onRampAddress,
-		},
-	}, nil
-}
-
-type IsChainSupportedInput struct {
-	RouterPackageId     string
-	RouterStateObjectId string
-	DestChainSelector   uint64
-}
-
-type IsChainSupportedOutput struct {
-	IsSupported bool
-}
-
-var isChainSupportedHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input IsChainSupportedInput) (output sui_ops.OpTxResult[IsChainSupportedOutput], err error) {
-	routerPackage, err := module_router.NewRouter(input.RouterPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, err
-	}
-
-	opts := deps.GetCallOpts()
-	isSupported, err := routerPackage.DevInspect().IsChainSupported(
-		b.GetContext(),
-		opts,
-		bind.Object{Id: input.RouterStateObjectId},
-		input.DestChainSelector,
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to check if chain is supported: %w", err)
-	}
-
-	b.Logger.Infow("Checked chain support",
-		"destChainSelector", input.DestChainSelector,
-		"isSupported", isSupported)
-
-	return sui_ops.OpTxResult[IsChainSupportedOutput]{
-		Digest:    "",
-		PackageId: input.RouterPackageId,
-		Objects: IsChainSupportedOutput{
-			IsSupported: isSupported,
-		},
-	}, nil
-}
-
 var SetOnRampsOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip-router", "package", "set-on-ramps"),
 	semver.MustParse("0.1.0"),
 	"Sets on-ramp addresses for destination chains in the CCIP router",
 	setOnRampsHandler,
-)
-
-var GetOnRampOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-router", "package", "get-on-ramp"),
-	semver.MustParse("0.1.0"),
-	"Gets the on-ramp address for a destination chain from the CCIP router",
-	getOnRampHandler,
-)
-
-var IsChainSupportedOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip-router", "package", "is-chain-supported"),
-	semver.MustParse("0.1.0"),
-	"Checks if a destination chain is supported by the CCIP router",
-	isChainSupportedHandler,
 )

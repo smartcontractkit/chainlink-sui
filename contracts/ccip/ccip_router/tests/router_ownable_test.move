@@ -103,7 +103,7 @@ public fun test_owner_authorization_for_set_on_ramps() {
 
     // Verify the on ramp was set
     assert!(router::is_chain_supported(&env.state, dest_chain_selector));
-    let address = router::get_on_ramp(&env.state, dest_chain_selector);
+    let address = router::get_on_ramp_package_id(&env.state, dest_chain_selector);
     assert!(address == on_ramp_address);
 
     tear_down(env);

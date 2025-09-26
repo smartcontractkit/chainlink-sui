@@ -13,13 +13,13 @@ public struct ROUTER has drop {}
 
 public struct OnRampSet has copy, drop {
     dest_chain_selector: u64,
-    on_ramp: address,
+    on_ramp_package_id: address,
 }
 
 public struct RouterState has key {
     id: UID,
     ownable_state: OwnableState,
-    on_ramps: Table<u64, address>,
+    on_ramp_package_ids: Table<u64, address>, // dest_chain_selector -> on_ramp_package_id
 }
 
 const EParamsLengthMismatch: u64 = 1;
@@ -36,7 +36,7 @@ fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let router = RouterState {
         id: object::new(ctx),
         ownable_state,
-        on_ramps: table::new(ctx),
+        on_ramp_package_ids: table::new(ctx),
     };
 
     transfer::share_object(router);
@@ -48,13 +48,13 @@ public fun type_and_version(): String {
 }
 
 public fun is_chain_supported(router: &RouterState, dest_chain_selector: u64): bool {
-    router.on_ramps.contains(dest_chain_selector)
+    router.on_ramp_package_ids.contains(dest_chain_selector)
 }
 
-public fun get_on_ramp(router: &RouterState, dest_chain_selector: u64): address {
-    assert!(router.on_ramps.contains(dest_chain_selector), EOnrampNotFound);
+public fun get_on_ramp_package_id(router: &RouterState, dest_chain_selector: u64): address {
+    assert!(router.on_ramp_package_ids.contains(dest_chain_selector), EOnrampNotFound);
 
-    *router.on_ramps.borrow(dest_chain_selector)
+    *router.on_ramp_package_ids.borrow(dest_chain_selector)
 }
 
 /// Sets the onRamp info for the given destination chains.
@@ -63,31 +63,31 @@ public fun get_on_ramp(router: &RouterState, dest_chain_selector: u64): address 
 /// @param owner_cap The owner capability.
 /// @param router The router state.
 /// @param dest_chain_selectors The destination chain selectors.
-/// @param on_ramp_addresses The onRamp addresses.
+/// @param on_ramp_package_ids The onRamp package ids.
 public fun set_on_ramps(
     owner_cap: &OwnerCap,
     router: &mut RouterState,
     dest_chain_selectors: vector<u64>,
-    on_ramp_addresses: vector<address>,
+    on_ramp_package_ids: vector<address>,
 ) {
     assert!(
         object::id(owner_cap) == ownable::owner_cap_id(&router.ownable_state),
         EInvalidOwnerCap,
     );
-    assert!(dest_chain_selectors.length() == on_ramp_addresses.length(), EParamsLengthMismatch);
+    assert!(dest_chain_selectors.length() == on_ramp_package_ids.length(), EParamsLengthMismatch);
 
     let mut i = 0;
     let selector_len = dest_chain_selectors.length();
     while (i < selector_len) {
         let dest_chain_selector = dest_chain_selectors[i];
-        let on_ramp = on_ramp_addresses[i];
-        assert!(on_ramp != @0x0, EInvalidOnrampAddress);
+        let on_ramp_package_id = on_ramp_package_ids[i];
+        assert!(on_ramp_package_id != @0x0, EInvalidOnrampAddress);
 
-        if (router.on_ramps.contains(dest_chain_selector)) {
-            router.on_ramps.remove(dest_chain_selector);
+        if (router.on_ramp_package_ids.contains(dest_chain_selector)) {
+            router.on_ramp_package_ids.remove(dest_chain_selector);
         };
-        router.on_ramps.add(dest_chain_selector, on_ramp);
-        event::emit(OnRampSet { dest_chain_selector, on_ramp });
+        router.on_ramp_package_ids.add(dest_chain_selector, on_ramp_package_id);
+        event::emit(OnRampSet { dest_chain_selector, on_ramp_package_id });
         i = i + 1;
     };
 }
@@ -226,7 +226,7 @@ public fun mcms_set_on_ramps(
         &mut stream,
         |stream| bcs_stream::deserialize_u64(stream),
     );
-    let on_ramps = bcs_stream::deserialize_vector!(
+    let on_ramp_package_ids = bcs_stream::deserialize_vector!(
         &mut stream,
         |stream| bcs_stream::deserialize_address(stream),
     );
@@ -236,7 +236,7 @@ public fun mcms_set_on_ramps(
         owner_cap,
         state,
         dest_chain_selectors,
-        on_ramps,
+        on_ramp_package_ids,
     );
 }
 

@@ -67,8 +67,8 @@ fun test_set_and_get_on_ramps() {
         assert!(!router::is_chain_supported(&router, BSC_CHAIN_SELECTOR));
 
         // Test getting on ramp addresses
-        let eth_on_ramp = router::get_on_ramp(&router, ETH_CHAIN_SELECTOR);
-        let avax_on_ramp = router::get_on_ramp(&router, AVAX_CHAIN_SELECTOR);
+        let eth_on_ramp = router::get_on_ramp_package_id(&router, ETH_CHAIN_SELECTOR);
+        let avax_on_ramp = router::get_on_ramp_package_id(&router, AVAX_CHAIN_SELECTOR);
         assert!(eth_on_ramp == ETH_ON_RAMP_ADDRESS);
         assert!(avax_on_ramp == AVAX_ON_RAMP_ADDRESS);
 
@@ -103,7 +103,7 @@ fun test_update_on_ramp() {
 
         // Verify it was added
         assert!(router::is_chain_supported(&router, ETH_CHAIN_SELECTOR));
-        let eth_on_ramp = router::get_on_ramp(&router, ETH_CHAIN_SELECTOR);
+        let eth_on_ramp = router::get_on_ramp_package_id(&router, ETH_CHAIN_SELECTOR);
         assert!(eth_on_ramp == ETH_ON_RAMP_ADDRESS);
 
         // Now update ETH chain to use AVAX address
@@ -116,7 +116,7 @@ fun test_update_on_ramp() {
 
         // Verify it was updated
         assert!(router::is_chain_supported(&router, ETH_CHAIN_SELECTOR));
-        let updated_eth_on_ramp = router::get_on_ramp(&router, ETH_CHAIN_SELECTOR);
+        let updated_eth_on_ramp = router::get_on_ramp_package_id(&router, ETH_CHAIN_SELECTOR);
         assert!(updated_eth_on_ramp == AVAX_ON_RAMP_ADDRESS);
 
         scenario.return_to_sender(owner_cap);
@@ -200,7 +200,7 @@ fun test_get_on_ramp_unsupported_chain() {
     {
         let router = scenario.take_shared<RouterState>();
         // This should fail because the chain is not supported
-        router::get_on_ramp(&router, ARBITRARY_CHAIN_SELECTOR);
+        router::get_on_ramp_package_id(&router, ARBITRARY_CHAIN_SELECTOR);
         ts::return_shared(router);
     };
 
