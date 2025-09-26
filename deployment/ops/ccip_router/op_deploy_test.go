@@ -48,9 +48,38 @@ func TestDeployAndInitSeq(t *testing.T) {
 	require.NoError(t, err, "failed to deploy MCMS Package")
 
 	// Deploy Router
-	_, err = cld_ops.ExecuteOperation(bundle, DeployCCIPRouterOp, deps, DeployCCIPRouterInput{
+	reportRouter, err := cld_ops.ExecuteOperation(bundle, DeployCCIPRouterOp, deps, DeployCCIPRouterInput{
 		McmsPackageId: reportMCMs.Output.PackageId,
 		McmsOwner:     signerAddress,
 	})
-	require.NoError(t, err, "failed to deploy LINK token")
+	require.NoError(t, err, "failed to deploy CCIP Router")
+
+	// Test SetOnRamps operation
+	_, err = cld_ops.ExecuteOperation(bundle, SetOnRampsOp, deps, SetOnRampsInput{
+		RouterPackageId:     reportRouter.Output.PackageId,
+		RouterStateObjectId: reportRouter.Output.Objects.RouterStateObjectId,
+		OwnerCapObjectId:    reportRouter.Output.Objects.OwnerCapObjectId,
+		DestChainSelectors:  []uint64{5009297550715157269, 6433500567565415381}, // ETH and AVAX chain selectors
+		OnRampAddresses:     []string{"0x1111111111111111111111111111111111111111", "0x2222222222222222222222222222222222222222"},
+	})
+	require.NoError(t, err, "failed to set on-ramps")
+
+	// Test IsChainSupported operation
+	ethChainSelector := uint64(5009297550715157269)
+	reportIsSupported, err := cld_ops.ExecuteOperation(bundle, IsChainSupportedOp, deps, IsChainSupportedInput{
+		RouterPackageId:     reportRouter.Output.PackageId,
+		RouterStateObjectId: reportRouter.Output.Objects.RouterStateObjectId,
+		DestChainSelector:   ethChainSelector,
+	})
+	require.NoError(t, err, "failed to check if chain is supported")
+	require.True(t, reportIsSupported.Output.Objects.IsSupported, "ETH chain should be supported")
+
+	// Test GetOnRamp operation
+	reportGetOnRamp, err := cld_ops.ExecuteOperation(bundle, GetOnRampOp, deps, GetOnRampInput{
+		RouterPackageId:     reportRouter.Output.PackageId,
+		RouterStateObjectId: reportRouter.Output.Objects.RouterStateObjectId,
+		DestChainSelector:   ethChainSelector,
+	})
+	require.NoError(t, err, "failed to get on-ramp address")
+	require.Equal(t, "0x1111111111111111111111111111111111111111", reportGetOnRamp.Output.Objects.OnRampAddress, "on-ramp address should match")
 }

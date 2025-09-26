@@ -19,16 +19,13 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_address","parameters":[{"name":"info","type":"OnRampInfo"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_info","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_infos","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_version","parameters":[{"name":"info","type":"OnRampInfo"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramp_infos","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_addresses","type":"vector<address>"},{"name":"on_ramp_versions","type":"vector<vector<u8>>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramps","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_addresses","type":"vector<address>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
 
 type IRouter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	GetOnRampInfo(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
-	GetOnRampInfos(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelectors []uint64) (*models.SuiTransactionBlockResponse, error)
-	GetOnRampVersion(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) (*models.SuiTransactionBlockResponse, error)
-	GetOnRampAddress(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) (*models.SuiTransactionBlockResponse, error)
-	SetOnRampInfos(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) (*models.SuiTransactionBlockResponse, error)
+	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	SetOnRamps(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -41,7 +38,7 @@ type IRouter interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsSetOnRampInfos(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetOnRamps(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRouterDevInspect
@@ -52,10 +49,7 @@ type IRouter interface {
 type IRouterDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (bool, error)
-	GetOnRampInfo(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) ([]any, error)
-	GetOnRampInfos(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelectors []uint64) ([]OnRampInfo, error)
-	GetOnRampVersion(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) ([]byte, error)
-	GetOnRampAddress(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) (string, error)
+	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (string, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
@@ -68,16 +62,10 @@ type RouterEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsChainSupported(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetOnRampInfo(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
-	GetOnRampInfoWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetOnRampInfos(router bind.Object, destChainSelectors []uint64) (*bind.EncodedCall, error)
-	GetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetOnRampVersion(info OnRampInfo) (*bind.EncodedCall, error)
-	GetOnRampVersionWithArgs(args ...any) (*bind.EncodedCall, error)
-	GetOnRampAddress(info OnRampInfo) (*bind.EncodedCall, error)
-	GetOnRampAddressWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetOnRampInfos(ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) (*bind.EncodedCall, error)
-	SetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetOnRamp(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
+	GetOnRampWithArgs(args ...any) (*bind.EncodedCall, error)
+	SetOnRamps(ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string) (*bind.EncodedCall, error)
+	SetOnRampsWithArgs(args ...any) (*bind.EncodedCall, error)
 	Owner(state bind.Object) (*bind.EncodedCall, error)
 	OwnerWithArgs(args ...any) (*bind.EncodedCall, error)
 	HasPendingTransfer(state bind.Object) (*bind.EncodedCall, error)
@@ -102,8 +90,8 @@ type RouterEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsSetOnRampInfos(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
-	McmsSetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsSetOnRamps(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetOnRampsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -153,19 +141,14 @@ type ROUTER struct {
 }
 
 type OnRampSet struct {
-	DestChainSelector uint64     `move:"u64"`
-	OnRampInfo        OnRampInfo `move:"OnRampInfo"`
-}
-
-type OnRampInfo struct {
-	OnrampAddress string `move:"address"`
-	OnrampVersion []byte `move:"vector<u8>"`
+	DestChainSelector uint64 `move:"u64"`
+	OnRamp            string `move:"address"`
 }
 
 type RouterState struct {
 	Id           string      `move:"sui::object::UID"`
 	OwnableState bind.Object `move:"OwnableState"`
-	OnRampInfos  bind.Object `move:"Table<u64, OnRampInfo>"`
+	OnRamps      bind.Object `move:"Table<u64, address>"`
 }
 
 type McmsCallback struct {
@@ -173,31 +156,14 @@ type McmsCallback struct {
 
 type bcsOnRampSet struct {
 	DestChainSelector uint64
-	OnRampInfo        bcsOnRampInfo
+	OnRamp            [32]byte
 }
 
 func convertOnRampSetFromBCS(bcs bcsOnRampSet) (OnRampSet, error) {
-	OnRampInfoField, err := convertOnRampInfoFromBCS(bcs.OnRampInfo)
-	if err != nil {
-		return OnRampSet{}, fmt.Errorf("failed to convert nested struct OnRampInfo: %w", err)
-	}
 
 	return OnRampSet{
 		DestChainSelector: bcs.DestChainSelector,
-		OnRampInfo:        OnRampInfoField,
-	}, nil
-}
-
-type bcsOnRampInfo struct {
-	OnrampAddress [32]byte
-	OnrampVersion []byte
-}
-
-func convertOnRampInfoFromBCS(bcs bcsOnRampInfo) (OnRampInfo, error) {
-
-	return OnRampInfo{
-		OnrampAddress: fmt.Sprintf("0x%x", bcs.OnrampAddress),
-		OnrampVersion: bcs.OnrampVersion,
+		OnRamp:            fmt.Sprintf("0x%x", bcs.OnRamp),
 	}, nil
 }
 
@@ -243,37 +209,6 @@ func init() {
 		results := make([]OnRampSet, len(temps))
 		for i, temp := range temps {
 			result, err := convertOnRampSetFromBCS(temp)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
-			}
-			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip_router::router::OnRampInfo", func(data []byte) (interface{}, error) {
-		var temp bcsOnRampInfo
-		_, err := mystenbcs.Unmarshal(data, &temp)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := convertOnRampInfoFromBCS(temp)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for OnRampInfo
-	bind.RegisterStructDecoder("vector<ccip_router::router::OnRampInfo>", func(data []byte) (interface{}, error) {
-		var temps []bcsOnRampInfo
-		_, err := mystenbcs.Unmarshal(data, &temps)
-		if err != nil {
-			return nil, err
-		}
-
-		results := make([]OnRampInfo, len(temps))
-		for i, temp := range temps {
-			result, err := convertOnRampInfoFromBCS(temp)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
 			}
@@ -337,9 +272,9 @@ func (c *RouterContract) IsChainSupported(ctx context.Context, opts *bind.CallOp
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetOnRampInfo executes the get_on_ramp_info Move function.
-func (c *RouterContract) GetOnRampInfo(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.GetOnRampInfo(router, destChainSelector)
+// GetOnRamp executes the get_on_ramp Move function.
+func (c *RouterContract) GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.GetOnRamp(router, destChainSelector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -347,39 +282,9 @@ func (c *RouterContract) GetOnRampInfo(ctx context.Context, opts *bind.CallOpts,
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetOnRampInfos executes the get_on_ramp_infos Move function.
-func (c *RouterContract) GetOnRampInfos(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelectors []uint64) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.GetOnRampInfos(router, destChainSelectors)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// GetOnRampVersion executes the get_on_ramp_version Move function.
-func (c *RouterContract) GetOnRampVersion(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.GetOnRampVersion(info)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// GetOnRampAddress executes the get_on_ramp_address Move function.
-func (c *RouterContract) GetOnRampAddress(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.GetOnRampAddress(info)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-
-	return c.ExecuteTransaction(ctx, opts, encoded)
-}
-
-// SetOnRampInfos executes the set_on_ramp_infos Move function.
-func (c *RouterContract) SetOnRampInfos(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.SetOnRampInfos(ownerCap, router, destChainSelectors, onRampAddresses, onRampVersions)
+// SetOnRamps executes the set_on_ramps Move function.
+func (c *RouterContract) SetOnRamps(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.SetOnRamps(ownerCap, router, destChainSelectors, onRampAddresses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -507,9 +412,9 @@ func (c *RouterContract) McmsRegisterUpgradeCap(ctx context.Context, opts *bind.
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// McmsSetOnRampInfos executes the mcms_set_on_ramp_infos Move function.
-func (c *RouterContract) McmsSetOnRampInfos(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.McmsSetOnRampInfos(state, registry, params)
+// McmsSetOnRamps executes the mcms_set_on_ramps Move function.
+func (c *RouterContract) McmsSetOnRamps(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.McmsSetOnRamps(state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -581,69 +486,11 @@ func (d *RouterDevInspect) IsChainSupported(ctx context.Context, opts *bind.Call
 	return result, nil
 }
 
-// GetOnRampInfo executes the get_on_ramp_info Move function using DevInspect to get return values.
-//
-// Returns:
-//
-//	[0]: address
-//	[1]: vector<u8>
-func (d *RouterDevInspect) GetOnRampInfo(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) ([]any, error) {
-	encoded, err := d.contract.routerEncoder.GetOnRampInfo(router, destChainSelector)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	return d.contract.Call(ctx, opts, encoded)
-}
-
-// GetOnRampInfos executes the get_on_ramp_infos Move function using DevInspect to get return values.
-//
-// Returns: vector<OnRampInfo>
-func (d *RouterDevInspect) GetOnRampInfos(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelectors []uint64) ([]OnRampInfo, error) {
-	encoded, err := d.contract.routerEncoder.GetOnRampInfos(router, destChainSelectors)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return nil, err
-	}
-	if len(results) == 0 {
-		return nil, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].([]OnRampInfo)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []OnRampInfo, got %T", results[0])
-	}
-	return result, nil
-}
-
-// GetOnRampVersion executes the get_on_ramp_version Move function using DevInspect to get return values.
-//
-// Returns: vector<u8>
-func (d *RouterDevInspect) GetOnRampVersion(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) ([]byte, error) {
-	encoded, err := d.contract.routerEncoder.GetOnRampVersion(info)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode function call: %w", err)
-	}
-	results, err := d.contract.Call(ctx, opts, encoded)
-	if err != nil {
-		return nil, err
-	}
-	if len(results) == 0 {
-		return nil, fmt.Errorf("no return value")
-	}
-	result, ok := results[0].([]byte)
-	if !ok {
-		return nil, fmt.Errorf("unexpected return type: expected []byte, got %T", results[0])
-	}
-	return result, nil
-}
-
-// GetOnRampAddress executes the get_on_ramp_address Move function using DevInspect to get return values.
+// GetOnRamp executes the get_on_ramp Move function using DevInspect to get return values.
 //
 // Returns: address
-func (d *RouterDevInspect) GetOnRampAddress(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) (string, error) {
-	encoded, err := d.contract.routerEncoder.GetOnRampAddress(info)
+func (d *RouterDevInspect) GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (string, error) {
+	encoded, err := d.contract.routerEncoder.GetOnRamp(router, destChainSelector)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -832,11 +679,11 @@ func (c routerEncoder) IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall,
 	})
 }
 
-// GetOnRampInfo encodes a call to the get_on_ramp_info Move function.
-func (c routerEncoder) GetOnRampInfo(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error) {
+// GetOnRamp encodes a call to the get_on_ramp Move function.
+func (c routerEncoder) GetOnRamp(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_info", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("get_on_ramp", typeArgsList, typeParamsList, []string{
 		"&RouterState",
 		"u64",
 	}, []any{
@@ -844,13 +691,12 @@ func (c routerEncoder) GetOnRampInfo(router bind.Object, destChainSelector uint6
 		destChainSelector,
 	}, []string{
 		"address",
-		"vector<u8>",
 	})
 }
 
-// GetOnRampInfoWithArgs encodes a call to the get_on_ramp_info Move function using arbitrary arguments.
+// GetOnRampWithArgs encodes a call to the get_on_ramp Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c routerEncoder) GetOnRampInfoWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c routerEncoder) GetOnRampWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&RouterState",
 		"u64",
@@ -861,133 +707,36 @@ func (c routerEncoder) GetOnRampInfoWithArgs(args ...any) (*bind.EncodedCall, er
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_info", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"address",
-		"vector<u8>",
-	})
-}
-
-// GetOnRampInfos encodes a call to the get_on_ramp_infos Move function.
-func (c routerEncoder) GetOnRampInfos(router bind.Object, destChainSelectors []uint64) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_infos", typeArgsList, typeParamsList, []string{
-		"&RouterState",
-		"vector<u64>",
-	}, []any{
-		router,
-		destChainSelectors,
-	}, []string{
-		"vector<ccip_router::router::OnRampInfo>",
-	})
-}
-
-// GetOnRampInfosWithArgs encodes a call to the get_on_ramp_infos Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c routerEncoder) GetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"&RouterState",
-		"vector<u64>",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_infos", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<ccip_router::router::OnRampInfo>",
-	})
-}
-
-// GetOnRampVersion encodes a call to the get_on_ramp_version Move function.
-func (c routerEncoder) GetOnRampVersion(info OnRampInfo) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_version", typeArgsList, typeParamsList, []string{
-		"ccip_router::router::OnRampInfo",
-	}, []any{
-		info,
-	}, []string{
-		"vector<u8>",
-	})
-}
-
-// GetOnRampVersionWithArgs encodes a call to the get_on_ramp_version Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c routerEncoder) GetOnRampVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"ccip_router::router::OnRampInfo",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_version", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<u8>",
-	})
-}
-
-// GetOnRampAddress encodes a call to the get_on_ramp_address Move function.
-func (c routerEncoder) GetOnRampAddress(info OnRampInfo) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_address", typeArgsList, typeParamsList, []string{
-		"ccip_router::router::OnRampInfo",
-	}, []any{
-		info,
-	}, []string{
+	return c.EncodeCallArgsWithGenerics("get_on_ramp", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"address",
 	})
 }
 
-// GetOnRampAddressWithArgs encodes a call to the get_on_ramp_address Move function using arbitrary arguments.
-// This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c routerEncoder) GetOnRampAddressWithArgs(args ...any) (*bind.EncodedCall, error) {
-	expectedParams := []string{
-		"ccip_router::router::OnRampInfo",
-	}
-
-	if len(args) != len(expectedParams) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
-	}
+// SetOnRamps encodes a call to the set_on_ramps Move function.
+func (c routerEncoder) SetOnRamps(ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("get_on_ramp_address", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"address",
-	})
-}
-
-// SetOnRampInfos encodes a call to the set_on_ramp_infos Move function.
-func (c routerEncoder) SetOnRampInfos(ownerCap bind.Object, router bind.Object, destChainSelectors []uint64, onRampAddresses []string, onRampVersions [][]byte) (*bind.EncodedCall, error) {
-	typeArgsList := []string{}
-	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("set_on_ramp_infos", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("set_on_ramps", typeArgsList, typeParamsList, []string{
 		"&OwnerCap",
 		"&mut RouterState",
 		"vector<u64>",
 		"vector<address>",
-		"vector<vector<u8>>",
 	}, []any{
 		ownerCap,
 		router,
 		destChainSelectors,
 		onRampAddresses,
-		onRampVersions,
 	}, nil)
 }
 
-// SetOnRampInfosWithArgs encodes a call to the set_on_ramp_infos Move function using arbitrary arguments.
+// SetOnRampsWithArgs encodes a call to the set_on_ramps Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c routerEncoder) SetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c routerEncoder) SetOnRampsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&OwnerCap",
 		"&mut RouterState",
 		"vector<u64>",
 		"vector<address>",
-		"vector<vector<u8>>",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -995,7 +744,7 @@ func (c routerEncoder) SetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, e
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("set_on_ramp_infos", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("set_on_ramps", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // Owner encodes a call to the owner Move function.
@@ -1363,11 +1112,11 @@ func (c routerEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.Encode
 	return c.EncodeCallArgsWithGenerics("mcms_register_upgrade_cap", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// McmsSetOnRampInfos encodes a call to the mcms_set_on_ramp_infos Move function.
-func (c routerEncoder) McmsSetOnRampInfos(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+// McmsSetOnRamps encodes a call to the mcms_set_on_ramps Move function.
+func (c routerEncoder) McmsSetOnRamps(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_set_on_ramp_infos", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_set_on_ramps", typeArgsList, typeParamsList, []string{
 		"&mut RouterState",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -1378,9 +1127,9 @@ func (c routerEncoder) McmsSetOnRampInfos(state bind.Object, registry bind.Objec
 	}, nil)
 }
 
-// McmsSetOnRampInfosWithArgs encodes a call to the mcms_set_on_ramp_infos Move function using arbitrary arguments.
+// McmsSetOnRampsWithArgs encodes a call to the mcms_set_on_ramps Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c routerEncoder) McmsSetOnRampInfosWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c routerEncoder) McmsSetOnRampsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut RouterState",
 		"&mut Registry",
@@ -1392,7 +1141,7 @@ func (c routerEncoder) McmsSetOnRampInfosWithArgs(args ...any) (*bind.EncodedCal
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("mcms_set_on_ramp_infos", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_set_on_ramps", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
