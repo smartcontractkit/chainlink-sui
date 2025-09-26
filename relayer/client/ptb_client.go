@@ -460,16 +460,14 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 						return fmt.Errorf("failed to decode vector of structs: %w", err)
 					}
 
-					// convert any []uint8 fields to hex strings
-					hexified := common.ConvertBytesToHex(jsonResult)
-					results[i] = hexified
+					results[i] = jsonResult
 				} else {
 					// This is vector<primitive> - use existing primitive vector handling
 					primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
 					if err != nil {
 						return fmt.Errorf("failed to decode primitive vector: %w", err)
 					}
-					results[i] = common.ConvertBytesToHex(primitive)
+					results[i] = primitive
 				}
 				continue
 			}

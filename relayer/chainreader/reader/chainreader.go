@@ -26,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -681,7 +682,10 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
 
-	return values, nil
+	// TODO: Remove this once bindings are used in CR, this is a temporary fix for data ingestion
+	hexified := common.ConvertBytesToHex(values).([]any)
+
+	return hexified, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode
