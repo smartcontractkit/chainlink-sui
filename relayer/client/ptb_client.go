@@ -127,7 +127,7 @@ func NewPTBClient(
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if dl, ok := ctx.Deadline(); ok {
