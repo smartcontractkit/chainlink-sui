@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -129,14 +130,37 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
+	if dl, ok := ctx.Deadline(); ok {
+		c.log.Debugw("Parent ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	}
+	if dl, ok := timeoutCtx.Deadline(); ok {
+		c.log.Debugw("Timeout ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	}
+
 	if c.rateLimiter == nil {
 		return f(timeoutCtx)
 	}
 
-	if err := c.rateLimiter.Acquire(ctx, 1); err != nil {
+	start := time.Now()
+	err := c.rateLimiter.Acquire(timeoutCtx, 1)
+	waited := time.Since(start)
+
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			c.log.Warnw("RateLimiter acquire canceled", "waited", waited)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			c.log.Warnw("RateLimiter acquire deadline exceeded", "waited", waited)
+		} else {
+			c.log.Warnw("RateLimiter acquire failed", "waited", waited, "err", err)
+		}
 		return fmt.Errorf("failed to acquire rate limit: %w", err)
 	}
 	defer c.rateLimiter.Release(1)
+
+	c.log.Debugw("RateLimiter acquire succeeded", "waited", waited)
+
+	c.log.Debug("Executing function under WithRateLimit")
+	defer c.log.Debug("Function execution finished")
 
 	return f(timeoutCtx)
 }
