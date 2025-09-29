@@ -87,27 +87,24 @@ public fun test_ownership_transfer_flow() {
 }
 
 #[test]
-public fun test_owner_authorization_for_set_on_ramp_infos() {
+public fun test_owner_authorization_for_set_on_ramps() {
     let (mut env, owner_cap) = setup();
 
-    // Test that owner can set on ramp infos
+    // Test that owner can set on ramps
     let dest_chain_selector = 1000;
     let on_ramp_address = @0x111;
-    let on_ramp_version = vector[1, 6, 0];
 
-    router::set_on_ramp_infos(
+    router::set_on_ramps(
         &owner_cap,
         &mut env.state,
         vector[dest_chain_selector],
         vector[on_ramp_address],
-        vector[on_ramp_version],
     );
 
-    // Verify the on ramp info was set
+    // Verify the on ramp was set
     assert!(router::is_chain_supported(&env.state, dest_chain_selector));
-    let (address, version) = router::get_on_ramp_info(&env.state, dest_chain_selector);
+    let address = router::get_on_ramp(&env.state, dest_chain_selector);
     assert!(address == on_ramp_address);
-    assert!(version == on_ramp_version);
 
     tear_down(env);
     ts::return_to_address(OWNER, owner_cap);
@@ -115,7 +112,7 @@ public fun test_owner_authorization_for_set_on_ramp_infos() {
 
 #[test]
 #[expected_failure(abort_code = router::EInvalidOwnerCap)]
-public fun test_unauthorized_set_on_ramp_infos() {
+public fun test_unauthorized_set_on_ramps() {
     let (mut env, _owner_cap) = setup();
 
     // Create a fake owner cap from a different router
@@ -128,12 +125,11 @@ public fun test_unauthorized_set_on_ramp_infos() {
     let fake_state = ts::take_shared<RouterState>(&env.scenario);
 
     // Try to use fake owner cap on original state - should fail
-    router::set_on_ramp_infos(
+    router::set_on_ramps(
         &fake_owner_cap,
         &mut env.state,
         vector[1000],
         vector[@0x111],
-        vector[vector[1, 6, 0]],
     );
 
     // Clean up (should not be reached due to expected failure)

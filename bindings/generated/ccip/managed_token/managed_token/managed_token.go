@@ -53,7 +53,7 @@ type IManagedToken interface {
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsIncrementMintAllowance(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetUnlimitedMintAllowances(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsBlocklist(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -144,7 +144,7 @@ type ManagedTokenEncoder interface {
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCap(upgradeCap bind.Object, registry bind.Object, state bind.Object) (*bind.EncodedCall, error)
 	McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsConfigureNewMinterWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsIncrementMintAllowance(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsIncrementMintAllowanceWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -345,6 +345,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TokenState
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::TokenState>", func(data []byte) (interface{}, error) {
+		var results []TokenState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MintCap", func(data []byte) (interface{}, error) {
 		var result MintCap
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -353,6 +362,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MintCap
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MintCap>", func(data []byte) (interface{}, error) {
+		var results []MintCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MintCapCreated", func(data []byte) (interface{}, error) {
 		var result MintCapCreated
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -360,6 +378,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for MintCapCreated
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MintCapCreated>", func(data []byte) (interface{}, error) {
+		var results []MintCapCreated
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MinterConfigured", func(data []byte) (interface{}, error) {
 		var temp bcsMinterConfigured
@@ -374,6 +401,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MinterConfigured
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterConfigured>", func(data []byte) (interface{}, error) {
+		var temps []bcsMinterConfigured
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]MinterConfigured, len(temps))
+		for i, temp := range temps {
+			result, err := convertMinterConfiguredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Minted", func(data []byte) (interface{}, error) {
 		var temp bcsMinted
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -386,6 +431,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Minted
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Minted>", func(data []byte) (interface{}, error) {
+		var temps []bcsMinted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Minted, len(temps))
+		for i, temp := range temps {
+			result, err := convertMintedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Burnt", func(data []byte) (interface{}, error) {
 		var temp bcsBurnt
@@ -400,6 +463,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Burnt
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Burnt>", func(data []byte) (interface{}, error) {
+		var temps []bcsBurnt
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Burnt, len(temps))
+		for i, temp := range temps {
+			result, err := convertBurntFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Blocklisted", func(data []byte) (interface{}, error) {
 		var temp bcsBlocklisted
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -412,6 +493,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Blocklisted
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Blocklisted>", func(data []byte) (interface{}, error) {
+		var temps []bcsBlocklisted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Blocklisted, len(temps))
+		for i, temp := range temps {
+			result, err := convertBlocklistedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Unblocklisted", func(data []byte) (interface{}, error) {
 		var temp bcsUnblocklisted
@@ -426,6 +525,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Unblocklisted
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Unblocklisted>", func(data []byte) (interface{}, error) {
+		var temps []bcsUnblocklisted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Unblocklisted, len(temps))
+		for i, temp := range temps {
+			result, err := convertUnblocklistedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Paused", func(data []byte) (interface{}, error) {
 		var result Paused
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -433,6 +550,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Paused
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Paused>", func(data []byte) (interface{}, error) {
+		var results []Paused
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::Unpaused", func(data []byte) (interface{}, error) {
 		var result Unpaused
@@ -442,6 +568,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Unpaused
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::Unpaused>", func(data []byte) (interface{}, error) {
+		var results []Unpaused
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MinterAllowanceIncremented", func(data []byte) (interface{}, error) {
 		var result MinterAllowanceIncremented
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -449,6 +584,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for MinterAllowanceIncremented
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterAllowanceIncremented>", func(data []byte) (interface{}, error) {
+		var results []MinterAllowanceIncremented
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("managed_token::managed_token::MinterUnlimitedAllowanceSet", func(data []byte) (interface{}, error) {
 		var result MinterUnlimitedAllowanceSet
@@ -458,6 +602,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MinterUnlimitedAllowanceSet
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::MinterUnlimitedAllowanceSet>", func(data []byte) (interface{}, error) {
+		var results []MinterUnlimitedAllowanceSet
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("managed_token::managed_token::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -465,6 +618,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 
@@ -779,8 +941,8 @@ func (c *ManagedTokenContract) McmsRegisterUpgradeCap(ctx context.Context, opts 
 }
 
 // McmsConfigureNewMinter executes the mcms_configure_new_minter Move function.
-func (c *ManagedTokenContract) McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.McmsConfigureNewMinter(typeArgs, state, registry, denyList, params)
+func (c *ManagedTokenContract) McmsConfigureNewMinter(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsConfigureNewMinter(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2237,7 +2399,7 @@ func (c managedTokenEncoder) McmsRegisterUpgradeCapWithArgs(args ...any) (*bind.
 }
 
 // McmsConfigureNewMinter encodes a call to the mcms_configure_new_minter Move function.
-func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2245,12 +2407,10 @@ func (c managedTokenEncoder) McmsConfigureNewMinter(typeArgs []string, state bin
 	return c.EncodeCallArgsWithGenerics("mcms_configure_new_minter", typeArgsList, typeParamsList, []string{
 		"&mut TokenState<T>",
 		"&mut Registry",
-		"&mut DenyList",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
 		registry,
-		denyList,
 		params,
 	}, nil)
 }
@@ -2261,7 +2421,6 @@ func (c managedTokenEncoder) McmsConfigureNewMinterWithArgs(typeArgs []string, a
 	expectedParams := []string{
 		"&mut TokenState<T>",
 		"&mut Registry",
-		"&mut DenyList",
 		"ExecutingCallbackParams",
 	}
 

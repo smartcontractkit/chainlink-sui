@@ -4,7 +4,10 @@ use ccip_router::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream::{Self, BCSStream};
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use std::ascii;
 use std::string::{Self, String};
+use std::type_name;
+use sui::address;
 use sui::event;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
@@ -13,27 +16,28 @@ public struct ROUTER has drop {}
 
 public struct OnRampSet has copy, drop {
     dest_chain_selector: u64,
-    on_ramp_info: OnRampInfo,
-}
-
-public struct OnRampInfo has copy, drop, store {
-    onramp_address: address,
-    onramp_version: vector<u8>,
+    on_ramp_package_id: address,
 }
 
 public struct RouterState has key {
     id: UID,
     ownable_state: OwnableState,
-    on_ramp_infos: Table<u64, OnRampInfo>,
+    on_ramp_package_ids: Table<u64, address>, // dest_chain_selector -> on_ramp_package_id
+}
+
+public struct RouterStatePointer has key, store {
+    id: UID,
+    router_state_id: address,
+    owner_cap_id: address,
 }
 
 const EParamsLengthMismatch: u64 = 1;
-const EOnrampInfoNotFound: u64 = 2;
-const EInvalidOnrampVersion: u64 = 3;
-const EInvalidOwnerCap: u64 = 4;
-const EInvalidFunction: u64 = 5;
-const EInvalidStateAddress: u64 = 6;
-const EInvalidObjectAddress: u64 = 7;
+const EOnrampNotFound: u64 = 2;
+const EInvalidOwnerCap: u64 = 3;
+const EInvalidFunction: u64 = 4;
+const EInvalidStateAddress: u64 = 5;
+const EInvalidObjectAddress: u64 = 6;
+const EInvalidOnrampAddress: u64 = 7;
 
 fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let (ownable_state, owner_cap) = ownable::new(ctx);
@@ -41,11 +45,24 @@ fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let router = RouterState {
         id: object::new(ctx),
         ownable_state,
-        on_ramp_infos: table::new(ctx),
+        on_ramp_package_ids: table::new(ctx),
     };
+
+    let owner_cap_id = object::id(&owner_cap);
+
+    let router_state_pointer = RouterStatePointer {
+        id: object::new(ctx),
+        router_state_id: object::uid_to_address(&router.id),
+        owner_cap_id: object::id_to_address(&owner_cap_id),
+    };
+
+    let tn = type_name::with_original_ids<ROUTER>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(router);
     transfer::public_transfer(owner_cap, ctx.sender());
+    transfer::transfer(router_state_pointer, package_id);
 }
 
 public fun type_and_version(): String {
@@ -53,96 +70,47 @@ public fun type_and_version(): String {
 }
 
 public fun is_chain_supported(router: &RouterState, dest_chain_selector: u64): bool {
-    router.on_ramp_infos.contains(dest_chain_selector)
+    router.on_ramp_package_ids.contains(dest_chain_selector)
 }
 
-public fun get_on_ramp_info(router: &RouterState, dest_chain_selector: u64): (address, vector<u8>) {
-    assert!(router.on_ramp_infos.contains(dest_chain_selector), EOnrampInfoNotFound);
+// Returns the on ramp package id for the given destination chain selector.
+public fun get_on_ramp(router: &RouterState, dest_chain_selector: u64): address {
+    assert!(router.on_ramp_package_ids.contains(dest_chain_selector), EOnrampNotFound);
 
-    let on_ramp_info = *router.on_ramp_infos.borrow(dest_chain_selector);
-
-    (on_ramp_info.onramp_address, on_ramp_info.onramp_version)
+    *router.on_ramp_package_ids.borrow(dest_chain_selector)
 }
 
-/// Returns the onRamp versions for the given destination chains.
-public fun get_on_ramp_infos(
-    router: &RouterState,
-    dest_chain_selectors: vector<u64>,
-): vector<OnRampInfo> {
-    dest_chain_selectors.map!(|dest_chain_selector| {
-        if (router.on_ramp_infos.contains(dest_chain_selector)) {
-            *router.on_ramp_infos.borrow(dest_chain_selector)
-        } else {
-            OnRampInfo {
-                onramp_address: @0x0,
-                onramp_version: vector[],
-            }
-        }
-    })
-}
-
-public fun get_on_ramp_version(info: OnRampInfo): vector<u8> {
-    info.onramp_version
-}
-
-public fun get_on_ramp_address(info: OnRampInfo): address {
-    info.onramp_address
-}
-
-/// Sets the onRamp info for the given destination chains.
-/// This function will overwrite the existing infos.
+/// Sets the onramp package ids for the given destination chains.
+/// This function will overwrite the existing package ids.
 /// This function can only be called by the owner of the contract.
 /// @param owner_cap The owner capability.
 /// @param router The router state.
 /// @param dest_chain_selectors The destination chain selectors.
-/// @param on_ramp_addresses The onRamp addresses.
-/// @param on_ramp_versions The onRamp versions, the inner vector must be of length 0 or 3. 0 indicates
-/// the destination chain is no longer supported. Length 3 encodes the version of the onRamp contract.
-public fun set_on_ramp_infos(
+/// @param on_ramp_package_ids The onramp package ids.
+public fun set_on_ramps(
     owner_cap: &OwnerCap,
     router: &mut RouterState,
     dest_chain_selectors: vector<u64>,
-    on_ramp_addresses: vector<address>,
-    on_ramp_versions: vector<vector<u8>>,
+    on_ramp_package_ids: vector<address>,
 ) {
     assert!(
         object::id(owner_cap) == ownable::owner_cap_id(&router.ownable_state),
         EInvalidOwnerCap,
     );
-    assert!(dest_chain_selectors.length() == on_ramp_addresses.length(), EParamsLengthMismatch);
-    assert!(dest_chain_selectors.length() == on_ramp_versions.length(), EParamsLengthMismatch);
+    assert!(dest_chain_selectors.length() == on_ramp_package_ids.length(), EParamsLengthMismatch);
 
     let mut i = 0;
     let selector_len = dest_chain_selectors.length();
     while (i < selector_len) {
         let dest_chain_selector = dest_chain_selectors[i];
-        let version = on_ramp_versions[i];
+        let on_ramp_package_id = on_ramp_package_ids[i];
+        assert!(on_ramp_package_id != @0x0, EInvalidOnrampAddress);
 
-        if (version.length() == 0) {
-            if (router.on_ramp_infos.contains(dest_chain_selector)) {
-                router.on_ramp_infos.remove(dest_chain_selector);
-            };
-            event::emit(OnRampSet {
-                dest_chain_selector,
-                on_ramp_info: OnRampInfo {
-                    onramp_address: @0x0,
-                    onramp_version: vector[],
-                },
-            });
-        } else {
-            assert!(version.length() == 3, EInvalidOnrampVersion);
-            if (router.on_ramp_infos.contains(dest_chain_selector)) {
-                router.on_ramp_infos.remove(dest_chain_selector);
-            };
-
-            let info = OnRampInfo {
-                onramp_address: on_ramp_addresses[i],
-                onramp_version: on_ramp_versions[i],
-            };
-            router.on_ramp_infos.add(dest_chain_selector, info);
-
-            event::emit(OnRampSet { dest_chain_selector, on_ramp_info: info });
+        if (router.on_ramp_package_ids.contains(dest_chain_selector)) {
+            router.on_ramp_package_ids.remove(dest_chain_selector);
         };
+        router.on_ramp_package_ids.add(dest_chain_selector, on_ramp_package_id);
+        event::emit(OnRampSet { dest_chain_selector, on_ramp_package_id });
         i = i + 1;
     };
 }
@@ -259,7 +227,7 @@ public fun mcms_register_upgrade_cap(
 
 public struct McmsCallback has drop {}
 
-public fun mcms_set_on_ramp_infos(
+public fun mcms_set_on_ramps(
     state: &mut RouterState,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -269,7 +237,7 @@ public fun mcms_set_on_ramp_infos(
         McmsCallback {},
         params,
     );
-    assert!(function == string::utf8(b"set_on_ramp_infos"), EInvalidFunction);
+    assert!(function == string::utf8(b"set_on_ramps"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     validate_obj_addrs(
@@ -281,25 +249,17 @@ public fun mcms_set_on_ramp_infos(
         &mut stream,
         |stream| bcs_stream::deserialize_u64(stream),
     );
-    let on_ramp_addresses = bcs_stream::deserialize_vector!(
+    let on_ramp_package_ids = bcs_stream::deserialize_vector!(
         &mut stream,
         |stream| bcs_stream::deserialize_address(stream),
     );
-    let on_ramp_versions = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| bcs_stream::deserialize_vector!(
-            stream,
-            |stream| bcs_stream::deserialize_u8(stream),
-        ),
-    );
     bcs_stream::assert_is_consumed(&stream);
 
-    set_on_ramp_infos(
+    set_on_ramps(
         owner_cap,
         state,
         dest_chain_selectors,
-        on_ramp_addresses,
-        on_ramp_versions,
+        on_ramp_package_ids,
     );
 }
 

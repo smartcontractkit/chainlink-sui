@@ -285,6 +285,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for LockReleaseTokenPoolState
+	bind.RegisterStructDecoder("vector<lock_release_token_pool::lock_release_token_pool::LockReleaseTokenPoolState>", func(data []byte) (interface{}, error) {
+		var temps []bcsLockReleaseTokenPoolState
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]LockReleaseTokenPoolState, len(temps))
+		for i, temp := range temps {
+			result, err := convertLockReleaseTokenPoolStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("lock_release_token_pool::lock_release_token_pool::TypeProof", func(data []byte) (interface{}, error) {
 		var result TypeProof
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -293,6 +311,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TypeProof
+	bind.RegisterStructDecoder("vector<lock_release_token_pool::lock_release_token_pool::TypeProof>", func(data []byte) (interface{}, error) {
+		var results []TypeProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("lock_release_token_pool::lock_release_token_pool::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -300,6 +327,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<lock_release_token_pool::lock_release_token_pool::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 
