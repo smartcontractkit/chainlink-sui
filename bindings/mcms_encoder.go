@@ -1,9 +1,11 @@
 package mcmsencoder
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
+	"github.com/aptos-labs/aptos-go-sdk/bcs"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -18,6 +20,8 @@ import (
 	module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
 )
 
+var SuiAddressLength = 32
+
 type CCIPEntrypointArgEncoder struct {
 	registryObjID string
 	client        sui.ISuiAPI
@@ -25,6 +29,15 @@ type CCIPEntrypointArgEncoder struct {
 
 func NewCCIPEntrypointArgEncoder() *CCIPEntrypointArgEncoder {
 	return &CCIPEntrypointArgEncoder{}
+}
+
+func deserializeFirst32Bytes(data []byte) []byte {
+	deserializer := bcs.NewDeserializer(data)
+	return deserializer.ReadFixedBytes(SuiAddressLength)
+}
+
+func toHexString(data []byte) string {
+	return fmt.Sprintf("0x%s", strings.ToLower(hex.EncodeToString(data)))
 }
 
 // MCMS SDK will call this to encode the entrypoint call
@@ -35,8 +48,10 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	registryObj := bind.Object{Id: e.registryObjID}
 
 	encodeWithCCIPObjectRefAndState := func() (*bind.EncodedCall, error) {
-		// TODO: These should come from decoded data
-		ccipRef := bind.Object{Id: "0x123"}
+		// Deserialize the ccip object ref (always the first 32 bytes)
+		ccipRefBytes := deserializeFirst32Bytes(data)
+		ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+
 		offramp, err := module_offramp.NewOfframp(target, e.client)
 		if err != nil {
 			return nil, err
@@ -98,7 +113,12 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "update_prices_with_owner_cap":
-			return feeQuoter.Encoder().McmsUpdatePricesWithOwnerCapWithArgs(stateObj, registryObj, clock, executingCallbackParams)
+			ccipRefBytes := deserializeFirst32Bytes(data)
+			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+			if ccipRef.Id != stateObj.Id {
+				return nil, fmt.Errorf("ccip ref (%s) does not match state object (%s)", ccipRef.Id, stateObj.Id)
+			}
+			return feeQuoter.Encoder().McmsUpdatePricesWithOwnerCapWithArgs(ccipRef, registryObj, clock, executingCallbackParams)
 		}
 
 	// OFFRAMP
@@ -128,14 +148,32 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "execute_ownership_transfer":
 			return encodeWithCCIPObjectRefAndState()
 		case "initialize":
-			// TODO: These should come from decoded data
-			nonceManagerCap := bind.Object{Id: "0x456"}
-			sourceTransferCap := bind.Object{Id: "0x789"}
-			return onramp.Encoder().McmsInitializeWithArgs(stateObj, registryObj, nonceManagerCap, sourceTransferCap, executingCallbackParams)
+			deserializer := bcs.NewDeserializer(data)
+			state := deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength) // skip owner cap, we don't need it
+			nonceManagerCap := deserializer.ReadFixedBytes(SuiAddressLength)
+			sourceTransferCap := deserializer.ReadFixedBytes(SuiAddressLength)
+
+			nonceManagerCapObj := bind.Object{Id: toHexString(nonceManagerCap)}
+			sourceTransferCapObj := bind.Object{Id: toHexString(sourceTransferCap)}
+
+			if toHexString(state) != stateObj.Id {
+				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
+			}
+			return onramp.Encoder().McmsInitializeWithArgs(stateObj, registryObj, nonceManagerCapObj, sourceTransferCapObj, executingCallbackParams)
 		case "withdraw_fee_tokens":
-			// TODO: These should come from decoded data
-			coinMetadata := bind.Object{Id: "0xabc"}
-			ccipRef := bind.Object{Id: "0x123"}
+			deserializer := bcs.NewDeserializer(data)
+			ccipRefBytes := deserializer.ReadFixedBytes(SuiAddressLength)
+			state := deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength) // skip owner cap, we don't need it
+			feeTokenMetadata := deserializer.ReadFixedBytes(SuiAddressLength)
+
+			coinMetadata := bind.Object{Id: toHexString(feeTokenMetadata)}
+			ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
+
+			if toHexString(state) != stateObj.Id {
+				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
+			}
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
 			return onramp.Encoder().McmsWithdrawFeeTokensWithArgs(typeArgs, ccipRef, stateObj, registryObj, coinMetadata, executingCallbackParams)
@@ -264,37 +302,33 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "configure_new_minter":
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
-			// TODO: This doesn't exist
-			denyList := bind.Object{Id: "0xdef"}
-			return managedToken.Encoder().McmsConfigureNewMinterWithArgs(typeArgs, stateObj, registryObj, denyList, executingCallbackParams)
+			return managedToken.Encoder().McmsConfigureNewMinterWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "increment_mint_allowance":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
-			denyList := bind.Object{Id: "0xdef"}
-			return managedToken.Encoder().McmsIncrementMintAllowanceWithArgs(typeArgs, stateObj, registryObj, denyList, executingCallbackParams)
 		case "set_unlimited_mint_allowances":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
-			denyList := bind.Object{Id: "0xdef"}
-			return managedToken.Encoder().McmsSetUnlimitedMintAllowancesWithArgs(typeArgs, stateObj, registryObj, denyList, executingCallbackParams)
 		case "blocklist":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
-			denyList := bind.Object{Id: "0xdef"}
-			return managedToken.Encoder().McmsBlocklistWithArgs(typeArgs, stateObj, registryObj, denyList, executingCallbackParams)
 		case "unblocklist":
-			// TODO: Find correct type args
-			typeArgs := []string{"0x1::sui::SUI"}
-			denyList := bind.Object{Id: "0xdef"}
-			return managedToken.Encoder().McmsUnblocklistWithArgs(typeArgs, stateObj, registryObj, denyList, executingCallbackParams)
 		case "pause":
-			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
-			denyList := bind.Object{Id: "0xdef"}
-			return managedToken.Encoder().McmsPauseWithArgs(typeArgs, stateObj, registryObj, denyList, executingCallbackParams)
-		}
+			deserializer := bcs.NewDeserializer(data)
+			state := deserializer.ReadFixedBytes(SuiAddressLength)
+			deserializer.ReadFixedBytes(SuiAddressLength) // skip owner cap, we don't need it
+			denyList := deserializer.ReadFixedBytes(SuiAddressLength)
 
-		// END OF MODULE SWITCH
+			denyListObj := bind.Object{Id: toHexString(denyList)}
+
+			if toHexString(state) != stateObj.Id {
+				return nil, fmt.Errorf("state (%s) does not match state object (%s)", toHexString(state), stateObj.Id)
+			}
+			entrypointCall, err := managedToken.Encoder().McmsIncrementMintAllowanceWithArgs(typeArgs, stateObj, registryObj, denyListObj, executingCallbackParams)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create mcms_entrypoint call: %w", err)
+			}
+			// Override the module info with the actual target
+			entrypointCall.Module.ModuleName = module
+			// mcms entrypoint like functions are the target function prefixed with `mcms_`
+			entrypointCall.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
+			return entrypointCall, nil
+		}
 	}
 
 	// FALLBACK CASE: Use Fee Quoter as it has the most common function signatures

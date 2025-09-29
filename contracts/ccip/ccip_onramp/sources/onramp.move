@@ -1375,7 +1375,6 @@ public fun mcms_initialize(
     assert!(function == string::utf8(b"initialize"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    // TODO: nonce_manager_cap and source_transfer_cap should also be validated here
     bcs_stream::validate_obj_addrs(
         vector[
             object::id_address(state),
