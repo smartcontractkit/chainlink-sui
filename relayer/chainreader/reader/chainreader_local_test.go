@@ -671,7 +671,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	})
 
 	t.Run("GetLatestValue_GetAllSourceChainConfigs", func(t *testing.T) {
-		var retAllSourceChainConfigs []any
+		var retAllSourceChainConfigs any
 		params := map[string]any{}
 
 		log.Debugw("Testing get_all_source_chain_configs function for BCS struct decoding",
