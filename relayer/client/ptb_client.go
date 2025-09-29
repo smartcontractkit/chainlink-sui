@@ -3,13 +3,14 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
@@ -18,6 +19,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
+	"github.com/google/uuid"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 
@@ -83,7 +85,7 @@ type PTBClient struct {
 	maxRetries         *int
 	transactionTimeout time.Duration
 	keystoreService    loop.Keystore
-	rateLimiter        *debugSemaphore
+	rateLimiter        *DebugSemaphore
 	defaultRequestType TransactionRequestType
 
 	// map of module name to normalized module definition (similar to an ABI)
@@ -120,44 +122,58 @@ func NewPTBClient(
 		maxRetries:         maxRetries,
 		transactionTimeout: transactionTimeout,
 		keystoreService:    keystoreService,
-		rateLimiter:        newDebugSemaphore(maxConcurrentRequests),
+		rateLimiter:        NewDebugSemaphore(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
 		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
 	}, nil
 }
 
-type debugSemaphore struct {
+type DebugSemaphore struct {
 	*semaphore.Weighted
-	mu  sync.Mutex
-	cur int64
+	mu       sync.Mutex
+	cur      int64
+	acquires int64
+	releases int64
 }
 
-func newDebugSemaphore(n int64) *debugSemaphore {
-	return &debugSemaphore{Weighted: semaphore.NewWeighted(n)}
+func NewDebugSemaphore(n int64) *DebugSemaphore {
+	return &DebugSemaphore{Weighted: semaphore.NewWeighted(n)}
 }
 
-func (d *debugSemaphore) Acquire(ctx context.Context, n int64) error {
-	err := d.Weighted.Acquire(ctx, n)
-	if err == nil {
-		d.mu.Lock()
-		d.cur += n
-		d.mu.Unlock()
+func (d *DebugSemaphore) Acquire(ctx context.Context, n int64) error {
+	if err := d.Weighted.Acquire(ctx, n); err != nil {
+		return err
 	}
-	return err
+	d.mu.Lock()
+	d.cur += n
+	d.mu.Unlock()
+	atomic.AddInt64(&d.acquires, n)
+	return nil
 }
 
-func (d *debugSemaphore) Release(n int64) {
+func (d *DebugSemaphore) Release(n int64) {
 	d.Weighted.Release(n)
 	d.mu.Lock()
 	d.cur -= n
 	d.mu.Unlock()
+	atomic.AddInt64(&d.releases, n)
 }
 
-func (d *debugSemaphore) Current() int64 {
+func (d *DebugSemaphore) Current() int64 {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.cur
+}
+
+func (d *DebugSemaphore) Stats() (int64, int64, int64, int64) {
+	a := atomic.LoadInt64(&d.acquires)
+	r := atomic.LoadInt64(&d.releases)
+	d.mu.Lock()
+	cur := d.cur
+	d.mu.Unlock()
+	leaked := a - r
+	return a, r, cur, leaked
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
@@ -175,33 +191,56 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 		return f(timeoutCtx)
 	}
 
-	c.log.Debugw("RateLimiter acquire attempt",
-		"inUse", c.rateLimiter.Current(),
-		"max", 100,
-	)
+	reqID := uuid.NewString()
+	c.log.Debugw("RateLimiter acquire attempt", "reqID", reqID, "max", 100)
 
 	start := time.Now()
 	err := c.rateLimiter.Acquire(timeoutCtx, 1)
 	waited := time.Since(start)
 
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			c.log.Warnw("RateLimiter acquire canceled", "waited", waited)
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			c.log.Warnw("RateLimiter acquire deadline exceeded", "waited", waited)
-		} else {
-			c.log.Warnw("RateLimiter acquire failed", "waited", waited, "err", err)
-		}
+		c.log.Warnw("RateLimiter acquire failed",
+			"reqID", reqID,
+			"waited", waited,
+			"err", err,
+		)
 		return fmt.Errorf("failed to acquire rate limit: %w", err)
 	}
-	defer c.rateLimiter.Release(1)
 
-	c.log.Debugw("RateLimiter acquire succeeded", "waited", waited)
+	// Track acquires vs releases
+	a, r, cur, leaked := c.rateLimiter.Stats()
+	c.log.Debugw("RateLimiter stats",
+		"acquires", a,
+		"releases", r,
+		"current", cur,
+		"leaked", leaked,
+	)
 
-	c.log.Debug("Executing function under WithRateLimit")
-	defer c.log.Debug("Function execution finished")
+	c.log.Debugw("RateLimiter acquire succeeded",
+		"reqID", reqID,
+		"waited", waited,
+		"acquires", a,
+		"releases", r,
+		"leaked", leaked,
+	)
 
-	return f(timeoutCtx)
+	defer func() {
+		if r := recover(); r != nil {
+			c.log.Errorw("Recovered panic inside WithRateLimit", "reqID", reqID, "panic", r, "stack", string(debug.Stack()))
+		}
+		c.rateLimiter.Release(1)
+		c.log.Debugw("RateLimiter released permit", "reqID", reqID)
+	}()
+
+	startWork := time.Now()
+	err = f(timeoutCtx)
+	c.log.Debugw("Function finished under WithRateLimit",
+		"reqID", reqID,
+		"duration", time.Since(startWork),
+		"err", err,
+	)
+
+	return err
 }
 
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {

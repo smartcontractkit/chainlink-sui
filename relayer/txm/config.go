@@ -11,7 +11,7 @@ const (
 
 	DefaultMaxGasAmount             = 200000
 	DefaultMaxTxRetryAttempts       = 5
-	DefaultTransactionTimeout       = "10s"
+	DefaultTransactionTimeout       = "120s"
 	DefaultMaxConcurrentRequests    = 100
 	DefaultReaperPollSecs           = 10
 	DefaultTransactionRetentionSecs = 10
