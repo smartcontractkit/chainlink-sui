@@ -73,6 +73,7 @@ func ConvertBytesToHex(value any) any {
 	case []uint8:
 		// Confirm it's a real []byte and not some other []uint8 misuse
 		return "0x" + hex.EncodeToString(v)
+
 	case string:
 		// length prevents any random string from being encoded
 		if b, err := base64.StdEncoding.DecodeString(v); err == nil && len(b) == 32 {
