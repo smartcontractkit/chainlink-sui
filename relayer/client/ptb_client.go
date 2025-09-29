@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
@@ -82,7 +83,7 @@ type PTBClient struct {
 	maxRetries         *int
 	transactionTimeout time.Duration
 	keystoreService    loop.Keystore
-	rateLimiter        *semaphore.Weighted
+	rateLimiter        *debugSemaphore
 	defaultRequestType TransactionRequestType
 
 	// map of module name to normalized module definition (similar to an ABI)
@@ -119,11 +120,44 @@ func NewPTBClient(
 		maxRetries:         maxRetries,
 		transactionTimeout: transactionTimeout,
 		keystoreService:    keystoreService,
-		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
+		rateLimiter:        newDebugSemaphore(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
 		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
 	}, nil
+}
+
+type debugSemaphore struct {
+	*semaphore.Weighted
+	mu  sync.Mutex
+	cur int64
+}
+
+func newDebugSemaphore(n int64) *debugSemaphore {
+	return &debugSemaphore{Weighted: semaphore.NewWeighted(n)}
+}
+
+func (d *debugSemaphore) Acquire(ctx context.Context, n int64) error {
+	err := d.Weighted.Acquire(ctx, n)
+	if err == nil {
+		d.mu.Lock()
+		d.cur += n
+		d.mu.Unlock()
+	}
+	return err
+}
+
+func (d *debugSemaphore) Release(n int64) {
+	d.Weighted.Release(n)
+	d.mu.Lock()
+	d.cur -= n
+	d.mu.Unlock()
+}
+
+func (d *debugSemaphore) Current() int64 {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.cur
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
@@ -140,6 +174,11 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 	if c.rateLimiter == nil {
 		return f(timeoutCtx)
 	}
+
+	c.log.Debugw("RateLimiter acquire attempt",
+		"inUse", c.rateLimiter.Current(),
+		"max", 100,
+	)
 
 	start := time.Now()
 	err := c.rateLimiter.Acquire(timeoutCtx, 1)
