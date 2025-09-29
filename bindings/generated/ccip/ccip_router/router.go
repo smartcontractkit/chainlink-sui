@@ -151,6 +151,12 @@ type RouterState struct {
 	OnRampPackageIds bind.Object `move:"Table<u64, address>"`
 }
 
+type RouterRefPointer struct {
+	Id            string `move:"sui::object::UID"`
+	RouterStateId string `move:"address"`
+	OwnerCapId    string `move:"address"`
+}
+
 type McmsCallback struct {
 }
 
@@ -164,6 +170,21 @@ func convertOnRampSetFromBCS(bcs bcsOnRampSet) (OnRampSet, error) {
 	return OnRampSet{
 		DestChainSelector: bcs.DestChainSelector,
 		OnRampPackageId:   fmt.Sprintf("0x%x", bcs.OnRampPackageId),
+	}, nil
+}
+
+type bcsRouterRefPointer struct {
+	Id            string
+	RouterStateId [32]byte
+	OwnerCapId    [32]byte
+}
+
+func convertRouterRefPointerFromBCS(bcs bcsRouterRefPointer) (RouterRefPointer, error) {
+
+	return RouterRefPointer{
+		Id:            bcs.Id,
+		RouterStateId: fmt.Sprintf("0x%x", bcs.RouterStateId),
+		OwnerCapId:    fmt.Sprintf("0x%x", bcs.OwnerCapId),
 	}, nil
 }
 
@@ -230,6 +251,37 @@ func init() {
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_router::router::RouterRefPointer", func(data []byte) (interface{}, error) {
+		var temp bcsRouterRefPointer
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertRouterRefPointerFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for RouterRefPointer
+	bind.RegisterStructDecoder("vector<ccip_router::router::RouterRefPointer>", func(data []byte) (interface{}, error) {
+		var temps []bcsRouterRefPointer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]RouterRefPointer, len(temps))
+		for i, temp := range temps {
+			result, err := convertRouterRefPointerFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
 		}
 		return results, nil
 	})

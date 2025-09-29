@@ -4,7 +4,10 @@ use ccip_router::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream::{Self, BCSStream};
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
+use std::ascii;
 use std::string::{Self, String};
+use std::type_name;
+use sui::address;
 use sui::event;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
@@ -20,6 +23,12 @@ public struct RouterState has key {
     id: UID,
     ownable_state: OwnableState,
     on_ramp_package_ids: Table<u64, address>, // dest_chain_selector -> on_ramp_package_id
+}
+
+public struct RouterRefPointer has key, store {
+    id: UID,
+    router_state_id: address,
+    owner_cap_id: address,
 }
 
 const EParamsLengthMismatch: u64 = 1;
@@ -39,8 +48,21 @@ fun init(_witness: ROUTER, ctx: &mut TxContext) {
         on_ramp_package_ids: table::new(ctx),
     };
 
+    let owner_cap_id = object::id(&owner_cap);
+
+    let router_ref_pointer = RouterRefPointer {
+        id: object::new(ctx),
+        router_state_id: object::uid_to_address(&router.id),
+        owner_cap_id: object::id_to_address(&owner_cap_id),
+    };
+
+    let tn = type_name::with_original_ids<ROUTER>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
+    let package_id = address::from_ascii_bytes(&package_bytes);
+
     transfer::share_object(router);
     transfer::public_transfer(owner_cap, ctx.sender());
+    transfer::transfer(router_ref_pointer, package_id);
 }
 
 public fun type_and_version(): String {
