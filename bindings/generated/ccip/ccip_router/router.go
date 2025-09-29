@@ -19,11 +19,12 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_address","parameters":[{"name":"info","type":"OnRampInfo"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_info","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_infos","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_version","parameters":[{"name":"info","type":"OnRampInfo"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramp_infos","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_addresses","type":"vector<address>"},{"name":"on_ramp_versions","type":"vector<vector<u8>>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_address","parameters":[{"name":"info","type":"OnRampInfo"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_info","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_infos","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp_version","parameters":[{"name":"info","type":"OnRampInfo"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramp_infos","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_addresses","type":"vector<address>"},{"name":"on_ramp_versions","type":"vector<vector<u8>>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
 
 type IRouter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
+	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetOnRampInfo(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetOnRampInfos(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelectors []uint64) (*models.SuiTransactionBlockResponse, error)
 	GetOnRampVersion(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) (*models.SuiTransactionBlockResponse, error)
@@ -52,6 +53,7 @@ type IRouter interface {
 type IRouterDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (bool, error)
+	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (string, error)
 	GetOnRampInfo(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) ([]any, error)
 	GetOnRampInfos(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelectors []uint64) ([]OnRampInfo, error)
 	GetOnRampVersion(ctx context.Context, opts *bind.CallOpts, info OnRampInfo) ([]byte, error)
@@ -68,6 +70,8 @@ type RouterEncoder interface {
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsChainSupported(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetOnRamp(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
+	GetOnRampWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOnRampInfo(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
 	GetOnRampInfoWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOnRampInfos(router bind.Object, destChainSelectors []uint64) (*bind.EncodedCall, error)
@@ -337,6 +341,16 @@ func (c *RouterContract) IsChainSupported(ctx context.Context, opts *bind.CallOp
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetOnRamp executes the get_on_ramp Move function.
+func (c *RouterContract) GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.GetOnRamp(router, destChainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // GetOnRampInfo executes the get_on_ramp_info Move function.
 func (c *RouterContract) GetOnRampInfo(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.routerEncoder.GetOnRampInfo(router, destChainSelector)
@@ -577,6 +591,28 @@ func (d *RouterDevInspect) IsChainSupported(ctx context.Context, opts *bind.Call
 	result, ok := results[0].(bool)
 	if !ok {
 		return false, fmt.Errorf("unexpected return type: expected bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetOnRamp executes the get_on_ramp Move function using DevInspect to get return values.
+//
+// Returns: address
+func (d *RouterDevInspect) GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (string, error) {
+	encoded, err := d.contract.routerEncoder.GetOnRamp(router, destChainSelector)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
 	}
 	return result, nil
 }
@@ -829,6 +865,39 @@ func (c routerEncoder) IsChainSupportedWithArgs(args ...any) (*bind.EncodedCall,
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("is_chain_supported", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"bool",
+	})
+}
+
+// GetOnRamp encodes a call to the get_on_ramp Move function.
+func (c routerEncoder) GetOnRamp(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_on_ramp", typeArgsList, typeParamsList, []string{
+		"&RouterState",
+		"u64",
+	}, []any{
+		router,
+		destChainSelector,
+	}, []string{
+		"address",
+	})
+}
+
+// GetOnRampWithArgs encodes a call to the get_on_ramp Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c routerEncoder) GetOnRampWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&RouterState",
+		"u64",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_on_ramp", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
 	})
 }
 
