@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
@@ -126,6 +127,7 @@ func NewPTBClient(
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+	// the work itself should time out by transactionTimeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
@@ -133,11 +135,44 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 		return f(timeoutCtx)
 	}
 
-	if err := c.rateLimiter.Acquire(ctx, 1); err != nil {
+	// acquire with the timeout context so it can't hang forever
+	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
 		return fmt.Errorf("failed to acquire rate limit: %w", err)
 	}
-	defer c.rateLimiter.Release(1)
 
+	// force the release if the function never returns
+	var released int32 // 0 = not released, 1 = released
+	releaseOnce := func() {
+		if atomic.CompareAndSwapInt32(&released, 0, 1) {
+			c.rateLimiter.Release(1)
+		}
+	}
+
+	// if we haven't returned by the deadline (+ small grace),
+	// reclaim the permit to prevent global deadlock
+	grace := 2 * time.Second
+	_ = time.AfterFunc(c.transactionTimeout+grace, func() {
+		c.log.Warnw("rate limit lease expired; forcing release",
+			"timeout", c.transactionTimeout.String())
+		releaseOnce()
+	})
+
+	// ensure cleanup on exit and panic recovery
+	defer func() {
+		// NOTE: we can check time.Stop() to see if the timer fired but this redundant
+		// since we are always releasing
+
+		// release if not already reclaimed by watchdog
+		releaseOnce()
+
+		// bubble up panic after releasing
+		if r := recover(); r != nil {
+			panic(r)
+		}
+	}()
+
+	// run the user function with the timeout context
+	// if the function respects the context, it will return and lock will be released in defer
 	return f(timeoutCtx)
 }
 
