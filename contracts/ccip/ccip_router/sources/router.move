@@ -25,7 +25,7 @@ public struct RouterState has key {
     on_ramp_package_ids: Table<u64, address>, // dest_chain_selector -> on_ramp_package_id
 }
 
-public struct RouterRefPointer has key, store {
+public struct RouterStatePointer has key, store {
     id: UID,
     router_state_id: address,
     owner_cap_id: address,
@@ -50,7 +50,7 @@ fun init(_witness: ROUTER, ctx: &mut TxContext) {
 
     let owner_cap_id = object::id(&owner_cap);
 
-    let router_ref_pointer = RouterRefPointer {
+    let router_state_pointer = RouterStatePointer {
         id: object::new(ctx),
         router_state_id: object::uid_to_address(&router.id),
         owner_cap_id: object::id_to_address(&owner_cap_id),
@@ -62,7 +62,7 @@ fun init(_witness: ROUTER, ctx: &mut TxContext) {
 
     transfer::share_object(router);
     transfer::public_transfer(owner_cap, ctx.sender());
-    transfer::transfer(router_ref_pointer, package_id);
+    transfer::transfer(router_state_pointer, package_id);
 }
 
 public fun type_and_version(): String {

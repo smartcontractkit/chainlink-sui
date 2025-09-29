@@ -40,9 +40,9 @@ type DeployCCIPRouterInput struct {
 	McmsOwner     string
 }
 type DeployCCIPRouterObjects struct {
-	OwnerCapObjectId         string
-	RouterStateObjectId      string
-	RouterRefPointerObjectId string
+	OwnerCapObjectId           string
+	RouterStateObjectId        string
+	RouterStatePointerObjectId string
 }
 
 var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCCIPRouterInput) (output sui_ops.OpTxResult[DeployCCIPRouterObjects], err error) {
@@ -61,7 +61,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterState")
-	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterRefPointer")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterStatePointer")
 	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
 	}
@@ -70,9 +70,9 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		Digest:    tx.Digest,
 		PackageId: routerPackage.Address(),
 		Objects: DeployCCIPRouterObjects{
-			OwnerCapObjectId:         obj1,
-			RouterStateObjectId:      obj2,
-			RouterRefPointerObjectId: obj3,
+			OwnerCapObjectId:           obj1,
+			RouterStateObjectId:        obj2,
+			RouterStatePointerObjectId: obj3,
 		},
 	}, err
 }
