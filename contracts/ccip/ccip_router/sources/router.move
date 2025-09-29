@@ -56,6 +56,12 @@ public fun is_chain_supported(router: &RouterState, dest_chain_selector: u64): b
     router.on_ramp_infos.contains(dest_chain_selector)
 }
 
+public fun get_on_ramp(router: &RouterState, dest_chain_selector: u64): address {
+    assert!(router.on_ramp_infos.contains(dest_chain_selector), EOnrampInfoNotFound);
+    let on_ramp_info = *router.on_ramp_infos.borrow(dest_chain_selector);
+    on_ramp_info.onramp_address
+}
+
 public fun get_on_ramp_info(router: &RouterState, dest_chain_selector: u64): (address, vector<u8>) {
     assert!(router.on_ramp_infos.contains(dest_chain_selector), EOnrampInfoNotFound);
 

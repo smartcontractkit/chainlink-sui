@@ -117,6 +117,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for VersionBlocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::VersionBlocked>", func(data []byte) (interface{}, error) {
+		var results []VersionBlocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::upgrade_registry::FunctionBlocked", func(data []byte) (interface{}, error) {
 		var result FunctionBlocked
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -125,6 +134,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for FunctionBlocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::FunctionBlocked>", func(data []byte) (interface{}, error) {
+		var results []FunctionBlocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::upgrade_registry::UpgradeRegistry", func(data []byte) (interface{}, error) {
 		var result UpgradeRegistry
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -132,6 +150,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for UpgradeRegistry
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::UpgradeRegistry>", func(data []byte) (interface{}, error) {
+		var results []UpgradeRegistry
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 
