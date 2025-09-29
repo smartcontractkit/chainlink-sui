@@ -26,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -225,16 +226,23 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
 
 	// Apply renames (if any) to the primary result element before decoding
-	var primary any = results[0]
-	if functionConfig.ResultFieldRenames != nil {
-		err = aptosCRUtils.MaybeRenameFields(primary, functionConfig.ResultFieldRenames)
-		if err != nil {
-			return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+	responseValues := make([]any, len(results))
+	for i, result := range results {
+		current := result
+		if functionConfig.ResultFieldRenames != nil {
+			err = aptosCRUtils.MaybeRenameFields(current, functionConfig.ResultFieldRenames)
+			if err != nil {
+				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+			}
 		}
+		responseValues[i] = current
 	}
 
-	// TODO: handle multiple results for non-loop plugin mode
-	return codec.DecodeSuiJsonValue(primary, returnVal)
+	if len(results) > 1 {
+		return codec.DecodeSuiJsonValue(responseValues, returnVal)
+	}
+
+	return codec.DecodeSuiJsonValue(results[0], returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -472,6 +480,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
+
 	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
@@ -488,6 +497,10 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 // parseParams parses input parameters based on whether we're running as a LOOP plugin
 func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
 	argMap := make(map[string]any)
+
+	if params == nil {
+		return argMap, nil
+	}
 
 	if s.config.IsLoopPlugin {
 		return s.parseLoopParams(params, functionConfig)
@@ -669,7 +682,10 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
 
-	return values, nil
+	// TODO: Remove this once bindings are used in CR, this is a temporary fix for data ingestion
+	hexified := common.ConvertBytesToHex(values).([]any)
+
+	return hexified, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode
