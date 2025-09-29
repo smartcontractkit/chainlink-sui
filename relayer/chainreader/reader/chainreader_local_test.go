@@ -258,15 +258,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	err = chainReader.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
 	require.NoError(t, err)
 
-	// ChainReader in loop mode
-	chainReaderConfigLoopMode := chainReaderConfig
-	chainReaderConfigLoopMode.IsLoopPlugin = true
-	chainReaderLoopMode, err := NewChainReader(ctx, log, relayerClient, chainReaderConfigLoopMode, db, indexerInstance)
-	require.NoError(t, err)
-
-	err = chainReaderLoopMode.Bind(context.Background(), []types.BoundContract{counterBinding, offRampBinding})
-	require.NoError(t, err)
-
 	go func() {
 		err = chainReader.Start(ctx)
 		require.NoError(t, err)
@@ -434,7 +425,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// Verify the returned struct
 		require.NotNil(t, retTupleStruct)
 		require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
-		require.Len(t, retTupleStruct["address"].([]byte), 32, "Expected address to be 0x1")
+		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000001", retTupleStruct["address"], "Expected address to be 0x0000000000000000000000000000000000000000000000000000000000000001")
 		require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
 
 		log.Debugw("TupleStruct test completed successfully",
@@ -679,16 +670,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.Equal(t, expectedUint64, retUint64, "Expected value to be 0")
 	})
 
-	t.Run("GetLatestValue_GetAllSourceChainConfigs_LoopMode", func(t *testing.T) {
-		var retAllSourceChainConfigs []byte
-		params, err := json.Marshal(map[string]any{})
-		require.NoError(t, err)
+	t.Run("GetLatestValue_GetAllSourceChainConfigs", func(t *testing.T) {
+		var retAllSourceChainConfigs []any
+		params := map[string]any{}
 
 		log.Debugw("Testing get_all_source_chain_configs function for BCS struct decoding",
 			"packageId", packageId,
 		)
 
-		err = chainReaderLoopMode.GetLatestValue(
+		err = chainReader.GetLatestValue(
 			context.Background(),
 			strings.Join([]string{packageId, "OffRamp", "get_all_source_chain_configs"}, "-"),
 			primitives.Finalized,
@@ -697,11 +687,58 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		)
 		require.NoError(t, err)
 
-		// Convert bytes to JSON
-		var jsonResult [][]any
-		err = json.Unmarshal(retAllSourceChainConfigs, &jsonResult)
-		require.NoError(t, err)
+		// Verify the returned data structure
+		require.NotNil(t, retAllSourceChainConfigs)
+		require.Len(t, retAllSourceChainConfigs, 2, "Expected 2 elements in the response")
 
-		log.Debugw("jsonResult", "jsonResult", jsonResult)
+		// Define JSON schema for the expected response format
+		expectedSchema := `{
+			"$schema": "https://json-schema.org/draft/2019-09/schema",
+			"type": "array",
+			"prefixItems": [
+				{
+					"type": "array",
+					"items": {
+						"type": "integer"
+					}
+				},
+				{
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"is_enabled": {
+								"type": "boolean"
+							},
+							"is_rmn_verification_disabled": {
+								"type": "boolean"
+							},
+							"min_seq_nr": {
+								"type": "integer"
+							},
+							"on_ramp": {
+								"type": "string",
+								"pattern": "^0x[a-fA-F0-9]{64}$"
+							},
+							"router": {
+								"type": "string",
+								"pattern": "^0x[a-fA-F0-9]{64}$"
+							}
+						},
+						"required": ["is_enabled", "is_rmn_verification_disabled", "min_seq_nr", "on_ramp", "router"],
+						"additionalProperties": false
+					}
+				}
+			],
+			"minItems": 2,
+			"maxItems": 2
+		}`
+
+		jsonResult, err := json.Marshal(retAllSourceChainConfigs)
+		require.NoError(t, err)
+		log.Debugw("jsonResult", "jsonResult", string(jsonResult))
+
+		err = testutils.ValidateJSON(retAllSourceChainConfigs, expectedSchema)
+		require.NoError(t, err)
 	})
 }
