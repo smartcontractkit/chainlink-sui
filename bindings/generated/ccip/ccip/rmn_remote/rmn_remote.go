@@ -186,6 +186,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for RMNRemoteState
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::RMNRemoteState>", func(data []byte) (interface{}, error) {
+		var results []RMNRemoteState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::Config", func(data []byte) (interface{}, error) {
 		var result Config
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -193,6 +202,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Config
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Config>", func(data []byte) (interface{}, error) {
+		var results []Config
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::Signer", func(data []byte) (interface{}, error) {
 		var result Signer
@@ -202,6 +220,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Signer
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Signer>", func(data []byte) (interface{}, error) {
+		var results []Signer
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::ConfigSet", func(data []byte) (interface{}, error) {
 		var result ConfigSet
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -209,6 +236,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ConfigSet
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::ConfigSet>", func(data []byte) (interface{}, error) {
+		var results []ConfigSet
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::Cursed", func(data []byte) (interface{}, error) {
 		var result Cursed
@@ -218,6 +254,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Cursed
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Cursed>", func(data []byte) (interface{}, error) {
+		var results []Cursed
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::Uncursed", func(data []byte) (interface{}, error) {
 		var result Uncursed
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -226,6 +271,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Uncursed
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Uncursed>", func(data []byte) (interface{}, error) {
+		var results []Uncursed
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::rmn_remote::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -233,6 +287,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<ccip::rmn_remote::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

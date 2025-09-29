@@ -192,6 +192,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Registry
+	bind.RegisterStructDecoder("vector<mcms::mcms_registry::Registry>", func(data []byte) (interface{}, error) {
+		var results []Registry
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::ExecutingCallbackParams", func(data []byte) (interface{}, error) {
 		var temp bcsExecutingCallbackParams
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -204,6 +213,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ExecutingCallbackParams
+	bind.RegisterStructDecoder("vector<mcms::mcms_registry::ExecutingCallbackParams>", func(data []byte) (interface{}, error) {
+		var temps []bcsExecutingCallbackParams
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ExecutingCallbackParams, len(temps))
+		for i, temp := range temps {
+			result, err := convertExecutingCallbackParamsFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::EntrypointRegistered", func(data []byte) (interface{}, error) {
 		var temp bcsEntrypointRegistered
@@ -218,6 +245,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for EntrypointRegistered
+	bind.RegisterStructDecoder("vector<mcms::mcms_registry::EntrypointRegistered>", func(data []byte) (interface{}, error) {
+		var temps []bcsEntrypointRegistered
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]EntrypointRegistered, len(temps))
+		for i, temp := range temps {
+			result, err := convertEntrypointRegisteredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::MCMS_REGISTRY", func(data []byte) (interface{}, error) {
 		var result MCMS_REGISTRY
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -226,6 +271,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for MCMS_REGISTRY
+	bind.RegisterStructDecoder("vector<mcms::mcms_registry::MCMS_REGISTRY>", func(data []byte) (interface{}, error) {
+		var results []MCMS_REGISTRY
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::McmsProof", func(data []byte) (interface{}, error) {
 		var result McmsProof
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -233,6 +287,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsProof
+	bind.RegisterStructDecoder("vector<mcms::mcms_registry::McmsProof>", func(data []byte) (interface{}, error) {
+		var results []McmsProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

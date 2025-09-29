@@ -459,6 +459,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for FeeQuoterState
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeQuoterState>", func(data []byte) (interface{}, error) {
+		var temps []bcsFeeQuoterState
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]FeeQuoterState, len(temps))
+		for i, temp := range temps {
+			result, err := convertFeeQuoterStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
 		var result FeeQuoterCap
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -466,6 +484,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for FeeQuoterCap
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeQuoterCap>", func(data []byte) (interface{}, error) {
+		var results []FeeQuoterCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfig", func(data []byte) (interface{}, error) {
 		var result DestChainConfig
@@ -475,6 +502,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for DestChainConfig
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainConfig>", func(data []byte) (interface{}, error) {
+		var results []DestChainConfig
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfig", func(data []byte) (interface{}, error) {
 		var result TokenTransferFeeConfig
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -482,6 +518,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TokenTransferFeeConfig
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfig>", func(data []byte) (interface{}, error) {
+		var results []TokenTransferFeeConfig
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::TimestampedPrice", func(data []byte) (interface{}, error) {
 		var temp bcsTimestampedPrice
@@ -496,6 +541,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TimestampedPrice
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TimestampedPrice>", func(data []byte) (interface{}, error) {
+		var temps []bcsTimestampedPrice
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TimestampedPrice, len(temps))
+		for i, temp := range temps {
+			result, err := convertTimestampedPriceFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenAdded", func(data []byte) (interface{}, error) {
 		var temp bcsFeeTokenAdded
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -508,6 +571,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for FeeTokenAdded
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeTokenAdded>", func(data []byte) (interface{}, error) {
+		var temps []bcsFeeTokenAdded
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]FeeTokenAdded, len(temps))
+		for i, temp := range temps {
+			result, err := convertFeeTokenAddedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsFeeTokenRemoved
@@ -522,6 +603,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for FeeTokenRemoved
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeTokenRemoved>", func(data []byte) (interface{}, error) {
+		var temps []bcsFeeTokenRemoved
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]FeeTokenRemoved, len(temps))
+		for i, temp := range temps {
+			result, err := convertFeeTokenRemovedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigAdded", func(data []byte) (interface{}, error) {
 		var temp bcsTokenTransferFeeConfigAdded
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -534,6 +633,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TokenTransferFeeConfigAdded
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfigAdded>", func(data []byte) (interface{}, error) {
+		var temps []bcsTokenTransferFeeConfigAdded
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TokenTransferFeeConfigAdded, len(temps))
+		for i, temp := range temps {
+			result, err := convertTokenTransferFeeConfigAddedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsTokenTransferFeeConfigRemoved
@@ -548,6 +665,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TokenTransferFeeConfigRemoved
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfigRemoved>", func(data []byte) (interface{}, error) {
+		var temps []bcsTokenTransferFeeConfigRemoved
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TokenTransferFeeConfigRemoved, len(temps))
+		for i, temp := range temps {
+			result, err := convertTokenTransferFeeConfigRemovedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerTokenUpdated", func(data []byte) (interface{}, error) {
 		var temp bcsUsdPerTokenUpdated
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -560,6 +695,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for UsdPerTokenUpdated
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::UsdPerTokenUpdated>", func(data []byte) (interface{}, error) {
+		var temps []bcsUsdPerTokenUpdated
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]UsdPerTokenUpdated, len(temps))
+		for i, temp := range temps {
+			result, err := convertUsdPerTokenUpdatedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerUnitGasUpdated", func(data []byte) (interface{}, error) {
 		var temp bcsUsdPerUnitGasUpdated
@@ -574,6 +727,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for UsdPerUnitGasUpdated
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::UsdPerUnitGasUpdated>", func(data []byte) (interface{}, error) {
+		var temps []bcsUsdPerUnitGasUpdated
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]UsdPerUnitGasUpdated, len(temps))
+		for i, temp := range temps {
+			result, err := convertUsdPerUnitGasUpdatedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainAdded", func(data []byte) (interface{}, error) {
 		var result DestChainAdded
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -582,6 +753,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for DestChainAdded
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainAdded>", func(data []byte) (interface{}, error) {
+		var results []DestChainAdded
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfigUpdated", func(data []byte) (interface{}, error) {
 		var result DestChainConfigUpdated
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -589,6 +769,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for DestChainConfigUpdated
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainConfigUpdated>", func(data []byte) (interface{}, error) {
+		var results []DestChainConfigUpdated
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::PremiumMultiplierWeiPerEthUpdated", func(data []byte) (interface{}, error) {
 		var temp bcsPremiumMultiplierWeiPerEthUpdated
@@ -603,6 +792,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for PremiumMultiplierWeiPerEthUpdated
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::PremiumMultiplierWeiPerEthUpdated>", func(data []byte) (interface{}, error) {
+		var temps []bcsPremiumMultiplierWeiPerEthUpdated
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]PremiumMultiplierWeiPerEthUpdated, len(temps))
+		for i, temp := range temps {
+			result, err := convertPremiumMultiplierWeiPerEthUpdatedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::CCIPAdminProof", func(data []byte) (interface{}, error) {
 		var result CCIPAdminProof
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -611,6 +818,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CCIPAdminProof
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::CCIPAdminProof>", func(data []byte) (interface{}, error) {
+		var results []CCIPAdminProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::fee_quoter::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -618,6 +834,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

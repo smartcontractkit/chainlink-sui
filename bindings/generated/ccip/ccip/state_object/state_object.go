@@ -220,6 +220,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CCIPObjectRef
+	bind.RegisterStructDecoder("vector<ccip::state_object::CCIPObjectRef>", func(data []byte) (interface{}, error) {
+		var temps []bcsCCIPObjectRef
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]CCIPObjectRef, len(temps))
+		for i, temp := range temps {
+			result, err := convertCCIPObjectRefFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::state_object::CCIPObjectRefPointer", func(data []byte) (interface{}, error) {
 		var temp bcsCCIPObjectRefPointer
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -233,6 +251,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CCIPObjectRefPointer
+	bind.RegisterStructDecoder("vector<ccip::state_object::CCIPObjectRefPointer>", func(data []byte) (interface{}, error) {
+		var temps []bcsCCIPObjectRefPointer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]CCIPObjectRefPointer, len(temps))
+		for i, temp := range temps {
+			result, err := convertCCIPObjectRefPointerFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::state_object::STATE_OBJECT", func(data []byte) (interface{}, error) {
 		var result STATE_OBJECT
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -240,6 +276,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for STATE_OBJECT
+	bind.RegisterStructDecoder("vector<ccip::state_object::STATE_OBJECT>", func(data []byte) (interface{}, error) {
+		var results []STATE_OBJECT
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::state_object::CCIPAdminProof", func(data []byte) (interface{}, error) {
 		var result CCIPAdminProof
@@ -249,6 +294,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CCIPAdminProof
+	bind.RegisterStructDecoder("vector<ccip::state_object::CCIPAdminProof>", func(data []byte) (interface{}, error) {
+		var results []CCIPAdminProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::state_object::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -256,6 +310,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for McmsCallback
+	bind.RegisterStructDecoder("vector<ccip::state_object::McmsCallback>", func(data []byte) (interface{}, error) {
+		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 
