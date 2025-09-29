@@ -51,19 +51,20 @@ public fun is_chain_supported(router: &RouterState, dest_chain_selector: u64): b
     router.on_ramp_package_ids.contains(dest_chain_selector)
 }
 
-public fun get_on_ramp_package_id(router: &RouterState, dest_chain_selector: u64): address {
+// Returns the on ramp package id for the given destination chain selector.
+public fun get_on_ramp(router: &RouterState, dest_chain_selector: u64): address {
     assert!(router.on_ramp_package_ids.contains(dest_chain_selector), EOnrampNotFound);
 
     *router.on_ramp_package_ids.borrow(dest_chain_selector)
 }
 
-/// Sets the onRamp info for the given destination chains.
-/// This function will overwrite the existing infos.
+/// Sets the onramp package ids for the given destination chains.
+/// This function will overwrite the existing package ids.
 /// This function can only be called by the owner of the contract.
 /// @param owner_cap The owner capability.
 /// @param router The router state.
 /// @param dest_chain_selectors The destination chain selectors.
-/// @param on_ramp_package_ids The onRamp package ids.
+/// @param on_ramp_package_ids The onramp package ids.
 public fun set_on_ramps(
     owner_cap: &OwnerCap,
     router: &mut RouterState,
