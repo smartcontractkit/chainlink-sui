@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -177,6 +176,8 @@ func (d *DebugSemaphore) Stats() (int64, int64, int64, int64) {
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+
+	// Just give each call a 120s max runtime
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
@@ -187,60 +188,83 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Contex
 		c.log.Debugw("Timeout ctx deadline", "deadline", dl, "remaining", time.Until(dl))
 	}
 
-	if c.rateLimiter == nil {
-		return f(timeoutCtx)
-	}
-
 	reqID := uuid.NewString()
-	c.log.Debugw("RateLimiter acquire attempt", "reqID", reqID, "max", 100)
-
-	start := time.Now()
-	err := c.rateLimiter.Acquire(timeoutCtx, 1)
-	waited := time.Since(start)
-
-	if err != nil {
-		c.log.Warnw("RateLimiter acquire failed",
-			"reqID", reqID,
-			"waited", waited,
-			"err", err,
-		)
-		return fmt.Errorf("failed to acquire rate limit: %w", err)
-	}
-
-	// Track acquires vs releases
-	a, r, cur, leaked := c.rateLimiter.Stats()
-	c.log.Debugw("RateLimiter stats",
-		"acquires", a,
-		"releases", r,
-		"current", cur,
-		"leaked", leaked,
-	)
-
-	c.log.Debugw("RateLimiter acquire succeeded",
-		"reqID", reqID,
-		"waited", waited,
-		"acquires", a,
-		"releases", r,
-		"leaked", leaked,
-	)
-
-	defer func() {
-		if r := recover(); r != nil {
-			c.log.Errorw("Recovered panic inside WithRateLimit", "reqID", reqID, "panic", r, "stack", string(debug.Stack()))
-		}
-		c.rateLimiter.Release(1)
-		c.log.Debugw("RateLimiter released permit", "reqID", reqID)
-	}()
+	c.log.Debugw("Executing function with NO rate limit", "reqID", reqID)
 
 	startWork := time.Now()
-	err = f(timeoutCtx)
-	c.log.Debugw("Function finished under WithRateLimit",
+	err := f(timeoutCtx)
+	c.log.Debugw("Function finished (no ratelimit)",
 		"reqID", reqID,
 		"duration", time.Since(startWork),
 		"err", err,
 	)
 
 	return err
+
+	// timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	// defer cancel()
+
+	// if dl, ok := ctx.Deadline(); ok {
+	// 	c.log.Debugw("Parent ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	// }
+	// if dl, ok := timeoutCtx.Deadline(); ok {
+	// 	c.log.Debugw("Timeout ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	// }
+
+	// if c.rateLimiter == nil {
+	// 	return f(timeoutCtx)
+	// }
+
+	// reqID := uuid.NewString()
+	// c.log.Debugw("RateLimiter acquire attempt", "reqID", reqID, "max", 100)
+
+	// start := time.Now()
+	// err := c.rateLimiter.Acquire(timeoutCtx, 1)
+	// waited := time.Since(start)
+
+	// if err != nil {
+	// 	c.log.Warnw("RateLimiter acquire failed",
+	// 		"reqID", reqID,
+	// 		"waited", waited,
+	// 		"err", err,
+	// 	)
+	// 	return fmt.Errorf("failed to acquire rate limit: %w", err)
+	// }
+
+	// // Track acquires vs releases
+	// a, r, cur, leaked := c.rateLimiter.Stats()
+	// c.log.Debugw("RateLimiter stats",
+	// 	"acquires", a,
+	// 	"releases", r,
+	// 	"current", cur,
+	// 	"leaked", leaked,
+	// )
+
+	// c.log.Debugw("RateLimiter acquire succeeded",
+	// 	"reqID", reqID,
+	// 	"waited", waited,
+	// 	"acquires", a,
+	// 	"releases", r,
+	// 	"leaked", leaked,
+	// )
+
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		c.log.Errorw("Recovered panic inside WithRateLimit", "reqID", reqID, "panic", r, "stack", string(debug.Stack()))
+	// 	}
+	// 	c.rateLimiter.Release(1)
+	// 	c.log.Debugw("RateLimiter released permit", "reqID", reqID)
+	// }()
+
+	// startWork := time.Now()
+	// err = f(timeoutCtx)
+	// c.log.Debugw("Function finished under WithRateLimit",
+	// 	"reqID", reqID,
+	// 	"duration", time.Since(startWork),
+	// 	"err", err,
+	// )
+
+	// return err
 }
 
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
