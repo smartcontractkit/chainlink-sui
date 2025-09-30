@@ -331,3 +331,21 @@ func TestDeserializer(t *testing.T) {
 		des,
 	)
 }
+
+func TestDeserializer_ShouldFail(t *testing.T) {
+	// mystenbcs encoder has an issue where fixed-size byte arrays ([n]byte) are treated as regular slices.
+	// so encoding a u128 via their encoder will result in failure to decode it back.
+	// We're using this behavior to test our DeserializeBCS error handling.
+	u128AsByte := [16]byte{0xd2, 0xa, 0x1f, 0xeb, 0x8c, 0xa9, 0x54, 0xab}
+	// Encode BCS
+	bcsEncodedMsg := bytes.Buffer{}
+	encoder := mystenbcs.NewEncoder(&bcsEncodedMsg)
+	encoder.Encode(u128AsByte)
+	bcsMsg := bcsEncodedMsg.Bytes()
+	// Deserialize BCS
+	_, err := DeserializeBCS(
+		bcsMsg,
+		[]string{"u128"},
+	)
+	require.NotNil(t, err)
+}
