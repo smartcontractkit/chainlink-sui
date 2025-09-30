@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
-	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
@@ -24,7 +23,6 @@ var SuiAddressLength = 32
 
 type CCIPEntrypointArgEncoder struct {
 	registryObjID string
-	client        sui.ISuiAPI
 }
 
 func NewCCIPEntrypointArgEncoder() *CCIPEntrypointArgEncoder {
@@ -40,6 +38,12 @@ func toHexString(data []byte) string {
 	return fmt.Sprintf("0x%s", strings.ToLower(hex.EncodeToString(data)))
 }
 
+func overrideCall(call *bind.EncodedCall, module, function string) *bind.EncodedCall {
+	call.Module.ModuleName = module
+	call.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
+	return call
+}
+
 // MCMS SDK will call this to encode the entrypoint call
 // Data is the raw BCS encoded bytes of the final function call
 func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *transaction.Argument, target, module, function, stateObjID string, data []byte) (*bind.EncodedCall, error) {
@@ -52,7 +56,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		ccipRefBytes := deserializeFirst32Bytes(data)
 		ccipRef := bind.Object{Id: toHexString(ccipRefBytes)}
 
-		offramp, err := module_offramp.NewOfframp(target, e.client)
+		offramp, err := module_offramp.NewOfframp(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -61,15 +65,12 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		if err != nil {
 			return nil, err
 		}
-		// Override the module info with the actual target
-		entrypointCall.Module.ModuleName = module
-		// mcms entrypoint like functions are the target function prefixed with `mcms_`
-		entrypointCall.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
-		return entrypointCall, nil
+
+		return overrideCall(entrypointCall, module, function), nil
 	}
 
 	encodeDefaultWithTypeArgsAndClock := func() (*bind.EncodedCall, error) {
-		burnMintTokenPool, err := module_burn_mint_token_pool.NewBurnMintTokenPool(target, e.client)
+		burnMintTokenPool, err := module_burn_mint_token_pool.NewBurnMintTokenPool(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -79,15 +80,12 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		if err != nil {
 			return nil, err
 		}
-		// Override the module info with the actual target
-		entrypointCall.Module.ModuleName = module
-		// mcms entrypoint like functions are the target function prefixed with `mcms_`
-		entrypointCall.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
-		return entrypointCall, nil
+
+		return overrideCall(entrypointCall, module, function), nil
 	}
 
 	encodeDefaultWithTypeArgs := func() (*bind.EncodedCall, error) {
-		burnMintTokenPool, err := module_burn_mint_token_pool.NewBurnMintTokenPool(target, e.client)
+		burnMintTokenPool, err := module_burn_mint_token_pool.NewBurnMintTokenPool(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -97,17 +95,14 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		if err != nil {
 			return nil, err
 		}
-		// Override the module info with the actual target
-		entrypointCall.Module.ModuleName = module
-		// mcms entrypoint like functions are the target function prefixed with `mcms_`
-		entrypointCall.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
-		return entrypointCall, nil
+
+		return overrideCall(entrypointCall, module, function), nil
 	}
 
 	switch module {
 	// FEE QUOTER
 	case "fee_quoter":
-		feeQuoter, err := module_fee_quoter.NewFeeQuoter(target, e.client)
+		feeQuoter, err := module_fee_quoter.NewFeeQuoter(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -124,28 +119,28 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	// OFFRAMP
 	case "offramp":
 		switch function {
-		case "accept_ownership":
-		case "set_dynamic_config":
-		case "apply_source_chain_config_updates":
-		case "set_ocr3_config":
-		case "transfer_ownership":
-		case "execute_ownership_transfer":
+		case "accept_ownership",
+			"set_dynamic_config",
+			"apply_source_chain_config_updates",
+			"set_ocr3_config",
+			"transfer_ownership",
+			"execute_ownership_transfer":
 			return encodeWithCCIPObjectRefAndState()
 		}
 
 	// ONRAMP
 	case "onramp":
-		onramp, err := module_onramp.NewOnramp(target, e.client)
+		onramp, err := module_onramp.NewOnramp(target, nil)
 		if err != nil {
 			return nil, err
 		}
 		switch function {
-		case "accept_ownership":
-		case "set_dynamic_config":
-		case "apply_dest_chain_config_updates":
-		case "apply_allowlist_updates":
-		case "transfer_ownership":
-		case "execute_ownership_transfer":
+		case "accept_ownership",
+			"set_dynamic_config",
+			"apply_dest_chain_config_updates",
+			"apply_allowlist_updates",
+			"transfer_ownership",
+			"execute_ownership_transfer":
 			return encodeWithCCIPObjectRefAndState()
 		case "initialize":
 			deserializer := bcs.NewDeserializer(data)
@@ -181,7 +176,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 
 	// ROUTER
 	case "router":
-		router, err := module_router.NewRouter(target, e.client)
+		router, err := module_router.NewRouter(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +187,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 
 	// BURN MINT TOKEN POOL
 	case "burn_mint_token_pool":
-		burnMintTokenPool, err := module_burn_mint_token_pool.NewBurnMintTokenPool(target, e.client)
+		burnMintTokenPool, err := module_burn_mint_token_pool.NewBurnMintTokenPool(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -201,22 +196,22 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
 			return burnMintTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
-		case "set_allowlist_enabled":
-		case "apply_allowlist_updates":
-		case "apply_chain_updates":
-		case "add_remote_pool":
-		case "remove_remote_pool":
-		case "transfer_ownership":
-		case "execute_ownership_transfer":
+		case "set_allowlist_enabled",
+			"apply_allowlist_updates",
+			"apply_chain_updates",
+			"add_remote_pool",
+			"remove_remote_pool",
+			"transfer_ownership",
+			"execute_ownership_transfer":
 			return encodeDefaultWithTypeArgs()
-		case "set_chain_rate_limiter_configs":
-		case "set_chain_rate_limiter_config":
-			return encodeDefaultWithTypeArgs()
+		case "set_chain_rate_limiter_configs",
+			"set_chain_rate_limiter_config":
+			return encodeDefaultWithTypeArgsAndClock()
 		}
 
 	// LOCK RELEASE TOKEN POOL
 	case "lock_release_token_pool":
-		lockReleaseTokenPool, err := module_lock_release_token_pool.NewLockReleaseTokenPool(target, e.client)
+		lockReleaseTokenPool, err := module_lock_release_token_pool.NewLockReleaseTokenPool(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -225,24 +220,24 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
 			return lockReleaseTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
-		case "set_rebalancer":
-		case "set_allowlist_enabled":
-		case "apply_allowlist_updates":
-		case "apply_chain_updates":
-		case "add_remote_pool":
-		case "remove_remote_pool":
-		case "transfer_ownership":
-		case "execute_ownership_transfer":
+		case "set_rebalancer",
+			"set_allowlist_enabled",
+			"apply_allowlist_updates",
+			"apply_chain_updates",
+			"add_remote_pool",
+			"remove_remote_pool",
+			"transfer_ownership",
+			"execute_ownership_transfer":
 			return encodeDefaultWithTypeArgs()
-		case "set_chain_rate_limiter_configs":
-		case "set_chain_rate_limiter_config":
+		case "set_chain_rate_limiter_configs",
+			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
 
 		}
 
 	// MANAGED TOKEN POOL
 	case "managed_token_pool":
-		managedTokenPool, err := module_managed_token_pool.NewManagedTokenPool(target, e.client)
+		managedTokenPool, err := module_managed_token_pool.NewManagedTokenPool(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -251,22 +246,22 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
 			return managedTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
-		case "set_allowlist_enabled":
-		case "apply_allowlist_updates":
-		case "apply_chain_updates":
-		case "add_remote_pool":
-		case "remove_remote_pool":
-		case "transfer_ownership":
-		case "execute_ownership_transfer":
+		case "set_allowlist_enabled",
+			"apply_allowlist_updates",
+			"apply_chain_updates",
+			"add_remote_pool",
+			"remove_remote_pool",
+			"transfer_ownership",
+			"execute_ownership_transfer":
 			return encodeDefaultWithTypeArgs()
-		case "set_chain_rate_limiter_configs":
-		case "set_chain_rate_limiter_config":
+		case "set_chain_rate_limiter_configs",
+			"set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
 		}
 
 	// USDC TOKEN POOL
 	case "usdc_token_pool":
-		usdcTokenPool, err := module_usdc_token_pool.NewUsdcTokenPool(target, e.client)
+		usdcTokenPool, err := module_usdc_token_pool.NewUsdcTokenPool(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -275,22 +270,21 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
 			return usdcTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
-		case "set_allowlist_enabled":
-		case "apply_allowlist_updates":
-		case "apply_chain_updates":
-		case "add_remote_pool":
-		case "remove_remote_pool":
-		case "transfer_ownership":
-		case "execute_ownership_transfer":
+		case "set_allowlist_enabled",
+			"apply_allowlist_updates",
+			"apply_chain_updates",
+			"add_remote_pool",
+			"remove_remote_pool",
+			"transfer_ownership",
+			"execute_ownership_transfer":
 			return encodeDefaultWithTypeArgs()
-		case "set_chain_rate_limiter_configs":
-		case "set_chain_rate_limiter_config":
+		case "set_chain_rate_limiter_configs", "set_chain_rate_limiter_config":
 			return encodeDefaultWithTypeArgsAndClock()
 		}
 
 	// MANAGED TOKEN
 	case "managed_token":
-		managedToken, err := module_managed_token.NewManagedToken(target, e.client)
+		managedToken, err := module_managed_token.NewManagedToken(target, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -303,11 +297,11 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
 			return managedToken.Encoder().McmsConfigureNewMinterWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
-		case "increment_mint_allowance":
-		case "set_unlimited_mint_allowances":
-		case "blocklist":
-		case "unblocklist":
-		case "pause":
+		case "increment_mint_allowance",
+			"set_unlimited_mint_allowances",
+			"blocklist",
+			"unblocklist",
+			"pause":
 			typeArgs := []string{"0x1::sui::SUI"}
 			deserializer := bcs.NewDeserializer(data)
 			state := deserializer.ReadFixedBytes(SuiAddressLength)
@@ -323,20 +317,19 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			if err != nil {
 				return nil, fmt.Errorf("failed to create mcms_entrypoint call: %w", err)
 			}
-			// Override the module info with the actual target
-			entrypointCall.Module.ModuleName = module
-			// mcms entrypoint like functions are the target function prefixed with `mcms_`
-			entrypointCall.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
-			return entrypointCall, nil
+
+			return overrideCall(entrypointCall, module, function), nil
 		}
 	}
+
+	fmt.Println("MODULE AND FUNCTION", module, function)
 
 	// FALLBACK CASE: Use Fee Quoter as it has the most common function signatures
 	// Fallback to fee quoter for any unhandled module/function
 	// This works because most mcms functions have the same signature
 	// state: &State, registry: &Registry, executing_callback_params: &ExecutingCallbackParams
 	// If a function has a different signature, it should be handled explicitly above
-	feeQuoter, err := module_fee_quoter.NewFeeQuoter(target, e.client)
+	feeQuoter, err := module_fee_quoter.NewFeeQuoter(target, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -349,10 +342,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mcms_entrypoint call: %w", err)
 	}
-	// Override the module info with the actual target
-	entryPointCall.Module.ModuleName = module
-	// mcms entrypoint like functions are the target function prefixed with `mcms_`
-	entryPointCall.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
 
-	return entryPointCall, nil
+	return overrideCall(entryPointCall, module, function), nil
 }
