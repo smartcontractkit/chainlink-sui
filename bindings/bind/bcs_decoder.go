@@ -3,6 +3,7 @@ package bind
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -289,7 +290,8 @@ func DecodeU128Value(bcsBytes [16]byte) (*big.Int, error) {
 // TODO: this function should also serve extractBCSBytes, but currently
 // getElementType handles objects as their ID (32-byte address)
 func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
-	deserializer := mystenbcs.NewDecoder(bytes.NewReader(data))
+	reader := bytes.NewReader(data)
+	deserializer := mystenbcs.NewDecoder(reader)
 	ret := make([]any, 0, len(moveTypes))
 	for _, moveType := range moveTypes {
 		decoded, _, err := decodeType(deserializer, moveType)
@@ -298,6 +300,10 @@ func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
 		}
 		ret = append(ret, decoded)
 	}
+	if reader.Len() != 0 {
+		return ret, errors.New("failed to deserialize, not all data consumed")
+	}
+
 	return ret, nil
 }
 
@@ -327,7 +333,7 @@ func decodeType(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.
 		var res string
 		typ, err := decode(deserializer, &res)
 		return res, typ, err
-	case strings.HasPrefix(moveType, "vector"):
+	case strings.HasPrefix(moveType, "vector<") && strings.HasSuffix(moveType, ">"):
 		// decodeSlice calls decodeType recursively
 		return decodeSlice(deserializer, moveType)
 	case moveType == "address":
