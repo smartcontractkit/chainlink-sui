@@ -3,6 +3,7 @@
 module ccip_router::ownable;
 
 use mcms::mcms_registry::{Self, Registry};
+use sui::derived_object;
 use sui::event;
 
 public struct OwnerCap has key, store {
@@ -56,11 +57,15 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
+public fun new<K: copy + drop + store>(
+    uid: &mut UID,
+    key: K,
+    ctx: &mut TxContext,
+): (OwnableState, OwnerCap) {
     let owner = ctx.sender();
 
     let owner_cap = OwnerCap {
-        id: object::new(ctx),
+        id: derived_object::claim(uid, key),
     };
 
     let state = OwnableState {
