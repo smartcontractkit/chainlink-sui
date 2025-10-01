@@ -33,7 +33,7 @@ import (
     module_generics "github.com/smartcontractkit/chainlink-sui/bindings/generated/test/generics"
 )
 
-var functionInfoGlobal = map[string]string{
+var FunctionInfoByModule = map[string]string{
     "fee_quoter": module_fee_quoter.FunctionInfo,
     "nonce_manager": module_nonce_manager.FunctionInfo,
     "receiver_registry": module_receiver_registry.FunctionInfo,
