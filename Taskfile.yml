@@ -18,4 +18,7 @@ includes:
   tidy:
     taskfile: ./taskfiles/tidy/Taskfile.yml
 
-  # Keep adding as needed
+  docs:
+    taskfile: ./taskfiles/docs/taskfile.yml
+
+    # Keep adding as needed
