@@ -552,6 +552,7 @@ type pointerMapEntry struct {
 }
 
 // prepareArguments prepares function arguments and types for the call
+// TODO: (#to_derive) need to derive the pointer values based on their keys
 func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
 	if functionConfig.Params == nil {
 		return []any{}, []string{}, nil

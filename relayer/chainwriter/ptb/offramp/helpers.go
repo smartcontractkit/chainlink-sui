@@ -75,6 +75,7 @@ func GetOfframpAddressMappings(
 	lggr.Debugw("offRampPackageId", "offrampPackageId", addressMappings.OffRampPackageId)
 
 	// get the offramp state object and check if it's cached
+	// TODO: (#to_derive) need to derive the offramp state object ID
 	offrampPointerFieldKey := "off_ramp_state_id"
 	if offrampPointerFields, ok := ptbClient.GetCachedValue(offrampPointerFieldKey); ok {
 		addressMappings.OffRampState = offrampPointerFields.(string)
@@ -95,6 +96,7 @@ func GetOfframpAddressMappings(
 		addressMappings.CcipObjectRef = ccipPointerFields["object_ref_id"].(string)
 		addressMappings.CcipOwnerCap = ccipPointerFields["owner_cap_id"].(string)
 	} else {
+		// TODO: (#to_derive) need to derive object ref ID and owner cap ID
 		ccipPointerFields, err := ptbClient.GetValuesFromPackageOwnedObjectField(ctx, ccipPkgID, "state_object", "CCIPObjectRefPointer", ccipPointerFieldKeys)
 		if err != nil {
 			lggr.Errorw("Error getting ccip object ref and owner cap", "error", err)
