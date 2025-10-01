@@ -369,9 +369,11 @@ func decodePrimitiveType(bcsDecoder *aptosBCS.Deserializer, primitiveType string
 	case "U64":
 		return bcsDecoder.U64(), nil
 	case "U128":
-		return bcsDecoder.U128(), nil
+		value := bcsDecoder.U128()
+		return value.String(), nil
 	case "U256":
-		return bcsDecoder.U256(), nil
+		value := bcsDecoder.U256()
+		return value.String(), nil
 	case "Bool":
 		return bcsDecoder.Bool(), nil
 	case "Address":
