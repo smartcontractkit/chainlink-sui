@@ -57,16 +57,28 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public fun new<K: copy + drop + store>(
+const DEFAULT_KEY: vector<u8> = b"CCIP_OWNABLE";
+
+public fun default_key(): vector<u8> {
+    DEFAULT_KEY
+}
+
+public fun new(uid: &mut UID, ctx: &mut TxContext): (OwnableState, OwnerCap) {
+    let owner_cap = OwnerCap { id: derived_object::claim(uid, DEFAULT_KEY) };
+    new_internal(owner_cap, ctx)
+}
+
+public fun new_with_key<K: copy + drop + store>(
     uid: &mut UID,
     key: K,
     ctx: &mut TxContext,
 ): (OwnableState, OwnerCap) {
-    let owner = ctx.sender();
+    let owner_cap = OwnerCap { id: derived_object::claim(uid, key) };
+    new_internal(owner_cap, ctx)
+}
 
-    let owner_cap = OwnerCap {
-        id: derived_object::claim(uid, key),
-    };
+fun new_internal(owner_cap: OwnerCap, ctx: &mut TxContext): (OwnableState, OwnerCap) {
+    let owner = ctx.sender();
 
     let state = OwnableState {
         id: object::new(ctx),

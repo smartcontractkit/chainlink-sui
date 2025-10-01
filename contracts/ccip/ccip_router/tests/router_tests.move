@@ -1,7 +1,7 @@
 #[test_only]
 module ccip_router::router_tests;
 
-use ccip_router::ownable::OwnerCap;
+use ccip_router::ownable::{Self, OwnerCap};
 use ccip_router::router::{Self, RouterState, RouterObject};
 use sui::derived_object;
 use sui::test_scenario::{Self as ts, Scenario};
@@ -220,14 +220,14 @@ fun test_derive_address() {
     // Test OwnerCap derivation
     let derived_owner_cap_addr = derived_object::derive_address(
         object::id(&router_object),
-        b"OwnerCap",
+        ownable::default_key(),
     );
     let owner_cap = scenario.take_from_sender<OwnerCap>();
     let owner_cap_id = object::id(&owner_cap).to_address();
 
     assert!(derived_owner_cap_addr == owner_cap_id);
     assert!(
-        derived_owner_cap_addr == @0xaff553d16e669b49c1510d0ec3c01d95d38b6bddbf31ab03db62baca01773dcc,
+        derived_owner_cap_addr == @0x8e574462de77f45ea5bf3e8c1da19bcf081d25796376367e311926a8f993177e,
     );
 
     // Test RouterState derivation
@@ -238,8 +238,10 @@ fun test_derive_address() {
     let router_state = scenario.take_shared<RouterState>();
     let router_state_id = object::id(&router_state).to_address();
     assert!(derived_router_state_addr == router_state_id);
-    assert!(derived_router_state_addr == @0xc2ab753588210ab5de22dca1caf6e6d18a0b514c28c1975655c5769117d6f9ef);
-    
+    assert!(
+        derived_router_state_addr == @0xc2ab753588210ab5de22dca1caf6e6d18a0b514c28c1975655c5769117d6f9ef,
+    );
+
     ts::return_to_address(SENDER_1, owner_cap);
     ts::return_shared(router_state);
     ts::return_shared(router_object);

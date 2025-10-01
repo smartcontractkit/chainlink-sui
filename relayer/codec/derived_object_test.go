@@ -13,13 +13,13 @@ func TestDeriveWithVectorU8Key(t *testing.T) {
 		// Test: `fun test_derive_address()`
 		parentId := "0x34401905bebdf8c04f3cd5f04f442a39372c8dc321c29edfb4f9cb30b23ab96"
 		expectedRouterStateId := "0xc2ab753588210ab5de22dca1caf6e6d18a0b514c28c1975655c5769117d6f9ef"
-		expectedOwnerCapId := "0xaff553d16e669b49c1510d0ec3c01d95d38b6bddbf31ab03db62baca01773dcc"
+		expectedOwnerCapId := "0x8e574462de77f45ea5bf3e8c1da19bcf081d25796376367e311926a8f993177e"
 
 		result1, err := DeriveObjectIDWithVectorU8Key(parentId, []byte("RouterState"))
 		require.NoError(t, err)
 		assert.Equal(t, expectedRouterStateId, result1)
 
-		result2, err := DeriveObjectIDWithVectorU8Key(parentId, []byte("OwnerCap"))
+		result2, err := DeriveObjectIDWithVectorU8Key(parentId, []byte("CCIP_OWNABLE"))
 		require.NoError(t, err)
 		assert.Equal(t, expectedOwnerCapId, result2)
 

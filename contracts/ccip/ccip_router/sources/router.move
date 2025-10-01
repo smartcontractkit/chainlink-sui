@@ -45,7 +45,7 @@ const EInvalidOnrampAddress: u64 = 7;
 
 fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let mut router_object = RouterObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut router_object.id, b"OwnerCap", ctx);
+    let (ownable_state, owner_cap) = ownable::new(&mut router_object.id, ctx);
 
     let router = RouterState {
         id: derived_object::claim(&mut router_object.id, b"RouterState"),

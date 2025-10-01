@@ -66,7 +66,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find RouterObject ID in publish tx: %w", err)
 	}
 
-	ownerCapId, err := codec.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("OwnerCap"))
+	ownerCapId, err := codec.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("CCIP_OWNABLE"))
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to derive OwnerCap ID: %w", err)
 	}
