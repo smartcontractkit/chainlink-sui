@@ -204,6 +204,14 @@ func decodeBCSValue(data []byte, moveType string) (any, error) {
 
 		return result, nil
 
+	case "vector<u64>":
+		var result []uint64
+		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
 	case "vector<address>":
 		var result [][32]byte
 		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {

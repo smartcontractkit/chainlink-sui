@@ -218,6 +218,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OwnerCap
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::OwnerCap>", func(data []byte) (interface{}, error) {
+		var results []OwnerCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_account::AccountState", func(data []byte) (interface{}, error) {
 		var temp bcsAccountState
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -230,6 +239,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for AccountState
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::AccountState>", func(data []byte) (interface{}, error) {
+		var temps []bcsAccountState
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]AccountState, len(temps))
+		for i, temp := range temps {
+			result, err := convertAccountStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::PendingTransfer", func(data []byte) (interface{}, error) {
 		var temp bcsPendingTransfer
@@ -244,6 +271,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for PendingTransfer
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::PendingTransfer>", func(data []byte) (interface{}, error) {
+		var temps []bcsPendingTransfer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]PendingTransfer, len(temps))
+		for i, temp := range temps {
+			result, err := convertPendingTransferFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferRequested", func(data []byte) (interface{}, error) {
 		var temp bcsOwnershipTransferRequested
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -256,6 +301,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for OwnershipTransferRequested
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::OwnershipTransferRequested>", func(data []byte) (interface{}, error) {
+		var temps []bcsOwnershipTransferRequested
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OwnershipTransferRequested, len(temps))
+		for i, temp := range temps {
+			result, err := convertOwnershipTransferRequestedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferAccepted", func(data []byte) (interface{}, error) {
 		var temp bcsOwnershipTransferAccepted
@@ -270,6 +333,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OwnershipTransferAccepted
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::OwnershipTransferAccepted>", func(data []byte) (interface{}, error) {
+		var temps []bcsOwnershipTransferAccepted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OwnershipTransferAccepted, len(temps))
+		for i, temp := range temps {
+			result, err := convertOwnershipTransferAcceptedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_account::OwnershipTransferred", func(data []byte) (interface{}, error) {
 		var temp bcsOwnershipTransferred
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -283,6 +364,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OwnershipTransferred
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::OwnershipTransferred>", func(data []byte) (interface{}, error) {
+		var temps []bcsOwnershipTransferred
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OwnershipTransferred, len(temps))
+		for i, temp := range temps {
+			result, err := convertOwnershipTransferredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_account::MCMS_ACCOUNT", func(data []byte) (interface{}, error) {
 		var result MCMS_ACCOUNT
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -290,6 +389,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for MCMS_ACCOUNT
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::MCMS_ACCOUNT>", func(data []byte) (interface{}, error) {
+		var results []MCMS_ACCOUNT
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 

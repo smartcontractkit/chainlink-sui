@@ -188,6 +188,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for SampleObject
+	bind.RegisterStructDecoder("vector<test::complex::SampleObject>", func(data []byte) (interface{}, error) {
+		var temps []bcsSampleObject
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]SampleObject, len(temps))
+		for i, temp := range temps {
+			result, err := convertSampleObjectFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::complex::DroppableObject", func(data []byte) (interface{}, error) {
 		var temp bcsDroppableObject
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -200,6 +218,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for DroppableObject
+	bind.RegisterStructDecoder("vector<test::complex::DroppableObject>", func(data []byte) (interface{}, error) {
+		var temps []bcsDroppableObject
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]DroppableObject, len(temps))
+		for i, temp := range temps {
+			result, err := convertDroppableObjectFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 
