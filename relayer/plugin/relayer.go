@@ -107,11 +107,25 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
+	// Use a separate client for the indexers to avoid rate limiting
+	suiClientIndexers, err := client.NewPTBClient(
+		loggerInstance,
+		nodeConfig.URL.String(),
+		nil,
+		timeout,
+		keystore,
+		maxConcurrentRequests*5, // given the indexers 5 times the concurrent requests as the main client
+		client.TransactionRequestType(requestType),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
+	}
+
 	// Setup indexers
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		loggerInstance,
-		suiClient,
+		suiClientIndexers,
 		time.Duration(*cfg.TransactionsIndexer.PollingIntervalSecs)*time.Second,
 		time.Duration(*cfg.TransactionsIndexer.SyncTimeoutSecs)*time.Second,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
@@ -122,7 +136,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		loggerInstance,
-		suiClient,
+		suiClientIndexers,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
 		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,
