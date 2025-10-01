@@ -7,18 +7,16 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/utils"
 
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/block-vision/sui-go-sdk/transaction"
 	"golang.org/x/crypto/blake2b"
 )
 
 const (
 	HashingIntentScopeChildObjectID = 0xf0
-
-	SuiFrameworkAddress = "0x2"
+	SuiFrameworkAddress             = "0x2"
 )
 
-// DeriveDynamicFieldID computes a deterministic ObjectID for a dynamic field
-// given its parent address, key type tag, and serialized key bytes.
+// deriveDynamicFieldIDFromBytes computes a deterministic ObjectID for a dynamic field
+// given its parent address, serialized key bytes and serialized key type tag bytes.
 //
 // This mirrors the Sui Rust implementation from:
 // sui-types/src/dynamic_field.rs:derive_dynamic_field_id()
@@ -33,7 +31,7 @@ const (
 //	    bcs(key_type_tag)              // BCS-serialized TypeTag
 //	)
 //	result = hash[0:32]  // First 32 bytes = ObjectID
-func DeriveDynamicFieldID(parentAddress string, keyTypeTag *transaction.TypeTag, keyBytes []byte) (string, error) {
+func deriveDynamicFieldIDFromBytes(parentAddress string, bcsKeyBytes []byte, bcsKeyTypeTagBytes []byte) (string, error) {
 	normalizedParent, err := utils.ConvertAddressToString(parentAddress)
 	if err != nil {
 		return "", fmt.Errorf("invalid parent address: %w", err)
@@ -42,11 +40,6 @@ func DeriveDynamicFieldID(parentAddress string, keyTypeTag *transaction.TypeTag,
 	parentBytes, err := utils.ConvertStringToAddressBytes(normalizedParent)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert parent address to bytes: %w", err)
-	}
-
-	keyTypeTagBytes, err := mystenbcs.Marshal(keyTypeTag)
-	if err != nil {
-		return "", fmt.Errorf("failed to BCS serialize key type tag: %w", err)
 	}
 
 	hasher, err := blake2b.New256(nil)
@@ -59,11 +52,11 @@ func DeriveDynamicFieldID(parentAddress string, keyTypeTag *transaction.TypeTag,
 	hasher.Write(parentBytes[:])
 
 	keyLenBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(keyLenBytes, uint64(len(keyBytes)))
+	binary.LittleEndian.PutUint64(keyLenBytes, uint64(len(bcsKeyBytes)))
 	hasher.Write(keyLenBytes)
 
-	hasher.Write(keyBytes)
-	hasher.Write(keyTypeTagBytes)
+	hasher.Write(bcsKeyBytes)
+	hasher.Write(bcsKeyTypeTagBytes)
 
 	hash := hasher.Sum(nil)
 
@@ -75,45 +68,40 @@ func DeriveDynamicFieldID(parentAddress string, keyTypeTag *transaction.TypeTag,
 	return objectID, nil
 }
 
-func DeriveObjectID(parentAddress string, keyTypeTag *transaction.TypeTag, keyBytes []byte) (string, error) {
+// DeriveObjectIDWithVectorU8Key constructs the BCS bytes for DerivedObjectKey<vector<u8>> TypeTag.
+// keyBytes should be the raw vector<u8> value - this function will BCS-serialize it.
+func DeriveObjectIDWithVectorU8Key(parentAddress string, keyBytes []byte) (string, error) {
+	// BCS-serialize the key value (adds length prefix)
+	bcsKeyBytes, err := mystenbcs.Marshal(keyBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to BCS serialize key bytes: %w", err)
+	}
+
 	suiFrameworkBytes, err := utils.ConvertStringToAddressBytes(SuiFrameworkAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert sui framework address to bytes: %w", err)
 	}
 
-	// Wrap the key type in DerivedObjectKey<K>
-	wrapperTypeTag := &transaction.TypeTag{
-		Struct: &transaction.StructTag{
-			Address:    *suiFrameworkBytes,
-			Module:     "derived_object",
-			Name:       "DerivedObjectKey",
-			TypeParams: []*transaction.TypeTag{keyTypeTag},
-		},
-	}
+	// Manually construct BCS bytes for: TypeTag::Struct(DerivedObjectKey<vector<u8>>)
+	// This avoids the SDK's BCS encoder bug with nested TypeTag enums.
+	//
+	// BCS format breakdown:
+	//   0x07                        - TypeTag::Struct variant
+	//   [32 bytes]                  - address (0x2)
+	//   0x0e + "derived_object"     - module name with length prefix
+	//   0x10 + "DerivedObjectKey"   - struct name with length prefix
+	//   0x01                        - type params count: 1
+	//   0x06 + 0x01                 - TypeTag::Vector(TypeTag::U8)
 
-	return DeriveDynamicFieldID(parentAddress, wrapperTypeTag, keyBytes)
-}
+	var typeTagBytes []byte
+	typeTagBytes = append(typeTagBytes, 0x07)                          // TypeTag::Struct
+	typeTagBytes = append(typeTagBytes, suiFrameworkBytes[:]...)       // address
+	typeTagBytes = append(typeTagBytes, 0x0e)                          // module length
+	typeTagBytes = append(typeTagBytes, []byte("derived_object")...)   // module name
+	typeTagBytes = append(typeTagBytes, 0x10)                          // struct name length
+	typeTagBytes = append(typeTagBytes, []byte("DerivedObjectKey")...) // struct name
+	typeTagBytes = append(typeTagBytes, 0x01)                          // type params count
+	typeTagBytes = append(typeTagBytes, 0x06, 0x01)                    // vector<u8> TypeTag
 
-// DeriveDerivedObjectID computes the deterministic ObjectID created with sui::derived_object::claim().
-func DeriveDerivedObjectID(parentObjectId string, keyPackageId string, keyModule string, keyStructName string, keyValue []byte) (string, error) {
-	normalizedPackageID, err := utils.ConvertAddressToString(keyPackageId)
-	if err != nil {
-		return "", fmt.Errorf("invalid key package ID: %w", err)
-	}
-
-	packageBytes, err := utils.ConvertStringToAddressBytes(normalizedPackageID)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert package ID to bytes: %w", err)
-	}
-
-	keyTypeTag := &transaction.TypeTag{
-		Struct: &transaction.StructTag{
-			Address:    *packageBytes,
-			Module:     keyModule,
-			Name:       keyStructName,
-			TypeParams: []*transaction.TypeTag{},
-		},
-	}
-
-	return DeriveObjectID(parentObjectId, keyTypeTag, keyValue)
+	return deriveDynamicFieldIDFromBytes(parentAddress, bcsKeyBytes, typeTagBytes)
 }

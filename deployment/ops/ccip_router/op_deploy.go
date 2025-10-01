@@ -26,7 +26,6 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/block-vision/sui-go-sdk/mystenbcs"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -67,14 +66,29 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find RouterObject ID in publish tx: %w", err)
 	}
 
-	ownerCapId, err := deriveRouterOwnerCapId(routerObjectId, routerPackage.Address())
+	ownerCapId, err := codec.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("OwnerCap"))
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to derive OwnerCap ID: %w", err)
 	}
 
-	routerStateId, err := deriveRouterStateId(routerObjectId, routerPackage.Address())
+	routerStateId, err := codec.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("RouterState"))
 	if err != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to derive RouterState ID: %w", err)
+	}
+
+	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
+	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterState")
+
+	if err1 != nil || err2 != nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
+	}
+
+	// Validate derived IDs match the created IDs
+	if ownerCapId != obj1 {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("derived OwnerCap ID mismatch: %s != %s", ownerCapId, obj1)
+	}
+	if routerStateId != obj2 {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("derived RouterState ID mismatch: %s != %s", routerStateId, obj2)
 	}
 
 	b.Logger.Infow("Router objects calculated deterministically",
@@ -176,29 +190,6 @@ var setOnRampsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetO
 		PackageId: input.RouterPackageId,
 		Objects:   SetOnRampsObjects{},
 	}, nil
-}
-
-type RouterOwnableKey bool
-type RouterKey bool
-
-func deriveRouterOwnerCapId(routerObjectId string, routerPackageId string) (string, error) {
-	key := RouterOwnableKey(false)
-	keyBytes, err := mystenbcs.Marshal(key)
-	if err != nil {
-		return "", fmt.Errorf("failed to BCS serialize key: %w", err)
-	}
-
-	return codec.DeriveDerivedObjectID(routerObjectId, routerPackageId, "router", "RouterOwnableKey", keyBytes)
-}
-
-func deriveRouterStateId(routerObjectId string, routerPackageId string) (string, error) {
-	key := RouterKey(false)
-	keyBytes, err := mystenbcs.Marshal(key)
-	if err != nil {
-		return "", fmt.Errorf("failed to BCS serialize key: %w", err)
-	}
-
-	return codec.DeriveDerivedObjectID(routerObjectId, routerPackageId, "router", "RouterKey", keyBytes)
 }
 
 var DeployCCIPRouterOp = cld_ops.NewOperation(

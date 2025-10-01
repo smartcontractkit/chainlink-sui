@@ -19,10 +19,6 @@ public struct RouterObject has key {
     id: UID,
 }
 
-public struct RouterOwnableKey() has copy, drop, store;
-
-public struct RouterKey() has copy, drop, store;
-
 public struct OnRampSet has copy, drop {
     dest_chain_selector: u64,
     on_ramp_package_id: address,
@@ -49,10 +45,10 @@ const EInvalidOnrampAddress: u64 = 7;
 
 fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let mut router_object = RouterObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut router_object.id, RouterOwnableKey(), ctx);
+    let (ownable_state, owner_cap) = ownable::new(&mut router_object.id, b"OwnerCap", ctx);
 
     let router = RouterState {
-        id: derived_object::claim(&mut router_object.id, RouterKey()),
+        id: derived_object::claim(&mut router_object.id, b"RouterState"),
         ownable_state,
         on_ramp_package_ids: table::new(ctx),
     };
@@ -340,14 +336,4 @@ fun validate_obj_addrs(addrs: vector<address>, stream: &mut BCSStream) {
 #[test_only]
 public fun test_init(ctx: &mut TxContext) {
     init(ROUTER {}, ctx);
-}
-
-#[test_only]
-public fun router_ownable_key(): RouterOwnableKey {
-    RouterOwnableKey()
-}
-
-#[test_only]
-public fun router_key(): RouterKey {
-    RouterKey()
 }
