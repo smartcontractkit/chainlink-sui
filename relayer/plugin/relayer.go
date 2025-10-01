@@ -100,7 +100,9 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		nil,
 		timeout,
 		keystore,
-		maxConcurrentRequests,
+		// Use 3 times more concurrency allowance for the main client due to core making
+		// frequent RPC calls to get latest values
+		maxConcurrentRequests*3,
 		client.TransactionRequestType(requestType),
 	)
 	if err != nil {
@@ -114,7 +116,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		nil,
 		timeout,
 		keystore,
-		maxConcurrentRequests*5, // given the indexers 5 times the concurrent requests as the main client
+		maxConcurrentRequests,
 		client.TransactionRequestType(requestType),
 	)
 	if err != nil {
