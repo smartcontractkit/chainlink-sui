@@ -177,8 +177,8 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
         owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
     };
 
-    let tn = type_name::get_with_original_ids<ONRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<ONRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
@@ -216,8 +216,8 @@ public fun initialize(
         dest_chain_routers,
     );
 
-    let tn = type_name::get_with_original_ids<ONRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<ONRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
     state.package_ids.push_back(package_id);
 }

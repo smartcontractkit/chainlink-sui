@@ -50,7 +50,7 @@ public fun register_entrypoint<T: drop, C: key + store>(
     package_cap: C,
     _ctx: &TxContext,
 ) {
-    let proof_type = type_name::get<T>();
+    let proof_type = type_name::with_defining_ids<T>();
     let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
@@ -74,7 +74,7 @@ public fun get_callback_params<T: drop, C: key + store>(
 ): (&C, String, vector<u8>) {
     let ExecutingCallbackParams { target, module_name, function_name, data } = params;
 
-    let proof_type = type_name::get<T>();
+    let proof_type = type_name::with_defining_ids<T>();
     let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
@@ -90,7 +90,7 @@ public fun get_callback_params<T: drop, C: key + store>(
 }
 
 public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _witness: T): C {
-    let proof_type = type_name::get<T>();
+    let proof_type = type_name::with_defining_ids<T>();
     let (proof_account_address, _) = params::get_account_address_and_module_name(
         proof_type,
     );
@@ -110,7 +110,7 @@ public fun get_callback_params_for_mcms<T: drop>(
 ): (address, String, String, vector<u8>) {
     let ExecutingCallbackParams { target, module_name, function_name, data } = params;
 
-    let proof_type = type_name::get<T>();
+    let proof_type = type_name::with_defining_ids<T>();
     let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
@@ -163,7 +163,9 @@ public fun data(params: &ExecutingCallbackParams): vector<u8> {
 }
 
 public fun get_multisig_address(): address {
-    address::from_ascii_bytes(&type_name::get<McmsProof>().get_address().into_bytes())
+    address::from_ascii_bytes(
+        &type_name::with_defining_ids<McmsProof>().address_string().into_bytes(),
+    )
 }
 
 public struct McmsProof has drop {}
