@@ -263,7 +263,8 @@ func TestSpecificDecodeFunctions(t *testing.T) {
 func TestDeserializer(t *testing.T) {
 	// Address values
 	mockAddr := "0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968"
-	addr, err := transaction.ConvertSuiAddressStringToBytes(models.SuiAddress(mockAddr))
+	addr := models.SuiAddress(mockAddr)
+	addrBytes, err := transaction.ConvertSuiAddressStringToBytes(addr)
 	require.NoError(t, err)
 	// u128 and u256 values
 	u128 := new(big.Int)
@@ -275,7 +276,7 @@ func TestDeserializer(t *testing.T) {
 	bcsEncodedMsg := bytes.Buffer{}
 	encoder := mystenbcs.NewEncoder(&bcsEncodedMsg)
 	encoder.Encode(true)
-	encoder.Encode([][]*models.SuiAddressBytes{{addr, addr}, {addr}})
+	encoder.Encode([][]*models.SuiAddressBytes{{addrBytes, addrBytes}, {addrBytes}})
 	encoder.Encode(uint8(7))
 	encoder.Encode("hello sui")
 	encoder.Encode(uint16(7))
@@ -288,7 +289,11 @@ func TestDeserializer(t *testing.T) {
 	// we'll append the encoded u128 and u256 bytes manually
 	u128AsByte := [16]byte{0xd2, 0xa, 0x1f, 0xeb, 0x8c, 0xa9, 0x54, 0xab}
 	u256AsByte := [32]byte{0xd2, 0xa, 0x3f, 0xce, 0x96, 0x5f, 0xbc, 0xac, 0xb8, 0xf3, 0xdb, 0xc0, 0x75, 0x20, 0xc9, 0xa0, 0x3}
+	// Slice of u128
+	bcsMsg = append(bcsMsg, 0x02)
 	bcsMsg = append(bcsMsg, u128AsByte[:]...)
+	bcsMsg = append(bcsMsg, u128AsByte[:]...)
+	// Single u256 element
 	bcsMsg = append(bcsMsg, u256AsByte[:]...)
 
 	// Deserialize BCS
@@ -304,7 +309,7 @@ func TestDeserializer(t *testing.T) {
 			"u32",
 			"vector<vector<0x1::string::String>>",
 			"u64",
-			"u128",
+			"vector<u128>",
 			"u256",
 		},
 	)
@@ -312,7 +317,7 @@ func TestDeserializer(t *testing.T) {
 	require.Equal(t,
 		[]any{
 			true,
-			[][][32]byte{{*addr, *addr}, {*addr}},
+			[][]models.SuiAddress{{addr, addr}, {addr}},
 			uint8(7),
 			"hello sui",
 			uint16(7),
@@ -320,9 +325,27 @@ func TestDeserializer(t *testing.T) {
 			^uint32(0),
 			[][]string{{"hello", "hi"}, {"world", "sui"}},
 			^uint64(0),
-			u128,
+			[]*big.Int{u128, u128},
 			u256,
 		},
 		des,
 	)
+}
+
+func TestDeserializer_ShouldFail(t *testing.T) {
+	// mystenbcs encoder has an issue where fixed-size byte arrays ([n]byte) are treated as regular slices.
+	// so encoding a u128 via their encoder will result in failure to decode it back.
+	// We're using this behavior to test our DeserializeBCS error handling.
+	u128AsByte := [16]byte{0xd2, 0xa, 0x1f, 0xeb, 0x8c, 0xa9, 0x54, 0xab}
+	// Encode BCS
+	bcsEncodedMsg := bytes.Buffer{}
+	encoder := mystenbcs.NewEncoder(&bcsEncodedMsg)
+	encoder.Encode(u128AsByte)
+	bcsMsg := bcsEncodedMsg.Bytes()
+	// Deserialize BCS
+	_, err := DeserializeBCS(
+		bcsMsg,
+		[]string{"u128"},
+	)
+	require.NotNil(t, err)
 }
