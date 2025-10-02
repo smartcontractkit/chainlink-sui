@@ -132,8 +132,8 @@ public fun test_get_arm_with_deployed_package() {
 
     initialize_rmn_remote(&mut ref, &owner_cap, TEST_CHAIN_SELECTOR, ctx);
 
-    let tn = type_name::get<CCIPObjectRef>();
-    let addr_string = tn.get_address();
+    let tn = type_name::with_defining_ids<CCIPObjectRef>();
+    let addr_string = tn.address_string();
     let expected_package_address = address::from_ascii_bytes(&addr_string.into_bytes());
 
     // Get the arm address using our function

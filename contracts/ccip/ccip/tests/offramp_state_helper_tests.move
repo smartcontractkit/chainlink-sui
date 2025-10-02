@@ -197,7 +197,7 @@ public fun test_complete_token_transfer() {
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
-        type_name::into_string(type_name::get<TestTypeProof>()),
+        type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
         scenario.ctx(),
@@ -381,7 +381,7 @@ public fun test_complete_token_transfer_twice_should_fail() {
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
-        type_name::into_string(type_name::get<TestTypeProof>()),
+        type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
         scenario.ctx(),

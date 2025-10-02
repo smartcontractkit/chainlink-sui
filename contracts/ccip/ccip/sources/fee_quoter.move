@@ -566,6 +566,13 @@ public fun update_prices_with_owner_cap(
     gas_usd_per_unit_gas: vector<u256>,
     ctx: &mut TxContext,
 ) {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"fee_quoter"),
+        string::utf8(b"update_prices_with_owner_cap"),
+        VERSION,
+    );
+    assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
     let fee_quoter_cap = new_fee_quoter_cap(ref, owner_cap, ctx);
     update_prices(
         ref,
@@ -1586,9 +1593,6 @@ fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
 // ================================================================
 // |                      MCMS Entrypoint                         |
 // ================================================================
-
-/// Proof for CCIP admin
-public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
 

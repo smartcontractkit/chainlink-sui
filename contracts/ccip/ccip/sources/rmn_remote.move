@@ -71,8 +71,8 @@ public fun type_and_version(): String {
 }
 
 public fun get_arm(): address {
-    let tn = type_name::get<RMNRemoteState>();
-    let addr_string = tn.get_address();
+    let tn = type_name::with_defining_ids<RMNRemoteState>();
+    let addr_string = tn.address_string();
 
     // Convert the hex string to an address
     // The address string is already in the correct format for address parsing
