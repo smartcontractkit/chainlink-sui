@@ -245,10 +245,13 @@ type OffRampState struct {
 	OwnableState                            bind.Object  `move:"OwnableState"`
 }
 
+type OffRampObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
 type OffRampStatePointer struct {
-	Id             string `move:"sui::object::UID"`
-	OffRampStateId string `move:"address"`
-	OwnerCapId     string `move:"address"`
+	Id              string `move:"sui::object::UID"`
+	OffRampObjectId string `move:"address"`
 }
 
 type SourceChainConfig struct {
@@ -415,17 +418,15 @@ func convertOffRampStateFromBCS(bcs bcsOffRampState) (OffRampState, error) {
 }
 
 type bcsOffRampStatePointer struct {
-	Id             string
-	OffRampStateId [32]byte
-	OwnerCapId     [32]byte
+	Id              string
+	OffRampObjectId [32]byte
 }
 
 func convertOffRampStatePointerFromBCS(bcs bcsOffRampStatePointer) (OffRampStatePointer, error) {
 
 	return OffRampStatePointer{
-		Id:             bcs.Id,
-		OffRampStateId: fmt.Sprintf("0x%x", bcs.OffRampStateId),
-		OwnerCapId:     fmt.Sprintf("0x%x", bcs.OwnerCapId),
+		Id:              bcs.Id,
+		OffRampObjectId: fmt.Sprintf("0x%x", bcs.OffRampObjectId),
 	}, nil
 }
 
@@ -642,6 +643,23 @@ func init() {
 				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
 			}
 			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_offramp::offramp::OffRampObject", func(data []byte) (interface{}, error) {
+		var result OffRampObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for OffRampObject
+	bind.RegisterStructDecoder("vector<ccip_offramp::offramp::OffRampObject>", func(data []byte) (interface{}, error) {
+		var results []OffRampObject
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
 		}
 		return results, nil
 	})
