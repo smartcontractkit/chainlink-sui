@@ -56,7 +56,6 @@ func (d DeployDummyReciever) Apply(e cldf.Environment, config DeployDummyRecieve
 	}
 
 	// register reciever
-
 	seqReports = append(seqReports, []operations.Report[any, any]{DeployDummyReceiverOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
