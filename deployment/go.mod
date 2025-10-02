@@ -11,13 +11,13 @@ replace github.com/smartcontractkit/chainlink-sui => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/block-vision/sui-go-sdk v1.0.9
+	github.com/block-vision/sui-go-sdk v1.1.1
 	github.com/ethereum/go-ethereum v1.15.7
-	github.com/smartcontractkit/chain-selectors v1.0.67
+	github.com/smartcontractkit/chain-selectors v1.0.71
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908082700-aa3f5927af8c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20250915131416-beb24f7fe9b9
-	github.com/smartcontractkit/mcms v0.25.0
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20250919202144-dac5a6e92d35
+	github.com/smartcontractkit/mcms v0.26.0
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -37,6 +37,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
+	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -104,7 +105,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
-	github.com/mitchellh/mapstructure v1.5.1-0.20220423185008-bf980b35cac4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mostynb/zstdpool-freelist v0.0.0-20201229113212-927304c0c3b1 // indirect

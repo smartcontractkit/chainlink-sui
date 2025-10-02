@@ -3,13 +3,13 @@ module github.com/smartcontractkit/chainlink-sui/integration-tests
 go 1.24.7
 
 require (
-	github.com/block-vision/sui-go-sdk v1.0.9
+	github.com/block-vision/sui-go-sdk v1.1.1
 	github.com/ethereum/go-ethereum v1.16.2
 	github.com/holiman/uint256 v1.3.2
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250903115155-a68d8c28ae1d
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908133421-f9b356d61ca9
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20250915131416-beb24f7fe9b9
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20250919202144-dac5a6e92d35
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
 	github.com/stretchr/testify v1.10.0
 )
@@ -23,6 +23,7 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
+	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -97,7 +98,7 @@ require (
 	github.com/scylladb/go-reflectx v1.0.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/smartcontractkit/chain-selectors v1.0.67 // indirect
+	github.com/smartcontractkit/chain-selectors v1.0.71 // indirect
 	github.com/smartcontractkit/chainlink-ccip/chains/solana v0.0.0-20250908144012-8184001834b5 // indirect
 	github.com/smartcontractkit/chainlink-ccip/chains/solana/gobindings v0.0.0-20250908144012-8184001834b5 // indirect
 	github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1 // indirect
@@ -105,7 +106,7 @@ require (
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250905115425-2785a5cee79d // indirect
-	github.com/smartcontractkit/mcms v0.25.0 // indirect
+	github.com/smartcontractkit/mcms v0.26.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/test-go/testify v1.1.4 // indirect
