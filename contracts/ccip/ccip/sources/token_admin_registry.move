@@ -8,6 +8,7 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
+use sui::address;
 use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
@@ -308,8 +309,6 @@ public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
     coin_metadata: &CoinMetadata<T>,
-    token_pool_package_id: address,
-    token_pool_module: String,
     initial_administrator: address,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
@@ -324,10 +323,12 @@ public fun register_pool<T, TypeProof: drop>(
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let token_type = type_name::with_defining_ids<T>().into_string();
     let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
+    let token_pool_module = proof_tn.module_string().into_bytes().to_string();
     register_pool_internal(
         ref,
         coin_metadata_address,
-        token_pool_package_id,
+        proof_package_id,
         token_pool_module,
         token_type,
         initial_administrator,
