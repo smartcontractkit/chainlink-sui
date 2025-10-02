@@ -442,13 +442,10 @@ public fun mcms_uncurse(
         &mut stream,
     );
 
-    let subjects = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| { bcs_stream::deserialize_vector_u8(stream) },
-    );
+    let subject = bcs_stream::deserialize_vector_u8(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    uncurse_multiple(ref, owner_cap, subjects);
+    uncurse(ref, owner_cap, subject);
 }
 
 public fun mcms_uncurse_multiple(
