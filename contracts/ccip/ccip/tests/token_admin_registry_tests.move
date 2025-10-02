@@ -333,7 +333,7 @@ public fun test_register_and_set_pool() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             b"mock_token_pool",
-            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
+            type_name::with_defining_ids<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0,
         );
@@ -345,7 +345,7 @@ public fun test_register_and_set_pool() {
         assert!(
             token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
-        assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
+        assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
 
         let ctx = scenario.ctx();
 
@@ -378,7 +378,7 @@ public fun test_register_and_set_pool() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             b"mock_token_pool_2",
-            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
+            type_name::with_defining_ids<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             TOKEN_ADMIN_ADDRESS_2,
         );
@@ -390,7 +390,7 @@ public fun test_register_and_set_pool() {
         assert!(
             token_type == ascii::string(b"0000000000000000000000000000000000000000000000000000000000001000::token_admin_registry_tests::TOKEN_ADMIN_REGISTRY_TESTS"),
         );
-        assert!(type_proof == type_name::into_string(type_name::get<TypeProof2>()));
+        assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof2>()));
 
         // Accept admin role
         registry::accept_admin_role(&mut ref, local_token, scenario.ctx());
@@ -567,7 +567,7 @@ public fun test_set_pool_comprehensive() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_1,
             b"initial_token_pool",
-            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
+            type_name::with_defining_ids<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0,
         );
@@ -576,7 +576,7 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
         );
-        assert!(type_proof == type_name::into_string(type_name::get<TypeProof>()));
+        assert!(type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof>()));
 
         let ctx = scenario.ctx();
 
@@ -598,7 +598,7 @@ public fun test_set_pool_comprehensive() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             b"updated_token_pool",
-            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
+            type_name::with_defining_ids<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0,
         );
@@ -607,7 +607,9 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
         );
-        assert!(updated_type_proof == type_name::into_string(type_name::get<TypeProof2>()));
+        assert!(
+            updated_type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof2>()),
+        );
 
         // Test set_pool with same package ID (should not trigger update)
         registry::set_pool(
@@ -627,7 +629,7 @@ public fun test_set_pool_comprehensive() {
             local_token,
             MOCK_TOKEN_POOL_PACKAGE_ID_2,
             b"updated_token_pool", // unchanged
-            type_name::get<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
+            type_name::with_defining_ids<TOKEN_ADMIN_REGISTRY_TESTS>().into_string(),
             TOKEN_ADMIN_ADDRESS,
             @0x0,
         );
@@ -636,7 +638,9 @@ public fun test_set_pool_comprehensive() {
             &ref,
             local_token,
         );
-        assert!(final_type_proof == type_name::into_string(type_name::get<TypeProof2>())); // unchanged
+        assert!(
+            final_type_proof == type_name::into_string(type_name::with_defining_ids<TypeProof2>()),
+        ); // unchanged
 
         transfer::public_transfer(treasury_cap, ctx.sender());
         ts::return_shared(ref);
