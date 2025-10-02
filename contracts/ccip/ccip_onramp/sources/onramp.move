@@ -144,9 +144,8 @@ const EZeroChainSelector: u64 = 15;
 const ECalculateMessageHashInvalidArguments: u64 = 16;
 const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
-const EInvalidFeeTokenMetadataAddress: u64 = 19;
-const EPackageIdNotFound: u64 = 20;
-const EInvalidOwnerCap: u64 = 21;
+const EPackageIdNotFound: u64 = 19;
+const EInvalidOwnerCap: u64 = 20;
 
 const VERSION: u8 = 1;
 
@@ -1440,12 +1439,6 @@ public fun mcms_withdraw_fee_tokens<T>(
             object::id_address(fee_token_metadata),
         ],
         &mut stream,
-    );
-
-    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
-    assert!(
-        coin_metadata_address == object::id_address(fee_token_metadata),
-        EInvalidFeeTokenMetadataAddress,
     );
 
     bcs_stream::assert_is_consumed(&stream);

@@ -48,7 +48,7 @@ public fun create_token_transfer_params(token_receiver: address): TokenTransferP
     }
 }
 
-/// add a new token transfer to the TokenTransferParams object, which is done within onramp.
+/// populate the token transfer option in the TokenTransferParams object, which is done within onramp.
 /// this is permissioned by the SourceTransferCap, which is stored in the onramp state.
 public fun add_token_transfer_param<TypeProof: drop>(
     ref: &CCIPObjectRef,

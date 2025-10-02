@@ -16,6 +16,7 @@ const ETokenTransferMismatch: u64 = 5;
 const ETokenTransferAlreadyExists: u64 = 6;
 const ETokenTransferDoesNotExist: u64 = 7;
 const ETokenTransferAlreadyCompleted: u64 = 8;
+const EMessageAlreadyExists: u64 = 9;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -112,6 +113,7 @@ public fun populate_message(
     receiver_params: &mut ReceiverParams,
     any2sui_message: Any2SuiMessage,
 ) {
+    assert!(receiver_params.message.is_none(), EMessageAlreadyExists);
     receiver_params.message.fill(any2sui_message);
 }
 
