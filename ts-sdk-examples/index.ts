@@ -2,10 +2,17 @@ import { Command } from 'commander'
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 import { buildCcipSendPTB, type BuildArgs } from './onramp'
+import { env } from './env'
 
-const privateKey = process.env.SUI_PRIVATE_KEY
-const onrampPackageId = process.env.SUI_ONRAMP_PACKAGE_ID
-const poolPackageId = process.env.SUI_TOKEN_POOL_ID
+const privateKey = env.SUI_PRIVATE_KEY
+const onrampPackageId = env.SuiOnRamp
+const poolPackageId = env.SuiTokenPool
+
+if (!privateKey) {
+  console.error('SUI_PRIVATE_KEY is required')
+  process.exitCode = 1
+  process.exit(1)
+}
 
 // Get a keypair from private key for signing
 const keypair = Ed25519Keypair.fromSecretKey(privateKey!)
@@ -33,10 +40,10 @@ program.command('send')
   .alias('s')
   .alias('onramp')
   .description('Build and submit a CCIP send PTB')
-  .requiredOption('--ccip-object-ref <id>', 'CCIPObjectRef object id')
-  .requiredOption('--onramp-state <id>', 'OnRampState object id')
-  .requiredOption('--fee-token-metadata <id>', 'CoinMetadata<T> object id for fee coin')
-  .requiredOption('--fee-token-coin <id>', 'Owned Coin<T> object id for fees')
+  .requiredOption('--ccip-object-ref <id>', 'CCIPObjectRef object id', env.SuiCCIPObjectRef)
+  .requiredOption('--onramp-state <id>', 'OnRampState object id', env.SuiOnRampStateObjectID)
+  .requiredOption('--fee-token-metadata <id>', 'CoinMetadata<T> object id for fee coin', env.SuiLinkTokenObjectMetadataId)
+  .requiredOption('--fee-token-coin <id>', 'Owned Coin<T> object id for fees', env.SuiLinkTokenTreasuryCapId)
   .requiredOption('--dest-chain-selector <u64>', 'Destination chain selector (decimal or 0x-hex)')
   .requiredOption('--receiver <bytes>', 'Receiver bytes (0x-hex or base64)')
   .option('--data <bytes>', 'Arbitrary data (0x-hex or base64)', '')
@@ -52,7 +59,7 @@ program.command('send')
   .option('--network <net>', 'Sui network: mainnet|testnet|devnet|localnet or fullnode URL', 'testnet')
   .action(async (opts) => {
     try {
-      const privateKeyB64 = process.env.SUI_PRIVATE_KEY
+      const privateKeyB64 = env.SUI_PRIVATE_KEY
       if (!privateKeyB64) {
         console.error('SUI_PRIVATE_KEY is required (base64-encoded secret key bytes).')
         process.exitCode = 1
@@ -85,13 +92,13 @@ program.command('send')
         poolKind: opts.poolKind,
       }
 
-      const tx = buildCcipSendPTB(buildArgs)
+      const tx = await buildCcipSendPTB(client, buildArgs)
       const result = await client.signAndExecuteTransaction({ signer: keypair, transaction: tx })
 
       console.log('Transaction submitted:')
       console.log(JSON.stringify(result, null, 2))
     } catch (err: any) {
-      console.error('Error:', err?.message ?? err)
+      console.error('Error:', err)
       process.exitCode = 1
     }
   })

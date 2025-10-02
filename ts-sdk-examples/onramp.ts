@@ -1,4 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions'
+import { SuiClient } from '@mysten/sui/client'
 
 // Onramp call args
 export type BuildArgs = {
@@ -21,8 +22,24 @@ export type BuildArgs = {
   poolKind: 'burn_mint' | 'lock_release';
 };
 
-export function buildCcipSendPTB(a: BuildArgs) {
+export async function buildCcipSendPTB(client: SuiClient, a: BuildArgs) {
   const tx = new Transaction()
+
+  console.debug('BuildArgs', a)
+  // Check if the token pool state is provided, otherwise find it
+  if (!a.managedTokenState || a.managedTokenState === '') {
+    console.debug('Finding managed token state')
+
+    const ownedObjects = await client.getOwnedObjects({
+      owner: a.poolPkg,
+      options: {
+        showContent: true,
+        showType: true,
+      },
+    })
+
+    console.debug('Owned objects', ownedObjects)
+  }
 
   const ccipRef = tx.object(a.ccipObjectRef)
   const state = tx.object(a.onrampState)
