@@ -3,10 +3,9 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 import { buildCcipSendPTB, type BuildArgs } from './onramp'
 import { env } from './env'
+import { Transaction } from '@mysten/sui/transactions'
 
 const privateKey = env.SUI_PRIVATE_KEY
-const onrampPackageId = env.SuiOnRamp
-const poolPackageId = env.SuiTokenPool
 
 if (!privateKey) {
   console.error('SUI_PRIVATE_KEY is required')
@@ -40,21 +39,25 @@ program.command('send')
   .alias('s')
   .alias('onramp')
   .description('Build and submit a CCIP send PTB')
-  .requiredOption('--ccip-object-ref <id>', 'CCIPObjectRef object id', env.SuiCCIPObjectRef)
-  .requiredOption('--onramp-state <id>', 'OnRampState object id', env.SuiOnRampStateObjectID)
-  .requiredOption('--fee-token-metadata <id>', 'CoinMetadata<T> object id for fee coin', env.SuiLinkTokenObjectMetadataId)
-  .requiredOption('--fee-token-coin <id>', 'Owned Coin<T> object id for fees', env.SuiLinkTokenTreasuryCapId)
+  .requiredOption('--ccip-pkg <id>', 'CCIP package id', env.CCIP_PACKAGE_ID)
+  .requiredOption('--ccip-object-ref <id>', 'CCIPObjectRef object id', env.CCIP_STATE_ID)
+  .requiredOption('--onramp-state <id>', 'OnRampState object id', env.ONRAMP_STATE_ID)
+  .requiredOption('--token-metadata <id>', 'CoinMetadata<T> for token being transferred', env.LINK_METADATA)
+  .requiredOption('--token-coin <id>', 'Owned Coin<T> for token being transferred', env.LINK_COIN_ID)
+  .requiredOption('--coin-type <type>', 'Token type being transferred', env.LINK_COIN_TYPE)
   .requiredOption('--dest-chain-selector <u64>', 'Destination chain selector (decimal or 0x-hex)')
-  .requiredOption('--receiver <bytes>', 'Receiver bytes (0x-hex or base64)')
+  .requiredOption('--receiver <address>', 'Receiver address')
   .option('--data <bytes>', 'Arbitrary data (0x-hex or base64)', '')
   .requiredOption('--pool-kind <kind>', 'Pool kind', (v) => {
     if (v !== 'burn_mint' && v !== 'lock_release') throw new Error('pool-kind must be burn_mint or lock_release')
     return v
   })
-  .option('--onramp-pkg <id>', 'Onramp package id', onrampPackageId)
-  .option('--pool-pkg <id>', 'Token pool package id', poolPackageId)
-  .option('--coin-type <type>', 'Coin type', '0x2::sui::SUI')
-  .option('--managed-token-state <id>', 'Managed token state object id (pool specific)', undefined)
+  .option('--fee-token <id>', 'Fee token coin object ID (defaults to gas coin)')
+  .option('--fee-token-type <type>', 'Fee token type', '0x2::sui::SUI')
+  .option('--fee-token-metadata <id>', 'Fee token metadata object ID')
+  .option('--onramp-pkg <id>', 'Onramp package id', env.ONRAMP_PACKAGE_ID)
+  .option('--pool-pkg <id>', 'Token pool package id', env.LR_POOL_PACKAGE_ID)
+  .option('--token-pool-state <id>', 'Token pool state object id (pool specific)', env.LR_POOL_STATE_ID)
   .option('--extra-args <bytes>', 'Extra args (0x-hex or base64)', '')
   .option('--network <net>', 'Sui network: mainnet|testnet|devnet|localnet or fullnode URL', 'testnet')
   .action(async (opts) => {
@@ -71,32 +74,100 @@ program.command('send')
         ? getFullnodeUrl(opts.network as 'mainnet' | 'testnet' | 'devnet' | 'localnet')
         : opts.network
 
-      if (!opts.onrampPkg) throw new Error('onramp-pkg is required (or set SUI_ONRAMP_PACKAGE_ID)')
-      if (!opts.poolPkg) throw new Error('pool-pkg is required (or set SUI_TOKEN_POOL_ID)')
+      if (!opts.onrampPkg) throw new Error('onramp-pkg is required (or set ONRAMP_PACKAGE_ID)')
+      if (!opts.poolPkg) throw new Error('pool-pkg is required (or set LR_POOL_PACKAGE_ID)')
 
       const client = new SuiClient({ url })
+      
+      // Get gas coin for fee payment if not specified
+      let feeToken = opts.feeToken
+      let feeTokenMetadata = opts.feeTokenMetadata
+      
+      if (!feeToken) {
+        // Check available SUI coins
+        const gasCoins = await client.getCoins({ owner: keypair.getPublicKey().toSuiAddress(), coinType: '0x2::sui::SUI' })
+        if (gasCoins.data.length === 0) {
+          throw new Error('No SUI coins available for fee payment')
+        }
+        
+        if (gasCoins.data.length === 1) {
+          // Only one SUI coin - need to split it to create separate fee token
+          console.log('Only one SUI coin found. Splitting coin to create separate fee token...')
+          
+          const coinBalance = BigInt(gasCoins.data[0]?.balance ?? 0 )
+          const feeAmount = 1000000000n // 1 SUI for fees (1 billion MIST)
+          
+          if (coinBalance <= feeAmount) {
+            throw new Error(`Insufficient SUI balance. Need at least ${feeAmount + 100000000n} MIST for gas and fees, but only have ${coinBalance} MIST`)
+          }
+          
+          // Create a transaction to split the coin
+          const splitTx = new Transaction()
+          const [newCoin] = splitTx.splitCoins(splitTx.gas, [feeAmount])
+          
+          console.log('Executing coin split transaction...')
+          const splitResult = await client.signAndExecuteTransaction({ 
+            signer: keypair, 
+            transaction: splitTx,
+            options: { showEffects: true, showObjectChanges: true }
+          })
+          
+          // Find the newly created coin from the transaction effects
+          const newCoinId = splitResult.objectChanges?.find(
+            change => change.type === 'created' && change.objectType === '0x2::coin::Coin<0x2::sui::SUI>'
+          )
+          
+          if (!newCoinId) {
+            throw new Error('Failed to create new coin through splitting')
+          }
+          
+          feeToken = newCoinId
+          console.log(`Successfully split SUI coin. New fee token: ${feeToken}`)
+        } else {
+          // Multiple coins available - use the second one as fee token
+          feeToken = gasCoins.data[1]?.coinObjectId ?? ''
+          console.log(`Using existing SUI coin as fee token: ${feeToken}`)
+        }
+      }
+      
+      if (!feeTokenMetadata) {
+        // Get SUI metadata
+        const suiMetadata = await client.getCoinMetadata({ coinType: '0x2::sui::SUI' })
+        if (!suiMetadata || !suiMetadata.id) {
+          throw new Error('Could not find SUI metadata')
+        }
+        feeTokenMetadata = suiMetadata.id
+      }
 
       const buildArgs: BuildArgs = {
+        ccipPkg: opts.ccipPkg,
         onrampPkg: opts.onrampPkg,
         poolPkg: opts.poolPkg,
         coinType: opts.coinType,
         ccipObjectRef: opts.ccipObjectRef,
         onrampState: opts.onrampState,
-        feeTokenMetadata: opts.feeTokenMetadata,
-        feeTokenCoin: opts.feeTokenCoin,
-        managedTokenState: opts.managedTokenState,
+        tokenMetadata: opts.tokenMetadata,
+        tokenCoin: opts.tokenCoin,
+        tokenPoolState: opts.tokenPoolState,
+        feeToken: feeToken,
+        feeTokenType: opts.feeTokenType || '0x2::sui::SUI',
+        feeTokenMetadata: feeTokenMetadata,
         destChainSelector: parseU64BigInt(opts.destChainSelector),
-        receiver: parseVecU8(opts.receiver),
+        receiver: opts.receiver,
         data: parseVecU8(opts.data),
         extraArgs: parseVecU8(opts.extraArgs),
         poolKind: opts.poolKind,
       }
 
       const tx = await buildCcipSendPTB(client, buildArgs)
-      const result = await client.signAndExecuteTransaction({ signer: keypair, transaction: tx })
 
-      console.log('Transaction submitted:')
-      console.log(JSON.stringify(result, null, 2))
+      tx.setGasBudget(1_000_000_000_000)
+      tx.setGasPrice(1_000_000)
+
+      const result = await client.signAndExecuteTransaction({ signer: keypair, transaction: tx })
+      const txResult = await client.waitForTransaction({ digest: result.digest, options: { showEffects: true } })
+      console.log('Transaction result:')
+      console.log(JSON.stringify(txResult, null, 2))
     } catch (err: any) {
       console.error('Error:', err)
       process.exitCode = 1

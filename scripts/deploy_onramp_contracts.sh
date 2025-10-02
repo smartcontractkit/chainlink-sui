@@ -32,7 +32,6 @@ FEE_QUOTER_BASE_FEE="${FEE_QUOTER_BASE_FEE:-90000000000}"
 # Token type(s) used by the pools
 # Example: LINK as the coin for lock_release; an ETH-like mock for burn_mint
 #LR_COIN_TYPE="${LR_COIN_TYPE:-link_token::LINK_TOKEN}"      # module path within its package
-#BM_COIN_TYPE="${BM_COIN_TYPE:-eth_token::ETH_TOKEN}"
 OWNER="${OWNER:-$(sui client active-address)}"
 
 CLOCK_ID="0x6"   # well-known
@@ -127,6 +126,42 @@ sui client call \
         "[\"$LINK_METADATA_ID\"]" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.init.json >/dev/null
 
+# Register destination chain selector 2 in fee_quoter
+sui client call \
+  --package "$CCIP_PKG_ID" --module fee_quoter --function apply_dest_chain_config_updates \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
+        "2" \
+        "true" \
+        "10" \
+        "10000" \
+        "1000000" \
+        "100000" \
+        "10" \
+        "20" \
+        "1000" \
+        "50000" \
+        "100" \
+        "1000" \
+        "[40, 18, 213, 44]" \
+        "false" \
+        "50" \
+        "50000" \
+        "500000" \
+        "1000000000000000000" \
+        "3600" \
+        "100" \
+  --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.dest_chain_config.json >/dev/null
+
+# Set gas price for destination chain selector 2 in fee_quoter
+sui client call \
+  --package "$CCIP_PKG_ID" --module fee_quoter --function update_prices_with_owner_cap \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" "$CLOCK_ID" \
+        "[]" \
+        "[]" \
+        "[2]" \
+        "[1000000000000000000]" \
+  --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.gas_price.json >/dev/null
+
 # nonce_manager, receiver_registry, rmn_remote, token_admin_registry
 sui client call --package "$CCIP_PKG_ID" --module nonce_manager --function initialize \
   --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
@@ -154,7 +189,6 @@ ONRAMP_DIR="$ROOT_DIR/ccip/ccip_onramp"
 patch_move_toml "$ONRAMP_DIR/Move.toml" "ccip" "$CCIP_PKG_ID"
 ONRAMP_KEY="ccip_onramp"
 ONRAMP_PKG_ID="$(publish_and_pin "$ONRAMP_DIR" "$ONRAMP_KEY" "onramp")"
-#ONRAMP_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("onramp.*State";"i"))) | .objectId' artifacts.onramp.publish.json | head -n1)"
 ONRAMP_STATE_ID="$(
   jq -r '
     .objectChanges[]
@@ -165,11 +199,12 @@ ONRAMP_STATE_ID="$(
 ONRAMP_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.onramp.publish.json | head -n1)"
 [[ -n "$ONRAMP_STATE_ID" && -n "$ONRAMP_OWNER_CAP_ID" ]] || { echo "Missing OnRamp state/owner cap"; exit 1; }
 
+# NOTE: using a random address for the router
 sui client call --package "$ONRAMP_PKG_ID" --module onramp --function initialize \
   --args "$ONRAMP_STATE_ID" "$ONRAMP_OWNER_CAP_ID" "$NONCE_MANAGER_CAP_ID" \
         "$CCIP_SOURCE_TRANSFER_CAP_ID" "$LOCAL_CHAIN_SELECTOR" \
         "$FEE_AGGREGATOR_ADDR" "$ALLOWLIST_ADMIN_ADDR" \
-        "$DEST_CHAIN_SELECTORS_JSON" "$DEST_CHAIN_ENABLED_JSON" "$DEST_CHAIN_ALLOWLIST_ENABLED_JSON" \
+        "$DEST_CHAIN_SELECTORS_JSON" "$DEST_CHAIN_ALLOWLIST_ENABLED_JSON" '["0x4488418e4980acbb2c83b8ce98ba1b3f557dd37b392e95bbd98215233cdd5ed3"]' \
   --gas-budget "$GAS" --json | tee artifacts.onramp.init.json >/dev/null
 
 echo "--- Deploying token_pool (base) ---"
@@ -206,9 +241,15 @@ LR_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectTyp
 LR_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.lr_tp.init.json | head -n1)"
 
 # Optional: apply_chain_updates + rate limiter (example: add chain 2)
-#sui client call --package "$LR_PKG_ID" --module lock_release_token_pool --function apply_chain_updates \
-#  --args "$LR_STATE_ID" "$LR_OWNER_CAP_ID" "[]" "[2]" "[]" "[]" \
-#  --gas-budget "$GAS" --json | tee artifacts.lr_tp.apply_chains.json >/dev/null
+sui client call --package "$LR_PKG_ID" --module lock_release_token_pool --function apply_chain_updates \
+ --type-args "$LINK_COIN_T" \
+ --args "$LR_STATE_ID" "$LR_OWNER_CAP_ID" "[]" "[2]" "[[[24, 42, 24, 42]]]" "[[24, 42, 24, 42]]" \
+ --gas-budget "$GAS" --json | tee artifacts.lr_tp.apply_chains.json >/dev/null
+
+ sui client call --package "$LR_PKG_ID" --module lock_release_token_pool --function set_chain_rate_limiter_config \
+  --type-args "$LINK_COIN_T" \
+  --args "$LR_STATE_ID" "$LR_OWNER_CAP_ID" "$CLOCK_ID" "2" "false" "200000000000" "20000000000" "false" "200000000000" "20000000000" \
+  --gas-budget "$GAS" --json | tee artifacts.lr_tp.rate_limiters.json >/dev/null
 
 echo "--- Deploying mock ETH token for burn/mint pool (if not present) ---"
 ETH_DIR="$ROOT_DIR/ccip/mock_eth_token"
@@ -217,12 +258,30 @@ ETH_PKG_ID="$(publish_and_pin "$ETH_DIR" "$ETH_PKG_KEY" "eth")"
 ETH_METADATA_ID="$(extract_created artifacts.eth.publish.json '::coin::CoinMetadata<' | head -n1)"
 ETH_TREASURY_CAP_ID="$(extract_created artifacts.eth.publish.json '::coin::TreasuryCap<' | head -n1)"
 
-# (Optional) mint some ETH so you can later test burns
-#sui client call --package "$ETH_PKG_ID" --module eth_token --function mint \
-#  --args "$ETH_TREASURY_CAP_ID" "1000000000000" \
-#  --gas-budget "$GAS" --json | tee artifacts.eth.mint.json >/dev/null
+echo "--- Minting ETH tokens ---"
+
+# Mint some ETH so you can later test burns
+sui client call --package "$ETH_PKG_ID" --module mock_eth_token --function mint \
+ --args "$ETH_TREASURY_CAP_ID" "1000000000000" \
+ --gas-budget "$GAS" --json | tee artifacts.eth.mint.json >/dev/null
+
+ETH_COIN_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("::coin::Coin<"))) | .objectId' artifacts.eth.mint.json | head -n1)"
+
+echo "--- Minting LINK tokens ---"
+
+ # Mint some LINK tokens (adjust amount as needed, respecting decimals)
+sui client call \
+  --package "$LINK_PKG_ID" \
+  --module mock_link_token \
+  --function mint \
+  --args "$LINK_TREASURY_CAP_ID" "1000000000" \
+  --gas-budget "$GAS" \
+  --json | tee artifacts.link.mint.json >/dev/null
+
+LINK_COIN_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("::coin::Coin<"))) | .objectId' artifacts.link.mint.json | head -n1)"
 
 echo "--- Deploying & initializing burn_mint_token_pool ---"
+
 BM_DIR="$ROOT_DIR/ccip/ccip_token_pools/burn_mint_token_pool"
 patch_move_toml "$BM_DIR/Move.toml" "ccip" "$CCIP_PKG_ID"
 BM_PKG_ID="$(publish_and_pin "$BM_DIR" "burn_mint_token_pool" "burn_mint_tp")"
@@ -248,10 +307,10 @@ BM_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectTyp
 BM_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.bm_tp.init.json | head -n1)"
 
 # Add chain 2; set basic rate limiters (example values)
-#sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function apply_chain_updates \
-#  --type-args "$ETH_PKG_ID::$BM_COIN_TYPE" \
-#  --args "$BM_STATE_ID" "$BM_OWNER_CAP_ID" "[]" "[2]" "[]" "[]" \
-#  --gas-budget "$GAS" --json | tee artifacts.bm_tp.apply_chains.json >/dev/null
+sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function apply_chain_updates \
+ --type-args "$ETH_COIN_T" \
+ --args "$BM_STATE_ID" "$BM_OWNER_CAP_ID" "[]" "[2]" "[[[24, 42, 24, 42]]]" "[[24, 42, 24, 42]]" \
+ --gas-budget "$GAS" --json | tee artifacts.bm_tp.apply_chains.json >/dev/null
 
 sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function set_chain_rate_limiter_config \
   --type-args "$ETH_COIN_T" \
@@ -279,6 +338,8 @@ echo "  ETH Treasury Cap: $ETH_TREASURY_CAP_ID"
 echo "  LINK Treasury Cap: $LINK_TREASURY_CAP_ID"
 ECHO "  ETH Metadata: $ETH_METADATA_ID"
 ECHO "  LINK Metadata: $LINK_METADATA_ID"
+echo "  ETH Coin: $ETH_COIN_ID"
+echo "  LINK Coin: $LINK_COIN_ID"
 echo "Token Pool Support:"
 echo "  ETH -> BM Token Pool"
 echo "  LINK -> LR Token Pool"
