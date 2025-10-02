@@ -20,6 +20,7 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
@@ -616,19 +617,24 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 	// fetch pointers
 	for pointerTag, pointerVals := range pointersMap {
-		fields := make([]string, 0, len(pointerVals))
-
-		// get the fields from the pointer values
-		for _, pointerVal := range pointerVals {
-			fields = append(fields, pointerVal.field)
-		}
-
 		selector := pointerSelectors[pointerTag]
-		pointerFieldValues, err := s.client.GetValuesFromPackageOwnedObjectField(
-			ctx, selector.address, selector.contractName, selector.readName, fields,
+
+		// Get parent object ID from pointer
+		parentObjectId, err := s.client.GetParentObjectID(
+			ctx, selector.address, selector.contractName, selector.readName,
 		)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get values from package owned object fields: %w", err)
+			return nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
+		}
+
+		// Derive each field's object ID from parent
+		pointerFieldValues := make(map[string]string)
+		for _, pointerVal := range pointerVals {
+			derivedId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectId, []byte(pointerVal.field))
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to derive object ID for %s: %w", pointerVal.field, err)
+			}
+			pointerFieldValues[pointerVal.field] = derivedId
 		}
 
 		// add the values to the arg map
