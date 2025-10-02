@@ -1,19 +1,31 @@
 package mcmsops
 
 import (
-	"context"
 	"testing"
 	"time"
 
+	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func newTestBundle(t *testing.T, registry *cld_ops.OperationRegistry) cld_ops.Bundle {
+	t.Helper()
+	reporter := cld_ops.NewMemoryReporter()
+	return cld_ops.NewBundle(
+		t.Context,
+		logger.Test(t),
+		reporter,
+		cld_ops.WithOperationRegistry(registry),
+	)
+}
 
 func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 	t.Parallel()
@@ -35,14 +47,6 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		},
 	}
 
-	// Create test bundle
-	reporter := cld_ops.NewMemoryReporter()
-	bundle := cld_ops.NewBundle(
-		context.Background,
-		logger.Test(t),
-		reporter,
-		cld_ops.WithOperationRegistry(registry),
-	)
 	// Test data
 	testCCIPPackageId := "0x1234567890abcdef"
 	testObjectRefId := "0xabcdef1234567890"
@@ -52,7 +56,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 	testTimelockObjID := "0x2222222222222222"
 	testAccountObjID := "0x3333333333333333"
 	testRegistryObjID := "0x4444444444444444"
-	testChainSelector := uint64(123456789)
+	testChainSelector := cselectors.SUI_TESTNET.Selector
 
 	t.Run("Generate Proposal with Multiple Operations - Proposer Role", func(t *testing.T) {
 		// Create operation definitions and inputs
@@ -62,8 +66,8 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			ccipops.AcceptOwnershipStateObjectOp.Def(),
 		}
 
-		inputs := []sui_ops.OpTxInput[any]{
-			{
+		inputs := []any{
+			sui_ops.OpTxInput[ccipops.AddPackageIdStateObjectInput]{
 				Input: ccipops.AddPackageIdStateObjectInput{
 					CCIPPackageId:         testCCIPPackageId,
 					CCIPObjectRefObjectId: testObjectRefId,
@@ -72,7 +76,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 				},
 				NoExecute: true,
 			},
-			{
+			sui_ops.OpTxInput[ccipops.TransferOwnershipStateObjectInput]{
 				Input: ccipops.TransferOwnershipStateObjectInput{
 					CCIPPackageId:         testCCIPPackageId,
 					CCIPObjectRefObjectId: testObjectRefId,
@@ -81,7 +85,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 				},
 				NoExecute: true,
 			},
-			{
+			sui_ops.OpTxInput[ccipops.AcceptOwnershipStateObjectInput]{
 				Input: ccipops.AcceptOwnershipStateObjectInput{
 					CCIPPackageId:         testCCIPPackageId,
 					CCIPObjectRefObjectId: testObjectRefId,
@@ -107,6 +111,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		// Execute the operation
+		bundle := newTestBundle(t, registry)
 		result, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
@@ -121,7 +126,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Verify timelock addresses
 		require.Len(t, proposal.TimelockAddresses, 1, "should have one timelock address")
-		assert.Equal(t, testTimelockObjID, proposal.TimelockAddresses[0], "timelock address should match")
+		assert.Equal(t, testTimelockObjID, proposal.TimelockAddresses[types.ChainSelector(testChainSelector)], "timelock address should match")
 
 		// Verify chain metadata
 		require.Len(t, proposal.ChainMetadata, 1, "should have one chain metadata")
@@ -136,6 +141,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		// Verify delay is set for proposer role
 		assert.NotZero(t, proposal.Delay, "delay should be set for proposer role")
 		// Note: Delay verification simplified for test
+
 	})
 
 	t.Run("Generate Proposal with Single Operation - Bypasser Role", func(t *testing.T) {
@@ -144,8 +150,8 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			ccipops.RemovePackageIdStateObjectOp.Def(),
 		}
 
-		inputs := []sui_ops.OpTxInput[any]{
-			{
+		inputs := []any{
+			sui_ops.OpTxInput[ccipops.RemovePackageIdStateObjectInput]{
 				Input: ccipops.RemovePackageIdStateObjectInput{
 					CCIPPackageId:         testCCIPPackageId,
 					CCIPObjectRefObjectId: testObjectRefId,
@@ -173,13 +179,14 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		// Execute the operation
+		bundle := newTestBundle(t, registry)
 		result, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
 		// Verify the proposal structure
 		proposal := result.Output
 		assert.Equal(t, "v1", proposal.Version, "proposal version should be v1")
-		assert.Contains(t, proposal.Description, "ccip.state_object.remove_package_id", "description should contain remove operation")
+		assert.Contains(t, proposal.Description, ccipops.RemovePackageIdStateObjectOp.Def().ID, "description should contain remove operation")
 
 		// Verify no delay is set for bypasser role
 		assert.Zero(t, proposal.Delay, "delay should not be set for bypasser role")
@@ -196,8 +203,8 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			ccipops.AddPackageIdStateObjectOp.Def(),
 		}
 
-		inputs := []sui_ops.OpTxInput[any]{
-			{
+		inputs := []any{
+			sui_ops.OpTxInput[ccipops.AddPackageIdStateObjectInput]{
 				Input: ccipops.AddPackageIdStateObjectInput{
 					CCIPPackageId:         testCCIPPackageId,
 					CCIPObjectRefObjectId: testObjectRefId,
@@ -225,9 +232,10 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		// Execute the operation - should fail
+		bundle := newTestBundle(t, registry)
 		_, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with invalid role")
-		assert.Contains(t, err.Error(), "unsupported role", "error should mention unsupported role")
+		assert.Contains(t, err.Error(), "invalid timelock role", "error should mention invalid timelock role")
 	})
 
 	t.Run("Generate Proposal with Mismatched Definitions and Inputs", func(t *testing.T) {
@@ -237,8 +245,8 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			ccipops.RemovePackageIdStateObjectOp.Def(),
 		}
 
-		inputs := []sui_ops.OpTxInput[any]{
-			{
+		inputs := []any{
+			sui_ops.OpTxInput[ccipops.AddPackageIdStateObjectInput]{
 				Input: ccipops.AddPackageIdStateObjectInput{
 					CCIPPackageId:         testCCIPPackageId,
 					CCIPObjectRefObjectId: testObjectRefId,
@@ -267,6 +275,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		// Execute the operation - should fail due to index out of bounds
+		bundle := newTestBundle(t, registry)
 		_, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with mismatched definitions and inputs")
 	})

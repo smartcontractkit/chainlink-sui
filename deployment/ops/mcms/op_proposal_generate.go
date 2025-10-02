@@ -2,6 +2,7 @@ package mcmsops
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -16,7 +17,7 @@ import (
 type Input struct {
 	// Ops Related
 	Defs   []cld_ops.Definition
-	Inputs []sui_ops.OpTxInput[any]
+	Inputs []any // Each element should be sui_ops.OpTxInput[SpecificType] with the correct type for the corresponding operation
 
 	// MCMS related
 	MmcsPackageID  string `json:"mcmsPackageID"`
@@ -34,6 +35,9 @@ type Input struct {
 }
 
 var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Input) (output mcms.TimelockProposal, err error) {
+	if len(input.Defs) != len(input.Inputs) {
+		return mcms.TimelockProposal{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(input.Defs), len(input.Inputs))
+	}
 	mcmsTxs := make([]mcmstypes.Transaction, len(input.Defs))
 
 	for i, def := range input.Defs {
@@ -41,25 +45,34 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		if err != nil {
 			return mcms.TimelockProposal{}, err
 		}
-		res, err := cld_ops.ExecuteOperation(b, op, any(deps), any(sui_ops.OpTxInput[any]{
-			Input:     input.Inputs[i].Input,
-			NoExecute: true, // we don't want to execute, just encode
-		}))
+		res, err := cld_ops.ExecuteOperation(b, op, any(deps), input.Inputs[i])
 		if err != nil {
 			return mcms.TimelockProposal{}, fmt.Errorf("failed to execute operation %s: %w", def.ID, err)
 		}
-		output, ok := res.Output.(sui_ops.OpTxResult[any])
-		if !ok {
-			return mcms.TimelockProposal{}, fmt.Errorf("operation %s did not return OpTxResult output", def.ID)
+		// Use reflection to extract the Call field from the OpTxResult regardless of its specific type
+		outputValue := reflect.ValueOf(res.Output)
+		if outputValue.Kind() != reflect.Struct {
+			return mcms.TimelockProposal{}, fmt.Errorf("operation %s did not return a struct output", def.ID)
 		}
+
+		callField := outputValue.FieldByName("Call")
+		if !callField.IsValid() {
+			return mcms.TimelockProposal{}, fmt.Errorf("operation %s output does not have a Call field", def.ID)
+		}
+
+		call, ok := callField.Interface().(sui_ops.TransactionCall)
+		if !ok {
+			return mcms.TimelockProposal{}, fmt.Errorf("operation %s Call field is not a TransactionCall", def.ID)
+		}
+
 		tx, err := suisdk.NewTransactionWithStateObj(
-			output.Call.Module,
-			output.Call.Function,
-			output.Call.PackageID,
-			output.Call.Data,
-			output.Call.Module,
+			call.Module,
+			call.Function,
+			call.PackageID,
+			call.Data,
+			call.Module,
 			[]string{},
-			output.Call.StateObjID,
+			call.StateObjID,
 		)
 		mcmsTxs[i] = tx
 	}
@@ -85,6 +98,7 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	case suisdk.TimelockRoleBypasser:
 		action = types.TimelockActionBypass
 	default:
+		// NewChainMetadata will always error on invalid role, but this is a safeguard
 		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
 	}
 
