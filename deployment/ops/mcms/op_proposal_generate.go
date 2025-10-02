@@ -45,6 +45,8 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		if err != nil {
 			return mcms.TimelockProposal{}, err
 		}
+		// Remove the signer to prevent accidental tx sends during operation execution
+		deps.Signer = nil
 		res, err := cld_ops.ExecuteOperation(b, op, any(deps), input.Inputs[i])
 		if err != nil {
 			return mcms.TimelockProposal{}, fmt.Errorf("failed to execute operation %s: %w", def.ID, err)
