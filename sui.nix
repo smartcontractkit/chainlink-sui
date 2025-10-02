@@ -9,13 +9,13 @@ stdenv.mkDerivation rec {
   src = if stdenv.hostPlatform.isDarwin then
     pkgs.fetchzip {
       url = "https://github.com/MystenLabs/sui/releases/download/mainnet-v${version}/sui-mainnet-v${version}-macos-arm64.tgz"; # Assume is a M1 Mac
-      sha256 = "sha256-sinLK5HUj6fKuVEkBOdCe9y9o/6q+ByE9T8g2Ner148=";  # Should be replaced when bumping versions
+      sha256 = "sha256-Krrh9CzUAULa3iTonGzNErSlrSNJz8Dhj1D2I/JxgtA=";  # Should be replaced when bumping versions
       stripRoot = false;
     }
     else if stdenv.isLinux then
       pkgs.fetchzip {
         url = "https://github.com/MystenLabs/sui/releases/download/mainnet-v${version}/sui-mainnet-v${version}-ubuntu-x86_64.tgz";
-        sha256 = "sha256-sinLK5HUj6fKuVEkBOdCe9y9o/6q+ByE9T8g2Ner148=";  # Should be replaced when bumping versions
+        sha256 = "sha256-Krrh9CzUAULa3iTonGzNErSlrSNJz8Dhj1D2I/JxgtA=";  # Should be replaced when bumping versions
         stripRoot = false;
       }
     else
