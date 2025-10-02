@@ -88,6 +88,13 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolState address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.Objects.StateObjectId, config.SuiChainSelector, err)
 			}
+
+			// save BnM Pool OwnerId to the addressBook
+			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerIDType, deployment.Version1_0_0)
+			err = ab.Save(config.SuiChainSelector, BnMTokenPoolSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
+			}
 		}
 
 		if tokenPoolType == "lnr" {

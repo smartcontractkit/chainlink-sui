@@ -41,6 +41,7 @@ var (
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
 	SuiBnMTokenPoolType          deployment.ContractType = "SuiBnMTokenPool"
 	SuiBnMTokenPoolStateType     deployment.ContractType = "SuiBnMTokenPoolState"
+	SuiBnMTokenPoolOwnerIDType   deployment.ContractType = "SuiBnMTokenPoolOwnerID"
 )
 
 var (
