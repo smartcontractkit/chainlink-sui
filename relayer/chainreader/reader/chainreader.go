@@ -548,8 +548,9 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 }
 
 type pointerMapEntry struct {
-	field     string // the field name from the Sui object
-	paramName string // the parameter name from the function config
+	field         string // the field name from the Sui object (pointer field containing parent object ID)
+	derivationKey string // the key used to derive the child object address
+	paramName     string // the parameter name from the function config
 }
 
 // prepareArguments prepares function arguments and types for the call
@@ -559,8 +560,8 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		return []any{}, []string{}, nil
 	}
 
-	// referring to the tag parts "_::module::Pointer::field"
-	tagLength := 4
+	// referring to the tag parts "_::module::Pointer::field::derivationKey"
+	tagLength := 5
 
 	// a map of object selector "module::object" to array of fields
 	pointersMap := make(map[string][]pointerMapEntry)
@@ -572,12 +573,12 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		// the parameter has a pointer tag, add it to the set
 		if paramConfig.PointerTag != nil {
 			tag := strings.Split(*paramConfig.PointerTag, "::")
-			// must be 4 values, for example: "_::moduleName::pointerName::fieldName"
+			// must be 5 values, for example: "_::moduleName::pointerName::fieldName::derivationKey"
 			if len(tag) != tagLength {
 				return nil, nil, fmt.Errorf("invalid pointer tag: %s", *paramConfig.PointerTag)
 			}
 
-			moduleName, pointerName, fieldName := tag[1], tag[2], tag[3]
+			moduleName, pointerName, fieldName, derivationKey := tag[1], tag[2], tag[3], tag[4]
 
 			// append only the middle 2 parts of the tag to represent the pointer
 			appendTag := strings.Join([]string{moduleName, pointerName}, "::")
@@ -606,11 +607,12 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				pointerSelectors[appendTag] = readIdentifierForPointer
 			}
 
-			// each entry within the pointersMap contains an entry for the field name and
-			// an entry for the (function config) parameter name
+			// each entry within the pointersMap contains an entry for the field name,
+			// the derivation key, and the (function config) parameter name
 			pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
-				field:     fieldName,
-				paramName: paramConfig.Name,
+				field:         fieldName,
+				derivationKey: derivationKey,
+				paramName:     paramConfig.Name,
 			})
 		}
 	}
@@ -627,19 +629,19 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 			return nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
 		}
 
-		// Derive each field's object ID from parent
+		// Derive each field's object ID from parent using derivation key
 		pointerFieldValues := make(map[string]string)
 		for _, pointerVal := range pointerVals {
-			derivedId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectId, []byte(pointerVal.field))
+			derivedId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectId, []byte(pointerVal.derivationKey))
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to derive object ID for %s: %w", pointerVal.field, err)
+				return nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.field, pointerVal.derivationKey, err)
 			}
-			pointerFieldValues[pointerVal.field] = derivedId
+			pointerFieldValues[pointerVal.paramName] = derivedId
 		}
 
 		// add the values to the arg map
 		for _, pointerVal := range pointerVals {
-			argMap[pointerVal.paramName] = pointerFieldValues[pointerVal.field]
+			argMap[pointerVal.paramName] = pointerFieldValues[pointerVal.paramName]
 		}
 	}
 

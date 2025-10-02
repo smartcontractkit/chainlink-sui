@@ -1,5 +1,6 @@
 module test::counter {
     use sui::object::{Self, UID, ID};
+    use sui::derived_object;
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::event;
@@ -37,11 +38,14 @@ module test::counter {
         value: u64
     }
 
+    public struct CounterObject has key {
+        id: UID,
+    }
+
     // Pointer to reference both Counter and AdminCap objects
     public struct CounterPointer has key, store {
         id: UID,
-        counter_id: address,
-        admin_cap_id: address,
+        counter_object_id: address,
     }
 
     // Struct that contains a list of addresses
@@ -90,8 +94,12 @@ module test::counter {
     }
 
     fun init(_witness: COUNTER, ctx: &mut TxContext) {
-        let counter = Counter {
+        let mut counter_object = CounterObject {
             id: object::new(ctx),
+        };
+
+        let counter = Counter {
+            id: derived_object::claim(&mut counter_object.id, b"Counter"),
             value: 0
         };
 
@@ -102,14 +110,12 @@ module test::counter {
         // Create the pointer that references both objects
         let pointer = CounterPointer {
             id: object::new(ctx),
-            counter_id: object::id_to_address(object::borrow_id(&counter)),
-            admin_cap_id: object::id_to_address(object::borrow_id(&admin_cap)),
+            counter_object_id: object::id_to_address(object::borrow_id(&counter_object)),
         };
 
         let pointer2 = CounterPointer {
             id: object::new(ctx),
-            counter_id: object::id_to_address(object::borrow_id(&counter)),
-            admin_cap_id: object::id_to_address(object::borrow_id(&admin_cap)),
+            counter_object_id: object::id_to_address(object::borrow_id(&counter_object)),
         };
 
         let tn = type_name::get_with_original_ids<COUNTER>();
@@ -117,6 +123,8 @@ module test::counter {
         let package_id = address::from_ascii_bytes(&package_bytes);
 
         transfer::share_object(counter);
+        transfer::share_object(counter_object);
+
         transfer::transfer(admin_cap, tx_context::sender(ctx));
         transfer::transfer(pointer, package_id);
         transfer::transfer(pointer2, tx_context::sender(ctx));

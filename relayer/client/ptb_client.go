@@ -1031,11 +1031,14 @@ func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, mod
 			parsedObject := ownedObject.Data.Content.Fields
 
 			// Map of pointer object names to their parent object ID field names
+			// All contracts now use the derived object pattern where pointers store a parent
+			// object ID, and child objects are derived from it using keys.
 			parentFieldMap := map[string]string{
 				"OffRampStatePointer":  "off_ramp_object_id",
 				"OnRampStatePointer":   "on_ramp_object_id",
 				"CCIPObjectRefPointer": "ccip_object_id",
 				"RouterStatePointer":   "router_object_id",
+				"CounterPointer":       "counter_object_id", // Test contract: parent object ID
 			}
 
 			fieldName, ok := parentFieldMap[pointerObjectName]
