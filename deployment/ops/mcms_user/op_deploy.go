@@ -60,3 +60,64 @@ var DeployMCMSUserOp = cld_ops.NewOperation(
 	"Deploys the MCMS User contract",
 	deployHandler,
 )
+
+type MCMSUserFunctionOneInput struct {
+	McmsUserPackageID        string `json:"mcmsUserPackageID"`
+	McmsUserOwnerCapObjectID string `json:"mcmsUserOwnerCapObjectID"`
+	McmsRegistryObjectID     string `json:"mcmsRegistryObjectID"`
+	McmsUserDataObjectID     string `json:"mcmsUserDataObjectID"`
+	Arg1                     string `json:"arg1"`
+	Arg2                     []byte `json:"arg2"`
+}
+
+var functionOneHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MCMSUserFunctionOneInput) (output sui_ops.OpTxResult[cld_ops.EmptyInput], err error) {
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+
+	contract, err := mcmsuser.NewMCMSUser(input.McmsUserPackageID, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
+	}
+
+	encodedCall, err := contract.MCMSUser().Encoder().FunctionOne(bind.Object{Id: input.McmsUserDataObjectID}, bind.Object{Id: input.McmsUserOwnerCapObjectID}, input.Arg1, input.Arg2)
+	if err != nil {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to encode RemovePackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.McmsUserDataObjectID)
+	if err != nil {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of MCMS User Function One as per no Signer provided", "packageId", input.McmsUserPackageID)
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{
+			Digest:    "",
+			PackageId: input.McmsUserPackageID,
+			Objects:   cld_ops.EmptyInput{},
+			Call:      call,
+		}, nil
+	}
+
+	suiTx, err := contract.MCMSUser().FunctionOne(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.McmsUserDataObjectID},
+		bind.Object{Id: input.McmsUserOwnerCapObjectID},
+		input.Arg1,
+		input.Arg2,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to call set_config on mcms: %w", err)
+	}
+
+	return sui_ops.OpTxResult[cld_ops.EmptyInput]{
+		Digest:    suiTx.Digest,
+		PackageId: input.McmsUserPackageID,
+	}, err
+}
+
+var FunctionOneOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("mcms_user", "mcms_user", "function_one"),
+	semver.MustParse("0.1.0"),
+	"Function one in the MCMS User contract",
+	functionOneHandler,
+)
