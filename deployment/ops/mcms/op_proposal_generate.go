@@ -41,10 +41,11 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		if err != nil {
 			return mcms.TimelockProposal{}, err
 		}
-		res, err := cld_ops.ExecuteOperation(b, op, any(deps), any(sui_ops.OpTxInput[any]{
-			Input:     input.Inputs[i].Input,
-			NoExecute: true, // we don't want to execute, just encode
-		}))
+
+		// Create the properly typed input for the operation
+		opInput := input.Inputs[i]
+
+		res, err := cld_ops.ExecuteOperation(b, op, any(deps), any(opInput))
 		if err != nil {
 			return mcms.TimelockProposal{}, fmt.Errorf("failed to execute operation %s: %w", def.ID, err)
 		}
@@ -61,6 +62,9 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 			[]string{},
 			output.Call.StateObjID,
 		)
+		if err != nil {
+			return mcms.TimelockProposal{}, fmt.Errorf("failed to create transaction for operation %s: %w", def.ID, err)
+		}
 		mcmsTxs[i] = tx
 	}
 

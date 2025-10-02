@@ -25,25 +25,31 @@ type AddPackageIdStateObjectObjects struct {
 	// No specific objects are returned from add_package_id
 }
 
-var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[AddPackageIdStateObjectInput]) (output sui_ops.OpTxResult[AddPackageIdStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.Input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
+var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[any]) (output sui_ops.OpTxResult[any], err error) {
+	// Type assert the input to the expected type
+	typedInput, ok := input.Input.(AddPackageIdStateObjectInput)
+	if !ok {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("input type mismatch: expected AddPackageIdStateObjectInput, got %T", input.Input)
 	}
 
-	encodedCall, err := contract.Encoder().AddPackageId(bind.Object{Id: input.Input.CCIPObjectRefObjectId}, bind.Object{Id: input.Input.OwnerCapObjectId}, input.Input.PackageId)
+	contract, err := module_state_object.NewStateObject(typedInput.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.Input.CCIPObjectRefObjectId)
+
+	encodedCall, err := contract.Encoder().AddPackageId(bind.Object{Id: typedInput.CCIPObjectRefObjectId}, bind.Object{Id: typedInput.OwnerCapObjectId}, typedInput.PackageId)
 	if err != nil {
-		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, typedInput.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
 	if input.NoExecute {
-		b.Logger.Infow("Skipping execution of AddPackageId on StateObject as per NoExecute flag", "packageId", input.Input.PackageId)
-		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{
+		b.Logger.Infow("Skipping execution of AddPackageId on StateObject as per NoExecute flag", "packageId", typedInput.PackageId)
+		return sui_ops.OpTxResult[any]{
 			Digest:    "",
-			PackageId: input.Input.CCIPPackageId,
+			PackageId: typedInput.CCIPPackageId,
 			Objects:   AddPackageIdStateObjectObjects{},
 			Call:      call,
 		}, nil
@@ -54,19 +60,19 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 	tx, err := contract.AddPackageId(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.Input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.Input.OwnerCapObjectId},
-		input.Input.PackageId,
+		bind.Object{Id: typedInput.CCIPObjectRefObjectId},
+		bind.Object{Id: typedInput.OwnerCapObjectId},
+		typedInput.PackageId,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute AddPackageId on StateObject: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to execute AddPackageId on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Package ID added to CCIP StateObject", "packageId", input.Input.PackageId)
+	b.Logger.Infow("Package ID added to CCIP StateObject", "packageId", typedInput.PackageId)
 
-	return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{
+	return sui_ops.OpTxResult[any]{
 		Digest:    tx.Digest,
-		PackageId: input.Input.CCIPPackageId,
+		PackageId: typedInput.CCIPPackageId,
 		Objects:   AddPackageIdStateObjectObjects{},
 		Call:      call,
 	}, nil
@@ -92,25 +98,31 @@ type RemovePackageIdStateObjectObjects struct {
 	// No specific objects are returned from remove_package_id
 }
 
-var removePackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[RemovePackageIdStateObjectInput]) (output sui_ops.OpTxResult[RemovePackageIdStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.Input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
+var removePackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[any]) (output sui_ops.OpTxResult[any], err error) {
+	// Type assert the input to the expected type
+	typedInput, ok := input.Input.(RemovePackageIdStateObjectInput)
+	if !ok {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("input type mismatch: expected RemovePackageIdStateObjectInput, got %T", input.Input)
 	}
 
-	encodedCall, err := contract.Encoder().RemovePackageId(bind.Object{Id: input.Input.CCIPObjectRefObjectId}, bind.Object{Id: input.Input.OwnerCapObjectId}, input.Input.PackageId)
+	contract, err := module_state_object.NewStateObject(typedInput.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to encode RemovePackageId call: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.Input.CCIPObjectRefObjectId)
+
+	encodedCall, err := contract.Encoder().RemovePackageId(bind.Object{Id: typedInput.CCIPObjectRefObjectId}, bind.Object{Id: typedInput.OwnerCapObjectId}, typedInput.PackageId)
 	if err != nil {
-		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to encode RemovePackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, typedInput.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
 	if input.NoExecute {
-		b.Logger.Infow("Skipping execution of RemovePackageId on StateObject as per NoExecute flag", "packageId", input.Input.PackageId)
-		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{
+		b.Logger.Infow("Skipping execution of RemovePackageId on StateObject as per NoExecute flag", "packageId", typedInput.PackageId)
+		return sui_ops.OpTxResult[any]{
 			Digest:    "",
-			PackageId: input.Input.CCIPPackageId,
+			PackageId: typedInput.CCIPPackageId,
 			Objects:   RemovePackageIdStateObjectObjects{},
 			Call:      call,
 		}, nil
@@ -121,19 +133,19 @@ var removePackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 	tx, err := contract.RemovePackageId(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.Input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.Input.OwnerCapObjectId},
-		input.Input.PackageId,
+		bind.Object{Id: typedInput.CCIPObjectRefObjectId},
+		bind.Object{Id: typedInput.OwnerCapObjectId},
+		typedInput.PackageId,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute RemovePackageId on StateObject: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to execute RemovePackageId on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Package ID removed from CCIP StateObject", "packageId", input.Input.PackageId)
+	b.Logger.Infow("Package ID removed from CCIP StateObject", "packageId", typedInput.PackageId)
 
-	return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{
+	return sui_ops.OpTxResult[any]{
 		Digest:    tx.Digest,
-		PackageId: input.Input.CCIPPackageId,
+		PackageId: typedInput.CCIPPackageId,
 		Objects:   RemovePackageIdStateObjectObjects{},
 		Call:      call,
 	}, nil
@@ -346,25 +358,31 @@ type TransferOwnershipStateObjectObjects struct {
 	// No specific objects are returned from transfer_ownership
 }
 
-var transferOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[TransferOwnershipStateObjectInput]) (output sui_ops.OpTxResult[TransferOwnershipStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.Input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
+var transferOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[any]) (output sui_ops.OpTxResult[any], err error) {
+	// Type assert the input to the expected type
+	typedInput, ok := input.Input.(TransferOwnershipStateObjectInput)
+	if !ok {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("input type mismatch: expected TransferOwnershipStateObjectInput, got %T", input.Input)
 	}
 
-	encodedCall, err := contract.Encoder().TransferOwnership(bind.Object{Id: input.Input.CCIPObjectRefObjectId}, bind.Object{Id: input.Input.OwnerCapObjectId}, input.Input.To)
+	contract, err := module_state_object.NewStateObject(typedInput.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to encode TransferOwnership call: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.Input.CCIPObjectRefObjectId)
+
+	encodedCall, err := contract.Encoder().TransferOwnership(bind.Object{Id: typedInput.CCIPObjectRefObjectId}, bind.Object{Id: typedInput.OwnerCapObjectId}, typedInput.To)
 	if err != nil {
-		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to encode TransferOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, typedInput.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
 	if input.NoExecute {
-		b.Logger.Infow("Skipping execution of TransferOwnership on StateObject as per NoExecute flag", "to", input.Input.To)
-		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{
+		b.Logger.Infow("Skipping execution of TransferOwnership on StateObject as per NoExecute flag", "to", typedInput.To)
+		return sui_ops.OpTxResult[any]{
 			Digest:    "",
-			PackageId: input.Input.CCIPPackageId,
+			PackageId: typedInput.CCIPPackageId,
 			Objects:   TransferOwnershipStateObjectObjects{},
 			Call:      call,
 		}, nil
@@ -375,19 +393,19 @@ var transferOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 	tx, err := contract.TransferOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.Input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.Input.OwnerCapObjectId},
-		input.Input.To,
+		bind.Object{Id: typedInput.CCIPObjectRefObjectId},
+		bind.Object{Id: typedInput.OwnerCapObjectId},
+		typedInput.To,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to execute TransferOwnership on StateObject: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to execute TransferOwnership on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Ownership transfer initiated for CCIP StateObject", "to", input.Input.To)
+	b.Logger.Infow("Ownership transfer initiated for CCIP StateObject", "to", typedInput.To)
 
-	return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{
+	return sui_ops.OpTxResult[any]{
 		Digest:    tx.Digest,
-		PackageId: input.Input.CCIPPackageId,
+		PackageId: typedInput.CCIPPackageId,
 		Objects:   TransferOwnershipStateObjectObjects{},
 		Call:      call,
 	}, nil
@@ -411,25 +429,31 @@ type AcceptOwnershipStateObjectObjects struct {
 	// No specific objects are returned from accept_ownership
 }
 
-var acceptOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[AcceptOwnershipStateObjectInput]) (output sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects], err error) {
-	contract, err := module_state_object.NewStateObject(input.Input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
+var acceptOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input sui_ops.OpTxInput[any]) (output sui_ops.OpTxResult[any], err error) {
+	// Type assert the input to the expected type
+	typedInput, ok := input.Input.(AcceptOwnershipStateObjectInput)
+	if !ok {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("input type mismatch: expected AcceptOwnershipStateObjectInput, got %T", input.Input)
 	}
 
-	encodedCall, err := contract.Encoder().AcceptOwnership(bind.Object{Id: input.Input.CCIPObjectRefObjectId})
+	contract, err := module_state_object.NewStateObject(typedInput.CCIPPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.Input.CCIPObjectRefObjectId)
+
+	encodedCall, err := contract.Encoder().AcceptOwnership(bind.Object{Id: typedInput.CCIPObjectRefObjectId})
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, typedInput.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
 	if input.NoExecute {
 		b.Logger.Infow("Skipping execution of AcceptOwnership on StateObject as per NoExecute flag")
-		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{
+		return sui_ops.OpTxResult[any]{
 			Digest:    "",
-			PackageId: input.Input.CCIPPackageId,
+			PackageId: typedInput.CCIPPackageId,
 			Objects:   AcceptOwnershipStateObjectObjects{},
 			Call:      call,
 		}, nil
@@ -440,17 +464,17 @@ var acceptOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 	tx, err := contract.AcceptOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.Input.CCIPObjectRefObjectId},
+		bind.Object{Id: typedInput.CCIPObjectRefObjectId},
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
+		return sui_ops.OpTxResult[any]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
 	}
 
 	b.Logger.Infow("Ownership accepted for CCIP StateObject")
 
-	return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{
+	return sui_ops.OpTxResult[any]{
 		Digest:    tx.Digest,
-		PackageId: input.Input.CCIPPackageId,
+		PackageId: typedInput.CCIPPackageId,
 		Objects:   AcceptOwnershipStateObjectObjects{},
 		Call:      call,
 	}, nil
