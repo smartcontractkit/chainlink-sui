@@ -63,11 +63,9 @@ func TestStateObjectOperations(t *testing.T) {
 
 	t.Run("Test Get Owner", func(t *testing.T) {
 		// Test getting owner
-		getOwnerReport, err := cld_ops.ExecuteOperation(bundle, GetOwnerStateObjectOp, deps, sui_ops.OpTxInput[GetOwnerStateObjectInput]{
-			Input: GetOwnerStateObjectInput{
-				CCIPPackageId:         ccipReport.Output.PackageId,
-				CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-			},
+		getOwnerReport, err := cld_ops.ExecuteOperation(bundle, GetOwnerStateObjectOp, deps, GetOwnerStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 		})
 		require.NoError(t, err, "failed to get owner")
 		require.NotEmpty(t, getOwnerReport.Output.Objects.Owner, "owner should not be empty")
@@ -76,11 +74,9 @@ func TestStateObjectOperations(t *testing.T) {
 
 	t.Run("Test Get Pending Transfer", func(t *testing.T) {
 		// Test getting pending transfer info (should be empty initially)
-		getPendingTransferReport, err := cld_ops.ExecuteOperation(bundle, GetPendingTransferStateObjectOp, deps, sui_ops.OpTxInput[GetPendingTransferStateObjectInput]{
-			Input: GetPendingTransferStateObjectInput{
-				CCIPPackageId:         ccipReport.Output.PackageId,
-				CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-			},
+		getPendingTransferReport, err := cld_ops.ExecuteOperation(bundle, GetPendingTransferStateObjectOp, deps, GetPendingTransferStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
 		})
 		require.NoError(t, err, "failed to get pending transfer info")
 		require.False(t, getPendingTransferReport.Output.Objects.HasPendingTransfer, "should not have pending transfer initially")
@@ -91,13 +87,11 @@ func TestStateObjectOperations(t *testing.T) {
 
 	t.Run("Test Add Package ID", func(t *testing.T) {
 		newPackageId := "0x123456789abcdef" // Example package ID
-		addReport, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, sui_ops.OpTxInput[AddPackageIdStateObjectInput]{
-			Input: AddPackageIdStateObjectInput{
-				CCIPPackageId:         ccipReport.Output.PackageId,
-				CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-				OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-				PackageId:             newPackageId,
-			},
+		addReport, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
+			PackageId:             newPackageId,
 		})
 		require.NoError(t, err, "failed to add package ID")
 		require.NotEmpty(t, addReport.Output.Digest, "add package ID transaction should have a digest")
@@ -106,22 +100,18 @@ func TestStateObjectOperations(t *testing.T) {
 	t.Run("Test Remove Package ID", func(t *testing.T) {
 		// First add a package ID to remove
 		newPackageId := "0xabcdef1234567890abcdef1234567890abcdef12"
-		_, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, sui_ops.OpTxInput[AddPackageIdStateObjectInput]{
-			Input: AddPackageIdStateObjectInput{
-				CCIPPackageId:         ccipReport.Output.PackageId,
-				CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-				OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-				PackageId:             newPackageId,
-			},
+		_, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
+			PackageId:             newPackageId,
 		})
 		// Now remove the package ID
-		removeReport, err := cld_ops.ExecuteOperation(bundle, RemovePackageIdStateObjectOp, deps, sui_ops.OpTxInput[RemovePackageIdStateObjectInput]{
-			Input: RemovePackageIdStateObjectInput{
-				CCIPPackageId:         ccipReport.Output.PackageId,
-				CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
-				OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
-				PackageId:             newPackageId,
-			},
+		removeReport, err := cld_ops.ExecuteOperation(bundle, RemovePackageIdStateObjectOp, deps, RemovePackageIdStateObjectInput{
+			CCIPPackageId:         ccipReport.Output.PackageId,
+			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
+			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
+			PackageId:             newPackageId,
 		})
 		require.NoError(t, err, "failed to remove package ID")
 		require.NotEmpty(t, removeReport.Output.Digest, "remove package ID transaction should have a digest")

@@ -67,34 +67,25 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		inputs := []any{
-			sui_ops.OpTxInput[ccipops.AddPackageIdStateObjectInput]{
-				Input: ccipops.AddPackageIdStateObjectInput{
-					CCIPPackageId:         testCCIPPackageId,
-					CCIPObjectRefObjectId: testObjectRefId,
-					OwnerCapObjectId:      testOwnerCapId,
-					PackageId:             testPackageId,
-				},
-				NoExecute: true,
+			ccipops.AddPackageIdStateObjectInput{
+				CCIPPackageId:         testCCIPPackageId,
+				CCIPObjectRefObjectId: testObjectRefId,
+				OwnerCapObjectId:      testOwnerCapId,
+				PackageId:             testPackageId,
 			},
-			sui_ops.OpTxInput[ccipops.TransferOwnershipStateObjectInput]{
-				Input: ccipops.TransferOwnershipStateObjectInput{
-					CCIPPackageId:         testCCIPPackageId,
-					CCIPObjectRefObjectId: testObjectRefId,
-					OwnerCapObjectId:      testOwnerCapId,
-					To:                    testNewOwner,
-				},
-				NoExecute: true,
+			ccipops.TransferOwnershipStateObjectInput{
+				CCIPPackageId:         testCCIPPackageId,
+				CCIPObjectRefObjectId: testObjectRefId,
+				OwnerCapObjectId:      testOwnerCapId,
+				To:                    testNewOwner,
 			},
-			sui_ops.OpTxInput[ccipops.AcceptOwnershipStateObjectInput]{
-				Input: ccipops.AcceptOwnershipStateObjectInput{
-					CCIPPackageId:         testCCIPPackageId,
-					CCIPObjectRefObjectId: testObjectRefId,
-				},
-				NoExecute: true,
+			ccipops.AcceptOwnershipStateObjectInput{
+				CCIPPackageId:         testCCIPPackageId,
+				CCIPObjectRefObjectId: testObjectRefId,
 			},
 		}
 
-		proposalInput := Input{
+		proposalInput := ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs,
 
@@ -112,7 +103,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation
 		bundle := newTestBundle(t, registry)
-		result, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
 		// Verify the proposal structure
@@ -151,18 +142,16 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		inputs := []any{
-			sui_ops.OpTxInput[ccipops.RemovePackageIdStateObjectInput]{
-				Input: ccipops.RemovePackageIdStateObjectInput{
-					CCIPPackageId:         testCCIPPackageId,
-					CCIPObjectRefObjectId: testObjectRefId,
-					OwnerCapObjectId:      testOwnerCapId,
-					PackageId:             testPackageId,
-				},
-				NoExecute: true,
+
+			ccipops.RemovePackageIdStateObjectInput{
+				CCIPPackageId:         testCCIPPackageId,
+				CCIPObjectRefObjectId: testObjectRefId,
+				OwnerCapObjectId:      testOwnerCapId,
+				PackageId:             testPackageId,
 			},
 		}
 
-		proposalInput := Input{
+		proposalInput := ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs,
 
@@ -180,7 +169,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation
 		bundle := newTestBundle(t, registry)
-		result, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
 		// Verify the proposal structure
@@ -204,18 +193,16 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		inputs := []any{
-			sui_ops.OpTxInput[ccipops.AddPackageIdStateObjectInput]{
-				Input: ccipops.AddPackageIdStateObjectInput{
-					CCIPPackageId:         testCCIPPackageId,
-					CCIPObjectRefObjectId: testObjectRefId,
-					OwnerCapObjectId:      testOwnerCapId,
-					PackageId:             testPackageId,
-				},
-				NoExecute: true,
+
+			ccipops.AddPackageIdStateObjectInput{
+				CCIPPackageId:         testCCIPPackageId,
+				CCIPObjectRefObjectId: testObjectRefId,
+				OwnerCapObjectId:      testOwnerCapId,
+				PackageId:             testPackageId,
 			},
 		}
 
-		proposalInput := Input{
+		proposalInput := ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs,
 
@@ -233,7 +220,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation - should fail
 		bundle := newTestBundle(t, registry)
-		_, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with invalid role")
 		assert.Contains(t, err.Error(), "invalid timelock role", "error should mention invalid timelock role")
 	})
@@ -246,19 +233,18 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		inputs := []any{
-			sui_ops.OpTxInput[ccipops.AddPackageIdStateObjectInput]{
-				Input: ccipops.AddPackageIdStateObjectInput{
-					CCIPPackageId:         testCCIPPackageId,
-					CCIPObjectRefObjectId: testObjectRefId,
-					OwnerCapObjectId:      testOwnerCapId,
-					PackageId:             testPackageId,
-				},
-				NoExecute: true,
+
+			ccipops.AddPackageIdStateObjectInput{
+				CCIPPackageId:         testCCIPPackageId,
+				CCIPObjectRefObjectId: testObjectRefId,
+				OwnerCapObjectId:      testOwnerCapId,
+				PackageId:             testPackageId,
 			},
+
 			// Missing second input
 		}
 
-		proposalInput := Input{
+		proposalInput := ProposalGenerateInput{
 			Defs:   defs,
 			Inputs: inputs[:1], // Only one input for two definitions
 
@@ -276,7 +262,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Execute the operation - should fail due to index out of bounds
 		bundle := newTestBundle(t, registry)
-		_, err := cld_ops.ExecuteOperation(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with mismatched definitions and inputs")
 	})
 }

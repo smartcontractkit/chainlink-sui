@@ -14,10 +14,11 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 )
 
-type Input struct {
+type ProposalGenerateInput struct {
 	// Ops Related
+	// Order matters, each definition should correspond to the input at the same index
 	Defs   []cld_ops.Definition
-	Inputs []any // Each element should be sui_ops.OpTxInput[SpecificType] with the correct type for the corresponding operation
+	Inputs []any // Each element should be the corresponding input type for its operation
 
 	// MCMS related
 	MmcsPackageID  string `json:"mcmsPackageID"`
@@ -34,7 +35,7 @@ type Input struct {
 	ChainSelector uint64 `json:"chainSelector"`
 }
 
-var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Input) (output mcms.TimelockProposal, err error) {
+var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ProposalGenerateInput) (output mcms.TimelockProposal, err error) {
 	if len(input.Defs) != len(input.Inputs) {
 		return mcms.TimelockProposal{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(input.Defs), len(input.Inputs))
 	}
@@ -45,7 +46,7 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		if err != nil {
 			return mcms.TimelockProposal{}, err
 		}
-		// Remove the signer to prevent accidental tx sends during operation execution
+		// Remove the signer to make the operations read-only, and prevent accidental tx sends during execution
 		deps.Signer = nil
 		res, err := cld_ops.ExecuteOperation(b, op, any(deps), input.Inputs[i])
 		if err != nil {
@@ -133,7 +134,7 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	return *timelockProposal, nil
 }
 
-var MCMSDynamicProposalGenerateSeq = cld_ops.NewOperation(
+var MCMSDynamicProposalGenerateSeq = cld_ops.NewSequence(
 	sui_ops.NewSuiOperationName("mcms", "proposal", "generate"),
 	semver.MustParse("0.1.0"),
 	"Generates an MCMS timelock proposal that batches multiple operations based on the provided definitions and inputs",
