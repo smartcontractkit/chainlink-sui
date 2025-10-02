@@ -322,8 +322,8 @@ public fun register_pool<T, TypeProof: drop>(
         VERSION,
     );
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let token_type = type_name::get<T>().into_string();
-    let proof_tn = type_name::get<TypeProof>();
+    let token_type = type_name::with_defining_ids<T>().into_string();
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
     register_pool_internal(
         ref,
         coin_metadata_address,
@@ -451,7 +451,7 @@ public fun set_pool<TypeProof: drop>(
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
-    let token_pool_type_proof_tn = type_name::get<TypeProof>();
+    let token_pool_type_proof_tn = type_name::with_defining_ids<TypeProof>();
     let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
     set_pool_internal(
         ref,

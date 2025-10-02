@@ -56,7 +56,7 @@ public fun initialize<T>(
         ctx,
     );
 
-    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let type_proof_type_name_address = type_proof_type_name.address_string();
     let burn_mint_token_pool_package_id = address::from_ascii_bytes(
         &type_proof_type_name_address.into_bytes(),
     );
@@ -91,7 +91,7 @@ public fun initialize_by_ccip_admin<T>(
         burn_mint_token_pool,
     ) = initialize_internal(coin_metadata, treasury_cap, ctx);
 
-    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let type_proof_type_name_address = type_proof_type_name.address_string();
     let burn_mint_token_pool_package_id = address::from_ascii_bytes(
         &type_proof_type_name_address.into_bytes(),
     );
@@ -133,8 +133,8 @@ fun initialize_internal<T>(
         treasury_cap,
         ownable_state,
     };
-    let type_proof_type_name = type_name::get<TypeProof>();
-    let token_type = type_name::get<T>();
+    let type_proof_type_name = type_name::with_defining_ids<TypeProof>();
+    let token_type = type_name::with_defining_ids<T>();
 
     transfer::public_transfer(owner_cap, ctx.sender());
 
