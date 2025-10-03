@@ -12,26 +12,15 @@ import (
 	"strings"
 	"text/template"
 
+	fi "github.com/smartcontractkit/chainlink-sui/bindgen/function"
 	"github.com/smartcontractkit/chainlink-sui/bindgen/parse"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 )
 
-type FunctionInfo struct {
-	Package    string              `json:"package"`
-	Module     string              `json:"module"`
-	Name       string              `json:"name"`
-	Parameters []FunctionParameter `json:"parameters"`
-}
-
-type FunctionParameter struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-}
-
-func ParseFunctionInfo(info ...string) ([]FunctionInfo, error) {
-	var result []FunctionInfo
+func ParseFunctionInfo(info ...string) ([]fi.FunctionInfo, error) {
+	var result []fi.FunctionInfo
 	for _, s := range info {
-		var temp []FunctionInfo
+		var temp []fi.FunctionInfo
 		if err := json.Unmarshal([]byte(s), &temp); err != nil {
 			return nil, err
 		}
@@ -41,7 +30,7 @@ func ParseFunctionInfo(info ...string) ([]FunctionInfo, error) {
 	return result, nil
 }
 
-func MustParseFunctionInfo(info ...string) []FunctionInfo {
+func MustParseFunctionInfo(info ...string) []fi.FunctionInfo {
 	result, err := ParseFunctionInfo(info...)
 	if err != nil {
 		panic(err)
@@ -219,7 +208,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 		}
 	}
 
-	var functionInfos []FunctionInfo
+	var functionInfos []fi.FunctionInfo
 
 	for _, f := range functions {
 		if f.Name == "init_module" {
@@ -236,7 +225,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 			HasTypeParams:   f.HasTypeParams,
 			TypeParams:      f.TypeParams,
 		}
-		functionInfo := FunctionInfo{
+		functionInfo := fi.FunctionInfo{
 			Package:    pkg,
 			Module:     mod,
 			Name:       f.Name,
@@ -288,7 +277,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 				Type: typ,
 				Name: name,
 			})
-			functionInfo.Parameters = append(functionInfo.Parameters, FunctionParameter{
+			functionInfo.Parameters = append(functionInfo.Parameters, fi.FunctionParameter{
 				Name: param.Name,
 				Type: typ.MoveType,
 			})
@@ -315,7 +304,7 @@ func Convert(pkg, mod string, structs []parse.Struct, functions []parse.Func) (t
 			functionInfos = append(functionInfos, functionInfo)
 		}
 	}
-	slices.SortFunc(functionInfos, func(a, b FunctionInfo) int {
+	slices.SortFunc(functionInfos, func(a, b fi.FunctionInfo) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 
