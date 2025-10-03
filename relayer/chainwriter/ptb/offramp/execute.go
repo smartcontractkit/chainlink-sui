@@ -352,6 +352,13 @@ func ProcessReceivers(
 			continue
 		}
 
+		// Check if receiver is a zero address (0x0....0 // 32 bytes of 0)
+		receiverHex := hex.EncodeToString(message.Receiver)
+		if len(receiverHex) == 64 && receiverHex == strings.Repeat("0", 64) {
+			lggr.Debugw("receiver is zero address, skipping message in offramp execution...", "message", message)
+			continue
+		}
+
 		// Parse the receiver address into a hex string
 		receiverPackageId := "0x" + hex.EncodeToString(message.Receiver)
 
