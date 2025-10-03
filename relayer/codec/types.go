@@ -93,12 +93,13 @@ type Any2SuiTokenTransfer struct {
 
 // Any2SuiRampMessage event data
 type Any2SuiRampMessage struct {
-	Header       RampMessageHeader
-	Sender       []byte
-	Data         []byte
-	Receiver     models.SuiAddress
-	GasLimit     *big.Int
-	TokenAmounts []Any2SuiTokenTransfer
+	Header        RampMessageHeader
+	Sender        []byte
+	Data          []byte
+	Receiver      models.SuiAddress
+	GasLimit      *big.Int
+	TokenReceiver models.SuiAddressBytes
+	TokenAmounts  []Any2SuiTokenTransfer
 }
 
 // ExecutionStateChanged event data
