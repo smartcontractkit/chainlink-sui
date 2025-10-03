@@ -21,6 +21,7 @@ import (
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
@@ -353,8 +354,7 @@ func ProcessReceivers(
 		}
 
 		// Check if receiver is a zero address (0x0....0 // 32 bytes of 0)
-		receiverHex := hex.EncodeToString(message.Receiver)
-		if len(receiverHex) == 64 && receiverHex == strings.Repeat("0", 64) {
+		if common.IsZeroAddress(message.Receiver) {
 			lggr.Debugw("receiver is zero address, skipping message in offramp execution...", "message", message)
 			continue
 		}
