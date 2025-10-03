@@ -157,11 +157,11 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 	for i, addresses := range input.RemotePoolAddressesToAdd {
 		remotePoolAddressesBytes[i] = make([][]byte, len(addresses))
 		for j, address := range addresses {
-			b32, err := strTo32(address)
+			b, err := strToBytes(address)
 			if err != nil {
 				return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("bad remote pool address [%d][%d]: %w", i, j, err)
 			}
-			remotePoolAddressesBytes[i][j] = b32
+			remotePoolAddressesBytes[i][j] = b
 		}
 	}
 
@@ -175,18 +175,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 		remoteTokenAddressesBytes[i] = b32
 	}
 
-	for i, group := range remotePoolAddressesBytes {
-		for j, b := range group {
-			if len(b) != 32 {
-				return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("remotePoolAddressesBytes[%d][%d] len=%d", i, j, len(b))
-			}
-		}
-	}
-	for i, b := range remoteTokenAddressesBytes {
-		if len(b) != 32 {
-			return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("remoteTokenAddressesBytes[%d] len=%d", i, len(b))
-		}
-	}
+	fmt.Println("APPLY TOKEN POOL UPDATE ON SUI INPUTSS; ", remotePoolAddressesBytes, remoteTokenAddressesBytes)
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
@@ -295,6 +284,7 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
 	}
 
+	fmt.Println("SUI REMOTE POOL VALUEEE: ", input.RemotePoolAddress, []byte(input.RemotePoolAddress))
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := contract.AddRemotePool(
@@ -326,12 +316,16 @@ var BurnMintTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
 	addRemotePoolHandler,
 )
 
-func strTo32(s string) ([]byte, error) {
-	s = strings.TrimSpace(strings.TrimPrefix(s, "0x"))
-	if len(s)%2 == 1 {
-		s = "0" + s
+func strToBytes(s string) ([]byte, error) {
+	raw, err := hex.DecodeString(strings.TrimSpace(strings.TrimPrefix(s, "0x")))
+	if err != nil {
+		return nil, err
 	}
-	raw, err := hex.DecodeString(s)
+	return raw, nil
+}
+
+func strTo32(s string) ([]byte, error) {
+	raw, err := hex.DecodeString(strings.TrimSpace(strings.TrimPrefix(s, "0x")))
 	if err != nil {
 		return nil, err
 	}
