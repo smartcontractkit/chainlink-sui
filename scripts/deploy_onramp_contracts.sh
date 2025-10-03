@@ -121,12 +121,6 @@ CCIP_SOURCE_TRANSFER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created"
 # Get SUI metadata ID - query it from the chain
 SUI_METADATA_ID="$(sui client objects --json | jq -r '.[] | select(.data.type == "0x2::coin::CoinMetadata<0x2::sui::SUI>") | .data.objectId' | head -n1)"
 
-# If not found in owned objects, use the well-known testnet address
-if [[ -z "$SUI_METADATA_ID" ]]; then
-  echo "SUI metadata not found in owned objects, using well-known address..."
-  SUI_METADATA_ID="0x9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3"
-fi
-
 echo "Using SUI_METADATA_ID: $SUI_METADATA_ID"
 
 # fee_quoter::initialize (uses LINK and SUI as fee tokens)
