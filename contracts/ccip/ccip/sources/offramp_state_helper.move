@@ -207,6 +207,23 @@ public fun extract_any2sui_message(receiver_params: &mut ReceiverParams): Any2Su
     receiver_params.message.extract()
 }
 
+public fun new_any2sui_message(
+    _: &DestTransferCap,
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    sender: vector<u8>,
+    data: vector<u8>,
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
+): Any2SuiMessage {
+    client::new_any2sui_message(
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts,
+    )
+}
+
 public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
