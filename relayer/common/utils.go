@@ -1,7 +1,6 @@
 package common
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"math/big"
@@ -85,8 +84,4 @@ func ConvertBytesToHex(value any) any {
 	default:
 		return value
 	}
-}
-
-func IsZeroAddress(address []byte) bool {
-	return len(address) == 32 && bytes.Equal(address, make([]byte, 32))
 }
