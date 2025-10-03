@@ -211,7 +211,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
     _: TypeProof,
-): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let address_str = type_name::address_string(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
