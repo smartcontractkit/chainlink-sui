@@ -76,7 +76,6 @@ func GetOfframpAddressMappings(
 	lggr.Debugw("offRampPackageId", "offrampPackageId", addressMappings.OffRampPackageId)
 
 	// Get the offramp parent object ID and derive the OffRampState object ID
-	// TODO: (#to_derive) need to derive the offramp state object ID
 	offRampObjectIdKey := "off_ramp_object_id"
 	var offRampObjectId string
 	if cached, ok := ptbClient.GetCachedValue(offRampObjectIdKey); ok {
@@ -104,7 +103,6 @@ func GetOfframpAddressMappings(
 	if cached, ok := ptbClient.GetCachedValue(ccipObjectIdKey); ok {
 		ccipObjectId = cached.(string)
 	} else {
-		// TODO: (#to_derive) need to derive object ref ID and owner cap ID
 		ccipObjectId, err = ptbClient.GetParentObjectID(ctx, ccipPkgID, "state_object", "CCIPObjectRefPointer")
 		if err != nil {
 			lggr.Errorw("Error getting ccip parent object ID", "error", err)

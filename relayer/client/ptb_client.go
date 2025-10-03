@@ -1013,11 +1013,8 @@ func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, pa
 }
 
 // GetParentObjectID gets the parent object ID from a pointer object's field.
-// With derived objects, pointers now store a reference to the parent "Object" struct
-// (e.g., OffRampObject, CCIPObject) instead of individual derived object IDs.
-// The actual child object IDs can be deterministically derived from the parent ID.
-//
-// Example: OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
+// With derived objects, pointers now store a reference to the parent "Object" struct (e.g., OffRampObject, CCIPObject).
+// e.g. OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
 func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
 	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
 	if err != nil {
@@ -1030,19 +1027,9 @@ func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, mod
 		if ownedObject.Data.Type != "" && ownedObject.Data.Type == qualifiedName {
 			parsedObject := ownedObject.Data.Content.Fields
 
-			// Map of pointer object names to their parent object ID field names
-			// All contracts now use the derived object pattern where pointers store a parent
-			// object ID, and child objects are derived from it using keys.
-			parentFieldMap := map[string]string{
-				"OffRampStatePointer":  "off_ramp_object_id",
-				"OnRampStatePointer":   "on_ramp_object_id",
-				"CCIPObjectRefPointer": "ccip_object_id",
-				"RouterStatePointer":   "router_object_id",
-				"CounterPointer":       "counter_object_id", // Test contract: parent object ID
-			}
-
-			fieldName, ok := parentFieldMap[pointerObjectName]
-			if !ok {
+			// Get the parent field name from shared configuration
+			fieldName := common.GetParentFieldName(pointerObjectName)
+			if fieldName == "" {
 				return "", fmt.Errorf("unknown pointer object type: %s", pointerObjectName)
 			}
 

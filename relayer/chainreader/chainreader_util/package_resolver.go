@@ -90,7 +90,7 @@ func (pr *PackageResolver) UnbindPackage(moduleName string) error {
 
 // ResolvePackageAddress resolves a module name to its package address
 func (pr *PackageResolver) ResolvePackageAddress(moduleName string) (string, error) {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = pr.zeName(moduleName)
 
 	pr.mutex.RLock()
 	address, exists := pr.packageAddresses[moduleName]
@@ -297,7 +297,9 @@ func isValidSuiAddress(address string) bool {
 	return strings.HasPrefix(address, "0x") && len(address) > 2
 }
 
-func (pr *PackageResolver) normalizeName(moduleName string) string {
+func NormalizeName(moduleName string) string {
+	// Remove underscores and convert to lowercase
+	moduleName = strings.ReplaceAll(moduleName, "_", "")
 	return strings.ToLower(moduleName)
 }
 

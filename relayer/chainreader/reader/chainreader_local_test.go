@@ -85,7 +85,13 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	counterObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
-	pointerTag := "_::counter::CounterPointer::counter_object_id::Counter"
+	// Define pointer tag for counter object derivation
+	pointerTag := &codec.PointerTag{
+		Module:        "counter",
+		PointerName:   "CounterPointer",
+		FieldName:     "counter_object_id",
+		DerivationKey: "Counter",
+	}
 
 	// Set up the ChainReader
 	chainReaderConfig := config.ChainReaderConfig{
@@ -164,7 +170,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							{
 								Type:       "object_id",
 								Name:       "counter_id",
-								PointerTag: &pointerTag,
+								PointerTag: pointerTag,
 								Required:   true,
 							},
 						},

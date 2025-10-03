@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -11,13 +12,41 @@ type PTBCommandDependency struct {
 	ResultIndex  *uint16
 }
 
+// PointerTag defines the structured format for pointer tags used in chain reader.
+// Pointer tags specify how to derive object IDs from pointer objects stored on-chain.
+type PointerTag struct {
+	// Module name containing the pointer object (e.g. "state_object", "offramp", "counter")
+	Module string `json:"module"`
+	// PointerName is the object type to search for (e.g. "CCIPObjectRefPointer", "OffRampStatePointer")
+	PointerName string `json:"pointerName"`
+	// FieldName is the field within the pointer object containing the parent object ID (e.g. "ccip_object_id", "off_ramp_object_id")
+	FieldName string `json:"fieldName"`
+	// DerivationKey is the key used to derive the child object ID from the parent object ID (e.g. "CCIPObjectRef", "CCIP_OWNABLE")
+	DerivationKey string `json:"derivationKey"`
+}
+
+func (p PointerTag) Validate() error {
+	if p.Module == "" {
+		return fmt.Errorf("PointerTag.Module is required")
+	}
+	if p.PointerName == "" {
+		return fmt.Errorf("PointerTag.Pointer is required")
+	}
+	if p.FieldName == "" {
+		return fmt.Errorf("PointerTag.FieldName is required")
+	}
+	if p.DerivationKey == "" {
+		return fmt.Errorf("PointerTag.DerivationKey is required")
+	}
+	return nil
+}
+
 // SuiFunctionParam defines a parameter for a Sui function call
 type SuiFunctionParam struct {
 	// Name of the parameter
 	Name string
-	// PointerTag (optional) defines which field of the pointer of contract should be queried and found
-	// to get the value of the param.
-	PointerTag *string
+	// PointerTag (optional) specify how to derive object IDs from pointer objects stored on-chain.
+	PointerTag *PointerTag
 	// Type of the parameter (e.g., "u64", "String", "vector<u8>", "ptb_dependency")
 	Type string
 	// IsMutable specifies if the object is mutable or not (optional - defaults to true)
