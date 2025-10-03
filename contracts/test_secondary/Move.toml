@@ -1,11 +1,9 @@
 [package]
-name = "TestContract"
+name = "TestContractSecondary"
 edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [addresses]
-test = "0x0"
-test_secondary = "_"
+test_secondary = "0x0"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet" }
-TestContractSecondary = { local = "../test_secondary" }

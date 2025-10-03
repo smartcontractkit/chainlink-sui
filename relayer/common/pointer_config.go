@@ -1,7 +1,5 @@
 package common
 
-import chainreaderutil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
-
 // PointerConfig defines the configuration for a pointer object type.
 // Pointer objects store parent object IDs, and child objects are derived from them.
 type PointerConfig struct {
@@ -65,5 +63,5 @@ func GetParentFieldName(pointerName string) string {
 }
 
 func GetPointerConfigsByContract(contractName string) []PointerConfig {
-	return PointerConfigs[chainreaderutil.NormalizeName(contractName)]
+	return PointerConfigs[NormalizeName(contractName)]
 }

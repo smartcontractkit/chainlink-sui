@@ -81,9 +81,16 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	require.NotNil(t, tx)
 
 	log.Debugw("Published Contract", "packageId", packageId)
-
 	counterObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
+
+	contractPath = testutils.BuildSetup(t, "contracts/test_secondary")
+	secondaryPackageId, tx, err := testutils.PublishContract(t, "test_secondary", contractPath, accountAddress, &gasBudget)
+	require.NoError(t, err)
+	require.NotNil(t, secondaryPackageId)
+	require.NotNil(t, tx)
+
+	log.Debugw("Published Secondary Contract", "packageId", secondaryPackageId)
 
 	// Define pointer tag for counter object derivation
 	pointerTag := &codec.PointerTag{
@@ -91,6 +98,13 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		PointerName:   "CounterPointer",
 		FieldName:     "counter_object_id",
 		DerivationKey: "Counter",
+	}
+
+	pointerTagSecondary := &codec.PointerTag{
+		Module:        "state_object",
+		PointerName:   "CCIPObjectRefPointer",
+		FieldName:     "ccip_object_id",
+		DerivationKey: "CCIPObjectRef",
 	}
 
 	// Set up the ChainReader
@@ -171,6 +185,24 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 								Type:       "object_id",
 								Name:       "counter_id",
 								PointerTag: pointerTag,
+								Required:   true,
+							},
+						},
+					},
+					"get_value_with_pointer_dependency": {
+						Name:          "get_value_with_pointer_dependency",
+						SignerAddress: accountAddress,
+						Params: []codec.SuiFunctionParam{
+							{
+								Type:       "object_id",
+								Name:       "counter_id",
+								PointerTag: pointerTag,
+								Required:   true,
+							},
+							{
+								Type:       "object_id",
+								Name:       "pointer",
+								PointerTag: pointerTagSecondary,
 								Required:   true,
 							},
 						},
@@ -667,6 +699,24 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 			strings.Join([]string{packageId, "Counter", "get_count_using_pointer"}, "-"),
 			primitives.Finalized,
 			map[string]any{}, // No parameters needed, the counter_id object should be populated from the pointer tag
+			&retUint64,
+		)
+		require.NoError(t, err)
+
+		// Verify the returned struct
+		require.NotNil(t, retUint64)
+		require.Equal(t, expectedUint64, retUint64, "Expected value to be 0")
+	})
+
+	t.Run("GetLatestValue_WithSecondaryPointerTag", func(t *testing.T) {
+		expectedUint64 := uint64(5)
+		var retUint64 uint64
+
+		err = chainReader.GetLatestValue(
+			context.Background(),
+			strings.Join([]string{packageId, "Counter", "get_value_with_pointer_dependency"}, "-"),
+			primitives.Finalized,
+			map[string]any{}, // No parameters needed, pointer tags will take care of it
 			&retUint64,
 		)
 		require.NoError(t, err)

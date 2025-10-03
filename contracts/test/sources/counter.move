@@ -11,6 +11,7 @@ module test::counter {
     use std::ascii;
     use std::type_name;
     use std::string;
+    use test_secondary::state_object::CCIPObjectRef;
 
     const EInvalidCounterValue: u64 = 1;
     const EInvalidBytesLength: u64 = 2;
@@ -27,6 +28,10 @@ module test::counter {
         event_type: std::string::String,
         counter_id: ID,
         new_value: u64
+    }
+
+    public struct DoubleCheckCCIPPointer has copy, drop {
+        addresses: vector<address>
     }
 
     public struct AdminCap has key, store {
@@ -152,6 +157,15 @@ module test::counter {
             counter_id: object::id(counter),
             new_value: counter.value
         });
+    }
+
+    /// Increment counter with pointer dependency
+    public fun get_value_with_pointer_dependency(counter: &mut Counter, pointer: &CCIPObjectRef): u64 {
+        event::emit(DoubleCheckCCIPPointer {
+            addresses: test_secondary::state_object::get_package_ids(pointer),
+        });
+
+        5
     }
 
     /// Decrement counter by 1
