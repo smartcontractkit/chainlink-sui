@@ -50,23 +50,16 @@ public fun initialize<T>(
     token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
-    let (_, type_proof_type_name, _, burn_mint_token_pool) = initialize_internal(
+    let (_, _, _, burn_mint_token_pool) = initialize_internal(
         coin_metadata,
         treasury_cap,
         ctx,
-    );
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let burn_mint_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
     );
 
     token_admin_registry::register_pool(
         ref,
         &burn_mint_token_pool.treasury_cap,
         coin_metadata,
-        burn_mint_token_pool_package_id,
-        string::utf8(b"burn_mint_token_pool"),
         token_pool_administrator,
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],

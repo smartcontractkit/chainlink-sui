@@ -51,23 +51,16 @@ public fun initialize<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (_, lock_release_token_pool_state_address, _, type_proof_type_name) = initialize_internal(
+    let (_, lock_release_token_pool_state_address, _, _) = initialize_internal(
         coin_metadata,
         rebalancer,
         ctx,
-    );
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let lock_release_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
     );
 
     token_admin_registry::register_pool(
         ref,
         treasury_cap,
         coin_metadata,
-        lock_release_token_pool_package_id,
-        string::utf8(b"lock_release_token_pool"),
         token_pool_administrator,
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],

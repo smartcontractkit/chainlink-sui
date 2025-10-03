@@ -64,15 +64,10 @@ public fun initialize_with_managed_token<T>(
     let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
 
     // Initialize the token pool
-    let (_, managed_token_pool_state_address, _, type_proof_type_name) = initialize_internal(
+    let (_, managed_token_pool_state_address, _, _) = initialize_internal(
         coin_metadata,
         mint_cap,
         ctx,
-    );
-
-    let type_proof_type_name_address = type_proof_type_name.address_string();
-    let managed_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
     );
 
     // Register the pool with the token admin registry
@@ -80,8 +75,6 @@ public fun initialize_with_managed_token<T>(
         ref,
         treasury_cap_ref,
         coin_metadata,
-        managed_token_pool_package_id,
-        string::utf8(b"managed_token_pool"),
         token_pool_administrator,
         vector[
             CLOCK_ADDRESS,
