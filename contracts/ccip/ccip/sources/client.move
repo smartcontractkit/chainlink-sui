@@ -92,7 +92,7 @@ public struct Any2SuiTokenAmount has copy, drop, store {
     amount: u64,
 }
 
-public fun new_any2sui_message(
+public(package) fun new_any2sui_message(
     message_id: vector<u8>,
     source_chain_selector: u64,
     sender: vector<u8>,
