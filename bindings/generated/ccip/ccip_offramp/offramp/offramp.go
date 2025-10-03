@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_offramp","module":"offramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_offramp","module":"offramp","name":"add_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"apply_source_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"source_chains_selector","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"vector<u8>"},{"name":"receiver","type":"address"},{"name":"on_ramp","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"gas_limit","type":"u256"},{"name":"source_pool_addresses","type":"vector<vector<u8>>"},{"name":"dest_token_addresses","type":"vector<address>"},{"name":"dest_gas_amounts","type":"vector<u32>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u256>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"commit","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"config_signers","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"config_transmitters","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"finish_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"receiver_params","type":"osh::ReceiverParams"}]},{"package":"ccip_offramp","module":"offramp","name":"get_all_source_chain_configs","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ccip_package_id","parameters":null},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"DynamicConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_execution_state","parameters":[{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_merkle_root","parameters":[{"name":"state","type":"OffRampState"},{"name":"root","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ocr3_base","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_config","type":"SourceChainConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"StaticConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"},{"name":"token_receiver","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"initialize","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_quoter_cap","type":"FeeQuoterCap"},{"name":"dest_transfer_cap","type":"osh::DestTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"permissionless_execution_threshold_seconds","type":"u32"},{"name":"source_chains_selectors","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"manually_init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_bytes","type":"vector<u8>"},{"name":"token_receiver","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"owner","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"remove_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"permissionless_execution_threshold_seconds","type":"u32"}]},{"package":"ccip_offramp","module":"offramp","name":"set_ocr3_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"config_digest","type":"vector<u8>"},{"name":"ocr_plugin_type","type":"u8"},{"name":"big_f","type":"u8"},{"name":"is_signature_verification_enabled","type":"bool"},{"name":"signers","type":"vector<vector<u8>>"},{"name":"transmitters","type":"vector<address>"}]},{"package":"ccip_offramp","module":"offramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_offramp","module":"offramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_offramp","module":"offramp","name":"add_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"apply_source_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"source_chains_selector","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"vector<u8>"},{"name":"receiver","type":"address"},{"name":"on_ramp","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"gas_limit","type":"u256"},{"name":"source_pool_addresses","type":"vector<vector<u8>>"},{"name":"dest_token_addresses","type":"vector<address>"},{"name":"dest_gas_amounts","type":"vector<u32>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u256>"}]},{"package":"ccip_offramp","module":"offramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"commit","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"config_signers","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"config_transmitters","parameters":[{"name":"state","type":"OCRConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OffRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"finish_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"receiver_params","type":"osh::ReceiverParams"}]},{"package":"ccip_offramp","module":"offramp","name":"get_all_source_chain_configs","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ccip_package_id","parameters":null},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_dynamic_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"DynamicConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_execution_state","parameters":[{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_merkle_root","parameters":[{"name":"state","type":"OffRampState"},{"name":"root","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"get_ocr3_base","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"source_chain_selector","type":"u64"}]},{"package":"ccip_offramp","module":"offramp","name":"get_source_chain_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_config","type":"SourceChainConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"cfg","type":"StaticConfig"}]},{"package":"ccip_offramp","module":"offramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_context","type":"vector<vector<u8>>"},{"name":"report","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"initialize","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_quoter_cap","type":"FeeQuoterCap"},{"name":"dest_transfer_cap","type":"osh::DestTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"permissionless_execution_threshold_seconds","type":"u32"},{"name":"source_chains_selectors","type":"vector<u64>"},{"name":"source_chains_is_enabled","type":"vector<bool>"},{"name":"source_chains_is_rmn_verification_disabled","type":"vector<bool>"},{"name":"source_chains_on_ramp","type":"vector<vector<u8>>"}]},{"package":"ccip_offramp","module":"offramp","name":"manually_init_execute","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"clock","type":"clock::Clock"},{"name":"report_bytes","type":"vector<u8>"}]},{"package":"ccip_offramp","module":"offramp","name":"owner","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OffRampState"}]},{"package":"ccip_offramp","module":"offramp","name":"remove_package_id","parameters":[{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"permissionless_execution_threshold_seconds","type":"u32"}]},{"package":"ccip_offramp","module":"offramp","name":"set_ocr3_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"config_digest","type":"vector<u8>"},{"name":"ocr_plugin_type","type":"u8"},{"name":"big_f","type":"u8"},{"name":"is_signature_verification_enabled","type":"bool"},{"name":"signers","type":"vector<vector<u8>>"},{"name":"transmitters","type":"vector<address>"}]},{"package":"ccip_offramp","module":"offramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OffRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_offramp","module":"offramp","name":"type_and_version","parameters":null}]`
 
 type IOfframp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -27,9 +27,9 @@ type IOfframp interface {
 	AddPackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	RemovePackageId(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, packageId string) (*models.SuiTransactionBlockResponse, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
-	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
+	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error)
 	FinishExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, receiverParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error)
+	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) (*models.SuiTransactionBlockResponse, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) (*models.SuiTransactionBlockResponse, error)
@@ -75,8 +75,8 @@ type IOfframp interface {
 type IOfframpDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetOcr3Base(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bind.Object, error)
-	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error)
-	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error)
+	InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error)
+	ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error)
 	GetExecutionState(ctx context.Context, opts *bind.CallOpts, state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (byte, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRamp []byte) ([]byte, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender []byte, receiver string, onRamp []byte, data []byte, gasLimit *big.Int, sourcePoolAddresses [][]byte, destTokenAddresses []string, destGasAmounts []uint32, extraDatas [][]byte, amounts []*big.Int) ([]byte, error)
@@ -109,11 +109,11 @@ type OfframpEncoder interface {
 	RemovePackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetOcr3Base(state bind.Object) (*bind.EncodedCall, error)
 	GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, error)
-	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error)
+	InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error)
 	InitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	FinishExecute(ref bind.Object, state bind.Object, receiverParams bind.Object) (*bind.EncodedCall, error)
 	FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
-	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*bind.EncodedCall, error)
+	ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error)
 	ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetExecutionState(state bind.Object, sourceChainSelector uint64, sequenceNumber uint64) (*bind.EncodedCall, error)
 	GetExecutionStateWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -1226,8 +1226,8 @@ func (c *OfframpContract) GetOcr3Base(ctx context.Context, opts *bind.CallOpts, 
 }
 
 // InitExecute executes the init_execute Move function.
-func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.InitExecute(ref, state, clock, reportContext, report, tokenReceiver)
+func (c *OfframpContract) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.InitExecute(ref, state, clock, reportContext, report)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1246,8 +1246,8 @@ func (c *OfframpContract) FinishExecute(ctx context.Context, opts *bind.CallOpts
 }
 
 // ManuallyInitExecute executes the manually_init_execute Move function.
-func (c *OfframpContract) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes, tokenReceiver)
+func (c *OfframpContract) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1672,8 +1672,8 @@ func (d *OfframpDevInspect) GetOcr3Base(ctx context.Context, opts *bind.CallOpts
 // InitExecute executes the init_execute Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (bind.Object, error) {
-	encoded, err := d.contract.offrampEncoder.InitExecute(ref, state, clock, reportContext, report, tokenReceiver)
+func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.InitExecute(ref, state, clock, reportContext, report)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1694,8 +1694,8 @@ func (d *OfframpDevInspect) InitExecute(ctx context.Context, opts *bind.CallOpts
 // ManuallyInitExecute executes the manually_init_execute Move function using DevInspect to get return values.
 //
 // Returns: osh::ReceiverParams
-func (d *OfframpDevInspect) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (bind.Object, error) {
-	encoded, err := d.contract.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes, tokenReceiver)
+func (d *OfframpDevInspect) ManuallyInitExecute(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (bind.Object, error) {
+	encoded, err := d.contract.offrampEncoder.ManuallyInitExecute(ref, state, clock, reportBytes)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2280,7 +2280,7 @@ func (c offrampEncoder) GetOcr3BaseWithArgs(args ...any) (*bind.EncodedCall, err
 }
 
 // InitExecute encodes a call to the init_execute Move function.
-func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte, tokenReceiver string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportContext [][]byte, report []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("init_execute", typeArgsList, typeParamsList, []string{
@@ -2289,14 +2289,12 @@ func (c offrampEncoder) InitExecute(ref bind.Object, state bind.Object, clock bi
 		"&clock::Clock",
 		"vector<vector<u8>>",
 		"vector<u8>",
-		"address",
 	}, []any{
 		ref,
 		state,
 		clock,
 		reportContext,
 		report,
-		tokenReceiver,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -2311,7 +2309,6 @@ func (c offrampEncoder) InitExecuteWithArgs(args ...any) (*bind.EncodedCall, err
 		"&clock::Clock",
 		"vector<vector<u8>>",
 		"vector<u8>",
-		"address",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2357,7 +2354,7 @@ func (c offrampEncoder) FinishExecuteWithArgs(args ...any) (*bind.EncodedCall, e
 }
 
 // ManuallyInitExecute encodes a call to the manually_init_execute Move function.
-func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte, tokenReceiver string) (*bind.EncodedCall, error) {
+func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, clock bind.Object, reportBytes []byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("manually_init_execute", typeArgsList, typeParamsList, []string{
@@ -2365,13 +2362,11 @@ func (c offrampEncoder) ManuallyInitExecute(ref bind.Object, state bind.Object, 
 		"&mut OffRampState",
 		"&clock::Clock",
 		"vector<u8>",
-		"address",
 	}, []any{
 		ref,
 		state,
 		clock,
 		reportBytes,
-		tokenReceiver,
 	}, []string{
 		"osh::ReceiverParams",
 	})
@@ -2385,7 +2380,6 @@ func (c offrampEncoder) ManuallyInitExecuteWithArgs(args ...any) (*bind.EncodedC
 		"&mut OffRampState",
 		"&clock::Clock",
 		"vector<u8>",
-		"address",
 	}
 
 	if len(args) != len(expectedParams) {
