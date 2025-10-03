@@ -87,16 +87,12 @@ fun register_test_pool<T>(
     ref: &mut CCIPObjectRef,
     treasury_cap: &coin::TreasuryCap<T>,
     coin_metadata: &coin::CoinMetadata<T>,
-    // pool_package_id: address,
-    // pool_module: vector<u8>,
     admin: address,
 ) {
     registry::register_pool(
         ref,
         treasury_cap,
         coin_metadata,
-        // pool_package_id,
-        // string::utf8(pool_module),
         admin,
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
@@ -198,8 +194,6 @@ public fun test_get_pool() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -272,8 +266,6 @@ public fun test_register_and_unregister() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS_2,
         );
 
@@ -321,8 +313,6 @@ public fun test_register_and_set_pool() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -564,8 +554,6 @@ public fun test_set_pool_comprehensive() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"initial_token_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -699,8 +687,6 @@ public fun test_register_and_unregister_as_non_admin() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS_2,
         );
 
@@ -796,8 +782,6 @@ public fun test_set_pool_unauthorized() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"test_pool",
             TOKEN_ADMIN_ADDRESS_2,
         );
 
@@ -871,8 +855,6 @@ public fun test_register_pool_already_registered() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"first_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -881,8 +863,6 @@ public fun test_register_pool_already_registered() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_2,
-            // b"second_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -913,8 +893,6 @@ public fun test_transfer_admin_role_not_administrator() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"test_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -956,8 +934,6 @@ public fun test_accept_admin_role_not_pending() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"test_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -1003,8 +979,6 @@ public fun test_accept_admin_role_no_pending_transfer() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"test_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -1061,8 +1035,6 @@ public fun test_mcms_transfer_admin_role() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -1119,8 +1091,6 @@ public fun test_mcms_accept_admin_role() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -1193,8 +1163,6 @@ public fun test_mcms_full_admin_transfer_flow() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -1275,8 +1243,6 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"mock_token_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -1397,8 +1363,6 @@ public fun test_register_pool_function_not_allowed() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"test_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
@@ -1429,8 +1393,6 @@ public fun test_set_pool_function_not_allowed() {
             &mut ref,
             &treasury_cap,
             &coin_metadata,
-            // MOCK_TOKEN_POOL_PACKAGE_ID_1,
-            // b"initial_pool",
             TOKEN_ADMIN_ADDRESS,
         );
 
