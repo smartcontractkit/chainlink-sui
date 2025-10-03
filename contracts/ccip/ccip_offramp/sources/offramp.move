@@ -421,7 +421,6 @@ public fun init_execute(
     clock: &clock::Clock,
     report_context: vector<vector<u8>>,
     report: vector<u8>,
-    token_receiver: address,
     ctx: &mut TxContext,
 ): osh::ReceiverParams {
     verify_function_allowed(
@@ -442,7 +441,7 @@ public fun init_execute(
         ctx,
     );
 
-    pre_execute_single_report(ref, state, clock, reports, false, token_receiver)
+    pre_execute_single_report(ref, state, clock, reports, false)
 }
 
 public fun finish_execute(
@@ -466,7 +465,6 @@ public fun manually_init_execute(
     state: &mut OffRampState,
     clock: &clock::Clock,
     report_bytes: vector<u8>,
-    token_receiver: address,
 ): osh::ReceiverParams {
     verify_function_allowed(
         ref,
@@ -476,7 +474,7 @@ public fun manually_init_execute(
     );
     let reports = deserialize_execution_report(report_bytes);
 
-    pre_execute_single_report(ref, state, clock, reports, true, token_receiver)
+    pre_execute_single_report(ref, state, clock, reports, true)
 }
 
 public fun get_execution_state(
@@ -560,7 +558,6 @@ fun pre_execute_single_report(
     clock: &clock::Clock,
     execution_report: ExecutionReport,
     manual_execution: bool,
-    token_receiver: address,
 ): osh::ReceiverParams {
     let source_chain_selector = execution_report.source_chain_selector;
 
@@ -628,8 +625,8 @@ fun pre_execute_single_report(
         ETokenDataMismatch,
     );
     assert!(
-        (token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
-            (token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
+        (message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
+            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
         EInvalidTokenReceiver,
     );
     assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
@@ -655,7 +652,7 @@ fun pre_execute_single_report(
         osh::add_dest_token_transfer(
             state.dest_transfer_cap.borrow(),
             &mut receiver_params,
-            token_receiver, // if there is a token receiver, users must specify token receiver in extra_args
+            message.token_receiver, // if there is a token receiver, users must specify token receiver in extra_args
             source_chain_selector,
             amount,
             message.token_amounts[0].dest_token_address,
