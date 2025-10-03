@@ -68,7 +68,10 @@ export async function buildCcipSendPTB(client: SuiClient, a: BuildArgs) {
       break
     case 'lock_release':
     default:
-      console.debug('Calling lock_release_token_pool')
+      console.debug('Calling lock_release_token_pool', {
+        destChainSelector: a.destChainSelector
+      })
+
       tx.moveCall({
         package: a.poolPkg,
         module: 'lock_release_token_pool',
