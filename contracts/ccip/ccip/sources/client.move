@@ -84,6 +84,7 @@ public struct Any2SuiMessage {
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 }
 
@@ -97,6 +98,7 @@ public fun new_any2sui_message(
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
     Any2SuiMessage {
@@ -104,22 +106,24 @@ public fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     }
 }
 
 public(package) fun consume_any2sui_message(
     message: Any2SuiMessage,
-): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
     let Any2SuiMessage {
         message_id,
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     } = message;
 
-    (message_id, source_chain_selector, sender, data, dest_token_amounts)
+    (message_id, source_chain_selector, sender, data, token_receiver, dest_token_amounts)
 }
 
 public fun new_dest_token_amounts(
