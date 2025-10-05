@@ -23,6 +23,10 @@ type PointerTag struct {
 	FieldName string `json:"fieldName"`
 	// DerivationKey is the key used to derive the child object ID from the parent object ID (e.g. "CCIPObjectRef", "CCIP_OWNABLE")
 	DerivationKey string `json:"derivationKey"`
+	// PackageID is the package ID for the Pointer object if it differs from the calling contract's package ID
+	// This is used for cross-package pointer dependencies (e.g. offramp package depending on CCIP package CCIPObjectRef)
+	// If empty, the calling contract's package ID is used
+	PackageID string `json:"packageId,omitempty"`
 }
 
 func (p PointerTag) Validate() error {

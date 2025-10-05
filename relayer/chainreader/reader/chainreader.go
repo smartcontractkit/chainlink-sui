@@ -682,10 +682,16 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 				readName:     pointerTag.PointerName,
 			}
 
-			// special case for pointers from the CCIP package object pointer
-			// this is needed to override the specified address (will be offramp package ID) with the CCIP package ID
-			// Only handle offRamp case because other modules are withing ccip package
-			if identifier.contractName == strings.ToLower(offrampName) && appendTag == ccipPointerKey {
+			// If the pointer tag specifies a PackageID, use it (for cross-package dependencies)
+			// This is needed when the pointer object is owned by a different package than the calling contract.
+			// e.g. When offramp calls a function that needs CCIPObjectRef from CCIP package,
+			// We must search for the pointer in CCIP's owned objects, not offramp's owned objects.
+			if pointerTag.PackageID != "" {
+				readIdentifierForPointer.address = pointerTag.PackageID
+			} else if identifier.contractName == strings.ToLower(offrampName) && appendTag == ccipPointerKey {
+				// Special case for OffRamp->CCIP pointer (legacy behavior)
+				// This is needed to override the specified address (will be offramp package ID) with the CCIP package ID
+				// Only handle offRamp case because other modules are within ccip package
 				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)

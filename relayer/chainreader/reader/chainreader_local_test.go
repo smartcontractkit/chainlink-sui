@@ -73,8 +73,19 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	faucetFundErr := testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
 	require.NoError(t, faucetFundErr)
 
-	contractPath := testutils.BuildSetup(t, "contracts/test")
+	// Publish test_secondary first (before counter, since counter depends on it)
 	gasBudget := int(2000000000)
+	contractPath := testutils.BuildSetup(t, "contracts/test_secondary")
+	secondaryPackageId, tx, err := testutils.PublishContract(t, "test_secondary", contractPath, accountAddress, &gasBudget)
+	require.NoError(t, err)
+	require.NotNil(t, secondaryPackageId)
+	require.NotNil(t, tx)
+
+	log.Debugw("Published Secondary Contract", "packageId", secondaryPackageId)
+
+	// Now publish counter with test_secondary package ID patched in Move.toml
+	contractPath = testutils.BuildSetup(t, "contracts/test")
+	testutils.PatchContractAddressTOML(t, contractPath, "test_secondary", secondaryPackageId)
 	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
 	require.NoError(t, err)
 	require.NotNil(t, packageId)
@@ -83,14 +94,6 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 	log.Debugw("Published Contract", "packageId", packageId)
 	counterObjectId, err := testutils.QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
-
-	contractPath = testutils.BuildSetup(t, "contracts/test_secondary")
-	secondaryPackageId, tx, err := testutils.PublishContract(t, "test_secondary", contractPath, accountAddress, &gasBudget)
-	require.NoError(t, err)
-	require.NotNil(t, secondaryPackageId)
-	require.NotNil(t, tx)
-
-	log.Debugw("Published Secondary Contract", "packageId", secondaryPackageId)
 
 	// Define pointer tag for counter object derivation
 	pointerTag := &codec.PointerTag{
@@ -105,6 +108,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		PointerName:   "CCIPObjectRefPointer",
 		FieldName:     "ccip_object_id",
 		DerivationKey: "CCIPObjectRef",
+		PackageID:     secondaryPackageId,
 	}
 
 	// Set up the ChainReader
@@ -201,7 +205,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							},
 							{
 								Type:       "object_id",
-								Name:       "pointer",
+								Name:       "ccip_object_ref_id",
 								PointerTag: pointerTagSecondary,
 								Required:   true,
 							},
