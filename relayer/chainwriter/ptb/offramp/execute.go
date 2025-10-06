@@ -4,6 +4,7 @@
 package offramp
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
@@ -341,7 +343,13 @@ func ProcessReceivers(
 	for _, message := range messages {
 		// If there is no receiver, skip this message
 		if len(message.Receiver) == 0 || message.Receiver == nil {
-			lggr.Debugw("no receiver specified, skipping message in offramp execution...", "message", message)
+			lggr.Errorw("unexpected nil or zero length receiver, skipping message in offramp execution...", "message", message)
+			continue
+		}
+
+		// Check if receiver is a zero address (0x0....0 // 32 bytes of 0)
+		if bytes.Equal(message.Receiver, codec.AccountZero) {
+			lggr.Debugw("receiver is zero address, skipping message in offramp execution...", "message", message)
 			continue
 		}
 

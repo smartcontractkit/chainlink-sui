@@ -671,7 +671,8 @@ fun pre_execute_single_report(
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
         let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
-        let any2sui_message = client::new_any2sui_message(
+        let any2sui_message = osh::new_any2sui_message(
+            state.dest_transfer_cap.borrow(),
             message.header.message_id,
             message.header.source_chain_selector,
             message.sender,

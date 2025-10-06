@@ -6,6 +6,8 @@ import (
 	"github.com/block-vision/sui-go-sdk/models"
 )
 
+var AccountZero = make([]byte, 32)
+
 type PTBCommandDependency struct {
 	CommandIndex uint16
 	ResultIndex  *uint16
