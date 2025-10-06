@@ -72,6 +72,7 @@ type SuiPTBClient interface {
 	HashTxBytes(txBytes []byte) []byte
 	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
 	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
+	GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error)
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -1009,4 +1010,37 @@ func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, pa
 	}
 
 	return foundValues, nil
+}
+
+// GetParentObjectID gets the parent object ID from a pointer object's field.
+// With derived objects, pointers now store a reference to the parent "Object" struct (e.g., OffRampObject, CCIPObject).
+// e.g. OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
+func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
+	if err != nil {
+		c.log.Errorw("Error reading owned objects", "error", err)
+		return "", err
+	}
+
+	qualifiedName := fmt.Sprintf("%s::%s::%s", packageID, moduleID, pointerObjectName)
+	for _, ownedObject := range ownedObjects {
+		if ownedObject.Data.Type != "" && ownedObject.Data.Type == qualifiedName {
+			parsedObject := ownedObject.Data.Content.Fields
+
+			// Get the parent field name from shared configuration
+			fieldName := common.GetParentFieldName(pointerObjectName)
+			if fieldName == "" {
+				return "", fmt.Errorf("unknown pointer object type: %s", pointerObjectName)
+			}
+
+			parentObjectID, ok := parsedObject[fieldName].(string)
+			if !ok {
+				return "", fmt.Errorf("field %s not found in pointer object %s", fieldName, qualifiedName)
+			}
+
+			return parentObjectID, nil
+		}
+	}
+
+	return "", fmt.Errorf("pointer object %s not found in package %s", qualifiedName, packageID)
 }

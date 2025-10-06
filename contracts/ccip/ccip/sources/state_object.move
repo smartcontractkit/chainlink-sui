@@ -7,6 +7,7 @@ use std::ascii;
 use std::string;
 use std::type_name;
 use sui::address;
+use sui::derived_object;
 use sui::dynamic_object_field as dof;
 
 const EModuleAlreadyExists: u64 = 1;
@@ -14,6 +15,10 @@ const EModuleDoesNotExist: u64 = 2;
 const EInvalidFunction: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EPackageIdNotFound: u64 = 5;
+
+public struct CCIPObject has key {
+    id: UID,
+}
 
 public struct CCIPObjectRef has key, store {
     id: UID,
@@ -23,27 +28,24 @@ public struct CCIPObjectRef has key, store {
 
 public struct CCIPObjectRefPointer has key, store {
     id: UID,
-    object_ref_id: address,
-    owner_cap_id: address,
+    ccip_object_id: address,
 }
 
 public struct STATE_OBJECT has drop {}
 
 fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let mut ccip_object = CCIPObject { id: object::new(ctx) };
+    let (ownable_state, owner_cap) = ownable::new(&mut ccip_object.id, ctx);
 
     let mut ref = CCIPObjectRef {
-        id: object::new(ctx),
+        id: derived_object::claim(&mut ccip_object.id, b"CCIPObjectRef"),
         package_ids: vector[],
         ownable_state,
     };
 
-    let owner_cap_id = object::id(&owner_cap);
-
     let pointer = CCIPObjectRefPointer {
         id: object::new(ctx),
-        object_ref_id: object::uid_to_address(&ref.id),
-        owner_cap_id: object::id_to_address(&owner_cap_id),
+        ccip_object_id: object::id_address(&ccip_object),
     };
 
     let tn = type_name::get_with_original_ids<STATE_OBJECT>();
@@ -52,6 +54,8 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
     ref.package_ids.push_back(package_id);
 
     transfer::share_object(ref);
+    transfer::share_object(ccip_object);
+
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
 }

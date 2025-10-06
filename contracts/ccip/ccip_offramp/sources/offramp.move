@@ -24,6 +24,7 @@ use std::type_name;
 use std::u256;
 use sui::address;
 use sui::clock;
+use sui::derived_object;
 use sui::event;
 use sui::hash;
 use sui::package::UpgradeCap;
@@ -52,10 +53,13 @@ public struct OffRampState has key, store {
     ownable_state: OwnableState,
 }
 
+public struct OffRampObject has key {
+    id: UID,
+}
+
 public struct OffRampStatePointer has key, store {
     id: UID,
-    off_ramp_state_id: address,
-    owner_cap_id: address,
+    off_ramp_object_id: address,
 }
 
 public struct SourceChainConfig has copy, drop, store {
@@ -237,10 +241,11 @@ public fun type_and_version(): String {
 public struct OFFRAMP has drop {}
 
 fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let mut off_ramp_object = OffRampObject { id: object::new(ctx) };
+    let (ownable_state, owner_cap) = ownable::new(&mut off_ramp_object.id, ctx);
 
     let state = OffRampState {
-        id: object::new(ctx),
+        id: derived_object::claim(&mut off_ramp_object.id, b"OffRampState"),
         package_ids: vector[],
         ocr3_base_state: ocr3_base::new(ctx),
         chain_selector: 0,
@@ -256,8 +261,7 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
     let pointer = OffRampStatePointer {
         id: object::new(ctx),
-        off_ramp_state_id: object::uid_to_address(&state.id),
-        owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
+        off_ramp_object_id: object::id_address(&off_ramp_object),
     };
 
     let tn = type_name::get_with_original_ids<OFFRAMP>();
@@ -265,6 +269,8 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
+    transfer::share_object(off_ramp_object);
+
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
 }

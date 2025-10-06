@@ -667,14 +667,23 @@ public fun test_apply_source_chain_config_zero_onramp() {
     ts::return_to_address(OWNER, owner_cap);
 }
 
+#[test_only]
+public struct TestObj has key {
+    id: UID,
+}
+
 #[test]
 #[expected_failure(abort_code = offramp::EInvalidOwnerCap)]
 public fun test_remove_package_id_invalid_owner_cap() {
     let (mut env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
     initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
 
+    let mut test_obj = TestObj { id: object::new(env.scenario.ctx()) };
     // Create a new owner cap using ownable::new - this will have a different ID
-    let (wrong_ownable_state, wrong_owner_cap) = ccip_offramp::ownable::new(env.scenario.ctx());
+    let (wrong_ownable_state, wrong_owner_cap) = ccip_offramp::ownable::new(
+        &mut test_obj.id,
+        env.scenario.ctx(),
+    );
 
     // First add a package ID with the correct owner cap
     let test_package_id = @0x999;
@@ -688,4 +697,5 @@ public fun test_remove_package_id_invalid_owner_cap() {
 
     tear_down(env);
     ts::return_to_address(OWNER, owner_cap);
+    ts::return_shared(test_obj);
 }

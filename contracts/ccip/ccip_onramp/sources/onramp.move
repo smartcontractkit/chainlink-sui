@@ -41,10 +41,13 @@ public struct OnRampState has key, store {
     ownable_state: OwnableState,
 }
 
+public struct OnRampObject has key {
+    id: UID,
+}
+
 public struct OnRampStatePointer has key, store {
     id: UID,
-    on_ramp_state_id: address,
-    owner_cap_id: address,
+    on_ramp_object_id: address,
 }
 
 public struct DestChainConfig has drop, store {
@@ -157,7 +160,8 @@ public fun type_and_version(): String {
 public struct ONRAMP has drop {}
 
 fun init(_witness: ONRAMP, ctx: &mut TxContext) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let mut on_ramp_object = OnRampObject { id: object::new(ctx) };
+    let (ownable_state, owner_cap) = ownable::new(&mut on_ramp_object.id, ctx);
 
     let state = OnRampState {
         id: object::new(ctx),
@@ -174,8 +178,7 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
 
     let pointer = OnRampStatePointer {
         id: object::new(ctx),
-        on_ramp_state_id: object::uid_to_address(&state.id),
-        owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
+        on_ramp_object_id: object::id_address(&on_ramp_object),
     };
 
     let tn = type_name::get_with_original_ids<ONRAMP>();
@@ -183,6 +186,8 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
+    transfer::share_object(on_ramp_object);
+
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
 }

@@ -189,11 +189,11 @@ public fun test_accept_and_execute_ownership() {
 #[test]
 #[expected_failure(abort_code = state_object::EInvalidOwnerCap)]
 public fun test_add_package_id_with_invalid_owner_cap() {
-    let (mut scenario, owner_cap, mut ref, obj) = set_up_test();
+    let (mut scenario, owner_cap, mut ref, mut obj) = set_up_test();
     let ctx = scenario.ctx();
 
     // Create a different owner cap using ownable::new
-    let (ownable_state, fake_owner_cap) = ownable::new(ctx);
+    let (ownable_state, fake_owner_cap) = ownable::new(&mut obj.id, ctx);
 
     // Try to add a package ID using the fake owner cap - this should fail at line 60
     // The test should abort here with EInvalidOwnerCap

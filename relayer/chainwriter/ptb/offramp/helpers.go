@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
 
@@ -74,42 +75,57 @@ func GetOfframpAddressMappings(
 	lggr.Debugw("ccipPackageId", "ccipPackageId", addressMappings.CcipPackageId)
 	lggr.Debugw("offRampPackageId", "offrampPackageId", addressMappings.OffRampPackageId)
 
-	// get the offramp state object and check if it's cached
-	// TODO: (#to_derive) need to derive the offramp state object ID
-	offrampPointerFieldKey := "off_ramp_state_id"
-	if offrampPointerFields, ok := ptbClient.GetCachedValue(offrampPointerFieldKey); ok {
-		addressMappings.OffRampState = offrampPointerFields.(string)
+	// Get the offramp parent object ID and derive the OffRampState object ID
+	offRampObjectIdKey := "off_ramp_object_id"
+	var offRampObjectId string
+	if cached, ok := ptbClient.GetCachedValue(offRampObjectIdKey); ok {
+		offRampObjectId = cached.(string)
 	} else {
-		offrampPointerFields, err := ptbClient.GetValuesFromPackageOwnedObjectField(ctx, addressMappings.OffRampPackageId, "offramp", "OffRampStatePointer", []string{offrampPointerFieldKey})
+		offRampObjectId, err = ptbClient.GetParentObjectID(ctx, addressMappings.OffRampPackageId, "offramp", "OffRampStatePointer")
 		if err != nil {
-			lggr.Errorw("Error getting offramp state object", "error", err)
+			lggr.Errorw("Error getting offramp parent object ID", "error", err)
 			return OffRampAddressMappings{}, err
 		}
-
-		addressMappings.OffRampState = offrampPointerFields[offrampPointerFieldKey]
-		ptbClient.SetCachedValue(offrampPointerFieldKey, addressMappings.OffRampState)
+		ptbClient.SetCachedValue(offRampObjectIdKey, offRampObjectId)
 	}
 
-	// Get the object pointer present in the CCIP package ID (state_object module)
-	ccipPointerFieldKeys := []string{"object_ref_id", "owner_cap_id"}
-	if ccipPointerFields, ok := ptbClient.GetCachedValues(ccipPointerFieldKeys); ok {
-		addressMappings.CcipObjectRef = ccipPointerFields["object_ref_id"].(string)
-		addressMappings.CcipOwnerCap = ccipPointerFields["owner_cap_id"].(string)
+	// Derive OffRampState from parent object ID
+	offRampStateId, err := bind.DeriveObjectIDWithVectorU8Key(offRampObjectId, []byte("OffRampState"))
+	if err != nil {
+		lggr.Errorw("Error deriving offramp state object ID", "error", err)
+		return OffRampAddressMappings{}, err
+	}
+	addressMappings.OffRampState = offRampStateId
+
+	// Get the CCIP parent object ID and derive CCIPObjectRef and OwnerCap
+	ccipObjectIdKey := "ccip_object_id"
+	var ccipObjectId string
+	if cached, ok := ptbClient.GetCachedValue(ccipObjectIdKey); ok {
+		ccipObjectId = cached.(string)
 	} else {
-		// TODO: (#to_derive) need to derive object ref ID and owner cap ID
-		ccipPointerFields, err := ptbClient.GetValuesFromPackageOwnedObjectField(ctx, ccipPkgID, "state_object", "CCIPObjectRefPointer", ccipPointerFieldKeys)
+		ccipObjectId, err = ptbClient.GetParentObjectID(ctx, ccipPkgID, "state_object", "CCIPObjectRefPointer")
 		if err != nil {
-			lggr.Errorw("Error getting ccip object ref and owner cap", "error", err)
+			lggr.Errorw("Error getting ccip parent object ID", "error", err)
 			return OffRampAddressMappings{}, err
 		}
-
-		addressMappings.CcipObjectRef = ccipPointerFields["object_ref_id"]
-		addressMappings.CcipOwnerCap = ccipPointerFields["owner_cap_id"]
-		ptbClient.SetCachedValues(map[string]any{
-			"object_ref_id": ccipPointerFields["object_ref_id"],
-			"owner_cap_id":  ccipPointerFields["owner_cap_id"],
-		})
+		ptbClient.SetCachedValue(ccipObjectIdKey, ccipObjectId)
 	}
+
+	// Derive CCIPObjectRef from parent object ID
+	ccipObjectRefId, err := bind.DeriveObjectIDWithVectorU8Key(ccipObjectId, []byte("CCIPObjectRef"))
+	if err != nil {
+		lggr.Errorw("Error deriving ccip object ref ID", "error", err)
+		return OffRampAddressMappings{}, err
+	}
+	addressMappings.CcipObjectRef = ccipObjectRefId
+
+	// Derive CCIP OwnerCap from parent object ID
+	ccipOwnerCapId, err := bind.DeriveObjectIDWithVectorU8Key(ccipObjectId, []byte("CCIP_OWNABLE"))
+	if err != nil {
+		lggr.Errorw("Error deriving ccip owner cap ID", "error", err)
+		return OffRampAddressMappings{}, err
+	}
+	addressMappings.CcipOwnerCap = ccipOwnerCapId
 
 	return addressMappings, nil
 }
