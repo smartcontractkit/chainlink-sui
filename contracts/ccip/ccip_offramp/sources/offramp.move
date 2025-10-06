@@ -85,6 +85,7 @@ public struct Any2SuiRampMessage has drop {
     data: vector<u8>,
     receiver: address, // this is the message receiver
     gas_limit: u256,
+    token_receiver: address,
     token_amounts: vector<Any2SuiTokenTransfer>,
 }
 
@@ -427,7 +428,6 @@ public fun init_execute(
     clock: &clock::Clock,
     report_context: vector<vector<u8>>,
     report: vector<u8>,
-    token_receiver: address,
     ctx: &mut TxContext,
 ): osh::ReceiverParams {
     verify_function_allowed(
@@ -448,7 +448,7 @@ public fun init_execute(
         ctx,
     );
 
-    pre_execute_single_report(ref, state, clock, reports, false, token_receiver)
+    pre_execute_single_report(ref, state, clock, reports, false)
 }
 
 public fun finish_execute(
@@ -472,7 +472,6 @@ public fun manually_init_execute(
     state: &mut OffRampState,
     clock: &clock::Clock,
     report_bytes: vector<u8>,
-    token_receiver: address,
 ): osh::ReceiverParams {
     verify_function_allowed(
         ref,
@@ -482,7 +481,7 @@ public fun manually_init_execute(
     );
     let reports = deserialize_execution_report(report_bytes);
 
-    pre_execute_single_report(ref, state, clock, reports, true, token_receiver)
+    pre_execute_single_report(ref, state, clock, reports, true)
 }
 
 public fun get_execution_state(
@@ -520,6 +519,7 @@ fun deserialize_execution_report(report_bytes: vector<u8>): ExecutionReport {
     let data = bcs_stream::deserialize_vector_u8(&mut stream);
     let receiver = bcs_stream::deserialize_address(&mut stream);
     let gas_limit = bcs_stream::deserialize_u256(&mut stream);
+    let token_receiver = bcs_stream::deserialize_address(&mut stream);
 
     let token_amounts = bcs_stream::deserialize_vector!(&mut stream, |stream| {
         let source_pool_address = bcs_stream::deserialize_vector_u8(stream);
@@ -543,6 +543,7 @@ fun deserialize_execution_report(report_bytes: vector<u8>): ExecutionReport {
         data,
         receiver,
         gas_limit,
+        token_receiver,
         token_amounts,
     };
 
@@ -566,7 +567,6 @@ fun pre_execute_single_report(
     clock: &clock::Clock,
     execution_report: ExecutionReport,
     manual_execution: bool,
-    token_receiver: address,
 ): osh::ReceiverParams {
     let source_chain_selector = execution_report.source_chain_selector;
 
@@ -634,8 +634,8 @@ fun pre_execute_single_report(
         ETokenDataMismatch,
     );
     assert!(
-        (token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
-            (token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
+        (message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
+            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
         EInvalidTokenReceiver,
     );
     assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
@@ -661,7 +661,7 @@ fun pre_execute_single_report(
         osh::add_dest_token_transfer(
             state.dest_transfer_cap.borrow(),
             &mut receiver_params,
-            token_receiver, // if there is a token receiver, users must specify token receiver in extra_args
+            message.token_receiver, // when sending tokens, token receiver will be included in the execution report
             source_chain_selector,
             amount,
             message.token_amounts[0].dest_token_address,
@@ -683,6 +683,7 @@ fun pre_execute_single_report(
             message.header.source_chain_selector,
             message.sender,
             message.data,
+            message.token_receiver,
             dest_token_amounts,
         );
 
@@ -757,6 +758,7 @@ public fun calculate_message_hash(
     on_ramp: vector<u8>,
     data: vector<u8>,
     gas_limit: u256,
+    token_receiver: address,
     source_pool_addresses: vector<vector<u8>>,
     dest_token_addresses: vector<address>,
     dest_gas_amounts: vector<u32>,
@@ -810,6 +812,7 @@ public fun calculate_message_hash(
         data,
         receiver,
         gas_limit,
+        token_receiver,
         token_amounts,
     };
 
@@ -829,6 +832,7 @@ fun calculate_message_hash_internal(
     eth_abi::encode_address(&mut inner_hash, message.receiver);
     eth_abi::encode_u64(&mut inner_hash, message.header.sequence_number);
     eth_abi::encode_u256(&mut inner_hash, message.gas_limit);
+    eth_abi::encode_address(&mut inner_hash, message.token_receiver);
     eth_abi::encode_u64(&mut inner_hash, message.header.nonce);
     eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
 

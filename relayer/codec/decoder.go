@@ -1299,6 +1299,9 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	// 6. Read gas_limit (u256)
 	gasLimit := deserializer.U256()
 
+	tokenReceiver := [32]byte{}
+	deserializer.ReadFixedBytesInto(tokenReceiver[:])
+
 	// 7. Read token_amounts vector
 	tokenAmountsLen := deserializer.Uleb128()
 	tokenAmounts := make([]Any2SuiTokenTransfer, tokenAmountsLen)
@@ -1322,12 +1325,13 @@ func DeserializeExecutionReport(data []byte) (*ExecutionReport, error) {
 	}
 
 	message := Any2SuiRampMessage{
-		Header:       header,
-		Sender:       sender,
-		Data:         msgData,
-		Receiver:     models.SuiAddress(hex.EncodeToString(receiver)),
-		GasLimit:     &gasLimit,
-		TokenAmounts: tokenAmounts,
+		Header:        header,
+		Sender:        sender,
+		Data:          msgData,
+		Receiver:      models.SuiAddress(hex.EncodeToString(receiver)),
+		GasLimit:      &gasLimit,
+		TokenReceiver: models.SuiAddressBytes(tokenReceiver),
+		TokenAmounts:  tokenAmounts,
 	}
 
 	// 8. Read offchain_token_data (vector<vector<u8>>)

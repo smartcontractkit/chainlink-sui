@@ -213,6 +213,7 @@ public fun new_any2sui_message(
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
     client::new_any2sui_message(
@@ -220,6 +221,7 @@ public fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     )
 }
@@ -228,7 +230,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
     _: TypeProof,
-): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let address_str = type_name::address_string(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
