@@ -180,7 +180,7 @@ func (s *suiChainReader) preloadParentObjectIDs(ctx context.Context, binding pkg
 	//
 	// We need Offramp state pointer too for offramp, not just CCIP
 	var ccipPackageID string
-	if strings.ToLower(binding.Name) == strings.ToLower(offrampName) {
+	if strings.EqualFold(binding.Name, offrampName) {
 		var err error
 		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address, binding.Address)
 		if err != nil {
@@ -719,13 +719,13 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 		cacheKey := fmt.Sprintf("%s::%s::%s", selector.address, selector.contractName, selector.readName)
 
 		s.parentObjectIDsMutex.RLock()
-		parentObjectId, cached := s.parentObjectIDs[cacheKey]
+		parentObjectID, cached := s.parentObjectIDs[cacheKey]
 		s.parentObjectIDsMutex.RUnlock()
 
 		if !cached {
 			// Not in cache, fetch from RPC (fallback for on-demand loading)
 			var err error
-			parentObjectId, err = s.client.GetParentObjectID(
+			parentObjectID, err = s.client.GetParentObjectID(
 				ctx, selector.address, selector.contractName, selector.readName,
 			)
 			if err != nil {
@@ -734,19 +734,19 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 
 			// Cache it for next time
 			s.parentObjectIDsMutex.Lock()
-			s.parentObjectIDs[cacheKey] = parentObjectId
+			s.parentObjectIDs[cacheKey] = parentObjectID
 			s.parentObjectIDsMutex.Unlock()
 
-			s.logger.Debugw("Loaded parent object ID on-demand", "cacheKey", cacheKey, "parentObjectId", parentObjectId)
+			s.logger.Debugw("Loaded parent object ID on-demand", "cacheKey", cacheKey, "parentObjectId", parentObjectID)
 		}
 
 		// Derive each field's object ID from parent using derivation key and add to arg map
 		for _, pointerVal := range pointerVals {
-			derivedId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectId, []byte(pointerVal.derivationKey))
+			derivedID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
 			}
-			argMap[pointerVal.paramName] = derivedId
+			argMap[pointerVal.paramName] = derivedID
 		}
 	}
 

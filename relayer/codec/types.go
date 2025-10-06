@@ -1,7 +1,7 @@
 package codec
 
 import (
-	"fmt"
+	"errors"
 	"math/big"
 
 	"github.com/block-vision/sui-go-sdk/models"
@@ -33,16 +33,16 @@ type PointerTag struct {
 
 func (p PointerTag) Validate() error {
 	if p.Module == "" {
-		return fmt.Errorf("PointerTag.Module is required")
+		return errors.New("PointerTag.Module is required")
 	}
 	if p.PointerName == "" {
-		return fmt.Errorf("PointerTag.Pointer is required")
+		return errors.New("PointerTag.Pointer is required")
 	}
 	if p.FieldName == "" {
-		return fmt.Errorf("PointerTag.FieldName is required")
+		return errors.New("PointerTag.FieldName is required")
 	}
 	if p.DerivationKey == "" {
-		return fmt.Errorf("PointerTag.DerivationKey is required")
+		return errors.New("PointerTag.DerivationKey is required")
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package common
+package common //nolint:revive // var-naming: package name is intentionally simple
 
 import (
 	"testing"
