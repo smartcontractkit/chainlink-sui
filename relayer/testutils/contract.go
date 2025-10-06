@@ -220,6 +220,16 @@ func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, struc
 func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, address string) {
 	t.Helper()
 
+	// Get the file path of the current source file
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "Failed to get current file path")
+	// Get the directory containing the current file (which should be the testutils package)
+	currentDir := filepath.Dir(currentFile)
+
+	// Navigate to the project root (assuming we're in relayer/testutils)
+	projectRoot := filepath.Dir(filepath.Dir(currentDir))
+	contractPath = filepath.Join(projectRoot, contractPath)
+
 	moveToml := filepath.Join(contractPath, "Move.toml")
 	raw, err := os.ReadFile(moveToml)
 	require.NoError(t, err, "read Move.toml")
