@@ -1,5 +1,6 @@
 module test::counter {
     use sui::object::{Self, UID, ID};
+    use sui::derived_object;
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::event;
@@ -10,6 +11,7 @@ module test::counter {
     use std::ascii;
     use std::type_name;
     use std::string;
+    use test_secondary::state_object::CCIPObjectRef;
 
     const EInvalidCounterValue: u64 = 1;
     const EInvalidBytesLength: u64 = 2;
@@ -28,6 +30,10 @@ module test::counter {
         new_value: u64
     }
 
+    public struct DoubleCheckCCIPPointer has copy, drop {
+        addresses: vector<address>
+    }
+
     public struct AdminCap has key, store {
         id: UID
     }
@@ -37,11 +43,14 @@ module test::counter {
         value: u64
     }
 
+    public struct CounterObject has key {
+        id: UID,
+    }
+
     // Pointer to reference both Counter and AdminCap objects
     public struct CounterPointer has key, store {
         id: UID,
-        counter_id: address,
-        admin_cap_id: address,
+        counter_object_id: address,
     }
 
     // Struct that contains a list of addresses
@@ -90,8 +99,12 @@ module test::counter {
     }
 
     fun init(_witness: COUNTER, ctx: &mut TxContext) {
-        let counter = Counter {
+        let mut counter_object = CounterObject {
             id: object::new(ctx),
+        };
+
+        let counter = Counter {
+            id: derived_object::claim(&mut counter_object.id, b"Counter"),
             value: 0
         };
 
@@ -102,14 +115,12 @@ module test::counter {
         // Create the pointer that references both objects
         let pointer = CounterPointer {
             id: object::new(ctx),
-            counter_id: object::id_to_address(object::borrow_id(&counter)),
-            admin_cap_id: object::id_to_address(object::borrow_id(&admin_cap)),
+            counter_object_id: object::id_to_address(object::borrow_id(&counter_object)),
         };
 
         let pointer2 = CounterPointer {
             id: object::new(ctx),
-            counter_id: object::id_to_address(object::borrow_id(&counter)),
-            admin_cap_id: object::id_to_address(object::borrow_id(&admin_cap)),
+            counter_object_id: object::id_to_address(object::borrow_id(&counter_object)),
         };
 
         let tn = type_name::get_with_original_ids<COUNTER>();
@@ -117,6 +128,8 @@ module test::counter {
         let package_id = address::from_ascii_bytes(&package_bytes);
 
         transfer::share_object(counter);
+        transfer::share_object(counter_object);
+
         transfer::transfer(admin_cap, tx_context::sender(ctx));
         transfer::transfer(pointer, package_id);
         transfer::transfer(pointer2, tx_context::sender(ctx));
@@ -144,6 +157,15 @@ module test::counter {
             counter_id: object::id(counter),
             new_value: counter.value
         });
+    }
+
+    /// Increment counter with pointer dependency
+    public fun get_value_with_pointer_dependency(counter: &mut Counter, pointer: &CCIPObjectRef): u64 {
+        event::emit(DoubleCheckCCIPPointer {
+            addresses: test_secondary::state_object::get_package_ids(pointer),
+        });
+
+        5
     }
 
     /// Decrement counter by 1

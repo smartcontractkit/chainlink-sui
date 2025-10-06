@@ -24,6 +24,7 @@ use sui::event;
 use sui::hash;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
+use sui::derived_object;
 
 public struct OnRampState has key, store {
     id: UID,
@@ -41,10 +42,13 @@ public struct OnRampState has key, store {
     ownable_state: OwnableState,
 }
 
+public struct OnRampObject has key {
+    id: UID,
+}
+
 public struct OnRampStatePointer has key, store {
     id: UID,
-    on_ramp_state_id: address,
-    owner_cap_id: address,
+    on_ramp_object_id: address,
 }
 
 public struct DestChainConfig has drop, store {
@@ -156,10 +160,16 @@ public fun type_and_version(): String {
 public struct ONRAMP has drop {}
 
 fun init(_witness: ONRAMP, ctx: &mut TxContext) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let mut on_ramp_object = OnRampObject { id: object::new(ctx) };
+    let (ownable_state, owner_cap) = ownable::new(&mut on_ramp_object.id, ctx);
+
+    let pointer = OnRampStatePointer {
+        id: object::new(ctx),
+        on_ramp_object_id: object::id_address(&on_ramp_object),
+    };
 
     let state = OnRampState {
-        id: object::new(ctx),
+        id: derived_object::claim(&mut on_ramp_object.id, b"OnRampState"),
         package_ids: vector[],
         chain_selector: 0,
         fee_aggregator: @0x0,
@@ -171,17 +181,13 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
         ownable_state,
     };
 
-    let pointer = OnRampStatePointer {
-        id: object::new(ctx),
-        on_ramp_state_id: object::uid_to_address(&state.id),
-        owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
-    };
-
     let tn = type_name::with_original_ids<ONRAMP>();
     let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
+    transfer::share_object(on_ramp_object);
+
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
 }

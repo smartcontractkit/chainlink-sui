@@ -92,7 +92,7 @@ func setupTestEnvironment(t *testing.T) (
 	log.Debugw("Published MCMS Contract", "packageId", mcmsPackageId)
 
 	mcmsTestContractPath := testutils.BuildSetup(t, "contracts/mcms/mcms_test")
-	testutils.PatchContractDevAddressTOML(t, mcmsTestContractPath, "mcms", mcmsPackageId)
+	testutils.PatchContractDevAddressTOML(t, "contracts/mcms/mcms_test", "mcms", mcmsPackageId)
 	mcmsTestPackageId, mcmsTestPublishOutput, err := testutils.PublishContract(
 		t,
 		"TestModule",

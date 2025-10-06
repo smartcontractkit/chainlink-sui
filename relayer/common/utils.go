@@ -85,3 +85,10 @@ func ConvertBytesToHex(value any) any {
 		return value
 	}
 }
+
+// Normalize a string by removing underscores and dashes and converting to lowercase
+func NormalizeName(moduleName string) string {
+	moduleName = strings.ReplaceAll(moduleName, "_", "")
+	moduleName = strings.ReplaceAll(moduleName, "-", "")
+	return strings.ToLower(moduleName)
+}

@@ -147,7 +147,8 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	}
 
 	// Compile the Move package
-	cmd := exec.Command("sui", "move", "build", "--dump-bytecode-as-base64", "--ignore-chain")
+	//nolint:noctx // we do not need a context here
+	cmd := exec.Command("sui", "move", "build", "--dump-bytecode-as-base64", "--with-unpublished-dependencies", "--ignore-chain")
 	cmd.Dir = packageRoot
 
 	output, err := cmd.Output()

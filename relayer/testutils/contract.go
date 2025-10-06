@@ -18,8 +18,9 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 type ObjectChange struct {
@@ -211,12 +212,26 @@ func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, struc
 	return "", fmt.Errorf("object of type %s not found", expectedType)
 }
 
-// PatchContractDevAddressTOML edits one entry under [dev-addresses].
+// patchContractTOMLSection edits one entry under the specified TOML section.
 // contractPath : folder that contains Move.toml
-// name         : key to patch (e.g. "mcms")
-// address      : new hex value (e.g. "0x0000")
-func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address string) {
+// section      : TOML section name (e.g., "addresses", "dev-addresses")
+// name         : key to patch (e.g. "mcms", "test_secondary")
+// address      : new hex value (e.g. "0x0000", "0x123...")
+func patchContractTOMLSection(t *testing.T, contractPath, addresses, name, address string) {
 	t.Helper()
+
+	// Only resolve relative paths to absolute paths
+	if !filepath.IsAbs(contractPath) {
+		// Get the file path of the current source file
+		_, currentFile, _, ok := runtime.Caller(0)
+		require.True(t, ok, "Failed to get current file path")
+		// Get the directory containing the current file (which should be the testutils package)
+		currentDir := filepath.Dir(currentFile)
+
+		// Navigate to the project root (assuming we're in relayer/testutils)
+		projectRoot := filepath.Dir(filepath.Dir(currentDir))
+		contractPath = filepath.Join(projectRoot, contractPath)
+	}
 
 	moveToml := filepath.Join(contractPath, "Move.toml")
 	raw, err := os.ReadFile(moveToml)
@@ -227,15 +242,15 @@ func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address strin
 	err = toml.Unmarshal(raw, &doc)
 	require.NoError(t, err, "parse TOML")
 
-	// Ensure [dev-addresses] table exists
-	devAddrs, ok := doc["dev-addresses"].(map[string]any)
+	// Ensure the section ([dev-addresses]/[addresses]) table exists
+	addrs, ok := doc[addresses].(map[string]any)
 	if !ok {
-		devAddrs = make(map[string]any)
-		doc["dev-addresses"] = devAddrs
+		addrs = make(map[string]any)
+		doc[addresses] = addrs
 	}
 
 	// Set / overwrite the single entry
-	devAddrs[name] = address
+	addrs[name] = address
 
 	// Re-encode with default indentation
 	var buf bytes.Buffer
@@ -246,4 +261,18 @@ func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address strin
 
 	err = os.WriteFile(moveToml, buf.Bytes(), 0o644)
 	require.NoError(t, err, "write Move.toml")
+}
+
+// PatchContractDevAddressTOML edits one entry under [dev-addresses].
+// contractPath : folder that contains Move.toml
+// name         : key to patch (e.g. "mcms")
+// address      : new hex value (e.g. "0x0000")
+func PatchContractDevAddressTOML(t *testing.T, contractPath, name, address string) {
+	patchContractTOMLSection(t, contractPath, "dev-addresses", name, address)
+}
+
+// PatchContractAddressTOML edits one entry under [addresses].
+// Same as PatchContractDevAddressTOML, but for [addresses] section.
+func PatchContractAddressTOML(t *testing.T, contractPath, name, address string) {
+	patchContractTOMLSection(t, contractPath, "addresses", name, address)
 }

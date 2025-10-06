@@ -72,6 +72,7 @@ type SuiPTBClient interface {
 	HashTxBytes(txBytes []byte) []byte
 	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
 	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
+	GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error)
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -887,23 +888,42 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 
 	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
 
-	stateObjectId := ""
+	parentObjectID, err := c.GetParentObjectID(ctx, packageId, module, pointerStructName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get parent object ID in LoadModulePackageIds: %w", err)
+	}
+
+	if parentObjectID == "" {
+		return nil, fmt.Errorf("parent object id not found for package %s and module %s", packageId, module)
+	}
+
+	c.log.Debugw("parentObjectID", "parentObjectID", parentObjectID)
+
+	// TODO: put this in the config instead of having a match statement here
+	derivationKey := ""
 	switch module {
 	case "offramp":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["off_ramp_state_id"].(string)
+		derivationKey = "OffRampState"
 	case "onramp":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["on_ramp_state_id"].(string)
+		derivationKey = "OnRampState"
 	case "ccip":
 	case "state_object":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["object_ref_id"].(string)
+		derivationKey = "CCIPObjectRef"
+	case "router":
+		derivationKey = "RouterState"
+	case "counter":
+		derivationKey = "Counter"
 	}
 
-	if stateObjectId == "" {
-		return nil, fmt.Errorf("state object id not found for package %s and module %s", packageId, module)
+	stateObjectID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(derivationKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive state object ID in LoadModulePackageIds: %w", err)
 	}
+
+	c.log.Debugw("stateObjectId", "stateObjectId", stateObjectID, "derivationKey", derivationKey)
 
 	// Read the state object
-	stateObject, err := c.ReadObjectId(ctx, stateObjectId)
+	stateObject, err := c.ReadObjectId(ctx, stateObjectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
@@ -1009,4 +1029,37 @@ func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, pa
 	}
 
 	return foundValues, nil
+}
+
+// GetParentObjectID gets the parent object ID from a pointer object's field.
+// With derived objects, pointers now store a reference to the parent "Object" struct (e.g., OffRampObject, CCIPObject).
+// e.g. OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
+func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
+	if err != nil {
+		c.log.Errorw("Error reading owned objects", "error", err)
+		return "", err
+	}
+
+	qualifiedName := fmt.Sprintf("%s::%s::%s", packageID, moduleID, pointerObjectName)
+	for _, ownedObject := range ownedObjects {
+		if ownedObject.Data.Type != "" && ownedObject.Data.Type == qualifiedName {
+			parsedObject := ownedObject.Data.Content.Fields
+
+			// Get the parent field name from shared configuration
+			fieldName := common.GetParentFieldName(pointerObjectName)
+			if fieldName == "" {
+				return "", fmt.Errorf("unknown pointer object type: %s", pointerObjectName)
+			}
+
+			parentObjectID, ok := parsedObject[fieldName].(string)
+			if !ok {
+				return "", fmt.Errorf("field %s not found in pointer object %s", fieldName, qualifiedName)
+			}
+
+			return parentObjectID, nil
+		}
+	}
+
+	return "", fmt.Errorf("pointer object %s not found in package %s", qualifiedName, packageID)
 }

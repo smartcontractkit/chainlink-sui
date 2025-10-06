@@ -40,6 +40,7 @@ type DeployCCIPRouterInput struct {
 	McmsOwner     string
 }
 type DeployCCIPRouterObjects struct {
+	RouterObjectId             string
 	OwnerCapObjectId           string
 	RouterStateObjectId        string
 	RouterStatePointerObjectId string
@@ -59,22 +60,92 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, err
 	}
 
+	routerObjectId, err := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterObject")
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find RouterObject ID in publish tx: %w", err)
+	}
+
+	ownerCapId, err := bind.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("CCIP_OWNABLE"))
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to derive OwnerCap ID: %w", err)
+	}
+
+	routerStateId, err := bind.DeriveObjectIDWithVectorU8Key(routerObjectId, []byte("RouterState"))
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to derive RouterState ID: %w", err)
+	}
+
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterState")
-	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterStatePointer")
-	if err1 != nil || err2 != nil || err3 != nil {
+
+	if err1 != nil || err2 != nil {
 		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
 	}
+
+	// Validate derived IDs match the created IDs
+	if ownerCapId != obj1 {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("derived OwnerCap ID mismatch: %s != %s", ownerCapId, obj1)
+	}
+	if routerStateId != obj2 {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("derived RouterState ID mismatch: %s != %s", routerStateId, obj2)
+	}
+
+	b.Logger.Infow("Router objects calculated deterministically",
+		"routerObjectId", routerObjectId,
+		"ownerCapId", ownerCapId,
+		"routerStateId", routerStateId,
+	)
+
+	routerStatePointerId, err := bind.FindObjectIdFromPublishTx(*tx, "router", "RouterStatePointer")
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to find RouterStatePointer ID in publish tx: %w", err)
+	}
+
+	routerStatePointerResp, err := bind.ReadObject(b.GetContext(), routerStatePointerId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to read RouterStatePointer object: %w", err)
+	}
+
+	// Decode the RouterStatePointer struct from the response
+	var routerStatePointer module_router.RouterStatePointer
+	if routerStatePointerResp.Data == nil || routerStatePointerResp.Data.Content == nil ||
+		routerStatePointerResp.Data.Content.SuiMoveObject.Fields == nil {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("RouterStatePointer object has no content")
+	}
+
+	fields := routerStatePointerResp.Data.Content.SuiMoveObject.Fields
+	if routerObjectIdField, ok := fields["router_object_id"].(string); ok {
+		routerStatePointer.RouterObjectId = routerObjectIdField
+	} else {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf("failed to decode router_object_id from RouterStatePointer")
+	}
+
+	// Validate that the RouterObjectId in RouterStatePointer matches what we found in the tx
+	if routerStatePointer.RouterObjectId != routerObjectId {
+		return sui_ops.OpTxResult[DeployCCIPRouterObjects]{}, fmt.Errorf(
+			"RouterObjectId mismatch: found %s in tx, but RouterStatePointer contains %s",
+			routerObjectId,
+			routerStatePointer.RouterObjectId,
+		)
+	}
+
+	b.Logger.Infow("RouterStatePointer validated",
+		"routerStatePointerId", routerStatePointerId,
+		"storedRouterObjectId", routerStatePointer.RouterObjectId,
+		"derivedOwnerCapId", ownerCapId,
+		"derivedRouterStateId", routerStateId,
+	)
 
 	return sui_ops.OpTxResult[DeployCCIPRouterObjects]{
 		Digest:    tx.Digest,
 		PackageId: routerPackage.Address(),
 		Objects: DeployCCIPRouterObjects{
-			OwnerCapObjectId:           obj1,
-			RouterStateObjectId:        obj2,
-			RouterStatePointerObjectId: obj3,
+			RouterObjectId:             routerObjectId,
+			OwnerCapObjectId:           ownerCapId,
+			RouterStateObjectId:        routerStateId,
+			RouterStatePointerObjectId: routerStatePointerId,
 		},
-	}, err
+	}, nil
 }
 
 type SetOnRampsInput struct {
