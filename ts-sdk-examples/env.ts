@@ -21,6 +21,7 @@ export interface EnvConfig {
     LINK_METADATA: string;
     LINK_COIN_ID: string;
     ETH_COIN_ID: string;
+    FEE_TOKEN_OBJECT: string;
 }
 
 export const env: EnvConfig = {
@@ -42,4 +43,5 @@ export const env: EnvConfig = {
     LINK_METADATA: process.env.LINK_METADATA || '',
     LINK_COIN_ID: process.env.LINK_COIN_OBJECT || '',
     ETH_COIN_ID: process.env.ETH_COIN_OBJECT || '',
+    FEE_TOKEN_OBJECT: process.env.FEE_TOKEN_OBJECT || '',
 }

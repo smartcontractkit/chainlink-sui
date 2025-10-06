@@ -52,7 +52,7 @@ program.command('send')
     if (v !== 'burn_mint' && v !== 'lock_release') throw new Error('pool-kind must be burn_mint or lock_release')
     return v
   })
-  .requiredOption('--fee-token <id>', 'Fee token coin object ID (defaults to gas coin)')
+  .requiredOption('--fee-token <id>', 'Fee token coin object ID (defaults to gas coin)', env.FEE_TOKEN_OBJECT)
   .option('--fee-token-type <type>', 'Fee token type', env.LINK_COIN_TYPE)
   .option('--fee-token-metadata <id>', 'Fee token metadata object ID', env.LINK_METADATA)
   .option('--onramp-pkg <id>', 'Onramp package id', env.ONRAMP_PACKAGE_ID)

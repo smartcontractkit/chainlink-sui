@@ -97,38 +97,17 @@ export async function buildCcipSendPTB(tx: Transaction, client: SuiClient, a: Bu
     typeArguments: [a.feeTokenType],  // Use fee token type, not transfer token type
     arguments: [
       tx.object(a.ccipObjectRef),           // &mut CCIPObjectRef
-      state,                                   // &mut OnRampState
-      clock,                                   // &Clock (0x6)
-      tx.pure.u64(a.destChainSelector),        // u64
+      state,                                // &mut OnRampState
+      clock,                                // &Clock (0x6)
+      tx.pure.u64(a.destChainSelector),     // u64
       tx.pure('vector<u8>', receiverBytes), // vector<u8>
-      tx.pure.vector('u8', a.data),                         // vector<u8>
-      tokenParams,                             // osh::TokenTransferParams (cmd 0)
+      tx.pure.vector('u8', a.data),         // vector<u8>
+      tokenParams,                          // osh::TokenTransferParams (cmd 0)
       tx.object(a.feeTokenMetadata),        // &CoinMetadata<FeeToken>
       tx.object(a.feeToken),                // &mut Coin<FeeToken> (separate from transfer token)
-      tx.pure.vector('u8', a.extraArgs ?? new Uint8Array([1,2,3,4,5]))// vector<u8>
+      tx.pure.vector('u8', a.extraArgs ?? new Uint8Array([])) // vector<u8>
     ]
   })
 
   return tx
 }
-
-
-/**
- // Example usage
- const ptb = buildCcipSendPTB({
- onrampPkg: onrampPackageId!,
- poolPkg: '0xPOOL…',
- coinType: '0x2::sui::SUI',
- ccipObjectRef: '0x…',
- onrampState: '0x…',
- feeTokenMetadata: '0x…',
- feeTokenCoin: '0x…',
- destChainSelector: 16015286601757825753n,
- receiver: new Uint8Array([...]),
- data: new Uint8Array(),
- poolKind: 'burn_mint'
- })
-
- // Sign & execute with your keypair:
- const ptbResponse = await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: ptb })
- */

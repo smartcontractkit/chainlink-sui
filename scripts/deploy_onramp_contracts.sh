@@ -26,7 +26,7 @@ ALLOWLIST_ADMIN_ADDR="${ALLOWLIST_ADMIN_ADDR:-$(sui client active-address 2>/dev
 REBALANCER_ADDR="${REBALANCER_ADDR:-$(sui client active-address 2>/dev/null || echo 0x0)}"
 
 # FeeQuoter parameters (examples; tune as you need)
-FEE_QUOTER_LINK_RATE_WEI="${FEE_QUOTER_LINK_RATE_WEI:-100000000000000000000}"  # 100e18
+FEE_QUOTER_LINK_RATE_WEI="${FEE_QUOTER_LINK_RATE_WEI:-1000000000000000000}"  # 1e18
 FEE_QUOTER_BASE_FEE="${FEE_QUOTER_BASE_FEE:-90000000000}"
 
 # Token type(s) used by the pools
@@ -207,7 +207,7 @@ LR_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objec
 # Optional: apply_chain_updates + rate limiter (example: add chain 2)
 sui client call --package "$LR_PKG_ID" --module lock_release_token_pool --function apply_chain_updates \
  --type-args "$LINK_COIN_T" \
- --args "$LR_STATE_ID" "$LR_OWNER_CAP_ID" "[]" "[2]" "[[[24, 42, 24, 42]]]" "[[24, 42, 24, 42]]" \
+ --args "$LR_STATE_ID" "$LR_OWNER_CAP_ID" "[]" "[2]" "[[[24, 42, 24, 42]]]" "[[0,0,0,0,0,0,0,0,0,0,0,0,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42]]" \
  --gas-budget "$GAS" --json | tee artifacts.lr_tp.apply_chains.json >/dev/null
 
  sui client call --package "$LR_PKG_ID" --module lock_release_token_pool --function set_chain_rate_limiter_config \
@@ -273,7 +273,7 @@ BM_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objec
 # Add chain 2; set basic rate limiters (example values)
 sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function apply_chain_updates \
  --type-args "$ETH_COIN_T" \
- --args "$BM_STATE_ID" "$BM_OWNER_CAP_ID" "[]" "[2]" "[[[24, 42, 24, 42]]]" "[[24, 42, 24, 42]]" \
+ --args "$BM_STATE_ID" "$BM_OWNER_CAP_ID" "[]" "[2]" "[[[24, 42, 24, 42]]]" "[[0,0,0,0,0,0,0,0,0,0,0,0,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42]]" \
  --gas-budget "$GAS" --json | tee artifacts.bm_tp.apply_chains.json >/dev/null
 
 sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function set_chain_rate_limiter_config \
@@ -303,18 +303,26 @@ sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function apply_pr
 # fee_quoter::apply_dest_chain_config_updates (no change needed)
 echo "Applying destination chain config updates..."
 sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function apply_dest_chain_config_updates \
-  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" 2 true 10 30000 300000 300000 16 40 3000 100 16 1 "[0x28,0x12,0xd5,0x2c]" false 25 90000 200000 1100000000000000 90000 10 \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" 2 true 10 30000 300000 300000 16 40 3000 100 16 1 "[0x28,0x12,0xd5,0x2c]" false 25 90000 200000 1000000000000000 90000 10 \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.dest_chain_config.json >/dev/null
 
 # fee_quoter::update_prices_with_owner_cap to set the USD price for LINK
 echo "Updating prices with owner cap for LINK..."
 sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function update_prices_with_owner_cap \
-  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" "$CLOCK_ID" "[\"$LINK_METADATA_ID\"]" "[100100100100100]" "[2]" "[20]" \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" "$CLOCK_ID" "[\"$LINK_METADATA_ID\"]" "[1000000000000000000]" "[2]" "[20]" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.update_prices_with_owner_cap.json >/dev/null
 
 
-echo "Splitting LINK coin for fee token..."
-sui client split-coin --coin-id "$LINK_COIN_ID" --amounts 100000 --json | tee artifacts.ccip.fee_quoter.split_coin.json >/dev/null
+echo "Minting LINK coin (again) for fee token..."
+sui client call \
+  --package "$LINK_PKG_ID" \
+  --module mock_link_token \
+  --function mint \
+  --args "$LINK_TREASURY_CAP_ID" "1000000000000000" \
+  --gas-budget "$GAS" \
+  --json | tee artifacts.link.fee_token.json >/dev/null
+
+FEE_COIN_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("::coin::Coin<"))) | .objectId' artifacts.link.fee_token.json | head -n1)"
 
 
 git checkout $ROOT_DIR
@@ -340,6 +348,7 @@ ECHO "  ETH Metadata: $ETH_METADATA_ID"
 ECHO "  LINK Metadata: $LINK_METADATA_ID"
 echo "  ETH Coin: $ETH_COIN_ID"
 echo "  LINK Coin: $LINK_COIN_ID"
+echo "  FEE Coin: $FEE_COIN_ID"
 echo "Token Pool Support:"
 echo "  ETH -> BM Token Pool"
 echo "  LINK -> LR Token Pool"
