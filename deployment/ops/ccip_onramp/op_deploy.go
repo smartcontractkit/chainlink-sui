@@ -271,7 +271,7 @@ var GetFee = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input GetFeeInput) (o
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	inspectResp, err := onRampPackage.GetFee(b.GetContext(), opts, []string{input.TypeArgs}, bind.Object{Id: input.CCIPObjectRef}, bind.Object{Id: "0x6"}, input.DestChainSelector, input.Receiver, input.Data, input.TokenAddress, input.TokenAmounts, bind.Object{Id: input.FeeToken}, input.ExtraArgs)
+	inspectResp, err := onRampPackage.GetFee(b.GetContext(), opts, bind.Object{Id: input.CCIPObjectRef}, bind.Object{Id: "0x6"}, input.DestChainSelector, input.Receiver, input.Data, input.TokenAddress, input.TokenAmounts, input.FeeToken, input.ExtraArgs)
 	if err != nil {
 		return sui_ops.OpTxResult[IsChainSupportedOutput]{}, fmt.Errorf("failed to get fee: %w", err)
 	}

@@ -25,6 +25,7 @@ type DeployAndInitUSDCTokenPoolInput struct {
 	CCIPObjectRefObjectId  string
 	CCIPAdminProofObjectId string
 	CoinMetadataObjectId   string
+	Decimals               uint8
 	LocalDomainIdentifier  uint32
 	TokenPoolPackageId     string
 	TokenPoolAdministrator string
@@ -68,10 +69,10 @@ var DeployAndInitUSDCTokenPoolSequence = cld_ops.NewSequence(
 				CoinObjectTypeArg:      input.CoinObjectTypeArg,
 				StateObjectId:          input.CCIPObjectRefObjectId,
 				OwnerCapObjectId:       input.CCIPAdminProofObjectId,
-				CoinMetadataObjectId:   input.CoinMetadataObjectId,
 				LocalDomainIdentifier:  input.LocalDomainIdentifier,
 				TokenPoolPackageId:     input.TokenPoolPackageId,
 				TokenPoolAdministrator: input.TokenPoolAdministrator,
+				Decimals:               input.Decimals,
 			},
 		)
 		if err != nil {

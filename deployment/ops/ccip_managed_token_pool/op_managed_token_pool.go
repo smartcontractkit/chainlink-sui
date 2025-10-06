@@ -27,6 +27,7 @@ type ManagedTokenPoolInitializeInput struct {
 	CoinMetadataObjectId      string
 	MintCapObjectId           string
 	TokenPoolAdministrator    string
+	Decimals                  uint8
 }
 
 var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
@@ -44,9 +45,10 @@ var initMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Managed
 		bind.Object{Id: input.CCIPObjectRefObjectId},
 		bind.Object{Id: input.ManagedTokenStateObjectId},
 		bind.Object{Id: input.ManagedTokenOwnerCapId},
-		bind.Object{Id: input.CoinMetadataObjectId},
+		input.CoinMetadataObjectId,
 		bind.Object{Id: input.MintCapObjectId},
 		input.TokenPoolAdministrator,
+		input.Decimals,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization: %w", err)
@@ -86,6 +88,7 @@ type ManagedTokenPoolInitializeByCcipAdminInput struct {
 	MintCapObjectId           string
 	ManagedTokenStateObjectId string
 	TokenPoolAdministrator    string
+	Decimals                  uint8
 }
 
 var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ManagedTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects], err error) {
@@ -102,10 +105,11 @@ var initByCcipAdminManagedTokenPoolHandler = func(b cld_ops.Bundle, deps sui_ops
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.CCIPObjectRefObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.CoinMetadataObjectId},
+		input.CoinMetadataObjectId,
 		bind.Object{Id: input.MintCapObjectId},
 		input.ManagedTokenStateObjectId,
 		input.TokenPoolAdministrator,
+		input.Decimals,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[ManagedTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute managed token pool initialization by ccip admin: %w", err)

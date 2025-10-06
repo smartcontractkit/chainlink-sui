@@ -23,6 +23,7 @@ type SeqDeployAndInitManagedTokenPoolInput struct {
 	CoinMetadataObjectId      string
 	MintCapObjectId           string
 	TokenPoolAdministrator    string
+	Decimals                  uint8
 	// apply chain updates
 	RemoteChainSelectorsToRemove []uint64
 	RemoteChainSelectorsToAdd    []uint64
@@ -77,6 +78,7 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 				CoinMetadataObjectId:      input.CoinMetadataObjectId,
 				MintCapObjectId:           input.MintCapObjectId,
 				TokenPoolAdministrator:    input.TokenPoolAdministrator,
+				Decimals:                  input.Decimals,
 			},
 		)
 		if err != nil {
