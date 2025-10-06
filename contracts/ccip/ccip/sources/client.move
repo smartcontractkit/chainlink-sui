@@ -135,30 +135,6 @@ public fun new_dest_token_amounts(
     })
 }
 
-public fun get_message_id(input: &Any2SuiMessage): vector<u8> {
-    input.message_id
-}
-
-public fun get_source_chain_selector(input: &Any2SuiMessage): u64 {
-    input.source_chain_selector
-}
-
-public fun get_sender(input: &Any2SuiMessage): vector<u8> {
-    input.sender
-}
-
-public fun get_data(input: &Any2SuiMessage): vector<u8> {
-    input.data
-}
-
-public fun get_token_receiver(input: &Any2SuiMessage): address {
-    input.token_receiver
-}
-
-public fun get_dest_token_amounts(input: &Any2SuiMessage): vector<Any2SuiTokenAmount> {
-    input.dest_token_amounts
-}
-
 public fun get_token(input: &Any2SuiTokenAmount): address {
     input.token
 }
