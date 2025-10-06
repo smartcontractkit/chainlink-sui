@@ -48,8 +48,8 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
         ccip_object_id: object::id_address(&ccip_object),
     };
 
-    let tn = type_name::get_with_original_ids<STATE_OBJECT>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<STATE_OBJECT>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
     ref.package_ids.push_back(package_id);
 
@@ -84,13 +84,13 @@ public(package) fun add<T: key + store>(
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
 
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     assert!(!dof::exists_(&ref.id, tn), EModuleAlreadyExists);
     dof::add(&mut ref.id, tn, obj);
 }
 
 public(package) fun contains<T>(ref: &CCIPObjectRef): bool {
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     dof::exists_(&ref.id, tn)
 }
 
@@ -100,18 +100,18 @@ public(package) fun remove<T: key + store>(
     _ctx: &TxContext,
 ): T {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&ref.ownable_state), EInvalidOwnerCap);
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     assert!(dof::exists_(&ref.id, tn), EModuleDoesNotExist);
     dof::remove(&mut ref.id, tn)
 }
 
 public(package) fun borrow<T: key + store>(ref: &CCIPObjectRef): &T {
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     dof::borrow(&ref.id, tn)
 }
 
 public(package) fun borrow_mut<T: key + store>(ref: &mut CCIPObjectRef): &mut T {
-    let tn = type_name::get<T>();
+    let tn = type_name::with_defining_ids<T>();
     dof::borrow_mut(&mut ref.id, tn)
 }
 

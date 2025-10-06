@@ -147,9 +147,8 @@ const EZeroChainSelector: u64 = 15;
 const ECalculateMessageHashInvalidArguments: u64 = 16;
 const EInvalidRemoteChainSelector: u64 = 17;
 const EInvalidFunction: u64 = 18;
-const EInvalidFeeTokenMetadataAddress: u64 = 19;
-const EPackageIdNotFound: u64 = 20;
-const EInvalidOwnerCap: u64 = 21;
+const EPackageIdNotFound: u64 = 19;
+const EInvalidOwnerCap: u64 = 20;
 
 const VERSION: u8 = 1;
 
@@ -181,8 +180,8 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
         on_ramp_object_id: object::id_address(&on_ramp_object),
     };
 
-    let tn = type_name::get_with_original_ids<ONRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<ONRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
@@ -222,8 +221,8 @@ public fun initialize(
         dest_chain_routers,
     );
 
-    let tn = type_name::get_with_original_ids<ONRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<ONRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
     state.package_ids.push_back(package_id);
 }
@@ -1445,12 +1444,6 @@ public fun mcms_withdraw_fee_tokens<T>(
             object::id_address(fee_token_metadata),
         ],
         &mut stream,
-    );
-
-    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
-    assert!(
-        coin_metadata_address == object::id_address(fee_token_metadata),
-        EInvalidFeeTokenMetadataAddress,
     );
 
     bcs_stream::assert_is_consumed(&stream);

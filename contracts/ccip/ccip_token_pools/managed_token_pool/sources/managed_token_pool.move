@@ -64,15 +64,10 @@ public fun initialize_with_managed_token<T>(
     let treasury_cap_ref = managed_token::borrow_treasury_cap(managed_token_state, owner_cap);
 
     // Initialize the token pool
-    let (_, managed_token_pool_state_address, _, type_proof_type_name) = initialize_internal(
+    let (_, managed_token_pool_state_address, _, _) = initialize_internal(
         coin_metadata,
         mint_cap,
         ctx,
-    );
-
-    let type_proof_type_name_address = type_proof_type_name.get_address();
-    let managed_token_pool_package_id = address::from_ascii_bytes(
-        &type_proof_type_name_address.into_bytes(),
     );
 
     // Register the pool with the token admin registry
@@ -80,8 +75,6 @@ public fun initialize_with_managed_token<T>(
         ref,
         treasury_cap_ref,
         coin_metadata,
-        managed_token_pool_package_id,
-        string::utf8(b"managed_token_pool"),
         token_pool_administrator,
         vector[
             CLOCK_ADDRESS,
@@ -115,7 +108,7 @@ public fun initialize_by_ccip_admin<T>(
         type_proof_type_name,
     ) = initialize_internal(coin_metadata, mint_cap, ctx);
 
-    let type_proof_type_name_address = type_proof_type_name.get_address();
+    let type_proof_type_name_address = type_proof_type_name.address_string();
     let managed_token_pool_package_id = address::from_ascii_bytes(
         &type_proof_type_name_address.into_bytes(),
     );
@@ -165,8 +158,8 @@ fun initialize_internal<T>(
         mint_cap,
         ownable_state,
     };
-    let type_proof_type_name = type_name::get<TypeProof>();
-    let token_type = type_name::get<T>();
+    let type_proof_type_name = type_name::with_defining_ids<TypeProof>();
+    let token_type = type_name::with_defining_ids<T>();
     let managed_token_pool_state_address = object::uid_to_address(&managed_token_pool.id);
 
     transfer::share_object(managed_token_pool);
@@ -554,10 +547,9 @@ public fun mcms_accept_ownership<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
-
-    let mcms = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
+    let mcms = mcms_registry::get_multisig_address();
     ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 

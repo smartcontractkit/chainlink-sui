@@ -16,6 +16,7 @@ const ETokenTransferMismatch: u64 = 5;
 const ETokenTransferAlreadyExists: u64 = 6;
 const ETokenTransferDoesNotExist: u64 = 7;
 const ETokenTransferAlreadyCompleted: u64 = 8;
+const EMessageAlreadyExists: u64 = 9;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -112,6 +113,7 @@ public fun populate_message(
     receiver_params: &mut ReceiverParams,
     any2sui_message: Any2SuiMessage,
 ) {
+    assert!(receiver_params.message.is_none(), EMessageAlreadyExists);
     receiver_params.message.fill(any2sui_message);
 }
 
@@ -185,7 +187,7 @@ public fun complete_token_transfer<TypeProof: drop>(
         dest_token_address,
     );
 
-    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
@@ -205,13 +207,30 @@ public fun extract_any2sui_message(receiver_params: &mut ReceiverParams): Any2Su
     receiver_params.message.extract()
 }
 
+public fun new_any2sui_message(
+    _: &DestTransferCap,
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    sender: vector<u8>,
+    data: vector<u8>,
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
+): Any2SuiMessage {
+    client::new_any2sui_message(
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        dest_token_amounts,
+    )
+}
+
 public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
     _: TypeProof,
 ): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
-    let proof_tn = type_name::get<TypeProof>();
-    let address_str = type_name::get_address(&proof_tn);
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let address_str = type_name::address_string(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
 
     let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);

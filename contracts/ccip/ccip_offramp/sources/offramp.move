@@ -264,8 +264,8 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
         off_ramp_object_id: object::id_address(&off_ramp_object),
     };
 
-    let tn = type_name::get_with_original_ids<OFFRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
@@ -311,8 +311,8 @@ public fun initialize(
         ctx,
     );
 
-    let tn = type_name::get_with_original_ids<OFFRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
     state.package_ids.push_back(package_id);
 }
@@ -677,7 +677,8 @@ fun pre_execute_single_report(
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
         let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
-        let any2sui_message = client::new_any2sui_message(
+        let any2sui_message = osh::new_any2sui_message(
+            state.dest_transfer_cap.borrow(),
             message.header.message_id,
             message.header.source_chain_selector,
             message.sender,
