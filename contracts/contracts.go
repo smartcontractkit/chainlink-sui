@@ -60,7 +60,9 @@ var Contracts map[Package]string = map[Package]string{
 	MCMS:       filepath.Join("mcms", "mcms"),
 	MCMSUser:   filepath.Join("mcms", "mcms_test"),
 	MCMSUserV2: filepath.Join("mcms", "mcms_test_v2"),
-// Other
-	Test:          filepath.Join("test"),
+	// Other
+	//nolint:gocritic // we need to handle these paths for tests
+	Test: filepath.Join("test"),
+	//nolint:gocritic // we need to handle these paths for tests
 	TestSecondary: filepath.Join("test_secondary"),
 }

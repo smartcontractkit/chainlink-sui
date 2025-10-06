@@ -915,15 +915,15 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 		derivationKey = "Counter"
 	}
 
-	stateObjectId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(derivationKey))
+	stateObjectID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(derivationKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive state object ID in LoadModulePackageIds: %w", err)
 	}
 
-	c.log.Debugw("stateObjectId", "stateObjectId", stateObjectId, "derivationKey", derivationKey)
+	c.log.Debugw("stateObjectId", "stateObjectId", stateObjectID, "derivationKey", derivationKey)
 
 	// Read the state object
-	stateObject, err := c.ReadObjectId(ctx, stateObjectId)
+	stateObject, err := c.ReadObjectId(ctx, stateObjectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
