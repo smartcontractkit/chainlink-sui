@@ -62,6 +62,9 @@ func PublishPackage(
 	ptb.TransferObjects([]transaction.Argument{arg}, recArg)
 
 	tx, err := ExecutePTB(ctx, opts, client, ptb)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to execute publish transaction: %w", err)
+	}
 
 	pkgId, err := FindPackageIdFromPublishTx(*tx)
 	if err != nil {
