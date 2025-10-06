@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_onramp","module":"onramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"onramp","name":"add_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_allowlist_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_allowlist_updates_by_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"ccip_onramp","module":"onramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"on_ramp_address","type":"address"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"address"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"source_pool_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u64>"},{"name":"dest_exec_datas","type":"vector<vector<u8>>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp_address","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"ccip_send","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_params","type":"TokenTransferParams"},{"name":"fee_token_metadata","type":"CoinMetadata<T>"},{"name":"fee_token","type":"Coin<T>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"get_allowed_senders_list","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_ccip_package_id","parameters":null},{"package":"ccip_onramp","module":"onramp","name":"get_dest_chain_config","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_dynamic_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"get_dynamic_config_fields","parameters":[{"name":"cfg","type":"DynamicConfig"}]},{"package":"ccip_onramp","module":"onramp","name":"get_expected_next_sequence_number","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_addresses","type":"vector<address>"},{"name":"token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"CoinMetadata<T>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"get_outbound_nonce","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"sender","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"get_static_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"get_static_config_fields","parameters":[{"name":"cfg","type":"StaticConfig"}]},{"package":"ccip_onramp","module":"onramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"initialize","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"nonce_manager_cap","type":"NonceManagerCap"},{"name":"source_transfer_cap","type":"osh::SourceTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"ccip_onramp","module":"onramp","name":"is_chain_supported","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"owner","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"remove_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"type_and_version","parameters":null},{"package":"ccip_onramp","module":"onramp","name":"withdraw_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_token_metadata","type":"CoinMetadata<T>"}]}]`
+const FunctionInfo = `[{"package":"ccip_onramp","module":"onramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"onramp","name":"add_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_allowlist_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_allowlist_updates_by_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"ccip_onramp","module":"onramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"on_ramp_address","type":"address"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"address"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"source_pool_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u64>"},{"name":"dest_exec_datas","type":"vector<vector<u8>>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp_address","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"ccip_send","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_params","type":"TokenTransferParams"},{"name":"fee_token_coin_metadata_object_id","type":"address"},{"name":"fee_token","type":"Coin<T>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"get_allowed_senders_list","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_ccip_package_id","parameters":null},{"package":"ccip_onramp","module":"onramp","name":"get_dest_chain_config","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_dynamic_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"get_dynamic_config_fields","parameters":[{"name":"cfg","type":"DynamicConfig"}]},{"package":"ccip_onramp","module":"onramp","name":"get_expected_next_sequence_number","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_addresses","type":"vector<address>"},{"name":"token_amounts","type":"vector<u64>"},{"name":"fee_token_coin_metadata_object_id","type":"address"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"get_outbound_nonce","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"sender","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"get_static_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"get_static_config_fields","parameters":[{"name":"cfg","type":"StaticConfig"}]},{"package":"ccip_onramp","module":"onramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"initialize","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"nonce_manager_cap","type":"NonceManagerCap"},{"name":"source_transfer_cap","type":"osh::SourceTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"ccip_onramp","module":"onramp","name":"is_chain_supported","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"owner","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"remove_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"type_and_version","parameters":null},{"package":"ccip_onramp","module":"onramp","name":"withdraw_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_token_metadata","type":"CoinMetadata<T>"}]}]`
 
 type IOnramp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -29,7 +29,7 @@ type IOnramp interface {
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	WithdrawFeeTokens(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, feeTokenMetadata bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
+	GetFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeTokenCoinMetadataObjectId string, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	SetDynamicConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, feeAggregator string, allowlistAdmin string) (*models.SuiTransactionBlockResponse, error)
 	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*models.SuiTransactionBlockResponse, error)
 	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -43,7 +43,7 @@ type IOnramp interface {
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) (*models.SuiTransactionBlockResponse, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*models.SuiTransactionBlockResponse, error)
-	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
+	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenCoinMetadataObjectId string, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -75,7 +75,7 @@ type IOnrampDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (bool, error)
 	GetExpectedNextSequenceNumber(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) (uint64, error)
-	GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (uint64, error)
+	GetFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeTokenCoinMetadataObjectId string, extraArgs []byte) (uint64, error)
 	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) ([]any, error)
 	GetAllowedSendersList(ctx context.Context, opts *bind.CallOpts, state bind.Object, destChainSelector uint64) ([]any, error)
 	GetOutboundNonce(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, sender string) (uint64, error)
@@ -85,7 +85,7 @@ type IOnrampDevInspect interface {
 	GetDynamicConfigFields(ctx context.Context, opts *bind.CallOpts, cfg DynamicConfig) ([]any, error)
 	CalculateMessageHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, onRampAddress string, messageId []byte, sourceChainSelector uint64, destChainSelector uint64, sequenceNumber uint64, nonce uint64, sender string, receiver []byte, data []byte, feeToken string, feeTokenAmount uint64, sourcePoolAddresses []string, destTokenAddresses [][]byte, extraDatas [][]byte, amounts []uint64, destExecDatas [][]byte, extraArgs []byte) ([]byte, error)
 	CalculateMetadataHash(ctx context.Context, opts *bind.CallOpts, ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) ([]byte, error)
-	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error)
+	CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenCoinMetadataObjectId string, feeToken bind.Object, extraArgs []byte) ([]byte, error)
 	GetCcipPackageId(ctx context.Context, opts *bind.CallOpts) (string, error)
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	HasPendingTransfer(ctx context.Context, opts *bind.CallOpts, state bind.Object) (bool, error)
@@ -109,8 +109,8 @@ type OnrampEncoder interface {
 	GetExpectedNextSequenceNumberWithArgs(args ...any) (*bind.EncodedCall, error)
 	WithdrawFeeTokens(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, feeTokenMetadata bind.Object) (*bind.EncodedCall, error)
 	WithdrawFeeTokensWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	GetFee(typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
-	GetFeeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetFee(ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeTokenCoinMetadataObjectId string, extraArgs []byte) (*bind.EncodedCall, error)
+	GetFeeWithArgs(args ...any) (*bind.EncodedCall, error)
 	SetDynamicConfig(ref bind.Object, state bind.Object, ownerCap bind.Object, feeAggregator string, allowlistAdmin string) (*bind.EncodedCall, error)
 	SetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	ApplyDestChainConfigUpdates(ref bind.Object, state bind.Object, ownerCap bind.Object, destChainSelectors []uint64, destChainAllowlistEnabled []bool, destChainRouters []string) (*bind.EncodedCall, error)
@@ -137,7 +137,7 @@ type OnrampEncoder interface {
 	CalculateMessageHashWithArgs(args ...any) (*bind.EncodedCall, error)
 	CalculateMetadataHash(ref bind.Object, sourceChainSelector uint64, destChainSelector uint64, onRampAddress string) (*bind.EncodedCall, error)
 	CalculateMetadataHashWithArgs(args ...any) (*bind.EncodedCall, error)
-	CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
+	CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenCoinMetadataObjectId string, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error)
 	CcipSendWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetCcipPackageId() (*bind.EncodedCall, error)
 	GetCcipPackageIdWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -1083,8 +1083,8 @@ func (c *OnrampContract) WithdrawFeeTokens(ctx context.Context, opts *bind.CallO
 }
 
 // GetFee executes the get_fee Move function.
-func (c *OnrampContract) GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.GetFee(typeArgs, ref, clock, destChainSelector, receiver, data, tokenAddresses, tokenAmounts, feeToken, extraArgs)
+func (c *OnrampContract) GetFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeTokenCoinMetadataObjectId string, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.GetFee(ref, clock, destChainSelector, receiver, data, tokenAddresses, tokenAmounts, feeTokenCoinMetadataObjectId, extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1223,8 +1223,8 @@ func (c *OnrampContract) CalculateMetadataHash(ctx context.Context, opts *bind.C
 }
 
 // CcipSend executes the ccip_send Move function.
-func (c *OnrampContract) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.onrampEncoder.CcipSend(typeArgs, ref, state, clock, destChainSelector, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
+func (c *OnrampContract) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenCoinMetadataObjectId string, feeToken bind.Object, extraArgs []byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.onrampEncoder.CcipSend(typeArgs, ref, state, clock, destChainSelector, receiver, data, tokenParams, feeTokenCoinMetadataObjectId, feeToken, extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1521,8 +1521,8 @@ func (d *OnrampDevInspect) GetExpectedNextSequenceNumber(ctx context.Context, op
 // GetFee executes the get_fee Move function using DevInspect to get return values.
 //
 // Returns: u64
-func (d *OnrampDevInspect) GetFee(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (uint64, error) {
-	encoded, err := d.contract.onrampEncoder.GetFee(typeArgs, ref, clock, destChainSelector, receiver, data, tokenAddresses, tokenAmounts, feeToken, extraArgs)
+func (d *OnrampDevInspect) GetFee(ctx context.Context, opts *bind.CallOpts, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeTokenCoinMetadataObjectId string, extraArgs []byte) (uint64, error) {
+	encoded, err := d.contract.onrampEncoder.GetFee(ref, clock, destChainSelector, receiver, data, tokenAddresses, tokenAmounts, feeTokenCoinMetadataObjectId, extraArgs)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1718,8 +1718,8 @@ func (d *OnrampDevInspect) CalculateMetadataHash(ctx context.Context, opts *bind
 // CcipSend executes the ccip_send Move function using DevInspect to get return values.
 //
 // Returns: vector<u8>
-func (d *OnrampDevInspect) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) ([]byte, error) {
-	encoded, err := d.contract.onrampEncoder.CcipSend(typeArgs, ref, state, clock, destChainSelector, receiver, data, tokenParams, feeTokenMetadata, feeToken, extraArgs)
+func (d *OnrampDevInspect) CcipSend(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenCoinMetadataObjectId string, feeToken bind.Object, extraArgs []byte) ([]byte, error) {
+	encoded, err := d.contract.onrampEncoder.CcipSend(typeArgs, ref, state, clock, destChainSelector, receiver, data, tokenParams, feeTokenCoinMetadataObjectId, feeToken, extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2120,11 +2120,9 @@ func (c onrampEncoder) WithdrawFeeTokensWithArgs(typeArgs []string, args ...any)
 }
 
 // GetFee encodes a call to the get_fee Move function.
-func (c onrampEncoder) GetFee(typeArgs []string, ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error) {
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
+func (c onrampEncoder) GetFee(ref bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenAddresses []string, tokenAmounts []uint64, feeTokenCoinMetadataObjectId string, extraArgs []byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_fee", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"&Clock",
@@ -2133,7 +2131,7 @@ func (c onrampEncoder) GetFee(typeArgs []string, ref bind.Object, clock bind.Obj
 		"vector<u8>",
 		"vector<address>",
 		"vector<u64>",
-		"&CoinMetadata<T>",
+		"address",
 		"vector<u8>",
 	}, []any{
 		ref,
@@ -2143,7 +2141,7 @@ func (c onrampEncoder) GetFee(typeArgs []string, ref bind.Object, clock bind.Obj
 		data,
 		tokenAddresses,
 		tokenAmounts,
-		feeToken,
+		feeTokenCoinMetadataObjectId,
 		extraArgs,
 	}, []string{
 		"u64",
@@ -2152,7 +2150,7 @@ func (c onrampEncoder) GetFee(typeArgs []string, ref bind.Object, clock bind.Obj
 
 // GetFeeWithArgs encodes a call to the get_fee Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c onrampEncoder) GetFeeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c onrampEncoder) GetFeeWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"&Clock",
@@ -2161,17 +2159,15 @@ func (c onrampEncoder) GetFeeWithArgs(typeArgs []string, args ...any) (*bind.Enc
 		"vector<u8>",
 		"vector<address>",
 		"vector<u64>",
-		"&CoinMetadata<T>",
+		"address",
 		"vector<u8>",
 	}
 
 	if len(args) != len(expectedParams) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
 	}
-	typeArgsList := typeArgs
-	typeParamsList := []string{
-		"T",
-	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_fee", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"u64",
 	})
@@ -2692,7 +2688,7 @@ func (c onrampEncoder) CalculateMetadataHashWithArgs(args ...any) (*bind.Encoded
 }
 
 // CcipSend encodes a call to the ccip_send Move function.
-func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenMetadata bind.Object, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error) {
+func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.Object, clock bind.Object, destChainSelector uint64, receiver []byte, data []byte, tokenParams bind.Object, feeTokenCoinMetadataObjectId string, feeToken bind.Object, extraArgs []byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -2705,7 +2701,7 @@ func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.O
 		"vector<u8>",
 		"vector<u8>",
 		"TokenTransferParams",
-		"&CoinMetadata<T>",
+		"address",
 		"&mut Coin<T>",
 		"vector<u8>",
 	}, []any{
@@ -2716,7 +2712,7 @@ func (c onrampEncoder) CcipSend(typeArgs []string, ref bind.Object, state bind.O
 		receiver,
 		data,
 		tokenParams,
-		feeTokenMetadata,
+		feeTokenCoinMetadataObjectId,
 		feeToken,
 		extraArgs,
 	}, []string{
@@ -2735,7 +2731,7 @@ func (c onrampEncoder) CcipSendWithArgs(typeArgs []string, args ...any) (*bind.E
 		"vector<u8>",
 		"vector<u8>",
 		"TokenTransferParams",
-		"&CoinMetadata<T>",
+		"address",
 		"&mut Coin<T>",
 		"vector<u8>",
 	}

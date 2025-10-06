@@ -51,7 +51,12 @@ public fun initialize<T>(
     rebalancer: address,
     ctx: &mut TxContext,
 ) {
-    let (_, lock_release_token_pool_state_address, _, _) = initialize_internal(
+    let (
+        coin_metadata_object_id,
+        lock_release_token_pool_state_address,
+        _,
+        _,
+    ) = initialize_internal(
         coin_metadata,
         rebalancer,
         ctx,
@@ -60,7 +65,7 @@ public fun initialize<T>(
     token_admin_registry::register_pool(
         ref,
         treasury_cap,
-        coin_metadata,
+        coin_metadata_object_id,
         token_pool_administrator,
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
         vector[CLOCK_ADDRESS, lock_release_token_pool_state_address],
@@ -80,7 +85,7 @@ public fun initialize_by_ccip_admin<T>(
     ctx: &mut TxContext,
 ) {
     let (
-        coin_metadata_address,
+        coin_metadata_object_id,
         lock_release_token_pool_state_address,
         token_type,
         type_proof_type_name,
@@ -94,7 +99,7 @@ public fun initialize_by_ccip_admin<T>(
     token_admin_registry::register_pool_by_admin(
         ref,
         ccip_admin_proof,
-        coin_metadata_address,
+        coin_metadata_object_id,
         lock_release_token_pool_package_id,
         string::utf8(b"lock_release_token_pool"),
         token_type.into_string(),

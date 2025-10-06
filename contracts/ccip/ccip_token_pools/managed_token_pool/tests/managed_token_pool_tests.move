@@ -109,14 +109,15 @@ public fun test_initialize_and_basic_functionality() {
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
         managed_token_pool::initialize_with_managed_token(
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
-            &coin_metadata,
+            coin_metadata_address,
             mint_cap,
             @managed_token_pool,
+            Decimals,
             scenario.ctx(),
         );
         scenario.return_to_sender(token_owner_cap);
@@ -377,14 +378,15 @@ public fun test_lock_or_burn_functionality() {
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
         managed_token_pool::initialize_with_managed_token(
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
-            &coin_metadata,
+            coin_metadata_address,
             mint_cap,
             @managed_token_pool,
+            Decimals,
             scenario.ctx(),
         );
 
@@ -575,9 +577,10 @@ public fun test_release_or_mint_functionality() {
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
-            &coin_metadata,
+            coin_metadata_address,
             mint_cap,
             @managed_token_pool,
+            Decimals,
             scenario.ctx(),
         );
 
@@ -773,14 +776,16 @@ public fun test_initialize_by_ccip_admin() {
     // Switch to CCIP admin to call initialize_by_ccip_admin
     scenario.next_tx(CCIP_ADMIN);
     {
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
         // Test initialize_by_ccip_admin function (doesn't require treasury cap)
         managed_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             mint_cap,
             managed_token_state_address, // Use the actual managed token state address
             @0x123, // token_pool_administrator
+            Decimals,
             scenario.ctx(),
         );
     };
@@ -860,14 +865,15 @@ public fun test_invalid_owner_cap_error() {
         let mint_cap2 = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state2 = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap2 = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-
+        let coin_metadata_address2 = object::id_to_address(&object::id(&coin_metadata2));
         managed_token_pool::initialize_with_managed_token(
             &mut ccip_ref2,
             &token_state2,
             &token_owner_cap2,
-            &coin_metadata2,
+            coin_metadata_address2,
             mint_cap2,
             @0x999,
+            Decimals,
             scenario.ctx(),
         );
 
@@ -1124,15 +1130,16 @@ public fun test_initialize_with_managed_token_function() {
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
-
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
         // Use the new function that takes managed token state and owner cap directly
         managed_token_pool::initialize_with_managed_token(
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
-            &coin_metadata,
+            coin_metadata_address,
             mint_cap,
             @managed_token_pool, // token pool administrator
+            Decimals,
             scenario.ctx(),
         );
 
@@ -1264,14 +1271,16 @@ fun setup_basic_pool(
         let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
         let token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
         let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         managed_token_pool::initialize_with_managed_token(
             &mut ccip_ref,
             &token_state,
             &token_owner_cap,
-            &coin_metadata,
+            coin_metadata_address,
             mint_cap,
             @managed_token_pool,
+            Decimals,
             scenario.ctx(),
         );
 

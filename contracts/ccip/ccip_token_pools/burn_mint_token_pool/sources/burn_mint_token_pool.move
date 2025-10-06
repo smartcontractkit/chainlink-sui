@@ -18,7 +18,7 @@ use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
 use sui::address;
 use sui::clock::Clock;
-use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
+use sui::coin::{Self, Coin, TreasuryCap};
 use sui::package::UpgradeCap;
 
 public struct BurnMintTokenPoolState<phantom T> has key {
@@ -45,21 +45,23 @@ public fun type_and_version(): String {
 // coin metadata and decimals can be provided in Move.toml
 public fun initialize<T>(
     ref: &mut CCIPObjectRef,
-    coin_metadata: &CoinMetadata<T>,
+    coin_metadata_object_id: address,
     treasury_cap: TreasuryCap<T>,
     token_pool_administrator: address,
+    decimals: u8,
     ctx: &mut TxContext,
 ) {
-    let (_, _, _, burn_mint_token_pool) = initialize_internal(
-        coin_metadata,
+    let (_, _, burn_mint_token_pool) = initialize_internal(
+        coin_metadata_object_id,
         treasury_cap,
+        decimals,
         ctx,
     );
 
     token_admin_registry::register_pool(
         ref,
         &burn_mint_token_pool.treasury_cap,
-        coin_metadata,
+        coin_metadata_object_id,
         token_pool_administrator,
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
@@ -72,17 +74,18 @@ public fun initialize<T>(
 public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
     ccip_admin_proof: state_object::CCIPAdminProof,
-    coin_metadata: &CoinMetadata<T>,
+    coin_metadata_object_id: address,
     treasury_cap: TreasuryCap<T>,
     token_pool_administrator: address,
+    decimals: u8,
     ctx: &mut TxContext,
 ) {
-    let (
-        coin_metadata_address,
-        type_proof_type_name,
-        token_type,
-        burn_mint_token_pool,
-    ) = initialize_internal(coin_metadata, treasury_cap, ctx);
+    let (type_proof_type_name, token_type, burn_mint_token_pool) = initialize_internal(
+        coin_metadata_object_id,
+        treasury_cap,
+        decimals,
+        ctx,
+    );
 
     let type_proof_type_name_address = type_proof_type_name.address_string();
     let burn_mint_token_pool_package_id = address::from_ascii_bytes(
@@ -92,7 +95,7 @@ public fun initialize_by_ccip_admin<T>(
     token_admin_registry::register_pool_by_admin(
         ref,
         ccip_admin_proof,
-        coin_metadata_address,
+        coin_metadata_object_id,
         burn_mint_token_pool_package_id,
         string::utf8(b"burn_mint_token_pool"),
         token_type.into_string(),
@@ -108,18 +111,18 @@ public fun initialize_by_ccip_admin<T>(
 
 #[allow(lint(self_transfer))]
 fun initialize_internal<T>(
-    coin_metadata: &CoinMetadata<T>,
+    coin_metadata_object_id: address,
     treasury_cap: TreasuryCap<T>,
+    decimals: u8,
     ctx: &mut TxContext,
-): (address, TypeName, TypeName, BurnMintTokenPoolState<T>) {
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
+): (TypeName, TypeName, BurnMintTokenPoolState<T>) {
     let (ownable_state, owner_cap) = ownable::new(ctx);
 
     let burn_mint_token_pool = BurnMintTokenPoolState<T> {
         id: object::new(ctx),
         token_pool_state: token_pool::initialize(
-            coin_metadata_address,
-            coin_metadata.get_decimals(),
+            coin_metadata_object_id,
+            decimals,
             vector[],
             ctx,
         ),
@@ -131,7 +134,7 @@ fun initialize_internal<T>(
 
     transfer::public_transfer(owner_cap, ctx.sender());
 
-    (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool)
+    (type_proof_type_name, token_type, burn_mint_token_pool)
 }
 
 // ================================================================

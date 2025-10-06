@@ -1,7 +1,7 @@
 module managed_token_faucet::faucet;
 
 use managed_token::managed_token::{Self, MintCap, TokenState};
-use sui::coin::{Coin, CoinMetadata};
+use sui::coin::Coin;
 use sui::deny_list::DenyList;
 
 public struct FaucetState<phantom T> has key, store {
@@ -19,35 +19,34 @@ public fun initialize<T>(mint_cap: MintCap<T>, ctx: &mut TxContext) {
 }
 
 public fun drip<T>(
-    metadata: &CoinMetadata<T>,
     state: &FaucetState<T>,
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
+    decimals: u8,
     ctx: &mut TxContext,
 ): Coin<T> {
-    drip_internal(metadata, state, token_state, deny_list, ctx)
+    drip_internal(state, token_state, deny_list, decimals, ctx)
 }
 
 public fun drip_and_send<T>(
-    metadata: &CoinMetadata<T>,
     state: &FaucetState<T>,
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
     recipient: address,
+    decimals: u8,
     ctx: &mut TxContext,
 ) {
-    let coin = drip_internal(metadata, state, token_state, deny_list, ctx);
+    let coin = drip_internal(state, token_state, deny_list, decimals, ctx);
     transfer::public_transfer(coin, recipient);
 }
 
 fun drip_internal<T>(
-    metadata: &CoinMetadata<T>,
     state: &FaucetState<T>,
     token_state: &mut TokenState<T>,
     deny_list: &DenyList,
+    decimals: u8,
     ctx: &mut TxContext,
 ): Coin<T> {
-    let decimals = metadata.get_decimals();
     let mut i = 0;
     let mut amount = 1;
 

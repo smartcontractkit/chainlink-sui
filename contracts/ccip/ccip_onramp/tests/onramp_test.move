@@ -691,6 +691,9 @@ public fun test_get_fee_unconfigured_destination() {
     let ctx = env.scenario.ctx();
     let (treasury_cap, coin_metadata) = create_test_token(ctx);
 
+    // Get coin metadata address
+    let coin_metadata_addr = object::id_to_address(object::borrow_id(&coin_metadata));
+
     // Test get_fee function with basic parameters
     // This should fail because destination chain is not configured in fee quoter
     let _fee = onramp::get_fee(
@@ -701,7 +704,7 @@ public fun test_get_fee_unconfigured_destination() {
         b"test_data", // data
         vector[], // token_addresses (empty for no tokens)
         vector[], // token_amounts (empty for no tokens)
-        &coin_metadata,
+        coin_metadata_addr,
         b"extra_args",
     );
 
@@ -755,7 +758,7 @@ public fun test_get_fee_success() {
         b"test_data",
         vector[], // token_addresses (empty for no tokens)
         vector[], // token_amounts (empty for no tokens)
-        &coin_metadata,
+        coin_metadata_addr,
         b"", // empty extra_args will use defaults
     );
 
@@ -831,7 +834,7 @@ public fun test_get_fee_success_svm() {
         b"test_data",
         vector[], // token_addresses (empty for no tokens)
         vector[], // token_amounts (empty for no tokens)
-        &coin_metadata,
+        coin_metadata_addr,
         svm_extra_args,
     );
 
@@ -930,6 +933,7 @@ public fun test_error_sender_not_allowed() {
     env.scenario.next_tx(OWNER);
     let ctx = env.scenario.ctx();
     let (mut treasury_cap, coin_metadata) = create_test_token(ctx);
+    let coin_metadata_addr = object::id_to_address(object::borrow_id(&coin_metadata));
     let mut test_coin = coin::mint(&mut treasury_cap, 1000, ctx);
 
     // Switch to unauthorized sender
@@ -951,7 +955,7 @@ public fun test_error_sender_not_allowed() {
         EVM_RECEIVER_ADDRESS,
         b"data",
         token_params,
-        &coin_metadata,
+        coin_metadata_addr,
         &mut test_coin,
         b"extra_args",
         env.scenario.ctx(),

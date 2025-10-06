@@ -9,7 +9,7 @@ use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
 use sui::address;
-use sui::coin::{CoinMetadata, TreasuryCap};
+use sui::coin::TreasuryCap;
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
 
@@ -308,7 +308,7 @@ public fun get_all_configured_tokens(
 public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
-    coin_metadata: &CoinMetadata<T>,
+    coin_metadata_object_id: address,
     initial_administrator: address,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
@@ -320,14 +320,13 @@ public fun register_pool<T, TypeProof: drop>(
         string::utf8(b"register_pool"),
         VERSION,
     );
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     let token_type = type_name::with_defining_ids<T>().into_string();
     let proof_tn = type_name::with_defining_ids<TypeProof>();
     let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
     let token_pool_module = proof_tn.module_string().into_bytes().to_string();
     register_pool_internal(
         ref,
-        coin_metadata_address,
+        coin_metadata_object_id,
         proof_package_id,
         token_pool_module,
         token_type,
@@ -343,7 +342,7 @@ public fun register_pool<T, TypeProof: drop>(
 public fun register_pool_by_admin(
     ref: &mut CCIPObjectRef,
     _: state_object::CCIPAdminProof,
-    coin_metadata_address: address,
+    coin_metadata_object_id: address,
     token_pool_package_id: address,
     token_pool_module: String,
     token_type: ascii::String,
@@ -361,7 +360,7 @@ public fun register_pool_by_admin(
     );
     register_pool_internal(
         ref,
-        coin_metadata_address,
+        coin_metadata_object_id,
         token_pool_package_id,
         token_pool_module,
         token_type,
@@ -374,7 +373,7 @@ public fun register_pool_by_admin(
 
 fun register_pool_internal(
     ref: &mut CCIPObjectRef,
-    coin_metadata_address: address,
+    coin_metadata_object_id: address,
     token_pool_package_id: address,
     token_pool_module: String,
     token_type: ascii::String,
@@ -384,7 +383,7 @@ fun register_pool_internal(
     release_or_mint_params: vector<address>,
 ) {
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
-    assert!(!state.token_configs.contains(coin_metadata_address), ETokenAlreadyRegistered);
+    assert!(!state.token_configs.contains(coin_metadata_object_id), ETokenAlreadyRegistered);
 
     let token_config = TokenConfig {
         token_pool_package_id,
@@ -397,10 +396,10 @@ fun register_pool_internal(
         release_or_mint_params,
     };
 
-    state.token_configs.push_back(coin_metadata_address, token_config);
+    state.token_configs.push_back(coin_metadata_object_id, token_config);
 
     event::emit(PoolRegistered {
-        coin_metadata_address,
+        coin_metadata_address: coin_metadata_object_id,
         token_pool_package_id,
         administrator: initial_administrator,
         token_pool_type_proof,
@@ -409,15 +408,15 @@ fun register_pool_internal(
 
 public fun unregister_pool(
     ref: &mut CCIPObjectRef,
-    coin_metadata_address: address,
+    coin_metadata_object_id: address,
     ctx: &mut TxContext,
 ) {
-    unregister_pool_internal(ref, coin_metadata_address, ctx.sender());
+    unregister_pool_internal(ref, coin_metadata_object_id, ctx.sender());
 }
 
 fun unregister_pool_internal(
     ref: &mut CCIPObjectRef,
-    coin_metadata_address: address,
+    coin_metadata_object_id: address,
     caller: address,
 ) {
     verify_function_allowed(
@@ -428,16 +427,16 @@ fun unregister_pool_internal(
     );
     let state = state_object::borrow_mut<TokenAdminRegistryState>(ref);
 
-    assert!(state.token_configs.contains(coin_metadata_address), ETokenNotRegistered);
+    assert!(state.token_configs.contains(coin_metadata_object_id), ETokenNotRegistered);
 
-    let token_config = state.token_configs.remove(coin_metadata_address);
+    let token_config = state.token_configs.remove(coin_metadata_object_id);
 
     assert!(token_config.administrator == caller, ENotAllowed);
 
     let previous_pool_address = token_config.token_pool_package_id;
 
     event::emit(PoolUnregistered {
-        coin_metadata_address,
+        coin_metadata_address: coin_metadata_object_id,
         previous_pool_address,
     });
 }

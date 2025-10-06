@@ -340,7 +340,7 @@ fun apply_dest_chain_config_updates_internal(
     };
 }
 
-public fun get_fee<T>(
+public fun get_fee(
     ref: &CCIPObjectRef,
     clock: &Clock,
     dest_chain_selector: u64,
@@ -348,7 +348,7 @@ public fun get_fee<T>(
     data: vector<u8>,
     token_addresses: vector<address>, // the token's coin metadata object ids
     token_amounts: vector<u64>,
-    fee_token: &CoinMetadata<T>,
+    fee_token_coin_metadata_object_id: address,
     extra_args: vector<u8>,
 ): u64 {
     verify_function_allowed(
@@ -365,7 +365,7 @@ public fun get_fee<T>(
         data,
         token_addresses,
         token_amounts,
-        object::id_to_address(object::borrow_id(fee_token)),
+        fee_token_coin_metadata_object_id,
         extra_args,
     )
 }
@@ -378,7 +378,7 @@ fun get_fee_internal(
     data: vector<u8>,
     token_addresses: vector<address>, // the token's coin metadata object ids
     token_amounts: vector<u64>,
-    fee_token: address,
+    fee_token_coin_metadata_object_id: address,
     extra_args: vector<u8>,
 ): u64 {
     assert!(!rmn_remote::is_cursed_u128(ref, dest_chain_selector as u128), ECursedByRmn);
@@ -390,7 +390,7 @@ fun get_fee_internal(
         data,
         token_addresses,
         token_amounts,
-        fee_token,
+        fee_token_coin_metadata_object_id,
         extra_args,
     )
 }
@@ -766,7 +766,7 @@ public fun ccip_send<T>(
     receiver: vector<u8>,
     data: vector<u8>,
     token_params: TokenTransferParams,
-    fee_token_metadata: &CoinMetadata<T>,
+    fee_token_coin_metadata_object_id: address,
     fee_token: &mut Coin<T>,
     extra_args: vector<u8>,
     ctx: &mut TxContext,
@@ -777,8 +777,6 @@ public fun ccip_send<T>(
         string::utf8(b"ccip_send"),
         VERSION,
     );
-    // get_fee_internal will check curse status
-    let fee_token_metadata_addr = object::id_to_address(object::borrow_id(fee_token_metadata));
 
     let mut token_amounts = vector[];
     let mut source_tokens = vector[];
@@ -822,7 +820,7 @@ public fun ccip_send<T>(
         data,
         source_tokens,
         token_amounts,
-        fee_token_metadata_addr,
+        fee_token_coin_metadata_object_id,
         extra_args,
     );
 
@@ -831,14 +829,14 @@ public fun ccip_send<T>(
         assert!(fee_token_amount <= fee_token_balance, EUnexpectedWithdrawAmount);
         let paid = coin::split(fee_token, fee_token_amount, ctx);
 
-        if (state.fee_tokens.contains(fee_token_metadata_addr)) {
+        if (state.fee_tokens.contains(fee_token_coin_metadata_object_id)) {
             let coins: &mut Coin<T> = bag::borrow_mut(
                 &mut state.fee_tokens,
-                fee_token_metadata_addr,
+                fee_token_coin_metadata_object_id,
             );
             coins.join(paid);
         } else {
-            state.fee_tokens.add(fee_token_metadata_addr, paid);
+            state.fee_tokens.add(fee_token_coin_metadata_object_id, paid);
         };
         // if overpaying, onramp will only take out the amount it needs, leaving the fee token object with the remaining balance
     };
@@ -857,7 +855,7 @@ public fun ccip_send<T>(
     ) = fee_quoter::process_message_args(
         ref,
         dest_chain_selector,
-        fee_token_metadata_addr,
+        fee_token_coin_metadata_object_id,
         fee_token_amount,
         extra_args,
         source_tokens,
@@ -880,7 +878,7 @@ public fun ccip_send<T>(
         data,
         receiver,
         converted_extra_args,
-        fee_token_metadata_addr,
+        fee_token_coin_metadata_object_id,
         fee_token_amount,
         fee_value_juels,
         token_transfers,
@@ -920,7 +918,7 @@ fun construct_message(
     data: vector<u8>,
     receiver: vector<u8>,
     converted_extra_args: vector<u8>,
-    fee_token_metadata: address,
+    fee_token_coin_metadata_object_id: address,
     fee_token_amount: u64,
     fee_value_juels: u256,
     token_transfers: vector<Sui2AnyTokenTransfer>,
@@ -953,7 +951,7 @@ fun construct_message(
         data,
         receiver,
         extra_args: converted_extra_args,
-        fee_token: fee_token_metadata,
+        fee_token: fee_token_coin_metadata_object_id,
         fee_token_amount,
         fee_value_juels,
         token_amounts: token_transfers,

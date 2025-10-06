@@ -49,13 +49,15 @@ fun setup(): (TestEnv, OwnerCap) {
         option::none(),
         scenario.ctx(),
     );
+    let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
     burn_mint_token_pool::initialize_by_ccip_admin(
         &mut ccip_ref,
         state_object::create_ccip_admin_proof_for_test(),
-        &coin_metadata,
+        coin_metadata_address,
         treasury_cap,
         @0x123,
+        Decimals,
         scenario.ctx(),
     );
 

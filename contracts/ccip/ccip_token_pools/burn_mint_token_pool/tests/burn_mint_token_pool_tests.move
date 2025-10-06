@@ -77,14 +77,16 @@ public fun test_initialize_and_basic_functionality() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         // Initialize burn mint token pool
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123, // token_pool_administrator
+            Decimals,
             ctx,
         );
 
@@ -142,13 +144,15 @@ public fun test_chain_configuration_management() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -258,13 +262,15 @@ public fun test_allowlist_management() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -316,13 +322,15 @@ public fun test_rate_limiter_configuration() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -419,13 +427,15 @@ public fun test_invalid_arguments_rate_limiter_configs() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -483,13 +493,15 @@ public fun test_comprehensive_allowlist_operations() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -544,13 +556,15 @@ public fun test_destroy_token_pool() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -600,13 +614,15 @@ public fun test_comprehensive_rate_limiter_operations() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -702,13 +718,15 @@ public fun test_edge_cases_and_boundary_conditions() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -836,6 +854,7 @@ public fun test_lock_or_burn_comprehensive() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         // Mint some tokens for testing before initializing the pool
         let test_coin = coin::mint(&mut treasury_cap, 1000, ctx); // Small amount to stay within rate limiter
@@ -844,9 +863,10 @@ public fun test_lock_or_burn_comprehensive() {
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap, // treasury_cap is moved here
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -982,15 +1002,15 @@ public fun test_release_or_mint_comprehensive() {
             option::none(),
             ctx,
         );
-
         let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -1126,13 +1146,15 @@ public fun test_set_allowlist_enabled() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -1190,13 +1212,15 @@ public fun test_apply_allowlist_updates() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 
@@ -1291,13 +1315,15 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
             option::none(),
             ctx,
         );
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
             state_object::create_ccip_admin_proof_for_test(),
-            &coin_metadata,
+            coin_metadata_address,
             treasury_cap,
             @0x123,
+            Decimals,
             ctx,
         );
 

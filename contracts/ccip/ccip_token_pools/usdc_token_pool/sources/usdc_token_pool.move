@@ -19,7 +19,7 @@ use std::string::{Self, String};
 use std::type_name;
 use sui::address;
 use sui::clock::Clock;
-use sui::coin::{Coin, CoinMetadata};
+use sui::coin::Coin;
 use sui::deny_list::DenyList;
 use sui::event;
 use sui::package::UpgradeCap;
@@ -62,18 +62,17 @@ public struct USDCTokenPoolState<phantom T> has key {
     ownable_state: OwnableState,
 }
 
-const EInvalidCoinMetadata: u64 = 1;
-const EInvalidArguments: u64 = 2;
-const EInvalidOwnerCap: u64 = 4;
-const EZeroChainSelector: u64 = 5;
-const EEmptyAllowedCaller: u64 = 6;
-const EInvalidMessageVersion: u64 = 7;
-const EDomainMismatch: u64 = 8;
-const ENonceMismatch: u64 = 9;
-const EDomainNotFound: u64 = 10;
-const EDomainDisabled: u64 = 11;
-const ETokenAmountOverflow: u64 = 12;
-const EInvalidFunction: u64 = 13;
+const EInvalidArguments: u64 = 1;
+const EInvalidOwnerCap: u64 = 2;
+const EZeroChainSelector: u64 = 3;
+const EEmptyAllowedCaller: u64 = 4;
+const EInvalidMessageVersion: u64 = 5;
+const EDomainMismatch: u64 = 6;
+const ENonceMismatch: u64 = 7;
+const EDomainNotFound: u64 = 8;
+const EDomainDisabled: u64 = 9;
+const ETokenAmountOverflow: u64 = 10;
+const EInvalidFunction: u64 = 11;
 
 // ================================================================
 // |                             Init                             |
@@ -83,27 +82,23 @@ public fun type_and_version(): String {
     string::utf8(b"USDCTokenPool 1.6.0")
 }
 
-// TODO: should we just import USDC as type arg?
 #[allow(lint(self_transfer))]
-public fun initialize<T: drop>(
+public fun initialize<T>(
     ref: &mut CCIPObjectRef,
     ccip_admin_proof: state_object::CCIPAdminProof,
-    coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
     local_domain_identifier: u32,
     token_pool_package_id: address,
     token_pool_administrator: address,
+    decimals: u8,
     ctx: &mut TxContext,
 ) {
-    let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
-
     let (ownable_state, token_pool_owner_cap) = ownable::new(ctx);
 
     let usdc_token_pool = USDCTokenPoolState<T> {
         id: object::new(ctx),
         token_pool_state: token_pool::initialize(
-            coin_metadata_address,
-            coin_metadata.get_decimals(),
+            @usdc_coin_metadata_object_id,
+            decimals,
             vector[],
             ctx,
         ),
@@ -119,7 +114,7 @@ public fun initialize<T: drop>(
     token_admin_registry::register_pool_by_admin(
         ref,
         ccip_admin_proof,
-        coin_metadata_address,
+        @usdc_coin_metadata_object_id,
         token_pool_package_id,
         string::utf8(b"usdc_token_pool"),
         token_type.into_string(),
