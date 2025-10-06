@@ -888,33 +888,39 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 
 	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
 
-	// Extract parent object ID from pointer
-	parentObjectId := ""
-	stateKey := ""
-	switch module {
-	case "offramp":
-		parentObjectId = pointerObject.Content.SuiMoveObject.Fields["off_ramp_object_id"].(string)
-		stateKey = "OffRampState"
-	case "onramp":
-		parentObjectId = pointerObject.Content.SuiMoveObject.Fields["on_ramp_object_id"].(string)
-		stateKey = "OnRampState"
-	case "ccip":
-	case "state_object":
-		parentObjectId = pointerObject.Content.SuiMoveObject.Fields["ccip_object_id"].(string)
-		stateKey = "CCIPObjectRef"
+	parentObjectID, err := c.GetParentObjectID(ctx, packageId, module, pointerStructName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get parent object ID in LoadModulePackageIds: %w", err)
 	}
 
-	if parentObjectId == "" {
+	if parentObjectID == "" {
 		return nil, fmt.Errorf("parent object id not found for package %s and module %s", packageId, module)
 	}
 
-	// Derive state object address from parent object
-	stateObjectId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectId, []byte(stateKey))
-	if err != nil {
-		return nil, fmt.Errorf("failed to derive state object address: %w", err)
+	c.log.Debugw("parentObjectID", "parentObjectID", parentObjectID)
+
+	// TODO: put this in the config instead of having a match statement here
+	derivationKey := ""
+	switch module {
+	case "offramp":
+		derivationKey = "OffRampState"
+	case "onramp":
+		derivationKey = "OnRampState"
+	case "ccip":
+	case "state_object":
+		derivationKey = "CCIPObjectRef"
+	case "router":
+		derivationKey = "RouterState"
+	case "counter":
+		derivationKey = "Counter"
 	}
 
-	c.log.Debugw("derived state object", "parentObjectId", parentObjectId, "stateKey", stateKey, "stateObjectId", stateObjectId)
+	stateObjectId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(derivationKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive state object ID in LoadModulePackageIds: %w", err)
+	}
+
+	c.log.Debugw("stateObjectId", "stateObjectId", stateObjectId, "derivationKey", derivationKey)
 
 	// Read the state object
 	stateObject, err := c.ReadObjectId(ctx, stateObjectId)

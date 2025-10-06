@@ -35,6 +35,13 @@ var PointerConfigs = map[string][]PointerConfig{
 			ParentFieldName: "ccip_object_id",
 		},
 	},
+	"state_object": {
+		{
+			Module:          "state_object",
+			Pointer:         "CCIPObjectRefPointer",
+			ParentFieldName: "ccip_object_id",
+		},
+	},
 	"router": {
 		{
 			Module:          "router",
