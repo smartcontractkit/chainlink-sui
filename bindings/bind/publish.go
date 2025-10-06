@@ -50,8 +50,10 @@ func PublishPackage(
 		return "", nil, fmt.Errorf("invalid signer address %v: %w", signerAddressStr, err)
 	}
 
-	gasBudgetValue := uint64(300_000_000)
-	opts.GasBudget = &gasBudgetValue // 300M MIST default for publish
+	gasBudgetValueDefault := uint64(500_000_000)
+	if opts.GasBudget == nil {
+		opts.GasBudget = &gasBudgetValueDefault // 500M MIST default for publish
+	}
 
 	ptb := transaction.NewTransaction()
 	arg := ptb.Publish(modules, deps)
