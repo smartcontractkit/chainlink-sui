@@ -8,11 +8,16 @@ use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
 use sui::address;
+use sui::derived_object;
 use sui::event;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
 
 public struct ROUTER has drop {}
+
+public struct RouterObject has key {
+    id: UID,
+}
 
 public struct OnRampSet has copy, drop {
     dest_chain_selector: u64,
@@ -27,8 +32,7 @@ public struct RouterState has key {
 
 public struct RouterStatePointer has key, store {
     id: UID,
-    router_state_id: address,
-    owner_cap_id: address,
+    router_object_id: address,
 }
 
 const EParamsLengthMismatch: u64 = 1;
@@ -40,20 +44,18 @@ const EInvalidObjectAddress: u64 = 6;
 const EInvalidOnrampAddress: u64 = 7;
 
 fun init(_witness: ROUTER, ctx: &mut TxContext) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let mut router_object = RouterObject { id: object::new(ctx) };
+    let (ownable_state, owner_cap) = ownable::new(&mut router_object.id, ctx);
 
     let router = RouterState {
-        id: object::new(ctx),
+        id: derived_object::claim(&mut router_object.id, b"RouterState"),
         ownable_state,
         on_ramp_package_ids: table::new(ctx),
     };
 
-    let owner_cap_id = object::id(&owner_cap);
-
     let router_state_pointer = RouterStatePointer {
         id: object::new(ctx),
-        router_state_id: object::uid_to_address(&router.id),
-        owner_cap_id: object::id_to_address(&owner_cap_id),
+        router_object_id: object::id_address(&router_object),
     };
 
     let tn = type_name::with_original_ids<ROUTER>();
@@ -61,8 +63,14 @@ fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(router);
+    transfer::share_object(router_object);
+
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(router_state_pointer, package_id);
+}
+
+public(package) fun get_uid(router_object: &mut RouterObject): &mut UID {
+    &mut router_object.id
 }
 
 public fun type_and_version(): String {
