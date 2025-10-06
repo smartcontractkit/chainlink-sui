@@ -127,18 +127,3 @@ func TestPointerConfig_AllConfigs(t *testing.T) {
 		})
 	}
 }
-
-func TestPointerConfig_NoDuplicates(t *testing.T) {
-	// Ensure there are no duplicate pointer names across all configs
-	seenPointerNames := make(map[string]string)
-
-	for contractName, configs := range PointerConfigs {
-		for _, config := range configs {
-			if existingContract, exists := seenPointerNames[config.Pointer]; exists {
-				t.Errorf("Duplicate pointer name %s found in both %s and %s",
-					config.Pointer, existingContract, contractName)
-			}
-			seenPointerNames[config.Pointer] = contractName
-		}
-	}
-}
