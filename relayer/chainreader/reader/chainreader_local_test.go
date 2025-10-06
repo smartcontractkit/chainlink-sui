@@ -727,7 +727,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		// Verify the returned struct
 		require.NotNil(t, retUint64)
-		require.Equal(t, expectedUint64, retUint64, "Expected value to be 0")
+		require.Equal(t, expectedUint64, retUint64, "Expected value to be 5")
 	})
 
 	t.Run("GetLatestValue_GetAllSourceChainConfigs", func(t *testing.T) {
