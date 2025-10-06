@@ -17,10 +17,10 @@ public struct SourceTransferCap has key, store {
 
 public struct TokenTransferParams {
     token_transfer: Option<TokenTransferMetadata>,
-    token_receiver: address,
+    token_receiver: vector<u8>,
 }
 
-public fun get_token_receiver(params: &TokenTransferParams): address {
+public fun get_token_receiver(params: &TokenTransferParams): vector<u8> {
     params.token_receiver
 }
 
@@ -41,7 +41,7 @@ fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
     transfer::transfer(source_cap, ctx.sender());
 }
 
-public fun create_token_transfer_params(token_receiver: address): TokenTransferParams {
+public fun create_token_transfer_params(token_receiver: vector<u8>): TokenTransferParams {
     TokenTransferParams {
         token_transfer: option::none(),
         token_receiver,

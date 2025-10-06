@@ -12,6 +12,7 @@ use ccip_token_pool::ownable::OwnerCap;
 use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::ownable::OwnerCap as TokenOwnerCap;
 use managed_token_pool::managed_token_pool::{Self, ManagedTokenPoolState};
+use std::bcs;
 use std::string;
 use std::type_name;
 use sui::address;
@@ -466,7 +467,9 @@ public fun test_lock_or_burn_functionality() {
         let initial_coin_value = test_coin.value();
         assert!(initial_coin_value == 1000);
 
-        let mut token_transfer_params = onramp_sh::create_token_transfer_params(@0x456); // Use the test user address as token receiver
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params(
+            bcs::to_bytes(&@0x456),
+        ); // Use the test user address as token receiver
 
         // Actually call lock_or_burn function
         managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(

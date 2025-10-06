@@ -102,7 +102,6 @@ const EUnauthorizedMintCap: u64 = 6;
 const EZeroAmount: u64 = 7;
 const ECannotIncreaseUnlimitedAllowance: u64 = 8;
 const EInvalidFunction: u64 = 9;
-const EInvalidStateAddress: u64 = 10;
 
 public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
