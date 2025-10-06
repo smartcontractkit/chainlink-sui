@@ -26,7 +26,7 @@ ALLOWLIST_ADMIN_ADDR="${ALLOWLIST_ADMIN_ADDR:-$(sui client active-address 2>/dev
 REBALANCER_ADDR="${REBALANCER_ADDR:-$(sui client active-address 2>/dev/null || echo 0x0)}"
 
 # FeeQuoter parameters (examples; tune as you need)
-FEE_QUOTER_LINK_RATE_WEI="${FEE_QUOTER_LINK_RATE_WEI:-1000000000000000000}"  # 1e18
+FEE_QUOTER_LINK_RATE_WEI="${FEE_QUOTER_LINK_RATE_WEI:-100000000000000000000}"  # 100e18
 FEE_QUOTER_BASE_FEE="${FEE_QUOTER_BASE_FEE:-90000000000}"
 
 # Token type(s) used by the pools
@@ -63,7 +63,7 @@ publish_and_pin() {
   patch_move_toml "$toml" "$key" "0x0"
 
   pushd "$dir" >/dev/null
-  sui client publish --with-unpublished-dependencies --gas-budget "$GAS" --json \
+  sui client publish --with-unpublished-dependencies --gas-budget "$GAS" --json --silence-warnings \
     | tee >(jq -C . >&2) \
     > "$OLDPWD/$out_file"
   popd >/dev/null
@@ -118,17 +118,12 @@ CCIP_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.obj
 CCIP_SOURCE_TRANSFER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("Source.*Transfer.*Cap|source.*transfer.*cap"; "i"))) | .objectId' artifacts.ccip.publish.json | head -n1)"
 [[ -n "$CCIP_STATE_REF_ID" && -n "$CCIP_OWNER_CAP_ID" ]] || { echo "Missing CCIP state/owner cap"; exit 1; }
 
-# Get SUI metadata ID - query it from the chain
-SUI_METADATA_ID="$(sui client objects --json | jq -r '.[] | select(.data.type == "0x2::coin::CoinMetadata<0x2::sui::SUI>") | .data.objectId' | head -n1)"
-
-echo "Using SUI_METADATA_ID: $SUI_METADATA_ID"
-
 # fee_quoter::initialize (uses LINK and SUI as fee tokens)
 sui client call \
   --package "$CCIP_PKG_ID" --module fee_quoter --function initialize \
   --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
         "$FEE_QUOTER_LINK_RATE_WEI" "$LINK_METADATA_ID" "$FEE_QUOTER_BASE_FEE" \
-        "[\"$LINK_METADATA_ID\",\"$SUI_METADATA_ID\"]" \
+        "[\"$LINK_METADATA_ID\"]" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.init.json >/dev/null
 
 # nonce_manager, receiver_registry, rmn_remote, token_admin_registry
@@ -231,7 +226,7 @@ echo "--- Minting ETH tokens ---"
 
 # Mint some ETH so you can later test burns
 sui client call --package "$ETH_PKG_ID" --module mock_eth_token --function mint \
- --args "$ETH_TREASURY_CAP_ID" "1000000000000" \
+ --args "$ETH_TREASURY_CAP_ID" "1000000000000000" \
  --gas-budget "$GAS" --json | tee artifacts.eth.mint.json >/dev/null
 
 ETH_COIN_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("::coin::Coin<"))) | .objectId' artifacts.eth.mint.json | head -n1)"
@@ -243,7 +238,7 @@ sui client call \
   --package "$LINK_PKG_ID" \
   --module mock_link_token \
   --function mint \
-  --args "$LINK_TREASURY_CAP_ID" "1000000000" \
+  --args "$LINK_TREASURY_CAP_ID" "1000000000000000" \
   --gas-budget "$GAS" \
   --json | tee artifacts.link.mint.json >/dev/null
 
@@ -302,14 +297,25 @@ sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function apply_to
 echo "Applying premium multiplier updates for LINK and ETH..."
 sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function apply_premium_multiplier_wei_per_eth_updates \
   --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
-    "[\"$LINK_METADATA_ID\",\"$ETH_METADATA_ID\"]" "[900000000000000000,900000000000000000]" \
+    "[\"$LINK_METADATA_ID\",\"$ETH_METADATA_ID\"]" "[1,1]" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.premium_multiplier.json >/dev/null
 
 # fee_quoter::apply_dest_chain_config_updates (no change needed)
 echo "Applying destination chain config updates..."
 sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function apply_dest_chain_config_updates \
-  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" 2 true 10 30000 300000 300000 16 40 3000 100 16 1 "[0x28,0x12,0xd5,0x2c]" false 25 90000 200000 1100000000000000000 90000 10 \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" 2 true 10 30000 300000 300000 16 40 3000 100 16 1 "[0x28,0x12,0xd5,0x2c]" false 25 90000 200000 1100000000000000 90000 10 \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.dest_chain_config.json >/dev/null
+
+# fee_quoter::update_prices_with_owner_cap to set the USD price for LINK
+echo "Updating prices with owner cap for LINK..."
+sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function update_prices_with_owner_cap \
+  --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" "$CLOCK_ID" "[\"$LINK_METADATA_ID\"]" "[100100100100100]" "[2]" "[20]" \
+  --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.update_prices_with_owner_cap.json >/dev/null
+
+
+echo "Splitting LINK coin for fee token..."
+sui client split-coin --coin-id "$LINK_COIN_ID" --amounts 100000 --json | tee artifacts.ccip.fee_quoter.split_coin.json >/dev/null
+
 
 git checkout $ROOT_DIR
 

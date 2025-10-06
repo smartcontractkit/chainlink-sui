@@ -1,4 +1,4 @@
-import { Transaction } from '@mysten/sui/transactions'
+import { Transaction, type TransactionArgument, type TransactionResult } from '@mysten/sui/transactions'
 import { SuiClient } from '@mysten/sui/client'
 
 // Onramp call args
@@ -13,7 +13,7 @@ export type BuildArgs = {
   onrampState: string;              // OnRampState
   tokenMetadata: string;            // &CoinMetadata<T> for token being transferred
   tokenCoin: string;                // &mut Coin<T> token being transferred (owned)
-  feeToken: string;                 // &mut Coin<FeeToken> for fee payment (owned)
+  feeToken: TransactionResult | string;                 // &mut Coin<FeeToken> for fee payment (owned)
   feeTokenType: string;             // Fee token type (e.g., "0x2::sui::SUI")
   feeTokenMetadata: string;         // &CoinMetadata<FeeToken> for fee token
   tokenPoolState: string;           // pool-specific state obj (if required)
@@ -26,15 +26,13 @@ export type BuildArgs = {
   poolKind: 'burn_mint' | 'lock_release';
 };
 
-export async function buildCcipSendPTB(client: SuiClient, a: BuildArgs) {
-  const tx = new Transaction()
-
+export async function buildCcipSendPTB(tx: Transaction, client: SuiClient, a: BuildArgs) {
   console.debug('BuildArgs', a)
 
-  const ccipRef = tx.object(a.ccipObjectRef)
   const state = tx.object(a.onrampState)
   const clock = tx.object('0x6')
   const receiver = tx.pure.address(a.receiver)
+  const receiverBytes = Array.from(Buffer.from(a.receiver.replace('0x', ''), 'hex'))
 
   // Create Token State Params
   const tokenParams = tx.moveCall({
@@ -89,6 +87,8 @@ export async function buildCcipSendPTB(client: SuiClient, a: BuildArgs) {
       break
   }
 
+  console.log('receiverBytes', receiverBytes, receiverBytes.length)
+
   // CCIP Send
   tx.moveCall({
     package: a.onrampPkg,
@@ -100,7 +100,7 @@ export async function buildCcipSendPTB(client: SuiClient, a: BuildArgs) {
       state,                                   // &mut OnRampState
       clock,                                   // &Clock (0x6)
       tx.pure.u64(a.destChainSelector),        // u64
-      tx.pure.vector('u8', [24, 42, 24, 42]), // vector<u8>
+      tx.pure('vector<u8>', receiverBytes), // vector<u8>
       tx.pure.vector('u8', a.data),                         // vector<u8>
       tokenParams,                             // osh::TokenTransferParams (cmd 0)
       tx.object(a.feeTokenMetadata),        // &CoinMetadata<FeeToken>
