@@ -19,9 +19,10 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramps","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_package_ids","type":"vector<address>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_router","module":"router","name":"accept_ownership","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"RouterState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"RouterState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_router","module":"router","name":"get_on_ramp","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"get_uid","parameters":[{"name":"router_object","type":"RouterObject"}]},{"package":"ccip_router","module":"router","name":"has_pending_transfer","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"is_chain_supported","parameters":[{"name":"router","type":"RouterState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_router","module":"router","name":"owner","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_from","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"pending_transfer_to","parameters":[{"name":"state","type":"RouterState"}]},{"package":"ccip_router","module":"router","name":"set_on_ramps","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"router","type":"RouterState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"on_ramp_package_ids","type":"vector<address>"}]},{"package":"ccip_router","module":"router","name":"transfer_ownership","parameters":[{"name":"state","type":"RouterState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_router","module":"router","name":"type_and_version","parameters":null}]`
 
 type IRouter interface {
+	GetUid(ctx context.Context, opts *bind.CallOpts, routerObject bind.Object) (*models.SuiTransactionBlockResponse, error)
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -47,6 +48,7 @@ type IRouter interface {
 }
 
 type IRouterDevInspect interface {
+	GetUid(ctx context.Context, opts *bind.CallOpts, routerObject bind.Object) (bind.Object, error)
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	IsChainSupported(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (bool, error)
 	GetOnRamp(ctx context.Context, opts *bind.CallOpts, router bind.Object, destChainSelector uint64) (string, error)
@@ -58,6 +60,8 @@ type IRouterDevInspect interface {
 }
 
 type RouterEncoder interface {
+	GetUid(routerObject bind.Object) (*bind.EncodedCall, error)
+	GetUidWithArgs(args ...any) (*bind.EncodedCall, error)
 	TypeAndVersion() (*bind.EncodedCall, error)
 	TypeAndVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsChainSupported(router bind.Object, destChainSelector uint64) (*bind.EncodedCall, error)
@@ -140,6 +144,10 @@ func (c *RouterContract) DevInspect() IRouterDevInspect {
 type ROUTER struct {
 }
 
+type RouterObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
 type OnRampSet struct {
 	DestChainSelector uint64 `move:"u64"`
 	OnRampPackageId   string `move:"address"`
@@ -152,9 +160,8 @@ type RouterState struct {
 }
 
 type RouterStatePointer struct {
-	Id            string `move:"sui::object::UID"`
-	RouterStateId string `move:"address"`
-	OwnerCapId    string `move:"address"`
+	Id             string `move:"sui::object::UID"`
+	RouterObjectId string `move:"address"`
 }
 
 type McmsCallback struct {
@@ -174,17 +181,15 @@ func convertOnRampSetFromBCS(bcs bcsOnRampSet) (OnRampSet, error) {
 }
 
 type bcsRouterStatePointer struct {
-	Id            string
-	RouterStateId [32]byte
-	OwnerCapId    [32]byte
+	Id             string
+	RouterObjectId [32]byte
 }
 
 func convertRouterStatePointerFromBCS(bcs bcsRouterStatePointer) (RouterStatePointer, error) {
 
 	return RouterStatePointer{
-		Id:            bcs.Id,
-		RouterStateId: fmt.Sprintf("0x%x", bcs.RouterStateId),
-		OwnerCapId:    fmt.Sprintf("0x%x", bcs.OwnerCapId),
+		Id:             bcs.Id,
+		RouterObjectId: fmt.Sprintf("0x%x", bcs.RouterObjectId),
 	}, nil
 }
 
@@ -200,6 +205,23 @@ func init() {
 	// Register vector decoder for ROUTER
 	bind.RegisterStructDecoder("vector<ccip_router::router::ROUTER>", func(data []byte) (interface{}, error) {
 		var results []ROUTER
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_router::router::RouterObject", func(data []byte) (interface{}, error) {
+		var result RouterObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for RouterObject
+	bind.RegisterStructDecoder("vector<ccip_router::router::RouterObject>", func(data []byte) (interface{}, error) {
+		var results []RouterObject
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -302,6 +324,16 @@ func init() {
 		}
 		return results, nil
 	})
+}
+
+// GetUid executes the get_uid Move function.
+func (c *RouterContract) GetUid(ctx context.Context, opts *bind.CallOpts, routerObject bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.GetUid(routerObject)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
 // TypeAndVersion executes the type_and_version Move function.
@@ -494,6 +526,28 @@ func (c *RouterContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetUid executes the get_uid Move function using DevInspect to get return values.
+//
+// Returns: &mut UID
+func (d *RouterDevInspect) GetUid(ctx context.Context, opts *bind.CallOpts, routerObject bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.routerEncoder.GetUid(routerObject)
+	if err != nil {
+		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return bind.Object{}, err
+	}
+	if len(results) == 0 {
+		return bind.Object{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(bind.Object)
+	if !ok {
+		return bind.Object{}, fmt.Errorf("unexpected return type: expected bind.Object, got %T", results[0])
+	}
+	return result, nil
+}
+
 // TypeAndVersion executes the type_and_version Move function using DevInspect to get return values.
 //
 // Returns: 0x1::string::String
@@ -672,6 +726,36 @@ func (d *RouterDevInspect) PendingTransferAccepted(ctx context.Context, opts *bi
 
 type routerEncoder struct {
 	*bind.BoundContract
+}
+
+// GetUid encodes a call to the get_uid Move function.
+func (c routerEncoder) GetUid(routerObject bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_uid", typeArgsList, typeParamsList, []string{
+		"&mut RouterObject",
+	}, []any{
+		routerObject,
+	}, []string{
+		"&mut UID",
+	})
+}
+
+// GetUidWithArgs encodes a call to the get_uid Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c routerEncoder) GetUidWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut RouterObject",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_uid", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"&mut UID",
+	})
 }
 
 // TypeAndVersion encodes a call to the type_and_version Move function.

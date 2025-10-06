@@ -84,6 +84,7 @@ public struct Any2SuiMessage {
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 }
 
@@ -92,11 +93,12 @@ public struct Any2SuiTokenAmount has copy, drop, store {
     amount: u64,
 }
 
-public fun new_any2sui_message(
+public(package) fun new_any2sui_message(
     message_id: vector<u8>,
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
     Any2SuiMessage {
@@ -104,22 +106,24 @@ public fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     }
 }
 
 public(package) fun consume_any2sui_message(
     message: Any2SuiMessage,
-): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
     let Any2SuiMessage {
         message_id,
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     } = message;
 
-    (message_id, source_chain_selector, sender, data, dest_token_amounts)
+    (message_id, source_chain_selector, sender, data, token_receiver, dest_token_amounts)
 }
 
 public fun new_dest_token_amounts(
@@ -129,26 +133,6 @@ public fun new_dest_token_amounts(
     token_addresses.zip_map_ref!(&token_amounts, |token_address, token_amount| {
         Any2SuiTokenAmount { token: *token_address, amount: *token_amount }
     })
-}
-
-public fun get_message_id(input: &Any2SuiMessage): vector<u8> {
-    input.message_id
-}
-
-public fun get_source_chain_selector(input: &Any2SuiMessage): u64 {
-    input.source_chain_selector
-}
-
-public fun get_sender(input: &Any2SuiMessage): vector<u8> {
-    input.sender
-}
-
-public fun get_data(input: &Any2SuiMessage): vector<u8> {
-    input.data
-}
-
-public fun get_dest_token_amounts(input: &Any2SuiMessage): vector<Any2SuiTokenAmount> {
-    input.dest_token_amounts
 }
 
 public fun get_token(input: &Any2SuiTokenAmount): address {

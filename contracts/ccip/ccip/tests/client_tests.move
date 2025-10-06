@@ -288,6 +288,7 @@ fun test_new_any2sui_message() {
     let source_chain_selector = 12345u64;
     let sender = x"1234567890123456789012345678901234567890";
     let data = x"deadbeef";
+    let token_receiver = @0x1234;
     let dest_token_amounts = vector[];
 
     let message = client::new_any2sui_message(
@@ -295,28 +296,26 @@ fun test_new_any2sui_message() {
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     );
 
-    // Verify the message was created correctly by checking its fields
-    assert!(client::get_message_id(&message) == message_id, 0);
-    assert!(client::get_source_chain_selector(&message) == source_chain_selector, 1);
-    assert!(client::get_sender(&message) == sender, 2);
-    assert!(client::get_data(&message) == data, 3);
-    assert!(client::get_dest_token_amounts(&message) == dest_token_amounts, 4);
-
+    // Verify the message was created correctly by consuming it
     let (
-        message_id,
-        source_chain_selector,
-        sender,
-        data,
-        dest_token_amounts,
+        consumed_message_id,
+        consumed_source_chain_selector,
+        consumed_sender,
+        consumed_data,
+        consumed_token_receiver,
+        consumed_dest_token_amounts,
     ) = client::consume_any2sui_message(message);
-    assert!(message_id == message_id, 0);
-    assert!(source_chain_selector == source_chain_selector, 1);
-    assert!(sender == sender, 2);
-    assert!(data == data, 3);
-    assert!(dest_token_amounts == dest_token_amounts, 4);
+
+    assert!(consumed_message_id == message_id, 0);
+    assert!(consumed_source_chain_selector == source_chain_selector, 1);
+    assert!(consumed_sender == sender, 2);
+    assert!(consumed_data == data, 3);
+    assert!(consumed_token_receiver == token_receiver, 4);
+    assert!(consumed_dest_token_amounts == dest_token_amounts, 5);
 }
 
 #[test]
@@ -346,59 +345,31 @@ fun test_new_dest_token_amounts() {
 }
 
 #[test]
-fun test_get_message_id() {
+fun test_consume_any2sui_message() {
     let message_id = x"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let message = client::new_any2sui_message(
         message_id,
         1u64,
         x"deadbeef",
         x"cafebabe",
+        @0x12345,
         vector[],
     );
 
-    let retrieved_id = client::get_message_id(&message);
-    assert!(retrieved_id == message_id, 0);
-
     let (
-        message_id,
+        consumed_message_id,
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     ) = client::consume_any2sui_message(message);
-    assert!(message_id == message_id, 0);
+    assert!(consumed_message_id == message_id, 0);
     assert!(source_chain_selector == 1u64, 1);
     assert!(sender == x"deadbeef", 2);
     assert!(data == x"cafebabe", 3);
-    assert!(dest_token_amounts == vector[], 4);
-}
-
-#[test]
-fun test_get_source_chain_selector() {
-    let chain_selector = 98765u64;
-    let message = client::new_any2sui_message(
-        x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-        chain_selector,
-        x"deadbeef",
-        x"cafebabe",
-        vector[],
-    );
-
-    let retrieved_selector = client::get_source_chain_selector(&message);
-    assert!(retrieved_selector == chain_selector, 0);
-
-    let (
-        message_id,
-        source_chain_selector,
-        sender,
-        data,
-        dest_token_amounts,
-    ) = client::consume_any2sui_message(message);
-    assert!(message_id == message_id, 0);
-    assert!(source_chain_selector == chain_selector, 1);
-    assert!(sender == x"deadbeef", 2);
-    assert!(data == x"cafebabe", 3);
-    assert!(dest_token_amounts == vector[], 4);
+    assert!(token_receiver == @0x12345, 4);
+    assert!(dest_token_amounts == vector[], 5);
 }
 
 #[test]
@@ -418,6 +389,7 @@ fun test_message_with_token_amounts() {
     let data = x"cafebabe";
 
     // Create some token amounts
+    let token_receiver = @0x12345;
     let token_addresses = vector[@0xa, @0xb];
     let token_amounts = vector[1000u64, 2000u64];
     let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
@@ -427,32 +399,28 @@ fun test_message_with_token_amounts() {
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     );
 
-    // Verify all fields
-    assert!(client::get_message_id(&message) == message_id, 0);
-    assert!(client::get_source_chain_selector(&message) == source_chain_selector, 1);
-    assert!(client::get_sender(&message) == sender, 2);
-    assert!(client::get_data(&message) == data, 3);
-
-    let retrieved_amounts = client::get_dest_token_amounts(&message);
-    assert!(retrieved_amounts.length() == 2, 4);
-    assert!(client::get_token(&retrieved_amounts[0]) == @0xa, 5);
-    assert!(client::get_amount(&retrieved_amounts[0]) == 1000u64, 6);
-    assert!(client::get_token(&retrieved_amounts[1]) == @0xb, 7);
-    assert!(client::get_amount(&retrieved_amounts[1]) == 2000u64, 8);
-
+    // Verify all fields by consuming the message
     let (
-        message_id,
+        consumed_message_id,
         chain_selector,
         returned_sender,
         returned_data,
+        returned_token_receiver,
         returned_dest_token_amounts,
     ) = client::consume_any2sui_message(message);
-    assert!(message_id == message_id, 0);
+
+    assert!(consumed_message_id == message_id, 0);
     assert!(chain_selector == source_chain_selector, 1);
     assert!(returned_sender == sender, 2);
     assert!(returned_data == data, 3);
-    assert!(returned_dest_token_amounts == dest_token_amounts, 4);
+    assert!(returned_token_receiver == token_receiver, 4);
+    assert!(returned_dest_token_amounts.length() == 2, 5);
+    assert!(client::get_token(&returned_dest_token_amounts[0]) == @0xa, 6);
+    assert!(client::get_amount(&returned_dest_token_amounts[0]) == 1000u64, 7);
+    assert!(client::get_token(&returned_dest_token_amounts[1]) == @0xb, 8);
+    assert!(client::get_amount(&returned_dest_token_amounts[1]) == 2000u64, 9);
 }

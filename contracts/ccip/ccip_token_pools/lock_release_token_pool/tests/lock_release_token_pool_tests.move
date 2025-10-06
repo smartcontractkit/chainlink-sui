@@ -1147,8 +1147,10 @@ public fun test_lock_or_burn_functionality() {
 
         //TOOD: add token package ID to omnramp state helper to continue with this test
         // Calculate the actual package ID from TypeProof (same as initialization)
-        let type_proof_type_name = type_name::get<lock_release_token_pool::TypeProof>();
-        let _type_proof_type_name_address = type_proof_type_name.get_address();
+        let type_proof_type_name = type_name::with_defining_ids<
+            lock_release_token_pool::TypeProof,
+        >();
+        let _type_proof_type_name_address = type_proof_type_name.address_string();
         let actual_package_id = address::from_ascii_bytes(
             &_type_proof_type_name_address.into_bytes(),
         );
@@ -1317,8 +1319,10 @@ public fun test_release_or_mint_functionality() {
         let coin_metadata_address = lock_release_token_pool::get_token(&pool_state);
 
         // Calculate the actual package ID from TypeProof (same as initialization)
-        let type_proof_type_name = type_name::get<lock_release_token_pool::TypeProof>();
-        let _type_proof_type_name_address = type_proof_type_name.get_address();
+        let type_proof_type_name = type_name::with_defining_ids<
+            lock_release_token_pool::TypeProof,
+        >();
+        let _type_proof_type_name_address = type_proof_type_name.address_string();
         let actual_package_id = address::from_ascii_bytes(
             &_type_proof_type_name_address.into_bytes(),
         );
