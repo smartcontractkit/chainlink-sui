@@ -888,20 +888,33 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 
 	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
 
-	stateObjectId := ""
+	// Extract parent object ID from pointer
+	parentObjectId := ""
+	stateKey := ""
 	switch module {
 	case "offramp":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["off_ramp_state_id"].(string)
+		parentObjectId = pointerObject.Content.SuiMoveObject.Fields["off_ramp_object_id"].(string)
+		stateKey = "OffRampState"
 	case "onramp":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["on_ramp_state_id"].(string)
+		parentObjectId = pointerObject.Content.SuiMoveObject.Fields["on_ramp_object_id"].(string)
+		stateKey = "OnRampState"
 	case "ccip":
 	case "state_object":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["object_ref_id"].(string)
+		parentObjectId = pointerObject.Content.SuiMoveObject.Fields["ccip_object_id"].(string)
+		stateKey = "CCIPObjectRef"
 	}
 
-	if stateObjectId == "" {
-		return nil, fmt.Errorf("state object id not found for package %s and module %s", packageId, module)
+	if parentObjectId == "" {
+		return nil, fmt.Errorf("parent object id not found for package %s and module %s", packageId, module)
 	}
+
+	// Derive state object address from parent object
+	stateObjectId, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectId, []byte(stateKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive state object address: %w", err)
+	}
+
+	c.log.Debugw("derived state object", "parentObjectId", parentObjectId, "stateKey", stateKey, "stateObjectId", stateObjectId)
 
 	// Read the state object
 	stateObject, err := c.ReadObjectId(ctx, stateObjectId)
