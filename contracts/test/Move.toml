@@ -1,6 +1,6 @@
 [addresses]
   test = '0x0'
-  test_secondary = '0xedaceb806d7b74a27c3acdcfb5e935f0beba9ad11f6855a474e9e49c13f2a5db'
+  test_secondary = '_'
 
 [dependencies]
   [dependencies.Sui]
