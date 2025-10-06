@@ -237,10 +237,13 @@ type OnRampState struct {
 	OwnableState      bind.Object  `move:"OwnableState"`
 }
 
+type OnRampObject struct {
+	Id string `move:"sui::object::UID"`
+}
+
 type OnRampStatePointer struct {
-	Id            string `move:"sui::object::UID"`
-	OnRampStateId string `move:"address"`
-	OwnerCapId    string `move:"address"`
+	Id             string `move:"sui::object::UID"`
+	OnRampObjectId string `move:"address"`
 }
 
 type DestChainConfig struct {
@@ -363,17 +366,15 @@ func convertOnRampStateFromBCS(bcs bcsOnRampState) (OnRampState, error) {
 }
 
 type bcsOnRampStatePointer struct {
-	Id            string
-	OnRampStateId [32]byte
-	OwnerCapId    [32]byte
+	Id             string
+	OnRampObjectId [32]byte
 }
 
 func convertOnRampStatePointerFromBCS(bcs bcsOnRampStatePointer) (OnRampStatePointer, error) {
 
 	return OnRampStatePointer{
-		Id:            bcs.Id,
-		OnRampStateId: fmt.Sprintf("0x%x", bcs.OnRampStateId),
-		OwnerCapId:    fmt.Sprintf("0x%x", bcs.OwnerCapId),
+		Id:             bcs.Id,
+		OnRampObjectId: fmt.Sprintf("0x%x", bcs.OnRampObjectId),
 	}, nil
 }
 
@@ -598,6 +599,23 @@ func init() {
 				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
 			}
 			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampObject", func(data []byte) (interface{}, error) {
+		var result OnRampObject
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for OnRampObject
+	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::OnRampObject>", func(data []byte) (interface{}, error) {
+		var results []OnRampObject
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
 		}
 		return results, nil
 	})

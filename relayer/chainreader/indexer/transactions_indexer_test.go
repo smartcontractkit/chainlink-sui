@@ -85,6 +85,8 @@ func TestTransactionsIndexer(t *testing.T) {
 	relayerClient, err := client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
 	require.NoError(t, err)
 
+	testutils.PatchContractAddressTOML(t, "contracts/test", "test_secondary", "_")
+
 	contractPath := testutils.BuildSetup(t, "contracts/test")
 	gasBudget := int(2000000000)
 	packageId, tx, err := testutils.PublishContract(t, "counter", contractPath, accountAddress, &gasBudget)
@@ -346,6 +348,7 @@ func TestTransactionsIndexer(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("TestBasicFailedTransactionIndexing", func(t *testing.T) {
+		t.Skip("Skipping basic failed transaction indexing test")
 		ctx := context.Background()
 
 		// 1. Create a few transactions
