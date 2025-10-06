@@ -1675,7 +1675,7 @@ fun timelock_block_function(
     let new_function = Function { target, module_name, function_name };
     let mut i = 0;
 
-    while (i < timelock.blocked_functions.size()) {
+    while (i < timelock.blocked_functions.length()) {
         let blocked_function = timelock.blocked_functions.keys()[i];
         if (equals(&new_function, &blocked_function)) {
             already_blocked = true;
@@ -1703,7 +1703,7 @@ fun timelock_unblock_function(
     let function_to_unblock = Function { target, module_name, function_name };
     let mut i = 0;
 
-    while (i < timelock.blocked_functions.size()) {
+    while (i < timelock.blocked_functions.length()) {
         let blocked_function = timelock.blocked_functions.keys()[i];
         if (equals(&function_to_unblock, &blocked_function)) {
             timelock.blocked_functions.remove(&blocked_function);
@@ -1716,7 +1716,7 @@ fun timelock_unblock_function(
 
 fun assert_not_blocked(timelock: &Timelock, function: &Function) {
     let mut i = 0;
-    while (i < timelock.blocked_functions.size()) {
+    while (i < timelock.blocked_functions.length()) {
         let blocked_function = timelock.blocked_functions.keys()[i];
         if (equals(function, &blocked_function)) {
             abort EFunctionBlocked
@@ -1726,7 +1726,7 @@ fun assert_not_blocked(timelock: &Timelock, function: &Function) {
 }
 
 public fun timelock_get_blocked_function(timelock: &Timelock, index: u64): Function {
-    assert!(index < timelock.blocked_functions.size(), EInvalidIndex);
+    assert!(index < timelock.blocked_functions.length(), EInvalidIndex);
     timelock.blocked_functions.keys()[index]
 }
 
@@ -1779,7 +1779,7 @@ public fun timelock_get_blocked_functions(timelock: &Timelock): vector<Function>
 }
 
 public fun timelock_get_blocked_functions_count(timelock: &Timelock): u64 {
-    timelock.blocked_functions.size()
+    timelock.blocked_functions.length()
 }
 
 public fun create_calls(

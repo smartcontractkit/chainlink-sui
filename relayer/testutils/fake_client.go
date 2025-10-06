@@ -141,6 +141,10 @@ func (c *FakeSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Cont
 	return map[string]string{}, nil
 }
 
+func (c *FakeSuiPTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	return "", nil
+}
+
 func (c *FakeSuiPTBClient) GetCache() *cache.Cache {
 	return nil
 }
@@ -299,6 +303,10 @@ func (c *StatefulFakeSuiPTBClient) SuiXGetReferenceGasPrice(ctx context.Context)
 
 func (c *StatefulFakeSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error) {
 	return map[string]string{}, nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	return "", nil
 }
 
 func (c *StatefulFakeSuiPTBClient) GetCache() *cache.Cache {
