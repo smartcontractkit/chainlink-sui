@@ -102,6 +102,7 @@ func (h *MessageHasherV1) Hash(ctx context.Context, report *codec.ExecutionRepor
 		receiverAddress,
 		report.Message.Header.SequenceNumber,
 		report.Message.GasLimit,
+		[32]byte(report.Message.TokenReceiver),
 		report.Message.Header.Nonce,
 		report.Message.Sender,
 		report.Message.Data,
@@ -120,6 +121,7 @@ func computeMessageDataHash(
 	receiver [32]byte,
 	sequenceNumber uint64,
 	gasLimit *big.Int,
+	tokenReceiver [32]byte,
 	nonce uint64,
 	sender []byte,
 	data []byte,
@@ -145,6 +147,7 @@ func computeMessageDataHash(
 		{Type: bytes32Type}, // receiver as bytes32
 		{Type: uint64Type},  // sequenceNumber
 		{Type: uint256Type}, // gasLimit
+		{Type: bytes32Type}, // tokenReceiver
 		{Type: uint64Type},  // nonce
 	}
 	headerEncoded, err := headerArgs.Pack(
@@ -152,6 +155,7 @@ func computeMessageDataHash(
 		receiver,
 		sequenceNumber,
 		gasLimit,
+		tokenReceiver,
 		nonce,
 	)
 	if err != nil {

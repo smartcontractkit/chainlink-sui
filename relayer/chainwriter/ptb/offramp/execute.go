@@ -111,12 +111,6 @@ func BuildOffRampExecutePTB(
 	offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
 	offrampEncoder := offrampContract.Encoder()
 
-	tokenReceiverBytes, ok := offrampArgs.ExtraData.ExtraArgsDecoded["tokenReceiver"]
-	if !ok {
-		return fmt.Errorf("missing token receiver in extra args")
-	}
-	tokenReceiver := "0x" + hex.EncodeToString(tokenReceiverBytes.([]byte))
-
 	// Create an encoder for the `init_execute` offramp method to be attached to the PTB.
 	// This is being done using the bindings to re-use code but can otherwise be done using the SDK directly.
 	encodedInitExecute, err := offrampEncoder.InitExecute(
@@ -128,7 +122,6 @@ func BuildOffRampExecutePTB(
 			offrampArgs.ReportContext[1][:],
 		},
 		offrampArgs.Report,
-		tokenReceiver,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (init_execute) using bindings: %w", err)

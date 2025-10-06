@@ -168,6 +168,7 @@ public fun test_populate_message() {
         SOURCE_CHAIN_SELECTOR,
         b"sender_address",
         b"test_data",
+        @0x12345,
         vector[], // token_amounts
     );
 
@@ -264,6 +265,7 @@ public fun test_extract_any2sui_message() {
         SOURCE_CHAIN_SELECTOR,
         b"sender_address",
         b"test_data",
+        @0x12345,
         vector[],
     );
     offramp_state_helper::populate_message(&dest_cap, &mut receiver_params, test_message);
