@@ -25,6 +25,7 @@ type BurnMintTokenPoolInitializeInput struct {
 	CoinMetadataObjectId   string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
+	Decimals               uint8
 }
 
 var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
@@ -40,9 +41,10 @@ var initBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMi
 		opts,
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.CoinMetadataObjectId},
+		input.CoinMetadataObjectId,
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
+		input.Decimals,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization: %w", err)
@@ -81,6 +83,7 @@ type BurnMintTokenPoolInitializeByCcipAdminInput struct {
 	OwnerCapObjectId       string
 	TreasuryCapObjectId    string
 	TokenPoolAdministrator string
+	Decimals               uint8
 }
 
 var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolInitializeByCcipAdminInput) (output sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects], err error) {
@@ -97,9 +100,10 @@ var initByCcipAdminBMTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
-		bind.Object{Id: input.CoinMetadataObjectId},
+		input.CoinMetadataObjectId,
 		bind.Object{Id: input.TreasuryCapObjectId},
 		input.TokenPoolAdministrator,
+		input.Decimals,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[BurnMintTokenPoolInitializeObjects]{}, fmt.Errorf("failed to execute burn mint token pool initialization by ccip admin: %w", err)
