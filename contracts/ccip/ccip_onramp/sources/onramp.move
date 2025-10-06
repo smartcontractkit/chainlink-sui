@@ -24,6 +24,7 @@ use sui::event;
 use sui::hash;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
+use sui::derived_object;
 
 public struct OnRampState has key, store {
     id: UID,
@@ -162,8 +163,13 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
     let mut on_ramp_object = OnRampObject { id: object::new(ctx) };
     let (ownable_state, owner_cap) = ownable::new(&mut on_ramp_object.id, ctx);
 
-    let state = OnRampState {
+    let pointer = OnRampStatePointer {
         id: object::new(ctx),
+        on_ramp_object_id: object::id_address(&on_ramp_object),
+    };
+
+    let state = OnRampState {
+        id: derived_object::claim(&mut on_ramp_object.id, b"OnRampState"),
         package_ids: vector[],
         chain_selector: 0,
         fee_aggregator: @0x0,
@@ -173,11 +179,6 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
         nonce_manager_cap: option::none(),
         source_transfer_cap: option::none(),
         ownable_state,
-    };
-
-    let pointer = OnRampStatePointer {
-        id: object::new(ctx),
-        on_ramp_object_id: object::id_address(&on_ramp_object),
     };
 
     let tn = type_name::with_original_ids<ONRAMP>();
