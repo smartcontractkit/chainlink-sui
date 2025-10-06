@@ -535,6 +535,9 @@ public fun apply_token_transfer_fee_config_updates(
             EInvalidDestBytesOverhead,
         );
 
+        if (token_transfer_fee_configs.contains(token)) {
+            let _old_value = token_transfer_fee_configs.remove(token);
+        };
         token_transfer_fee_configs.add(token, token_transfer_fee_config);
 
         event::emit(TokenTransferFeeConfigAdded {
