@@ -655,7 +655,7 @@ fun pre_execute_single_report(
         osh::add_dest_token_transfer(
             state.dest_transfer_cap.borrow(),
             &mut receiver_params,
-            message.token_receiver, // if there is a token receiver, users must specify token receiver in extra_args
+            message.token_receiver, // when sending tokens, token receiver will be included in the execution report
             source_chain_selector,
             amount,
             message.token_amounts[0].dest_token_address,
