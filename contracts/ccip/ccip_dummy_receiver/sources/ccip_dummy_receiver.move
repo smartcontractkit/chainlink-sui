@@ -57,6 +57,7 @@ fun init(ctx: &mut TxContext) {
         source_chain_selector: 0,
         sender: vector[],
         data: vector[],
+        token_receiver: @0x0,
         dest_token_transfer_length: 0,
         dest_token_amounts: vector[],
     };
@@ -80,6 +81,10 @@ public fun get_counter(state: &CCIPReceiverState): u64 {
 
 public fun get_dest_token_amounts(state: &CCIPReceiverState): vector<TokenAmount> {
     state.dest_token_amounts
+}
+
+public fun get_token_receiver(state: &CCIPReceiverState): address {
+    state.token_receiver
 }
 
 public fun get_token_amount_token(token_amount: &TokenAmount): address {

@@ -213,6 +213,7 @@ public fun new_any2sui_message(
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    token_receiver: address,
     dest_token_amounts: vector<Any2SuiTokenAmount>,
 ): Any2SuiMessage {
     client::new_any2sui_message(
@@ -220,6 +221,7 @@ public fun new_any2sui_message(
         source_chain_selector,
         sender,
         data,
+        token_receiver,
         dest_token_amounts,
     )
 }

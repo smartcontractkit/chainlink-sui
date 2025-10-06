@@ -151,6 +151,10 @@ public fun get_data(input: &Any2SuiMessage): vector<u8> {
     input.data
 }
 
+public fun get_token_receiver(input: &Any2SuiMessage): address {
+    input.token_receiver
+}
+
 public fun get_dest_token_amounts(input: &Any2SuiMessage): vector<Any2SuiTokenAmount> {
     input.dest_token_amounts
 }

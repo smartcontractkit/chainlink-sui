@@ -305,22 +305,17 @@ fun test_new_any2sui_message() {
     assert!(client::get_source_chain_selector(&message) == source_chain_selector, 1);
     assert!(client::get_sender(&message) == sender, 2);
     assert!(client::get_data(&message) == data, 3);
-    assert!(client::get_dest_token_amounts(&message) == dest_token_amounts, 4);
+    assert!(client::get_token_receiver(&message) == token_receiver, 4);
+    assert!(client::get_dest_token_amounts(&message) == dest_token_amounts, 5);
 
-    // TODO: this test does nothing since the vars have been overwritten
     let (
-        message_id,
-        source_chain_selector,
-        sender,
-        data,
-        token_receiver,
-        dest_token_amounts,
+        _message_id,
+        _source_chain_selector,
+        _sender,
+        _data,
+        _token_receiver,
+        _dest_token_amounts,
     ) = client::consume_any2sui_message(message);
-    assert!(message_id == message_id, 0);
-    assert!(source_chain_selector == source_chain_selector, 1);
-    assert!(sender == sender, 2);
-    assert!(data == data, 3);
-    assert!(dest_token_amounts == dest_token_amounts, 4);
 }
 
 #[test]
