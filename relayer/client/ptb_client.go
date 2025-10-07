@@ -133,10 +133,11 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	count, ok := c.cache.Get("WithRateLimitCount")
 	if !ok {
 		c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
+		count = 0
 	}
 	c.cache.Set("WithRateLimitCount", count.(int)+1, cache.NoExpiration)
 
-	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339))
+	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339), "count", count.(int))
 
 	// the work itself should time out by transactionTimeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
