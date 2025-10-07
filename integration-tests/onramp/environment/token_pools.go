@@ -70,6 +70,7 @@ func SetupEthTokenPoolBurnMint(
 		CoinMetadataObjectId:   reportMockEthToken.Output.Objects.CoinMetadataObjectId,
 		TreasuryCapObjectId:    reportMockEthToken.Output.Objects.TreasuryCapObjectId,
 		TokenPoolAdministrator: accountAddress,
+		Decimals:               9,
 
 		// Chain updates - adding the destination chain
 		RemoteChainSelectorsToRemove: []uint64{},
@@ -181,6 +182,7 @@ func SetupManagedTokenPool(
 		CoinMetadataObjectId:      reportMockEthToken.Output.Objects.CoinMetadataObjectId,
 		MintCapObjectId:           mintCapObjectId,
 		TokenPoolAdministrator:    accountAddress,
+		Decimals:                  9,
 		// Chain updates - adding the destination chain
 		RemoteChainSelectorsToRemove: []uint64{},
 		RemoteChainSelectorsToAdd:    []uint64{destChainSelector},             // Destination chain selector
