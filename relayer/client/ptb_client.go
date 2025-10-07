@@ -135,6 +135,7 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	defer cancel()
 
 	if c.rateLimiter == nil {
+		c.log.Debugw("WithRateLimit no rate limiter", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
 		return f(timeoutCtx)
 	}
 
