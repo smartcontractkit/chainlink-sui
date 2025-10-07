@@ -66,20 +66,14 @@ public fun vector_u8_gt(a: &vector<u8>, b: &vector<u8>): bool {
     false
 }
 
-public fun get_account_address_and_module_name(
-    proof_type: TypeName,
-): (address, String) {
-    let account_address_bytes = hex::decode(proof_type.get_address().into_bytes());
+public fun get_account_address_and_module_name(proof_type: TypeName): (address, String) {
+    let account_address_bytes = hex::decode(proof_type.address_string().into_bytes());
     let account_address = address::from_bytes(account_address_bytes);
-    let module_name = string::from_ascii(proof_type.get_module());
+    let module_name = string::from_ascii(proof_type.module_string());
     (account_address, module_name)
 }
 
-public fun slice<T: copy>(
-    v: &vector<T>,
-    start: u64,
-    len: u64,
-): vector<T> {
+public fun slice<T: copy>(v: &vector<T>, start: u64, len: u64): vector<T> {
     let v_len = v.length();
     assert!(start + len <= v_len, E_OUT_OF_BYTES);
 

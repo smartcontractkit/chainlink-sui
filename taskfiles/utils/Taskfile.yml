@@ -1,0 +1,6 @@
+version: "3"
+
+tasks:
+  new-wallet:
+    desc: "Generate a new SUI wallet"
+    cmd: ./scripts/generate_hex_wallet.sh

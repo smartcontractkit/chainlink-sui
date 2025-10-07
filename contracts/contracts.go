@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-//go:embed ccip mcms test link
+//go:embed ccip mcms test test_secondary link
 var Embed embed.FS
 
 type Package string
@@ -33,7 +33,8 @@ const (
 	MCMSUser   = Package("mcms_user")
 	MCMSUserV2 = Package("mcms_user_v2")
 	// Other
-	Test = Package("test")
+	Test          = Package("test")
+	TestSecondary = Package("test_secondary")
 )
 
 // Contracts maps packages to their respective root directories within Embed
@@ -60,5 +61,8 @@ var Contracts map[Package]string = map[Package]string{
 	MCMSUser:   filepath.Join("mcms", "mcms_test"),
 	MCMSUserV2: filepath.Join("mcms", "mcms_test_v2"),
 	// Other
+	//nolint:gocritic // we need to handle these paths for tests
 	Test: filepath.Join("test"),
+	//nolint:gocritic // we need to handle these paths for tests
+	TestSecondary: filepath.Join("test_secondary"),
 }

@@ -2,13 +2,13 @@ package bind
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/sui"
+	"github.com/block-vision/sui-go-sdk/transaction"
 
 	bindutils "github.com/smartcontractkit/chainlink-sui/bindings/utils"
 )
@@ -35,8 +35,11 @@ func PublishPackage(
 		modules = append(modules, decodedModule)
 	}
 
-	// dependencies are already strings
-	deps := req.Dependencies
+	deps := make([]models.SuiAddress, len(req.Dependencies))
+	for i, dep := range req.Dependencies {
+		addr := models.SuiAddress(dep)
+		deps[i] = addr
+	}
 
 	signerAddressStr, err := opts.Signer.GetAddress()
 	if err != nil {
@@ -47,55 +50,20 @@ func PublishPackage(
 		return "", nil, fmt.Errorf("invalid signer address %v: %w", signerAddressStr, err)
 	}
 
-	// TODO: we are using unsafe_publish here because module fields are []models.SuiAddressBytes?
-	// https://github.com/block-vision/sui-go-sdk/blob/b382e3a4ec2e9233461cdecbd45e6c031166234a/transaction/transaction_data.go#L232
-	// https://github.com/MystenLabs/sui/blob/6d8ceed4d727a6c9ce9f5879b3cd1b2e8605affa/crates/sui-graphql-rpc/src/types/transaction_block_kind/programmable.rs#L134
-
-	// Convert modules to base64
-	moduleStrs := make([]string, len(modules))
-	for i, module := range modules {
-		moduleB64 := base64.StdEncoding.EncodeToString(module)
-		moduleStrs[i] = moduleB64
+	gasBudgetValueDefault := uint64(500_000_000)
+	if opts.GasBudget == nil {
+		opts.GasBudget = &gasBudgetValueDefault // 500M MIST default for publish
 	}
 
-	// Set gas budget
-	gasBudget := "200000000" // 200M MIST default for publish
-	if opts.GasBudget != nil {
-		gasBudget = fmt.Sprintf("%d", *opts.GasBudget)
-	}
+	ptb := transaction.NewTransaction()
+	arg := ptb.Publish(modules, deps)
+	// The program object is transferred to the signer once deployed
+	recArg := ptb.Pure(signerAddress)
+	ptb.TransferObjects([]transaction.Argument{arg}, recArg)
 
-	// Convert gas object to pointer if provided
-	var gasObj *string
-	if opts.GasObject != "" {
-		gasObj = &opts.GasObject
-	}
-
-	// Use the client's Publish method instead of PTB
-	publishResp, err := client.Publish(ctx, models.PublishRequest{
-		Sender:          signerAddress,
-		CompiledModules: moduleStrs,
-		Dependencies:    deps,
-		GasBudget:       gasBudget,
-		Gas:             gasObj,
-	})
+	tx, err := ExecutePTB(ctx, opts, client, ptb)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create publish transaction: %w", err)
-	}
-
-	// the SDK returns base64 encoded bytes, we need to decode them
-	txBytesDecoded, err := base64.StdEncoding.DecodeString(publishResp.TxBytes)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to decode transaction bytes: %w", err)
-	}
-
-	tx, err := SignAndSendTx(ctx, opts.Signer, client, txBytesDecoded, opts.WaitForExecution)
-	if err != nil {
-		msg := fmt.Errorf("failed to execute tx when publishing: %w", err)
-		return "", nil, msg
-	}
-
-	if tx.Effects.Status.Status == "failure" {
-		return "", nil, fmt.Errorf("transaction failed: %v", tx.Effects.Status.Error)
+		return "", nil, fmt.Errorf("failed to execute publish transaction: %w", err)
 	}
 
 	pkgId, err := FindPackageIdFromPublishTx(*tx)

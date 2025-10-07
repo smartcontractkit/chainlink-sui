@@ -74,7 +74,8 @@ func NewTest(address string, client sui.ISuiAPI) (Test, error) {
 
 func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (Test, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.Test, map[string]string{
-		"test": "0x0",
+		"test":           "0x0",
+		"test_secondary": "_",
 	})
 	if err != nil {
 		return nil, nil, err
