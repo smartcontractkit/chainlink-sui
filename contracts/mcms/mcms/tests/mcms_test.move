@@ -1542,6 +1542,7 @@ fun test_bypasser_execute_batch() {
     // We know there's exactly 1 param, so just consume it directly
     let params = executing_params.pop_back();
     let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        &mut env.registry,
         params,
     );
 
@@ -2368,6 +2369,9 @@ fun test_timelock_dispatching_system() {
         test_module,
         test_function,
         vector[1, 2, 3],
+        x"0000000000000000000000000000000000000000000000000000000000000004", // batch_id
+        0, // sequence_number
+        1, // total_in_batch
     );
 
     // Verify ExecutingCallbackParams properties
@@ -2383,7 +2387,7 @@ fun test_timelock_dispatching_system() {
         consumed_module,
         consumed_function,
         consumed_data,
-    ) = mcms_registry::get_callback_params_from_mcms(executing_params);
+    ) = mcms_registry::get_callback_params_from_mcms(&mut env.registry, executing_params);
     // Verify the consumed values match what we expect
     assert!(consumed_target == test_target);
     assert!(consumed_module == test_module);
@@ -2486,7 +2490,7 @@ fun test_bypasser_execute_blocked_function() {
         callback_module,
         callback_function,
         callback_data,
-    ) = mcms_registry::get_callback_params_from_mcms(params);
+    ) = mcms_registry::get_callback_params_from_mcms(&mut env.registry, params);
 
     // Verify callback params structure
     assert!(callback_target == target);
@@ -2544,9 +2548,11 @@ fun test_execute_batch_with_dependencies() {
 
     {
         let clock = &env.clock;
+        let registry = &env.registry;
         let mut executing_callback_params = mcms::timelock_execute_batch(
             &mut env.timelock,
             clock,
+            registry,
             vector[mcms_registry::get_multisig_address()], // targets
             vector[string::utf8(b"mcms")], // module_names
             vector[string::utf8(b"timelock_update_min_delay")], // function_names
@@ -2560,6 +2566,7 @@ fun test_execute_batch_with_dependencies() {
         while (!executing_callback_params.is_empty()) {
             mcms::execute_timelock_update_min_delay(
                 &mut env.timelock,
+                &mut env.registry,
                 executing_callback_params.pop_back(),
                 env.scenario.ctx(),
             );
@@ -2592,9 +2599,11 @@ fun test_execute_batch_with_dependencies() {
 
     {
         let clock = &env.clock;
+        let registry = &env.registry;
         let mut executing_callback_params = mcms::timelock_execute_batch(
             &mut env.timelock,
             clock,
+            registry,
             vector[mcms_registry::get_multisig_address()], // targets
             vector[string::utf8(b"mcms")], // module_names
             vector[string::utf8(b"timelock_update_min_delay")], // function_names
@@ -2608,6 +2617,7 @@ fun test_execute_batch_with_dependencies() {
         while (!executing_callback_params.is_empty()) {
             mcms::execute_timelock_update_min_delay(
                 &mut env.timelock,
+                &mut env.registry,
                 executing_callback_params.pop_back(),
                 env.scenario.ctx(),
             );
@@ -2652,6 +2662,7 @@ fun test_bypasser_allowed_when_timelock_active() {
     // Process the executing callback params to complete the operation
     mcms::execute_timelock_update_min_delay(
         &mut env.timelock,
+        &mut env.registry,
         executing_params.pop_back(),
         env.scenario.ctx(),
     );
@@ -2714,10 +2725,14 @@ fun test_timelock_dispatch_to_self() {
         string::utf8(b"mcms"),
         string::utf8(b"timelock_update_min_delay"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+        0, // sequence_number
+        1, // total_in_batch
     );
 
     mcms::execute_timelock_update_min_delay(
         &mut env.timelock,
+        &mut env.registry,
         params,
         env.scenario.ctx(),
     );
@@ -2793,6 +2808,9 @@ fun test_timelock_dispatch_to_account() {
         string::utf8(b"mcms_account"),
         string::utf8(b"transfer_ownership"),
         bcs::to_bytes(&new_owner),
+        x"0000000000000000000000000000000000000000000000000000000000000005", // batch_id
+        0, // sequence_number
+        1, // total_in_batch
     );
 
     // Test the dispatch routing - this should route to mcms_account::transfer_ownership
@@ -2898,6 +2916,9 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
         string::utf8(b"invalid_module"), // Wrong module name
         string::utf8(b"is_package_registered"), // Valid function name
         vector[1, 2, 3],
+        x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
+        0, // sequence_number
+        1, // total_in_batch
     );
 
     // This should fail with EModuleNameMismatch when the registry validates the module name
@@ -2957,9 +2978,11 @@ fun test_dispatch_timelock_execute_batch() {
     );
 
     // Test the dispatch function
+    let registry = &env.registry;
     let mut executing_params = mcms::dispatch_timelock_execute_batch(
         &mut env.timelock,
         clock,
+        registry,
         callback_params,
         env.scenario.ctx(),
     );
@@ -2973,6 +2996,7 @@ fun test_dispatch_timelock_execute_batch() {
 
     mcms::execute_timelock_update_min_delay(
         &mut env.timelock,
+        &mut env.registry,
         executing_params.pop_back(),
         env.scenario.ctx(),
     );
@@ -3018,6 +3042,7 @@ fun test_dispatch_timelock_bypasser_execute_batch() {
 
     mcms::execute_timelock_update_min_delay(
         &mut env.timelock,
+        &mut env.registry,
         executing_params.pop_back(),
         env.scenario.ctx(),
     );
@@ -3094,9 +3119,11 @@ fun test_dispatch_timelock_execute_batch_invalid_module() {
     );
 
     let clock = &env.clock;
+    let registry = &env.registry;
     let executing_params = mcms::dispatch_timelock_execute_batch(
         &mut env.timelock,
         clock,
+        registry,
         callback_params,
         env.scenario.ctx(),
     );
@@ -3163,6 +3190,7 @@ fun timelock_execute_dispatch_to_acc_helper(
     let mut executing_callback_params = mcms::timelock_execute_batch(
         &mut env.timelock,
         &env.clock,
+        &env.registry,
         targets,
         module_names,
         function_names,

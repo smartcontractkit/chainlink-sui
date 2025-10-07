@@ -49,7 +49,7 @@ type IManagedToken interface {
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -136,7 +136,7 @@ type ManagedTokenEncoder interface {
 	AcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(typeArgs []string, state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	McmsAcceptOwnership(typeArgs []string, state bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAcceptOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(typeArgs []string, ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -901,8 +901,8 @@ func (c *ManagedTokenContract) AcceptOwnershipFromObject(ctx context.Context, op
 }
 
 // McmsAcceptOwnership executes the mcms_accept_ownership Move function.
-func (c *ManagedTokenContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.managedTokenEncoder.McmsAcceptOwnership(typeArgs, state, params)
+func (c *ManagedTokenContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsAcceptOwnership(typeArgs, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2259,16 +2259,18 @@ func (c managedTokenEncoder) AcceptOwnershipFromObjectWithArgs(typeArgs []string
 }
 
 // McmsAcceptOwnership encodes a call to the mcms_accept_ownership Move function.
-func (c managedTokenEncoder) McmsAcceptOwnership(typeArgs []string, state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c managedTokenEncoder) McmsAcceptOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_accept_ownership", typeArgsList, typeParamsList, []string{
 		"&mut TokenState<T>",
+		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
+		registry,
 		params,
 	}, nil)
 }
@@ -2278,6 +2280,7 @@ func (c managedTokenEncoder) McmsAcceptOwnership(typeArgs []string, state bind.O
 func (c managedTokenEncoder) McmsAcceptOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut TokenState<T>",
+		"&mut Registry",
 		"ExecutingCallbackParams",
 	}
 

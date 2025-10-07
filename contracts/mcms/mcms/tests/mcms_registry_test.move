@@ -68,7 +68,9 @@ fun test_register_entrypoint() {
             ctx,
         );
 
-        assert!(mcms_registry::is_package_registered(&registry, mcms_registry::get_multisig_address()));
+        assert!(
+            mcms_registry::is_package_registered(&registry, mcms_registry::get_multisig_address()),
+        );
 
         ts::return_shared(registry);
     };
@@ -119,6 +121,9 @@ fun test_get_callback_params() {
             string::utf8(MODULE_NAME),
             string::utf8(b"test_function"),
             vector::empty(),
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         let (cap, _function_name, _data) = mcms_registry::get_callback_params<
@@ -161,6 +166,9 @@ fun test_get_callback_params_with_unregistered_package_cap() {
             string::utf8(b"mcms_registry_test"),
             string::utf8(b"test_function"),
             vector::empty(),
+            x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         // This should fail because package is not registered
@@ -216,6 +224,9 @@ fun test_get_callback_params_with_wrong_package_name() {
             string::utf8(b"mcms_registry_test"),
             string::utf8(b"test_function"),
             vector::empty(),
+            x"0000000000000000000000000000000000000000000000000000000000000003", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         // This should fail because package ID doesn't match

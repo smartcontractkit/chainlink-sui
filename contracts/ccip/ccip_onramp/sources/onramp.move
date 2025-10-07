@@ -1050,6 +1050,7 @@ public fun accept_ownership_from_object(
 public fun mcms_accept_ownership(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
+    registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1060,6 +1061,7 @@ public fun mcms_accept_ownership(
         VERSION,
     );
     let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+        registry,
         params,
         McmsCallback {},
     );

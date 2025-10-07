@@ -510,10 +510,12 @@ public fun accept_ownership_from_object<T>(
 
 public fun mcms_accept_ownership<T>(
     state: &mut BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+        registry,
         params,
         McmsCallback<T> {},
     );
