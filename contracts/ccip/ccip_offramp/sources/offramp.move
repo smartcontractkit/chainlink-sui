@@ -83,9 +83,9 @@ public struct Any2SuiRampMessage has drop {
     header: RampMessageHeader,
     sender: vector<u8>,
     data: vector<u8>,
-    receiver: address, // package ID for contract calls
+    receiver: address, // this is the message receiver
     gas_limit: u256,
-    token_receiver: address, // user address for token transfers
+    token_receiver: address,
     token_amounts: vector<Any2SuiTokenTransfer>,
 }
 
@@ -265,8 +265,8 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
         off_ramp_object_id: object::id_address(&off_ramp_object),
     };
 
-    let tn = type_name::get_with_original_ids<OFFRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
@@ -312,8 +312,8 @@ public fun initialize(
         ctx,
     );
 
-    let tn = type_name::get_with_original_ids<OFFRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
     state.package_ids.push_back(package_id);
 }
@@ -832,8 +832,8 @@ fun calculate_message_hash_internal(
     eth_abi::encode_address(&mut inner_hash, message.receiver);
     eth_abi::encode_u64(&mut inner_hash, message.header.sequence_number);
     eth_abi::encode_u256(&mut inner_hash, message.gas_limit);
-    eth_abi::encode_u64(&mut inner_hash, message.header.nonce);
     eth_abi::encode_address(&mut inner_hash, message.token_receiver);
+    eth_abi::encode_u64(&mut inner_hash, message.header.nonce);
     eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
 
     eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&message.sender));
