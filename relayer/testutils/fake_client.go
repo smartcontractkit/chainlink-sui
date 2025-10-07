@@ -78,7 +78,7 @@ func (c *FakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string
 }
 
 // WithRateLimit is provided to maintain compatibility with previous implementations
-func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	return f(ctx)
 }
 
@@ -245,7 +245,7 @@ func (c *StatefulFakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, addres
 	}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+func (c *StatefulFakeSuiPTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	return f(ctx)
 }
 
