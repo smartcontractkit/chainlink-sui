@@ -100,10 +100,9 @@ func getCCIPSendCommand(ccipOnrampPackageId string, feeTokenType string) cwConfi
 				},
 			},
 			{
-				Name:      "fee_token_metadata",
-				Type:      "object_id",
-				Required:  true,
-				IsMutable: BoolPointer(false),
+				Name:     "fee_token_metadata",
+				Type:     "address",
+				Required: true,
 			},
 			{
 				Name:        "fee_token",
