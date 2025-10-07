@@ -18,6 +18,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
+	"github.com/google/uuid"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 
@@ -175,53 +176,78 @@ func (d *DebugSemaphore) Stats() (int64, int64, int64, int64) {
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
-	start := time.Now()
 
-	// Keep track of the number of times WithRateLimit is called
-	count, ok := c.cache.Get("WithRateLimitCount")
-	if !ok {
-		c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
-		count = 0
-	}
-	c.cache.Set("WithRateLimitCount", count.(int)+1, cache.NoExpiration)
-
-	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339), "count", count.(int))
-
-	// the work itself should time out by transactionTimeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
+	// Just give each call a 120s max runtime
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	if c.rateLimiter == nil {
-		c.log.Debugw("WithRateLimit no rate limiter", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-		return f(timeoutCtx)
+	if dl, ok := ctx.Deadline(); ok {
+		c.log.Debugw("Parent ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	}
+	if dl, ok := timeoutCtx.Deadline(); ok {
+		c.log.Debugw("Timeout ctx deadline", "deadline", dl, "remaining", time.Until(dl))
 	}
 
-	// acquire with the timeout context so it can't hang forever
-	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
-		return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
-	}
+	reqID := uuid.NewString()
+	c.log.Debugw("Executing function with NO rate limit", "reqID", reqID, "methodName: ", methodName)
 
-	// ensure cleanup on exit and panic recovery
-	defer func() {
-		c.rateLimiter.Release(1)
-		c.log.Debugw("WithRateLimit released", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+	startWork := time.Now()
+	err := f(timeoutCtx)
+	c.log.Debugw("Function finished (no ratelimit)",
+		"reqID", reqID,
+		"duration", time.Since(startWork),
+		"err", err,
+	)
 
-		// bubble up panic after releasing
-		if r := recover(); r != nil {
-			c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-			panic(r)
-		}
+	return err
 
-		count, ok := c.cache.Get("WithRateLimitCount")
-		if !ok {
-			c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
-		}
-		c.cache.Set("WithRateLimitCount", count.(int)-1, cache.NoExpiration)
-	}()
+	// start := time.Now()
 
-	// run the user function with the timeout context
-	// if the function respects the context, it will return and lock will be released in defer
-	return f(timeoutCtx)
+	// // Keep track of the number of times WithRateLimit is called
+	// count, ok := c.cache.Get("WithRateLimitCount")
+	// if !ok {
+	// 	c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
+	// 	count = 0
+	// }
+	// c.cache.Set("WithRateLimitCount", count.(int)+1, cache.NoExpiration)
+
+	// c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339), "count", count.(int))
+
+	// // the work itself should time out by transactionTimeout
+	// timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
+	// defer cancel()
+
+	// if c.rateLimiter == nil {
+	// 	c.log.Debugw("WithRateLimit no rate limiter", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+	// 	return f(timeoutCtx)
+	// }
+
+	// // acquire with the timeout context so it can't hang forever
+	// if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
+	// 	return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
+	// }
+
+	// // ensure cleanup on exit and panic recovery
+	// defer func() {
+	// 	c.rateLimiter.Release(1)
+	// 	c.log.Debugw("WithRateLimit released", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+
+	// 	// bubble up panic after releasing
+	// 	if r := recover(); r != nil {
+	// 		c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+	// 		panic(r)
+	// 	}
+
+	// 	count, ok := c.cache.Get("WithRateLimitCount")
+	// 	if !ok {
+	// 		c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
+	// 	}
+	// 	c.cache.Set("WithRateLimitCount", count.(int)-1, cache.NoExpiration)
+	// }()
+
+	// // run the user function with the timeout context
+	// // if the function respects the context, it will return and lock will be released in defer
+	// return f(timeoutCtx)
 }
 
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
