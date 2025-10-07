@@ -176,7 +176,16 @@ func (d *DebugSemaphore) Stats() (int64, int64, int64, int64) {
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	start := time.Now()
-	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339))
+
+	// Keep track of the number of times WithRateLimit is called
+	count, ok := c.cache.Get("WithRateLimitCount")
+	if !ok {
+		c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
+		count = 0
+	}
+	c.cache.Set("WithRateLimitCount", count.(int)+1, cache.NoExpiration)
+
+	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339), "count", count.(int))
 
 	// the work itself should time out by transactionTimeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
@@ -202,12 +211,19 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 			c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
 			panic(r)
 		}
+
+		count, ok := c.cache.Get("WithRateLimitCount")
+		if !ok {
+			c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
+		}
+		c.cache.Set("WithRateLimitCount", count.(int)-1, cache.NoExpiration)
 	}()
 
 	// run the user function with the timeout context
 	// if the function respects the context, it will return and lock will be released in defer
 	return f(timeoutCtx)
 }
+
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
 	var result TxnMetaData
 	err := c.WithRateLimit(ctx, "MoveCall", func(ctx context.Context) error {
@@ -873,6 +889,8 @@ func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int
 }
 
 func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
+	c.log.Debugw("Getting normalized module", "packageId", packageId, "module", module)
+
 	// check if the normalized module is already cached
 	normalizedModule, ok := c.normalizedModules[packageId][module]
 	if ok {
@@ -887,12 +905,16 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get normalized module: %w", err)
 	}
 
+	c.log.Debugw("Normalized module response", "normalizedModule", normalizedModule, "packageId", packageId, "module", module)
+
 	if _, ok := c.normalizedModules[packageId]; !ok {
 		c.normalizedModules[packageId] = make(map[string]models.GetNormalizedMoveModuleResponse)
 	}
 
 	// cache the normalized module
 	c.normalizedModules[packageId][module] = normalizedModule
+
+	c.log.Debugw("Normalized module cached", "packageId", packageId, "module", module)
 
 	return normalizedModule, nil
 }
