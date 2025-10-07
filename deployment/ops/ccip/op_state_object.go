@@ -51,12 +51,10 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.AddPackageId(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute AddPackageId on StateObject: %w", err)
@@ -118,12 +116,10 @@ var removePackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.RemovePackageId(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute RemovePackageId on StateObject: %w", err)
@@ -372,12 +368,10 @@ var transferOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.TransferOwnership(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.To,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to execute TransferOwnership on StateObject: %w", err)
@@ -437,10 +431,10 @@ var acceptOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.AcceptOwnership(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)

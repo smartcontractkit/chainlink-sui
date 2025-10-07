@@ -14,6 +14,8 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 )
 
+var DefaultTimelockExpirationInHours = 72
+
 type ProposalGenerateInput struct {
 	// Ops Related
 	// Order matters, each definition should correspond to the input at the same index
@@ -35,7 +37,7 @@ type ProposalGenerateInput struct {
 	ChainSelector uint64 `json:"chainSelector"`
 }
 
-var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ProposalGenerateInput) (output mcms.TimelockProposal, err error) {
+var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ProposalGenerateInput) (output mcms.TimelockProposal, err error) {
 	if len(input.Defs) != len(input.Inputs) {
 		return mcms.TimelockProposal{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(input.Defs), len(input.Inputs))
 	}
@@ -85,7 +87,7 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		Transactions:  mcmsTxs,
 	}
 
-	validUntilMs := uint32(time.Now().Add(time.Hour * 24).Unix())
+	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultTimelockExpirationInHours) * time.Hour).Unix())
 	metadata, err := suisdk.NewChainMetadata(0, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create chain metadata: %w", err)
@@ -100,6 +102,8 @@ var GenerateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		delay = &delayDuration
 	case suisdk.TimelockRoleBypasser:
 		action = types.TimelockActionBypass
+	case suisdk.TimelockRoleCanceller:
+		action = types.TimelockActionCancel
 	default:
 		// NewChainMetadata will always error on invalid role, but this is a safeguard
 		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
@@ -138,5 +142,5 @@ var MCMSDynamicProposalGenerateSeq = cld_ops.NewSequence(
 	sui_ops.NewSuiOperationName("mcms", "proposal", "generate"),
 	semver.MustParse("0.1.0"),
 	"Generates an MCMS timelock proposal that batches multiple operations based on the provided definitions and inputs",
-	GenerateProposalHandler,
+	generateProposalHandler,
 )

@@ -97,13 +97,10 @@ var functionOneHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input MCM
 		}, nil
 	}
 
-	suiTx, err := contract.MCMSUser().FunctionOne(
+	suiTx, err := contract.MCMSUser().Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.McmsUserDataObjectID},
-		bind.Object{Id: input.McmsUserOwnerCapObjectID},
-		input.Arg1,
-		input.Arg2,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, fmt.Errorf("failed to call set_config on mcms: %w", err)

@@ -23,11 +23,7 @@ func (d MCMSProposalGenerate) Apply(e cldf.Environment, config mcmsops.ProposalG
 		Client: suiChain.Client,
 		Signer: nil, // Signer is not needed since we are not executing any transactions
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000)
-			return &bind.CallOpts{
-				WaitForExecution: true,
-				GasBudget:        &b,
-			}
+			return &bind.CallOpts{}
 		},
 	}
 	result, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, config)
