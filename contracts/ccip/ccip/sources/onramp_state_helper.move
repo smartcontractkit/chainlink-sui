@@ -7,6 +7,7 @@ use std::type_name;
 const ETypeProofMismatch: u64 = 1;
 const ETokenTransferAlreadyExists: u64 = 2;
 const ETokenTransferDoesNotExist: u64 = 3;
+const EInvalidTokenReceiver: u64 = 4;
 
 public struct ONRAMP_STATE_HELPER has drop {}
 
@@ -42,6 +43,7 @@ fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
 }
 
 public fun create_token_transfer_params(token_receiver: vector<u8>): TokenTransferParams {
+    assert!(token_receiver.length() == 32, EInvalidTokenReceiver);
     TokenTransferParams {
         token_transfer: option::none(),
         token_receiver,
