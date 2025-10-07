@@ -100,6 +100,20 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		nil,
 		timeout,
 		keystore,
+		maxConcurrentRequests*3,
+		client.TransactionRequestType(requestType),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
+	}
+
+	// Use config values instead of constants
+	suiClientIndexer, err := client.NewPTBClient(
+		loggerInstance,
+		nodeConfig.URL.String(),
+		nil,
+		timeout,
+		keystore,
 		maxConcurrentRequests,
 		client.TransactionRequestType(requestType),
 	)
@@ -111,7 +125,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		loggerInstance,
-		suiClient,
+		suiClientIndexer,
 		time.Duration(*cfg.TransactionsIndexer.PollingIntervalSecs)*time.Second,
 		time.Duration(*cfg.TransactionsIndexer.SyncTimeoutSecs)*time.Second,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
@@ -122,7 +136,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		loggerInstance,
-		suiClient,
+		suiClientIndexer,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
 		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,
