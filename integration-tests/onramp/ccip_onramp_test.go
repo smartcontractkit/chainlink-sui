@@ -523,7 +523,7 @@ func createCCIPSendPTBArgsForBMAndLRTokenPools(
 		"fee_token_metadata":                 linkTokenMetadata,
 		"fee_token":                          linkTokenCoinObjects[1],
 		"extra_args":                         []byte{}, // Empty array to use default gas limit
-		"token_receiver":                     testutils.ZeroAddress,
+		"token_receiver":                     evmAddressBytes,
 	}
 }
 
@@ -560,7 +560,7 @@ func createCCIPSendPTBArgsForLRTokenPool(
 		"fee_token_metadata":                 linkTokenMetadata,
 		"fee_token":                          linkTokenCoinObjects[1],
 		"extra_args":                         []byte{}, // Empty array to use default gas limit
-		"token_receiver":                     testutils.ZeroAddress,
+		"token_receiver":                     evmAddressBytes,
 	}
 }
 
@@ -600,7 +600,7 @@ func createCCIPSendPTBArgsForBMTokenPool(
 		"fee_token_metadata":             linkTokenMetadata,
 		"fee_token":                      feeTokenCoinObject,
 		"extra_args":                     []byte{}, // Empty array to use default gas limit
-		"token_receiver":                 testutils.ZeroAddress,
+		"token_receiver":                 evmAddressBytes,
 	}
 }
 
@@ -642,7 +642,7 @@ func createCCIPSendPTBArgsForManagedTokenPool(
 		"fee_token":                    linkTokenCoinObject,
 		"extra_args":                   []byte{}, // Empty array to use default gas limit
 		"deny_list":                    environment.DenyListObjectId,
-		"token_receiver":               testutils.ZeroAddress,
+		"token_receiver":               evmAddressBytes,
 	}
 }
 
