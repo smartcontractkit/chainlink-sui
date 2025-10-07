@@ -18,7 +18,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
-	"github.com/google/uuid"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 
@@ -176,30 +175,58 @@ func (d *DebugSemaphore) Stats() (int64, int64, int64, int64) {
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
-
-	// Just give each call a 120s max runtime
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	// the work itself should time out by transactionTimeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
-	if dl, ok := ctx.Deadline(); ok {
-		c.log.Debugw("Parent ctx deadline", "deadline", dl, "remaining", time.Until(dl))
-	}
-	if dl, ok := timeoutCtx.Deadline(); ok {
-		c.log.Debugw("Timeout ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	if c.rateLimiter == nil {
+		return f(timeoutCtx)
 	}
 
-	reqID := uuid.NewString()
-	c.log.Debugw("Executing function with NO rate limit", "reqID", reqID)
+	// acquire with the timeout context so it can't hang forever
+	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
+		return fmt.Errorf("failed to acquire rate limit: %w", err)
+	}
 
-	startWork := time.Now()
-	err := f(timeoutCtx)
-	c.log.Debugw("Function finished (no ratelimit)",
-		"reqID", reqID,
-		"duration", time.Since(startWork),
-		"err", err,
-	)
+	// ensure cleanup on exit and panic recovery
+	defer func() {
+		c.rateLimiter.Release(1)
 
-	return err
+		// bubble up panic after releasing
+		if r := recover(); r != nil {
+			panic(r)
+		}
+	}()
+
+	// run the user function with the timeout context
+	// if the function respects the context, it will return and lock will be released in defer
+	return f(timeoutCtx)
+
+	// WORKING STARTT
+	// // Just give each call a 120s max runtime
+	// timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	// defer cancel()
+
+	// if dl, ok := ctx.Deadline(); ok {
+	// 	c.log.Debugw("Parent ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	// }
+	// if dl, ok := timeoutCtx.Deadline(); ok {
+	// 	c.log.Debugw("Timeout ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	// }
+
+	// reqID := uuid.NewString()
+	// c.log.Debugw("Executing function with NO rate limit", "reqID", reqID)
+
+	// startWork := time.Now()
+	// err := f(timeoutCtx)
+	// c.log.Debugw("Function finished (no ratelimit)",
+	// 	"reqID", reqID,
+	// 	"duration", time.Since(startWork),
+	// 	"err", err,
+	// )
+
+	// return err
+	// WORKING END
 
 	// timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	// defer cancel()
