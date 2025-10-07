@@ -32,12 +32,13 @@ type RampMessageHeader struct {
 // Any2SuiRampMessage represents the ramp message structure from offramp.move
 // Matches the Move struct: public struct Any2SuiRampMessage has drop
 type Any2SuiRampMessage struct {
-	Header       RampMessageHeader      `json:"header"`
-	Sender       []byte                 `json:"sender"`
-	Data         []byte                 `json:"data"`
-	Receiver     []byte                 `json:"receiver"`  // address in Move becomes []byte for 32-byte Sui address
-	GasLimit     *big.Int               `json:"gas_limit"` // u256 in Move becomes *big.Int in Go
-	TokenAmounts []Any2SuiTokenTransfer `json:"token_amounts"`
+	Header        RampMessageHeader      `json:"header"`
+	Sender        []byte                 `json:"sender"`
+	Data          []byte                 `json:"data"`
+	Receiver      []byte                 `json:"receiver"`  // address in Move becomes []byte for 32-byte Sui address
+	GasLimit      *big.Int               `json:"gas_limit"` // u256 in Move becomes *big.Int in Go
+	TokenReceiver []byte                 `json:"token_receiver"`
+	TokenAmounts  []Any2SuiTokenTransfer `json:"token_amounts"`
 }
 
 // Any2SuiTokenTransfer represents a token transfer structure from offramp.move
@@ -84,6 +85,7 @@ func NewAny2SuiRampMessage(
 	data []byte,
 	receiver []byte,
 	gasLimit *big.Int,
+	tokenReceiver []byte,
 	tokenAmounts []Any2SuiTokenTransfer,
 ) Any2SuiRampMessage {
 	if gasLimit == nil {
@@ -94,12 +96,13 @@ func NewAny2SuiRampMessage(
 	}
 
 	return Any2SuiRampMessage{
-		Header:       header,
-		Sender:       sender,
-		Data:         data,
-		Receiver:     receiver,
-		GasLimit:     gasLimit,
-		TokenAmounts: tokenAmounts,
+		Header:        header,
+		Sender:        sender,
+		Data:          data,
+		Receiver:      receiver,
+		GasLimit:      gasLimit,
+		TokenReceiver: tokenReceiver,
+		TokenAmounts:  tokenAmounts,
 	}
 }
 
@@ -134,6 +137,7 @@ func GetExecutionReportFromCCIP(
 	offchainTokenData [][]byte,
 	proofs [][]byte,
 	gasAmount uint32,
+	tokenReceiver []byte,
 ) ExecutionReport {
 	// Convert CCIP message to Move message format
 	// Convert MessageID from [32]byte to []byte
@@ -166,6 +170,7 @@ func GetExecutionReportFromCCIP(
 		message.Data,
 		message.Receiver,
 		big.NewInt(int64(gasAmount)),
+		tokenReceiver,
 		tokenAmounts,
 	)
 
@@ -279,6 +284,12 @@ func serializeAny2SuiRampMessage(s *bcs.Serializer, message Any2SuiRampMessage) 
 	}
 	if s.Error() != nil {
 		return fmt.Errorf("failed to serialize GasLimit: %w", s.Error())
+	}
+
+	// Serialize TokenReceiver as address (32 bytes)
+	s.FixedBytes(message.TokenReceiver)
+	if s.Error() != nil {
+		return fmt.Errorf("failed to serialize TokenReceiver: %w", s.Error())
 	}
 
 	// Serialize TokenAmounts as vector<Any2SuiTokenTransfer>
