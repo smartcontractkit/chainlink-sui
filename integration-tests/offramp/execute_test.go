@@ -39,6 +39,7 @@ import (
 
 const (
 	evmReceiverAddress      = "0x80226fc0ee2b096224eeac085bb9a8cba1146f7d"
+	tokenReceiverAddress    = "0xD127643c855aA9BAEf66ab895049AA0264a74453"
 	SUI_CHAIN_SELECTOR      = 2
 	ETHEREUM_CHAIN_SELECTOR = 1
 )
@@ -636,6 +637,7 @@ func TestExecuteOffRamp(t *testing.T) {
 			offChainTokenData,
 			proofs,
 			uint32(1_000_000),
+			normalizeTo32Bytes(tokenReceiverAddress),
 		)
 
 		execReportBCSBytes, err := testutils.SerializeExecutionReport(report)
