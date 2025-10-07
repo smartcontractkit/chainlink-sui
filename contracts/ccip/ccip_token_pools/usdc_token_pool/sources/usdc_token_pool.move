@@ -300,7 +300,7 @@ public fun lock_or_burn<T: drop>(
 ) {
     let amount = c.value();
     let sender = ctx.sender();
-    let mint_recipient = onramp_sh::get_token_receiver(token_transfer_params);
+    let mint_recipient = address::from_bytes(onramp_sh::get_token_receiver(token_transfer_params));
 
     assert!(pool.chain_to_domain.contains(remote_chain_selector), EDomainNotFound);
     let remote_domain_info = pool.chain_to_domain.borrow(remote_chain_selector);
