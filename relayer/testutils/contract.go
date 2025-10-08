@@ -199,6 +199,49 @@ func PublishContract(t *testing.T, packageName string, contractPath string, acco
 	return packageId, parsedPublishTxn, nil
 }
 
+func UpgradeContract(t *testing.T, packageName string, upgradeCapId string) (string, TxnMetaWithObjectChanges, error) {
+	t.Helper()
+	lgr := logger.Test(t)
+
+	lgr.Infow("Upgrading contract", "name", packageName)
+
+	gasBudgetArg := "200000000"
+
+	upgradeCmd := exec.Command("sui", "client", "upgrade",
+		"--gas-budget", gasBudgetArg,
+		"--upgrade-capability",
+		upgradeCapId,
+	)
+
+	publishOutput, err := upgradeCmd.CombinedOutput()
+	require.NoError(t, err, "Failed to publish contract: %s", string(publishOutput))
+
+	// This is a hack to skip the warnings from the CLI output by searching for "digest" with regex
+	// and then extracting the JSON from there.
+	idx, err := findDigestIndex(string(publishOutput))
+	require.NoError(t, err)
+	cleanedOutput := "{" + string(publishOutput)[idx:]
+
+	// Unmarshal the JSON into a map.
+	var parsedPublishTxn TxnMetaWithObjectChanges
+	if err := json.Unmarshal([]byte(cleanedOutput), &parsedPublishTxn); err != nil {
+		log.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	changes := parsedPublishTxn.ObjectChanges
+
+	var packageId string
+	for _, change := range changes {
+		if change.Type == "published" {
+			packageId = change.PackageID
+			break
+		}
+	}
+	require.NotEmpty(t, packageId, "Package ID not found")
+
+	return packageId, parsedPublishTxn, nil
+}
+
 // QueryCreatedObjectID queries the created object ID for a given package ID, module, and struct name.
 func QueryCreatedObjectID(objectChanges []ObjectChange, packageID, module, structName string) (string, error) {
 	expectedType := fmt.Sprintf("%s::%s::%s", packageID, module, structName)
