@@ -204,10 +204,12 @@ public fun accept_ownership_from_object(
 
 public fun mcms_accept_ownership(
     user_data: &mut UserData,
+    registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+        registry,
         params,
         SampleMcmsCallback {},
     );
