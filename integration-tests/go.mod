@@ -157,7 +157,6 @@ require (
 )
 
 // use local modules
-replace (
-	github.com/smartcontractkit/chainlink-sui => ../
-	github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
-)
+// TODO: enable once mcms is up to date
+// github.com/smartcontractkit/chainlink-sui => ../
+replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment

@@ -7,7 +7,8 @@ toolchain go1.24.7
 // Coming from chainlink-deployments-framework
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
-replace github.com/smartcontractkit/chainlink-sui => ../
+// TODO: enable once mcms is up to date
+// replace github.com/smartcontractkit/chainlink-sui => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -16,9 +17,9 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.71
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908082700-aa3f5927af8c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20251008002405-8646ac38ba49
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20251007220618-5aad33b9f98b
 	// TODO: Replace with released version
-	github.com/smartcontractkit/mcms v0.26.1-0.20251008043238-968451cb8aa6
+	github.com/smartcontractkit/mcms v0.26.0
 	github.com/stretchr/testify v1.10.0
 )
 
