@@ -188,7 +188,6 @@ const EUnknownMCMSAccountModuleFunction: u64 = 37;
 const EUnknownMCMSModule: u64 = 38;
 const EUnknownMCMSDeployerModuleFunction: u64 = 39;
 const EInvalidMCMS: u64 = 40;
-const EOperationAlreadyExecuted: u64 = 41;
 
 public struct MCMS has drop {}
 
@@ -1634,7 +1633,6 @@ fun timelock_bypasser_execute_batch(
     assert!(role == BYPASSER_ROLE || role == TIMELOCK_ROLE, ENotAuthorizedRole);
 
     let calls = create_calls(targets, module_names, function_names, datas);
-    // batch_id gets cleaned up after every batch execution completion
     let batch_id = hash_operation_batch(calls, ZERO_HASH, *ctx.digest());
 
     let mut calls_to_execute = vector[];

@@ -116,7 +116,7 @@ public fun register_entrypoint<T: drop, C: key + store>(
     });
 }
 
-public fun get_callback_params<T: drop, C: key + store>(
+public fun get_callback_params_with_caps<T: drop, C: key + store>(
     registry: &mut Registry,
     _proof: T,
     params: ExecutingCallbackParams,
@@ -163,7 +163,7 @@ public(package) fun borrow_owner_cap<C: key + store>(registry: &Registry): &C {
     registry.package_caps.borrow(get_multisig_address())
 }
 
-public fun get_callback_params_for_mcms<T: drop>(
+public fun get_callback_params<T: drop>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     _proof: T,

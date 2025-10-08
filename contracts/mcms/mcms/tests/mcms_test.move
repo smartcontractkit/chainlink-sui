@@ -2922,7 +2922,7 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
     );
 
     // This should fail with EModuleNameMismatch when the registry validates the module name
-    let (_cap, _function_name, _data) = mcms_registry::get_callback_params<
+    let (_cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
         mcms_registry::McmsProof,
         mcms_account::OwnerCap,
     >(

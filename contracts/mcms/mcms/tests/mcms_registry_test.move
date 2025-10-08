@@ -126,7 +126,7 @@ fun test_get_callback_params() {
             1, // total_in_batch
         );
 
-        let (cap, _function_name, _data) = mcms_registry::get_callback_params<
+        let (cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
             TestModuleWitness,
             TestModuleCap,
         >(
@@ -172,7 +172,7 @@ fun test_get_callback_params_with_unregistered_package_cap() {
         );
 
         // This should fail because package is not registered
-        let (cap, _function_name, _data) = mcms_registry::get_callback_params<
+        let (cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
             TestModuleWitness,
             TestModuleCap,
         >(
@@ -230,7 +230,7 @@ fun test_get_callback_params_with_wrong_package_name() {
         );
 
         // This should fail because package ID doesn't match
-        let (_cap, _function_name, _data) = mcms_registry::get_callback_params<
+        let (_cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
             TestModuleWitness,
             TestModuleCap,
         >(

@@ -524,7 +524,7 @@ public fun mcms_accept_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function_name, data) = mcms_registry::get_callback_params(
         registry,
         params,
         McmsCallback {},
@@ -591,7 +591,7 @@ public fun mcms_configure_new_minter<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -619,7 +619,7 @@ public fun mcms_increment_mint_allowance<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -657,7 +657,7 @@ public fun mcms_set_unlimited_mint_allowances<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -695,7 +695,7 @@ public fun mcms_blocklist<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -725,7 +725,7 @@ public fun mcms_unblocklist<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -755,7 +755,7 @@ public fun mcms_pause<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -783,7 +783,7 @@ public fun mcms_unpause<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,

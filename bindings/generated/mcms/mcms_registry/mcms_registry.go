@@ -19,14 +19,14 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"}]},{"package":"mcms","module":"mcms_registry","name":"create_mcms_proof","parameters":null},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_for_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"_witness","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"}]},{"package":"mcms","module":"mcms_registry","name":"create_mcms_proof","parameters":null},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_with_caps","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"_witness","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
 
 type IMcmsRegistry interface {
 	RegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, packageCap bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
+	GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, witness bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BorrowOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object) (*models.SuiTransactionBlockResponse, error)
-	GetCallbackParamsForMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCallbackParamsFromMcms(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	CreateExecutingCallbackParams(ctx context.Context, opts *bind.CallOpts, target string, moduleName string, functionName string, data []byte, batchId []byte, sequenceNumber uint64, totalInBatch uint64) (*models.SuiTransactionBlockResponse, error)
 	IsPackageRegistered(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (*models.SuiTransactionBlockResponse, error)
@@ -44,10 +44,10 @@ type IMcmsRegistry interface {
 }
 
 type IMcmsRegistryDevInspect interface {
-	GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) ([]any, error)
+	GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) ([]any, error)
 	ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, witness bind.Object) (any, error)
 	BorrowOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object) (bind.Object, error)
-	GetCallbackParamsForMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) ([]any, error)
+	GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) ([]any, error)
 	GetCallbackParamsFromMcms(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params ExecutingCallbackParams) ([]any, error)
 	CreateExecutingCallbackParams(ctx context.Context, opts *bind.CallOpts, target string, moduleName string, functionName string, data []byte, batchId []byte, sequenceNumber uint64, totalInBatch uint64) (ExecutingCallbackParams, error)
 	IsPackageRegistered(ctx context.Context, opts *bind.CallOpts, registry bind.Object, packageAddress string) (bool, error)
@@ -64,14 +64,14 @@ type IMcmsRegistryDevInspect interface {
 type McmsRegistryEncoder interface {
 	RegisterEntrypoint(typeArgs []string, registry bind.Object, proof bind.Object, packageCap bind.Object) (*bind.EncodedCall, error)
 	RegisterEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	GetCallbackParams(typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*bind.EncodedCall, error)
-	GetCallbackParamsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetCallbackParamsWithCaps(typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*bind.EncodedCall, error)
+	GetCallbackParamsWithCapsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ReleaseCap(typeArgs []string, registry bind.Object, witness bind.Object) (*bind.EncodedCall, error)
 	ReleaseCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	BorrowOwnerCap(typeArgs []string, registry bind.Object) (*bind.EncodedCall, error)
 	BorrowOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	GetCallbackParamsForMcms(typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*bind.EncodedCall, error)
-	GetCallbackParamsForMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	GetCallbackParams(typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*bind.EncodedCall, error)
+	GetCallbackParamsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetCallbackParamsFromMcms(registry bind.Object, params ExecutingCallbackParams) (*bind.EncodedCall, error)
 	GetCallbackParamsFromMcmsWithArgs(args ...any) (*bind.EncodedCall, error)
 	CreateExecutingCallbackParams(target string, moduleName string, functionName string, data []byte, batchId []byte, sequenceNumber uint64, totalInBatch uint64) (*bind.EncodedCall, error)
@@ -350,9 +350,9 @@ func (c *McmsRegistryContract) RegisterEntrypoint(ctx context.Context, opts *bin
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetCallbackParams executes the get_callback_params Move function.
-func (c *McmsRegistryContract) GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsRegistryEncoder.GetCallbackParams(typeArgs, registry, proof, params)
+// GetCallbackParamsWithCaps executes the get_callback_params_with_caps Move function.
+func (c *McmsRegistryContract) GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsRegistryEncoder.GetCallbackParamsWithCaps(typeArgs, registry, proof, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -380,9 +380,9 @@ func (c *McmsRegistryContract) BorrowOwnerCap(ctx context.Context, opts *bind.Ca
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetCallbackParamsForMcms executes the get_callback_params_for_mcms Move function.
-func (c *McmsRegistryContract) GetCallbackParamsForMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsRegistryEncoder.GetCallbackParamsForMcms(typeArgs, registry, params, proof)
+// GetCallbackParams executes the get_callback_params Move function.
+func (c *McmsRegistryContract) GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsRegistryEncoder.GetCallbackParams(typeArgs, registry, params, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -500,15 +500,15 @@ func (c *McmsRegistryContract) CreateMcmsProof(ctx context.Context, opts *bind.C
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// GetCallbackParams executes the get_callback_params Move function using DevInspect to get return values.
+// GetCallbackParamsWithCaps executes the get_callback_params_with_caps Move function using DevInspect to get return values.
 //
 // Returns:
 //
 //	[0]: &C
 //	[1]: 0x1::string::String
 //	[2]: vector<u8>
-func (d *McmsRegistryDevInspect) GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) ([]any, error) {
-	encoded, err := d.contract.mcmsRegistryEncoder.GetCallbackParams(typeArgs, registry, proof, params)
+func (d *McmsRegistryDevInspect) GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) ([]any, error) {
+	encoded, err := d.contract.mcmsRegistryEncoder.GetCallbackParamsWithCaps(typeArgs, registry, proof, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -555,7 +555,7 @@ func (d *McmsRegistryDevInspect) BorrowOwnerCap(ctx context.Context, opts *bind.
 	return result, nil
 }
 
-// GetCallbackParamsForMcms executes the get_callback_params_for_mcms Move function using DevInspect to get return values.
+// GetCallbackParams executes the get_callback_params Move function using DevInspect to get return values.
 //
 // Returns:
 //
@@ -563,8 +563,8 @@ func (d *McmsRegistryDevInspect) BorrowOwnerCap(ctx context.Context, opts *bind.
 //	[1]: 0x1::string::String
 //	[2]: 0x1::string::String
 //	[3]: vector<u8>
-func (d *McmsRegistryDevInspect) GetCallbackParamsForMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) ([]any, error) {
-	encoded, err := d.contract.mcmsRegistryEncoder.GetCallbackParamsForMcms(typeArgs, registry, params, proof)
+func (d *McmsRegistryDevInspect) GetCallbackParams(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) ([]any, error) {
+	encoded, err := d.contract.mcmsRegistryEncoder.GetCallbackParams(typeArgs, registry, params, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -849,14 +849,14 @@ func (c mcmsRegistryEncoder) RegisterEntrypointWithArgs(typeArgs []string, args 
 	return c.EncodeCallArgsWithGenerics("register_entrypoint", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// GetCallbackParams encodes a call to the get_callback_params Move function.
-func (c mcmsRegistryEncoder) GetCallbackParams(typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*bind.EncodedCall, error) {
+// GetCallbackParamsWithCaps encodes a call to the get_callback_params_with_caps Move function.
+func (c mcmsRegistryEncoder) GetCallbackParamsWithCaps(typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 		"C",
 	}
-	return c.EncodeCallArgsWithGenerics("get_callback_params", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("get_callback_params_with_caps", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"T",
 		"mcms::mcms_registry::ExecutingCallbackParams",
@@ -871,9 +871,9 @@ func (c mcmsRegistryEncoder) GetCallbackParams(typeArgs []string, registry bind.
 	})
 }
 
-// GetCallbackParamsWithArgs encodes a call to the get_callback_params Move function using arbitrary arguments.
+// GetCallbackParamsWithCapsWithArgs encodes a call to the get_callback_params_with_caps Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsRegistryEncoder) GetCallbackParamsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c mcmsRegistryEncoder) GetCallbackParamsWithCapsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"T",
@@ -888,7 +888,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsWithArgs(typeArgs []string, args .
 		"T",
 		"C",
 	}
-	return c.EncodeCallArgsWithGenerics("get_callback_params", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("get_callback_params_with_caps", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"&C",
 		"0x1::string::String",
 		"vector<u8>",
@@ -968,13 +968,13 @@ func (c mcmsRegistryEncoder) BorrowOwnerCapWithArgs(typeArgs []string, args ...a
 	})
 }
 
-// GetCallbackParamsForMcms encodes a call to the get_callback_params_for_mcms Move function.
-func (c mcmsRegistryEncoder) GetCallbackParamsForMcms(typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*bind.EncodedCall, error) {
+// GetCallbackParams encodes a call to the get_callback_params Move function.
+func (c mcmsRegistryEncoder) GetCallbackParams(typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("get_callback_params_for_mcms", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("get_callback_params", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"mcms::mcms_registry::ExecutingCallbackParams",
 		"T",
@@ -990,9 +990,9 @@ func (c mcmsRegistryEncoder) GetCallbackParamsForMcms(typeArgs []string, registr
 	})
 }
 
-// GetCallbackParamsForMcmsWithArgs encodes a call to the get_callback_params_for_mcms Move function using arbitrary arguments.
+// GetCallbackParamsWithArgs encodes a call to the get_callback_params Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsRegistryEncoder) GetCallbackParamsForMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+func (c mcmsRegistryEncoder) GetCallbackParamsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"mcms::mcms_registry::ExecutingCallbackParams",
@@ -1006,7 +1006,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsForMcmsWithArgs(typeArgs []string,
 	typeParamsList := []string{
 		"T",
 	}
-	return c.EncodeCallArgsWithGenerics("get_callback_params_for_mcms", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("get_callback_params", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"address",
 		"0x1::string::String",
 		"0x1::string::String",
