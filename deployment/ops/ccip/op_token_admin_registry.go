@@ -61,3 +61,193 @@ var TokenAdminRegistryInitializeOp = cld_ops.NewOperation(
 	"Initializes the CCIP Token Admin Registry contract",
 	initTarHandler,
 )
+
+// ================================================================
+// |                    Unregister Pool                          |
+// ================================================================
+
+type UnregisterPoolInput struct {
+	CCIPPackageId       string
+	StateObjectId       string
+	CoinMetadataAddress string
+}
+
+var unregisterPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UnregisterPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.UnregisterPool(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		input.CoinMetadataAddress,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute unregister pool: %w", err)
+	}
+
+	b.Logger.Infow("UnregisterPool on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, nil
+}
+
+var TokenAdminRegistryUnregisterPoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "unregister_pool"),
+	semver.MustParse("0.1.0"),
+	"Unregisters a token pool from the CCIP Token Admin Registry",
+	unregisterPoolHandler,
+)
+
+// ================================================================
+// |                        Set Pool                             |
+// ================================================================
+
+type SetPoolInput struct {
+	CCIPPackageId       string
+	StateObjectId       string
+	CoinMetadataAddress string
+	TokenPoolPackageId  string
+	TokenPoolModule     string
+	LockOrBurnParams    []string
+	ReleaseOrMintParams []string
+	TypeArgs            []string
+	TypeProofObjectId   string
+}
+
+var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.SetPool(
+		b.GetContext(),
+		opts,
+		input.TypeArgs,
+		bind.Object{Id: input.StateObjectId},
+		input.CoinMetadataAddress,
+		input.TokenPoolPackageId,
+		input.TokenPoolModule,
+		input.LockOrBurnParams,
+		input.ReleaseOrMintParams,
+		bind.Object{Id: input.TypeProofObjectId},
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute set pool: %w", err)
+	}
+
+	b.Logger.Infow("SetPool on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress, "TokenPoolPackageId:", input.TokenPoolPackageId)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, nil
+}
+
+var TokenAdminRegistrySetPoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "set_pool"),
+	semver.MustParse("0.1.0"),
+	"Sets a token pool configuration in the CCIP Token Admin Registry",
+	setPoolHandler,
+)
+
+// ================================================================
+// |                  Transfer Admin Role                        |
+// ================================================================
+
+type TransferAdminRoleInput struct {
+	CCIPPackageId       string
+	StateObjectId       string
+	CoinMetadataAddress string
+	NewAdmin            string
+}
+
+var transferAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TransferAdminRoleInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.TransferAdminRole(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		input.CoinMetadataAddress,
+		input.NewAdmin,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute transfer admin role: %w", err)
+	}
+
+	b.Logger.Infow("TransferAdminRole on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress, "NewAdmin:", input.NewAdmin)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, nil
+}
+
+var TokenAdminRegistryTransferAdminRoleOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "transfer_admin_role"),
+	semver.MustParse("0.1.0"),
+	"Transfers admin role for a token in the CCIP Token Admin Registry",
+	transferAdminRoleHandler,
+)
+
+// ================================================================
+// |                   Accept Admin Role                         |
+// ================================================================
+
+type AcceptAdminRoleInput struct {
+	CCIPPackageId       string
+	StateObjectId       string
+	CoinMetadataAddress string
+}
+
+var acceptAdminRoleHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptAdminRoleInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.AcceptAdminRole(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		input.CoinMetadataAddress,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute accept admin role: %w", err)
+	}
+
+	b.Logger.Infow("AcceptAdminRole on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   NoObjects{},
+	}, nil
+}
+
+var TokenAdminRegistryAcceptAdminRoleOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "accept_admin_role"),
+	semver.MustParse("0.1.0"),
+	"Accepts admin role for a token in the CCIP Token Admin Registry",
+	acceptAdminRoleHandler,
+)
