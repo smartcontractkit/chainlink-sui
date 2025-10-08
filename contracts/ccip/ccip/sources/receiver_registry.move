@@ -8,7 +8,7 @@ use std::string::{Self, String};
 use std::type_name;
 use sui::address;
 use sui::event;
-use sui::vec_map::{Self, VecMap};
+use sui::linked_table::{Self, LinkedTable};
 
 public struct ReceiverConfig has copy, drop, store {
     module_name: String,
@@ -19,7 +19,7 @@ public struct ReceiverConfig has copy, drop, store {
 public struct ReceiverRegistry has key, store {
     id: UID,
     // receiver package id -> receiver config
-    receiver_configs: VecMap<address, ReceiverConfig>,
+    receiver_configs: LinkedTable<address, ReceiverConfig>,
 }
 
 public struct ReceiverRegistered has copy, drop {
@@ -48,7 +48,7 @@ public fun initialize(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, ctx: &mut T
     assert!(!state_object::contains<ReceiverRegistry>(ref), EAlreadyInitialized);
     let state = ReceiverRegistry {
         id: object::new(ctx),
-        receiver_configs: vec_map::empty(),
+        receiver_configs: linked_table::new(ctx),
     };
 
     state_object::add(ref, owner_cap, state, ctx);
@@ -62,18 +62,18 @@ public fun register_receiver<ProofType: drop>(ref: &mut CCIPObjectRef, _proof: P
         VERSION,
     );
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
-    let proof_typename = type_name::get<ProofType>();
-    let receiver_module_name = std::string::from_ascii(type_name::get_module(&proof_typename));
+    let proof_typename = type_name::with_defining_ids<ProofType>();
+    let receiver_module_name = std::string::from_ascii(type_name::module_string(&proof_typename));
     let receiver_package_id = address::from_ascii_bytes(
-        &ascii::into_bytes(type_name::get_address(&proof_typename)),
+        &ascii::into_bytes(type_name::address_string(&proof_typename)),
     );
-    assert!(!registry.receiver_configs.contains(&receiver_package_id), EAlreadyRegistered);
+    assert!(!registry.receiver_configs.contains(receiver_package_id), EAlreadyRegistered);
 
     let receiver_config = ReceiverConfig {
         module_name: receiver_module_name,
         proof_typename: proof_typename.into_string(),
     };
-    registry.receiver_configs.insert(receiver_package_id, receiver_config);
+    registry.receiver_configs.push_back(receiver_package_id, receiver_config);
 
     event::emit(ReceiverRegistered {
         receiver_package_id,
@@ -98,9 +98,9 @@ public fun unregister_receiver(
 
     let registry = state_object::borrow_mut<ReceiverRegistry>(ref);
 
-    assert!(registry.receiver_configs.contains(&receiver_package_id), EUnknownReceiver);
+    assert!(registry.receiver_configs.contains(receiver_package_id), EUnknownReceiver);
 
-    registry.receiver_configs.remove(&receiver_package_id);
+    registry.receiver_configs.remove(receiver_package_id);
 
     event::emit(ReceiverUnregistered {
         receiver_package_id,
@@ -115,7 +115,7 @@ public fun is_registered_receiver(ref: &CCIPObjectRef, receiver_package_id: addr
         VERSION,
     );
     let registry = state_object::borrow<ReceiverRegistry>(ref);
-    registry.receiver_configs.contains(&receiver_package_id)
+    registry.receiver_configs.contains(receiver_package_id)
 }
 
 public fun get_receiver_config(ref: &CCIPObjectRef, receiver_package_id: address): ReceiverConfig {
@@ -127,8 +127,8 @@ public fun get_receiver_config(ref: &CCIPObjectRef, receiver_package_id: address
     );
     let registry = state_object::borrow<ReceiverRegistry>(ref);
 
-    assert!(registry.receiver_configs.contains(&receiver_package_id), EUnknownReceiver);
-    *registry.receiver_configs.get(&receiver_package_id)
+    assert!(registry.receiver_configs.contains(receiver_package_id), EUnknownReceiver);
+    *registry.receiver_configs.borrow(receiver_package_id)
 }
 
 public fun get_receiver_config_fields(rc: ReceiverConfig): (String, ascii::String) {
@@ -148,8 +148,8 @@ public fun get_receiver_info(
     );
     let registry = state_object::borrow<ReceiverRegistry>(ref);
 
-    if (registry.receiver_configs.contains(&receiver_package_id)) {
-        let receiver_config = registry.receiver_configs.get(&receiver_package_id);
+    if (registry.receiver_configs.contains(receiver_package_id)) {
+        let receiver_config = registry.receiver_configs.borrow(receiver_package_id);
         return (receiver_config.module_name, receiver_config.proof_typename)
     };
 

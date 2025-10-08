@@ -1,6 +1,7 @@
 module ccip_onramp::ownable;
 
 use mcms::mcms_registry::{Self, Registry};
+use sui::derived_object;
 use sui::event;
 
 public struct OwnerCap has key, store {
@@ -54,12 +55,28 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
-    let owner = ctx.sender();
+const DEFAULT_KEY: vector<u8> = b"CCIP_OWNABLE";
 
-    let owner_cap = OwnerCap {
-        id: object::new(ctx),
-    };
+public fun default_key(): vector<u8> {
+    DEFAULT_KEY
+}
+
+public fun new(uid: &mut UID, ctx: &mut TxContext): (OwnableState, OwnerCap) {
+    let owner_cap = OwnerCap { id: derived_object::claim(uid, DEFAULT_KEY) };
+    new_internal(owner_cap, ctx)
+}
+
+public fun new_with_key<K: copy + drop + store>(
+    uid: &mut UID,
+    key: K,
+    ctx: &mut TxContext,
+): (OwnableState, OwnerCap) {
+    let owner_cap = OwnerCap { id: derived_object::claim(uid, key) };
+    new_internal(owner_cap, ctx)
+}
+
+fun new_internal(owner_cap: OwnerCap, ctx: &mut TxContext): (OwnableState, OwnerCap) {
+    let owner = ctx.sender();
 
     let state = OwnableState {
         id: object::new(ctx),

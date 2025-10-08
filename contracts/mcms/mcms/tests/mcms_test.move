@@ -194,7 +194,7 @@ public fun test_e2e() {
     );
 
     let signers = mcms::signers(&env.state, role);
-    assert!(signers.size() == 3);
+    assert!(signers.length() == 3);
 
     let set_root_args = default_set_root_args(false);
     call_set_root(&mut env, set_root_args);
@@ -964,7 +964,7 @@ fun test_set_config__success() {
 
     // Verify the first configuration (clear_root=false)
     let signers = mcms::signers(&env.state, role);
-    assert!(signers.size() == 3);
+    assert!(signers.length() == 3);
 
     // Check signers are properly stored and accessible
     let signer_1_exists = signers.contains(&PROPOSER_ADDR1);
@@ -2194,7 +2194,7 @@ fun test_different_group_structures() {
 
     // Verify the configuration was set correctly
     let signers = mcms::signers(&env.state, role);
-    assert!(signers.size() == 3); // Verify we have 3 signers
+    assert!(signers.length() == 3); // Verify we have 3 signers
 
     // Verify signers are correctly stored
     assert!(signers.contains(&PROPOSER_ADDR1));
@@ -2228,7 +2228,7 @@ fun test_view_getter_functions_after_config() {
 
     // Test signers map after configuration
     let signers = mcms::signers(&env.state, role);
-    assert!(signers.size() == 3);
+    assert!(signers.length() == 3);
     assert!(signers.contains(&PROPOSER_ADDR1));
     assert!(signers.contains(&PROPOSER_ADDR2));
     assert!(signers.contains(&PROPOSER_ADDR3));

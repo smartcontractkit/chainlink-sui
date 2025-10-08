@@ -20,12 +20,14 @@ import (
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
 	aptosCRUtils "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/utils"
 
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	crUtil "github.com/smartcontractkit/chainlink-sui/relayer/chainreader/chainreader_util"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/indexer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	pkgtypes "github.com/smartcontractkit/chainlink-common/pkg/types"
@@ -50,6 +52,12 @@ type suiChainReader struct {
 	client          *client.PTBClient
 	dbStore         *database.DBStore
 	indexer         indexer.IndexerApi
+
+	// Cache of parent object IDs for pointer objects
+	// Key format: "{packageID}::{module}::{pointerName}"
+	// Value: parent object ID
+	parentObjectIDs      map[string]string
+	parentObjectIDsMutex sync.RWMutex
 }
 
 var _ pkgtypes.ContractTypeProvider = &suiChainReader{}
@@ -88,7 +96,8 @@ func NewChainReader(
 		dbStore:         dbStore,
 		packageResolver: crUtil.NewPackageResolver(lgr, ptbClient),
 		// indexers
-		indexer: indexer,
+		indexer:         indexer,
+		parentObjectIDs: make(map[string]string),
 	}, nil
 }
 
@@ -122,6 +131,11 @@ func (s *suiChainReader) Bind(ctx context.Context, bindings []pkgtypes.BoundCont
 		if err != nil {
 			return fmt.Errorf("failed to bind package: %w", err)
 		}
+
+		// Pre-load parent object IDs for known pointer types
+		if err := s.preloadParentObjectIDs(ctx, binding); err != nil {
+			s.logger.Warnw("Failed to pre-load parent object IDs", "contract", binding.Name, "error", err)
+		}
 	}
 
 	// If the "OffRamp" package/module is now bound, set the offramp package ID for the tx indexer
@@ -136,6 +150,84 @@ func (s *suiChainReader) Unbind(ctx context.Context, bindings []pkgtypes.BoundCo
 		if err := s.packageResolver.UnbindPackage(binding.Name); err != nil {
 			return fmt.Errorf("failed to unbind package %s: %w", binding.Name, err)
 		}
+
+		// Clear cached parent object IDs for this unbound contract
+		s.parentObjectIDsMutex.Lock()
+		for key := range s.parentObjectIDs {
+			if strings.HasPrefix(key, binding.Address+"::") {
+				delete(s.parentObjectIDs, key)
+			}
+		}
+		s.parentObjectIDsMutex.Unlock()
+	}
+
+	return nil
+}
+
+// preloadParentObjectIDs pre-loads parent object IDs for known pointer types at binding time.
+// This reduces RPC calls during GetLatestValue by caching parent IDs upfront.
+func (s *suiChainReader) preloadParentObjectIDs(ctx context.Context, binding pkgtypes.BoundContract) error {
+	pointers := common.GetPointerConfigsByContract(binding.Name)
+	if len(pointers) == 0 {
+		return nil
+	}
+
+	// For OffRamp, we also need to load CCIP pointers
+	// If offramp is being bound
+	// Fetch the offramp's parent object ID
+	// From Offramp, we fetch the CCIP package ID
+	// Fetch CCIP's parent object ID
+	//
+	// We need Offramp state pointer too for offramp, not just CCIP
+	var ccipPackageID string
+	if strings.EqualFold(binding.Name, offrampName) {
+		var err error
+		ccipPackageID, err = s.client.GetCCIPPackageID(ctx, binding.Address, binding.Address)
+		if err != nil {
+			s.logger.Warnw("Failed to get CCIP package ID for OffRamp", "error", err)
+		} else {
+			// Add CCIP pointers with CCIP package ID
+			ccipPointers := common.GetPointerConfigsByContract("ccip")
+			pointers = append(pointers, ccipPointers...)
+		}
+	}
+
+	// Load each pointer's parent object ID
+	for _, ptr := range pointers {
+		packageID := binding.Address
+
+		// Use CCIP package ID for CCIP pointers when binding OffRamp
+		if ptr.Module == "state_object" && ccipPackageID != "" {
+			packageID = ccipPackageID
+		}
+
+		cacheKey := fmt.Sprintf("%s::%s::%s", packageID, ptr.Module, ptr.Pointer)
+
+		s.parentObjectIDsMutex.RLock()
+		_, exists := s.parentObjectIDs[cacheKey]
+		s.parentObjectIDsMutex.RUnlock()
+
+		if exists {
+			continue
+		}
+
+		parentObjectID, err := s.client.GetParentObjectID(ctx, packageID, ptr.Module, ptr.Pointer)
+		if err != nil {
+			s.logger.Debugw("Could not pre-load parent object ID",
+				"packageID", packageID,
+				"module", ptr.Module,
+				"pointer", ptr.Pointer,
+				"error", err)
+			continue // Skip this pointer, will load on-demand if needed
+		}
+
+		s.parentObjectIDsMutex.Lock()
+		s.parentObjectIDs[cacheKey] = parentObjectID
+		s.parentObjectIDsMutex.Unlock()
+
+		s.logger.Debugw("Pre-loaded parent object ID",
+			"cacheKey", cacheKey,
+			"parentObjectID", parentObjectID)
 	}
 
 	return nil
@@ -225,16 +317,23 @@ func (s *suiChainReader) GetLatestValue(ctx context.Context, readIdentifier stri
 	s.logger.Debugw("GLV results before decoding to SUI json", "results", results, "returnVal", returnVal)
 
 	// Apply renames (if any) to the primary result element before decoding
-	var primary any = results[0]
-	if functionConfig.ResultFieldRenames != nil {
-		err = aptosCRUtils.MaybeRenameFields(primary, functionConfig.ResultFieldRenames)
-		if err != nil {
-			return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+	responseValues := make([]any, len(results))
+	for i, result := range results {
+		current := result
+		if functionConfig.ResultFieldRenames != nil {
+			err = aptosCRUtils.MaybeRenameFields(current, functionConfig.ResultFieldRenames)
+			if err != nil {
+				return fmt.Errorf("failed to rename result fields in GetLatestValue: %w", err)
+			}
 		}
+		responseValues[i] = current
 	}
 
-	// TODO: handle multiple results for non-loop plugin mode
-	return codec.DecodeSuiJsonValue(primary, returnVal)
+	if len(results) > 1 {
+		return codec.DecodeSuiJsonValue(responseValues, returnVal)
+	}
+
+	return codec.DecodeSuiJsonValue(results[0], returnVal)
 }
 
 // QueryKey queries events from the indexer database for events that were populated from the RPC node
@@ -472,6 +571,7 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
+
 	args, argTypes, err := s.prepareArguments(ctx, argMap, functionConfig, parsed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare arguments: %w", err)
@@ -488,6 +588,10 @@ func (s *suiChainReader) callFunction(ctx context.Context, parsed *readIdentifie
 // parseParams parses input parameters based on whether we're running as a LOOP plugin
 func (s *suiChainReader) parseParams(params any, functionConfig *config.ChainReaderFunction) (map[string]any, error) {
 	argMap := make(map[string]any)
+
+	if params == nil {
+		return argMap, nil
+	}
 
 	if s.config.IsLoopPlugin {
 		return s.parseLoopParams(params, functionConfig)
@@ -534,18 +638,18 @@ func (s *suiChainReader) parseLoopParams(params any, functionConfig *config.Chai
 }
 
 type pointerMapEntry struct {
-	field     string // the field name from the Sui object
-	paramName string // the parameter name from the function config
+	field         string // the field name from the Sui object (pointer field containing parent object ID)
+	derivationKey string // the key used to derive the child object address
+	paramName     string // the parameter name from the function config
 }
 
-// prepareArguments prepares function arguments and types for the call
+// prepareArguments prepares function arguments and types for the call.
+// For pointer tags, it looks up cached parent object IDs (pre-loaded during Bind) and derives
+// child object IDs using the derivation keys specified in the pointer tags.
 func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string]any, functionConfig *config.ChainReaderFunction, identifier *readIdentifier) ([]any, []string, error) {
 	if functionConfig.Params == nil {
 		return []any{}, []string{}, nil
 	}
-
-	// referring to the tag parts "_::module::Pointer::field"
-	tagLength := 4
 
 	// a map of object selector "module::object" to array of fields
 	pointersMap := make(map[string][]pointerMapEntry)
@@ -554,72 +658,95 @@ func (s *suiChainReader) prepareArguments(ctx context.Context, argMap map[string
 	// make a set of object pointers that need to fetched
 	// to read more about pointer tags, see the documentation in "/relayer/documentation/relayer/pointer-tags-in-cr.md"
 	for _, paramConfig := range functionConfig.Params {
-		// the parameter has a pointer tag, add it to the set
-		if paramConfig.PointerTag != nil {
-			tag := strings.Split(*paramConfig.PointerTag, "::")
-			// must be 4 values, for example: "_::moduleName::pointerName::fieldName"
-			if len(tag) != tagLength {
-				return nil, nil, fmt.Errorf("invalid pointer tag: %s", *paramConfig.PointerTag)
-			}
-
-			moduleName, pointerName, fieldName := tag[1], tag[2], tag[3]
-
-			// append only the middle 2 parts of the tag to represent the pointer
-			appendTag := strings.Join([]string{moduleName, pointerName}, "::")
-			if _, ok := pointersMap[appendTag]; !ok {
-				pointersMap[appendTag] = make([]pointerMapEntry, 0)
-			}
-			// add the pointer selector to the map which will later be used to fetch the values from the package owned object fields
-			if _, ok := pointerSelectors[appendTag]; !ok {
-				readIdentifierForPointer := readIdentifier{
-					address:      identifier.address,
-					contractName: moduleName,
-					readName:     pointerName,
-				}
-
-				// special case for pointers from the CCIP package object pointer
-				// this is needed to override the specified address (will be offramp package ID) with the CCIP package ID
-				// Only handle offRamp case because other modules are withing ccip package
-				if identifier.contractName == strings.ToLower(offrampName) && appendTag == ccipPointerKey {
-					ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
-					if err != nil {
-						return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
-					}
-					readIdentifierForPointer.address = ccipPackageID
-				}
-
-				pointerSelectors[appendTag] = readIdentifierForPointer
-			}
-
-			// each entry within the pointersMap contains an entry for the field name and
-			// an entry for the (function config) parameter name
-			pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
-				field:     fieldName,
-				paramName: paramConfig.Name,
-			})
+		// Skip if no pointer tag configured
+		if paramConfig.PointerTag == nil {
+			continue
 		}
+
+		if err := paramConfig.PointerTag.Validate(); err != nil {
+			return nil, nil, fmt.Errorf("invalid pointer tag for parameter %s: %w", paramConfig.Name, err)
+		}
+
+		pointerTag := paramConfig.PointerTag
+
+		// append only the middle 2 parts of the tag to represent the pointer
+		appendTag := strings.Join([]string{pointerTag.Module, pointerTag.PointerName}, "::")
+		if _, ok := pointersMap[appendTag]; !ok {
+			pointersMap[appendTag] = make([]pointerMapEntry, 0)
+		}
+		// add the pointer selector to the map which will later be used to fetch the values from the package owned object fields
+		if _, ok := pointerSelectors[appendTag]; !ok {
+			readIdentifierForPointer := readIdentifier{
+				address:      identifier.address,
+				contractName: pointerTag.Module,
+				readName:     pointerTag.PointerName,
+			}
+
+			// If the pointer tag specifies a PackageID, use it (for cross-package dependencies)
+			// This is needed when the pointer object is owned by a different package than the calling contract.
+			// e.g. When offramp calls a function that needs CCIPObjectRef from CCIP package,
+			// We must search for the pointer in CCIP's owned objects, not offramp's owned objects.
+			if pointerTag.PackageID != "" {
+				readIdentifierForPointer.address = pointerTag.PackageID
+			} else if identifier.contractName == strings.ToLower(offrampName) && appendTag == ccipPointerKey {
+				// Special case for OffRamp->CCIP pointer (legacy behavior)
+				// This is needed to override the specified address (will be offramp package ID) with the CCIP package ID
+				// Only handle offRamp case because other modules are within ccip package
+				ccipPackageID, err := s.client.GetCCIPPackageID(ctx, identifier.address, functionConfig.SignerAddress)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to get CCIP package ID: %w", err)
+				}
+				readIdentifierForPointer.address = ccipPackageID
+			}
+
+			pointerSelectors[appendTag] = readIdentifierForPointer
+		}
+
+		// each entry within the pointersMap contains an entry for the field name,
+		// the derivation key, and the (function config) parameter name
+		pointersMap[appendTag] = append(pointersMap[appendTag], pointerMapEntry{
+			field:         pointerTag.FieldName,
+			derivationKey: pointerTag.DerivationKey,
+			paramName:     paramConfig.Name,
+		})
 	}
 
 	// fetch pointers
 	for pointerTag, pointerVals := range pointersMap {
-		fields := make([]string, 0, len(pointerVals))
-
-		// get the fields from the pointer values
-		for _, pointerVal := range pointerVals {
-			fields = append(fields, pointerVal.field)
-		}
-
 		selector := pointerSelectors[pointerTag]
-		pointerFieldValues, err := s.client.GetValuesFromPackageOwnedObjectField(
-			ctx, selector.address, selector.contractName, selector.readName, fields,
-		)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get values from package owned object fields: %w", err)
+
+		// Try to get parent object ID from cache first
+		cacheKey := fmt.Sprintf("%s::%s::%s", selector.address, selector.contractName, selector.readName)
+
+		s.parentObjectIDsMutex.RLock()
+		parentObjectID, cached := s.parentObjectIDs[cacheKey]
+		s.parentObjectIDsMutex.RUnlock()
+
+		if !cached {
+			// Not in cache, fetch from RPC (fallback for on-demand loading)
+			var err error
+			parentObjectID, err = s.client.GetParentObjectID(
+				ctx, selector.address, selector.contractName, selector.readName,
+			)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get parent object ID: %w", err)
+			}
+
+			// Cache it for next time
+			s.parentObjectIDsMutex.Lock()
+			s.parentObjectIDs[cacheKey] = parentObjectID
+			s.parentObjectIDsMutex.Unlock()
+
+			s.logger.Debugw("Loaded parent object ID on-demand", "cacheKey", cacheKey, "parentObjectId", parentObjectID)
 		}
 
-		// add the values to the arg map
+		// Derive each field's object ID from parent using derivation key and add to arg map
 		for _, pointerVal := range pointerVals {
-			argMap[pointerVal.paramName] = pointerFieldValues[pointerVal.field]
+			derivedID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(pointerVal.derivationKey))
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to derive object ID for %s using key %s: %w", pointerVal.paramName, pointerVal.derivationKey, err)
+			}
+			argMap[pointerVal.paramName] = derivedID
 		}
 	}
 
@@ -669,7 +796,10 @@ func (s *suiChainReader) executeFunction(ctx context.Context, parsed *readIdenti
 
 	s.logger.Debugw("Sui ReadFunction response", "returnValues", values)
 
-	return values, nil
+	// TODO: Remove this once bindings are used in CR, this is a temporary fix for data ingestion
+	hexified := common.ConvertBytesToHex(values).([]any)
+
+	return hexified, nil
 }
 
 // encodeLoopResult encodes results for LOOP plugin mode

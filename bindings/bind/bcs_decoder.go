@@ -3,12 +3,15 @@ package bind
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	"github.com/block-vision/sui-go-sdk/mystenbcs"
+	"github.com/block-vision/sui-go-sdk/transaction"
 )
 
 const (
@@ -201,6 +204,14 @@ func decodeBCSValue(data []byte, moveType string) (any, error) {
 
 		return result, nil
 
+	case "vector<u64>":
+		var result []uint64
+		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+
 	case "vector<address>":
 		var result [][32]byte
 		if _, err := mystenbcs.Unmarshal(data, &result); err != nil {
@@ -287,82 +298,130 @@ func DecodeU128Value(bcsBytes [16]byte) (*big.Int, error) {
 // TODO: this function should also serve extractBCSBytes, but currently
 // getElementType handles objects as their ID (32-byte address)
 func DeserializeBCS(data []byte, moveTypes []string) ([]any, error) {
-	deserializer := mystenbcs.NewDecoder(bytes.NewReader(data))
+	reader := bytes.NewReader(data)
+	deserializer := mystenbcs.NewDecoder(reader)
 	ret := make([]any, 0, len(moveTypes))
 	for _, moveType := range moveTypes {
-		decoded, err := decodeType(deserializer, moveType)
+		decoded, _, err := decodeType(deserializer, moveType)
 		if err != nil {
 			return ret, err
 		}
 		ret = append(ret, decoded)
 	}
+	if reader.Len() != 0 {
+		return ret, errors.New("failed to deserialize, not all data consumed")
+	}
+
 	return ret, nil
 }
 
-func decodeType(deserializer *mystenbcs.Decoder, moveType string) (any, error) {
-	// Handle special cases first
-	switch moveType {
-	case "u128":
+func decodeType(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
+	switch {
+	case moveType == "bool":
+		var res bool
+		typ, err := decode(deserializer, &res)
+		return res, typ, err
+	case moveType == "u8":
+		var res uint8
+		typ, err := decode(deserializer, &res)
+		return res, typ, err
+	case moveType == "u16":
+		var res uint16
+		typ, err := decode(deserializer, &res)
+		return res, typ, err
+	case moveType == "u32":
+		var res uint32
+		typ, err := decode(deserializer, &res)
+		return res, typ, err
+	case moveType == "u64":
+		var res uint64
+		typ, err := decode(deserializer, &res)
+		return res, typ, err
+	case moveType == "0x1::string::String":
+		var res string
+		typ, err := decode(deserializer, &res)
+		return res, typ, err
+	case strings.HasPrefix(moveType, "vector<") && strings.HasSuffix(moveType, ">"):
+		// decodeSlice calls decodeType recursively
+		return decodeSlice(deserializer, moveType)
+	case moveType == "address":
+		return decodeAddress(deserializer)
+	case moveType == "u128":
 		return decodeBigInt(deserializer, moveType, 16)
-	case "u256":
+	case moveType == "u256":
 		return decodeBigInt(deserializer, moveType, 32)
 	default:
-		// Handle regular types with reflection
-		return decodeRegularType(deserializer, moveType)
+		// Custom move structs are deserialized as their ID (32-byte address)
+		return decodeAddress(deserializer)
 	}
 }
 
-func decodeBigInt(deserializer *mystenbcs.Decoder, moveType string, size int) (*big.Int, error) {
-	// Direct decoding based on size
+// decodeSlice handles decoding of Move vectors and keeps track of inner types, including nested vectors
+func decodeSlice(deserializer *mystenbcs.Decoder, moveType string) (any, reflect.Type, error) {
+	// Decode length prefix
+	var length uint8
+	deserializer.Decode(&length)
+	innerType := moveType[7 : len(moveType)-1]
+
+	// decode elements recursively
+	elements := make([]any, length)
+	var elemType reflect.Type
+	for i := range elements {
+		dec, refT, err := decodeType(deserializer, innerType)
+		if err != nil {
+			return nil, nil, err
+		}
+		elements[i] = dec
+		elemType = refT
+	}
+
+	// Create properly typed slice using reflection
+	sliceType := reflect.SliceOf(elemType)
+	slice := reflect.MakeSlice(sliceType, int(length), int(length))
+	for i, elem := range elements {
+		slice.Index(i).Set(reflect.ValueOf(elem))
+	}
+
+	return slice.Interface(), sliceType, nil
+}
+
+// decodeAddress transforms a 32-byte array address into a SuiAddress string
+func decodeAddress(deserializer *mystenbcs.Decoder) (models.SuiAddress, reflect.Type, error) {
+	var res [32]byte
+	_, err := decode(deserializer, &res)
+	if err != nil {
+		return "", nil, err
+	}
+	addrStr := transaction.ConvertSuiAddressBytesToString(res)
+	return addrStr, reflect.TypeOf(addrStr), nil
+}
+
+func decodeBigInt(deserializer *mystenbcs.Decoder, moveType string, size int) (*big.Int, reflect.Type, error) {
 	switch size {
 	case 16:
 		var bytes [16]byte
 		if _, err := deserializer.Decode(&bytes); err != nil {
-			return nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
+			return nil, nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
 		}
-		return DecodeU128Value(bytes)
+		dec, err := DecodeU128Value(bytes)
+		return dec, reflect.TypeOf(dec), err
 	case 32:
 		var bytes [32]byte
 		if _, err := deserializer.Decode(&bytes); err != nil {
-			return nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
+			return nil, nil, fmt.Errorf("failed to decode %s: %w", moveType, err)
 		}
-		return DecodeU256Value(bytes)
+		dec, err := DecodeU256Value(bytes)
+		return dec, reflect.TypeOf(dec), err
 	default:
-		return nil, fmt.Errorf("unsupported big int size %d for type %s", size, moveType)
+		return nil, nil, fmt.Errorf("unsupported big int size %d for type %s", size, moveType)
 	}
 }
 
-func decodeRegularType(deserializer *mystenbcs.Decoder, moveType string) (any, error) {
-	refType := getElementType(moveType)
-	res := reflect.New(refType)
-	if _, err := deserializer.Decode(res.Interface()); err != nil {
-		return nil, fmt.Errorf("failed to decode type %s: %w", moveType, err)
+// decode decodes any regular type supported by mystenbcs that doesn't need special handling
+func decode[T any](deserializer *mystenbcs.Decoder, target *T) (reflect.Type, error) {
+	_, err := deserializer.Decode(target)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode: %w", err)
 	}
-	return res.Elem().Interface(), nil
-}
-
-func getElementType(moveType string) reflect.Type {
-	switch {
-	case moveType == "bool":
-		return reflect.TypeOf(false)
-	case moveType == "u8":
-		return reflect.TypeOf(uint8(0))
-	case moveType == "u16":
-		return reflect.TypeOf(uint16(0))
-	case moveType == "u32":
-		return reflect.TypeOf(uint32(0))
-	case moveType == "u64":
-		return reflect.TypeOf(uint64(0))
-	case moveType == "0x1::string::String":
-		return reflect.TypeOf("")
-	case strings.HasPrefix(moveType, "vector"):
-		// Extract the inner type from "vector<innerType>"
-		innerType := moveType[7 : len(moveType)-1]
-		return reflect.SliceOf(getElementType(innerType))
-	case moveType == "address":
-		return reflect.TypeOf([32]byte{})
-	default:
-		// Custom move structs are deserialized as their ID (32-byte address)
-		return reflect.TypeOf([32]byte{})
-	}
+	return reflect.TypeOf(*target), nil
 }

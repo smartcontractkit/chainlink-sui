@@ -10,6 +10,7 @@
     - [Running Sui (Local) Dev Net](#running-sui-local-dev-net)
     - [Deploying Sample Contracts](#deploying-sample-contracts)
   - [Relayer](#relayer)
+  - [Generate Documentation](#generate-documentation)
 
 
 ## Development and Contribution
@@ -99,3 +100,17 @@ This will build and deploy the contracts in `contracts/test` to your local Sui n
 ## Relayer
 
 For detailed documentation about using the Sui Relayer Plugin, including how to configure and use the ChainReader and ChainWriter components, see [RELAYER.md](./RELAYER.md).
+
+## Generate Documentation
+
+Ensure you have `docsify` installed globally.
+
+```bash
+npm install -g docsify-cli
+```
+
+Then run the following command to serve the documentation locally.
+
+```bash
+task docs:serve
+```

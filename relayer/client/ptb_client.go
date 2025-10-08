@@ -59,6 +59,7 @@ type SuiPTBClient interface {
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
+	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
@@ -75,6 +76,7 @@ type SuiPTBClient interface {
 	HashTxBytes(txBytes []byte) []byte
 	GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error)
 	GetValuesFromPackageOwnedObjectField(ctx context.Context, packageID string, moduleID string, objectName string, fieldKeys []string) (map[string]string, error)
+	GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error)
 }
 
 // PTBClient implements SuiClient interface using the blockvision SDK
@@ -449,6 +451,19 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 	return result, err
 }
 
+func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	var result *big.Int
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		response, err := c.client.SuiXGetReferenceGasPrice(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get reference gas price: %w", err)
+		}
+		result = new(big.Int).SetUint64(response)
+		return nil
+	})
+	return result, err
+}
+
 func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
 	var results []any
 	err := c.WithRateLimit(ctx, "ReadFunc", func(ctx context.Context) error {
@@ -489,14 +504,14 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 		}
 
 		response, err := c.client.SuiDevInspectTransactionBlock(ctx, devInspectReq)
-		if err != nil {
+		if err != nil && response.Effects.Status.Status != "success" {
 			return fmt.Errorf("failed to read function: %w", err)
 		}
 
 		c.log.Debugw("ReadFunction RPC response", "RPC response", response, "functionTag", fmt.Sprintf("%s::%s::%s", packageId, module, function))
 
 		if len(response.Results) == 0 {
-			return fmt.Errorf("no results from function call")
+			return fmt.Errorf("no results from function call: %+v", response)
 		}
 
 		resultsMarshalled, err := response.Results.MarshalJSON()
@@ -567,16 +582,14 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 						return fmt.Errorf("failed to decode vector of structs: %w", err)
 					}
 
-					// convert any []uint8 fields to hex strings
-					hexified := common.ConvertBytesToHex(jsonResult)
-					results[i] = hexified
+					results[i] = jsonResult
 				} else {
 					// This is vector<primitive> - use existing primitive vector handling
 					primitive, err := codec.DecodeSuiPrimative(bcsDecoder, structTag)
 					if err != nil {
 						return fmt.Errorf("failed to decode primitive vector: %w", err)
 					}
-					results[i] = common.ConvertBytesToHex(primitive)
+					results[i] = primitive
 				}
 				continue
 			}
@@ -799,9 +812,13 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]mo
 }
 
 func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
+	gasPrice, err := c.GetReferenceGasPrice(ctx)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get reference gas price: %w", err)
+	}
+	tx.SetGasPrice(gasPrice.Uint64())
+
 	tx.SetSigner(txnSigner)
-	// TODO: get gas price and budget from the txn
-	tx.SetGasPrice(DefaultGasPrice)
 	tx.SetGasBudget(DefaultGasBudget)
 
 	// Set gas payment - use the first coin available for the signer
@@ -1001,23 +1018,42 @@ func (c *PTBClient) LoadModulePackageIds(ctx context.Context, packageId string, 
 
 	c.log.Debugw("pointer ref object", "pointerObject", pointerObject)
 
-	stateObjectId := ""
+	parentObjectID, err := c.GetParentObjectID(ctx, packageId, module, pointerStructName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get parent object ID in LoadModulePackageIds: %w", err)
+	}
+
+	if parentObjectID == "" {
+		return nil, fmt.Errorf("parent object id not found for package %s and module %s", packageId, module)
+	}
+
+	c.log.Debugw("parentObjectID", "parentObjectID", parentObjectID)
+
+	// TODO: put this in the config instead of having a match statement here
+	derivationKey := ""
 	switch module {
 	case "offramp":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["off_ramp_state_id"].(string)
+		derivationKey = "OffRampState"
 	case "onramp":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["on_ramp_state_id"].(string)
+		derivationKey = "OnRampState"
 	case "ccip":
 	case "state_object":
-		stateObjectId = pointerObject.Content.SuiMoveObject.Fields["object_ref_id"].(string)
+		derivationKey = "CCIPObjectRef"
+	case "router":
+		derivationKey = "RouterState"
+	case "counter":
+		derivationKey = "Counter"
 	}
 
-	if stateObjectId == "" {
-		return nil, fmt.Errorf("state object id not found for package %s and module %s", packageId, module)
+	stateObjectID, err := bind.DeriveObjectIDWithVectorU8Key(parentObjectID, []byte(derivationKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive state object ID in LoadModulePackageIds: %w", err)
 	}
+
+	c.log.Debugw("stateObjectId", "stateObjectId", stateObjectID, "derivationKey", derivationKey)
 
 	// Read the state object
-	stateObject, err := c.ReadObjectId(ctx, stateObjectId)
+	stateObject, err := c.ReadObjectId(ctx, stateObjectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state object: %w", err)
 	}
@@ -1123,4 +1159,37 @@ func (c *PTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Context, pa
 	}
 
 	return foundValues, nil
+}
+
+// GetParentObjectID gets the parent object ID from a pointer object's field.
+// With derived objects, pointers now store a reference to the parent "Object" struct (e.g., OffRampObject, CCIPObject).
+// e.g. OffRampStatePointer contains "off_ramp_object_id" field pointing to OffRampObject.
+func (c *PTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	ownedObjects, err := c.ReadOwnedObjects(ctx, packageID, nil)
+	if err != nil {
+		c.log.Errorw("Error reading owned objects", "error", err)
+		return "", err
+	}
+
+	qualifiedName := fmt.Sprintf("%s::%s::%s", packageID, moduleID, pointerObjectName)
+	for _, ownedObject := range ownedObjects {
+		if ownedObject.Data.Type != "" && ownedObject.Data.Type == qualifiedName {
+			parsedObject := ownedObject.Data.Content.Fields
+
+			// Get the parent field name from shared configuration
+			fieldName := common.GetParentFieldName(pointerObjectName)
+			if fieldName == "" {
+				return "", fmt.Errorf("unknown pointer object type: %s", pointerObjectName)
+			}
+
+			parentObjectID, ok := parsedObject[fieldName].(string)
+			if !ok {
+				return "", fmt.Errorf("field %s not found in pointer object %s", fieldName, qualifiedName)
+			}
+
+			return parentObjectID, nil
+		}
+	}
+
+	return "", fmt.Errorf("pointer object %s not found in package %s", qualifiedName, packageID)
 }

@@ -108,7 +108,7 @@ type ReceiverConfig struct {
 
 type ReceiverRegistry struct {
 	Id              string      `move:"sui::object::UID"`
-	ReceiverConfigs bind.Object `move:"VecMap<address, ReceiverConfig>"`
+	ReceiverConfigs bind.Object `move:"LinkedTable<address, ReceiverConfig>"`
 }
 
 type ReceiverRegistered struct {
@@ -156,6 +156,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ReceiverConfig
+	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverConfig>", func(data []byte) (interface{}, error) {
+		var results []ReceiverConfig
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverRegistry", func(data []byte) (interface{}, error) {
 		var result ReceiverRegistry
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -163,6 +172,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ReceiverRegistry
+	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverRegistry>", func(data []byte) (interface{}, error) {
+		var results []ReceiverRegistry
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverRegistered", func(data []byte) (interface{}, error) {
 		var temp bcsReceiverRegistered
@@ -177,6 +195,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ReceiverRegistered
+	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverRegistered>", func(data []byte) (interface{}, error) {
+		var temps []bcsReceiverRegistered
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ReceiverRegistered, len(temps))
+		for i, temp := range temps {
+			result, err := convertReceiverRegisteredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::receiver_registry::ReceiverUnregistered", func(data []byte) (interface{}, error) {
 		var temp bcsReceiverUnregistered
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -189,6 +225,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ReceiverUnregistered
+	bind.RegisterStructDecoder("vector<ccip::receiver_registry::ReceiverUnregistered>", func(data []byte) (interface{}, error) {
+		var temps []bcsReceiverUnregistered
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ReceiverUnregistered, len(temps))
+		for i, temp := range temps {
+			result, err := convertReceiverUnregisteredFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 

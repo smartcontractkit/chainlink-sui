@@ -19,13 +19,14 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"_","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
+const FunctionInfo = `[{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"ccip_receive","parameters":[{"name":"expected_message_id","type":"vector<u8>"},{"name":"ref","type":"CCIPObjectRef"},{"name":"message","type":"client::Any2SuiMessage"},{"name":"_","type":"Clock"},{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_counter","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_dest_token_amounts","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_amount","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_amount_token","parameters":[{"name":"token_amount","type":"TokenAmount"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"get_token_receiver","parameters":[{"name":"state","type":"CCIPReceiverState"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_and_send_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"},{"name":"recipient","type":"address"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"_","type":"OwnerCap"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"receive_coin_no_owner_cap","parameters":[{"name":"state","type":"CCIPReceiverState"},{"name":"coin_receiving","type":"Receiving<Coin<T>>"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"register_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip_dummy_receiver","module":"dummy_receiver","name":"type_and_version","parameters":null}]`
 
 type IDummyReceiver interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	RegisterReceiver(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
 	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*models.SuiTransactionBlockResponse, error)
 	ReceiveAndSendCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object, recipient string) (*models.SuiTransactionBlockResponse, error)
@@ -42,6 +43,7 @@ type IDummyReceiverDevInspect interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (string, error)
 	GetCounter(ctx context.Context, opts *bind.CallOpts, state bind.Object) (uint64, error)
 	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]TokenAmount, error)
+	GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (string, error)
 	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (uint64, error)
 	ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (any, error)
@@ -57,6 +59,8 @@ type DummyReceiverEncoder interface {
 	GetCounterWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetDestTokenAmounts(state bind.Object) (*bind.EncodedCall, error)
 	GetDestTokenAmountsWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetTokenReceiver(state bind.Object) (*bind.EncodedCall, error)
+	GetTokenReceiverWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenAmountToken(tokenAmount TokenAmount) (*bind.EncodedCall, error)
 	GetTokenAmountTokenWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenAmountAmount(tokenAmount TokenAmount) (*bind.EncodedCall, error)
@@ -133,6 +137,7 @@ type CCIPReceiverState struct {
 	SourceChainSelector     uint64        `move:"u64"`
 	Sender                  []byte        `move:"vector<u8>"`
 	Data                    []byte        `move:"vector<u8>"`
+	TokenReceiver           string        `move:"address"`
 	DestTokenTransferLength uint64        `move:"u64"`
 	DestTokenAmounts        []TokenAmount `move:"vector<TokenAmount>"`
 }
@@ -155,6 +160,33 @@ func convertOwnerCapFromBCS(bcs bcsOwnerCap) (OwnerCap, error) {
 	return OwnerCap{
 		Id:              bcs.Id,
 		ReceiverAddress: fmt.Sprintf("0x%x", bcs.ReceiverAddress),
+	}, nil
+}
+
+type bcsCCIPReceiverState struct {
+	Id                      string
+	Counter                 uint64
+	MessageId               []byte
+	SourceChainSelector     uint64
+	Sender                  []byte
+	Data                    []byte
+	TokenReceiver           [32]byte
+	DestTokenTransferLength uint64
+	DestTokenAmounts        []TokenAmount
+}
+
+func convertCCIPReceiverStateFromBCS(bcs bcsCCIPReceiverState) (CCIPReceiverState, error) {
+
+	return CCIPReceiverState{
+		Id:                      bcs.Id,
+		Counter:                 bcs.Counter,
+		MessageId:               bcs.MessageId,
+		SourceChainSelector:     bcs.SourceChainSelector,
+		Sender:                  bcs.Sender,
+		Data:                    bcs.Data,
+		TokenReceiver:           fmt.Sprintf("0x%x", bcs.TokenReceiver),
+		DestTokenTransferLength: bcs.DestTokenTransferLength,
+		DestTokenAmounts:        bcs.DestTokenAmounts,
 	}, nil
 }
 
@@ -185,6 +217,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OwnerCap
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::OwnerCap>", func(data []byte) (interface{}, error) {
+		var temps []bcsOwnerCap
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OwnerCap, len(temps))
+		for i, temp := range temps {
+			result, err := convertOwnerCapFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::ReceivedMessage", func(data []byte) (interface{}, error) {
 		var result ReceivedMessage
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -193,13 +243,45 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ReceivedMessage
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::ReceivedMessage>", func(data []byte) (interface{}, error) {
+		var results []ReceivedMessage
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::CCIPReceiverState", func(data []byte) (interface{}, error) {
-		var result CCIPReceiverState
-		_, err := mystenbcs.Unmarshal(data, &result)
+		var temp bcsCCIPReceiverState
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertCCIPReceiverStateFromBCS(temp)
 		if err != nil {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for CCIPReceiverState
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::CCIPReceiverState>", func(data []byte) (interface{}, error) {
+		var temps []bcsCCIPReceiverState
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]CCIPReceiverState, len(temps))
+		for i, temp := range temps {
+			result, err := convertCCIPReceiverStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::DummyReceiverProof", func(data []byte) (interface{}, error) {
 		var result DummyReceiverProof
@@ -208,6 +290,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for DummyReceiverProof
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::DummyReceiverProof>", func(data []byte) (interface{}, error) {
+		var results []DummyReceiverProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("ccip_dummy_receiver::dummy_receiver::TokenAmount", func(data []byte) (interface{}, error) {
 		var temp bcsTokenAmount
@@ -221,6 +312,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TokenAmount
+	bind.RegisterStructDecoder("vector<ccip_dummy_receiver::dummy_receiver::TokenAmount>", func(data []byte) (interface{}, error) {
+		var temps []bcsTokenAmount
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TokenAmount, len(temps))
+		for i, temp := range temps {
+			result, err := convertTokenAmountFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 
@@ -257,6 +366,16 @@ func (c *DummyReceiverContract) GetCounter(ctx context.Context, opts *bind.CallO
 // GetDestTokenAmounts executes the get_dest_token_amounts Move function.
 func (c *DummyReceiverContract) GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.dummyReceiverEncoder.GetDestTokenAmounts(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// GetTokenReceiver executes the get_token_receiver Move function.
+func (c *DummyReceiverContract) GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.dummyReceiverEncoder.GetTokenReceiver(state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -396,6 +515,28 @@ func (d *DummyReceiverDevInspect) GetDestTokenAmounts(ctx context.Context, opts 
 	result, ok := results[0].([]TokenAmount)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected []TokenAmount, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetTokenReceiver executes the get_token_receiver Move function using DevInspect to get return values.
+//
+// Returns: address
+func (d *DummyReceiverDevInspect) GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error) {
+	encoded, err := d.contract.dummyReceiverEncoder.GetTokenReceiver(state)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(results) == 0 {
+		return "", fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected return type: expected string, got %T", results[0])
 	}
 	return result, nil
 }
@@ -591,6 +732,36 @@ func (c dummyReceiverEncoder) GetDestTokenAmountsWithArgs(args ...any) (*bind.En
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dest_token_amounts", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"vector<ccip_dummy_receiver::dummy_receiver::TokenAmount>",
+	})
+}
+
+// GetTokenReceiver encodes a call to the get_token_receiver Move function.
+func (c dummyReceiverEncoder) GetTokenReceiver(state bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_receiver", typeArgsList, typeParamsList, []string{
+		"&CCIPReceiverState",
+	}, []any{
+		state,
+	}, []string{
+		"address",
+	})
+}
+
+// GetTokenReceiverWithArgs encodes a call to the get_token_receiver Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c dummyReceiverEncoder) GetTokenReceiverWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPReceiverState",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_token_receiver", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"address",
 	})
 }
 
