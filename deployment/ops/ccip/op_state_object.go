@@ -31,14 +31,30 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().AddPackageId(bind.Object{Id: input.CCIPObjectRefObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.PackageId)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to encode AddPackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AddPackageId on StateObject as per no Signer provided", "packageId", input.PackageId)
+		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   AddPackageIdStateObjectObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.AddPackageId(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AddPackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute AddPackageId on StateObject: %w", err)
@@ -50,6 +66,7 @@ var addPackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   AddPackageIdStateObjectObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -79,14 +96,30 @@ var removePackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().RemovePackageId(bind.Object{Id: input.CCIPObjectRefObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.PackageId)
+	if err != nil {
+		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to encode RemovePackageId call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of RemovePackageId on StateObject as per no Signer provided", "packageId", input.PackageId)
+		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   RemovePackageIdStateObjectObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.RemovePackageId(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.PackageId,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[RemovePackageIdStateObjectObjects]{}, fmt.Errorf("failed to execute RemovePackageId on StateObject: %w", err)
@@ -98,6 +131,7 @@ var removePackageIdStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   RemovePackageIdStateObjectObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -314,14 +348,30 @@ var transferOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().TransferOwnership(bind.Object{Id: input.CCIPObjectRefObjectId}, bind.Object{Id: input.OwnerCapObjectId}, input.To)
+	if err != nil {
+		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to encode TransferOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of TransferOwnership on StateObject as per no Signer provided", "to", input.To)
+		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   TransferOwnershipStateObjectObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.TransferOwnership(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
-		bind.Object{Id: input.OwnerCapObjectId},
-		input.To,
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[TransferOwnershipStateObjectObjects]{}, fmt.Errorf("failed to execute TransferOwnership on StateObject: %w", err)
@@ -333,6 +383,7 @@ var transferOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   TransferOwnershipStateObjectObjects{},
+		Call:      call,
 	}, nil
 }
 
@@ -360,12 +411,30 @@ var acceptOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to create StateObject contract: %w", err)
 	}
 
+	encodedCall, err := contract.Encoder().AcceptOwnership(bind.Object{Id: input.CCIPObjectRefObjectId})
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AcceptOwnership on StateObject as per no Signer provided")
+		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   AcceptOwnershipStateObjectObjects{},
+			Call:      call,
+		}, nil
+	}
+
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := contract.AcceptOwnership(
+	tx, err := contract.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.CCIPObjectRefObjectId},
+		encodedCall,
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipStateObjectObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
@@ -377,6 +446,7 @@ var acceptOwnershipStateObjectHandler = func(b cld_ops.Bundle, deps sui_ops.OpTx
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
 		Objects:   AcceptOwnershipStateObjectObjects{},
+		Call:      call,
 	}, nil
 }
 
