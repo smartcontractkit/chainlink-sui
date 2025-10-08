@@ -453,7 +453,7 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 
 func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
 	var result *big.Int
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "refGasPrice", func(ctx context.Context) error {
 		response, err := c.client.SuiXGetReferenceGasPrice(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get reference gas price: %w", err)
