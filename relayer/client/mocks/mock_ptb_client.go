@@ -472,3 +472,18 @@ func (mr *MockSuiPTBClientMockRecorder) SignAndSendTransaction(ctx, txBytesRaw, 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignAndSendTransaction", reflect.TypeOf((*MockSuiPTBClient)(nil).SignAndSendTransaction), ctx, txBytesRaw, signerPublicKey, executionRequestType)
 }
+
+// GetReferenceGasPrice mocks base method.
+func (m *MockSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReferenceGasPrice", ctx)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReferenceGasPrice indicates an expected call of GetReferenceGasPrice.
+func (mr *MockSuiPTBClientMockRecorder) GetReferenceGasPrice(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReferenceGasPrice", reflect.TypeOf((*MockSuiPTBClient)(nil).GetReferenceGasPrice), ctx)
+}
