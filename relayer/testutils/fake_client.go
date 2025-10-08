@@ -330,3 +330,7 @@ func (c *StatefulFakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
 func (c *StatefulFakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
 	return "", nil
 }
+
+func (c *StatefulFakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1000), nil
+}
