@@ -481,8 +481,8 @@ github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 h1:12i
 github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7/go.mod h1:FX7/bVdoep147QQhsOPkYsPEXhGZjeYx6lBSaSXtZOA=
 github.com/smartcontractkit/libocr v0.0.0-20250905115425-2785a5cee79d h1:/0/80Ic6wpKH5F1nwDoRj9+70IxXunvCyNcCkA+9ik0=
 github.com/smartcontractkit/libocr v0.0.0-20250905115425-2785a5cee79d/go.mod h1:Acy3BTBxou83ooMESLO90s8PKSu7RvLCzwSTbxxfOK0=
-github.com/smartcontractkit/mcms v0.26.1-0.20251008043238-968451cb8aa6 h1:1We2IooWxouSAgZYhYLEAzDf+9psYf8dCvcFS1NW8z4=
-github.com/smartcontractkit/mcms v0.26.1-0.20251008043238-968451cb8aa6/go.mod h1:g8Ot7s0gVJrJWvH1qib2jC7u6Npos1gTlKpoFSbJVI8=
+github.com/smartcontractkit/mcms v0.26.0 h1:L5+DcLKVtuMkiVgmKf/tiuGZs3rAcdILGwcmhaCqHCE=
+github.com/smartcontractkit/mcms v0.26.0/go.mod h1:2kR9lss4R/A7m7xgEmXXwYL1Ecd6WqUESoiblwOIGzQ=
 github.com/spf13/cast v1.7.1 h1:cuNEagBQEHWN1FnbGEjCXL2szYEXqfJPbP2HNUaca9Y=
 github.com/spf13/cast v1.7.1/go.mod h1:ancEpBxwJDODSW/UG4rDrAqiKolqNNh2DX3mk86cAdo=
 github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 h1:RN5mrigyirb8anBEtdjtHFIufXdacyTi6i4KBfeNXeo=
