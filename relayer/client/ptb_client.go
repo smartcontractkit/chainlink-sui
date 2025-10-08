@@ -56,6 +56,7 @@ type SuiPTBClient interface {
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
+	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
@@ -338,6 +339,19 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 		return nil
 	})
 
+	return result, err
+}
+
+func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	var result *big.Int
+	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+		response, err := c.client.SuiXGetReferenceGasPrice(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get reference gas price: %w", err)
+		}
+		result = new(big.Int).SetUint64(response)
+		return nil
+	})
 	return result, err
 }
 
@@ -692,9 +706,13 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]mo
 }
 
 func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
+	gasPrice, err := c.GetReferenceGasPrice(ctx)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get reference gas price: %w", err)
+	}
+	tx.SetGasPrice(gasPrice.Uint64())
+
 	tx.SetSigner(txnSigner)
-	// TODO: get gas price and budget from the txn
-	tx.SetGasPrice(DefaultGasPrice)
 	tx.SetGasBudget(DefaultGasBudget)
 
 	// Set gas payment - use the first coin available for the signer

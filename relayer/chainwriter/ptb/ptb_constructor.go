@@ -112,8 +112,7 @@ of previous commands within the same PTB.
 										Name: "new_counter_value",
 										Type: "ptb_dependency",
 										PTBDependency: &codec.PTBCommandDependency{
-											CommandIndex: 1,
-											ResultIndex:  1,
+											CommandIndex: 0,
 										},
 										Required:     true,
 										DefaultValue: nil,

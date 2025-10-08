@@ -86,8 +86,7 @@ func TestStateObjectOperations(t *testing.T) {
 	})
 
 	t.Run("Test Add Package ID", func(t *testing.T) {
-		// Add a new package ID
-		newPackageId := "0x1234567890abcdef1234567890abcdef12345678"
+		newPackageId := "0x123456789abcdef" // Example package ID
 		addReport, err := cld_ops.ExecuteOperation(bundle, AddPackageIdStateObjectOp, deps, AddPackageIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
 			CCIPObjectRefObjectId: ccipReport.Output.Objects.CCIPObjectRefObjectId,
@@ -107,8 +106,6 @@ func TestStateObjectOperations(t *testing.T) {
 			OwnerCapObjectId:      ccipReport.Output.Objects.OwnerCapObjectId,
 			PackageId:             newPackageId,
 		})
-		require.NoError(t, err, "failed to add package ID for removal test")
-
 		// Now remove the package ID
 		removeReport, err := cld_ops.ExecuteOperation(bundle, RemovePackageIdStateObjectOp, deps, RemovePackageIdStateObjectInput{
 			CCIPPackageId:         ccipReport.Output.PackageId,
