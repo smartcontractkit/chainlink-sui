@@ -627,15 +627,13 @@ fun pre_execute_single_report(
 
     let number_of_tokens_in_msg = message.token_amounts.length();
     assert!(number_of_tokens_in_msg <= TOKEN_TRANSFER_LIMIT, ETokenTransferLimitExceeded);
-    let has_valid_message_receiver =
-        (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     assert!(
         number_of_tokens_in_msg == execution_report.offchain_token_data.length(),
         ETokenDataMismatch,
     );
     assert!(
-        (message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
-            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
+        message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 || // if token_receiver is empty, no tokens should be transferred
+            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // if token_receiver is not empty, tokens should be transferred
         EInvalidTokenReceiver,
     );
     assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
@@ -674,6 +672,8 @@ fun pre_execute_single_report(
         token_amounts.push_back(amount);
     };
 
+    let has_valid_message_receiver =
+        (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
         let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
