@@ -136,7 +136,16 @@ func (s *SuiChainWriter) SubmitTransaction(ctx context.Context, contractName str
 
 // GetFeeComponents implements types.ContractWriter.
 func (s *SuiChainWriter) GetFeeComponents(ctx context.Context) (*commonTypes.ChainFeeComponents, error) {
-	return nil, errors.New("GetFeeComponents not implemented")
+	client := s.txm.GetClient()
+	gasPrice, err := client.GetReferenceGasPrice(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get checkpoint: %w", err)
+	}
+
+	return &commonTypes.ChainFeeComponents{
+		ExecutionFee:        gasPrice,
+		DataAvailabilityFee: big.NewInt(0),
+	}, nil
 }
 
 // GetTransactionStatus implements types.ContractWriter.

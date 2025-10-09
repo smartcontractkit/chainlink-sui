@@ -56,6 +56,7 @@ type SuiPTBClient interface {
 	GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error)
 	GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error)
 	EstimateGas(ctx context.Context, txBytes string) (uint64, error)
+	GetReferenceGasPrice(ctx context.Context) (*big.Int, error)
 	FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error)
 	BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error)
 	GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error)
@@ -126,25 +127,55 @@ func NewPTBClient(
 	}, nil
 }
 
-func (c *PTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
+	start := time.Now()
+
+	// Keep track of the number of times WithRateLimit is called
+	_, ok := c.cache.Get("WithRateLimitCount")
+	if !ok {
+		c.cache.SetDefault("WithRateLimitCount", uint(0))
+	}
+	newCount, err := c.cache.IncrementUint("WithRateLimitCount", 1)
+	c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
+	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339))
+
+	// the work itself should time out by transactionTimeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
 	if c.rateLimiter == nil {
+		c.log.Debugw("WithRateLimit no rate limiter", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
 		return f(timeoutCtx)
 	}
 
-	if err := c.rateLimiter.Acquire(ctx, 1); err != nil {
-		return fmt.Errorf("failed to acquire rate limit: %w", err)
+	// acquire with the timeout context so it can't hang forever
+	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
+		return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
 	}
-	defer c.rateLimiter.Release(1)
 
+	// ensure cleanup on exit and panic recovery
+	defer func() {
+		c.rateLimiter.Release(1)
+		c.log.Debugw("WithRateLimit released", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+
+		// bubble up panic after releasing
+		if r := recover(); r != nil {
+			c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+			panic(r)
+		}
+
+		newCount, err := c.cache.DecrementUint("WithRateLimitCount", 1)
+		c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
+	}()
+
+	// run the user function with the timeout context
+	// if the function respects the context, it will return and lock will be released in defer
 	return f(timeoutCtx)
 }
 
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
 	var result TxnMetaData
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "MoveCall", func(ctx context.Context) error {
 		moveCallReq := models.MoveCallRequest{
 			Signer:          req.Signer,
 			PackageObjectId: req.PackageObjectId,
@@ -175,7 +206,7 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 
 func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error) {
 	var result SuiTransactionBlockResponse
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "SendTransaction", func(ctx context.Context) error {
 		// Use blockvision SDK's execute transaction
 		executeReq := models.SuiExecuteTransactionBlockRequest{
 			TxBytes:   payload.TxBytes,
@@ -209,7 +240,7 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 
 func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error) {
 	var result models.SuiObjectData
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadObjectId", func(ctx context.Context) error {
 		objectReq := models.SuiGetObjectRequest{
 			ObjectId: objectId,
 			Options: models.SuiObjectDataOptions{
@@ -240,7 +271,7 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.S
 
 func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error) {
 	var result []models.SuiObjectData
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadFilterOwnedObjectIds", func(ctx context.Context) error {
 		limitVal := uint64(maxPageSize)
 		if limit != nil {
 			limitVal = uint64(*limit)
@@ -278,7 +309,7 @@ func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress s
 
 func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
 	var result []models.SuiObjectResponse
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadOwnedObjects", func(ctx context.Context) error {
 		ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
 			Address: ownerAddress,
 			Query: models.SuiObjectResponseQuery{
@@ -311,7 +342,7 @@ func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, c
 
 func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
 	var result uint64
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "EstimateGas", func(ctx context.Context) error {
 		// Use blockvision SDK's dry run transaction
 		dryRunReq := models.SuiDryRunTransactionBlockRequest{
 			TxBytes: txBytes,
@@ -341,9 +372,22 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 	return result, err
 }
 
+func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	var result *big.Int
+	err := c.WithRateLimit(ctx, "GetReferenceGasPrice", func(ctx context.Context) error {
+		response, err := c.client.SuiXGetReferenceGasPrice(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get reference gas price: %w", err)
+		}
+		result = new(big.Int).SetUint64(response)
+		return nil
+	})
+	return result, err
+}
+
 func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
 	var results []any
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadFunction", func(ctx context.Context) error {
 		txn := transaction.NewTransaction()
 
 		var txnArgs []transaction.Argument
@@ -560,7 +604,7 @@ func (c *PTBClient) SignAndSendTransaction(ctx context.Context, txBytesRaw strin
 
 func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEventModule, limit *uint, cursor *EventId, sortOptions *QuerySortOptions) (*models.PaginatedEventsResponse, error) {
 	var result *models.PaginatedEventsResponse
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "QueryEvents", func(ctx context.Context) error {
 		limitVal := uint64(maxPageSize)
 		if limit != nil {
 			limitVal = uint64(*limit)
@@ -602,7 +646,7 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 
 func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error) {
 	var result TransactionResult
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetTransactionStatus", func(ctx context.Context) error {
 		txReq := models.SuiGetTransactionBlockRequest{
 			Digest: digest,
 			Options: models.SuiTransactionBlockOptions{
@@ -639,7 +683,7 @@ func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, c
 		cursor = nil
 	}
 
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "QueryTransactions", func(ctx context.Context) error {
 		c.log.Debugw("Querying transactions", "fromAddress", fromAddress, "cursor", cursor, "limit", limitVal)
 
 		txns, err := c.client.SuiXQueryTransactionBlocks(ctx, models.SuiXQueryTransactionBlocksRequest{
@@ -672,7 +716,7 @@ func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, c
 
 func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
 	var result []models.CoinData
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetCoinsByAddress", func(ctx context.Context) error {
 		coinsReq := models.SuiXGetAllCoinsRequest{
 			Owner: address,
 			Limit: uint64(maxCoinsPageSize),
@@ -692,9 +736,13 @@ func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]mo
 }
 
 func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Signer, tx *transaction.Transaction, requestType TransactionRequestType) (SuiTransactionBlockResponse, error) {
+	gasPrice, err := c.GetReferenceGasPrice(ctx)
+	if err != nil {
+		return SuiTransactionBlockResponse{}, fmt.Errorf("failed to get reference gas price: %w", err)
+	}
+	tx.SetGasPrice(gasPrice.Uint64())
+
 	tx.SetSigner(txnSigner)
-	// TODO: get gas price and budget from the txn
-	tx.SetGasPrice(DefaultGasPrice)
 	tx.SetGasBudget(DefaultGasBudget)
 
 	// Set gas payment - use the first coin available for the signer
@@ -737,7 +785,7 @@ func (c *PTBClient) FinishPTBAndSend(ctx context.Context, txnSigner *signer.Sign
 
 func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTransactionBlockResponse, error) {
 	var result *SuiTransactionBlockResponse
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "BlockByDigest", func(ctx context.Context) error {
 		txReq := models.SuiGetTransactionBlockRequest{
 			Digest: txDigest,
 			Options: models.SuiTransactionBlockOptions{
@@ -766,7 +814,7 @@ func (c *PTBClient) BlockByDigest(ctx context.Context, txDigest string) (*SuiTra
 // GetBlockById (i.e. get checkpoint by id) returns the checkpoint details given its ID
 func (c *PTBClient) GetBlockById(ctx context.Context, checkpointId string) (models.CheckpointResponse, error) {
 	var result models.CheckpointResponse
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetBlockById", func(ctx context.Context) error {
 		response, err := c.client.SuiGetCheckpoint(ctx, models.SuiGetCheckpointRequest{
 			CheckpointID: checkpointId,
 		})
@@ -784,7 +832,7 @@ func (c *PTBClient) GetBlockById(ctx context.Context, checkpointId string) (mode
 
 func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
 	var result *big.Int
-	err := c.WithRateLimit(ctx, func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetSUIBalance", func(ctx context.Context) error {
 		balanceReq := models.SuiXGetBalanceRequest{
 			Owner:    address,
 			CoinType: "0x2::sui::SUI", // Default SUI coin type
@@ -808,6 +856,8 @@ func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int
 }
 
 func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
+	c.log.Debugw("Getting normalized module", "packageId", packageId, "module", module)
+
 	// check if the normalized module is already cached
 	normalizedModule, ok := c.normalizedModules[packageId][module]
 	if ok {
@@ -822,12 +872,16 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get normalized module: %w", err)
 	}
 
+	c.log.Debugw("Normalized module response", "normalizedModule", normalizedModule, "packageId", packageId, "module", module)
+
 	if _, ok := c.normalizedModules[packageId]; !ok {
 		c.normalizedModules[packageId] = make(map[string]models.GetNormalizedMoveModuleResponse)
 	}
 
 	// cache the normalized module
 	c.normalizedModules[packageId][module] = normalizedModule
+
+	c.log.Debugw("Normalized module cached", "packageId", packageId, "module", module)
 
 	return normalizedModule, nil
 }

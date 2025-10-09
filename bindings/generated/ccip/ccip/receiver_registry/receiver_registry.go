@@ -108,7 +108,7 @@ type ReceiverConfig struct {
 
 type ReceiverRegistry struct {
 	Id              string      `move:"sui::object::UID"`
-	ReceiverConfigs bind.Object `move:"VecMap<address, ReceiverConfig>"`
+	ReceiverConfigs bind.Object `move:"LinkedTable<address, ReceiverConfig>"`
 }
 
 type ReceiverRegistered struct {

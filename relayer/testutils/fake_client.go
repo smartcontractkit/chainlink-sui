@@ -78,7 +78,7 @@ func (c *FakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string
 }
 
 // WithRateLimit is provided to maintain compatibility with previous implementations
-func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	return f(ctx)
 }
 
@@ -167,6 +167,10 @@ func (c *FakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageI
 	return "", nil
 }
 
+func (c *FakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1000), nil
+}
+
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
 // based on gas budget and track call counts for testing gas bump scenarios
 type StatefulFakeSuiPTBClient struct {
@@ -245,7 +249,7 @@ func (c *StatefulFakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, addres
 	}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+func (c *StatefulFakeSuiPTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	return f(ctx)
 }
 
@@ -329,4 +333,8 @@ func (c *StatefulFakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
 
 func (c *StatefulFakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
 	return "", nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1000), nil
 }
