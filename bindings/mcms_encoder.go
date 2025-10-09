@@ -9,6 +9,7 @@ import (
 	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
+	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
@@ -116,6 +117,17 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 				return nil, fmt.Errorf("ccip ref (%s) does not match state object (%s)", ccipRef.Id, stateObj.Id)
 			}
 			return feeQuoter.Encoder().McmsUpdatePricesWithOwnerCapWithArgs(ccipRef, registryObj, clock, executingCallbackParams)
+		}
+
+	// STATE OBJECT
+	case "state_object":
+		moduleStateObj, err := module_state_object.NewStateObject(target, nil)
+		if err != nil {
+			return nil, err
+		}
+		switch function {
+		case "accept_ownership":
+			return moduleStateObj.Encoder().McmsAcceptOwnershipWithArgs(stateObj, executingCallbackParams)
 		}
 
 	// OFFRAMP
@@ -333,8 +345,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("ENCODING WITH DEFAULT ENCODER", "STATE OBJ", stateObj.Id, "MODULE", module, "FUNCTION", function, "REGISTRY", registryObj.Id)
 
 	entryPointCall, err := feeQuoter.Encoder().McmsApplyFeeTokenUpdatesWithArgs(
 		stateObj,
