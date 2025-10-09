@@ -170,10 +170,12 @@ public fun accept_ownership_from_object(
 
 public fun mcms_accept_ownership(
     state: &mut RouterState,
+    registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function, data) = mcms_registry::get_callback_params(
+        registry,
         params,
         McmsCallback {},
     );
@@ -238,7 +240,7 @@ public fun mcms_set_on_ramps(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -275,7 +277,7 @@ public fun mcms_transfer_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -300,7 +302,7 @@ public fun mcms_execute_ownership_transfer(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,

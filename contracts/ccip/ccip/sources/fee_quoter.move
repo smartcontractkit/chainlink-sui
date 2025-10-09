@@ -1672,7 +1672,7 @@ public fun mcms_apply_fee_token_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1704,7 +1704,7 @@ public fun mcms_apply_dest_chain_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1772,7 +1772,7 @@ public fun mcms_apply_token_transfer_fee_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1843,7 +1843,7 @@ public fun mcms_update_prices_with_owner_cap(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1892,7 +1892,7 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,

@@ -1118,6 +1118,9 @@ public fun test_mcms_accept_admin_role() {
             string::utf8(b"token_admin_registry"),
             string::utf8(b"accept_admin_role"),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
         );
 
         // Execute MCMS accept
@@ -1201,6 +1204,9 @@ public fun test_mcms_full_admin_transfer_flow() {
             string::utf8(b"token_admin_registry"),
             string::utf8(b"accept_admin_role"),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000002",
+            0,
+            1,
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1266,6 +1272,9 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
             string::utf8(b"token_admin_registry"),
             string::utf8(b"accept_admin_role"),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000003",
+            0,
+            1,
         );
 
         registry::mcms_accept_admin_role(&mut ref, &mut registry, params, scenario.ctx());
@@ -1313,6 +1322,9 @@ public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
             string::utf8(b"token_admin_registry"),
             string::utf8(b"transfer_admin_role"),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000004",
+            0,
+            1,
         );
 
         registry::mcms_transfer_admin_role(&mut ref, &mut registry, params, scenario.ctx());

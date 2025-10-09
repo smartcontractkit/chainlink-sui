@@ -182,7 +182,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			return router.Encoder().McmsAcceptOwnershipWithArgs(stateObj, executingCallbackParams)
+			return router.Encoder().McmsAcceptOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
 		}
 
 	// BURN MINT TOKEN POOL
@@ -195,7 +195,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "accept_ownership":
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
-			return burnMintTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
+			return burnMintTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_allowlist_enabled",
 			"apply_allowlist_updates",
 			"apply_chain_updates",
@@ -219,7 +219,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "accept_ownership":
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
-			return lockReleaseTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
+			return lockReleaseTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_rebalancer",
 			"set_allowlist_enabled",
 			"apply_allowlist_updates",
@@ -245,7 +245,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "accept_ownership":
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
-			return managedTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
+			return managedTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_allowlist_enabled",
 			"apply_allowlist_updates",
 			"apply_chain_updates",
@@ -269,7 +269,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "accept_ownership":
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
-			return usdcTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
+			return usdcTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_allowlist_enabled",
 			"apply_allowlist_updates",
 			"apply_chain_updates",
@@ -292,7 +292,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		case "accept_ownership":
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
-			return managedToken.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, executingCallbackParams)
+			return managedToken.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "configure_new_minter":
 			// TODO: Find correct type args
 			typeArgs := []string{"0x1::sui::SUI"}
