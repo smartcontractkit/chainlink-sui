@@ -114,8 +114,6 @@ type SetPoolInput struct {
 	CCIPPackageId       string
 	StateObjectId       string
 	CoinMetadataAddress string
-	TokenPoolPackageId  string
-	TokenPoolModule     string
 	LockOrBurnParams    []string
 	ReleaseOrMintParams []string
 	TypeArgs            []string
@@ -136,8 +134,6 @@ var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetPool
 		input.TypeArgs,
 		bind.Object{Id: input.StateObjectId},
 		input.CoinMetadataAddress,
-		input.TokenPoolPackageId,
-		input.TokenPoolModule,
 		input.LockOrBurnParams,
 		input.ReleaseOrMintParams,
 		bind.Object{Id: input.TypeProofObjectId},

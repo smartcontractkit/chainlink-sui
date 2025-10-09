@@ -445,19 +445,19 @@ fun unregister_pool_internal(
 public fun set_pool<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
-    token_pool_package_id: address,
-    token_pool_module: String,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
-    let token_pool_type_proof_tn = type_name::with_defining_ids<TypeProof>();
-    let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
+    let token_pool_module = proof_tn.module_string().into_bytes().to_string();
+    let token_pool_type_proof_str = type_name::into_string(proof_tn);
     set_pool_internal(
         ref,
         coin_metadata_address,
-        token_pool_package_id,
+        proof_package_id,
         token_pool_module,
         lock_or_burn_params,
         release_or_mint_params,
