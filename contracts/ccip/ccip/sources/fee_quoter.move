@@ -689,9 +689,10 @@ public fun get_validated_fee(
     let gas_limit = if (
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
             || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
-            || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI
     ) {
         resolve_generic_gas_limit(dest_chain_config, extra_args)
+    } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
+        resolve_sui_gas_limit(dest_chain_config, extra_args)
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
         resolve_svm_gas_limit(
             dest_chain_config,
@@ -843,6 +844,21 @@ fun resolve_generic_gas_limit(dest_chain_config: &DestChainConfig, extra_args: v
         EExtraArgOutOfOrderExecutionMustBeTrue,
     );
     gas_limit
+}
+
+fun resolve_sui_gas_limit(dest_chain_config: &DestChainConfig, extra_args: vector<u8>): u256 {
+    let (
+        gas_limit,
+        allow_out_of_order_execution,
+        _token_receiver,
+        _receiver_object_ids,
+    ) = decode_sui_extra_args(extra_args);
+    assert!(gas_limit <= (dest_chain_config.max_per_msg_gas_limit as u64), EMessageGasLimitTooHigh);
+    assert!(
+        !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
+        EExtraArgOutOfOrderExecutionMustBeTrue,
+    );
+    gas_limit as u256
 }
 
 fun resolve_svm_gas_limit(
@@ -1008,6 +1024,28 @@ fun decode_svm_extra_args_v1(
     )
 }
 
+fun decode_sui_extra_args(extra_args: vector<u8>): (u64, bool, vector<u8>, vector<vector<u8>>) {
+    let extra_args_len = extra_args.length();
+    let args_tag = slice(&extra_args, 0, 4);
+    assert!(args_tag == client::sui_extra_args_v1_tag(), EInvalidExtraArgsTag);
+    assert!(extra_args_len >= 4, EInvalidExtraArgsData);
+    let args_data = slice(&extra_args, 4, extra_args_len - 4);
+    decode_sui_extra_args_v1(args_data)
+}
+
+fun decode_sui_extra_args_v1(extra_args: vector<u8>): (u64, bool, vector<u8>, vector<vector<u8>>) {
+    let mut stream = bcs_stream::new(extra_args);
+    let gas_limit = bcs_stream::deserialize_u64(&mut stream);
+    let allow_out_of_order_execution = bcs_stream::deserialize_bool(&mut stream);
+    let token_receiver = bcs_stream::deserialize_vector_u8(&mut stream);
+    let receiver_object_ids = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+    (gas_limit, allow_out_of_order_execution, token_receiver, receiver_object_ids)
+}
+
 fun get_data_availability_cost(
     dest_chain_config: &DestChainConfig,
     data_availability_gas_price: u256,
@@ -1125,9 +1163,16 @@ public fun get_token_receiver(
     if (
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
         || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
-        || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI
     ) {
         message_receiver
+    } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
+        let (
+            _gas_limit,
+            _allow_out_of_order_execution,
+            token_receiver,
+            _receiver_object_ids,
+        ) = decode_sui_extra_args(extra_args);
+        token_receiver
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
         let (
             _compute_units,
@@ -1213,7 +1258,6 @@ fun process_chain_family_selector(
     if (
         chain_family_selector == CHAIN_FAMILY_SELECTOR_EVM
         || chain_family_selector == CHAIN_FAMILY_SELECTOR_APTOS
-        || chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI
     ) {
         let (gas_limit, allow_out_of_order_execution) = decode_generic_extra_args(
             dest_chain_config,
@@ -1224,6 +1268,29 @@ fun process_chain_family_selector(
             allow_out_of_order_execution,
         );
         (extra_args_v2, allow_out_of_order_execution)
+    } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SUI) {
+        let (
+            gas_limit,
+            allow_out_of_order_execution,
+            token_receiver,
+            _receiver_object_ids,
+        ) = decode_sui_extra_args(extra_args);
+        if (is_message_with_token_transfers) {
+            assert!(token_receiver.length() == 32, EInvalidTokenReceiver);
+            let token_receiver_uint = eth_abi::decode_u256_value(token_receiver);
+            assert!(token_receiver_uint > 0, EInvalidTokenReceiver);
+        };
+
+        assert!(
+            !dest_chain_config.enforce_out_of_order || allow_out_of_order_execution,
+            EExtraArgOutOfOrderExecutionMustBeTrue,
+        );
+        assert!(
+            gas_limit <= (dest_chain_config.max_per_msg_gas_limit as u64),
+            EMessageGasLimitTooHigh,
+        );
+
+        (extra_args, allow_out_of_order_execution)
     } else if (chain_family_selector == CHAIN_FAMILY_SELECTOR_SVM) {
         let (
             compute_units,
@@ -1605,7 +1672,7 @@ public fun mcms_apply_fee_token_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1637,7 +1704,7 @@ public fun mcms_apply_dest_chain_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1705,7 +1772,7 @@ public fun mcms_apply_token_transfer_fee_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1776,7 +1843,7 @@ public fun mcms_update_prices_with_owner_cap(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1825,7 +1892,7 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1941,4 +2008,35 @@ fun test_decode_svm_extra_args_v1() {
     assert!(allow_out_of_order_execution == expected_allow_out_of_order_execution, 0);
     assert!(token_receiver == expected_token_receiver, 0);
     assert!(accounts == expected_accounts, 0);
+}
+
+#[test]
+fun test_decode_sui_extra_args_v1() {
+    let expected_gas_limit = 101;
+    let expected_allow_out_of_order_execution = true;
+    let expected_token_receiver =
+        x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    let expected_receiver_object_ids = vector[
+        x"2234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdea",
+        x"3234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeb",
+    ];
+
+    let extra_args = client::encode_sui_extra_args_v1(
+        expected_gas_limit,
+        expected_allow_out_of_order_execution,
+        expected_token_receiver,
+        expected_receiver_object_ids,
+    );
+
+    let (
+        gas_limit,
+        allow_out_of_order_execution,
+        token_receiver,
+        receiver_object_ids,
+    ) = decode_sui_extra_args(extra_args);
+
+    assert!(gas_limit == expected_gas_limit, 0);
+    assert!(allow_out_of_order_execution == expected_allow_out_of_order_execution, 0);
+    assert!(token_receiver == expected_token_receiver, 0);
+    assert!(receiver_object_ids == expected_receiver_object_ids, 0);
 }

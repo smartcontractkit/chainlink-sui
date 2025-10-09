@@ -100,6 +100,8 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		nil,
 		timeout,
 		keystore,
+		// Use 3 times more concurrency allowance for the main client due to core making
+		// frequent RPC calls to get latest values
 		maxConcurrentRequests*3,
 		client.TransactionRequestType(requestType),
 	)
@@ -107,8 +109,8 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 		return nil, fmt.Errorf("error in NewRelayer (monitor): %w", err)
 	}
 
-	// Use config values instead of constants
-	suiClientIndexer, err := client.NewPTBClient(
+	// Use a separate client for the indexers to avoid rate limiting
+	suiClientIndexers, err := client.NewPTBClient(
 		loggerInstance,
 		nodeConfig.URL.String(),
 		nil,
@@ -125,7 +127,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	txnIndexer := indexer.NewTransactionsIndexer(
 		db,
 		loggerInstance,
-		suiClientIndexer,
+		suiClientIndexers,
 		time.Duration(*cfg.TransactionsIndexer.PollingIntervalSecs)*time.Second,
 		time.Duration(*cfg.TransactionsIndexer.SyncTimeoutSecs)*time.Second,
 		// start without any configs, they will be set when ChainReader is initialized and gets a reference
@@ -136,7 +138,7 @@ func NewRelayer(cfg *config.TOMLConfig, lggr logger.Logger, keystore core.Keysto
 	evIndexer := indexer.NewEventIndexer(
 		db,
 		loggerInstance,
-		suiClientIndexer,
+		suiClientIndexers,
 		// start without any selectors, they will be added during .Bind() calls on ChainReader
 		[]*client.EventSelector{},
 		time.Duration(*cfg.EventsIndexer.PollingIntervalSecs)*time.Second,

@@ -16,7 +16,6 @@ import (
 	"github.com/block-vision/sui-go-sdk/signer"
 	"github.com/block-vision/sui-go-sdk/sui"
 	"github.com/block-vision/sui-go-sdk/transaction"
-	"github.com/google/uuid"
 	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/semaphore"
 
@@ -129,77 +128,49 @@ func NewPTBClient(
 }
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
-	// 120s max timeout
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	start := time.Now()
+
+	// Keep track of the number of times WithRateLimit is called
+	_, ok := c.cache.Get("WithRateLimitCount")
+	if !ok {
+		c.cache.SetDefault("WithRateLimitCount", uint(0))
+	}
+	newCount, err := c.cache.IncrementUint("WithRateLimitCount", 1)
+	c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
+	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339))
+
+	// the work itself should time out by transactionTimeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
 	defer cancel()
 
-	if dl, ok := ctx.Deadline(); ok {
-		c.log.Debugw("Parent ctx deadline", "deadline", dl, "remaining", time.Until(dl))
-	}
-	if dl, ok := timeoutCtx.Deadline(); ok {
-		c.log.Debugw("Timeout ctx deadline", "deadline", dl, "remaining", time.Until(dl))
+	if c.rateLimiter == nil {
+		c.log.Debugw("WithRateLimit no rate limiter", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+		return f(timeoutCtx)
 	}
 
-	reqID := uuid.NewString()
-	c.log.Debugw("Executing function with NO rate limit", "reqID", reqID, "methodName: ", methodName)
+	// acquire with the timeout context so it can't hang forever
+	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
+		return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
+	}
 
-	startWork := time.Now()
-	err := f(timeoutCtx)
-	c.log.Debugw("Function finished (no ratelimit)",
-		"reqID", reqID,
-		"duration", time.Since(startWork),
-		"err", err,
-	)
+	// ensure cleanup on exit and panic recovery
+	defer func() {
+		c.rateLimiter.Release(1)
+		c.log.Debugw("WithRateLimit released", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
 
-	return err
+		// bubble up panic after releasing
+		if r := recover(); r != nil {
+			c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
+			panic(r)
+		}
 
-	// start := time.Now()
+		newCount, err := c.cache.DecrementUint("WithRateLimitCount", 1)
+		c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
+	}()
 
-	// // Keep track of the number of times WithRateLimit is called
-	// count, ok := c.cache.Get("WithRateLimitCount")
-	// if !ok {
-	// 	c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
-	// 	count = 0
-	// }
-	// c.cache.Set("WithRateLimitCount", count.(int)+1, cache.NoExpiration)
-
-	// c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339), "count", count.(int))
-
-	// // the work itself should time out by transactionTimeout
-	// timeoutCtx, cancel := context.WithTimeout(ctx, c.transactionTimeout)
-	// defer cancel()
-
-	// if c.rateLimiter == nil {
-	// 	c.log.Debugw("WithRateLimit no rate limiter", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-	// 	return f(timeoutCtx)
-	// }
-
-	// // acquire with the timeout context so it can't hang forever
-	// if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
-	// 	return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
-	// }
-
-	// // ensure cleanup on exit and panic recovery
-	// defer func() {
-	// 	c.rateLimiter.Release(1)
-	// 	c.log.Debugw("WithRateLimit released", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-
-	// 	// bubble up panic after releasing
-	// 	if r := recover(); r != nil {
-	// 		c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
-	// 		panic(r)
-	// 	}
-
-	// 	count, ok := c.cache.Get("WithRateLimitCount")
-	// 	if !ok {
-	// 		c.cache.Set("WithRateLimitCount", 0, cache.NoExpiration)
-	// 	}
-	// 	c.cache.Set("WithRateLimitCount", count.(int)-1, cache.NoExpiration)
-	// }()
-
-	// // run the user function with the timeout context
-	// // if the function respects the context, it will return and lock will be released in defer
-	// return f(timeoutCtx)
+	// run the user function with the timeout context
+	// if the function respects the context, it will return and lock will be released in defer
+	return f(timeoutCtx)
 }
 
 func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaData, error) {
@@ -235,7 +206,7 @@ func (c *PTBClient) MoveCall(ctx context.Context, req MoveCallRequest) (TxnMetaD
 
 func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBlockRequest) (SuiTransactionBlockResponse, error) {
 	var result SuiTransactionBlockResponse
-	err := c.WithRateLimit(ctx, "SendTx", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "SendTransaction", func(ctx context.Context) error {
 		// Use blockvision SDK's execute transaction
 		executeReq := models.SuiExecuteTransactionBlockRequest{
 			TxBytes:   payload.TxBytes,
@@ -269,7 +240,7 @@ func (c *PTBClient) SendTransaction(ctx context.Context, payload TransactionBloc
 
 func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.SuiObjectData, error) {
 	var result models.SuiObjectData
-	err := c.WithRateLimit(ctx, "ReadObject", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadObjectId", func(ctx context.Context) error {
 		objectReq := models.SuiGetObjectRequest{
 			ObjectId: objectId,
 			Options: models.SuiObjectDataOptions{
@@ -300,7 +271,7 @@ func (c *PTBClient) ReadObjectId(ctx context.Context, objectId string) (models.S
 
 func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress string, structType string, limit *uint) ([]models.SuiObjectData, error) {
 	var result []models.SuiObjectData
-	err := c.WithRateLimit(ctx, "ReadObjectIds", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadFilterOwnedObjectIds", func(ctx context.Context) error {
 		limitVal := uint64(maxPageSize)
 		if limit != nil {
 			limitVal = uint64(*limit)
@@ -338,7 +309,7 @@ func (c *PTBClient) ReadFilterOwnedObjectIds(ctx context.Context, ownerAddress s
 
 func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, cursor *models.ObjectId) ([]models.SuiObjectResponse, error) {
 	var result []models.SuiObjectResponse
-	err := c.WithRateLimit(ctx, "ReadOwnerObjects", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadOwnedObjects", func(ctx context.Context) error {
 		ownedObjectsReq := models.SuiXGetOwnedObjectsRequest{
 			Address: ownerAddress,
 			Query: models.SuiObjectResponseQuery{
@@ -371,7 +342,7 @@ func (c *PTBClient) ReadOwnedObjects(ctx context.Context, ownerAddress string, c
 
 func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, error) {
 	var result uint64
-	err := c.WithRateLimit(ctx, "EstGas", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "EstimateGas", func(ctx context.Context) error {
 		// Use blockvision SDK's dry run transaction
 		dryRunReq := models.SuiDryRunTransactionBlockRequest{
 			TxBytes: txBytes,
@@ -403,7 +374,7 @@ func (c *PTBClient) EstimateGas(ctx context.Context, txBytes string) (uint64, er
 
 func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
 	var result *big.Int
-	err := c.WithRateLimit(ctx, "refGasPrice", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetReferenceGasPrice", func(ctx context.Context) error {
 		response, err := c.client.SuiXGetReferenceGasPrice(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get reference gas price: %w", err)
@@ -416,7 +387,7 @@ func (c *PTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) 
 
 func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, packageId string, module string, function string, args []any, argTypes []string) ([]any, error) {
 	var results []any
-	err := c.WithRateLimit(ctx, "ReadFunc", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "ReadFunction", func(ctx context.Context) error {
 		txn := transaction.NewTransaction()
 
 		var txnArgs []transaction.Argument
@@ -672,7 +643,7 @@ func (c *PTBClient) QueryEvents(ctx context.Context, filter EventFilterByMoveEve
 
 func (c *PTBClient) GetTransactionStatus(ctx context.Context, digest string) (TransactionResult, error) {
 	var result TransactionResult
-	err := c.WithRateLimit(ctx, "GetTxStatus", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetTransactionStatus", func(ctx context.Context) error {
 		txReq := models.SuiGetTransactionBlockRequest{
 			Digest: digest,
 			Options: models.SuiTransactionBlockOptions{
@@ -709,7 +680,7 @@ func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, c
 		cursor = nil
 	}
 
-	err := c.WithRateLimit(ctx, "QueryTx", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "QueryTransactions", func(ctx context.Context) error {
 		c.log.Debugw("Querying transactions", "fromAddress", fromAddress, "cursor", cursor, "limit", limitVal)
 
 		txns, err := c.client.SuiXQueryTransactionBlocks(ctx, models.SuiXQueryTransactionBlocksRequest{
@@ -742,7 +713,7 @@ func (c *PTBClient) QueryTransactions(ctx context.Context, fromAddress string, c
 
 func (c *PTBClient) GetCoinsByAddress(ctx context.Context, address string) ([]models.CoinData, error) {
 	var result []models.CoinData
-	err := c.WithRateLimit(ctx, "GetCoinsByAddr", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetCoinsByAddress", func(ctx context.Context) error {
 		coinsReq := models.SuiXGetAllCoinsRequest{
 			Owner: address,
 			Limit: uint64(maxCoinsPageSize),
@@ -858,7 +829,7 @@ func (c *PTBClient) GetBlockById(ctx context.Context, checkpointId string) (mode
 
 func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int, error) {
 	var result *big.Int
-	err := c.WithRateLimit(ctx, "GetSuiBalance", func(ctx context.Context) error {
+	err := c.WithRateLimit(ctx, "GetSUIBalance", func(ctx context.Context) error {
 		balanceReq := models.SuiXGetBalanceRequest{
 			Owner:    address,
 			CoinType: "0x2::sui::SUI", // Default SUI coin type

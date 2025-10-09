@@ -347,7 +347,7 @@ func TestEncodeEntryPointArg_Router(t *testing.T) {
 		assert.Equal(t, "mcms_accept_ownership", result.Function)
 
 		// Verify deserialization - the state should be extracted from data
-		require.Len(t, result.CallArgs, 2, "Expected 2 arguments: state, executingCallbackParams")
+		require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
 
 		// Verify the state was deserialized correctly
 		stateFromResult, err := extractObjectID(result.CallArgs[0])
@@ -780,7 +780,7 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 		assert.Equal(t, "mcms_accept_ownership", result.Function)
 
 		require.Len(t, result.TypeArgs, 1, "Expected 1 type argument")
-		require.Len(t, result.CallArgs, 2, "Expected 2 arguments: state, executingCallbackParams")
+		require.Len(t, result.CallArgs, 3, "Expected 3 arguments: state, registry, executingCallbackParams")
 
 		// Verify the state was deserialized correctly
 		stateFromResult, err := extractObjectID(result.CallArgs[0])

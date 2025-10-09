@@ -4,12 +4,11 @@ go 1.24.7
 
 require (
 	github.com/block-vision/sui-go-sdk v1.1.2
-	github.com/ethereum/go-ethereum v1.16.2
 	github.com/holiman/uint256 v1.3.2
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250903115155-a68d8c28ae1d
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908133421-f9b356d61ca9
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20250919202144-dac5a6e92d35
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20251007220618-5aad33b9f98b
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
 	github.com/stretchr/testify v1.10.0
 )
@@ -42,6 +41,7 @@ require (
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.0 // indirect
+	github.com/ethereum/go-ethereum v1.16.2 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
@@ -177,7 +177,6 @@ require (
 )
 
 // use local modules
-replace (
-	github.com/smartcontractkit/chainlink-sui => ../
-	github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
-)
+// TODO: enable once mcms is up to date
+// github.com/smartcontractkit/chainlink-sui => ../
+replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
