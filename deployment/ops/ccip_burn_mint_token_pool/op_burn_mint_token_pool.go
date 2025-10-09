@@ -1,9 +1,7 @@
 package burnminttokenpoolops
 
 import (
-	"encoding/hex"
 	"fmt"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -11,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
@@ -157,7 +156,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 	for i, addresses := range input.RemotePoolAddressesToAdd {
 		remotePoolAddressesBytes[i] = make([][]byte, len(addresses))
 		for j, address := range addresses {
-			b, err := strToBytes(address)
+			b, err := deployment.StrToBytes(address)
 			if err != nil {
 				return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("bad remote pool address [%d][%d]: %w", i, j, err)
 			}
@@ -168,7 +167,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 	// Convert []string to [][]byte for RemoteTokenAddressesToAdd
 	remoteTokenAddressesBytes := make([][]byte, len(input.RemoteTokenAddressesToAdd))
 	for i, address := range input.RemoteTokenAddressesToAdd {
-		b32, err := strTo32(address)
+		b32, err := deployment.StrTo32(address)
 		if err != nil {
 			return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("bad remote token address [%d]: %w", i, err)
 		}
@@ -312,24 +311,3 @@ var BurnMintTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
 	"Adds a remote pool in the CCIP BurnMint Token Pool contract",
 	addRemotePoolHandler,
 )
-
-func strToBytes(s string) ([]byte, error) {
-	raw, err := hex.DecodeString(strings.TrimSpace(strings.TrimPrefix(s, "0x")))
-	if err != nil {
-		return nil, err
-	}
-	return raw, nil
-}
-
-func strTo32(s string) ([]byte, error) {
-	raw, err := hex.DecodeString(strings.TrimSpace(strings.TrimPrefix(s, "0x")))
-	if err != nil {
-		return nil, err
-	}
-	if len(raw) > 32 {
-		return nil, fmt.Errorf("address longer than 32 bytes: %d", len(raw))
-	}
-	out := make([]byte, 32)
-	copy(out[32-len(raw):], raw) // left-pad with zeros
-	return out, nil
-}

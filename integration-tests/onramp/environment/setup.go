@@ -375,8 +375,8 @@ func SetupTestEnvironmentForManagedTokenPool(t *testing.T, client sui.ISuiAPI, s
 	ethTokenType := fmt.Sprintf("%s::mock_eth_token::MOCK_ETH_TOKEN", reportMockEthToken.Output.PackageId)
 	ethCoins := GetEthCoins(t, client, signer, reportMockEthToken.Output.PackageId, reportMockEthToken.Output.Objects.TreasuryCapObjectId, ethTokenType, accountAddress, lggr, 1000000, 1000000)
 
-	ethereumPoolAddressString := string(NormalizeTo32Bytes(EvmReceiverAddress))
-	remoteTokenAddressString := string(NormalizeTo32Bytes(EvmReceiverAddress))
+	ethereumPoolAddressString := EvmReceiverAddress
+	remoteTokenAddressString := EvmReceiverAddress
 
 	// Setup managed token pool for ETH token
 	managedTokenPoolReport, managedTokenReport := SetupManagedTokenPool(
