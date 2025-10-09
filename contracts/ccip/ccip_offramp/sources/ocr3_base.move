@@ -84,7 +84,7 @@ const EInvalidSignatureLength: u64 = 22;
 
 // there is no init or initialize functions in ocr3 base
 // ocr3 base state is only created and stored in offramp state
-public fun new(ctx: &mut TxContext): OCR3BaseState {
+public(package) fun new(ctx: &mut TxContext): OCR3BaseState {
     OCR3BaseState {
         id: object::new(ctx),
         ocr3_configs: table::new(ctx),
@@ -93,15 +93,15 @@ public fun new(ctx: &mut TxContext): OCR3BaseState {
     }
 }
 
-public fun ocr_plugin_type_commit(): u8 {
+public(package) fun ocr_plugin_type_commit(): u8 {
     OCR_PLUGIN_TYPE_COMMIT
 }
 
-public fun ocr_plugin_type_execution(): u8 {
+public(package) fun ocr_plugin_type_execution(): u8 {
     OCR_PLUGIN_TYPE_EXECUTION
 }
 
-public fun set_ocr3_config(
+public(package) fun set_ocr3_config(
     ref: &CCIPObjectRef,
     ocr3_state: &mut OCR3BaseState,
     config_digest: vector<u8>,
@@ -262,14 +262,14 @@ public(package) fun transmit(
     event::emit(Transmitted { ocr_plugin_type, config_digest, sequence_number });
 }
 
-public fun latest_config_details(state: &OCR3BaseState, ocr_plugin_type: u8): OCRConfig {
+public(package) fun latest_config_details(state: &OCR3BaseState, ocr_plugin_type: u8): OCRConfig {
     assert!(state.ocr3_configs.contains(ocr_plugin_type), EConfigNotSet);
     let ocr_config = &state.ocr3_configs[ocr_plugin_type];
     *ocr_config
 }
 
 // equivalent of uint64(uint256(reportContext[1]))
-public fun deserialize_sequence_bytes(sequence_bytes: vector<u8>): u64 {
+public(package) fun deserialize_sequence_bytes(sequence_bytes: vector<u8>): u64 {
     let len = sequence_bytes.length();
     let mut result: u64 = 0;
     let mut i = len - 8;
@@ -349,7 +349,7 @@ fun new_unvalidated_public_key_from_bytes(bytes: vector<u8>): UnvalidatedPublicK
     UnvalidatedPublicKey { bytes }
 }
 
-public fun latest_config_details_fields(
+public(package) fun latest_config_details_fields(
     ocr_config: OCRConfig,
 ): (vector<u8>, u8, u8, bool, vector<vector<u8>>, vector<address>) {
     (
