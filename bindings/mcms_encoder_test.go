@@ -1052,8 +1052,9 @@ func TestHelperFunctions(t *testing.T) {
 }
 
 func TestNewCCIPEntrypointArgEncoder(t *testing.T) {
-	encoder := NewCCIPEntrypointArgEncoder()
+	registryObjID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	encoder := NewCCIPEntrypointArgEncoder(registryObjID)
 
 	assert.NotNil(t, encoder)
-	assert.Empty(t, encoder.registryObjID)
+	assert.Equal(t, registryObjID, encoder.registryObjID)
 }
