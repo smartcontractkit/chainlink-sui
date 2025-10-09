@@ -21,7 +21,6 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
-use std::u256;
 use sui::address;
 use sui::clock;
 use sui::derived_object;
@@ -220,18 +219,18 @@ const ECursedByRmn: u64 = 16;
 const ESignatureVerificationRequiredInCommitPlugin: u64 = 17;
 const ESignatureVerificationNotAllowedInExecutionPlugin: u64 = 18;
 const EFeeQuoterCapExists: u64 = 19;
-const ETokenAmountOverflow: u64 = 20;
-const EDestTransferCapExists: u64 = 21;
-const ERmnBlessingMismatch: u64 = 22;
-const EUnsupportedToken: u64 = 23;
-const EInvalidOnRampUpdate: u64 = 24;
-const EDestTransferCapNotSet: u64 = 25;
-const ECalculateMessageHashInvalidArguments: u64 = 26;
-const EInvalidFunction: u64 = 27;
-const EInvalidTokenReceiver: u64 = 28;
-const ETokenTransferLimitExceeded: u64 = 29;
-const EPackageIdNotFound: u64 = 30;
-const EInvalidOwnerCap: u64 = 31;
+const EDestTransferCapExists: u64 = 20;
+const ERmnBlessingMismatch: u64 = 21;
+const EUnsupportedToken: u64 = 22;
+const EInvalidOnRampUpdate: u64 = 23;
+const EDestTransferCapNotSet: u64 = 24;
+const ECalculateMessageHashInvalidArguments: u64 = 25;
+const EInvalidFunction: u64 = 26;
+const EInvalidTokenReceiver: u64 = 27;
+const ETokenTransferLimitExceeded: u64 = 28;
+const EPackageIdNotFound: u64 = 29;
+const EInvalidOwnerCap: u64 = 30;
+const EUnknownSequenceNumber: u64 = 31;
 
 const VERSION: u8 = 1;
 
@@ -491,6 +490,7 @@ public fun get_execution_state(
 ): u8 {
     assert!(state.execution_states.contains(source_chain_selector), EUnknownSourceChainSelector);
     let source_chain_execution_states = state.execution_states.borrow(source_chain_selector);
+    assert!(source_chain_execution_states.contains(sequence_number), EUnknownSequenceNumber);
     let execution_state = source_chain_execution_states.borrow(sequence_number);
     *execution_state
 }
@@ -652,16 +652,13 @@ fun pre_execute_single_report(
             message.token_amounts[0].dest_token_address,
         );
         assert!(token_pool_address != @0x0, EUnsupportedToken);
-        let mut amount_op = u256::try_as_u64(message.token_amounts[0].amount);
-        assert!(amount_op.is_some(), ETokenAmountOverflow);
-        let amount = amount_op.extract();
 
         osh::add_dest_token_transfer(
             state.dest_transfer_cap.borrow(),
             &mut receiver_params,
             message.token_receiver, // when sending tokens, token receiver will be included in the execution report
             source_chain_selector,
-            amount,
+            message.token_amounts[0].amount,
             message.token_amounts[0].dest_token_address,
             token_pool_address,
             message.token_amounts[0].source_pool_address,
@@ -669,7 +666,7 @@ fun pre_execute_single_report(
             execution_report.offchain_token_data[0],
         );
         token_addresses.push_back(message.token_amounts[0].dest_token_address);
-        token_amounts.push_back(amount);
+        token_amounts.push_back(message.token_amounts[0].amount);
     };
 
     let has_valid_message_receiver =

@@ -43,7 +43,7 @@ public struct DestTokenTransfer has copy, drop {
     token_receiver: address,
     remote_chain_selector: u64,
     // the amount of token to transfer, denoted from the source chain
-    source_amount: u64,
+    source_amount: u256,
     // the token's coin metadata object id on SUI
     dest_token_address: address,
     // the destination token pool package id on SUI
@@ -82,7 +82,7 @@ public fun add_dest_token_transfer(
     receiver_params: &mut ReceiverParams,
     token_receiver: address,
     remote_chain_selector: u64,
-    source_amount: u64,
+    source_amount: u256,
     dest_token_address: address,
     dest_token_pool_package_id: address,
     source_pool_address: vector<u8>,
@@ -117,31 +117,9 @@ public fun populate_message(
     receiver_params.message.fill(any2sui_message);
 }
 
-public fun create_dest_token_transfer(
-    token_receiver: address,
-    remote_chain_selector: u64,
-    source_amount: u64,
-    dest_token_address: address,
-    dest_token_pool_package_id: address,
-    source_pool_address: vector<u8>,
-    source_pool_data: vector<u8>,
-    offchain_token_data: vector<u8>,
-): DestTokenTransfer {
-    DestTokenTransfer {
-        token_receiver,
-        remote_chain_selector,
-        source_amount,
-        dest_token_address,
-        dest_token_pool_package_id,
-        source_pool_address,
-        source_pool_data,
-        offchain_token_data,
-    }
-}
-
 public fun get_dest_token_transfer_data(
     receiver_params: &ReceiverParams,
-): (address, u64, u64, address, address, vector<u8>, vector<u8>, vector<u8>) {
+): (address, u64, u256, address, address, vector<u8>, vector<u8>, vector<u8>) {
     assert!(receiver_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
 
     let token_transfer = receiver_params.token_transfer.borrow();
@@ -159,7 +137,7 @@ public fun get_dest_token_transfer_data(
 
 public fun get_token_param_data(
     receiver_params: &ReceiverParams,
-): (address, u64, address, vector<u8>, vector<u8>, vector<u8>) {
+): (address, u256, address, vector<u8>, vector<u8>, vector<u8>) {
     assert!(receiver_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
     let token_param = receiver_params.token_transfer.borrow();
 

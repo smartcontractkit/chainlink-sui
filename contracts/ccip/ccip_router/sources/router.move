@@ -39,9 +39,8 @@ const EParamsLengthMismatch: u64 = 1;
 const EOnrampNotFound: u64 = 2;
 const EInvalidOwnerCap: u64 = 3;
 const EInvalidFunction: u64 = 4;
-const EInvalidStateAddress: u64 = 5;
-const EInvalidObjectAddress: u64 = 6;
-const EInvalidOnrampAddress: u64 = 7;
+const EInvalidObjectAddress: u64 = 5;
+const EInvalidOnrampAddress: u64 = 6;
 
 fun init(_witness: ROUTER, ctx: &mut TxContext) {
     let mut router_object = RouterObject { id: object::new(ctx) };

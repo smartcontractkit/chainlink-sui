@@ -2,16 +2,15 @@
 
 [move]
 version = 3
-manifest_digest = "C76DD278314FF86495A48BE1F4FAEFF047E2F74F164BF4D62B863535EEEB82C8"
-deps_digest = "CAFAD8A7CF51067FB4358215BECB86BD100DD64E57C2AC8A7AE7D74B688F5965"
+manifest_digest = "07262876F1E7ADE537C10B2CB719CF7DEF0AD3C2BD1C4323E8A8461A466CA871"
+deps_digest = "52B406A7A21811BEF51751CF88DA0E76DAEFFEAC888D4F4060B1A72BBE7D8D35"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
   { id = "CCIPTokenPool", name = "CCIPTokenPool" },
-  { id = "MessageTransmitter", name = "MessageTransmitter" },
+  { id = "ChainlinkManyChainMultisig", name = "ChainlinkManyChainMultisig" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
-  { id = "TokenMessengerMinter", name = "TokenMessengerMinter" },
 ]
 
 [[move.package]]
@@ -60,18 +59,6 @@ dependencies = [
 ]
 
 [[move.package]]
-id = "MessageTransmitter"
-source = { local = "../../../vendored/circlefin/sui-cctp/packages/message_transmitter" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-  { id = "sui_extensions", name = "sui_extensions" },
-]
-
-[[move.package]]
 id = "MoveStdlib"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "4e8b6eda7d6411d80c62f39ac8a4f028e8d174c4", subdir = "crates/sui-framework/packages/move-stdlib" }
 
@@ -90,43 +77,6 @@ source = { git = "https://github.com/MystenLabs/sui.git", rev = "4e8b6eda7d6411d
 dependencies = [
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "TokenMessengerMinter"
-source = { local = "../../../vendored/circlefin/sui-cctp/packages/token_messenger_minter" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "MessageTransmitter", name = "MessageTransmitter" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-  { id = "stablecoin", name = "stablecoin" },
-  { id = "sui_extensions", name = "sui_extensions" },
-]
-
-[[move.package]]
-id = "stablecoin"
-source = { local = "../../../vendored/circlefin/stablecoin-sui/packages/stablecoin" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
-  { id = "sui_extensions", name = "sui_extensions" },
-]
-
-[[move.package]]
-id = "sui_extensions"
-source = { local = "../../../vendored/circlefin/stablecoin-sui/packages/sui_extensions" }
-
-dependencies = [
-  { id = "Bridge", name = "Bridge" },
-  { id = "MoveStdlib", name = "MoveStdlib" },
-  { id = "Sui", name = "Sui" },
-  { id = "SuiSystem", name = "SuiSystem" },
 ]
 
 [move.toolchain-version]

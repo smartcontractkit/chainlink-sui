@@ -90,7 +90,7 @@ public struct Any2SuiMessage {
 
 public struct Any2SuiTokenAmount has copy, drop, store {
     token: address,
-    amount: u64,
+    amount: u256,
 }
 
 public(package) fun new_any2sui_message(
@@ -128,7 +128,7 @@ public(package) fun consume_any2sui_message(
 
 public fun new_dest_token_amounts(
     token_addresses: vector<address>,
-    token_amounts: vector<u64>,
+    token_amounts: vector<u256>,
 ): vector<Any2SuiTokenAmount> {
     token_addresses.zip_map_ref!(&token_amounts, |token_address, token_amount| {
         Any2SuiTokenAmount { token: *token_address, amount: *token_amount }
@@ -139,10 +139,10 @@ public fun get_token(input: &Any2SuiTokenAmount): address {
     input.token
 }
 
-public fun get_amount(input: &Any2SuiTokenAmount): u64 {
+public fun get_amount(input: &Any2SuiTokenAmount): u256 {
     input.amount
 }
 
-public fun get_token_and_amount(input: &Any2SuiTokenAmount): (address, u64) {
+public fun get_token_and_amount(input: &Any2SuiTokenAmount): (address, u256) {
     (input.token, input.amount)
 }
