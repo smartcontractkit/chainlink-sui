@@ -252,6 +252,25 @@ public fun mcms_transfer_ownership(
     transfer_ownership(ref, owner_cap, to, ctx);
 }
 
+public fun mcms_accept_ownership(
+    ref: &mut CCIPObjectRef,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+        params,
+        McmsCallback {},
+    );
+    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(ref), &mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let mcms = mcms_registry::get_multisig_address();
+    ownable::mcms_accept_ownership(&mut ref.ownable_state, mcms, ctx);
+}
+
 public fun mcms_execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,

@@ -144,7 +144,7 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 		Inputs: []any{
 			ccipops.AcceptOwnershipStateObjectInput{
 				CCIPPackageId:         s.ccipPackageId,
-				CCIPObjectRefObjectId: s.ccipObjects.OwnerCapObjectId,
+				CCIPObjectRefObjectId: s.ccipObjects.CCIPObjectRefObjectId,
 			},
 		},
 		// MCMS related
@@ -165,7 +165,11 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	timelockProposal := acceptOwnershipProposalReport.Output
 
 	// 3. Execute transfer ownership from original owner
+	// 3.1. Execute the proposal
 	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+	// 3.2. Finish the ownership transfer with the original owner signer
+	_, err = ccipContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipObjects.OwnerCapObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
+	s.Require().NoError(err, "executing ownership transfer of CCIP to MCMS")
 
 	// 4. Verify the new owner is MCMS
 	newOwner, err := ccipContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId})
@@ -174,5 +178,5 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 }
 
 func RunTestCCIPProposal(s *CCIPMCMSTestSuite) {
-
+	// TODO: Build a proposal that changes some configuration in CCIP
 }

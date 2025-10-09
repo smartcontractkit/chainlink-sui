@@ -97,6 +97,7 @@ func (s *MCMSTestSuite) SetupSuite() {
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
+				Signer:           signer,
 			}
 		},
 	}
