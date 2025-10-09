@@ -1,769 +1,146 @@
 //go:build integration
 
-package mcms_test
+package mcms
 
 import (
-	"bytes"
-	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
-	"math/big"
-	"sort"
 	"testing"
-	"time"
 
-	sdkSigner "github.com/block-vision/sui-go-sdk/signer"
-
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/holiman/uint256"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
+	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 	"github.com/stretchr/testify/require"
-
-	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
-	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
-	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
 
-type TestSetupOutputs struct {
-	mcmsPackageId         string
-	mcmsTestPackageId     string
-	mcmsPublishOutput     testutils.TxnMetaWithObjectChanges
-	mcmsTestPublishOutput testutils.TxnMetaWithObjectChanges
+type CCIPMCMSTestSuite struct {
+	MCMSTestSuite
+
+	ccipPackageId string
+	ccipObjects   ccipops.DeployCCIPSeqObjects
 }
 
-const (
-	MINUTE_IN_MS = 60_000
-)
+func (s *CCIPMCMSTestSuite) SetupSuite() {
+	s.MCMSTestSuite.SetupSuite()
 
-// ------------------------------------------
-//
-//	Setup and Helpers
-//
-// ------------------------------------------
-// setupTestEnvironment sets up the test environment with a local Sui node and deploys the counter contract
-func setupTestEnvironment(t *testing.T) (
-	log logger.Logger,
-	accountAddress string,
-	ptbClient *client.PTBClient,
-	outputs TestSetupOutputs,
-	publicKeyBytes []byte,
-	signer *sdkSigner.Signer,
-) {
-	t.Helper()
-	ctx := context.Background()
-	log = logger.Test(t)
+	// Deploy LINK
+	linkReport, err := cld_ops.ExecuteOperation(s.bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
+	require.NoError(s.T(), err, "failed to deploy LINK token")
 
-	// Start local Sui node
-	cmd, err := testutils.StartSuiNode(testutils.CLI)
-	require.NoError(t, err)
-	log.Debugw("Started Sui node")
+	configDigestHex := "e3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	configDigest, err := hex.DecodeString(configDigestHex)
+	require.NoError(s.T(), err, "failed to decode config digest")
 
-	// setup keystore instance
-	keystoreInstance := testutils.NewTestKeystore(t)
-	accountAddress, publicKeyBytes = testutils.GetAccountAndKeyFromSui(keystoreInstance)
+	publicKey1Hex := "8a1b2c3d4e5f60718293a4b5c6d7e8f901234567"
+	publicKey1, err := hex.DecodeString(publicKey1Hex)
+	require.NoError(s.T(), err, "failed to decode public key 1")
 
-	// Ensure the process is killed when the test completes
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			perr := cmd.Process.Kill()
-			if perr != nil {
-				t.Logf("Failed to kill process: %v", perr)
-			}
-		}
+	publicKey2Hex := "7b8c9dab0c1d2e3f405162738495a6b7c8d9e0f1"
+	publicKey2, err := hex.DecodeString(publicKey2Hex)
+	require.NoError(s.T(), err, "failed to decode public key 2")
+
+	publicKey3Hex := "1234567890abcdef1234567890abcdef12345678"
+	publicKey3, err := hex.DecodeString(publicKey3Hex)
+	require.NoError(s.T(), err, "failed to decode public key 3")
+
+	publicKey4Hex := "90abcdef1234567890abcdef1234567890abcdef"
+	publicKey4, err := hex.DecodeString(publicKey4Hex)
+	require.NoError(s.T(), err, "failed to decode public key 4")
+
+	// Use the same seq as in production deployment
+	report, err := cld_ops.ExecuteSequence(s.bundle, ccipops.DeployAndInitCCIPSequence, s.deps, ccipops.DeployAndInitCCIPSeqInput{
+		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
+		LocalChainSelector:            1,
+		DestChainSelector:             2,
+		DeployCCIPInput: ccipops.DeployCCIPInput{
+			McmsPackageId: s.mcmsPackageID,
+			McmsOwner:     s.mcmsOwnerAddress,
+		},
+		MaxFeeJuelsPerMsg:            "100000000",
+		TokenPriceStalenessThreshold: 60,
+		// Fee Quoter configuration
+		AddMinFeeUsdCents:    []uint32{3000},
+		AddMaxFeeUsdCents:    []uint32{30000},
+		AddDeciBps:           []uint16{1000},
+		AddDestGasOverhead:   []uint32{1000000},
+		AddDestBytesOverhead: []uint32{1000},
+		AddIsEnabled:         []bool{true},
+		RemoveTokens:         []string{},
+		// Fee Quoter destination chain configuration
+		IsEnabled:                         true,
+		MaxNumberOfTokensPerMsg:           2,
+		MaxDataBytes:                      2000,
+		MaxPerMsgGasLimit:                 5000000,
+		DestGasOverhead:                   1000000,
+		DestGasPerPayloadByteBase:         byte(2),
+		DestGasPerPayloadByteHigh:         byte(5),
+		DestGasPerPayloadByteThreshold:    uint16(10),
+		DestDataAvailabilityOverheadGas:   300000,
+		DestGasPerDataAvailabilityByte:    4,
+		DestDataAvailabilityMultiplierBps: 1,
+		ChainFamilySelector:               []byte{0x28, 0x12, 0xd5, 0x2c},
+		EnforceOutOfOrder:                 false,
+		DefaultTokenFeeUsdCents:           3,
+		DefaultTokenDestGasOverhead:       100000,
+		DefaultTxGasLimit:                 500000,
+		GasMultiplierWeiPerEth:            100,
+		GasPriceStalenessThreshold:        1000000000,
+		NetworkFeeUsdCents:                10,
+		// Premium multiplier updates
+		PremiumMultiplierWeiPerEth: []uint64{10},
+
+		RmnHomeContractConfigDigest: configDigest,
+		SignerOnchainPublicKeys:     [][]byte{publicKey1, publicKey2, publicKey3, publicKey4},
+		NodeIndexes:                 []uint64{0, 1, 2, 3},
+		FSign:                       uint64(1),
+	})
+	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
+	require.NotEmpty(s.T(), report.Output.CCIPPackageId, "CCIP package ID should not be empty")
+
+	s.ccipPackageId = report.Output.CCIPPackageId
+	s.ccipObjects = report.Output.Objects
+}
+
+func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
+	s.T().Run("Transfer Ownership of CCIP to MCMS", func(t *testing.T) {
+		RunTestCCIPOwnershipTransfer(s)
 	})
 
-	// Fund the account
-	err = testutils.FundWithFaucet(log, testutils.SuiLocalnet, accountAddress)
-	require.NoError(t, err)
+	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
+		RunTestCCIPProposal(s)
+	})
+}
 
-	// Create client
-	ptbClient, err = client.NewPTBClient(log, testutils.LocalUrl, nil, 10*time.Second, keystoreInstance, 5, "WaitForLocalExecution")
-	require.NoError(t, err)
+// TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
+func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
+	// 1. Transfer OwnerCap of CCIP to MCMS
+	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
+	require.NoError(s.T(), err, "creating ccip state object contract")
 
-	// Build and publish contracts
-	gasBudget := int(2000000000)
-	mcmsContractPath := testutils.BuildSetup(t, "contracts/mcms/mcms")
-	mcmsPackageId, mcmsPublishOutput, err := testutils.PublishContract(t, "ChainlinkManyChainMultisig", mcmsContractPath, "", &gasBudget)
-	require.NoError(t, err)
-	log.Debugw("Published MCMS Contract", "packageId", mcmsPackageId)
-
-	mcmsTestContractPath := testutils.BuildSetup(t, "contracts/mcms/mcms_test")
-	testutils.PatchContractDevAddressTOML(t, "contracts/mcms/mcms_test", "mcms", mcmsPackageId)
-	mcmsTestPackageId, mcmsTestPublishOutput, err := testutils.PublishContract(
-		t,
-		"TestModule",
-		mcmsTestContractPath,
-		fmt.Sprint("mcms=", mcmsPackageId),
-		&gasBudget,
+	tx, err := ccipContract.TransferOwnership(
+		s.T().Context(),
+		&bind.CallOpts{
+			Signer:           s.signer,
+			WaitForExecution: true,
+		},
+		bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId},
+		bind.Object{Id: s.ccipObjects.OwnerCapObjectId},
+		// TODO: not sure which address should be
+		s.mcmsPackageID,
 	)
-	require.NoError(t, err)
-	log.Debugw("Published MCMS Test Contract", "packageId", mcmsTestPackageId)
+	require.NoError(s.T(), err, "transferring ownership of CCIP to MCMS")
+	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
 
-	// Debug print results
-	testutils.PrettyPrintDebug(log, mcmsTestPublishOutput, "mcms_test_publish")
-	testutils.PrettyPrintDebug(log, mcmsPublishOutput, "mcms_publish")
+	s.T().Logf("✅ Transferred ownership of CCIP to MCMS in tx: %s", tx.Digest)
 
-	outputs = TestSetupOutputs{
-		mcmsPackageId:         mcmsPackageId,
-		mcmsTestPackageId:     mcmsTestPackageId,
-		mcmsPublishOutput:     mcmsPublishOutput,
-		mcmsTestPublishOutput: mcmsTestPublishOutput,
-	}
+	// 2. Proposal execution with acceptance from MCMS (through proposer)
+	// acceptOwnershipProposal, err := mcmsops.
 
-	signerId := fmt.Sprintf("%064x", publicKeyBytes)
-	sgnr := keystoreInstance.GetSuiSigner(ctx, signerId)
 
-	return log, accountAddress, ptbClient, outputs, publicKeyBytes, sgnr
+	// 3. Execute transfer ownership from original owner
 }
 
-// ------------------------------------------------
-//
-//	MCMS Test Contract
-//
-// ------------------------------------------------
-//
-//nolint:paralleltest
-func TestMCMS(t *testing.T) {
-	// Set up the test environment
-	log, _, ptbClient, outputs, publicKeyBytes, signer := setupTestEnvironment(t)
+func RunTestCCIPProposal(s *CCIPMCMSTestSuite) {
 
-	// Extract relevant IDs
-	ownerCapObjId, err := testutils.QueryCreatedObjectID(outputs.mcmsPublishOutput.ObjectChanges, outputs.mcmsPackageId, "mcms_account", "OwnerCap")
-	require.NoError(t, err)
-	accountStateObjId, err := testutils.QueryCreatedObjectID(outputs.mcmsPublishOutput.ObjectChanges, outputs.mcmsPackageId, "mcms_account", "AccountState")
-	require.NoError(t, err)
-	multisigStateObjId, err := testutils.QueryCreatedObjectID(outputs.mcmsPublishOutput.ObjectChanges, outputs.mcmsPackageId, "mcms", "MultisigState")
-	require.NoError(t, err)
-	timelockObjId, err := testutils.QueryCreatedObjectID(outputs.mcmsPublishOutput.ObjectChanges, outputs.mcmsPackageId, "mcms", "Timelock")
-	require.NoError(t, err)
-	registryObjId, err := testutils.QueryCreatedObjectID(outputs.mcmsPublishOutput.ObjectChanges, outputs.mcmsPackageId, "mcms_registry", "Registry")
-	require.NoError(t, err)
-
-	log.Debugw("OwnerCap object created", "ownerCapObjectId", ownerCapObjId)
-	log.Debugw("AccountState object created", "accountStateObjectId", accountStateObjId)
-	log.Debugw("MultisigState object created", "multisigStateObjectId", multisigStateObjId)
-	log.Debugw("Timelock object created", "timelockObjectId", timelockObjId)
-	log.Debugw("Registry object created", "registryObjectId", registryObjId)
-
-	// Some PTB functions that will be re-used in the chainwriter config below
-	setConfigOnlyPTBFunc := cwConfig.ChainWriterPTBCommand{
-		// set_config
-		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: &outputs.mcmsPackageId,
-		ModuleId:  testutils.StringPointer("mcms"),
-		Function:  testutils.StringPointer("set_config"),
-		Params: []codec.SuiFunctionParam{
-			{
-				Name:     "owner_cap_id",
-				Type:     "object_id",
-				Required: true,
-			},
-			{
-				Name:     "multisig_state_id",
-				Type:     "object_id",
-				Required: true,
-			},
-			{
-				Name:     "role",
-				Type:     "u8",
-				Required: true,
-			},
-			{
-				Name:     "chain_id",
-				Type:     "u256",
-				Required: true,
-			},
-			{
-				Name:     "signer_addresses",
-				Type:     "vector<vector<u8>>",
-				Required: true,
-			},
-			{
-				Name:     "signer_groups",
-				Type:     "vector<u8>",
-				Required: true,
-			},
-			{
-				Name:     "group_quorums",
-				Type:     "vector<u8>",
-				Required: true,
-			},
-			{
-				Name:     "group_parents",
-				Type:     "vector<u8>",
-				Required: true,
-			},
-			{
-				Name:     "clear_root",
-				Type:     "bool",
-				Required: true,
-			},
-		},
-	}
-
-	setRootPTBFunc := cwConfig.ChainWriterPTBCommand{
-		// set_root
-		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: &outputs.mcmsPackageId,
-		ModuleId:  testutils.StringPointer("mcms"),
-		Function:  testutils.StringPointer("set_root"),
-		Params: []codec.SuiFunctionParam{
-			{
-				Name:     "multisig_state_id",
-				Type:     "object_id",
-				Required: true,
-			},
-			{
-				Name:         "clock",
-				Type:         "object_id",
-				Required:     true,
-				DefaultValue: "0x06",
-				IsMutable:    testutils.BoolPointer(false),
-			},
-			{
-				Name:     "role",
-				Type:     "u8",
-				Required: true,
-			},
-			{
-				Name:     "root",
-				Type:     "vector<u8>",
-				Required: true,
-			},
-			{
-				Name:     "valid_until",
-				Type:     "u64",
-				Required: true,
-			},
-			{
-				Name:     "chain_id",
-				Type:     "u256",
-				Required: true,
-			},
-			{
-				Name:     "multisig_addr",
-				Type:     "vector<u8>",
-				Required: true,
-			},
-			{
-				Name:     "pre_op_count",
-				Type:     "u64",
-				Required: true,
-			},
-			{
-				Name:     "post_op_count",
-				Type:     "u64",
-				Required: true,
-			},
-			{
-				Name:     "override_previous_root",
-				Type:     "bool",
-				Required: true,
-			},
-			{
-				Name:     "metadata_proof",
-				Type:     "vector<vector<u8>>",
-				Required: true,
-			},
-			{
-				Name:     "signatures",
-				Type:     "vector<vector<u8>>",
-				Required: true,
-			},
-		},
-	}
-
-	executePTBFunc := cwConfig.ChainWriterPTBCommand{
-		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: &outputs.mcmsPackageId,
-		ModuleId:  testutils.StringPointer("mcms"),
-		Function:  testutils.StringPointer("execute"),
-		Params: []codec.SuiFunctionParam{
-			{
-				Name:     "multisig_state_id",
-				Type:     "object_id",
-				Required: true,
-			},
-			{
-				Name:         "clock",
-				Type:         "object_id",
-				Required:     true,
-				DefaultValue: "0x06",
-				IsMutable:    testutils.BoolPointer(false),
-			},
-			{
-				Name:     "role",
-				Type:     "u8",
-				Required: true,
-			},
-			{
-				Name:     "chain_id",
-				Type:     "u256",
-				Required: true,
-			},
-			{
-				Name:     "multisig_addr",
-				Type:     "vector<u8>",
-				Required: true,
-			},
-			{
-				Name:     "nonce",
-				Type:     "u64",
-				Required: true,
-			},
-			{
-				Name:     "to",
-				Type:     "address",
-				Required: true,
-			},
-			{
-				Name:     "module_name",
-				Type:     "string",
-				Required: true,
-			},
-			{
-				Name:     "function_name",
-				Type:     "string",
-				Required: true,
-			},
-			{
-				Name:     "data",
-				Type:     "vector<u8>",
-				Required: true,
-			},
-			{
-				Name:     "proof",
-				Type:     "vector<vector<u8>>",
-				Required: true,
-			},
-		},
-	}
-
-	timelockScheduleBatchPTBFunc := cwConfig.ChainWriterPTBCommand{
-		Type:      codec.SuiPTBCommandMoveCall,
-		PackageId: &outputs.mcmsPackageId,
-		ModuleId:  testutils.StringPointer("mcms"),
-		Function:  testutils.StringPointer("dispatch_timelock_schedule_batch"),
-		Params: []codec.SuiFunctionParam{
-			{
-				Name:     "timelock",
-				Type:     "object_id",
-				Required: true,
-			},
-			{
-				Name:      "clock",
-				Type:      "object_id",
-				Required:  true,
-				IsMutable: testutils.BoolPointer(false),
-			},
-			{
-				Name: "timelock_callback_params",
-				Type: "hot_potato",
-				PTBDependency: &codec.PTBCommandDependency{
-					CommandIndex: 2,
-					ResultIndex:  nil,
-				},
-				Required: true,
-			},
-		},
-	}
-
-	// Create PTB Constructor config
-	config := cwConfig.ChainWriterConfig{
-		Modules: map[string]*cwConfig.ChainWriterModule{
-			"mcms_ptb_test": {
-				Name:     "mcms_ptb_test",
-				ModuleID: "0x123",
-				Functions: map[string]*cwConfig.ChainWriterFunction{
-					"set_config": {
-						Name:      "set_config",
-						PublicKey: publicKeyBytes,
-						PTBCommands: []cwConfig.ChainWriterPTBCommand{
-							setConfigOnlyPTBFunc,
-						},
-					},
-					"set_config_and_root": {
-						Name:      "set_config_and_root",
-						PublicKey: publicKeyBytes,
-						PTBCommands: []cwConfig.ChainWriterPTBCommand{
-							setConfigOnlyPTBFunc,
-							setRootPTBFunc,
-						},
-					},
-					"timelock_execute": {
-						Name:      "timelock_execute",
-						PublicKey: publicKeyBytes,
-						PTBCommands: []cwConfig.ChainWriterPTBCommand{
-							// set_config
-							setConfigOnlyPTBFunc,
-							// set_root
-							setRootPTBFunc,
-							// execute
-							executePTBFunc,
-							// timelock schedule batch
-							timelockScheduleBatchPTBFunc,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	constructor := ptb.NewPTBConstructor(config, ptbClient, log)
-	require.NotNil(t, constructor)
-
-	ctx := context.Background()
-
-	//nolint:paralleltest
-	t.Run("MCMS set_config with invalid role", func(t *testing.T) {
-		// Create quorums array for config
-		quorums := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			quorums[i] = 0
-		}
-		quorums[0] = 2
-
-		// Create parents array for config
-		parents := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			parents[i] = 0
-		}
-
-		// Create signer addresses
-		signerAddresses := [][]byte{
-			{0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
-			{0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02},
-			{0x00, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03},
-		}
-
-		args := cwConfig.Arguments{
-			Args: map[string]any{
-				"owner_cap_id":      ownerCapObjId,
-				"multisig_state_id": multisigStateObjId,
-				"role":              uint8(100),
-				"chain_id":          "77",
-				"signer_addresses":  signerAddresses,
-				"signer_groups":     []uint8{0, 0, 0},
-				"group_quorums":     quorums,
-				"group_parents":     parents,
-				"clear_root":        false,
-			},
-		}
-
-		functionConfig := config.Modules["mcms_ptb_test"].Functions["set_config"]
-
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "", functionConfig)
-		require.NoError(t, err)
-		require.NotNil(t, ptb)
-
-		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, signer, ptb, "WaitForLocalExecution")
-		testutils.PrettyPrintDebug(log, ptbResult, "ptb_result")
-		require.NoError(t, err)
-		require.Equal(t, "failure", ptbResult.Status.Status)
-	})
-
-	//nolint:paralleltest
-	t.Run("MCMS set_config with valid role", func(t *testing.T) {
-		// Create quorums array for config
-		quorums := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			quorums[i] = 0
-		}
-		quorums[0] = 2
-
-		// Create parents array for config
-		parents := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			parents[i] = 0
-		}
-
-		// Create signer addresses
-		signerAddresses := [][]byte{
-			{0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
-			{0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02},
-			{0x00, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03},
-		}
-
-		args := cwConfig.Arguments{
-			Args: map[string]any{
-				"owner_cap_id":      ownerCapObjId,
-				"multisig_state_id": multisigStateObjId,
-				"role":              uint8(1),
-				"chain_id":          "77",
-				"signer_addresses":  signerAddresses,
-				"signer_groups":     []uint8{0, 0, 0},
-				"group_quorums":     quorums,
-				"group_parents":     parents,
-				"clear_root":        false,
-			},
-		}
-
-		functionConfig := config.Modules["mcms_ptb_test"].Functions["set_config"]
-
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config", args, "", functionConfig)
-		require.NoError(t, err)
-		require.NotNil(t, ptb)
-
-		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, signer, ptb, "WaitForLocalExecution")
-		testutils.PrettyPrintDebug(log, ptbResult, "ptb_result")
-		require.NoError(t, err)
-		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
-	})
-
-	//nolint:paralleltest
-	t.Run("MCMS set config and set root with invalid root and signatures", func(t *testing.T) {
-		acc_1_priv_key, _ := testutils.GenerateFromHexSeed(testutils.ACCOUNT_1_SEED)
-		acc_2_priv_key, _ := testutils.GenerateFromHexSeed(testutils.ACCOUNT_2_SEED)
-		acc_3_priv_key, _ := testutils.GenerateFromHexSeed(testutils.ACCOUNT_3_SEED)
-
-		// Get addresses from private keys
-		acc_1_addr := crypto.PubkeyToAddress(acc_1_priv_key.PublicKey).Bytes()
-		acc_2_addr := crypto.PubkeyToAddress(acc_2_priv_key.PublicKey).Bytes()
-		acc_3_addr := crypto.PubkeyToAddress(acc_3_priv_key.PublicKey).Bytes()
-
-		// Create a slice of addresses
-		addresses := [][]byte{acc_1_addr, acc_2_addr, acc_3_addr}
-
-		// Sort addresses lexicographically
-		sort.Slice(addresses, func(i, j int) bool {
-			return bytes.Compare(addresses[i], addresses[j]) < 0
-		})
-
-		// Create quorums array for config
-		quorums := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			quorums[i] = 0
-		}
-		quorums[0] = 2
-
-		// Create parents array for config
-		parents := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			parents[i] = 0
-		}
-
-		args := cwConfig.Arguments{
-			Args: map[string]any{
-				"owner_cap_id":           ownerCapObjId,
-				"multisig_state_id":      multisigStateObjId,
-				"role":                   uint8(0),
-				"chain_id":               uint256.Int{77},
-				"signer_addresses":       addresses,
-				"signer_groups":          []uint8{0, 0, 0},
-				"group_quorums":          quorums,
-				"group_parents":          parents,
-				"clear_root":             false,
-				"root":                   [][]byte{},
-				"multisig_addr":          []byte(outputs.mcmsPackageId),
-				"pre_op_count":           uint64(0),
-				"post_op_count":          uint64(1),
-				"override_previous_root": false,
-				"metadata_proof":         [][]byte{{0x01}},
-				"signatures":             [][]byte{{0x05}, {0x06}, {0x07}},
-				"valid_until":            uint64(999),
-				"clock":                  "0x06",
-			},
-		}
-
-		functionConfig := config.Modules["mcms_ptb_test"].Functions["set_config_and_root"]
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "set_config_and_root", args, "", functionConfig)
-		require.NoError(t, err)
-		require.NotNil(t, ptb)
-
-		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, signer, ptb, "WaitForLocalExecution")
-
-		require.NoError(t, err)
-		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "failure", ptbResult.Status.Status)
-	})
-
-	//nolint:paralleltest
-	t.Run("MCMS timelock execution happy path", func(t *testing.T) {
-		t.Skip("Skipping until MCMS changes are validated")
-		proposerRole := uint8(2)
-		signers := []testutils.ECDSAKeyPair{}
-
-		for range 3 {
-			acc_priv_key, err := testutils.GenerateKeyPair()
-			require.NoError(t, err)
-
-			signers = append(signers, testutils.ECDSAKeyPair{
-				PrivateKey: *acc_priv_key,
-				PublicKey:  acc_priv_key.PublicKey,
-				Address:    crypto.PubkeyToAddress(acc_priv_key.PublicKey).Bytes(),
-			})
-		}
-
-		// Sort addresses lexicographically
-		sort.Slice(signers, func(i, j int) bool {
-			return bytes.Compare(signers[i].Address, signers[j].Address) < 0
-		})
-
-		// Convert to bytes in the correct format
-		packageBytes, err := hex.DecodeString(outputs.mcmsPackageId)
-		require.NoError(t, err)
-
-		// override package address bytes to zeros because the address that is used in [dev-addresses]
-		// in the mcms's TOML file is 0x00
-		for i := range 32 {
-			packageBytes[i] = 0
-		}
-
-		// Construct a timelock operation and serialize its data to be included in the main operation's
-		// `data` entry
-		scheduleBatchOps := []testutils.TimelockOperation{
-			{
-				Target:       packageBytes,
-				ModuleName:   "mcms",
-				FunctionName: "timelock_schedule_batch",
-				Data:         []byte{},
-			},
-		}
-		scheduleBatchPredecessor := []byte{}
-		salt := []byte{}
-		delay := uint64(0)
-		serializedBatchData, err := testutils.SerializeScheduleBatchParams(scheduleBatchOps, scheduleBatchPredecessor, salt, delay)
-		require.NoError(t, err)
-
-		// Create a valid root for the test using the merkle tree utilities
-		// Define the operation for the merkle tree
-		op := testutils.Op{
-			Role:         proposerRole,
-			ChainID:      big.NewInt(77),
-			MultiSig:     packageBytes,
-			Nonce:        0,
-			To:           packageBytes, // Target address for the operation
-			ModuleName:   "mcms",
-			FunctionName: "timelock_schedule_batch",
-			Data:         serializedBatchData, // Operation data
-		}
-
-		// Define the root metadata
-		rootMetadata := testutils.RootMetadata{
-			Role:                 proposerRole,
-			ChainID:              big.NewInt(77),
-			MultiSig:             packageBytes,
-			PreOpCount:           0,
-			PostOpCount:          1,
-			OverridePreviousRoot: false,
-		}
-
-		// Generate the merkle tree with the operation and metadata
-		merkleTree, err := testutils.GenerateMerkleTree([]testutils.Op{op}, rootMetadata)
-		require.NoError(t, err)
-
-		// Get the root and proof for the metadata leaf (index 0)
-		root := merkleTree.GetRoot()
-		rootBytes := make([]byte, 32)
-		copy(rootBytes, root[:])
-		metadataProof := merkleTree.GetProof(0)
-
-		// Convert proof to the format expected by the contract
-		metadataProofBytes := make([][]byte, len(metadataProof))
-		for i, p := range metadataProof {
-			metadataProofBytes[i] = p[:]
-		}
-
-		// Calculate the hash that needs to be signed
-		//nolint:all
-		validUntil := uint64(time.Now().UnixMilli() + MINUTE_IN_MS)
-		signedHash := testutils.CalculateSignedHash(root, validUntil)
-
-		log.Debugw("signedHash", "value", signedHash, "length", len(signedHash))
-
-		// Generate signatures
-		signatures := testutils.GenerateSignatures(t,
-			[]ecdsa.PrivateKey{signers[0].PrivateKey, signers[1].PrivateKey, signers[2].PrivateKey},
-			signedHash)
-
-		for i, signature := range signatures {
-			_ = testutils.VerifySignatureRecovery(t, signature, signedHash[:], signers[i].Address)
-			log.Debugf("Address [%d]: %d", i, signers[i].Address)
-		}
-
-		// Prepare signer addresses array
-		signerAddresses := make([][]uint8, 3)
-		for i := range 3 {
-			signerAddresses[i] = signers[i].Address
-		}
-
-		// Create quorums array
-		quorums := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			quorums[i] = 0
-		}
-		quorums[0] = 2
-
-		// Create parents array
-		parents := make([]uint8, 32)
-		for i := 1; i < 32; i++ {
-			parents[i] = 0
-		}
-
-		// Get the proof for the next operation
-		executeProof := merkleTree.GetProof(1)
-		executeProofBytes := make([][]byte, len(executeProof))
-		for i, p := range executeProof {
-			executeProofBytes[i] = p[:]
-		}
-
-		log.Debugw("rootBytes", "value", rootBytes, "length", len(rootBytes))
-
-		args := cwConfig.Arguments{
-			Args: map[string]any{
-				// Args for set_config
-				"owner_cap_id":      ownerCapObjId,
-				"multisig_state_id": multisigStateObjId,
-				"role":              proposerRole,
-				"chain_id":          "77",
-				"signer_addresses":  signerAddresses,
-				"signer_groups":     []uint8{0, 0, 0},
-				"group_quorums":     quorums,
-				"group_parents":     parents,
-				"clear_root":        false,
-
-				// Additional args for set_root operation
-				"root":                   rootBytes,
-				"multisig_addr":          packageBytes,
-				"pre_op_count":           uint64(0),
-				"post_op_count":          uint64(1),
-				"override_previous_root": false,
-				"metadata_proof":         metadataProofBytes,
-				"signatures":             signatures,
-				"valid_until":            validUntil,
-				"clock":                  "0x06",
-
-				// Additional args for execute operation
-				"nonce":         uint64(0),
-				"to":            packageBytes,
-				"module_name":   "mcms",
-				"function_name": "timelock_schedule_batch",
-				"data":          serializedBatchData,
-				"proof":         executeProofBytes,
-
-				// Additional args for timelock_execute_batch
-				"timelock": timelockObjId,
-			},
-		}
-
-		functionConfig := config.Modules["mcms_ptb_test"].Functions["timelock_execute"]
-		ptb, err := constructor.BuildPTBCommands(ctx, "mcms_ptb_test", "timelock_execute", args, "", functionConfig)
-		require.NoError(t, err)
-		require.NotNil(t, ptb)
-
-		// Execute the PTB command
-		ptbResult, err := ptbClient.FinishPTBAndSend(ctx, signer, ptb, "WaitForLocalExecution")
-		testutils.PrettyPrintDebug(log, ptbResult, "ptb_result")
-		require.NoError(t, err)
-		require.NotEmpty(t, ptbResult)
-		require.Equal(t, "success", ptbResult.Status.Status)
-	})
 }
