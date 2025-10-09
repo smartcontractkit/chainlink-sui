@@ -129,6 +129,14 @@ func NewPTBClient(
 
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	start := time.Now()
+
+	// Keep track of the number of times WithRateLimit is called
+	_, ok := c.cache.Get("WithRateLimitCount")
+	if !ok {
+		c.cache.SetDefault("WithRateLimitCount", uint(0))
+	}
+	newCount, err := c.cache.IncrementUint("WithRateLimitCount", 1)
+	c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
 	c.log.Debugw("WithRateLimit starting", "methodName", methodName, "timestamp", start.Format(time.RFC3339))
 
 	// the work itself should time out by transactionTimeout
@@ -155,6 +163,9 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 			c.log.Debugw("WithRateLimit panicked", "methodName", methodName, "timestamp", time.Now().Format(time.RFC3339), "duration", time.Since(start))
 			panic(r)
 		}
+
+		newCount, err := c.cache.DecrementUint("WithRateLimitCount", 1)
+		c.log.Debugw("WithRateLimit count", "count", newCount, "error", err)
 	}()
 
 	// run the user function with the timeout context
@@ -845,6 +856,8 @@ func (c *PTBClient) GetSUIBalance(ctx context.Context, address string) (*big.Int
 }
 
 func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, module string) (models.GetNormalizedMoveModuleResponse, error) {
+	c.log.Debugw("Getting normalized module", "packageId", packageId, "module", module)
+
 	// check if the normalized module is already cached
 	normalizedModule, ok := c.normalizedModules[packageId][module]
 	if ok {
@@ -859,12 +872,16 @@ func (c *PTBClient) GetNormalizedModule(ctx context.Context, packageId string, m
 		return models.GetNormalizedMoveModuleResponse{}, fmt.Errorf("failed to get normalized module: %w", err)
 	}
 
+	c.log.Debugw("Normalized module response", "normalizedModule", normalizedModule, "packageId", packageId, "module", module)
+
 	if _, ok := c.normalizedModules[packageId]; !ok {
 		c.normalizedModules[packageId] = make(map[string]models.GetNormalizedMoveModuleResponse)
 	}
 
 	// cache the normalized module
 	c.normalizedModules[packageId][module] = normalizedModule
+
+	c.log.Debugw("Normalized module cached", "packageId", packageId, "module", module)
 
 	return normalizedModule, nil
 }
