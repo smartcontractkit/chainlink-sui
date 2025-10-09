@@ -175,8 +175,6 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 		remoteTokenAddressesBytes[i] = b32
 	}
 
-	fmt.Println("APPLY TOKEN POOL UPDATE ON SUI INPUTSS; ", remotePoolAddressesBytes, remoteTokenAddressesBytes)
-
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := contract.ApplyChainUpdates(
@@ -284,7 +282,6 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
 	}
 
-	fmt.Println("SUI REMOTE POOL VALUEEE: ", input.RemotePoolAddress, []byte(input.RemotePoolAddress))
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := contract.AddRemotePool(

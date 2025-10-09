@@ -153,7 +153,7 @@ func snakeToCamel(s string) string {
 
 // Recursively convert all keys in the map to camelCase,
 // with a special case for message.header.sequence_number → seqNum
-func ConvertMapKeysToCamelCase(input any) any {
+func convertMapKeysToCamelCase(input any) any {
 	return convertMapKeysToCamelCaseWithPath(input, "")
 }
 
@@ -282,7 +282,7 @@ eventLoop:
 				offset += uint64(i) + totalCount
 
 				// normalize the data, convert snake case to camel case
-				normalizedData := ConvertMapKeysToCamelCase(event.ParsedJson)
+				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
 
 				// optionally use the initial package ID if it is provided
 				packageIdToInsert := selector.Package

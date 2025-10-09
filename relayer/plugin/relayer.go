@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"strings"
 	"time"
 
@@ -214,7 +213,7 @@ func (r *SuiRelayer) TxManager() *txm.SuiTxm {
 
 func (r *SuiRelayer) Start(ctx context.Context) error {
 	return r.StartOnce("SuiRelayer", func() error {
-		r.lggr.Debug("Starting Sui Relayer", "pid", os.Getpid())
+		r.lggr.Debug("Starting Sui Relayer")
 
 		var ms services.MultiStart
 		return ms.Start(ctx, r.txm, r.indexer, r.balanceMonitor)

@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/aptos-labs/aptos-go-sdk/bcs"
@@ -86,7 +84,7 @@ type PTBClient struct {
 	maxRetries         *int
 	transactionTimeout time.Duration
 	keystoreService    loop.Keystore
-	rateLimiter        *DebugSemaphore
+	rateLimiter        *semaphore.Weighted
 	defaultRequestType TransactionRequestType
 
 	// map of module name to normalized module definition (similar to an ABI)
@@ -123,63 +121,15 @@ func NewPTBClient(
 		maxRetries:         maxRetries,
 		transactionTimeout: transactionTimeout,
 		keystoreService:    keystoreService,
-		rateLimiter:        NewDebugSemaphore(maxConcurrentRequests),
+		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
 		defaultRequestType: defaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
 		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
 	}, nil
 }
 
-type DebugSemaphore struct {
-	*semaphore.Weighted
-	mu       sync.Mutex
-	cur      int64
-	acquires int64
-	releases int64
-}
-
-func NewDebugSemaphore(n int64) *DebugSemaphore {
-	return &DebugSemaphore{Weighted: semaphore.NewWeighted(n)}
-}
-
-func (d *DebugSemaphore) Acquire(ctx context.Context, n int64) error {
-	if err := d.Weighted.Acquire(ctx, n); err != nil {
-		return err
-	}
-	d.mu.Lock()
-	d.cur += n
-	d.mu.Unlock()
-	atomic.AddInt64(&d.acquires, n)
-	return nil
-}
-
-func (d *DebugSemaphore) Release(n int64) {
-	d.Weighted.Release(n)
-	d.mu.Lock()
-	d.cur -= n
-	d.mu.Unlock()
-	atomic.AddInt64(&d.releases, n)
-}
-
-func (d *DebugSemaphore) Current() int64 {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.cur
-}
-
-func (d *DebugSemaphore) Stats() (int64, int64, int64, int64) {
-	a := atomic.LoadInt64(&d.acquires)
-	r := atomic.LoadInt64(&d.releases)
-	d.mu.Lock()
-	cur := d.cur
-	d.mu.Unlock()
-	leaked := a - r
-	return a, r, cur, leaked
-}
-
 func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
-
-	// Just give each call a 120s max runtime
+	// 120s max timeout
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
