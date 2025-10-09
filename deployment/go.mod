@@ -14,7 +14,7 @@ require (
 	github.com/block-vision/sui-go-sdk v1.1.2
 	github.com/ethereum/go-ethereum v1.15.7
 	github.com/smartcontractkit/chain-selectors v1.0.71
-	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908082700-aa3f5927af8c
+	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251007140624-a242e4bbd3dc
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251008002405-8646ac38ba49
 	github.com/smartcontractkit/mcms v0.26.1-0.20251009182503-22a4319a7bf4
