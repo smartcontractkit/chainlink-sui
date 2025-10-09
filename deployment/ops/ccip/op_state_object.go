@@ -456,3 +456,13 @@ var AcceptOwnershipStateObjectOp = cld_ops.NewOperation(
 	"Accepts ownership of the CCIP StateObject",
 	acceptOwnershipStateObjectHandler,
 )
+
+var AllOperationsStateObject = []cld_ops.Operation[any, any, any]{
+	*AddPackageIdStateObjectOp.AsUntyped(),
+	*RemovePackageIdStateObjectOp.AsUntyped(),
+	*GetOwnerCapIdStateObjectOp.AsUntyped(),
+	*GetOwnerStateObjectOp.AsUntyped(),
+	*GetPendingTransferStateObjectOp.AsUntyped(),
+	*TransferOwnershipStateObjectOp.AsUntyped(),
+	*AcceptOwnershipStateObjectOp.AsUntyped(),
+}

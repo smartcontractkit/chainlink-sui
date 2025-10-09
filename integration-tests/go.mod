@@ -5,11 +5,13 @@ go 1.24.7
 require (
 	github.com/block-vision/sui-go-sdk v1.1.2
 	github.com/holiman/uint256 v1.3.2
+	github.com/smartcontractkit/chain-selectors v1.0.71
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250903115155-a68d8c28ae1d
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908133421-f9b356d61ca9
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251013155034-5f85c5f450ab
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
+	github.com/smartcontractkit/mcms v0.26.0
 	github.com/stretchr/testify v1.10.0
 )
 

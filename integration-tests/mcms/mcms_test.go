@@ -11,6 +11,8 @@ import (
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/stretchr/testify/require"
 )
 
@@ -114,7 +116,7 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
 func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
-	// 1. Transfer OwnerCap of CCIP to MCMS
+	// 1. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
 	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
 	require.NoError(s.T(), err, "creating ccip state object contract")
 
@@ -135,10 +137,40 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	s.T().Logf("✅ Transferred ownership of CCIP to MCMS in tx: %s", tx.Digest)
 
 	// 2. Proposal execution with acceptance from MCMS (through proposer)
-	// acceptOwnershipProposal, err := mcmsops.
+	input := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			ccipops.AcceptOwnershipStateObjectOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.AcceptOwnershipStateObjectInput{
+				CCIPPackageId:         s.ccipPackageId,
+				CCIPObjectRefObjectId: s.ccipObjects.OwnerCapObjectId,
+			},
+		},
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
 
+		// Proposal
+		Role: suisdk.TimelockRoleBypasser,
+
+		ChainSelector: uint64(s.chainSelector),
+	}
+	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	s.Require().NoError(err, "executing ownership acceptance proposal sequence")
+
+	timelockProposal := acceptOwnershipProposalReport.Output
 
 	// 3. Execute transfer ownership from original owner
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// 4. Verify the new owner is MCMS
+	newOwner, err := ccipContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId})
+	s.Require().NoError(err, "getting new owner of CCIP state object")
+	s.Require().Equal(s.mcmsPackageID, newOwner, "new owner of CCIP should be MCMS")
 }
 
 func RunTestCCIPProposal(s *CCIPMCMSTestSuite) {
