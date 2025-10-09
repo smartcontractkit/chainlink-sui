@@ -25,8 +25,10 @@ type CCIPEntrypointArgEncoder struct {
 	registryObjID string
 }
 
-func NewCCIPEntrypointArgEncoder() *CCIPEntrypointArgEncoder {
-	return &CCIPEntrypointArgEncoder{}
+func NewCCIPEntrypointArgEncoder(registryObjID string) *CCIPEntrypointArgEncoder {
+	return &CCIPEntrypointArgEncoder{
+		registryObjID: registryObjID,
+	}
 }
 
 func deserializeFirst32Bytes(data []byte) []byte {
@@ -41,6 +43,8 @@ func toHexString(data []byte) string {
 func overrideCall(call *bind.EncodedCall, module, function string) *bind.EncodedCall {
 	call.Module.ModuleName = module
 	call.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
+
+	fmt.Println("OVERRIDING CALL", "MODULE", call.Module.ModuleName, "FUNCTION", call.Function)
 	return call
 }
 
@@ -322,8 +326,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 	}
 
-	fmt.Println("MODULE AND FUNCTION", module, function)
-
 	// FALLBACK CASE: Use Fee Quoter as it has the most common function signatures
 	// Fallback to fee quoter for any unhandled module/function
 	// This works because most mcms functions have the same signature
@@ -333,6 +335,8 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("ENCODING WITH DEFAULT ENCODER", "STATE OBJ", stateObj.Id, "MODULE", module, "FUNCTION", function, "REGISTRY", registryObj.Id)
 
 	entryPointCall, err := feeQuoter.Encoder().McmsApplyFeeTokenUpdatesWithArgs(
 		stateObj,

@@ -251,3 +251,11 @@ var TokenAdminRegistryAcceptAdminRoleOp = cld_ops.NewOperation(
 	"Accepts admin role for a token in the CCIP Token Admin Registry",
 	acceptAdminRoleHandler,
 )
+
+var AllOperationsTokenAdminRegistry = []cld_ops.Operation[any, any, any]{
+	*TokenAdminRegistryInitializeOp.AsUntyped(),
+	*TokenAdminRegistryUnregisterPoolOp.AsUntyped(),
+	*TokenAdminRegistrySetPoolOp.AsUntyped(),
+	*TokenAdminRegistryTransferAdminRoleOp.AsUntyped(),
+	*TokenAdminRegistryAcceptAdminRoleOp.AsUntyped(),
+}
