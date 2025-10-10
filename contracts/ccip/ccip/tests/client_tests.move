@@ -321,7 +321,7 @@ fun test_new_any2sui_message() {
 #[test]
 fun test_new_dest_token_amounts() {
     let token_addresses = vector[@0x1, @0x2, @0x3];
-    let token_amounts = vector[100u64, 200u64, 300u64];
+    let token_amounts = vector[100u256, 200u256, 300u256];
 
     let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
 
@@ -331,17 +331,17 @@ fun test_new_dest_token_amounts() {
     // Verify the first token amount
     let first_amount = &dest_token_amounts[0];
     assert!(client::get_token(first_amount) == @0x1, 1);
-    assert!(client::get_amount(first_amount) == 100u64, 2);
+    assert!(client::get_amount(first_amount) == 100u256, 2);
 
     // Verify the second token amount
     let second_amount = &dest_token_amounts[1];
     assert!(client::get_token(second_amount) == @0x2, 3);
-    assert!(client::get_amount(second_amount) == 200u64, 4);
+    assert!(client::get_amount(second_amount) == 200u256, 4);
 
     // Verify the third token amount
     let third_amount = &dest_token_amounts[2];
     assert!(client::get_token(third_amount) == @0x3, 5);
-    assert!(client::get_amount(third_amount) == 300u64, 6);
+    assert!(client::get_amount(third_amount) == 300u256, 6);
 }
 
 #[test]
@@ -391,7 +391,7 @@ fun test_message_with_token_amounts() {
     // Create some token amounts
     let token_receiver = @0x12345;
     let token_addresses = vector[@0xa, @0xb];
-    let token_amounts = vector[1000u64, 2000u64];
+    let token_amounts = vector[1000u256, 2000u256];
     let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
 
     let message = client::new_any2sui_message(
@@ -420,7 +420,7 @@ fun test_message_with_token_amounts() {
     assert!(returned_token_receiver == token_receiver, 4);
     assert!(returned_dest_token_amounts.length() == 2, 5);
     assert!(client::get_token(&returned_dest_token_amounts[0]) == @0xa, 6);
-    assert!(client::get_amount(&returned_dest_token_amounts[0]) == 1000u64, 7);
+    assert!(client::get_amount(&returned_dest_token_amounts[0]) == 1000u256, 7);
     assert!(client::get_token(&returned_dest_token_amounts[1]) == @0xb, 8);
-    assert!(client::get_amount(&returned_dest_token_amounts[1]) == 2000u64, 9);
+    assert!(client::get_amount(&returned_dest_token_amounts[1]) == 2000u256, 9);
 }
