@@ -49,7 +49,6 @@ func PublishCCIPUSDCTokenPool(
 	opts *bind.CallOpts,
 	client sui.ISuiAPI,
 	ccipAddress,
-	ccipTokenPoolAddress,
 	usdcCoinMetadataObjectId,
 	tokenMessengerMinterPackageId,
 	tokenMessengerMinterStateObjectId,
@@ -60,7 +59,6 @@ func PublishCCIPUSDCTokenPool(
 	mcmsOwnerAddress string) (USDCTokenPool, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.USDCTokenPool, map[string]string{
 		"ccip":                              ccipAddress,
-		"ccip_token_pool":                   ccipTokenPoolAddress,
 		"usdc_token_pool":                   "0x0",
 		"usdc_coin_metadata_object_id":      usdcCoinMetadataObjectId,
 		"token_messenger_minter_package_id": tokenMessengerMinterPackageId,

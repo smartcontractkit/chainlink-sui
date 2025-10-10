@@ -77,9 +77,6 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiMcmsPackageIDType:
 			chainState.MCMsAddress = addr
 
-		case SuiTokenPoolType:
-			chainState.TokenPoolAddress = addr
-
 		case SuiCCIPObjectRefType:
 			chainState.CCIPObjectRef = addr
 

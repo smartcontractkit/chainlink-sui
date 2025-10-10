@@ -14,7 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
-	ccip_tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 	mcms_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
 
@@ -60,16 +59,6 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
 
-	// deploy CCIP Token Pool
-	inputTokenPool := ccip_tokenpoolops.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.PackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
-		MCMSOwnerAddress: signerAddress,
-	}
-
-	reportCCIPTokenPool, err := cld_ops.ExecuteOperation(bundle, ccip_tokenpoolops.DeployCCIPTokenPoolOp, deps, inputTokenPool)
-	require.NoError(t, err, "failed to deploy CCIP TokenPool Package")
-
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(bundle, mocklinktokenops.DeployMockLinkTokenOp, deps, cld_ops.EmptyInput{})
 	require.NoError(t, err, "failed to deploy Mock LINK token")
@@ -97,10 +86,9 @@ func TestDeployAndInitLockReleaseTokenPoolSeq(t *testing.T) {
 	// Run BurnMintTokenPool deploy + configure sequence
 	LRTokenPoolInput := DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.PackageId,
-			CCIPTokenPoolPackageId: reportCCIPTokenPool.Output.PackageId,
-			MCMSAddress:            reportMCMs.Output.PackageId,
-			MCMSOwnerAddress:       signerAddress,
+			CCIPPackageId:    reportCCIP.Output.PackageId,
+			MCMSAddress:      reportMCMs.Output.PackageId,
+			MCMSOwnerAddress: signerAddress,
 		},
 
 		// initialize

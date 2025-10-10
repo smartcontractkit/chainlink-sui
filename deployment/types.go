@@ -11,7 +11,6 @@ var (
 	SuiCCIPObjectRefType           deployment.ContractType = "SuiCCIPObjectRef"
 	SuiCCIPOwnerCapObjectIDType    deployment.ContractType = "SuiCCIPOwnerCapObjectID"
 	SuiFeeQuoterCapType            deployment.ContractType = "SuiCCIPFeeQuoterCap"
-	SuiTokenPoolType               deployment.ContractType = "SuiTokenPool"
 	SuiOnRampType                  deployment.ContractType = "SuiOnRamp"
 	SuiOnRampStateObjectIDType     deployment.ContractType = "SuiOnRampStateObjectID"
 	SuiOnRampOwnerCapObjectIDType  deployment.ContractType = "SuiOnRampOwnerCapObjectID"
