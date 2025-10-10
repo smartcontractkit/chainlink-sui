@@ -9,6 +9,7 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
 use ccip_token_pool::ownable::OwnerCap;
+use std::bcs;
 use std::string;
 use sui::clock;
 use sui::coin;
@@ -936,7 +937,9 @@ public fun test_lock_or_burn_comprehensive() {
         let initial_coin_value = coin::value(&test_coin);
         assert!(initial_coin_value == 1000);
 
-        let mut token_transfer_params = onramp_sh::create_token_transfer_params(@0x456); // Use the test user address as token receiver
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params(
+            bcs::to_bytes(&@0x456),
+        ); // Use the test user address as token receiver
 
         // Perform lock_or_burn operation (this burns the coin)
         burn_mint_token_pool::lock_or_burn(

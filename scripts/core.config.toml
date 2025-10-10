@@ -40,7 +40,7 @@ DefaultMaxGasAmount = 200000
 MaxTxRetryAttempts = 5
 RequestType = 'WaitForEffectsCert'
 TransactionTimeout = '10s'
-MaxConcurrentRequests = 5
+MaxConcurrentRequests = 100
 
 [Sui.TransactionsIndexer]
 PollingIntervalSecs = 3

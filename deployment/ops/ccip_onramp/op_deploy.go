@@ -18,6 +18,7 @@ type DeployCCIPOnRampObjects struct {
 	// State Object
 	OwnerCapObjectId        string
 	CCIPOnrampStateObjectId string
+	UpgradeCapObjectId      string
 }
 
 type DeployCCIPOnRampInput struct {
@@ -44,8 +45,9 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	// TODO: We should move the object ID finding logic into the binding package
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "onramp", "OnRampState")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
 
-	if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[DeployCCIPOnRampObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
 	}
 
@@ -55,6 +57,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 		Objects: DeployCCIPOnRampObjects{
 			OwnerCapObjectId:        obj1,
 			CCIPOnrampStateObjectId: obj2,
+			UpgradeCapObjectId:      obj3,
 		},
 	}, err
 }

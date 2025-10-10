@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
@@ -159,14 +160,22 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 	for i, addresses := range input.RemotePoolAddressesToAdd {
 		remotePoolAddressesBytes[i] = make([][]byte, len(addresses))
 		for j, address := range addresses {
-			remotePoolAddressesBytes[i][j] = []byte(address)
+			b, err := deployment.StrToBytes(address)
+			if err != nil {
+				return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("bad remote pool address [%d][%d]: %w", i, j, err)
+			}
+			remotePoolAddressesBytes[i][j] = b
 		}
 	}
 
 	// Convert []string to [][]byte for RemoteTokenAddressesToAdd
 	remoteTokenAddressesBytes := make([][]byte, len(input.RemoteTokenAddressesToAdd))
 	for i, address := range input.RemoteTokenAddressesToAdd {
-		remoteTokenAddressesBytes[i] = []byte(address)
+		b32, err := deployment.StrTo32(address)
+		if err != nil {
+			return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("bad remote token address [%d]: %w", i, err)
+		}
+		remoteTokenAddressesBytes[i] = b32
 	}
 
 	opts := deps.GetCallOpts()
