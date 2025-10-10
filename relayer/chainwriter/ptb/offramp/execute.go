@@ -485,7 +485,7 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
 	}
 
-	// note: we cannot expect recieverObjectIds to be [][]byte, so check for []any type
+	// note: we cannot expect receiverObjectIds to be [][]byte, so check for []any type
 	var extraArgsValues [][]byte
 	switch vals := receiverObjectIds.(type) {
 	case [][]byte:
