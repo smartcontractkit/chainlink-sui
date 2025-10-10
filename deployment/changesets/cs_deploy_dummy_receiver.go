@@ -11,18 +11,18 @@ import (
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 )
 
-type DeployDummyRecieverConfig struct {
+type DeployDummyReceiverConfig struct {
 	SuiChainSelector uint64
 	McmsOwner        string
 }
 
-var _ cldf.ChangeSetV2[DeployDummyRecieverConfig] = DeployDummyReciever{}
+var _ cldf.ChangeSetV2[DeployDummyReceiverConfig] = DeployDummyReceiver{}
 
 // DeployAptosChain deploys Aptos chain packages and modules
-type DeployDummyReciever struct{}
+type DeployDummyReceiver struct{}
 
 // Apply implements deployment.ChangeSetV2.
-func (d DeployDummyReciever) Apply(e cldf.Environment, config DeployDummyRecieverConfig) (cldf.ChangesetOutput, error) {
+func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceiverConfig) (cldf.ChangesetOutput, error) {
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -45,7 +45,7 @@ func (d DeployDummyReciever) Apply(e cldf.Environment, config DeployDummyRecieve
 		},
 	}
 
-	// Run DummyReciever Operation
+	// Run DummyReceiver Operation
 	DeployDummyReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.DeployCCIPDummyReceiverOp, deps, ccipops.DeployDummyReceiverInput{
 		CCIPPackageId: state[config.SuiChainSelector].CCIPAddress,
 		McmsPackageId: state[config.SuiChainSelector].MCMsAddress,
@@ -55,7 +55,7 @@ func (d DeployDummyReciever) Apply(e cldf.Environment, config DeployDummyRecieve
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy LinkToken for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
-	// register reciever
+	// register receiver
 	seqReports = append(seqReports, []operations.Report[any, any]{DeployDummyReceiverOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
@@ -65,6 +65,6 @@ func (d DeployDummyReciever) Apply(e cldf.Environment, config DeployDummyRecieve
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d DeployDummyReciever) VerifyPreconditions(e cldf.Environment, config DeployDummyRecieverConfig) error {
+func (d DeployDummyReceiver) VerifyPreconditions(e cldf.Environment, config DeployDummyReceiverConfig) error {
 	return nil
 }

@@ -39,7 +39,7 @@ func (d RegisterDummyReceiver) Apply(e cldf.Environment, config RegisterDummyRec
 		},
 	}
 
-	// Run RegisterReciever Operation
+	// Run RegisterReceiver Operation
 	RegisterReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.RegisterDummyReceiverOp, deps, ccipops.RegisterDummyReceiverInput{
 		CCIPObjectRefObjectId:  config.CCIPObjectRefObjectId,
 		DummyReceiverPackageId: config.DummyReceiverPackageId,
