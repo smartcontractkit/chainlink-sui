@@ -4,6 +4,7 @@ use sui::coin::{Self, TreasuryCap};
 
 public struct MOCK_ETH_TOKEN has drop {}
 
+#[allow(deprecated_usage)]
 fun init(witness: MOCK_ETH_TOKEN, ctx: &mut TxContext) {
     let (treasury, metadata) = coin::create_currency(
         witness,
