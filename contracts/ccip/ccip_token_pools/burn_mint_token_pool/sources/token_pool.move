@@ -60,24 +60,6 @@ public struct ChainRemoved has copy, drop {
     remote_chain_selector: u64,
 }
 
-public struct LiquidityAdded has copy, drop {
-    local_token: address,
-    provider: address,
-    amount: u64,
-}
-
-public struct LiquidityRemoved has copy, drop {
-    local_token: address,
-    provider: address,
-    amount: u64,
-}
-
-public struct RebalancerSet has copy, drop {
-    local_token: address,
-    previous_rebalancer: address,
-    rebalancer: address,
-}
-
 const ENotPublisher: u64 = 1;
 const EUnknownRemoteChainSelector: u64 = 2;
 const ECursedChain: u64 = 3;
@@ -268,7 +250,7 @@ public(package) fun remove_remote_pool(
 // ================================================================
 
 /// Returns the remote token as bytes
-public fun validate_lock_or_burn(
+public(package) fun validate_lock_or_burn(
     ref: &CCIPObjectRef,
     clock: &Clock,
     state: &mut TokenPoolState,
@@ -297,7 +279,7 @@ public fun validate_lock_or_burn(
     get_remote_token(state, remote_chain_selector)
 }
 
-public fun validate_release_or_mint(
+public(package) fun validate_release_or_mint(
     ref: &CCIPObjectRef,
     clock: &Clock,
     state: &mut TokenPoolState,
@@ -328,8 +310,8 @@ public fun validate_release_or_mint(
 // |                           Events                             |
 // ================================================================
 
-public fun emit_released_or_minted(
-    state: &mut TokenPoolState,
+public(package) fun emit_released_or_minted(
+    state: &TokenPoolState,
     recipient: address,
     amount: u64,
     remote_chain_selector: u64,
@@ -342,32 +324,12 @@ public fun emit_released_or_minted(
     });
 }
 
-public fun emit_locked_or_burned(
-    state: &mut TokenPoolState,
+public(package) fun emit_locked_or_burned(
+    state: &TokenPoolState,
     amount: u64,
     remote_chain_selector: u64,
 ) {
     event::emit(LockedOrBurned { remote_chain_selector, local_token: state.coin_metadata, amount });
-}
-
-public fun emit_liquidity_added(state: &mut TokenPoolState, provider: address, amount: u64) {
-    event::emit(LiquidityAdded { local_token: state.coin_metadata, provider, amount });
-}
-
-public fun emit_liquidity_removed(state: &mut TokenPoolState, provider: address, amount: u64) {
-    event::emit(LiquidityRemoved { local_token: state.coin_metadata, provider, amount });
-}
-
-public fun emit_rebalancer_set(
-    state: &mut TokenPoolState,
-    previous_rebalancer: address,
-    rebalancer: address,
-) {
-    event::emit(RebalancerSet {
-        local_token: state.coin_metadata,
-        previous_rebalancer,
-        rebalancer,
-    });
 }
 
 // ================================================================

@@ -294,7 +294,7 @@ public fun lock_or_burn<T>(
     let mut extra_data = vector[];
     eth_abi::encode_u8(&mut extra_data, state.token_pool_state.get_local_decimals());
 
-    token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
+    token_pool::emit_locked_or_burned(&state.token_pool_state, amount, remote_chain_selector);
 
     onramp_sh::add_token_transfer_param(
         ref,
@@ -349,7 +349,7 @@ public fun release_or_mint<T>(
     );
 
     token_pool::emit_released_or_minted(
-        &mut pool.token_pool_state,
+        &pool.token_pool_state,
         token_receiver,
         local_amount,
         remote_chain_selector,
