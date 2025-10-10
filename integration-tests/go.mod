@@ -4,6 +4,7 @@ go 1.24.7
 
 require (
 	github.com/block-vision/sui-go-sdk v1.1.2
+	github.com/ethereum/go-ethereum v1.16.2
 	github.com/holiman/uint256 v1.3.2
 	github.com/smartcontractkit/chain-selectors v1.0.71
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250903115155-a68d8c28ae1d
@@ -11,7 +12,7 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251013155034-5f85c5f450ab
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
-	github.com/smartcontractkit/mcms v0.26.0
+	github.com/smartcontractkit/mcms v0.26.1-0.20251009182503-22a4319a7bf4
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -54,7 +55,6 @@ require (
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.0 // indirect
-	github.com/ethereum/go-ethereum v1.16.2 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fbsobreira/gotron-sdk v0.0.0-20250403083053-2943ce8c759b // indirect
