@@ -5,8 +5,6 @@ use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
-use ccip_token_pool::ownable::{Self, OwnerCap, OwnableState};
-use ccip_token_pool::token_pool::{Self, TokenPoolState};
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -28,6 +26,8 @@ use token_messenger_minter::burn_message;
 use token_messenger_minter::deposit_for_burn::{Self, DepositForBurnWithCallerTicket};
 use token_messenger_minter::handle_receive_message;
 use token_messenger_minter::state::State as MinterState;
+use usdc_token_pool::ownable::{Self, OwnerCap, OwnableState};
+use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 // We restrict to the first version. New pool may be required for subsequent versions.
 const SUPPORTED_USDC_VERSION_U64: u64 = 0;
@@ -732,7 +732,10 @@ public fun mcms_set_allowlist_enabled<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -756,7 +759,10 @@ public fun mcms_apply_allowlist_updates<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -787,7 +793,10 @@ public fun mcms_apply_chain_updates<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -836,7 +845,10 @@ public fun mcms_add_remote_pool<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -861,7 +873,10 @@ public fun mcms_remove_remote_pool<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -886,7 +901,10 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
     params: ExecutingCallbackParams,
     clock: &Clock,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -949,7 +967,10 @@ public fun mcms_set_chain_rate_limiter_config<T>(
     params: ExecutingCallbackParams,
     clock: &Clock,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1018,7 +1039,10 @@ public fun mcms_transfer_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1043,7 +1067,10 @@ public fun mcms_execute_ownership_transfer<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
