@@ -338,7 +338,7 @@ public fun mcms_set_config(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -378,7 +378,7 @@ public fun mcms_curse(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -402,7 +402,7 @@ public fun mcms_curse_multiple(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -429,7 +429,7 @@ public fun mcms_uncurse(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -453,7 +453,7 @@ public fun mcms_uncurse_multiple(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,

@@ -627,15 +627,13 @@ fun pre_execute_single_report(
 
     let number_of_tokens_in_msg = message.token_amounts.length();
     assert!(number_of_tokens_in_msg <= TOKEN_TRANSFER_LIMIT, ETokenTransferLimitExceeded);
-    let has_valid_message_receiver =
-        (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     assert!(
         number_of_tokens_in_msg == execution_report.offchain_token_data.length(),
         ETokenDataMismatch,
     );
     assert!(
-        (message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
-            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
+        message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 || // if token_receiver is empty, no tokens should be transferred
+            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // if token_receiver is not empty, tokens should be transferred
         EInvalidTokenReceiver,
     );
     assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
@@ -674,6 +672,8 @@ fun pre_execute_single_report(
         token_amounts.push_back(amount);
     };
 
+    let has_valid_message_receiver =
+        (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
         let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
@@ -1348,6 +1348,7 @@ public fun accept_ownership_from_object(
 public fun mcms_accept_ownership(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
+    registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1357,7 +1358,8 @@ public fun mcms_accept_ownership(
         string::utf8(b"accept_ownership"),
         VERSION,
     );
-    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function, data) = mcms_registry::get_callback_params(
+        registry,
         params,
         McmsCallback {},
     );
@@ -1444,7 +1446,7 @@ public fun mcms_add_package_id(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1467,7 +1469,7 @@ public fun mcms_remove_package_id(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1491,7 +1493,7 @@ public fun mcms_set_dynamic_config(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1517,7 +1519,7 @@ public fun mcms_apply_source_chain_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1566,7 +1568,7 @@ public fun mcms_set_ocr3_config(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1613,7 +1615,7 @@ public fun mcms_transfer_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1639,7 +1641,7 @@ public fun mcms_execute_ownership_transfer(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,

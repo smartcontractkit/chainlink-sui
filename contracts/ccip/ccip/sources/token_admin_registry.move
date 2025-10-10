@@ -616,7 +616,7 @@ public fun mcms_unregister_pool(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -641,7 +641,7 @@ public fun mcms_set_pool(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -688,7 +688,7 @@ public fun mcms_transfer_admin_role(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -719,7 +719,7 @@ public fun mcms_accept_admin_role(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
