@@ -35,7 +35,7 @@ type IRouter interface {
 	TransferOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object, newOwner string) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	McmsRegisterUpgradeCap(ctx context.Context, opts *bind.CallOpts, upgradeCap bind.Object, registry bind.Object, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -86,7 +86,7 @@ type RouterEncoder interface {
 	AcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
-	McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAcceptOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -457,8 +457,8 @@ func (c *RouterContract) AcceptOwnershipFromObject(ctx context.Context, opts *bi
 }
 
 // McmsAcceptOwnership executes the mcms_accept_ownership Move function.
-func (c *RouterContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.routerEncoder.McmsAcceptOwnership(state, params)
+func (c *RouterContract) McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.routerEncoder.McmsAcceptOwnership(state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1121,14 +1121,16 @@ func (c routerEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.Enc
 }
 
 // McmsAcceptOwnership encodes a call to the mcms_accept_ownership Move function.
-func (c routerEncoder) McmsAcceptOwnership(state bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+func (c routerEncoder) McmsAcceptOwnership(state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_accept_ownership", typeArgsList, typeParamsList, []string{
 		"&mut RouterState",
+		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
 		state,
+		registry,
 		params,
 	}, nil)
 }
@@ -1138,6 +1140,7 @@ func (c routerEncoder) McmsAcceptOwnership(state bind.Object, params bind.Object
 func (c routerEncoder) McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut RouterState",
+		"&mut Registry",
 		"ExecutingCallbackParams",
 	}
 

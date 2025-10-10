@@ -149,6 +149,9 @@ fun test_mcms_function_one() {
             string::utf8(MODULE_NAME),
             string::utf8(FUNCTION_ONE),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         // Command 2: Call mcms_function_one with params hot potato
@@ -202,6 +205,9 @@ fun test_mcms_function_two() {
             string::utf8(MODULE_NAME),
             string::utf8(FUNCTION_TWO),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         // Command 2: Call mcms_function_two
@@ -245,6 +251,9 @@ fun test_mcms_function_one_invalid_function() {
             string::utf8(MODULE_NAME),
             string::utf8(b"unknown_function"),
             vector::empty(),
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         let ctx = ts::ctx(&mut scenario);
@@ -284,6 +293,9 @@ fun test_mcms_entrypoint_wrong_module_name() {
             string::utf8(b"wrong_module_name"),
             string::utf8(FUNCTION_ONE),
             vector::empty(),
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         let ctx = ts::ctx(&mut scenario);
@@ -334,6 +346,9 @@ fun test_sequential_function_calls() {
             string::utf8(MODULE_NAME),
             string::utf8(FUNCTION_ONE),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         // Command 2: Call mcms_function_one
@@ -374,6 +389,9 @@ fun test_sequential_function_calls() {
             string::utf8(MODULE_NAME),
             string::utf8(FUNCTION_TWO),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         let ctx = ts::ctx(&mut scenario);
@@ -432,6 +450,9 @@ fun test_call_function_with_invalid_user_data() {
             string::utf8(MODULE_NAME),
             string::utf8(FUNCTION_ONE),
             data,
+            x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+            0, // sequence_number
+            1, // total_in_batch
         );
 
         // Command 2: This should fail because we provide an unregistered user_data
