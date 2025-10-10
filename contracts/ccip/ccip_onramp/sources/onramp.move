@@ -20,11 +20,11 @@ use sui::bag::{Self, Bag};
 use sui::balance;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata};
+use sui::derived_object;
 use sui::event;
 use sui::hash;
 use sui::package::UpgradeCap;
 use sui::table::{Self, Table};
-use sui::derived_object;
 
 public struct OnRampState has key, store {
     id: UID,
