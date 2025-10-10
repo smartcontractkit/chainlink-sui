@@ -45,7 +45,7 @@ type IDummyReceiverDevInspect interface {
 	GetDestTokenAmounts(ctx context.Context, opts *bind.CallOpts, state bind.Object) ([]TokenAmount, error)
 	GetTokenReceiver(ctx context.Context, opts *bind.CallOpts, state bind.Object) (string, error)
 	GetTokenAmountToken(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (string, error)
-	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (uint64, error)
+	GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*big.Int, error)
 	ReceiveCoin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, param bind.Object, coinReceiving bind.Object) (any, error)
 	ReceiveCoinNoOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, coinReceiving bind.Object) (any, error)
 }
@@ -146,8 +146,8 @@ type DummyReceiverProof struct {
 }
 
 type TokenAmount struct {
-	Token  string `move:"address"`
-	Amount uint64 `move:"u64"`
+	Token  string   `move:"address"`
+	Amount *big.Int `move:"u256"`
 }
 
 type bcsOwnerCap struct {
@@ -192,14 +192,18 @@ func convertCCIPReceiverStateFromBCS(bcs bcsCCIPReceiverState) (CCIPReceiverStat
 
 type bcsTokenAmount struct {
 	Token  [32]byte
-	Amount uint64
+	Amount [32]byte
 }
 
 func convertTokenAmountFromBCS(bcs bcsTokenAmount) (TokenAmount, error) {
+	AmountField, err := bind.DecodeU256Value(bcs.Amount)
+	if err != nil {
+		return TokenAmount{}, fmt.Errorf("failed to decode u256 field Amount: %w", err)
+	}
 
 	return TokenAmount{
 		Token:  fmt.Sprintf("0x%x", bcs.Token),
-		Amount: bcs.Amount,
+		Amount: AmountField,
 	}, nil
 }
 
@@ -565,22 +569,22 @@ func (d *DummyReceiverDevInspect) GetTokenAmountToken(ctx context.Context, opts 
 
 // GetTokenAmountAmount executes the get_token_amount_amount Move function using DevInspect to get return values.
 //
-// Returns: u64
-func (d *DummyReceiverDevInspect) GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (uint64, error) {
+// Returns: u256
+func (d *DummyReceiverDevInspect) GetTokenAmountAmount(ctx context.Context, opts *bind.CallOpts, tokenAmount TokenAmount) (*big.Int, error) {
 	encoded, err := d.contract.dummyReceiverEncoder.GetTokenAmountAmount(tokenAmount)
 	if err != nil {
-		return 0, fmt.Errorf("failed to encode function call: %w", err)
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
 	results, err := d.contract.Call(ctx, opts, encoded)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if len(results) == 0 {
-		return 0, fmt.Errorf("no return value")
+		return nil, fmt.Errorf("no return value")
 	}
-	result, ok := results[0].(uint64)
+	result, ok := results[0].(*big.Int)
 	if !ok {
-		return 0, fmt.Errorf("unexpected return type: expected uint64, got %T", results[0])
+		return nil, fmt.Errorf("unexpected return type: expected *big.Int, got %T", results[0])
 	}
 	return result, nil
 }
@@ -804,7 +808,7 @@ func (c dummyReceiverEncoder) GetTokenAmountAmount(tokenAmount TokenAmount) (*bi
 	}, []any{
 		tokenAmount,
 	}, []string{
-		"u64",
+		"u256",
 	})
 }
 
@@ -821,7 +825,7 @@ func (c dummyReceiverEncoder) GetTokenAmountAmountWithArgs(args ...any) (*bind.E
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_amount_amount", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"u64",
+		"u256",
 	})
 }
 
