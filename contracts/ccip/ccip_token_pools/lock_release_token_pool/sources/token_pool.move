@@ -453,12 +453,12 @@ fun calculate_local_amount_internal(
 public fun calculate_release_or_mint_amount(
     state: &TokenPoolState,
     source_pool_data: vector<u8>,
-    source_amount: u64,
+    source_amount: u256,
 ): u64 {
     let local_decimals = state.get_local_decimals();
     let remote_decimals = parse_remote_decimals(source_pool_data, local_decimals);
 
-    calculate_local_amount(source_amount as u256, remote_decimals, local_decimals)
+    calculate_local_amount(source_amount, remote_decimals, local_decimals)
 }
 
 // ================================================================

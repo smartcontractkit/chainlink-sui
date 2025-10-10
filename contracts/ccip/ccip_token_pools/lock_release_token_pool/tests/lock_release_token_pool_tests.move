@@ -1376,7 +1376,7 @@ public fun test_release_or_mint_functionality() {
         let new_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &pool_state,
         );
-        assert!(new_pool_balance == initial_pool_balance - source_amount);
+        assert!((new_pool_balance as u256) == (initial_pool_balance as u256) - source_amount);
 
         // Clean up receiver params
         offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);
