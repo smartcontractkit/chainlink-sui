@@ -11,28 +11,25 @@ import (
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 )
 
-type DeployDummyReceiverConfig struct {
+type DeployDummyRecieverConfig struct {
 	SuiChainSelector uint64
 	McmsOwner        string
 }
 
-var _ cldf.ChangeSetV2[DeployDummyReceiverConfig] = DeployDummyReceiver{}
+var _ cldf.ChangeSetV2[DeployDummyRecieverConfig] = DeployDummyReciever{}
 
 // DeployAptosChain deploys Aptos chain packages and modules
-type DeployDummyReceiver struct{}
+type DeployDummyReciever struct{}
 
 // Apply implements deployment.ChangeSetV2.
-func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceiverConfig) (cldf.ChangesetOutput, error) {
+func (d DeployDummyReciever) Apply(e cldf.Environment, config DeployDummyRecieverConfig) (cldf.ChangesetOutput, error) {
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
-
 	ab := cldf.NewMemoryAddressBook()
 	seqReports := make([]operations.Report[any, any], 0)
-
 	suiChain := e.BlockChains.SuiChains()[config.SuiChainSelector]
-
 	deps := sui_ops.OpTxDeps{
 		Client: suiChain.Client,
 		Signer: suiChain.Signer,
@@ -45,7 +42,7 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 		},
 	}
 
-	// Run DummyReceiver Operation
+	// Run DummyReciever Operation
 	DeployDummyReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.DeployCCIPDummyReceiverOp, deps, ccipops.DeployDummyReceiverInput{
 		CCIPPackageId: state[config.SuiChainSelector].CCIPAddress,
 		McmsPackageId: state[config.SuiChainSelector].MCMsAddress,
@@ -55,7 +52,7 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy LinkToken for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
-	// register receiver
+	// register reciever
 	seqReports = append(seqReports, []operations.Report[any, any]{DeployDummyReceiverOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
@@ -65,6 +62,6 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d DeployDummyReceiver) VerifyPreconditions(e cldf.Environment, config DeployDummyReceiverConfig) error {
+func (d DeployDummyReciever) VerifyPreconditions(e cldf.Environment, config DeployDummyRecieverConfig) error {
 	return nil
 }
