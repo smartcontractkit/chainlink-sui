@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"test","module":"onramp","name":"emit_allowlist_senders_added_event","parameters":[{"name":"dest_chain_selector","type":"u64"}]},{"package":"test","module":"onramp","name":"emit_allowlist_senders_removed_event","parameters":[{"name":"dest_chain_selector","type":"u64"}]},{"package":"test","module":"onramp","name":"emit_ccip_message_sent_event","parameters":[{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"}]},{"package":"test","module":"onramp","name":"emit_config_set_event","parameters":null},{"package":"test","module":"onramp","name":"emit_dest_chain_config_set_event","parameters":null},{"package":"test","module":"onramp","name":"emit_fee_token_withdrawn_event","parameters":null}]`
+
 type IOnramp interface {
 	EmitConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	EmitDestChainConfigSetEvent(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -379,6 +381,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ConfigSet
+	bind.RegisterStructDecoder("vector<test::onramp::ConfigSet>", func(data []byte) (interface{}, error) {
+		var temps []bcsConfigSet
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ConfigSet, len(temps))
+		for i, temp := range temps {
+			result, err := convertConfigSetFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::onramp::DestChainConfigSet", func(data []byte) (interface{}, error) {
 		var result DestChainConfigSet
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -386,6 +406,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for DestChainConfigSet
+	bind.RegisterStructDecoder("vector<test::onramp::DestChainConfigSet>", func(data []byte) (interface{}, error) {
+		var results []DestChainConfigSet
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::onramp::CCIPMessageSent", func(data []byte) (interface{}, error) {
 		var temp bcsCCIPMessageSent
@@ -400,6 +429,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for CCIPMessageSent
+	bind.RegisterStructDecoder("vector<test::onramp::CCIPMessageSent>", func(data []byte) (interface{}, error) {
+		var temps []bcsCCIPMessageSent
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]CCIPMessageSent, len(temps))
+		for i, temp := range temps {
+			result, err := convertCCIPMessageSentFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::onramp::AllowlistSendersAdded", func(data []byte) (interface{}, error) {
 		var temp bcsAllowlistSendersAdded
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -412,6 +459,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for AllowlistSendersAdded
+	bind.RegisterStructDecoder("vector<test::onramp::AllowlistSendersAdded>", func(data []byte) (interface{}, error) {
+		var temps []bcsAllowlistSendersAdded
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]AllowlistSendersAdded, len(temps))
+		for i, temp := range temps {
+			result, err := convertAllowlistSendersAddedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::onramp::AllowlistSendersRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsAllowlistSendersRemoved
@@ -426,6 +491,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for AllowlistSendersRemoved
+	bind.RegisterStructDecoder("vector<test::onramp::AllowlistSendersRemoved>", func(data []byte) (interface{}, error) {
+		var temps []bcsAllowlistSendersRemoved
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]AllowlistSendersRemoved, len(temps))
+		for i, temp := range temps {
+			result, err := convertAllowlistSendersRemovedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::onramp::FeeTokenWithdrawn", func(data []byte) (interface{}, error) {
 		var temp bcsFeeTokenWithdrawn
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -438,6 +521,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for FeeTokenWithdrawn
+	bind.RegisterStructDecoder("vector<test::onramp::FeeTokenWithdrawn>", func(data []byte) (interface{}, error) {
+		var temps []bcsFeeTokenWithdrawn
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]FeeTokenWithdrawn, len(temps))
+		for i, temp := range temps {
+			result, err := convertFeeTokenWithdrawnFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::onramp::OnRampState", func(data []byte) (interface{}, error) {
 		var temp bcsOnRampState
@@ -452,6 +553,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OnRampState
+	bind.RegisterStructDecoder("vector<test::onramp::OnRampState>", func(data []byte) (interface{}, error) {
+		var temps []bcsOnRampState
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OnRampState, len(temps))
+		for i, temp := range temps {
+			result, err := convertOnRampStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::onramp::StaticConfig", func(data []byte) (interface{}, error) {
 		var result StaticConfig
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -459,6 +578,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for StaticConfig
+	bind.RegisterStructDecoder("vector<test::onramp::StaticConfig>", func(data []byte) (interface{}, error) {
+		var results []StaticConfig
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::onramp::DynamicConfig", func(data []byte) (interface{}, error) {
 		var temp bcsDynamicConfig
@@ -473,6 +601,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for DynamicConfig
+	bind.RegisterStructDecoder("vector<test::onramp::DynamicConfig>", func(data []byte) (interface{}, error) {
+		var temps []bcsDynamicConfig
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]DynamicConfig, len(temps))
+		for i, temp := range temps {
+			result, err := convertDynamicConfigFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::onramp::DestChainConfig", func(data []byte) (interface{}, error) {
 		var temp bcsDestChainConfig
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -486,6 +632,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for DestChainConfig
+	bind.RegisterStructDecoder("vector<test::onramp::DestChainConfig>", func(data []byte) (interface{}, error) {
+		var temps []bcsDestChainConfig
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]DestChainConfig, len(temps))
+		for i, temp := range temps {
+			result, err := convertDestChainConfigFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::onramp::RampMessageHeader", func(data []byte) (interface{}, error) {
 		var result RampMessageHeader
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -493,6 +657,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for RampMessageHeader
+	bind.RegisterStructDecoder("vector<test::onramp::RampMessageHeader>", func(data []byte) (interface{}, error) {
+		var results []RampMessageHeader
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::onramp::Sui2AnyRampMessage", func(data []byte) (interface{}, error) {
 		var temp bcsSui2AnyRampMessage
@@ -507,6 +680,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for Sui2AnyRampMessage
+	bind.RegisterStructDecoder("vector<test::onramp::Sui2AnyRampMessage>", func(data []byte) (interface{}, error) {
+		var temps []bcsSui2AnyRampMessage
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Sui2AnyRampMessage, len(temps))
+		for i, temp := range temps {
+			result, err := convertSui2AnyRampMessageFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::onramp::Sui2AnyTokenTransfer", func(data []byte) (interface{}, error) {
 		var temp bcsSui2AnyTokenTransfer
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -519,6 +710,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for Sui2AnyTokenTransfer
+	bind.RegisterStructDecoder("vector<test::onramp::Sui2AnyTokenTransfer>", func(data []byte) (interface{}, error) {
+		var temps []bcsSui2AnyTokenTransfer
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]Sui2AnyTokenTransfer, len(temps))
+		for i, temp := range temps {
+			result, err := convertSui2AnyTokenTransferFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 

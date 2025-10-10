@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"test","module":"router","name":"emit_on_ramp_set_event","parameters":[{"name":"dest_chain_selector","type":"u64"}]}]`
+
 type IRouter interface {
 	EmitOnRampSetEvent(ctx context.Context, opts *bind.CallOpts, destChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IRouterDevInspect
@@ -132,6 +134,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for OnRampSet
+	bind.RegisterStructDecoder("vector<test::router::OnRampSet>", func(data []byte) (interface{}, error) {
+		var temps []bcsOnRampSet
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OnRampSet, len(temps))
+		for i, temp := range temps {
+			result, err := convertOnRampSetFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::router::RouterState", func(data []byte) (interface{}, error) {
 		var result RouterState
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -139,6 +159,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for RouterState
+	bind.RegisterStructDecoder("vector<test::router::RouterState>", func(data []byte) (interface{}, error) {
+		var results []RouterState
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::router::OnRampInfo", func(data []byte) (interface{}, error) {
 		var temp bcsOnRampInfo
@@ -152,6 +181,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for OnRampInfo
+	bind.RegisterStructDecoder("vector<test::router::OnRampInfo>", func(data []byte) (interface{}, error) {
+		var temps []bcsOnRampInfo
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]OnRampInfo, len(temps))
+		for i, temp := range temps {
+			result, err := convertOnRampInfoFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 }
 

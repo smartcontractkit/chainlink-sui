@@ -19,6 +19,8 @@ var (
 	_ = big.NewInt
 )
 
+const FunctionInfo = `[{"package":"test","module":"burn_mint_token_pool","name":"create_accepted_transfer_request","parameters":[{"name":"from","type":"address"},{"name":"to","type":"address"}]},{"package":"test","module":"burn_mint_token_pool","name":"create_pending_transfer_request","parameters":[{"name":"from","type":"address"},{"name":"to","type":"address"}]},{"package":"test","module":"burn_mint_token_pool","name":"create_rejected_transfer_request","parameters":[{"name":"from","type":"address"},{"name":"to","type":"address"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_chain_added_event","parameters":[{"name":"remote_chain_selector","type":"u64"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_chain_removed_event","parameters":[{"name":"remote_chain_selector","type":"u64"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_liquidity_added_event","parameters":[{"name":"amount","type":"u64"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_liquidity_removed_event","parameters":[{"name":"amount","type":"u64"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_locked_or_burned_event","parameters":[{"name":"amount","type":"u64"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_rebalancer_set_event","parameters":null},{"package":"test","module":"burn_mint_token_pool","name":"emit_released_or_minted_event","parameters":[{"name":"amount","type":"u64"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_remote_pool_added_event","parameters":[{"name":"remote_chain_selector","type":"u64"}]},{"package":"test","module":"burn_mint_token_pool","name":"emit_remote_pool_removed_event","parameters":[{"name":"remote_chain_selector","type":"u64"}]}]`
+
 type IBurnMintTokenPool interface {
 	EmitLockedOrBurnedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
 	EmitReleasedOrMintedEvent(ctx context.Context, opts *bind.CallOpts, amount uint64, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -267,6 +269,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ReleasedOrMinted
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::ReleasedOrMinted>", func(data []byte) (interface{}, error) {
+		var temps []bcsReleasedOrMinted
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ReleasedOrMinted, len(temps))
+		for i, temp := range temps {
+			result, err := convertReleasedOrMintedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::RemotePoolAdded", func(data []byte) (interface{}, error) {
 		var result RemotePoolAdded
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -274,6 +294,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for RemotePoolAdded
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::RemotePoolAdded>", func(data []byte) (interface{}, error) {
+		var results []RemotePoolAdded
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::RemotePoolRemoved", func(data []byte) (interface{}, error) {
 		var result RemotePoolRemoved
@@ -283,6 +312,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for RemotePoolRemoved
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::RemotePoolRemoved>", func(data []byte) (interface{}, error) {
+		var results []RemotePoolRemoved
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::ChainAdded", func(data []byte) (interface{}, error) {
 		var result ChainAdded
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -291,6 +329,15 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for ChainAdded
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::ChainAdded>", func(data []byte) (interface{}, error) {
+		var results []ChainAdded
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::ChainRemoved", func(data []byte) (interface{}, error) {
 		var result ChainRemoved
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -298,6 +345,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for ChainRemoved
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::ChainRemoved>", func(data []byte) (interface{}, error) {
+		var results []ChainRemoved
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::LiquidityAdded", func(data []byte) (interface{}, error) {
 		var temp bcsLiquidityAdded
@@ -312,6 +368,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for LiquidityAdded
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::LiquidityAdded>", func(data []byte) (interface{}, error) {
+		var temps []bcsLiquidityAdded
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]LiquidityAdded, len(temps))
+		for i, temp := range temps {
+			result, err := convertLiquidityAddedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::LiquidityRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsLiquidityRemoved
 		_, err := mystenbcs.Unmarshal(data, &temp)
@@ -324,6 +398,24 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for LiquidityRemoved
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::LiquidityRemoved>", func(data []byte) (interface{}, error) {
+		var temps []bcsLiquidityRemoved
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]LiquidityRemoved, len(temps))
+		for i, temp := range temps {
+			result, err := convertLiquidityRemovedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::RebalancerSet", func(data []byte) (interface{}, error) {
 		var temp bcsRebalancerSet
@@ -338,6 +430,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for RebalancerSet
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::RebalancerSet>", func(data []byte) (interface{}, error) {
+		var temps []bcsRebalancerSet
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]RebalancerSet, len(temps))
+		for i, temp := range temps {
+			result, err := convertRebalancerSetFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::TreasuryCap", func(data []byte) (interface{}, error) {
 		var result TreasuryCap
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -345,6 +455,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for TreasuryCap
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::TreasuryCap>", func(data []byte) (interface{}, error) {
+		var results []TreasuryCap
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::TransferRequest", func(data []byte) (interface{}, error) {
 		var temp bcsTransferRequest
@@ -359,6 +478,24 @@ func init() {
 		}
 		return result, nil
 	})
+	// Register vector decoder for TransferRequest
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::TransferRequest>", func(data []byte) (interface{}, error) {
+		var temps []bcsTransferRequest
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]TransferRequest, len(temps))
+		for i, temp := range temps {
+			result, err := convertTransferRequestFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("test::burn_mint_token_pool::RateLimiter", func(data []byte) (interface{}, error) {
 		var result RateLimiter
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -366,6 +503,15 @@ func init() {
 			return nil, err
 		}
 		return result, nil
+	})
+	// Register vector decoder for RateLimiter
+	bind.RegisterStructDecoder("vector<test::burn_mint_token_pool::RateLimiter>", func(data []byte) (interface{}, error) {
+		var results []RateLimiter
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
 	})
 }
 
