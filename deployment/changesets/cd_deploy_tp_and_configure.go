@@ -61,7 +61,6 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		if tokenPoolType == "bnm" {
 			config.BurnMintTpInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
-			config.BurnMintTpInput.CCIPTokenPoolPackageId = state[config.SuiChainSelector].TokenPoolAddress
 			config.BurnMintTpInput.MCMSAddress = state[config.SuiChainSelector].MCMsAddress
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
@@ -75,7 +74,6 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 
 		if tokenPoolType == "lnr" {
 			config.LockReleaseTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
-			config.LockReleaseTPInput.CCIPTokenPoolPackageId = state[config.SuiChainSelector].TokenPoolAddress
 			config.LockReleaseTPInput.MCMSAddress = state[config.SuiChainSelector].MCMsAddress
 			config.LockReleaseTPInput.MCMSOwnerAddress = deployerAddr
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
@@ -89,7 +87,6 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 
 		if tokenPoolType == "managed" {
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
-			config.ManagedTPInput.CCIPTokenPoolPackageId = state[config.SuiChainSelector].TokenPoolAddress
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMsAddress
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef

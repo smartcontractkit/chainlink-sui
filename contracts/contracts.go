@@ -17,7 +17,6 @@ const (
 	CCIPOfframp          = Package("ccip_offramp")
 	CCIPOnramp           = Package("ccip_onramp")
 	CCIPRouter           = Package("ccip_router")
-	CCIPTokenPool        = Package("ccip_token_pool")
 	LockReleaseTokenPool = Package("lock_release_token_pool")
 	BurnMintTokenPool    = Package("burn_mint_token_pool")
 	USDCTokenPool        = Package("usdc_token_pool")
@@ -45,7 +44,6 @@ var Contracts map[Package]string = map[Package]string{
 	CCIPOfframp:          filepath.Join("ccip", "ccip_offramp"),
 	CCIPOnramp:           filepath.Join("ccip", "ccip_onramp"),
 	CCIPRouter:           filepath.Join("ccip", "ccip_router"),
-	CCIPTokenPool:        filepath.Join("ccip", "ccip_token_pools", "token_pool"),
 	LockReleaseTokenPool: filepath.Join("ccip", "ccip_token_pools", "lock_release_token_pool"),
 	BurnMintTokenPool:    filepath.Join("ccip", "ccip_token_pools", "burn_mint_token_pool"),
 	USDCTokenPool:        filepath.Join("ccip", "ccip_token_pools", "usdc_token_pool"),
