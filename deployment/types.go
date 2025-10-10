@@ -6,27 +6,11 @@ import (
 )
 
 var (
-<<<<<<< HEAD
-	SuiCCIPRouterType              deployment.ContractType = "SuiRouter"
-	SuiCCIPType                    deployment.ContractType = "SuiCCIP"
-	SuiCCIPObjectRefType           deployment.ContractType = "SuiCCIPObjectRef"
-	SuiCCIPOwnerCapObjectIDType    deployment.ContractType = "SuiCCIPOwnerCapObjectID"
-	SuiFeeQuoterCapType            deployment.ContractType = "SuiCCIPFeeQuoterCap"
-	SuiOnRampType                  deployment.ContractType = "SuiOnRamp"
-	SuiOnRampStateObjectIDType     deployment.ContractType = "SuiOnRampStateObjectID"
-	SuiOnRampOwnerCapObjectIDType  deployment.ContractType = "SuiOnRampOwnerCapObjectID"
-	SuiOffRampType                 deployment.ContractType = "SuiOffRamp"
-	SuiOffRampOwnerCapObjectIDType deployment.ContractType = "SuiOffRampOwnerCapObjectID"
-	SuiOffRampStateObjectIDType    deployment.ContractType = "SuiOffRampStateObjectID"
-	SuiLockReleaseTPType           deployment.ContractType = "SuiLockReleaseToken"
-	SuiLockReleaseTPStateType      deployment.ContractType = "SuiLockReleaseTokenState"
-=======
 	SuiCCIPRouterType                deployment.ContractType = "SuiRouter"
 	SuiCCIPType                      deployment.ContractType = "SuiCCIP"
 	SuiCCIPObjectRefType             deployment.ContractType = "SuiCCIPObjectRef"
 	SuiCCIPOwnerCapObjectIDType      deployment.ContractType = "SuiCCIPOwnerCapObjectID"
 	SuiFeeQuoterCapType              deployment.ContractType = "SuiCCIPFeeQuoterCap"
-	SuiTokenPoolType                 deployment.ContractType = "SuiTokenPool"
 	SuiOnRampType                    deployment.ContractType = "SuiOnRamp"
 	SuiOnRampStateObjectIDType       deployment.ContractType = "SuiOnRampStateObjectID"
 	SuiOnRampOwnerCapObjectIDType    deployment.ContractType = "SuiOnRampOwnerCapObjectID"
@@ -37,7 +21,6 @@ var (
 	SuiOffRampStateObjectIDType      deployment.ContractType = "SuiOffRampStateObjectID"
 	SuiLockReleaseTPType             deployment.ContractType = "SuiLockReleaseToken"
 	SuiLockReleaseTPStateType        deployment.ContractType = "SuiLockReleaseTokenState"
->>>>>>> develop
 
 	// MCMS Related
 	SuiMcmsPackageIDType               deployment.ContractType = "SuiManyChainMultisigPackageID"
