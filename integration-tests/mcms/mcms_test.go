@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
-	"github.com/stretchr/testify/require"
 )
 
 type CCIPMCMSTestSuite struct {
@@ -21,6 +22,7 @@ type CCIPMCMSTestSuite struct {
 
 	ccipPackageId string
 	ccipObjects   ccipops.DeployCCIPSeqObjects
+	linkObjects   linkops.DeployLinkObjects
 }
 
 func (s *CCIPMCMSTestSuite) SetupSuite() {
@@ -102,16 +104,18 @@ func (s *CCIPMCMSTestSuite) SetupSuite() {
 
 	s.ccipPackageId = report.Output.CCIPPackageId
 	s.ccipObjects = report.Output.Objects
+	s.linkObjects = linkReport.Output.Objects
 }
 
 func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 	s.T().Run("Transfer Ownership of CCIP to MCMS", func(t *testing.T) {
 		RunTestCCIPOwnershipTransfer(s)
-	})
-
-	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
 		RunTestCCIPProposal(s)
 	})
+
+	// s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
+	// 	RunTestCCIPProposal(s)
+	// })
 }
 
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
@@ -178,5 +182,116 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 }
 
 func RunTestCCIPProposal(s *CCIPMCMSTestSuite) {
-	// TODO: Build a proposal that changes some configuration in CCIP
+	/*
+		Fee Quoter
+			*FeeQuoterInitializeOp.AsUntyped(),
+			*FeeQuoterApplyFeeTokenUpdatesOp.AsUntyped(),
+			*FeeQuoterApplyTokenTransferFeeConfigUpdatesOp.AsUntyped(),
+			*FeeQuoterApplyDestChainConfigUpdatesOp.AsUntyped(),
+			*FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp.AsUntyped(),
+			*FeeQuoterUpdateTokenPricesOp.AsUntyped(),
+			*FeeQuoterNewFeeQuoterCapOp.AsUntyped(),
+			*FeeQuoterDestroyFeeQuoterCapOp.AsUntyped(),
+			*FeeQuoterUpdatePricesWithOwnerCapOp.AsUntyped(),
+		Token Admin Registry
+			*TokenAdminRegistryInitializeOp.AsUntyped(),
+			*TokenAdminRegistryUnregisterPoolOp.AsUntyped(),
+			*TokenAdminRegistrySetPoolOp.AsUntyped(),
+			*TokenAdminRegistryTransferAdminRoleOp.AsUntyped(),
+			*TokenAdminRegistryAcceptAdminRoleOp.AsUntyped(),
+	*/
+
+	// 2. Generate proposal
+	input := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			ccipops.FeeQuoterApplyFeeTokenUpdatesOp.Def(),
+			// ccipops.FeeQuoterApplyTokenTransferFeeConfigUpdatesOp.Def(),
+			// ccipops.FeeQuoterApplyDestChainConfigUpdatesOp.Def(),
+			// ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp.Def(),
+			// ccipops.FeeQuoterUpdateTokenPricesOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.FeeQuoterApplyFeeTokenUpdatesInput{
+				CCIPPackageId:     s.ccipPackageId,
+				StateObjectId:     s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:  s.ccipObjects.OwnerCapObjectId,
+				FeeTokensToRemove: []string{},
+				FeeTokensToAdd:    []string{s.linkObjects.CoinMetadataObjectId},
+			},
+			// ccipops.FeeQuoterApplyTokenTransferFeeConfigUpdatesInput{
+			// 	CCIPPackageId:        s.ccipPackageId,
+			// 	StateObjectId:        s.ccipObjects.CCIPObjectRefObjectId,
+			// 	OwnerCapObjectId:     s.ccipObjects.OwnerCapObjectId,
+			// 	DestChainSelector:    16015286601757825753,
+			// 	AddTokens:            []string{s.linkObjects.CoinMetadataObjectId},
+			// 	AddMinFeeUsdCents:    []uint32{3007},
+			// 	AddMaxFeeUsdCents:    []uint32{30007},
+			// 	AddDeciBps:           []uint16{1007},
+			// 	AddDestGasOverhead:   []uint32{1000007},
+			// 	AddDestBytesOverhead: []uint32{1007},
+			// 	AddIsEnabled:         []bool{true},
+			// 	RemoveTokens:         []string{},
+			// },
+			// ccipops.FeeQuoterApplyDestChainConfigUpdatesInput{
+			// 	CCIPPackageId:                     s.ccipPackageId,
+			// 	StateObjectId:                     s.ccipObjects.CCIPObjectRefObjectId,
+			// 	OwnerCapObjectId:                  s.ccipObjects.OwnerCapObjectId,
+			// 	DestChainSelector:                 16015286601757825753,
+			// 	IsEnabled:                         true,
+			// 	MaxNumberOfTokensPerMsg:           2,
+			// 	MaxDataBytes:                      2007,
+			// 	MaxPerMsgGasLimit:                 5000007,
+			// 	DestGasOverhead:                   1000007,
+			// 	DestGasPerPayloadByteBase:         byte(7),
+			// 	DestGasPerPayloadByteHigh:         byte(7),
+			// 	DestGasPerPayloadByteThreshold:    uint16(17),
+			// 	DestDataAvailabilityOverheadGas:   300007,
+			// 	DestGasPerDataAvailabilityByte:    7,
+			// 	DestDataAvailabilityMultiplierBps: 7,
+			// 	ChainFamilySelector:               []byte{0x28, 0x12, 0xd5, 0x2c}, // EVM chain family
+			// 	EnforceOutOfOrder:                 false,
+			// 	DefaultTokenFeeUsdCents:           7,
+			// 	DefaultTokenDestGasOverhead:       100007,
+			// 	DefaultTxGasLimit:                 500007,
+			// 	GasMultiplierWeiPerEth:            107,
+			// 	GasPriceStalenessThreshold:        307,
+			// 	NetworkFeeUsdCents:                7,
+			// },
+			// ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput{
+			// 	CCIPPackageId:              s.ccipPackageId,
+			// 	StateObjectId:              s.ccipObjects.CCIPObjectRefObjectId,
+			// 	OwnerCapObjectId:           s.ccipObjects.OwnerCapObjectId,
+			// 	Tokens:                     []string{s.linkObjects.CoinMetadataObjectId},
+			// 	PremiumMultiplierWeiPerEth: []uint64{77},
+			// },
+			// ccipops.FeeQuoterUpdateTokenPricesInput{
+			// 	CCIPPackageId:         s.ccipPackageId,
+			// 	CCIPObjectRef:         s.ccipObjects.CCIPObjectRefObjectId,
+			// 	FeeQuoterCapId:        s.ccipObjects.FeeQuoterCapObjectId,
+			// 	SourceTokens:          []string{s.linkObjects.CoinMetadataObjectId},
+			// 	SourceUsdPerToken:     []*big.Int{big.NewInt(1000000000000000007)},
+			// 	GasDestChainSelectors: []uint64{},
+			// 	GasUsdPerUnitGas:      []*big.Int{big.NewInt(1000000000000000007)},
+			// },
+		},
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+		// Proposal
+		Role:          suisdk.TimelockRoleBypasser,
+		ChainSelector: uint64(s.chainSelector),
+		Delay:         0,
+	}
+	feeQuoterReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	s.Require().NoError(err, "executing fee quoter proposal sequence")
+
+	timelockProposal := feeQuoterReport.Output
+
+	// 3. Execute transfer ownership from original owner
+	// 3.1. Execute the proposal
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
 }
