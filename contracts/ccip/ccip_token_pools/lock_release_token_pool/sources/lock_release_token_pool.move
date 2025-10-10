@@ -297,7 +297,7 @@ public fun lock_or_burn<T: drop>(
     let mut extra_data = vector[];
     eth_abi::encode_u8(&mut extra_data, state.token_pool_state.get_local_decimals());
 
-    token_pool::emit_locked_or_burned(&mut state.token_pool_state, amount, remote_chain_selector);
+    token_pool::emit_locked_or_burned(&state.token_pool_state, amount, remote_chain_selector);
 
     onramp_sh::add_token_transfer_param(
         ref,
@@ -354,7 +354,7 @@ public fun release_or_mint<T>(
     let c: Coin<T> = coin::split(&mut state.reserve, local_amount, ctx);
 
     token_pool::emit_released_or_minted(
-        &mut state.token_pool_state,
+        &state.token_pool_state,
         token_receiver,
         local_amount,
         remote_chain_selector,
@@ -457,7 +457,7 @@ public fun provide_liquidity<T>(
     coin::join(&mut state.reserve, c);
 
     token_pool::emit_liquidity_added(
-        &mut state.token_pool_state,
+        &state.token_pool_state,
         state.rebalancer,
         amount,
     );
@@ -472,7 +472,7 @@ public fun withdraw_liquidity<T>(
 
     assert!(state.reserve.value() >= amount, ETokenPoolBalanceTooLow);
 
-    token_pool::emit_liquidity_removed(&mut state.token_pool_state, state.rebalancer, amount);
+    token_pool::emit_liquidity_removed(&state.token_pool_state, state.rebalancer, amount);
     coin::split(&mut state.reserve, amount, ctx)
 }
 
@@ -487,7 +487,7 @@ public fun set_rebalancer<T>(
 
 fun set_rebalancer_internal<T>(state: &mut LockReleaseTokenPoolState<T>, rebalancer: address) {
     token_pool::emit_rebalancer_set(
-        &mut state.token_pool_state,
+        &state.token_pool_state,
         state.rebalancer,
         rebalancer,
     );
