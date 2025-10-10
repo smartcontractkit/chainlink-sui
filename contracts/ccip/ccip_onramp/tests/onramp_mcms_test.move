@@ -124,10 +124,14 @@ fun transfer_to_mcms(
         string::utf8(MODULE_NAME),
         string::utf8(b"accept_ownership"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+        1,
     );
     onramp::mcms_accept_ownership(
         ref,
         state,
+        registry,
         params,
         ctx,
     );
@@ -164,6 +168,9 @@ public fun test_mcms_set_dynamic_config() {
         string::utf8(MODULE_NAME),
         string::utf8(b"set_dynamic_config"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+        1,
     );
 
     onramp::mcms_set_dynamic_config(
@@ -212,6 +219,9 @@ public fun test_mcms_apply_dest_chain_config_updates() {
         string::utf8(MODULE_NAME),
         string::utf8(b"apply_dest_chain_config_updates"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000003",
+        0,
+        1,
     );
 
     onramp::mcms_apply_dest_chain_config_updates(
@@ -271,6 +281,9 @@ public fun test_mcms_apply_allowlist_updates() {
         string::utf8(MODULE_NAME),
         string::utf8(b"apply_allowlist_updates"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000004",
+        0,
+        1,
     );
 
     onramp::mcms_apply_allowlist_updates(
@@ -328,6 +341,9 @@ public fun test_mcms_transfer_ownership_e2e() {
         string::utf8(MODULE_NAME),
         string::utf8(b"transfer_ownership"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000005",
+        0,
+        1,
     );
 
     onramp::mcms_transfer_ownership(
@@ -353,6 +369,9 @@ public fun test_mcms_transfer_ownership_e2e() {
         string::utf8(MODULE_NAME),
         string::utf8(b"execute_ownership_transfer"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000006",
+        0,
+        1,
     );
 
     onramp::mcms_execute_ownership_transfer(

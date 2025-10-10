@@ -90,7 +90,7 @@ func TestPTBClient(t *testing.T) {
 					completionCh <- id // Signal this request completed
 				}()
 
-				err := relayerClient.WithRateLimit(ctx, func(ctx context.Context) error {
+				err := relayerClient.WithRateLimit(ctx, "TestMethod", func(ctx context.Context) error {
 					time.Sleep(1 * time.Second)
 					return nil
 				})

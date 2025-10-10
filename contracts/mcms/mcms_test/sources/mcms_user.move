@@ -107,7 +107,7 @@ public fun mcms_function_one(
     params: ExecutingCallbackParams, // hot potato
     _ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         SampleMcmsCallback,
         OwnerCap,
     >(
@@ -136,7 +136,7 @@ public fun mcms_function_two(
     params: ExecutingCallbackParams, // hot potato
     _ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         SampleMcmsCallback,
         OwnerCap,
     >(

@@ -128,6 +128,9 @@ public fun test_mcms_apply_fee_token_updates() {
         string::utf8(FEE_QUOTER_MODULE_NAME),
         string::utf8(b"apply_fee_token_updates"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+        1,
     );
 
     fee_quoter::mcms_apply_fee_token_updates(
@@ -184,6 +187,9 @@ public fun test_mcms_apply_dest_chain_config_updates() {
         string::utf8(FEE_QUOTER_MODULE_NAME),
         string::utf8(b"apply_dest_chain_config_updates"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000002",
+        0,
+        1,
     );
 
     fee_quoter::mcms_apply_dest_chain_config_updates(
@@ -267,6 +273,9 @@ public fun test_mcms_apply_token_transfer_fee_config_updates() {
         string::utf8(FEE_QUOTER_MODULE_NAME),
         string::utf8(b"apply_token_transfer_fee_config_updates"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000003",
+        0,
+        1,
     );
 
     fee_quoter::mcms_apply_token_transfer_fee_config_updates(
@@ -342,6 +351,9 @@ public fun test_mcms_apply_premium_multiplier_wei_per_eth_updates() {
         string::utf8(FEE_QUOTER_MODULE_NAME),
         string::utf8(b"apply_premium_multiplier_wei_per_eth_updates"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000004",
+        0,
+        1,
     );
 
     fee_quoter::mcms_apply_premium_multiplier_wei_per_eth_updates(
@@ -388,6 +400,9 @@ public fun test_mcms_update_prices_with_owner_cap() {
         string::utf8(FEE_QUOTER_MODULE_NAME),
         string::utf8(b"update_prices_with_owner_cap"),
         data,
+        x"0000000000000000000000000000000000000000000000000000000000000005",
+        0,
+        1,
     );
 
     {
