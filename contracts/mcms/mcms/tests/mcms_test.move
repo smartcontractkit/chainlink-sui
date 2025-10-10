@@ -2564,7 +2564,7 @@ fun test_execute_batch_with_dependencies() {
 
         // Execute second operation
         while (!executing_callback_params.is_empty()) {
-            mcms::execute_timelock_update_min_delay(
+            mcms::mcms_timelock_update_min_delay(
                 &mut env.timelock,
                 &mut env.registry,
                 executing_callback_params.pop_back(),
@@ -2615,7 +2615,7 @@ fun test_execute_batch_with_dependencies() {
 
         // Execute second operation
         while (!executing_callback_params.is_empty()) {
-            mcms::execute_timelock_update_min_delay(
+            mcms::mcms_timelock_update_min_delay(
                 &mut env.timelock,
                 &mut env.registry,
                 executing_callback_params.pop_back(),
@@ -2660,7 +2660,7 @@ fun test_bypasser_allowed_when_timelock_active() {
     );
 
     // Process the executing callback params to complete the operation
-    mcms::execute_timelock_update_min_delay(
+    mcms::mcms_timelock_update_min_delay(
         &mut env.timelock,
         &mut env.registry,
         executing_params.pop_back(),
@@ -2730,7 +2730,7 @@ fun test_timelock_dispatch_to_self() {
         1, // total_in_batch
     );
 
-    mcms::execute_timelock_update_min_delay(
+    mcms::mcms_timelock_update_min_delay(
         &mut env.timelock,
         &mut env.registry,
         params,
@@ -2814,7 +2814,7 @@ fun test_timelock_dispatch_to_account() {
     );
 
     // Test the dispatch routing - this should route to mcms_account::transfer_ownership
-    mcms::execute_dispatch_to_account(
+    mcms::mcms_dispatch_to_account(
         &mut env.registry,
         &mut env.account_state,
         params,
@@ -2880,7 +2880,7 @@ fun test_timelock_dispatch_to_deployer() {
 
     // Process the executing callback params to complete the operation
     let params = executing_params.pop_back();
-    let upgrade_ticket = mcms::execute_dispatch_to_deployer(
+    let upgrade_ticket = mcms::mcms_dispatch_to_deployer(
         &mut env.registry,
         &mut env.deployer_state,
         params,
@@ -2994,7 +2994,7 @@ fun test_dispatch_timelock_execute_batch() {
     assert!(mcms_registry::module_name(params) == string::utf8(b"mcms"));
     assert!(mcms_registry::function_name(params) == string::utf8(b"timelock_update_min_delay"));
 
-    mcms::execute_timelock_update_min_delay(
+    mcms::mcms_timelock_update_min_delay(
         &mut env.timelock,
         &mut env.registry,
         executing_params.pop_back(),
@@ -3040,7 +3040,7 @@ fun test_dispatch_timelock_bypasser_execute_batch() {
     assert!(mcms_registry::module_name(params) == string::utf8(b"mcms"));
     assert!(mcms_registry::function_name(params) == string::utf8(b"timelock_update_min_delay"));
 
-    mcms::execute_timelock_update_min_delay(
+    mcms::mcms_timelock_update_min_delay(
         &mut env.timelock,
         &mut env.registry,
         executing_params.pop_back(),
@@ -3200,7 +3200,7 @@ fun timelock_execute_dispatch_to_acc_helper(
         env.scenario.ctx(),
     );
 
-    mcms::execute_dispatch_to_account(
+    mcms::mcms_dispatch_to_account(
         &mut env.registry,
         &mut env.account_state,
         executing_callback_params.pop_back(),
