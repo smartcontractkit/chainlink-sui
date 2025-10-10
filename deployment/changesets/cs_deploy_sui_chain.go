@@ -186,10 +186,18 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp state object Id  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
 
+	// save OnRampOwnerCapObjectID to addressbook
 	typeAndVersionOnRampOwnerCapObjectId := cldf.NewTypeAndVersion(deployment.SuiOnRampOwnerCapObjectIDType, deployment.Version1_0_0)
 	err = ab.Save(config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionOnRampOwnerCapObjectId)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save onRamp state object Id  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampOwnerCapObjectID  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
+	}
+
+	// save OnRampUpgradeCapId to addressbook
+	typeAndVersionOnRampUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiOnRampUpgradeCapObjectIDType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, ccipOnRampSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionOnRampUpgradeCapId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampUpgradeCapId  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
 
 	// --------------------------

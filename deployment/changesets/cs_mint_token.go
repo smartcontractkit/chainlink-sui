@@ -56,8 +56,6 @@ func (d MintLinkToken) Apply(e cldf.Environment, config MintLinkTokenConfig) (cl
 
 	seqReports = append(seqReports, mintLinkTokenReport.ToGenericReport())
 
-	fmt.Println("MINT TOKEN REPORT: ", seqReports)
-
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
 		Reports:     seqReports,

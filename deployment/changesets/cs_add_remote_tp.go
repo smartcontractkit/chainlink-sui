@@ -50,7 +50,6 @@ func (d AddRemoteTP) Apply(e cldf.Environment, config AddRemoteTPConfig) (cldf.C
 	}
 
 	// Todo: validate that len of TokenpoolTypes == RemoteChainSelectors == RemotePoolAddressToAdd
-
 	for _, tokenPoolType := range config.TokenPoolTypes {
 		if tokenPoolType == "lnr" {
 			for i, chainSelector := range config.RemoteChainSelectors {

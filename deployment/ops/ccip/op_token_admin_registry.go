@@ -114,8 +114,6 @@ type SetPoolInput struct {
 	CCIPPackageId       string
 	StateObjectId       string
 	CoinMetadataAddress string
-	TokenPoolPackageId  string
-	TokenPoolModule     string
 	LockOrBurnParams    []string
 	ReleaseOrMintParams []string
 	TypeArgs            []string
@@ -136,8 +134,6 @@ var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetPool
 		input.TypeArgs,
 		bind.Object{Id: input.StateObjectId},
 		input.CoinMetadataAddress,
-		input.TokenPoolPackageId,
-		input.TokenPoolModule,
 		input.LockOrBurnParams,
 		input.ReleaseOrMintParams,
 		bind.Object{Id: input.TypeProofObjectId},
@@ -146,7 +142,7 @@ var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetPool
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute set pool: %w", err)
 	}
 
-	b.Logger.Infow("SetPool on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress, "TokenPoolPackageId:", input.TokenPoolPackageId)
+	b.Logger.Infow("SetPool on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress, "TokenPoolPackageId:", input.TypeProofObjectId)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,

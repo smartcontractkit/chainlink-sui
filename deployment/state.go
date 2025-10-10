@@ -8,26 +8,29 @@ import (
 )
 
 type CCIPChainState struct {
-	CCIPRouterAddress          string
-	CCIPAddress                string
-	CCIPObjectRef              string
-	CCIPOwnerCapObjectId       string
-	MCMsAddress                string
-	TokenPoolAddress           string
-	LockReleaseAddress         string
-	LockReleaseStateId         string
-	FeeQuoterCapId             string
-	OnRampAddress              string
-	OnRampStateObjectId        string
-	OnRampOwnerCapObjectId     string
-	OffRampAddress             string
-	OffRampOwnerCapId          string
-	OffRampStateObjectId       string
-	LinkTokenAddress           string
-	LinkTokenCoinMetadataId    string
-	LinkTokenTreasuryCapId     string
-	CCIPBurnMintTokenPool      string
-	CCIPBurnMintTokenPoolState string
+	CCIPRouterAddress            string
+	CCIPAddress                  string
+	CCIPObjectRef                string
+	CCIPOwnerCapObjectId         string
+	MCMsAddress                  string
+	TokenPoolAddress             string
+	LockReleaseAddress           string
+	LockReleaseStateId           string
+	FeeQuoterCapId               string
+	OnRampAddress                string
+	OnRampStateObjectId          string
+	OnRampOwnerCapObjectId       string
+	OnRampUpgradeCapId           string
+	OffRampAddress               string
+	OffRampOwnerCapId            string
+	OffRampUpgradeCapId          string
+	OffRampStateObjectId         string
+	LinkTokenAddress             string
+	LinkTokenCoinMetadataId      string
+	LinkTokenTreasuryCapId       string
+	CCIPBurnMintTokenPool        string
+	CCIPBurnMintTokenPoolState   string
+	CCIPBurnMintTokenPoolOwnerId string
 }
 
 // LoadOnchainStatesui loads chain state for sui chains from env
@@ -98,6 +101,9 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 		case SuiOnRampOwnerCapObjectIDType:
 			chainState.OnRampOwnerCapObjectId = addr
 
+		case SuiOnRampUpgradeCapObjectIDType:
+			chainState.OnRampUpgradeCapId = addr
+
 		case SuiOffRampType:
 			chainState.OffRampAddress = addr
 
@@ -106,6 +112,9 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 
 		case SuiOffRampOwnerCapObjectIDType:
 			chainState.OffRampOwnerCapId = addr
+
+		case SuiOffRampUpgradeCapObjectIDType:
+			chainState.OffRampUpgradeCapId = addr
 
 		case SuiLinkTokenType:
 			chainState.LinkTokenAddress = addr
@@ -121,6 +130,9 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 
 		case SuiBnMTokenPoolStateType:
 			chainState.CCIPBurnMintTokenPoolState = addr
+
+		case SuiBnMTokenPoolOwnerIDType:
+			chainState.CCIPBurnMintTokenPoolOwnerId = addr
 		}
 		// Set address based on type
 	}
