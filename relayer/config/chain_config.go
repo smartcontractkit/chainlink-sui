@@ -9,11 +9,11 @@ import (
 // Default constant values
 const (
 	DefaultBroadcastChannelSize       = uint64(4096)
-	DefaultMaxConcurrentRequests      = int64(5)
+	DefaultMaxConcurrentRequests      = int64(100)
 	DefaultRetryCount                 = int64(5)
 	DefaultMaxGasLimit                = int64(10000000)
-	DefaultTxTimeoutSeconds           = 10
-	DefaultConfirmPollSecs            = int64(1)
+	DefaultTxTimeoutSeconds           = 120
+	DefaultConfirmPollSecs            = int64(60)
 	DefaultBalancePollIntervalSeconds = int64(10)
 
 	DefaultIndexerPollIntervalSecs = uint64(3)

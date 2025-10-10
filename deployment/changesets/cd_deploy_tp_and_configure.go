@@ -1,6 +1,8 @@
 package changesets
 
 import (
+	"fmt"
+
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
@@ -26,6 +28,7 @@ var _ cldf.ChangeSetV2[DeployTPAndConfigureConfig] = DeployTPAndConfigure{}
 
 // Apply implements deployment.ChangeSetV2.
 func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfigureConfig) (cldf.ChangesetOutput, error) {
+	ab := cldf.NewMemoryAddressBook()
 	state, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -66,9 +69,30 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.BurnMintTpInput.TokenPoolAdministrator = deployerAddr // check with felix if this is fine
 
-			_, err = operations.ExecuteSequence(e.OperationsBundle, burnminttokenpoolops.DeployAndInitBurnMintTokenPoolSequence, deps, config.BurnMintTpInput)
+			BnMTokenPoolSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, burnminttokenpoolops.DeployAndInitBurnMintTokenPoolSequence, deps, config.BurnMintTpInput)
 			if err != nil {
 				return cldf.ChangesetOutput{}, err
+			}
+
+			// save BnM Pool to the addressbook
+			typeAndVersionBurnMintTokenPool := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolType, deployment.Version1_0_0)
+			err = ab.Save(config.SuiChainSelector, BnMTokenPoolSeqReport.Output.BurnMintTPPackageID, typeAndVersionBurnMintTokenPool)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPool address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.BurnMintTPPackageID, config.SuiChainSelector, err)
+			}
+
+			// save BnM Pool State to the addressBook
+			typeAndVersionBurnMintTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolStateType, deployment.Version1_0_0)
+			err = ab.Save(config.SuiChainSelector, BnMTokenPoolSeqReport.Output.Objects.StateObjectId, typeAndVersionBurnMintTokenPoolState)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolState address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.Objects.StateObjectId, config.SuiChainSelector, err)
+			}
+
+			// save BnM Pool OwnerId to the addressBook
+			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerIDType, deployment.Version1_0_0)
+			err = ab.Save(config.SuiChainSelector, BnMTokenPoolSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 		}
 
@@ -100,7 +124,8 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 	}
 
 	return cldf.ChangesetOutput{
-		Reports: seqReports,
+		AddressBook: ab,
+		Reports:     seqReports,
 	}, nil
 }
 
