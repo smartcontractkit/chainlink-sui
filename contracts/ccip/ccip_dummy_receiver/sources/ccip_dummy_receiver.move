@@ -42,7 +42,7 @@ public struct DummyReceiverProof has drop {}
 
 public struct TokenAmount has copy, drop, store {
     token: address,
-    amount: u64,
+    amount: u256,
 }
 
 public fun type_and_version(): String {
@@ -91,7 +91,7 @@ public fun get_token_amount_token(token_amount: &TokenAmount): address {
     token_amount.token
 }
 
-public fun get_token_amount_amount(token_amount: &TokenAmount): u64 {
+public fun get_token_amount_amount(token_amount: &TokenAmount): u256 {
     token_amount.amount
 }
 
