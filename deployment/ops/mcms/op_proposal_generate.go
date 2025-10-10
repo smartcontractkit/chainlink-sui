@@ -7,11 +7,12 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
+
+	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
 
 var DefaultTimelockExpirationInHours = 72
@@ -88,7 +89,19 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	}
 
 	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultTimelockExpirationInHours) * time.Hour).Unix())
-	metadata, err := suisdk.NewChainMetadata(0, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
+
+	// Get OP Count from inspector
+	inspector, err := suisdk.NewInspector(deps.Client, deps.Signer, input.MmcsPackageID, input.Role)
+	if err != nil {
+		return mcms.TimelockProposal{}, fmt.Errorf("failed to create inspector: %w", err)
+	}
+	// TODO: somehow callopts with signer is required for get functions.
+	opCount, err := inspector.GetOpCount(b.GetContext(), input.MmcsPackageID)
+	if err != nil {
+		return mcms.TimelockProposal{}, fmt.Errorf("failed to get op count: %w", err)
+	}
+
+	metadata, err := suisdk.NewChainMetadata(opCount, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create chain metadata: %w", err)
 	}
