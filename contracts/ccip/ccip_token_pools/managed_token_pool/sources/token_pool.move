@@ -76,7 +76,6 @@ const EDecimalOverflow: u64 = 11;
 // |                    Initialize and state                      |
 // ================================================================
 
-// this can be called by any token pool implementation
 public(package) fun initialize(
     coin_metadata_address: address,
     local_decimals: u8,

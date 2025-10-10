@@ -340,7 +340,7 @@ public fun lock_or_burn<T: drop>(
     let nonce = message::nonce(&msg);
     let source_pool_data = encode_source_pool_data(pool.local_domain_identifier, nonce);
 
-    token_pool::emit_locked_or_burned(&mut pool.token_pool_state, amount, remote_chain_selector);
+    token_pool::emit_locked_or_burned(&pool.token_pool_state, amount, remote_chain_selector);
 
     onramp_sh::add_token_transfer_param(
         ref,
@@ -434,7 +434,7 @@ public fun release_or_mint<T: drop>(
     );
 
     token_pool::emit_released_or_minted(
-        &mut pool.token_pool_state,
+        &pool.token_pool_state,
         receiver,
         amount,
         remote_chain_selector,
