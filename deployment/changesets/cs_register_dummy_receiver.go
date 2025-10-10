@@ -16,12 +16,12 @@ type RegisterDummyReceiverConfig struct {
 	DummyReceiverPackageId string
 }
 
-var _ cldf.ChangeSetV2[RegisterDummyReceiverConfig] = RegisterDummyReciever{}
+var _ cldf.ChangeSetV2[RegisterDummyReceiverConfig] = RegisterDummyReceiver{}
 
-type RegisterDummyReciever struct{}
+type RegisterDummyReceiver struct{}
 
 // Apply implements deployment.ChangeSetV2.
-func (d RegisterDummyReciever) Apply(e cldf.Environment, config RegisterDummyReceiverConfig) (cldf.ChangesetOutput, error) {
+func (d RegisterDummyReceiver) Apply(e cldf.Environment, config RegisterDummyReceiverConfig) (cldf.ChangesetOutput, error) {
 	ab := cldf.NewMemoryAddressBook()
 	seqReports := make([]operations.Report[any, any], 0)
 
@@ -40,7 +40,7 @@ func (d RegisterDummyReciever) Apply(e cldf.Environment, config RegisterDummyRec
 	}
 
 	// Run RegisterReciever Operation
-	RegisterRecieverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.RegisterDummyReceiverOp, deps, ccipops.RegisterDummyReceiverInput{
+	RegisterReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.RegisterDummyReceiverOp, deps, ccipops.RegisterDummyReceiverInput{
 		CCIPObjectRefObjectId:  config.CCIPObjectRefObjectId,
 		DummyReceiverPackageId: config.DummyReceiverPackageId,
 	})
@@ -48,7 +48,7 @@ func (d RegisterDummyReciever) Apply(e cldf.Environment, config RegisterDummyRec
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to register receiver for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
-	seqReports = append(seqReports, []operations.Report[any, any]{RegisterRecieverOp.ToGenericReport()}...)
+	seqReports = append(seqReports, []operations.Report[any, any]{RegisterReceiverOp.ToGenericReport()}...)
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
@@ -57,6 +57,6 @@ func (d RegisterDummyReciever) Apply(e cldf.Environment, config RegisterDummyRec
 }
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
-func (d RegisterDummyReciever) VerifyPreconditions(e cldf.Environment, config RegisterDummyReceiverConfig) error {
+func (d RegisterDummyReceiver) VerifyPreconditions(e cldf.Environment, config RegisterDummyReceiverConfig) error {
 	return nil
 }
