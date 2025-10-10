@@ -8,6 +8,7 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
+use sui::address;
 use sui::coin::{CoinMetadata, TreasuryCap};
 use sui::event;
 use sui::linked_table::{Self, LinkedTable};
@@ -308,8 +309,6 @@ public fun register_pool<T, TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     _: &TreasuryCap<T>, // passing in the treasury cap to demonstrate ownership over the token
     coin_metadata: &CoinMetadata<T>,
-    token_pool_package_id: address,
-    token_pool_module: String,
     initial_administrator: address,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
@@ -322,12 +321,14 @@ public fun register_pool<T, TypeProof: drop>(
         VERSION,
     );
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
-    let token_type = type_name::get<T>().into_string();
-    let proof_tn = type_name::get<TypeProof>();
+    let token_type = type_name::with_defining_ids<T>().into_string();
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
+    let token_pool_module = proof_tn.module_string().into_bytes().to_string();
     register_pool_internal(
         ref,
         coin_metadata_address,
-        token_pool_package_id,
+        proof_package_id,
         token_pool_module,
         token_type,
         initial_administrator,
@@ -444,19 +445,19 @@ fun unregister_pool_internal(
 public fun set_pool<TypeProof: drop>(
     ref: &mut CCIPObjectRef,
     coin_metadata_address: address,
-    token_pool_package_id: address,
-    token_pool_module: String,
     lock_or_burn_params: vector<address>,
     release_or_mint_params: vector<address>,
     _: TypeProof,
     ctx: &mut TxContext,
 ) {
-    let token_pool_type_proof_tn = type_name::get<TypeProof>();
-    let token_pool_type_proof_str = type_name::into_string(token_pool_type_proof_tn);
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let proof_package_id = address::from_ascii_bytes(&proof_tn.address_string().into_bytes());
+    let token_pool_module = proof_tn.module_string().into_bytes().to_string();
+    let token_pool_type_proof_str = type_name::into_string(proof_tn);
     set_pool_internal(
         ref,
         coin_metadata_address,
-        token_pool_package_id,
+        proof_package_id,
         token_pool_module,
         lock_or_burn_params,
         release_or_mint_params,
@@ -616,7 +617,7 @@ public fun mcms_unregister_pool(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -641,7 +642,7 @@ public fun mcms_set_pool(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -688,7 +689,7 @@ public fun mcms_transfer_admin_role(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -719,7 +720,7 @@ public fun mcms_accept_admin_role(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,

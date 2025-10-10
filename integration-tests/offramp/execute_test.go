@@ -513,8 +513,8 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 
 	linkTokenType := fmt.Sprintf("%s::mock_link_token::MOCK_LINK_TOKEN", mockLinkReport.Output.PackageId)
 
-	ethereumPoolAddressString := string(normalizeTo32Bytes(evmReceiverAddress))
-	remoteTokenAddressString := string(normalizeTo32Bytes(evmReceiverAddress))
+	ethereumPoolAddressString := evmReceiverAddress
+	remoteTokenAddressString := evmReceiverAddress
 
 	tokenPoolReport := SetupTokenPool(t, report, deps, reportMCMs, mockLinkReport,
 		signerAddr, accountAddress, linkTokenType, ethereumPoolAddressString, remoteTokenAddressString,

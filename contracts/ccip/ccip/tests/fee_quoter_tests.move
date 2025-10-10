@@ -15,6 +15,7 @@ use sui::test_scenario::{Self, Scenario};
 
 const CHAIN_FAMILY_SELECTOR_EVM: vector<u8> = x"2812d52c";
 const CHAIN_FAMILY_SELECTOR_SVM: vector<u8> = x"1e10bdc4";
+const CHAIN_FAMILY_SELECTOR_SUI: vector<u8> = x"c4e05953";
 
 // Test addresses
 const MOCK_ADDRESS_1: address = @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
@@ -272,6 +273,83 @@ public fun test_apply_token_transfer_fee_config_updates_remove_token() {
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
 
+#[test]
+public fun test_apply_token_transfer_fee_config_updates_overwrite_existing() {
+    let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
+    let ctx = scenario.ctx();
+    initialize_fee_quoter(&mut ref, &owner_cap, ctx);
+
+    // First, add initial token transfer fee config
+    fee_quoter::apply_token_transfer_fee_config_updates(
+        &mut ref,
+        &owner_cap,
+        10, // dest_chain_selector
+        vector[MOCK_ADDRESS_1], // add_tokens
+        vector[100], // add_min_fee_usd_cents
+        vector[1000], // add_max_fee_usd_cents
+        vector[200], // add_deci_bps
+        vector[50000], // add_dest_gas_overhead
+        vector[64], // add_dest_bytes_overhead
+        vector[true], // add_is_enabled
+        vector[], // remove_tokens
+        ctx,
+    );
+
+    // Verify initial config
+    let cfg = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+    let (
+        min_fee_usd_cents,
+        max_fee_usd_cents,
+        deci_bps,
+        dest_gas_overhead,
+        dest_bytes_overhead,
+        is_enabled,
+    ) = fee_quoter::get_token_transfer_fee_config_fields(cfg);
+    assert!(min_fee_usd_cents == 100);
+    assert!(max_fee_usd_cents == 1000);
+    assert!(deci_bps == 200);
+    assert!(dest_gas_overhead == 50000);
+    assert!(dest_bytes_overhead == 64);
+    assert!(is_enabled);
+
+    // Now update the same token with different values
+    fee_quoter::apply_token_transfer_fee_config_updates(
+        &mut ref,
+        &owner_cap,
+        10, // dest_chain_selector (same)
+        vector[MOCK_ADDRESS_1], // add_tokens (same token)
+        vector[500], // add_min_fee_usd_cents (UPDATED)
+        vector[5000], // add_max_fee_usd_cents (UPDATED)
+        vector[800], // add_deci_bps (UPDATED)
+        vector[120000], // add_dest_gas_overhead (UPDATED)
+        vector[128], // add_dest_bytes_overhead (UPDATED)
+        vector[false], // add_is_enabled (UPDATED)
+        vector[], // remove_tokens
+        ctx,
+    );
+
+    // Verify the config was updated with new values
+    let updated_cfg = fee_quoter::get_token_transfer_fee_config(&ref, 10, MOCK_ADDRESS_1);
+    let (
+        updated_min_fee_usd_cents,
+        updated_max_fee_usd_cents,
+        updated_deci_bps,
+        updated_dest_gas_overhead,
+        updated_dest_bytes_overhead,
+        updated_is_enabled,
+    ) = fee_quoter::get_token_transfer_fee_config_fields(updated_cfg);
+
+    // Assert all values were updated
+    assert!(updated_min_fee_usd_cents == 500);
+    assert!(updated_max_fee_usd_cents == 5000);
+    assert!(updated_deci_bps == 800);
+    assert!(updated_dest_gas_overhead == 120000);
+    assert!(updated_dest_bytes_overhead == 128);
+    assert!(!updated_is_enabled);
+
+    cleanup_test_scenario(scenario, owner_cap, ref);
+}
+
 // === Premium Multiplier Tests ===
 
 #[test]
@@ -339,7 +417,6 @@ public fun test_apply_dest_chain_config_updates() {
 
 // === Message Processing Tests ===
 
-#[allow(implicit_const_copy)]
 #[test]
 public fun test_process_message_args_evm() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
@@ -377,7 +454,6 @@ public fun test_process_message_args_evm() {
     cleanup_test_scenario(scenario, owner_cap, ref);
 }
 
-#[allow(implicit_const_copy)]
 #[test]
 public fun test_process_message_args_svm() {
     let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
@@ -425,6 +501,104 @@ public fun test_process_message_args_svm() {
     assert!(converted_extra_args == svm_extra_args);
     // This is the dest gas overhead. hex(02bc) = 700
     assert!(dest_exec_data_per_token == vector[x"bc020000"]);
+
+    cleanup_test_scenario(scenario, owner_cap, ref);
+}
+
+#[test]
+public fun test_process_message_args_sui() {
+    let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
+    let ctx = scenario.ctx();
+    initialize_fee_quoter(&mut ref, &owner_cap, ctx);
+
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SUI, true, ctx);
+
+    fee_quoter::apply_token_transfer_fee_config_updates(
+        &mut ref,
+        &owner_cap,
+        100, // dest_chain_selector
+        vector[MOCK_ADDRESS_1, MOCK_ADDRESS_4], // source_tokens
+        vector[100, 200], // source_usd_per_token
+        vector[3000, 4000], // gas_dest_chain_selectors
+        vector[500, 600], // gas_usd_per_unit_gas
+        vector[700, 800], // dest_gas_overhead
+        vector[900, 1000], // dest_bytes_overhead
+        vector[true, false], // is_enabled
+        vector[], // dest_chain_selectors
+        ctx,
+    );
+
+    let sui_extra_args = {
+        use ccip::client;
+        client::encode_sui_extra_args_v1(
+            101, // gas_limit
+            true, // allow_out_of_order_execution
+            x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // token_receiver
+            vector[
+                x"2234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdea",
+                x"3234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeb",
+            ], // receiver_object_ids
+        )
+    };
+
+    let (
+        msg_fee_juels,
+        is_out_of_order_execution,
+        converted_extra_args,
+        dest_exec_data_per_token,
+    ) = fee_quoter::process_message_args(
+        &ref,
+        100, // dest_chain_selector
+        MOCK_ADDRESS_1, // fee_token
+        1000, // fee_token_amount
+        sui_extra_args, // extra_args
+        vector[MOCK_ADDRESS_1], // source_token_addresses
+        vector[bcs::to_bytes(&MOCK_ADDRESS_4)], // dest_token_addresses
+        vector[bcs::to_bytes(&MOCK_ADDRESS_3)], // dest_pool_datas
+    );
+
+    assert!(msg_fee_juels == 10000000000000);
+    assert!(is_out_of_order_execution == true);
+    assert!(converted_extra_args == sui_extra_args);
+    // This is the dest gas overhead. hex(02bc) = 700
+    assert!(dest_exec_data_per_token == vector[x"bc020000"]);
+
+    cleanup_test_scenario(scenario, owner_cap, ref);
+}
+
+#[test]
+public fun test_get_token_receiver_sui() {
+    let (mut scenario, owner_cap, mut ref) = setup_ccip_environment();
+    let ctx = scenario.ctx();
+    initialize_fee_quoter(&mut ref, &owner_cap, ctx);
+
+    setup_basic_dest_chain_config(&mut ref, &owner_cap, 100, CHAIN_FAMILY_SELECTOR_SUI, false, ctx);
+
+    let message_receiver = x"000000000000000000000000f4030086522a5beea4988f8ca5b36dbc97bee88c";
+    let sui_extra_args = {
+        use ccip::client;
+        client::encode_sui_extra_args_v1(
+            101, // gas_limit
+            true, // allow_out_of_order_execution
+            x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // token_receiver
+            vector[
+                x"2234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdea",
+                x"3234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeb",
+            ], // receiver_object_ids
+        )
+    };
+
+    let token_receiver = fee_quoter::get_token_receiver(
+        &ref,
+        100,
+        sui_extra_args,
+        message_receiver,
+    );
+
+    // For SUI, token_receiver should be extracted from extra_args, not message_receiver
+    let expected_token_receiver =
+        x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    assert!(token_receiver == expected_token_receiver);
 
     cleanup_test_scenario(scenario, owner_cap, ref);
 }

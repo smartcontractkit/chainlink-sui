@@ -12,6 +12,7 @@ use ccip_token_pool::ownable::OwnerCap;
 use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::ownable::OwnerCap as TokenOwnerCap;
 use managed_token_pool::managed_token_pool::{Self, ManagedTokenPoolState};
+use std::bcs;
 use std::string;
 use std::type_name;
 use sui::address;
@@ -466,7 +467,9 @@ public fun test_lock_or_burn_functionality() {
         let initial_coin_value = test_coin.value();
         assert!(initial_coin_value == 1000);
 
-        let mut token_transfer_params = onramp_sh::create_token_transfer_params(@0x456); // Use the test user address as token receiver
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params(
+            bcs::to_bytes(&@0x456),
+        ); // Use the test user address as token receiver
 
         // Actually call lock_or_burn function
         managed_token_pool::lock_or_burn<MANAGED_TOKEN_POOL_TESTS>(
@@ -1171,8 +1174,8 @@ public fun test_initialize_with_managed_token_function() {
     scenario.next_tx(@managed_token_pool);
     {
         // Calculate the actual package ID from TypeProof (same as initialization)
-        let type_proof_type_name = type_name::get<managed_token_pool::TypeProof>();
-        let type_proof_type_name_address = type_proof_type_name.get_address();
+        let type_proof_type_name = type_name::with_defining_ids<managed_token_pool::TypeProof>();
+        let type_proof_type_name_address = type_proof_type_name.address_string();
         let actual_package_id = address::from_ascii_bytes(
             &type_proof_type_name_address.into_bytes(),
         );
@@ -1197,7 +1200,9 @@ public fun test_initialize_with_managed_token_function() {
 
         assert!(pool_package_id == actual_package_id);
         assert!(pool_module == string::utf8(b"managed_token_pool"));
-        assert!(token_type == type_name::get<MANAGED_TOKEN_POOL_TESTS>().into_string());
+        assert!(
+            token_type == type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>().into_string(),
+        );
         assert!(admin == @managed_token_pool);
         assert!(pending_admin == @0x0);
         // type_proof should be the TypeProof type name - we just check it's not empty

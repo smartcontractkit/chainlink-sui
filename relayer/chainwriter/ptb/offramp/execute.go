@@ -4,6 +4,7 @@
 package offramp
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/ccip"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/signer"
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
@@ -109,12 +111,6 @@ func BuildOffRampExecutePTB(
 	offrampContract := offrampPkg.Offramp().(*module_offramp.OfframpContract)
 	offrampEncoder := offrampContract.Encoder()
 
-	tokenReceiverBytes, ok := offrampArgs.ExtraData.ExtraArgsDecoded["tokenReceiver"]
-	if !ok {
-		return fmt.Errorf("missing token receiver in extra args")
-	}
-	tokenReceiver := "0x" + hex.EncodeToString(tokenReceiverBytes.([]byte))
-
 	// Create an encoder for the `init_execute` offramp method to be attached to the PTB.
 	// This is being done using the bindings to re-use code but can otherwise be done using the SDK directly.
 	encodedInitExecute, err := offrampEncoder.InitExecute(
@@ -126,7 +122,6 @@ func BuildOffRampExecutePTB(
 			offrampArgs.ReportContext[1][:],
 		},
 		offrampArgs.Report,
-		tokenReceiver,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to encode move call (init_execute) using bindings: %w", err)
@@ -348,7 +343,13 @@ func ProcessReceivers(
 	for _, message := range messages {
 		// If there is no receiver, skip this message
 		if len(message.Receiver) == 0 || message.Receiver == nil {
-			lggr.Debugw("no receiver specified, skipping message in offramp execution...", "message", message)
+			lggr.Errorw("unexpected nil or zero length receiver, skipping message in offramp execution...", "message", message)
+			continue
+		}
+
+		// Check if receiver is a zero address (0x0....0 // 32 bytes of 0)
+		if bytes.Equal(message.Receiver, codec.AccountZero) {
+			lggr.Debugw("receiver is zero address, skipping message in offramp execution...", "message", message)
 			continue
 		}
 
@@ -484,7 +485,7 @@ func AppendPTBCommandForReceiver(
 		return nil, fmt.Errorf("missing extra args for receiver function not found in module (%s)", functionName)
 	}
 
-	// note: we cannot expect recieverObjectIds to be [][]byte, so check for []any type
+	// note: we cannot expect receiverObjectIds to be [][]byte, so check for []any type
 	var extraArgsValues [][]byte
 	switch vals := receiverObjectIds.(type) {
 	case [][]byte:

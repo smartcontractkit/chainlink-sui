@@ -71,8 +71,8 @@ public fun type_and_version(): String {
 }
 
 public fun get_arm(): address {
-    let tn = type_name::get<RMNRemoteState>();
-    let addr_string = tn.get_address();
+    let tn = type_name::with_defining_ids<RMNRemoteState>();
+    let addr_string = tn.address_string();
 
     // Convert the hex string to an address
     // The address string is already in the correct format for address parsing
@@ -338,7 +338,7 @@ public fun mcms_set_config(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -378,7 +378,7 @@ public fun mcms_curse(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -402,7 +402,7 @@ public fun mcms_curse_multiple(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -429,7 +429,7 @@ public fun mcms_uncurse(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -442,13 +442,10 @@ public fun mcms_uncurse(
         &mut stream,
     );
 
-    let subjects = bcs_stream::deserialize_vector!(
-        &mut stream,
-        |stream| { bcs_stream::deserialize_vector_u8(stream) },
-    );
+    let subject = bcs_stream::deserialize_vector_u8(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    uncurse_multiple(ref, owner_cap, subjects);
+    uncurse(ref, owner_cap, subject);
 }
 
 public fun mcms_uncurse_multiple(
@@ -456,7 +453,7 @@ public fun mcms_uncurse_multiple(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,

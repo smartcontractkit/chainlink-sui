@@ -102,7 +102,6 @@ const EUnauthorizedMintCap: u64 = 6;
 const EZeroAmount: u64 = 7;
 const ECannotIncreaseUnlimitedAllowance: u64 = 8;
 const EInvalidFunction: u64 = 9;
-const EInvalidStateAddress: u64 = 10;
 
 public fun type_and_version(): String {
     string::utf8(b"ManagedToken 1.0.0")
@@ -520,22 +519,22 @@ public fun accept_ownership_from_object<T>(
 
 public fun mcms_accept_ownership<T>(
     state: &mut TokenState<T>,
+    registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function_name, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function_name, data) = mcms_registry::get_callback_params(
+        registry,
         params,
         McmsCallback {},
     );
     assert!(function_name == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    let state_address = bcs_stream::deserialize_address(&mut stream);
-    assert!(state_address == object::id_address(state), EInvalidStateAddress);
-
-    let mcms = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
+    let mcms = mcms_registry::get_multisig_address();
     ownable::mcms_accept_ownership(&mut state.ownable_state, mcms, ctx);
 }
 
@@ -591,7 +590,7 @@ public fun mcms_configure_new_minter<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -619,7 +618,7 @@ public fun mcms_increment_mint_allowance<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -657,7 +656,7 @@ public fun mcms_set_unlimited_mint_allowances<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -695,7 +694,7 @@ public fun mcms_blocklist<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -725,7 +724,7 @@ public fun mcms_unblocklist<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -755,7 +754,7 @@ public fun mcms_pause<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,
@@ -783,7 +782,7 @@ public fun mcms_unpause<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap<T>>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap<T>>(
         registry,
         McmsCallback {},
         params,

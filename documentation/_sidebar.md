@@ -29,6 +29,7 @@
   - [Introduction](relayer/introduction.md)
   - [Challenges](relayer/challenges.md)
   - [Configuration](relayer/configuration.md)
+  - [PTB Client](relayer/ptb-client.md)
   - [ChainReader](relayer/chainreader.md)
   - [Event Indexing](relayer/event-indexing.md)
   - [Transaction Indexing](relayer/transaction-indexing.md)

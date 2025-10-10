@@ -21,4 +21,7 @@ includes:
   mockcontracts:
     taskfile: ./taskfiles/mockcontracts/Taskfile.yml
 
+  utils:
+    taskfile: ./taskfiles/utils/Taskfile.yml
+
   # Keep adding as needed

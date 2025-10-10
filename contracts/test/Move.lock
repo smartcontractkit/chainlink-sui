@@ -2,10 +2,11 @@
 
 [move]
 version = 3
-manifest_digest = "ED08DB00A922D7917DA273CF2F267020FFD7D15A66593FBC316896858DF671E2"
-deps_digest = "F8BBB0CCB2491CA29A3DF03D6F92277A4F3574266507ACD77214D37ECA3F3082"
+manifest_digest = "ED3415DE94C9FF24EC24475FD0177EAED6D7EA4CFF12DC9B519C1D9994616C63"
+deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { id = "Sui", name = "Sui" },
+  { id = "TestContractSecondary", name = "TestContractSecondary" },
 ]
 
 [[move.package]]
@@ -20,21 +21,29 @@ dependencies = [
   { id = "MoveStdlib", name = "MoveStdlib" },
 ]
 
+[[move.package]]
+id = "TestContractSecondary"
+source = { local = "../test_secondary" }
+
+dependencies = [
+  { id = "Sui", name = "Sui" },
+]
+
 [move.toolchain-version]
-compiler-version = "1.55.0"
+compiler-version = "1.57.2"
 edition = "2024.beta"
 flavor = "sui"
 
 [env]
 
 [env.local]
-chain-id = "7d6c9ac4"
-original-published-id = "0xe89bcc6fab017868d9a3664839b6448eb4044c72fed7f798634c9673e6cdec08"
-latest-published-id = "0xe89bcc6fab017868d9a3664839b6448eb4044c72fed7f798634c9673e6cdec08"
+chain-id = "21d4a5c4"
+original-published-id = "0xec844ebfacfffd18a32c4bc5761981bac68cc5ace015e91c898a9553847d2778"
+latest-published-id = "0xec844ebfacfffd18a32c4bc5761981bac68cc5ace015e91c898a9553847d2778"
 published-version = "1"
 
 [env.localnet]
-chain-id = "1540d537"
-original-published-id = "0xdf5c9ac12febf7763e544b97f1628de3179c863a1cda865a49df01ea0fe62e4d"
-latest-published-id = "0xdf5c9ac12febf7763e544b97f1628de3179c863a1cda865a49df01ea0fe62e4d"
+chain-id = "e0bd5f12"
+original-published-id = "0xe652723bfa687708ddc7a8913c73f61cc4b1d6cf03c8df0caa214c1f6126600c"
+latest-published-id = "0xe652723bfa687708ddc7a8913c73f61cc4b1d6cf03c8df0caa214c1f6126600c"
 published-version = "1"

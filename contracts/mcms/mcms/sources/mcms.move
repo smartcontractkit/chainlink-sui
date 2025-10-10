@@ -566,6 +566,7 @@ public fun dispatch_timelock_schedule_batch(
 public fun dispatch_timelock_execute_batch(
     timelock: &mut Timelock,
     clock: &Clock,
+    registry: &Registry,
     timelock_callback_params: TimelockCallbackParams,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
@@ -592,6 +593,7 @@ public fun dispatch_timelock_execute_batch(
     timelock_execute_batch(
         timelock,
         clock,
+        registry,
         targets,
         module_names,
         function_names,
@@ -708,6 +710,7 @@ public fun execute_dispatch_to_account(
     ctx: &mut TxContext,
 ) {
     let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
@@ -743,6 +746,7 @@ public fun execute_dispatch_to_deployer(
     ctx: &mut TxContext,
 ): UpgradeTicket {
     let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
 
@@ -775,10 +779,12 @@ public fun execute_dispatch_to_deployer(
 public fun execute_timelock_schedule_batch(
     timelock: &mut Timelock,
     clock: &Clock,
+    registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -812,10 +818,12 @@ public fun execute_timelock_schedule_batch(
 public fun execute_timelock_execute_batch(
     timelock: &mut Timelock,
     clock: &Clock,
+    registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -833,6 +841,7 @@ public fun execute_timelock_execute_batch(
     timelock_execute_batch(
         timelock,
         clock,
+        registry,
         targets,
         module_names,
         function_names,
@@ -844,10 +853,12 @@ public fun execute_timelock_execute_batch(
 }
 
 public fun execute_timelock_bypasser_execute_batch(
+    registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -872,10 +883,12 @@ public fun execute_timelock_bypasser_execute_batch(
 
 public fun execute_timelock_cancel(
     timelock: &mut Timelock,
+    registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -887,10 +900,12 @@ public fun execute_timelock_cancel(
 
 public fun execute_timelock_update_min_delay(
     timelock: &mut Timelock,
+    registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -902,10 +917,12 @@ public fun execute_timelock_update_min_delay(
 
 public fun execute_timelock_block_function(
     timelock: &mut Timelock,
+    registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -917,10 +934,12 @@ public fun execute_timelock_block_function(
 
 public fun execute_timelock_unblock_function(
     timelock: &mut Timelock,
+    registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -937,6 +956,7 @@ public fun execute_set_config(
     ctx: &mut TxContext,
 ) {
     let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+        registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
@@ -1526,12 +1546,14 @@ fun timelock_schedule(timelock: &mut Timelock, clock: &Clock, id: vector<u8>, de
 fun timelock_before_call(
     timelock: &Timelock,
     clock: &Clock,
+    registry: &Registry,
     id: vector<u8>,
     predecessor: vector<u8>,
 ) {
     assert!(timelock_is_operation_ready(timelock, clock, id), EOperationNotReady);
     assert!(
-        predecessor == ZERO_HASH || timelock_is_operation_done(timelock, predecessor),
+        predecessor == ZERO_HASH || 
+            mcms_registry::is_batch_completed(registry, predecessor) && timelock_is_operation_done(timelock, predecessor),
         EMissingDependency,
     );
 }
@@ -1550,6 +1572,7 @@ fun timelock_after_call(
 public fun timelock_execute_batch(
     timelock: &mut Timelock,
     clock: &Clock,
+    registry: &Registry,
     targets: vector<address>,
     module_names: vector<String>,
     function_names: vector<String>,
@@ -1561,12 +1584,13 @@ public fun timelock_execute_batch(
     let calls = create_calls(targets, module_names, function_names, datas);
     let id = hash_operation_batch(calls, predecessor, salt);
 
-    timelock_before_call(timelock, clock, id, predecessor);
+    timelock_before_call(timelock, clock, registry, id, predecessor);
 
     let mut calls_to_execute = vector[];
+    let calls_len = calls.length();
     let mut i = 0;
 
-    while (i < calls.length()) {
+    while (i < calls_len) {
         let function = calls[i].function;
         let target = function.target;
         let module_name = function.module_name;
@@ -1578,6 +1602,9 @@ public fun timelock_execute_batch(
             module_name,
             function_name,
             data,
+            id, // batch_id = operation hash
+            i, // sequence_number
+            calls_len, // total_in_batch
         );
         calls_to_execute.push_back(params);
 
@@ -1588,6 +1615,7 @@ public fun timelock_execute_batch(
 
     // Timestamps can be safely updated as `vector<ExecutingCallbackParams>` are returned to the caller
     // These must be consumed by relevant modules
+    // Order enforced by `mcms_registry::enforce_execution_order` when getting callback params from `mcms_registry`
     timelock_after_call(timelock, clock, id, _ctx);
 
     // Must call module's mcms_entrypoint with `calls_to_execute`
@@ -1600,24 +1628,32 @@ fun timelock_bypasser_execute_batch(
     module_names: vector<String>,
     function_names: vector<String>,
     datas: vector<vector<u8>>,
-    _ctx: &mut TxContext,
+    ctx: &TxContext,
 ): vector<ExecutingCallbackParams> {
     assert!(role == BYPASSER_ROLE || role == TIMELOCK_ROLE, ENotAuthorizedRole);
 
+    let calls = create_calls(targets, module_names, function_names, datas);
+    let batch_id = hash_operation_batch(calls, ZERO_HASH, *ctx.digest());
+
     let mut calls_to_execute = vector[];
+    let calls_len = calls.length();
     let mut i = 0;
 
-    while (i < targets.length()) {
-        let target = targets[i];
-        let module_name = module_names[i];
-        let function_name = function_names[i];
-        let data = datas[i];
+    while (i < calls_len) {
+        let function = calls[i].function;
+        let target = function.target;
+        let module_name = function.module_name;
+        let function_name = function.function_name;
+        let data = calls[i].data;
 
         let params = mcms_registry::create_executing_callback_params(
             target,
             module_name,
             function_name,
             data,
+            batch_id, // batch_id
+            i, // sequence_number
+            calls_len, // total_in_batch
         );
         calls_to_execute.push_back(params);
 
@@ -1675,7 +1711,7 @@ fun timelock_block_function(
     let new_function = Function { target, module_name, function_name };
     let mut i = 0;
 
-    while (i < timelock.blocked_functions.size()) {
+    while (i < timelock.blocked_functions.length()) {
         let blocked_function = timelock.blocked_functions.keys()[i];
         if (equals(&new_function, &blocked_function)) {
             already_blocked = true;
@@ -1703,7 +1739,7 @@ fun timelock_unblock_function(
     let function_to_unblock = Function { target, module_name, function_name };
     let mut i = 0;
 
-    while (i < timelock.blocked_functions.size()) {
+    while (i < timelock.blocked_functions.length()) {
         let blocked_function = timelock.blocked_functions.keys()[i];
         if (equals(&function_to_unblock, &blocked_function)) {
             timelock.blocked_functions.remove(&blocked_function);
@@ -1716,7 +1752,7 @@ fun timelock_unblock_function(
 
 fun assert_not_blocked(timelock: &Timelock, function: &Function) {
     let mut i = 0;
-    while (i < timelock.blocked_functions.size()) {
+    while (i < timelock.blocked_functions.length()) {
         let blocked_function = timelock.blocked_functions.keys()[i];
         if (equals(function, &blocked_function)) {
             abort EFunctionBlocked
@@ -1726,7 +1762,7 @@ fun assert_not_blocked(timelock: &Timelock, function: &Function) {
 }
 
 public fun timelock_get_blocked_function(timelock: &Timelock, index: u64): Function {
-    assert!(index < timelock.blocked_functions.size(), EInvalidIndex);
+    assert!(index < timelock.blocked_functions.length(), EInvalidIndex);
     timelock.blocked_functions.keys()[index]
 }
 
@@ -1779,7 +1815,7 @@ public fun timelock_get_blocked_functions(timelock: &Timelock): vector<Function>
 }
 
 public fun timelock_get_blocked_functions_count(timelock: &Timelock): u64 {
-    timelock.blocked_functions.size()
+    timelock.blocked_functions.length()
 }
 
 public fun create_calls(

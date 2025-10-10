@@ -16,6 +16,7 @@ const ETokenTransferMismatch: u64 = 5;
 const ETokenTransferAlreadyExists: u64 = 6;
 const ETokenTransferDoesNotExist: u64 = 7;
 const ETokenTransferAlreadyCompleted: u64 = 8;
+const EMessageAlreadyExists: u64 = 9;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -42,7 +43,7 @@ public struct DestTokenTransfer has copy, drop {
     token_receiver: address,
     remote_chain_selector: u64,
     // the amount of token to transfer, denoted from the source chain
-    source_amount: u64,
+    source_amount: u256,
     // the token's coin metadata object id on SUI
     dest_token_address: address,
     // the destination token pool package id on SUI
@@ -81,7 +82,7 @@ public fun add_dest_token_transfer(
     receiver_params: &mut ReceiverParams,
     token_receiver: address,
     remote_chain_selector: u64,
-    source_amount: u64,
+    source_amount: u256,
     dest_token_address: address,
     dest_token_pool_package_id: address,
     source_pool_address: vector<u8>,
@@ -112,34 +113,13 @@ public fun populate_message(
     receiver_params: &mut ReceiverParams,
     any2sui_message: Any2SuiMessage,
 ) {
+    assert!(receiver_params.message.is_none(), EMessageAlreadyExists);
     receiver_params.message.fill(any2sui_message);
-}
-
-public fun create_dest_token_transfer(
-    token_receiver: address,
-    remote_chain_selector: u64,
-    source_amount: u64,
-    dest_token_address: address,
-    dest_token_pool_package_id: address,
-    source_pool_address: vector<u8>,
-    source_pool_data: vector<u8>,
-    offchain_token_data: vector<u8>,
-): DestTokenTransfer {
-    DestTokenTransfer {
-        token_receiver,
-        remote_chain_selector,
-        source_amount,
-        dest_token_address,
-        dest_token_pool_package_id,
-        source_pool_address,
-        source_pool_data,
-        offchain_token_data,
-    }
 }
 
 public fun get_dest_token_transfer_data(
     receiver_params: &ReceiverParams,
-): (address, u64, u64, address, address, vector<u8>, vector<u8>, vector<u8>) {
+): (address, u64, u256, address, address, vector<u8>, vector<u8>, vector<u8>) {
     assert!(receiver_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
 
     let token_transfer = receiver_params.token_transfer.borrow();
@@ -157,7 +137,7 @@ public fun get_dest_token_transfer_data(
 
 public fun get_token_param_data(
     receiver_params: &ReceiverParams,
-): (address, u64, address, vector<u8>, vector<u8>, vector<u8>) {
+): (address, u256, address, vector<u8>, vector<u8>, vector<u8>) {
     assert!(receiver_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
     let token_param = receiver_params.token_transfer.borrow();
 
@@ -185,7 +165,7 @@ public fun complete_token_transfer<TypeProof: drop>(
         dest_token_address,
     );
 
-    let proof_tn = type_name::get<TypeProof>();
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
     let proof_tn_str = type_name::into_string(proof_tn);
     assert!(type_proof == proof_tn_str, ETypeProofMismatch);
 
@@ -205,13 +185,32 @@ public fun extract_any2sui_message(receiver_params: &mut ReceiverParams): Any2Su
     receiver_params.message.extract()
 }
 
+public fun new_any2sui_message(
+    _: &DestTransferCap,
+    message_id: vector<u8>,
+    source_chain_selector: u64,
+    sender: vector<u8>,
+    data: vector<u8>,
+    token_receiver: address,
+    dest_token_amounts: vector<Any2SuiTokenAmount>,
+): Any2SuiMessage {
+    client::new_any2sui_message(
+        message_id,
+        source_chain_selector,
+        sender,
+        data,
+        token_receiver,
+        dest_token_amounts,
+    )
+}
+
 public fun consume_any2sui_message<TypeProof: drop>(
     ref: &CCIPObjectRef,
     message: Any2SuiMessage,
     _: TypeProof,
-): (vector<u8>, u64, vector<u8>, vector<u8>, vector<Any2SuiTokenAmount>) {
-    let proof_tn = type_name::get<TypeProof>();
-    let address_str = type_name::get_address(&proof_tn);
+): (vector<u8>, u64, vector<u8>, vector<u8>, address, vector<Any2SuiTokenAmount>) {
+    let proof_tn = type_name::with_defining_ids<TypeProof>();
+    let address_str = type_name::address_string(&proof_tn);
     let receiver_package_id = address::from_ascii_bytes(&ascii::into_bytes(address_str));
 
     let receiver_config = receiver_registry::get_receiver_config(ref, receiver_package_id);

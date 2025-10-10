@@ -168,6 +168,7 @@ public fun test_populate_message() {
         SOURCE_CHAIN_SELECTOR,
         b"sender_address",
         b"test_data",
+        @0x12345,
         vector[], // token_amounts
     );
 
@@ -197,7 +198,7 @@ public fun test_complete_token_transfer() {
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
-        type_name::into_string(type_name::get<TestTypeProof>()),
+        type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
         scenario.ctx(),
@@ -264,6 +265,7 @@ public fun test_extract_any2sui_message() {
         SOURCE_CHAIN_SELECTOR,
         b"sender_address",
         b"test_data",
+        @0x12345,
         vector[],
     );
     offramp_state_helper::populate_message(&dest_cap, &mut receiver_params, test_message);
@@ -381,7 +383,7 @@ public fun test_complete_token_transfer_twice_should_fail() {
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
-        type_name::into_string(type_name::get<TestTypeProof>()),
+        type_name::into_string(type_name::with_defining_ids<TestTypeProof>()),
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
         scenario.ctx(),

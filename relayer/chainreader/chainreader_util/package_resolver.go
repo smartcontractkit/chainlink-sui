@@ -11,6 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/common"
 )
 
 const (
@@ -50,7 +51,7 @@ func NewPackageResolver(log logger.Logger, client client.SuiPTBClient) *PackageR
 
 // BindPackage binds a module name to its package address
 func (pr *PackageResolver) BindPackage(moduleName string, packageAddress string) error {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = common.NormalizeName(moduleName)
 
 	if !isValidSuiAddress(packageAddress) {
 		return fmt.Errorf("invalid Sui package address format: %s", packageAddress)
@@ -70,7 +71,7 @@ func (pr *PackageResolver) BindPackage(moduleName string, packageAddress string)
 
 // UnbindPackage removes a module binding
 func (pr *PackageResolver) UnbindPackage(moduleName string) error {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = common.NormalizeName(moduleName)
 
 	pr.mutex.Lock()
 	defer pr.mutex.Unlock()
@@ -90,7 +91,7 @@ func (pr *PackageResolver) UnbindPackage(moduleName string) error {
 
 // ResolvePackageAddress resolves a module name to its package address
 func (pr *PackageResolver) ResolvePackageAddress(moduleName string) (string, error) {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = common.NormalizeName(moduleName)
 
 	pr.mutex.RLock()
 	address, exists := pr.packageAddresses[moduleName]
@@ -115,7 +116,7 @@ func (pr *PackageResolver) ResolvePackageAddress(moduleName string) (string, err
 
 // ResolvePackageIds gets all package IDs for a module (including upgrades)
 func (pr *PackageResolver) ResolvePackageIDs(ctx context.Context, moduleName string, signerAddress string) ([]string, error) {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = common.NormalizeName(moduleName)
 
 	packageAddress, err := pr.ResolvePackageAddress(moduleName)
 	if err != nil {
@@ -146,7 +147,7 @@ func (pr *PackageResolver) ResolvePackageIDs(ctx context.Context, moduleName str
 
 // ResolveLatestPackageId gets the latest (most recent) package ID for a module
 func (pr *PackageResolver) ResolveLatestPackageID(ctx context.Context, moduleName string, signerAddress string) (string, error) {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = common.NormalizeName(moduleName)
 
 	packageAddress, err := pr.ResolvePackageAddress(moduleName)
 	if err != nil {
@@ -234,7 +235,7 @@ func (pr *PackageResolver) GetBoundModules() []string {
 
 // InvalidateCache removes cached entries for a specific module
 func (pr *PackageResolver) InvalidateCache(moduleName string) {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = common.NormalizeName(moduleName)
 
 	pr.mutex.RLock()
 	packageAddress := pr.packageAddresses[moduleName]
@@ -254,7 +255,7 @@ func (pr *PackageResolver) InvalidateCache(moduleName string) {
 }
 
 func (pr *PackageResolver) ValidateBinding(moduleName string, packageAddress string) error {
-	moduleName = pr.normalizeName(moduleName)
+	moduleName = common.NormalizeName(moduleName)
 
 	pr.mutex.RLock()
 	boundPackageAddress := pr.packageAddresses[moduleName]
@@ -295,10 +296,6 @@ func (pr *PackageResolver) ClearCache() {
 // isValidSuiAddress checks if an address has the proper Sui format (starts with 0x)
 func isValidSuiAddress(address string) bool {
 	return strings.HasPrefix(address, "0x") && len(address) > 2
-}
-
-func (pr *PackageResolver) normalizeName(moduleName string) string {
-	return strings.ToLower(moduleName)
 }
 
 // String returns string representation of ResolvedIdentifier

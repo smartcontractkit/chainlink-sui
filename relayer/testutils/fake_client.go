@@ -78,7 +78,7 @@ func (c *FakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, address string
 }
 
 // WithRateLimit is provided to maintain compatibility with previous implementations
-func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+func (c *FakeSuiPTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	return f(ctx)
 }
 
@@ -141,6 +141,10 @@ func (c *FakeSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx context.Cont
 	return map[string]string{}, nil
 }
 
+func (c *FakeSuiPTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	return "", nil
+}
+
 func (c *FakeSuiPTBClient) GetCache() *cache.Cache {
 	return nil
 }
@@ -161,6 +165,10 @@ func (c *FakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
 
 func (c *FakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
 	return "", nil
+}
+
+func (c *FakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1000), nil
 }
 
 // StatefulFakeSuiPTBClient is a more sophisticated fake client that can change behavior
@@ -241,7 +249,7 @@ func (c *StatefulFakeSuiPTBClient) GetCoinsByAddress(ctx context.Context, addres
 	}, nil
 }
 
-func (c *StatefulFakeSuiPTBClient) WithRateLimit(ctx context.Context, f func(ctx context.Context) error) error {
+func (c *StatefulFakeSuiPTBClient) WithRateLimit(ctx context.Context, methodName string, f func(ctx context.Context) error) error {
 	return f(ctx)
 }
 
@@ -301,6 +309,10 @@ func (c *StatefulFakeSuiPTBClient) GetValuesFromPackageOwnedObjectField(ctx cont
 	return map[string]string{}, nil
 }
 
+func (c *StatefulFakeSuiPTBClient) GetParentObjectID(ctx context.Context, packageID string, moduleID string, pointerObjectName string) (string, error) {
+	return "", nil
+}
+
 func (c *StatefulFakeSuiPTBClient) GetCache() *cache.Cache {
 	return nil
 }
@@ -321,4 +333,8 @@ func (c *StatefulFakeSuiPTBClient) SetCachedValues(keyValues map[string]any) {
 
 func (c *StatefulFakeSuiPTBClient) GetCCIPPackageID(ctx context.Context, offRampPackageID string, signerAddress string) (string, error) {
 	return "", nil
+}
+
+func (c *StatefulFakeSuiPTBClient) GetReferenceGasPrice(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1000), nil
 }

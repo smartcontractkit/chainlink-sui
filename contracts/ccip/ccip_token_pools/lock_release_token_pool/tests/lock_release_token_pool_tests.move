@@ -10,6 +10,7 @@ use ccip::token_admin_registry;
 use ccip::upgrade_registry;
 use ccip_token_pool::ownable::OwnerCap;
 use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState};
+use std::bcs;
 use std::string;
 use std::type_name;
 use sui::address;
@@ -1121,7 +1122,9 @@ public fun test_lock_or_burn_functionality() {
             LOCK_RELEASE_TOKEN_POOL_TESTS,
         >(&pool_state);
 
-        let mut token_transfer_params = onramp_sh::create_token_transfer_params(@0x456); // Use the test user address as token receiver
+        let mut token_transfer_params = onramp_sh::create_token_transfer_params(
+            bcs::to_bytes(&@0x456),
+        ); // Use the test user address as token receiver
 
         // Call the actual lock_or_burn function
         lock_release_token_pool::lock_or_burn<LOCK_RELEASE_TOKEN_POOL_TESTS>(
@@ -1147,8 +1150,10 @@ public fun test_lock_or_burn_functionality() {
 
         //TOOD: add token package ID to omnramp state helper to continue with this test
         // Calculate the actual package ID from TypeProof (same as initialization)
-        let type_proof_type_name = type_name::get<lock_release_token_pool::TypeProof>();
-        let _type_proof_type_name_address = type_proof_type_name.get_address();
+        let type_proof_type_name = type_name::with_defining_ids<
+            lock_release_token_pool::TypeProof,
+        >();
+        let _type_proof_type_name_address = type_proof_type_name.address_string();
         let actual_package_id = address::from_ascii_bytes(
             &_type_proof_type_name_address.into_bytes(),
         );
@@ -1317,8 +1322,10 @@ public fun test_release_or_mint_functionality() {
         let coin_metadata_address = lock_release_token_pool::get_token(&pool_state);
 
         // Calculate the actual package ID from TypeProof (same as initialization)
-        let type_proof_type_name = type_name::get<lock_release_token_pool::TypeProof>();
-        let _type_proof_type_name_address = type_proof_type_name.get_address();
+        let type_proof_type_name = type_name::with_defining_ids<
+            lock_release_token_pool::TypeProof,
+        >();
+        let _type_proof_type_name_address = type_proof_type_name.address_string();
         let actual_package_id = address::from_ascii_bytes(
             &_type_proof_type_name_address.into_bytes(),
         );
@@ -1369,7 +1376,7 @@ public fun test_release_or_mint_functionality() {
         let new_pool_balance = lock_release_token_pool::get_balance<LOCK_RELEASE_TOKEN_POOL_TESTS>(
             &pool_state,
         );
-        assert!(new_pool_balance == initial_pool_balance - source_amount);
+        assert!((new_pool_balance as u256) == (initial_pool_balance as u256) - source_amount);
 
         // Clean up receiver params
         offramp_sh::deconstruct_receiver_params(&dest_transfer_cap, receiver_params);

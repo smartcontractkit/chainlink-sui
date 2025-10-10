@@ -13,6 +13,7 @@ use ccip_onramp::ownable::OwnerCap;
 use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
+use std::bcs;
 use std::string;
 use sui::coin::{Self, CoinMetadata};
 use sui::test_scenario::{Self as ts, Scenario};
@@ -58,6 +59,7 @@ public struct TypeProof has drop {}
 
 // Helper function to create test token with proper one-time witness
 #[test_only]
+#[allow(deprecated_usage)]
 public fun create_test_token(
     ctx: &mut TxContext,
 ): (coin::TreasuryCap<ONRAMP_TEST>, CoinMetadata<ONRAMP_TEST>) {
@@ -936,7 +938,7 @@ public fun test_error_sender_not_allowed() {
     env.scenario.next_tx(@0x999); // Not in allowlist for DEST_CHAIN_SELECTOR_1
 
     // Create empty token params for testing (this test is about sender authorization, not token handling)
-    let token_params = osh::create_token_transfer_params(@0x456);
+    let token_params = osh::create_token_transfer_params(bcs::to_bytes(&@0x456));
 
     // Test ccip_send function - this will fail on fee quoter validation first
     // before reaching the sender allowlist check

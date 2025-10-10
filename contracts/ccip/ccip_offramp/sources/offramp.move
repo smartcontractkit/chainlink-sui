@@ -21,9 +21,9 @@ use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;
-use std::u256;
 use sui::address;
 use sui::clock;
+use sui::derived_object;
 use sui::event;
 use sui::hash;
 use sui::package::UpgradeCap;
@@ -52,10 +52,13 @@ public struct OffRampState has key, store {
     ownable_state: OwnableState,
 }
 
+public struct OffRampObject has key {
+    id: UID,
+}
+
 public struct OffRampStatePointer has key, store {
     id: UID,
-    off_ramp_state_id: address,
-    owner_cap_id: address,
+    off_ramp_object_id: address,
 }
 
 public struct SourceChainConfig has copy, drop, store {
@@ -81,6 +84,7 @@ public struct Any2SuiRampMessage has drop {
     data: vector<u8>,
     receiver: address, // this is the message receiver
     gas_limit: u256,
+    token_receiver: address,
     token_amounts: vector<Any2SuiTokenTransfer>,
 }
 
@@ -215,18 +219,18 @@ const ECursedByRmn: u64 = 16;
 const ESignatureVerificationRequiredInCommitPlugin: u64 = 17;
 const ESignatureVerificationNotAllowedInExecutionPlugin: u64 = 18;
 const EFeeQuoterCapExists: u64 = 19;
-const ETokenAmountOverflow: u64 = 20;
-const EDestTransferCapExists: u64 = 21;
-const ERmnBlessingMismatch: u64 = 22;
-const EUnsupportedToken: u64 = 23;
-const EInvalidOnRampUpdate: u64 = 24;
-const EDestTransferCapNotSet: u64 = 25;
-const ECalculateMessageHashInvalidArguments: u64 = 26;
-const EInvalidFunction: u64 = 27;
-const EInvalidTokenReceiver: u64 = 28;
-const ETokenTransferLimitExceeded: u64 = 29;
-const EPackageIdNotFound: u64 = 30;
-const EInvalidOwnerCap: u64 = 31;
+const EDestTransferCapExists: u64 = 20;
+const ERmnBlessingMismatch: u64 = 21;
+const EUnsupportedToken: u64 = 22;
+const EInvalidOnRampUpdate: u64 = 23;
+const EDestTransferCapNotSet: u64 = 24;
+const ECalculateMessageHashInvalidArguments: u64 = 25;
+const EInvalidFunction: u64 = 26;
+const EInvalidTokenReceiver: u64 = 27;
+const ETokenTransferLimitExceeded: u64 = 28;
+const EPackageIdNotFound: u64 = 29;
+const EInvalidOwnerCap: u64 = 30;
+const EUnknownSequenceNumber: u64 = 31;
 
 const VERSION: u8 = 1;
 
@@ -237,10 +241,11 @@ public fun type_and_version(): String {
 public struct OFFRAMP has drop {}
 
 fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
-    let (ownable_state, owner_cap) = ownable::new(ctx);
+    let mut off_ramp_object = OffRampObject { id: object::new(ctx) };
+    let (ownable_state, owner_cap) = ownable::new(&mut off_ramp_object.id, ctx);
 
     let state = OffRampState {
-        id: object::new(ctx),
+        id: derived_object::claim(&mut off_ramp_object.id, b"OffRampState"),
         package_ids: vector[],
         ocr3_base_state: ocr3_base::new(ctx),
         chain_selector: 0,
@@ -256,15 +261,16 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
     let pointer = OffRampStatePointer {
         id: object::new(ctx),
-        off_ramp_state_id: object::uid_to_address(&state.id),
-        owner_cap_id: object::id_to_address(object::borrow_id(&owner_cap)),
+        off_ramp_object_id: object::id_address(&off_ramp_object),
     };
 
-    let tn = type_name::get_with_original_ids<OFFRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
 
     transfer::share_object(state);
+    transfer::share_object(off_ramp_object);
+
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
 }
@@ -305,8 +311,8 @@ public fun initialize(
         ctx,
     );
 
-    let tn = type_name::get_with_original_ids<OFFRAMP>();
-    let package_bytes = ascii::into_bytes(tn.get_address());
+    let tn = type_name::with_original_ids<OFFRAMP>();
+    let package_bytes = ascii::into_bytes(tn.address_string());
     let package_id = address::from_ascii_bytes(&package_bytes);
     state.package_ids.push_back(package_id);
 }
@@ -421,7 +427,6 @@ public fun init_execute(
     clock: &clock::Clock,
     report_context: vector<vector<u8>>,
     report: vector<u8>,
-    token_receiver: address,
     ctx: &mut TxContext,
 ): osh::ReceiverParams {
     verify_function_allowed(
@@ -442,7 +447,7 @@ public fun init_execute(
         ctx,
     );
 
-    pre_execute_single_report(ref, state, clock, reports, false, token_receiver)
+    pre_execute_single_report(ref, state, clock, reports, false)
 }
 
 public fun finish_execute(
@@ -466,7 +471,6 @@ public fun manually_init_execute(
     state: &mut OffRampState,
     clock: &clock::Clock,
     report_bytes: vector<u8>,
-    token_receiver: address,
 ): osh::ReceiverParams {
     verify_function_allowed(
         ref,
@@ -476,7 +480,7 @@ public fun manually_init_execute(
     );
     let reports = deserialize_execution_report(report_bytes);
 
-    pre_execute_single_report(ref, state, clock, reports, true, token_receiver)
+    pre_execute_single_report(ref, state, clock, reports, true)
 }
 
 public fun get_execution_state(
@@ -486,6 +490,7 @@ public fun get_execution_state(
 ): u8 {
     assert!(state.execution_states.contains(source_chain_selector), EUnknownSourceChainSelector);
     let source_chain_execution_states = state.execution_states.borrow(source_chain_selector);
+    assert!(source_chain_execution_states.contains(sequence_number), EUnknownSequenceNumber);
     let execution_state = source_chain_execution_states.borrow(sequence_number);
     *execution_state
 }
@@ -514,6 +519,7 @@ fun deserialize_execution_report(report_bytes: vector<u8>): ExecutionReport {
     let data = bcs_stream::deserialize_vector_u8(&mut stream);
     let receiver = bcs_stream::deserialize_address(&mut stream);
     let gas_limit = bcs_stream::deserialize_u256(&mut stream);
+    let token_receiver = bcs_stream::deserialize_address(&mut stream);
 
     let token_amounts = bcs_stream::deserialize_vector!(&mut stream, |stream| {
         let source_pool_address = bcs_stream::deserialize_vector_u8(stream);
@@ -537,6 +543,7 @@ fun deserialize_execution_report(report_bytes: vector<u8>): ExecutionReport {
         data,
         receiver,
         gas_limit,
+        token_receiver,
         token_amounts,
     };
 
@@ -560,7 +567,6 @@ fun pre_execute_single_report(
     clock: &clock::Clock,
     execution_report: ExecutionReport,
     manual_execution: bool,
-    token_receiver: address,
 ): osh::ReceiverParams {
     let source_chain_selector = execution_report.source_chain_selector;
 
@@ -621,15 +627,13 @@ fun pre_execute_single_report(
 
     let number_of_tokens_in_msg = message.token_amounts.length();
     assert!(number_of_tokens_in_msg <= TOKEN_TRANSFER_LIMIT, ETokenTransferLimitExceeded);
-    let has_valid_message_receiver =
-        (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     assert!(
         number_of_tokens_in_msg == execution_report.offchain_token_data.length(),
         ETokenDataMismatch,
     );
     assert!(
-        (token_receiver == @0x0 && number_of_tokens_in_msg == 0 && has_valid_message_receiver) || // for pure function call, empty token receiver must be specified
-            (token_receiver != @0x0 && number_of_tokens_in_msg > 0), // to send tokens, no matter pure or programmatic token transfer, token receiver must be specified
+        message.token_receiver == @0x0 && number_of_tokens_in_msg == 0 || // if token_receiver is empty, no tokens should be transferred
+            (message.token_receiver != @0x0 && number_of_tokens_in_msg > 0), // if token_receiver is not empty, tokens should be transferred
         EInvalidTokenReceiver,
     );
     assert!(state.dest_transfer_cap.is_some(), EDestTransferCapNotSet);
@@ -648,16 +652,13 @@ fun pre_execute_single_report(
             message.token_amounts[0].dest_token_address,
         );
         assert!(token_pool_address != @0x0, EUnsupportedToken);
-        let mut amount_op = u256::try_as_u64(message.token_amounts[0].amount);
-        assert!(amount_op.is_some(), ETokenAmountOverflow);
-        let amount = amount_op.extract();
 
         osh::add_dest_token_transfer(
             state.dest_transfer_cap.borrow(),
             &mut receiver_params,
-            token_receiver, // if there is a token receiver, users must specify token receiver in extra_args
+            message.token_receiver, // when sending tokens, token receiver will be included in the execution report
             source_chain_selector,
-            amount,
+            message.token_amounts[0].amount,
             message.token_amounts[0].dest_token_address,
             token_pool_address,
             message.token_amounts[0].source_pool_address,
@@ -665,17 +666,21 @@ fun pre_execute_single_report(
             execution_report.offchain_token_data[0],
         );
         token_addresses.push_back(message.token_amounts[0].dest_token_address);
-        token_amounts.push_back(amount);
+        token_amounts.push_back(message.token_amounts[0].amount);
     };
 
+    let has_valid_message_receiver =
+        (!message.data.is_empty() || message.gas_limit != 0) && receiver_registry::is_registered_receiver(ref, message.receiver);
     // if the message has a valid message receiver and proper data & gas limit
     if (has_valid_message_receiver) {
         let dest_token_amounts = client::new_dest_token_amounts(token_addresses, token_amounts);
-        let any2sui_message = client::new_any2sui_message(
+        let any2sui_message = osh::new_any2sui_message(
+            state.dest_transfer_cap.borrow(),
             message.header.message_id,
             message.header.source_chain_selector,
             message.sender,
             message.data,
+            message.token_receiver,
             dest_token_amounts,
         );
 
@@ -750,6 +755,7 @@ public fun calculate_message_hash(
     on_ramp: vector<u8>,
     data: vector<u8>,
     gas_limit: u256,
+    token_receiver: address,
     source_pool_addresses: vector<vector<u8>>,
     dest_token_addresses: vector<address>,
     dest_gas_amounts: vector<u32>,
@@ -803,6 +809,7 @@ public fun calculate_message_hash(
         data,
         receiver,
         gas_limit,
+        token_receiver,
         token_amounts,
     };
 
@@ -822,6 +829,7 @@ fun calculate_message_hash_internal(
     eth_abi::encode_address(&mut inner_hash, message.receiver);
     eth_abi::encode_u64(&mut inner_hash, message.header.sequence_number);
     eth_abi::encode_u256(&mut inner_hash, message.gas_limit);
+    eth_abi::encode_address(&mut inner_hash, message.token_receiver);
     eth_abi::encode_u64(&mut inner_hash, message.header.nonce);
     eth_abi::encode_right_padded_bytes32(&mut outer_hash, hash::keccak256(&inner_hash));
 
@@ -1337,6 +1345,7 @@ public fun accept_ownership_from_object(
 public fun mcms_accept_ownership(
     ref: &CCIPObjectRef,
     state: &mut OffRampState,
+    registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
@@ -1346,7 +1355,8 @@ public fun mcms_accept_ownership(
         string::utf8(b"accept_ownership"),
         VERSION,
     );
-    let (_, _, function, data) = mcms_registry::get_callback_params_for_mcms(
+    let (_, _, function, data) = mcms_registry::get_callback_params(
+        registry,
         params,
         McmsCallback {},
     );
@@ -1433,7 +1443,7 @@ public fun mcms_add_package_id(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1456,7 +1466,7 @@ public fun mcms_remove_package_id(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1480,7 +1490,7 @@ public fun mcms_set_dynamic_config(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1506,7 +1516,7 @@ public fun mcms_apply_source_chain_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1555,7 +1565,7 @@ public fun mcms_set_ocr3_config(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1602,7 +1612,7 @@ public fun mcms_transfer_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,
@@ -1628,7 +1638,7 @@ public fun mcms_execute_ownership_transfer(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
         registry,
         McmsCallback {},
         params,

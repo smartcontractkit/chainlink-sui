@@ -90,7 +90,7 @@ func TestPTBClient(t *testing.T) {
 					completionCh <- id // Signal this request completed
 				}()
 
-				err := relayerClient.WithRateLimit(ctx, func(ctx context.Context) error {
+				err := relayerClient.WithRateLimit(ctx, "TestMethod", func(ctx context.Context) error {
 					time.Sleep(1 * time.Second)
 					return nil
 				})
@@ -477,19 +477,6 @@ func TestPTBClient(t *testing.T) {
 			context.Background(),
 			packageId,
 			"counter",
-			packageId,
-		)
-
-		// The latest package ID should be the same as the provided package ID
-		require.NoError(t, err)
-		require.Equal(t, latestPackageId, packageId)
-	})
-
-	t.Run("GetLatestPackageIdFromPointer", func(t *testing.T) {
-		latestPackageId, err := relayerClient.GetLatestPackageId(
-			context.Background(),
-			packageId,
-			"offramp",
 			packageId,
 		)
 
