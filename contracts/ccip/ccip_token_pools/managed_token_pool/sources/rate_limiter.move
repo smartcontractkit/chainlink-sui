@@ -13,7 +13,7 @@ public struct TokenBucket has drop, store {
 const ETokenMaxCapacityExceeded: u64 = 1;
 const ETokenRateLimitReached: u64 = 2;
 
-public fun new(clock: &Clock, is_enabled: bool, capacity: u64, rate: u64): TokenBucket {
+public(package) fun new(clock: &Clock, is_enabled: bool, capacity: u64, rate: u64): TokenBucket {
     TokenBucket {
         tokens: 0,
         last_updated: clock.timestamp_ms() / 1000,
@@ -23,7 +23,10 @@ public fun new(clock: &Clock, is_enabled: bool, capacity: u64, rate: u64): Token
     }
 }
 
-public fun get_current_token_bucket_state(clock: &Clock, state: &TokenBucket): TokenBucket {
+public(package) fun get_current_token_bucket_state(
+    clock: &Clock,
+    state: &TokenBucket,
+): TokenBucket {
     TokenBucket {
         tokens: calculate_refill(
             state,
@@ -36,7 +39,7 @@ public fun get_current_token_bucket_state(clock: &Clock, state: &TokenBucket): T
     }
 }
 
-public fun consume(clock: &Clock, bucket: &mut TokenBucket, requested_tokens: u64) {
+public(package) fun consume(clock: &Clock, bucket: &mut TokenBucket, requested_tokens: u64) {
     if (!bucket.is_enabled || requested_tokens == 0) { return };
 
     update_bucket(clock, bucket);
@@ -49,7 +52,7 @@ public fun consume(clock: &Clock, bucket: &mut TokenBucket, requested_tokens: u6
 }
 
 /// We allow 0 rate and/or 0 capacity rate limits to effectively disable value transfer.
-public fun set_token_bucket_config(
+public(package) fun set_token_bucket_config(
     clock: &Clock,
     bucket: &mut TokenBucket,
     is_enabled: bool,

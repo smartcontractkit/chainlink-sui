@@ -60,24 +60,6 @@ public struct ChainRemoved has copy, drop {
     remote_chain_selector: u64,
 }
 
-public struct LiquidityAdded has copy, drop {
-    local_token: address,
-    provider: address,
-    amount: u64,
-}
-
-public struct LiquidityRemoved has copy, drop {
-    local_token: address,
-    provider: address,
-    amount: u64,
-}
-
-public struct RebalancerSet has copy, drop {
-    local_token: address,
-    previous_rebalancer: address,
-    rebalancer: address,
-}
-
 const ENotPublisher: u64 = 1;
 const EUnknownRemoteChainSelector: u64 = 2;
 const ECursedChain: u64 = 3;
@@ -95,7 +77,7 @@ const EDecimalOverflow: u64 = 11;
 // ================================================================
 
 // this can be called by any token pool implementation
-public fun initialize(
+public(package) fun initialize(
     coin_metadata_address: address,
     local_decimals: u8,
     allowlist: vector<address>,
@@ -130,7 +112,7 @@ public fun is_supported_chain(state: &TokenPoolState, remote_chain_selector: u64
     state.remote_chain_configs.contains(&remote_chain_selector)
 }
 
-public fun apply_chain_updates(
+public(package) fun apply_chain_updates(
     state: &mut TokenPoolState,
     remote_chain_selectors_to_remove: vector<u64>,
     remote_chain_selectors_to_add: vector<u64>,
@@ -222,7 +204,7 @@ public fun get_remote_token(state: &TokenPoolState, remote_chain_selector: u64):
     remote_chain_config.remote_token_address
 }
 
-public fun add_remote_pool(
+public(package) fun add_remote_pool(
     state: &mut TokenPoolState,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
@@ -243,7 +225,7 @@ public fun add_remote_pool(
     event::emit(RemotePoolAdded { remote_chain_selector, remote_pool_address });
 }
 
-public fun remove_remote_pool(
+public(package) fun remove_remote_pool(
     state: &mut TokenPoolState,
     remote_chain_selector: u64,
     remote_pool_address: vector<u8>,
@@ -268,7 +250,7 @@ public fun remove_remote_pool(
 // ================================================================
 
 /// Returns the remote token as bytes
-public fun validate_lock_or_burn(
+public(package) fun validate_lock_or_burn(
     ref: &CCIPObjectRef,
     clock: &Clock,
     state: &mut TokenPoolState,
@@ -297,7 +279,7 @@ public fun validate_lock_or_burn(
     get_remote_token(state, remote_chain_selector)
 }
 
-public fun validate_release_or_mint(
+public(package) fun validate_release_or_mint(
     ref: &CCIPObjectRef,
     clock: &Clock,
     state: &mut TokenPoolState,
@@ -328,8 +310,8 @@ public fun validate_release_or_mint(
 // |                           Events                             |
 // ================================================================
 
-public fun emit_released_or_minted(
-    state: &mut TokenPoolState,
+public(package) fun emit_released_or_minted(
+    state: &TokenPoolState,
     recipient: address,
     amount: u64,
     remote_chain_selector: u64,
@@ -342,32 +324,12 @@ public fun emit_released_or_minted(
     });
 }
 
-public fun emit_locked_or_burned(
-    state: &mut TokenPoolState,
+public(package) fun emit_locked_or_burned(
+    state: &TokenPoolState,
     amount: u64,
     remote_chain_selector: u64,
 ) {
     event::emit(LockedOrBurned { remote_chain_selector, local_token: state.coin_metadata, amount });
-}
-
-public fun emit_liquidity_added(state: &mut TokenPoolState, provider: address, amount: u64) {
-    event::emit(LiquidityAdded { local_token: state.coin_metadata, provider, amount });
-}
-
-public fun emit_liquidity_removed(state: &mut TokenPoolState, provider: address, amount: u64) {
-    event::emit(LiquidityRemoved { local_token: state.coin_metadata, provider, amount });
-}
-
-public fun emit_rebalancer_set(
-    state: &mut TokenPoolState,
-    previous_rebalancer: address,
-    rebalancer: address,
-) {
-    event::emit(RebalancerSet {
-        local_token: state.coin_metadata,
-        previous_rebalancer,
-        rebalancer,
-    });
 }
 
 // ================================================================
@@ -466,7 +428,7 @@ public fun calculate_release_or_mint_amount(
 // |                    Rate limit config                         |
 // ================================================================
 
-public fun set_chain_rate_limiter_config(
+public(package) fun set_chain_rate_limiter_config(
     clock: &Clock,
     state: &mut TokenPoolState,
     remote_chain_selector: u64,
@@ -498,7 +460,7 @@ public fun get_allowlist_enabled(state: &TokenPoolState): bool {
     allowlist::get_allowlist_enabled(&state.allowlist_state)
 }
 
-public fun set_allowlist_enabled(state: &mut TokenPoolState, enabled: bool) {
+public(package) fun set_allowlist_enabled(state: &mut TokenPoolState, enabled: bool) {
     allowlist::set_allowlist_enabled(&mut state.allowlist_state, enabled);
 }
 
@@ -506,7 +468,7 @@ public fun get_allowlist(state: &TokenPoolState): vector<address> {
     allowlist::get_allowlist(&state.allowlist_state)
 }
 
-public fun apply_allowlist_updates(
+public(package) fun apply_allowlist_updates(
     state: &mut TokenPoolState,
     removes: vector<address>,
     adds: vector<address>,
@@ -518,7 +480,7 @@ public fun apply_allowlist_updates(
 // |                          Deconstruction                           |
 // ================================================================
 
-public fun destroy_token_pool(state: TokenPoolState) {
+public(package) fun destroy_token_pool(state: TokenPoolState) {
     let TokenPoolState {
         allowlist_state,
         coin_metadata: _coin_metadata,

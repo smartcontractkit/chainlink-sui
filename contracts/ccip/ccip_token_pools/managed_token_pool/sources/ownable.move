@@ -54,7 +54,7 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
+public(package) fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
     let owner = ctx.sender();
 
     let owner_cap = OwnerCap {
