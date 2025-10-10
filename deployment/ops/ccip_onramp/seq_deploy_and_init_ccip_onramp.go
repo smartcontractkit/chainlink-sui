@@ -16,8 +16,9 @@ type DeployAndInitCCIPOnRampSeqInput struct {
 }
 
 type DeployCCIPOnRampSeqObjects struct {
-	StateObjectId    string
-	OwnerCapObjectId string
+	StateObjectId      string
+	OwnerCapObjectId   string
+	UpgradeCapObjectId string
 }
 
 type DeployCCIPOnRampSeqOutput struct {
@@ -82,8 +83,9 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		return DeployCCIPOnRampSeqOutput{
 			CCIPOnRampPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPOnRampSeqObjects{
-				StateObjectId:    deployReport.Output.Objects.CCIPOnrampStateObjectId,
-				OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:      deployReport.Output.Objects.CCIPOnrampStateObjectId,
+				OwnerCapObjectId:   deployReport.Output.Objects.OwnerCapObjectId,
+				UpgradeCapObjectId: deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},

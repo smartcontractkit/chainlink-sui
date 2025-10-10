@@ -497,8 +497,6 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 						return fmt.Errorf("failed to get normalized module for vector struct: %w", err)
 					}
 
-					c.log.Debugw("normalizedModule for vector", "normalizedModule", normalizedModule)
-
 					// Use the new DecodeVectorOfStructs function
 					jsonResult, err := codec.DecodeVectorOfStructs(bcsDecoder, structTag, normalizedModule.Structs)
 					if err != nil {
@@ -543,7 +541,6 @@ func (c *PTBClient) ReadFunction(ctx context.Context, signerAddress string, pack
 			} else {
 				// otherwise, get the normalized struct and attempt turning the result into JSON
 				normalizedModule, err := c.GetNormalizedModule(ctx, packageId, structParts[1])
-				c.log.Debugw("normalizedModule", "normalizedModule", normalizedModule)
 				if err != nil {
 					return fmt.Errorf("failed to get normalized struct: %w", err)
 				}

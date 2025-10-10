@@ -13,7 +13,6 @@ type DeployAndInitDummyReceiverInput struct {
 	DeployDummyReceiverInput
 	// For registration
 	CCIPObjectRefObjectId string
-	ReceiverStateParams   []string
 }
 
 type DeployDummyReceiverSeqObjects struct {
@@ -54,7 +53,6 @@ var DeployAndInitDummyReceiverSequence = cld_ops.NewSequence(
 			RegisterDummyReceiverInput{
 				CCIPObjectRefObjectId:  input.CCIPObjectRefObjectId,
 				DummyReceiverPackageId: deployReport.Output.PackageId,
-				ReceiverStateParams:    input.ReceiverStateParams,
 			},
 		)
 		if err != nil {
