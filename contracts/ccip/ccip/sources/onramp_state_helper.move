@@ -7,6 +7,7 @@ use std::type_name;
 const ETypeProofMismatch: u64 = 1;
 const ETokenTransferAlreadyExists: u64 = 2;
 const ETokenTransferDoesNotExist: u64 = 3;
+const EInvalidTokenReceiver: u64 = 4;
 
 public struct ONRAMP_STATE_HELPER has drop {}
 
@@ -17,10 +18,10 @@ public struct SourceTransferCap has key, store {
 
 public struct TokenTransferParams {
     token_transfer: Option<TokenTransferMetadata>,
-    token_receiver: address,
+    token_receiver: vector<u8>,
 }
 
-public fun get_token_receiver(params: &TokenTransferParams): address {
+public fun get_token_receiver(params: &TokenTransferParams): vector<u8> {
     params.token_receiver
 }
 
@@ -41,7 +42,8 @@ fun init(_witness: ONRAMP_STATE_HELPER, ctx: &mut TxContext) {
     transfer::transfer(source_cap, ctx.sender());
 }
 
-public fun create_token_transfer_params(token_receiver: address): TokenTransferParams {
+public fun create_token_transfer_params(token_receiver: vector<u8>): TokenTransferParams {
+    assert!(token_receiver.length() == 32, EInvalidTokenReceiver);
     TokenTransferParams {
         token_transfer: option::none(),
         token_receiver,

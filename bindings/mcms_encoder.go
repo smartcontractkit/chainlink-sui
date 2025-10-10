@@ -25,8 +25,8 @@ type CCIPEntrypointArgEncoder struct {
 	registryObjID string
 }
 
-func NewCCIPEntrypointArgEncoder() *CCIPEntrypointArgEncoder {
-	return &CCIPEntrypointArgEncoder{}
+func NewCCIPEntrypointArgEncoder(registryObjID string) *CCIPEntrypointArgEncoder {
+	return &CCIPEntrypointArgEncoder{registryObjID: registryObjID}
 }
 
 func deserializeFirst32Bytes(data []byte) []byte {
