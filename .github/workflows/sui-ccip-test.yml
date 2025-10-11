@@ -23,7 +23,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15.2-alpine
+        image: postgres:15.1-alpine
         ports:
           - 5432:5432
         env:
@@ -139,10 +139,16 @@ jobs:
           make testdb
 
       # 12) Run the integration test
-      - name: Run Test
+      - name: Run Test_CCIP_Messaging_Sui2EVM
         env:
           CL_DATABASE_URL: ${{ env.CL_DATABASE_URL }}
-          CL_SUI_CMD: ${{ github.workspace }}/chainlink-sui
+          TEST_ENV_TYPE: ${{ env.TEST_ENV_TYPE }}
+          CL_SUI_CMD: ${{ github.workspace }}/temp/chainlink-sui/chainlink-sui
         run: |
-          cd temp/chainlink/integration-tests/smoke/ccip
-          go test -v -tags=integration -count=1 -run Test_CCIP_Messaging_Sui2EVM ./...
+          cd temp/chainlink/integration-tests
+          go test ./smoke/ccip \
+            -run "Test_CCIP_Messaging_Sui2EVM" \
+            -timeout 10m \
+            -test.parallel=1 \
+            -count=1 \
+            -json
