@@ -38,15 +38,15 @@ jobs:
 
     strategy:
       matrix:
-        sui_version: [mainnet-v1.50.1]
+        sui_version: [mainnet-v1.57.2]
 
     steps:
       # 1) Checkout both repos
-      - name: Checkout chainlink-sui
+      - name: Checkout chainlink-sui (current PR)
         uses: actions/checkout@v4
         with:
-          repository: smartcontractkit/chainlink-sui
-          ref: 682007ecdc10d1c7a9191b71bd318c9c85e01f89
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: temp/chainlink-sui
           fetch-depth: 1
 
@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
-          ref: daa1f621fbc3c053c31db6b1f0a8043c86dbeafb
+          ref: f2b677dc61c354982a00ae483543fb25d695eddd # maybe we cause use develop too 
           path: temp/chainlink
           fetch-depth: 1
 
