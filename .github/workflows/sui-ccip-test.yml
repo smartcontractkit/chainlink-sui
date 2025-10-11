@@ -123,7 +123,7 @@ jobs:
 
       # 9) Setup Sui CLI using your reusable composite action
       - name: Setup Sui CLI
-        uses: ./.github/actions/setup-sui
+        uses: ./temp/chainlink-sui/.github/actions/setup-sui
         with:
           version: ${{ matrix.sui_version }}
 
