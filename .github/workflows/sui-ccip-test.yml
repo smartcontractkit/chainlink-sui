@@ -146,4 +146,4 @@ jobs:
           CL_SUI_CMD: ${{ github.workspace }}/temp/chainlink-sui/chainlink-sui
         run: |
           cd temp/chainlink/integration-tests
-          go test ./smoke/ccip -run "Test_CCIP_Messaging_Sui2EVM" -timeout 10m -test.parallel=1 -count=1 -json
+          go test ./smoke/ccip -run "Test_CCIP_Messaging_Sui2EVM" -timeout 10m -test.parallel=1 -count=1 -v
