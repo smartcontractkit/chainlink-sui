@@ -1,44 +1,29 @@
-name: CCIP Integration Tests (Sui)
+name: CCIP Integration Test
 
 on:
-  workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
   push:
     branches: [develop, main]
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 concurrency:
   group: ccip-tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ccip_sui_tests:
-    name: Run ${{ matrix.test_name }}
-    runs-on: ${{ matrix.runs_on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - test_id: smoke/ccip/ccip_sui_messaging_test.go:Test_CCIP_Messaging_Sui2EVM
-            test_name: Test_CCIP_Messaging_Sui2EVM
-            test_env_type: in-memory
-            runs_on: ubuntu-latest
-            test_cmd: go test ./smoke/ccip -run "Test_CCIP_Messaging_Sui2EVM" -timeout 10m -test.parallel=1 -count=1
+  ccip_test_sui2evm:
+    name: Run Sui2EVM Test
+    runs-on: ubuntu-latest
 
-          - test_id: smoke/ccip/ccip_sui_messaging_test.go:Test_CCIP_Messaging_EVM2Sui
-            test_name: Test_CCIP_Messaging_EVM2Sui
-            test_env_type: in-memory
-            runs_on: ubuntu-latest
-            test_cmd: go test ./smoke/ccip -run "Test_CCIP_Messaging_EVM2Sui" -timeout 10m -test.parallel=1 -count=1
     env:
-      TEST_ENV_TYPE: ${{ matrix.test_env_type }}
-      CL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable
-      GOPRIVATE: github.com/smartcontractkit/*
+      DEFAULT_CORE_REF: sish/sui-evm-test-1
       GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
+      GOPRIVATE: github.com/smartcontractkit/chainlink-sui
+      CL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable
 
     services:
       postgres:
-        image: postgres:15.2-alpine
+        image: postgres:15.1-alpine
         ports:
           - 5432:5432
         env:
@@ -48,12 +33,16 @@ jobs:
         options: >-
           --health-cmd="pg_isready -U postgres"
           --health-interval=5s
-          --health-timeout=5s
+          --health-timeout=2s
           --health-retries=5
 
+    strategy:
+      matrix:
+        sui_version: [mainnet-v1.57.2]
+
     steps:
-      # 1️ Checkout PR branch of chainlink-sui
-      - name: Checkout chainlink-sui
+      # 1) Checkout both repos
+      - name: Checkout chainlink-sui (current PR)
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
@@ -61,73 +50,122 @@ jobs:
           path: temp/chainlink-sui
           fetch-depth: 1
 
-      # 2️ Checkout core chainlink repo (pinned)
       - name: Checkout chainlink
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
-          ref: main
+          ref: f2b677dc61c354982a00ae483543fb25d695eddd # maybe we cause use develop too 
           path: temp/chainlink
           fetch-depth: 1
 
-      # 3️ Read Go version dynamically
+      # 2) Read Go version
       - name: Read Go version
         id: go-version
         run: |
           GO_VER=$(grep -E '^golang ' temp/chainlink/.tool-versions | cut -d' ' -f2)
           echo "GO_VERSION=$GO_VER" >> $GITHUB_OUTPUT
 
-      # 4️ Setup Go
-      - name: Setup Go
+      # 3) Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.go-version.outputs.GO_VERSION }}
           cache: true
 
-      # 5️ Configure Git for private modules
-      - name: Configure Git
-        run: git config --global url."https://${GH_PAT_READ}@github.com/".insteadOf "https://github.com/"
+      # 4) Configure Git for private modules
+      - name: Configure Git & GOPRIVATE
+        run: |
+          git config --global url."https://${GH_PAT_READ}@github.com/".insteadOf "https://github.com/"
+          echo "GOPRIVATE=github.com/smartcontractkit/*" >> $GITHUB_ENV
+        env:
+          GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
 
-      # 6️ Build chainlink-sui
-      - name: Build chainlink-sui
+      # 5) Cache Go modules
+      - name: Cache Go modules & build cache
+        uses: actions/cache@v4
+        id: cache-go
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-mods-${{ hashFiles('temp/chainlink/go.sum','temp/chainlink-sui/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-mods-
+
+      # 6) Pin & tidy the core module
+      - name: Fetch & pin chainlink-sui
+        run: |
+          cd temp/chainlink
+
+          # Determine what ref to use:
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            REF="${{ github.event.pull_request.head.sha }}"
+          else
+            REF="${{ github.sha }}"
+          fi
+
+          echo "Using chainlink-sui ref: $REF"
+
+          go get github.com/smartcontractkit/chainlink-sui@$REF
+          go mod tidy
+
+
+      # 7) Tidy integration-tests module
+      - name: Tidy integration-tests
+        run: |
+          cd temp/chainlink/integration-tests/smoke/ccip
+          go mod tidy
+
+      # 8) Build LOOP plugin
+      - name: Build LOOP plugin
         working-directory: temp/chainlink-sui
         run: go build -o chainlink-sui ./relayer/cmd/chainlink-sui/main.go
 
-      # 7️ Setup Sui CLI (via composite action)
+      # 9) Setup Sui CLI using your reusable composite action
       - name: Setup Sui CLI
         uses: ./temp/chainlink-sui/.github/actions/setup-sui
         with:
-          version: mainnet-v1.57.2
+          version: ${{ matrix.sui_version }}
 
-      # 8️ Wait for Postgres
+      # 10) Wait for Postgres
       - name: Wait for Postgres
-        run: until pg_isready -h localhost -U postgres; do sleep 1; done
+        run: |
+          until pg_isready -h localhost -U postgres; do sleep 1; done
 
-      # 9️ Prepare DB
+      # 11) Prepare DB
       - name: Prepare database
         run: |
           cd temp/chainlink
           make testdb
 
-      # 10 Run the integration test (human-readable output)
-      - name: Run ${{ matrix.test_name }}
+      # 12) Run the integration test
+      - name: Run CCIP Messaging Tests (Sui <-> EVM) in Parallel
         env:
           CL_DATABASE_URL: ${{ env.CL_DATABASE_URL }}
           TEST_ENV_TYPE: ${{ env.TEST_ENV_TYPE }}
           CL_SUI_CMD: ${{ github.workspace }}/temp/chainlink-sui/chainlink-sui
         run: |
           cd temp/chainlink/integration-tests
-          echo "=== Running ${{ matrix.test_name }} ==="
-          go test ./smoke/ccip \
-            -run "${{ matrix.test_name }}" \
-            -timeout 10m \
-            -parallel 4 \
-            -count=1 \
-            -v
 
-      # 1️1 Upload JSON output for each test
-      - name: Upload ${{ matrix.test_name }} results
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.test_name }}-results
-          path: ${{ matrix.test_name }}-results.json
+          echo "=== Running tests in parallel ==="
+          
+          # Run Sui2EVM in the background
+          go test ./smoke/ccip -run "Test_CCIP_Messaging_Sui2EVM" \
+            -timeout 10m -parallel 4 -count=1 -v > sui2evm.log 2>&1 &
+
+          # Run EVM2Sui in the background
+          go test ./smoke/ccip -run "Test_CCIP_Messaging_EVM2Sui" \
+            -timeout 10m -parallel 4 -count=1 -v > evm2sui.log 2>&1 &
+
+          # Wait for both to finish
+          wait
+
+          echo "=== All parallel tests finished ==="
+          echo ""
+          echo "--- Test_CCIP_Messaging_Sui2EVM logs ---"
+          cat sui2evm.log
+          echo ""
+          echo "--- Test_CCIP_Messaging_EVM2Sui logs ---"
+          cat evm2sui.log
+
+
