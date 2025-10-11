@@ -20,7 +20,9 @@ jobs:
       matrix:
         include:
           - test_name: Test_CCIP_Messaging_Sui2EVM
+            sui_version: mainnet-v1.57.2
           - test_name: Test_CCIP_Messaging_EVM2Sui
+            sui_version: mainnet-v1.57.2
           
     env:
       DEFAULT_CORE_REF: sish/sui-evm-test-1
@@ -42,10 +44,6 @@ jobs:
           --health-interval=5s
           --health-timeout=2s
           --health-retries=5
-
-    strategy:
-      matrix:
-        sui_version: [mainnet-v1.57.2]
 
     steps:
       # 1) Checkout both repos
