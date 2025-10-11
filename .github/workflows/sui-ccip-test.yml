@@ -23,6 +23,10 @@ jobs:
             sui_version: mainnet-v1.57.2
           - test_name: Test_CCIP_Messaging_EVM2Sui
             sui_version: mainnet-v1.57.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM
+            sui_version: mainnet-v1.57.2
+          - test_name: Test_CCIPTokenTransfer_EVM2SUI
+            sui_version: mainnet-v1.57.2
           
     env:
       DEFAULT_CORE_REF: sish/sui-evm-test-1
