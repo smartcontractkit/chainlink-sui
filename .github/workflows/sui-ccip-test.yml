@@ -15,6 +15,13 @@ jobs:
     name: Run Sui2EVM Test
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test_name: Test_CCIP_Messaging_Sui2EVM
+          - test_name: Test_CCIP_Messaging_EVM2Sui
+          
     env:
       DEFAULT_CORE_REF: sish/sui-evm-test-1
       GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
@@ -138,34 +145,19 @@ jobs:
           cd temp/chainlink
           make testdb
 
-      # 12) Run the integration test
-      - name: Run CCIP Messaging Tests (Sui <-> EVM) in Parallel
+      # 12) Run the integration test (isolated per job)
+      - name: Run ${{ matrix.test_name }}
         env:
           CL_DATABASE_URL: ${{ env.CL_DATABASE_URL }}
-          TEST_ENV_TYPE: ${{ env.TEST_ENV_TYPE }}
+          TEST_ENV_TYPE: in-memory
           CL_SUI_CMD: ${{ github.workspace }}/temp/chainlink-sui/chainlink-sui
         run: |
           cd temp/chainlink/integration-tests
-
-          echo "=== Running tests in parallel ==="
-          
-          # Run Sui2EVM in the background
-          go test ./smoke/ccip -run "Test_CCIP_Messaging_Sui2EVM" \
-            -timeout 10m -parallel 4 -count=1 -v > sui2evm.log 2>&1 &
-
-          # Run EVM2Sui in the background
-          go test ./smoke/ccip -run "Test_CCIP_Messaging_EVM2Sui" \
-            -timeout 10m -parallel 4 -count=1 -v > evm2sui.log 2>&1 &
-
-          # Wait for both to finish
-          wait
-
-          echo "=== All parallel tests finished ==="
-          echo ""
-          echo "--- Test_CCIP_Messaging_Sui2EVM logs ---"
-          cat sui2evm.log
-          echo ""
-          echo "--- Test_CCIP_Messaging_EVM2Sui logs ---"
-          cat evm2sui.log
-
+          echo "=== Running ${{ matrix.test_name }} ==="
+          go test ./smoke/ccip \
+            -run "${{ matrix.test_name }}" \
+            -timeout 10m \
+            -parallel 4 \
+            -count=1 \
+            -v
 
