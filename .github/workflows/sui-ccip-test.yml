@@ -96,8 +96,19 @@ jobs:
       - name: Fetch & pin chainlink-sui
         run: |
           cd temp/chainlink
-          go get github.com/smartcontractkit/chainlink-sui@682007ecdc10d1c7a9191b71bd318c9c85e01f89
+
+          # Determine what ref to use:
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            REF="${{ github.event.pull_request.head.sha }}"
+          else
+            REF="${{ github.sha }}"
+          fi
+
+          echo "Using chainlink-sui ref: $REF"
+
+          go get github.com/smartcontractkit/chainlink-sui@$REF
           go mod tidy
+
 
       # 7) Tidy integration-tests module
       - name: Tidy integration-tests
