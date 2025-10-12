@@ -2,13 +2,13 @@
 module burn_mint_token_pool::burn_mint_token_pool_tests;
 
 use burn_mint_token_pool::burn_mint_token_pool::{Self, BurnMintTokenPoolState};
+use burn_mint_token_pool::ownable::OwnerCap;
 use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
 use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
-use ccip_token_pool::ownable::OwnerCap;
 use std::bcs;
 use std::string;
 use sui::clock;

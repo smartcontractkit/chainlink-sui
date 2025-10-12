@@ -12,7 +12,6 @@ import (
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
-	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
@@ -245,24 +244,6 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	err = ab.Save(config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.StateObjectId, typeAndVersionOffRampObjectStateId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp StateObjectId %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.Objects.StateObjectId, config.SuiChainSelector, err)
-	}
-
-	// Deploy CCIP TokenPool
-	deployTp, err := operations.ExecuteOperation(e.OperationsBundle, tokenpoolops.DeployCCIPTokenPoolOp, deps,
-		tokenpoolops.TokenPoolDeployInput{
-			CCIPPackageId:    ccipSeqReport.Output.CCIPPackageId,
-			MCMSAddress:      mcmsSeqReport.Output.PackageId,
-			MCMSOwnerAddress: signerAddr,
-		})
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy TokenPool for Sui chain %d: %w", config.SuiChainSelector, err)
-	}
-
-	// save tokenPool address in addressbook
-	typeAndVersionTokenPoolId := cldf.NewTypeAndVersion(deployment.SuiTokenPoolType, deployment.Version1_0_0)
-	err = ab.Save(config.SuiChainSelector, deployTp.Output.PackageId, typeAndVersionTokenPoolId)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp StateObjectId %s for Sui chain %d: %w", deployTp.Output.PackageId, config.SuiChainSelector, err)
 	}
 
 	return cldf.ChangesetOutput{
