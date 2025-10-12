@@ -166,3 +166,11 @@ jobs:
             -count=1 \
             -v
 
+      # 13) Upload test artifacts
+      - name: Upload Sui test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sui-ccip-test-artifacts
+          path: temp/chainlink/integration-tests/smoke/ccip/
+          retention-days: 2
