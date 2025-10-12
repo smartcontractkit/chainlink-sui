@@ -172,5 +172,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sui-ccip-test-artifacts-${{ matrix.test_name }}
-          path: temp/chainlink/integration-tests/smoke/ccip/
+          path: temp/chainlink/integration-tests/smoke/ccip/logs
           retention-days: 2
