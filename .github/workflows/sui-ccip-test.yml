@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   ccip_test_sui2evm:
-    name: Run Sui2EVM Test
+    name: Run Sui <-> EVM Test
     runs-on: ubuntu-latest
 
     strategy:
@@ -171,6 +171,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sui-ccip-test-artifacts
+          name: sui-ccip-test-artifacts-${{ matrix.test_name }}
           path: temp/chainlink/integration-tests/smoke/ccip/
           retention-days: 2
