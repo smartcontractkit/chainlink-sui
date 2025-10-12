@@ -17,7 +17,6 @@ import (
 	burnmintops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleaseops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
-	cciptokenpoolop "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	mockethtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_eth_token"
@@ -48,21 +47,12 @@ func SetupEthTokenPoolBurnMint(
 
 	lggr.Debugw("Setting up ETH burn-mint token pool")
 
-	// Deploy CCIP token pool
-	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
-		MCMSOwnerAddress: accountAddress,
-	})
-	require.NoError(t, err, "failed to deploy CCIP Token Pool")
-
 	// Deploy and initialize the burn mint token pool
 	seqBurnMintDeployInput := burnmintops.DeployAndInitBurnMintTokenPoolInput{
 		BurnMintTokenPoolDeployInput: burnmintops.BurnMintTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
-			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
-			MCMSAddress:            reportMCMs.Output.PackageId,
-			MCMSOwnerAddress:       accountAddress,
+			CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+			MCMSAddress:      reportMCMs.Output.PackageId,
+			MCMSOwnerAddress: accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      tokenType,
@@ -122,14 +112,6 @@ func SetupManagedTokenPool(
 
 	lggr.Debugw("Setting up managed token pool")
 
-	// First, deploy CCIP token pool
-	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
-		MCMSOwnerAddress: accountAddress,
-	})
-	require.NoError(t, err, "failed to deploy CCIP Token Pool")
-
 	// Deploy and initialize the managed token first
 	seqManagedTokenDeployInput := managedtokenops.DeployAndInitManagedTokenInput{
 		ManagedTokenDeployInput: managedtokenops.ManagedTokenDeployInput{
@@ -168,11 +150,10 @@ func SetupManagedTokenPool(
 	// Now deploy and initialize the managed token pool
 	seqManagedTokenPoolDeployInput := managedtokenpoolops.SeqDeployAndInitManagedTokenPoolInput{
 		// Deploy inputs
-		CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
-		CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
-		ManagedTokenPackageId:  managedTokenReport.Output.ManagedTokenPackageId,
-		MCMSAddress:            reportMCMs.Output.PackageId,
-		MCMSOwnerAddress:       accountAddress,
+		CCIPPackageId:         reportCCIP.Output.CCIPPackageId,
+		ManagedTokenPackageId: managedTokenReport.Output.ManagedTokenPackageId,
+		MCMSAddress:           reportMCMs.Output.PackageId,
+		MCMSOwnerAddress:      accountAddress,
 		// Initialize inputs
 		CoinObjectTypeArg:         tokenType,
 		CCIPObjectRefObjectId:     reportCCIP.Output.Objects.CCIPObjectRefObjectId,
@@ -349,21 +330,12 @@ func SetupTokenPool(
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
-	// Deploy CCIP token pool
-	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
-		MCMSOwnerAddress: accountAddress,
-	})
-	require.NoError(t, err, "failed to deploy CCIP Token Pool")
-
 	// Deploy and initialize the lock release token pool
 	seqLockReleaseDeployInput := lockreleaseops.DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: lockreleaseops.LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:          reportCCIP.Output.CCIPPackageId,
-			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
-			MCMSAddress:            reportMCMs.Output.PackageId,
-			MCMSOwnerAddress:       accountAddress,
+			CCIPPackageId:    reportCCIP.Output.CCIPPackageId,
+			MCMSAddress:      reportMCMs.Output.PackageId,
+			MCMSOwnerAddress: accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      linkTokenType,

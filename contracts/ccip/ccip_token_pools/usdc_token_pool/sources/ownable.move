@@ -1,6 +1,4 @@
-/// Ownable functionality for the CCIP Token Pool module
-/// Provides ownership management with two-step ownership transfer process
-module ccip_token_pool::ownable;
+module usdc_token_pool::ownable;
 
 use mcms::mcms_registry::{Self, Registry};
 use sui::event;
@@ -56,7 +54,7 @@ const ETransferNotAccepted: u64 = 8;
 const ECannotTransferToMcms: u64 = 9;
 const EMustTransferToMcms: u64 = 10;
 
-public fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
+public(package) fun new(ctx: &mut TxContext): (OwnableState, OwnerCap) {
     let owner = ctx.sender();
 
     let owner_cap = OwnerCap {

@@ -8,8 +8,8 @@ use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
-use ccip_token_pool::ownable::{Self, OwnerCap};
 use lock_release_token_pool::lock_release_token_pool::{Self, LockReleaseTokenPoolState};
+use lock_release_token_pool::ownable::{Self, OwnerCap};
 use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
 

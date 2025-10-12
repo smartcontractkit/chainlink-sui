@@ -23,7 +23,6 @@ graph TB
     end
     
     subgraph "Token Infrastructure"
-        TokenPool[Base Token Pool]
         BurnMintPool[Burn Mint Pool]
         LockReleasePool[Lock Release Pool]
         ManagedTokenPool[Managed Token Pool]
@@ -130,16 +129,6 @@ The OffRamp manages:
 
 ### 3. Token Infrastructure
 
-#### Base Token Pool (`contracts/ccip/ccip_token_pools/token_pool/`)
-**Purpose**: Foundational token pool functionality
-
-Provides core features for all token pool implementations:
-- Cross-chain validation
-- Rate limiting per chain
-- Decimal handling
-- Access control
-- Multi-chain configuration
-
 #### Specialized Token Pools
 
 ##### Burn & Mint Token Pool
@@ -223,8 +212,6 @@ sui client publish contracts/ccip/ccip_offramp --gas-budget 50000000
 ### 3. Token Infrastructure Deployment
 
 ```bash
-# Deploy base token pool
-sui client publish contracts/ccip/ccip_token_pools/token_pool --gas-budget 50000000
 
 # Deploy specific pool types
 sui client publish contracts/ccip/ccip_token_pools/burn_mint_token_pool --gas-budget 50000000

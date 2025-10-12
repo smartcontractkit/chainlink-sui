@@ -1,7 +1,7 @@
 #[test_only]
 module managed_token_pool::managed_token_pool_ownable_test;
 
-use ccip_token_pool::ownable;
+use managed_token_pool::ownable;
 
 #[test]
 public fun test_ownable_module_functions_exist() {

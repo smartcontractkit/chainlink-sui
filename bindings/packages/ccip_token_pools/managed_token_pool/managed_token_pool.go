@@ -49,13 +49,11 @@ func PublishCCIPManagedTokenPool(
 	opts *bind.CallOpts,
 	client sui.ISuiAPI,
 	ccipAddress,
-	ccipTokenPoolAddress,
 	managedTokenAddress,
 	mcmsAddress,
 	mcmsOwnerAddress string) (ManagedTokenPool, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.ManagedTokenPool, map[string]string{
 		"ccip":               ccipAddress,
-		"ccip_token_pool":    ccipTokenPoolAddress,
 		"managed_token_pool": "0x0",
 		"managed_token":      managedTokenAddress,
 		"mcms":               mcmsAddress,

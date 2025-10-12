@@ -15,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccip_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
-	ccip_tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 	managedtokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/managed_token"
 	mcms_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
@@ -58,16 +57,6 @@ func TestDeployAndInitSeq(t *testing.T) {
 	reportCCIP, err := cld_ops.ExecuteOperation(bundle, ccip_ops.DeployCCIPOp, deps, inputCCIP)
 	require.NoError(t, err, "failed to deploy CCIP Package")
 
-	// deploy CCIP Token Pool
-	inputTokenPool := ccip_tokenpoolops.TokenPoolDeployInput{
-		CCIPPackageId:    reportCCIP.Output.PackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
-		MCMSOwnerAddress: signerAddress,
-	}
-
-	reportCCIPTokenPool, err := cld_ops.ExecuteOperation(bundle, ccip_tokenpoolops.DeployCCIPTokenPoolOp, deps, inputTokenPool)
-	require.NoError(t, err, "failed to deploy CCIP TokenPool Package")
-
 	// deploy managed token
 	reportManagedToken, err := cld_ops.ExecuteOperation(bundle, managedtokenops.DeployCCIPManagedTokenOp, deps, managedtokenops.ManagedTokenDeployInput{
 		MCMSAddress:      reportMCMs.Output.PackageId,
@@ -88,11 +77,10 @@ func TestDeployAndInitSeq(t *testing.T) {
 
 	// Test just the package deployment for now
 	managedTokenPoolInput := ManagedTokenPoolDeployInput{
-		CCIPPackageId:          reportCCIP.Output.PackageId,
-		CCIPTokenPoolPackageId: reportCCIPTokenPool.Output.PackageId,
-		ManagedTokenPackageId:  reportManagedToken.Output.PackageId,
-		MCMSAddress:            reportMCMs.Output.PackageId,
-		MCMSOwnerAddress:       signerAddress,
+		CCIPPackageId:         reportCCIP.Output.PackageId,
+		ManagedTokenPackageId: reportManagedToken.Output.PackageId,
+		MCMSAddress:           reportMCMs.Output.PackageId,
+		MCMSOwnerAddress:      signerAddress,
 	}
 
 	_, err = cld_ops.ExecuteOperation(bundle, DeployCCIPManagedTokenPoolOp, deps, managedTokenPoolInput)
