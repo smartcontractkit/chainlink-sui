@@ -1123,3 +1123,31 @@ public fun mcms_execute_ownership_transfer<T>(
     let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback {});
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
+
+public fun mcms_set_pool<T>(
+    ref: &mut CCIPObjectRef,
+    state: &mut USDCTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
+}
