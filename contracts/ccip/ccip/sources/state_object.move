@@ -188,7 +188,10 @@ public fun mcms_add_package_id(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -210,7 +213,10 @@ public fun mcms_remove_package_id(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -233,7 +239,10 @@ public fun mcms_transfer_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -252,13 +261,37 @@ public fun mcms_transfer_ownership(
     transfer_ownership(ref, owner_cap, to, ctx);
 }
 
+public fun mcms_accept_ownership(
+    ref: &mut CCIPObjectRef,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_, _, function, data) = mcms_registry::get_callback_params(
+        registry,
+        params,
+        McmsCallback {},
+    );
+    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(ref), &mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    let mcms = mcms_registry::get_multisig_address();
+    ownable::mcms_accept_ownership(&mut ref.ownable_state, mcms, ctx);
+}
+
 public fun mcms_execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -283,7 +316,10 @@ public fun mcms_proof_entrypoint(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ): CCIPAdminProof {
-    let (_owner_cap, function, _data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, _data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
