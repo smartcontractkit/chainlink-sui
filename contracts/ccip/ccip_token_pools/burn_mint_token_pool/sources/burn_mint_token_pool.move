@@ -134,6 +134,26 @@ fun initialize_internal<T>(
     (coin_metadata_address, type_proof_type_name, token_type, burn_mint_token_pool)
 }
 
+public fun set_pool<T>(
+    ref: &mut CCIPObjectRef,
+    state: &mut BurnMintTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    coin_metadata_address: address,
+    ctx: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+
+    let token_pool_state_address = object::uid_to_address(&state.id);
+    token_admin_registry::set_pool(
+        ref,
+        coin_metadata_address,
+        vector[CLOCK_ADDRESS, token_pool_state_address],
+        vector[CLOCK_ADDRESS, token_pool_state_address],
+        TypeProof {},
+        ctx,
+    );
+}
+
 // ================================================================
 // |                 Exposing token_pool functions                |
 // ================================================================
@@ -849,6 +869,34 @@ public fun mcms_set_chain_rate_limiter_config<T>(
         inbound_capacity,
         inbound_rate,
     );
+}
+
+public fun mcms_set_pool<T>(
+    ref: &mut CCIPObjectRef,
+    state: &mut BurnMintTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
 }
 
 public fun mcms_transfer_ownership<T>(

@@ -12,6 +12,7 @@ use managed_token::managed_token::{Self, TokenState, MintCap};
 use managed_token::ownable::OwnerCap as TokenOwnerCap;
 use managed_token_pool::managed_token_pool::{Self, ManagedTokenPoolState};
 use managed_token_pool::ownable::OwnerCap;
+use std::ascii;
 use std::bcs;
 use std::string;
 use std::type_name;
@@ -1295,4 +1296,265 @@ fun cleanup_test(
     transfer::public_transfer(ccip_owner_cap, @0x0);
     test_scenario::return_shared(ccip_ref);
     scenario.end();
+}
+
+const TOKEN_ADMIN: address = @0x123;
+
+#[test]
+public fun test_set_pool() {
+    let mut scenario = test_scenario::begin(TOKEN_ADMIN);
+
+    // Setup CCIP environment
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Setup managed token
+    scenario.next_tx(TOKEN_ADMIN);
+    let coin_metadata_address = {
+        let ctx = scenario.ctx();
+
+        // Create coin metadata
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        let coin_metadata_address = object::id_to_address(&object::id(&coin_metadata));
+
+        // Initialize managed token
+        managed_token::initialize(treasury_cap, ctx);
+
+        transfer::public_freeze_object(coin_metadata);
+
+        coin_metadata_address
+    };
+
+    // Get the token state address and create mint cap
+    scenario.next_tx(TOKEN_ADMIN);
+    let token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        let token_state_address = object::id_to_address(&object::id(&token_state));
+
+        // Configure a new minter - this creates and transfers the MintCap to TOKEN_ADMIN
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            TOKEN_ADMIN,
+            1000000000, // allowance
+            true, // is_unlimited
+            scenario.ctx(),
+        );
+
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+
+        token_state_address
+    };
+
+    // Initialize pool normally with managed_token_pool
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let coin_metadata = scenario.take_immutable<coin::CoinMetadata<MANAGED_TOKEN_POOL_TESTS>>();
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(),
+            &coin_metadata,
+            mint_cap,
+            token_state_address,
+            TOKEN_ADMIN,
+            scenario.ctx(),
+        );
+
+        test_scenario::return_immutable(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+
+    // Verify initial pool registration with managed_token_pool configuration
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+
+        // Verify initial pool registration
+        let initial_pool = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
+        assert!(initial_pool == @managed_token_pool);
+
+        // Get initial configuration
+        let (
+            initial_package_id,
+            initial_module,
+            _token_type,
+            administrator,
+            pending_admin,
+            _initial_proof,
+            initial_lock_params,
+            initial_release_params,
+        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
+
+        // Verify correct initial registration
+        assert!(initial_package_id == @managed_token_pool);
+        assert!(initial_module == string::utf8(b"managed_token_pool"));
+        assert!(administrator == TOKEN_ADMIN);
+        assert!(pending_admin == @0x0);
+        assert!(initial_lock_params.length() == 4); // CLOCK_ADDRESS, DENY_LIST_ADDRESS, managed_token_state, pool state address
+        assert!(initial_release_params.length() == 4);
+
+        scenario.return_to_sender(owner_cap);
+        test_scenario::return_shared(pool_state);
+        test_scenario::return_shared(ccip_ref);
+    };
+
+    // Manually update the configuration to a different package ID
+    // Must run as the administrator (TOKEN_ADMIN) to unregister
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
+
+        // Use unregister and re-register to change the package ID
+        token_admin_registry::unregister_pool(
+            &mut ccip_ref,
+            coin_metadata_address,
+            scenario.ctx(),
+        );
+
+        // Register with a different package ID using CCIP admin
+        let different_package_id = @0xcafe;
+        let different_type_proof = ascii::string(b"0xcafe::different_pool::DifferentTypeProof");
+        let different_params = vector[@0x6, @0x403, @0xfade, @0xbeef];
+
+        token_admin_registry::register_pool_by_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(),
+            coin_metadata_address,
+            different_package_id,
+            string::utf8(b"different_pool"),
+            type_name::into_string(type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>()),
+            TOKEN_ADMIN, // administrator
+            different_type_proof,
+            different_params,
+            different_params,
+            scenario.ctx(),
+        );
+
+        test_scenario::return_shared(ccip_ref);
+    };
+
+    // Verify the different configuration
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ccip_ref = scenario.take_shared<CCIPObjectRef>();
+
+        let (
+            before_package_id,
+            before_module,
+            before_token_type,
+            _before_administrator,
+            _before_pending_admin,
+            before_proof,
+            before_lock_params,
+            before_release_params,
+        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
+
+        // Verify it's different from managed_token_pool
+        assert!(before_package_id == @0xcafe);
+        assert!(before_module == string::utf8(b"different_pool"));
+        assert!(
+            before_token_type == type_name::into_string(type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>()),
+        );
+        assert!(before_proof == ascii::string(b"0xcafe::different_pool::DifferentTypeProof"));
+        assert!(before_lock_params == vector[@0x6, @0x403, @0xfade, @0xbeef]);
+        assert!(before_release_params == vector[@0x6, @0x403, @0xfade, @0xbeef]);
+
+        test_scenario::return_shared(ccip_ref);
+    };
+
+    // Now call set_pool as the administrator to update to the correct managed_token_pool config
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let mut pool_state = scenario.take_shared<
+            ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>,
+        >();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+        let mut ccip_ref = scenario.take_shared<CCIPObjectRef>();
+
+        // Get configuration before set_pool
+        let (
+            before_package_id,
+            before_module,
+            before_token_type,
+            _before_admin,
+            _before_pending,
+            before_proof,
+            _before_lock,
+            _before_release,
+        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
+
+        assert!(before_package_id == @0xcafe);
+        assert!(before_module == string::utf8(b"different_pool"));
+        assert!(
+            before_token_type == type_name::into_string(type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>()),
+        );
+
+        // Call set_pool to update to the actual managed_token_pool configuration
+        managed_token_pool::set_pool(
+            &mut ccip_ref,
+            &mut pool_state,
+            &owner_cap,
+            coin_metadata_address,
+            token_state_address,
+            scenario.ctx(),
+        );
+
+        // Verify the pool configuration CHANGED after set_pool
+        let updated_pool = token_admin_registry::get_pool(&ccip_ref, coin_metadata_address);
+        assert!(updated_pool == @managed_token_pool);
+
+        let (
+            after_package_id,
+            after_module,
+            after_token_type,
+            after_administrator,
+            after_pending_admin,
+            after_proof,
+            after_lock_params,
+            after_release_params,
+        ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
+
+        // Verify the configuration changed to managed_token_pool
+        assert!(after_package_id == @managed_token_pool);
+        assert!(after_module == string::utf8(b"managed_token_pool"));
+        assert!(
+            after_token_type == type_name::into_string(type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>()),
+        );
+        assert!(after_administrator == TOKEN_ADMIN);
+        assert!(after_pending_admin == @0x0);
+        assert!(after_lock_params.length() == 4);
+        assert!(after_release_params.length() == 4);
+
+        // Verify package ID, module, and type proof actually changed
+        assert!(before_package_id != after_package_id);
+        assert!(before_module != after_module);
+        assert!(before_proof != after_proof);
+
+        // Note: token type remains the same (MANAGED_TOKEN_POOL_TESTS) since we're testing the same token
+        // but with different pool implementations
+        assert!(before_token_type == after_token_type);
+
+        scenario.return_to_sender(owner_cap);
+        test_scenario::return_shared(pool_state);
+        test_scenario::return_shared(ccip_ref);
+    };
+
+    test_scenario::end(scenario);
 }
