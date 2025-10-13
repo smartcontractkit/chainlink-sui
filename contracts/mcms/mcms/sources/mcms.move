@@ -520,7 +520,7 @@ public fun execute(
 // `TimelockCallbackParams` is only issued when merkle proof is verified against the multisig root
 // These functions are ready to be executed
 
-/// `dispatch_timelock_` functions should only be called after calling mcms::execute_timelock_schedule_batch
+/// `dispatch_timelock_` functions should only be called after calling mcms::mcms_timelock_schedule_batch
 /// This can be public as `TimelockCallbackParams` is only issued when merkle proof is verified against the multisig root
 public fun dispatch_timelock_schedule_batch(
     timelock: &mut Timelock,
@@ -703,7 +703,7 @@ public fun dispatch_timelock_unblock_function(
     These functions are ready to be executed therefore no validation is needed
     */
 
-public fun execute_dispatch_to_account(
+public fun mcms_dispatch_to_account(
     registry: &mut Registry,
     account_state: &mut AccountState,
     executing_callback_params: ExecutingCallbackParams,
@@ -739,7 +739,7 @@ public fun execute_dispatch_to_account(
     }
 }
 
-public fun execute_dispatch_to_deployer(
+public fun mcms_dispatch_to_deployer(
     registry: &mut Registry,
     deployer_state: &mut DeployerState,
     executing_callback_params: ExecutingCallbackParams,
@@ -776,7 +776,7 @@ public fun execute_dispatch_to_deployer(
     }
 }
 
-public fun execute_timelock_schedule_batch(
+public fun mcms_timelock_schedule_batch(
     timelock: &mut Timelock,
     clock: &Clock,
     registry: &mut Registry,
@@ -815,7 +815,7 @@ public fun execute_timelock_schedule_batch(
     )
 }
 
-public fun execute_timelock_execute_batch(
+public fun mcms_timelock_execute_batch(
     timelock: &mut Timelock,
     clock: &Clock,
     registry: &mut Registry,
@@ -852,7 +852,7 @@ public fun execute_timelock_execute_batch(
     )
 }
 
-public fun execute_timelock_bypasser_execute_batch(
+public fun mcms_timelock_bypasser_execute_batch(
     registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
@@ -881,7 +881,7 @@ public fun execute_timelock_bypasser_execute_batch(
     )
 }
 
-public fun execute_timelock_cancel(
+public fun mcms_timelock_cancel(
     timelock: &mut Timelock,
     registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
@@ -898,7 +898,7 @@ public fun execute_timelock_cancel(
     timelock_cancel(timelock, TIMELOCK_ROLE, id, ctx)
 }
 
-public fun execute_timelock_update_min_delay(
+public fun mcms_timelock_update_min_delay(
     timelock: &mut Timelock,
     registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
@@ -915,7 +915,7 @@ public fun execute_timelock_update_min_delay(
     timelock_update_min_delay(timelock, TIMELOCK_ROLE, new_min_delay, ctx)
 }
 
-public fun execute_timelock_block_function(
+public fun mcms_timelock_block_function(
     timelock: &mut Timelock,
     registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
@@ -932,7 +932,7 @@ public fun execute_timelock_block_function(
     timelock_block_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
 }
 
-public fun execute_timelock_unblock_function(
+public fun mcms_timelock_unblock_function(
     timelock: &mut Timelock,
     registry: &mut Registry,
     executing_callback_params: ExecutingCallbackParams,
@@ -949,7 +949,7 @@ public fun execute_timelock_unblock_function(
     timelock_unblock_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
 }
 
-public fun execute_set_config(
+public fun mcms_set_config(
     registry: &mut Registry,
     state: &mut MultisigState,
     executing_callback_params: ExecutingCallbackParams,

@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"fee_quoter","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"is_enabled","type":"bool"},{"name":"max_number_of_tokens_per_msg","type":"u16"},{"name":"max_data_bytes","type":"u32"},{"name":"max_per_msg_gas_limit","type":"u32"},{"name":"dest_gas_overhead","type":"u32"},{"name":"dest_gas_per_payload_byte_base","type":"u8"},{"name":"dest_gas_per_payload_byte_high","type":"u8"},{"name":"dest_gas_per_payload_byte_threshold","type":"u16"},{"name":"dest_data_availability_overhead_gas","type":"u32"},{"name":"dest_gas_per_data_availability_byte","type":"u16"},{"name":"dest_data_availability_multiplier_bps","type":"u16"},{"name":"chain_family_selector","type":"vector<u8>"},{"name":"enforce_out_of_order","type":"bool"},{"name":"default_token_fee_usd_cents","type":"u16"},{"name":"default_token_dest_gas_overhead","type":"u32"},{"name":"default_tx_gas_limit","type":"u32"},{"name":"gas_multiplier_wei_per_eth","type":"u64"},{"name":"gas_price_staleness_threshold","type":"u32"},{"name":"network_fee_usd_cents","type":"u32"}]},{"package":"ccip","module":"fee_quoter","name":"apply_fee_token_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_tokens_to_remove","type":"vector<address>"},{"name":"fee_tokens_to_add","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_premium_multiplier_wei_per_eth_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"tokens","type":"vector<address>"},{"name":"premium_multiplier_wei_per_eth","type":"vector<u64>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_token_transfer_fee_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"add_tokens","type":"vector<address>"},{"name":"add_min_fee_usd_cents","type":"vector<u32>"},{"name":"add_max_fee_usd_cents","type":"vector<u32>"},{"name":"add_deci_bps","type":"vector<u16>"},{"name":"add_dest_gas_overhead","type":"vector<u32>"},{"name":"add_dest_bytes_overhead","type":"vector<u32>"},{"name":"add_is_enabled","type":"vector<bool>"},{"name":"remove_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"convert_token_amount","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from_token","type":"address"},{"name":"from_token_amount","type":"u64"},{"name":"to_token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"destroy_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap","type":"FeeQuoterCap"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config_fields","parameters":[{"name":"dest_chain_config","type":"DestChainConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_gas_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_premium_multiplier_wei_per_eth","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_timestamped_price_fields","parameters":[{"name":"tp","type":"TimestampedPrice"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_and_gas_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"token","type":"address"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"message_receiver","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config_fields","parameters":[{"name":"cfg","type":"TokenTransferFeeConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_validated_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"local_token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"address"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"max_fee_juels_per_msg","type":"u256"},{"name":"link_token","type":"address"},{"name":"token_price_staleness_threshold","type":"u64"},{"name":"fee_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"new_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"fee_quoter","name":"process_message_args","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"dest_pool_datas","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"fee_quoter","name":"type_and_version","parameters":null},{"package":"ccip","module":"fee_quoter","name":"update_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"FeeQuoterCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]},{"package":"ccip","module":"fee_quoter","name":"update_prices_with_owner_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"fee_quoter","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"is_enabled","type":"bool"},{"name":"max_number_of_tokens_per_msg","type":"u16"},{"name":"max_data_bytes","type":"u32"},{"name":"max_per_msg_gas_limit","type":"u32"},{"name":"dest_gas_overhead","type":"u32"},{"name":"dest_gas_per_payload_byte_base","type":"u8"},{"name":"dest_gas_per_payload_byte_high","type":"u8"},{"name":"dest_gas_per_payload_byte_threshold","type":"u16"},{"name":"dest_data_availability_overhead_gas","type":"u32"},{"name":"dest_gas_per_data_availability_byte","type":"u16"},{"name":"dest_data_availability_multiplier_bps","type":"u16"},{"name":"chain_family_selector","type":"vector<u8>"},{"name":"enforce_out_of_order","type":"bool"},{"name":"default_token_fee_usd_cents","type":"u16"},{"name":"default_token_dest_gas_overhead","type":"u32"},{"name":"default_tx_gas_limit","type":"u32"},{"name":"gas_multiplier_wei_per_eth","type":"u64"},{"name":"gas_price_staleness_threshold","type":"u32"},{"name":"network_fee_usd_cents","type":"u32"}]},{"package":"ccip","module":"fee_quoter","name":"apply_fee_token_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_tokens_to_remove","type":"vector<address>"},{"name":"fee_tokens_to_add","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_premium_multiplier_wei_per_eth_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"tokens","type":"vector<address>"},{"name":"premium_multiplier_wei_per_eth","type":"vector<u64>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_token_transfer_fee_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"add_tokens","type":"vector<address>"},{"name":"add_min_fee_usd_cents","type":"vector<u32>"},{"name":"add_max_fee_usd_cents","type":"vector<u32>"},{"name":"add_deci_bps","type":"vector<u16>"},{"name":"add_dest_gas_overhead","type":"vector<u32>"},{"name":"add_dest_bytes_overhead","type":"vector<u32>"},{"name":"add_is_enabled","type":"vector<bool>"},{"name":"remove_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"convert_token_amount","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from_token","type":"address"},{"name":"from_token_amount","type":"u64"},{"name":"to_token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"destroy_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap","type":"FeeQuoterCap"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config_fields","parameters":[{"name":"dest_chain_config","type":"DestChainConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_gas_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_premium_multiplier_wei_per_eth","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_timestamped_price_fields","parameters":[{"name":"tp","type":"TimestampedPrice"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_and_gas_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"token","type":"address"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"message_receiver","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config_fields","parameters":[{"name":"cfg","type":"TokenTransferFeeConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_validated_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"local_token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"address"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"max_fee_juels_per_msg","type":"u256"},{"name":"link_token","type":"address"},{"name":"token_price_staleness_threshold","type":"u64"},{"name":"fee_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"new_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"fee_quoter","name":"process_message_args","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"dest_pool_datas","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"fee_quoter","name":"type_and_version","parameters":null},{"package":"ccip","module":"fee_quoter","name":"update_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"FeeQuoterCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]},{"package":"ccip","module":"fee_quoter","name":"update_prices_with_owner_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]}]`
 
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -46,6 +46,7 @@ type IFeeQuoter interface {
 	GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) (*models.SuiTransactionBlockResponse, error)
 	ApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, destChainSelector uint64, isEnabled bool, maxNumberOfTokensPerMsg uint16, maxDataBytes uint32, maxPerMsgGasLimit uint32, destGasOverhead uint32, destGasPerPayloadByteBase byte, destGasPerPayloadByteHigh byte, destGasPerPayloadByteThreshold uint16, destDataAvailabilityOverheadGas uint32, destGasPerDataAvailabilityByte uint16, destDataAvailabilityMultiplierBps uint16, chainFamilySelector []byte, enforceOutOfOrder bool, defaultTokenFeeUsdCents uint16, defaultTokenDestGasOverhead uint32, defaultTxGasLimit uint32, gasMultiplierWeiPerEth uint64, gasPriceStalenessThreshold uint32, networkFeeUsdCents uint32) (*models.SuiTransactionBlockResponse, error)
 	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
+	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyFeeTokenUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsApplyDestChainConfigUpdates(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -75,7 +76,8 @@ type IFeeQuoterDevInspect interface {
 	ProcessMessageArgs(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64, feeToken string, feeTokenAmount uint64, extraArgs []byte, localTokenAddresses []string, destTokenAddresses [][]byte, destPoolDatas [][]byte) ([]any, error)
 	GetDestChainConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object, destChainSelector uint64) (DestChainConfig, error)
 	GetDestChainConfigFields(ctx context.Context, opts *bind.CallOpts, destChainConfig DestChainConfig) ([]any, error)
-	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error)
+	GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (StaticConfig, error)
+	GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error)
 	GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) ([]any, error)
 }
 
@@ -128,6 +130,8 @@ type FeeQuoterEncoder interface {
 	ApplyDestChainConfigUpdatesWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetStaticConfig(ref bind.Object) (*bind.EncodedCall, error)
 	GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	GetStaticConfigFields(ref bind.Object) (*bind.EncodedCall, error)
+	GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFields(cfg TokenTransferFeeConfig) (*bind.EncodedCall, error)
 	GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsApplyFeeTokenUpdates(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -194,6 +198,12 @@ type FeeQuoterState struct {
 	DestChainConfigs             bind.Object `move:"table::Table<u64, DestChainConfig>"`
 	TokenTransferFeeConfigs      bind.Object `move:"table::Table<u64, table::Table<address, TokenTransferFeeConfig>>"`
 	PremiumMultiplierWeiPerEth   bind.Object `move:"table::Table<address, u64>"`
+}
+
+type StaticConfig struct {
+	MaxFeeJuelsPerMsg            *big.Int `move:"u256"`
+	LinkToken                    string   `move:"address"`
+	TokenPriceStalenessThreshold uint64   `move:"u64"`
 }
 
 type FeeQuoterCap struct {
@@ -321,6 +331,25 @@ func convertFeeQuoterStateFromBCS(bcs bcsFeeQuoterState) (FeeQuoterState, error)
 		DestChainConfigs:           bcs.DestChainConfigs,
 		TokenTransferFeeConfigs:    bcs.TokenTransferFeeConfigs,
 		PremiumMultiplierWeiPerEth: bcs.PremiumMultiplierWeiPerEth,
+	}, nil
+}
+
+type bcsStaticConfig struct {
+	MaxFeeJuelsPerMsg            [32]byte
+	LinkToken                    [32]byte
+	TokenPriceStalenessThreshold uint64
+}
+
+func convertStaticConfigFromBCS(bcs bcsStaticConfig) (StaticConfig, error) {
+	MaxFeeJuelsPerMsgField, err := bind.DecodeU256Value(bcs.MaxFeeJuelsPerMsg)
+	if err != nil {
+		return StaticConfig{}, fmt.Errorf("failed to decode u256 field MaxFeeJuelsPerMsg: %w", err)
+	}
+
+	return StaticConfig{
+		MaxFeeJuelsPerMsg:            MaxFeeJuelsPerMsgField,
+		LinkToken:                    fmt.Sprintf("0x%x", bcs.LinkToken),
+		TokenPriceStalenessThreshold: bcs.TokenPriceStalenessThreshold,
 	}, nil
 }
 
@@ -467,6 +496,37 @@ func init() {
 		results := make([]FeeQuoterState, len(temps))
 		for i, temp := range temps {
 			result, err := convertFeeQuoterStateFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::fee_quoter::StaticConfig", func(data []byte) (interface{}, error) {
+		var temp bcsStaticConfig
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertStaticConfigFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for StaticConfig
+	bind.RegisterStructDecoder("vector<ccip::fee_quoter::StaticConfig>", func(data []byte) (interface{}, error) {
+		var temps []bcsStaticConfig
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]StaticConfig, len(temps))
+		for i, temp := range temps {
+			result, err := convertStaticConfigFromBCS(temp)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
 			}
@@ -1066,6 +1126,16 @@ func (c *FeeQuoterContract) GetStaticConfig(ctx context.Context, opts *bind.Call
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// GetStaticConfigFields executes the get_static_config_fields Move function.
+func (c *FeeQuoterContract) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.feeQuoterEncoder.GetStaticConfigFields(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // GetTokenTransferFeeConfigFields executes the get_token_transfer_fee_config_fields Move function.
 func (c *FeeQuoterContract) GetTokenTransferFeeConfigFields(ctx context.Context, opts *bind.CallOpts, cfg TokenTransferFeeConfig) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.feeQuoterEncoder.GetTokenTransferFeeConfigFields(cfg)
@@ -1477,13 +1547,35 @@ func (d *FeeQuoterDevInspect) GetDestChainConfigFields(ctx context.Context, opts
 
 // GetStaticConfig executes the get_static_config Move function using DevInspect to get return values.
 //
+// Returns: StaticConfig
+func (d *FeeQuoterDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) (StaticConfig, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfig(ref)
+	if err != nil {
+		return StaticConfig{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return StaticConfig{}, err
+	}
+	if len(results) == 0 {
+		return StaticConfig{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(StaticConfig)
+	if !ok {
+		return StaticConfig{}, fmt.Errorf("unexpected return type: expected StaticConfig, got %T", results[0])
+	}
+	return result, nil
+}
+
+// GetStaticConfigFields executes the get_static_config_fields Move function using DevInspect to get return values.
+//
 // Returns:
 //
 //	[0]: u256
 //	[1]: address
 //	[2]: u64
-func (d *FeeQuoterDevInspect) GetStaticConfig(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error) {
-	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfig(ref)
+func (d *FeeQuoterDevInspect) GetStaticConfigFields(ctx context.Context, opts *bind.CallOpts, ref bind.Object) ([]any, error) {
+	encoded, err := d.contract.feeQuoterEncoder.GetStaticConfigFields(ref)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2481,9 +2573,7 @@ func (c feeQuoterEncoder) GetStaticConfig(ref bind.Object) (*bind.EncodedCall, e
 	}, []any{
 		ref,
 	}, []string{
-		"u256",
-		"address",
-		"u64",
+		"ccip::fee_quoter::StaticConfig",
 	})
 }
 
@@ -2500,6 +2590,38 @@ func (c feeQuoterEncoder) GetStaticConfigWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"ccip::fee_quoter::StaticConfig",
+	})
+}
+
+// GetStaticConfigFields encodes a call to the get_static_config_fields Move function.
+func (c feeQuoterEncoder) GetStaticConfigFields(ref bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
+		"&CCIPObjectRef",
+	}, []any{
+		ref,
+	}, []string{
+		"u256",
+		"address",
+		"u64",
+	})
+}
+
+// GetStaticConfigFieldsWithArgs encodes a call to the get_static_config_fields Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c feeQuoterEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&CCIPObjectRef",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"u256",
 		"address",
 		"u64",
