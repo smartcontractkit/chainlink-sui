@@ -67,11 +67,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Fetching core ref from PR body..."
-          comment=$(gh pr view ${{ github.event.pull_request.number }} --json body -q '.body' | tr -d '\r')
-          
+          pr_number=${{ github.event.pull_request.number }}
+          repo=${{ github.repository }}
+
+          # Explicitly set repo to avoid 'not a git repository' error
+          comment=$(gh pr view $pr_number --repo $repo --json body -q '.body' | tr -d '\r')
+
           # Extract line containing "core ref:"
           core_ref=$(echo "$comment" | grep -i "core ref:" | awk -F'core ref:' '{print $2}' | awk '{print $1}' | tr -d '[:space:]')
-          
+
           if [ -n "$core_ref" ]; then
             echo "Found custom core ref: $core_ref"
             echo "CUSTOM_CORE_REF=$core_ref" >> "$GITHUB_ENV"
@@ -79,7 +83,7 @@ jobs:
             echo "No custom core ref found; using default ref: develop"
             echo "CUSTOM_CORE_REF=develop" >> "$GITHUB_ENV"
           fi
-          
+
       - name: Checkout chainlink
         uses: actions/checkout@v4
         with:
