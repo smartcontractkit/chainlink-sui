@@ -110,6 +110,12 @@ public struct FeeQuoterState has key, store {
     premium_multiplier_wei_per_eth: table::Table<address, u64>,
 }
 
+public struct StaticConfig has copy, drop {
+    max_fee_juels_per_msg: u256,
+    link_token: address,
+    token_price_staleness_threshold: u64,
+}
+
 public struct FeeQuoterCap has key, store {
     id: UID,
 }
@@ -1518,7 +1524,7 @@ public fun apply_dest_chain_config_updates(
     }
 }
 
-public fun get_static_config(ref: &CCIPObjectRef): (u256, address, u64) {
+public fun get_static_config(ref: &CCIPObjectRef): StaticConfig {
     verify_function_allowed(
         ref,
         string::utf8(b"fee_quoter"),
@@ -1526,7 +1532,16 @@ public fun get_static_config(ref: &CCIPObjectRef): (u256, address, u64) {
         VERSION,
     );
     let state = state_object::borrow<FeeQuoterState>(ref);
-    (state.max_fee_juels_per_msg, state.link_token, state.token_price_staleness_threshold)
+    StaticConfig {
+        max_fee_juels_per_msg: state.max_fee_juels_per_msg,
+        link_token: state.link_token,
+        token_price_staleness_threshold: state.token_price_staleness_threshold,
+    }
+}
+
+public fun get_static_config_fields(ref: &CCIPObjectRef): (u256, address, u64) {
+    let cfg = get_static_config(ref);
+    (cfg.max_fee_juels_per_msg, cfg.link_token, cfg.token_price_staleness_threshold)
 }
 
 fun get_validated_token_price(state: &FeeQuoterState, token: address): TimestampedPrice {
@@ -1672,7 +1687,10 @@ public fun mcms_apply_fee_token_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1704,7 +1722,10 @@ public fun mcms_apply_dest_chain_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1772,7 +1793,10 @@ public fun mcms_apply_token_transfer_fee_config_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1843,7 +1867,10 @@ public fun mcms_update_prices_with_owner_cap(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1892,7 +1919,10 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
