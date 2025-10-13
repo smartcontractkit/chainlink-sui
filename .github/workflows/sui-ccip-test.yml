@@ -30,6 +30,7 @@ jobs:
           
     env:
       DEFAULT_CORE_REF: develop 
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
       GOPRIVATE: github.com/smartcontractkit/chainlink-sui
       CL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable
