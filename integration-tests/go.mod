@@ -192,7 +192,6 @@ require (
 )
 
 // use local modules
-replace (
-	github.com/smartcontractkit/chainlink-sui => ../
-	github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
-)
+// TODO: Temporary remove until mcms lib has the latest compatible release
+// github.com/smartcontractkit/chainlink-sui => ../
+replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
