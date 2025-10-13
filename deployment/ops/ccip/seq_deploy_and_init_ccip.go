@@ -251,6 +251,19 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 			return DeployCCIPSeqOutput{}, err
 		}
 
+		// init transfer ownership to MCMS
+		_, err = cld_ops.ExecuteOperation(
+			env,
+			TransferOwnershipStateObjectOp,
+			deps,
+			TransferOwnershipStateObjectInput{
+				CCIPPackageId:         deployReport.Output.PackageId,
+				CCIPObjectRefObjectId: deployReport.Output.Objects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:      deployReport.Output.Objects.OwnerCapObjectId,
+				To:                    input.DeployCCIPInput.McmsPackageId,
+			},
+		)
+
 		return DeployCCIPSeqOutput{
 			CCIPPackageId: deployReport.Output.PackageId,
 			Objects: DeployCCIPSeqObjects{

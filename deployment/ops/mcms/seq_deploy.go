@@ -23,7 +23,7 @@ type DeployMCMSSeqInput struct {
 var DeployMCMSSequence = cld_ops.NewSequence(
 	"sui-deploy-mcms-seq",
 	semver.MustParse("0.1.0"),
-	"Deploys and sets initial MCMS configuration",
+	"Deploys the MCMS package, sets the initial configuration and init the ownership transfer to self",
 	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployMCMSSeqInput) (sui_ops.OpTxResult[DeployMCMSObjects], error) {
 		// Deploy MCMS first
 		deployReport, err := cld_ops.ExecuteOperation(env, DeployMCMSOp, deps, cld_ops.EmptyInput{})
@@ -60,6 +60,17 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 
 				env.Logger.Infow("Set MCMS config", "role", roleConfig.name, "chainSelector", input.ChainSelector)
 			}
+		}
+
+		// Init the ownership transfer to self
+		transferOwnershipInput := MCMSTransferOwnershipInput{
+			McmsPackageID:   deployReport.Output.PackageId,
+			OwnerCap:        deployReport.Output.Objects.McmsAccountOwnerCapObjectId,
+			AccountObjectID: deployReport.Output.Objects.McmsAccountStateObjectId,
+		}
+		_, err = cld_ops.ExecuteOperation(env, MCMSTransferOwnershipOp, deps, transferOwnershipInput)
+		if err != nil {
+			return sui_ops.OpTxResult[DeployMCMSObjects]{}, err
 		}
 
 		return deployReport.Output, nil

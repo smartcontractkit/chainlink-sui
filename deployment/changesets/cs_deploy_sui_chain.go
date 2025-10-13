@@ -76,6 +76,17 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP Router for Sui chain %d: %w", config.SuiChainSelector, err)
 	}
 
+	// Transfer ownership of Router to MCMS
+	_, err = operations.ExecuteOperation(e.OperationsBundle, routerops.TransferOwnershipOp, deps, routerops.TransferOwnershipInput{
+		RouterPackageId:     routerReport.Output.PackageId,
+		RouterStateObjectId: routerReport.Output.Objects.RouterStateObjectId,
+		OwnerCapObjectId:    routerReport.Output.Objects.OwnerCapObjectId,
+		NewOwner:            mcmsSeqReport.Output.PackageId,
+	})
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute ownership transfer to MCMS Router for Sui chain %d: %w", config.SuiChainSelector, err)
+	}
+
 	// save Router address to the addressbook
 	typeAndVersionRouter := cldf.NewTypeAndVersion(deployment.SuiCCIPRouterType, deployment.Version1_0_0)
 	err = ab.Save(config.SuiChainSelector, routerReport.Output.PackageId, typeAndVersionRouter)

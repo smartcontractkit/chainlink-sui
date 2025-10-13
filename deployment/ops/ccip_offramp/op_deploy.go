@@ -311,3 +311,113 @@ var RemovePackageIdOffRampOp = cld_ops.NewOperation(
 	"Removes a package ID from the OffRamp state for upgrade tracking",
 	removePackageIdOffRampHandler,
 )
+
+type TransferOwnershipOffRampInput struct {
+	OffRampPackageId     string
+	OffRampRefObjectId   string
+	OffRampStateObjectId string
+	OwnerCapObjectId     string
+	To                   string
+}
+
+type TransferOwnershipOffRampObjects struct {
+	// No specific objects are returned from transfer_ownership
+}
+
+var transferOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input TransferOwnershipOffRampInput) (output sui_ops.OpTxResult[TransferOwnershipOffRampObjects], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[TransferOwnershipOffRampObjects]{}, err
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.TransferOwnership(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.OffRampRefObjectId},
+		bind.Object{Id: input.OffRampStateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.To,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[TransferOwnershipOffRampObjects]{}, fmt.Errorf("failed to execute TransferOwnership on OffRamp: %w", err)
+	}
+
+	b.Logger.Infow("Ownership transfer initiated for OffRamp", "to", input.To)
+
+	return sui_ops.OpTxResult[TransferOwnershipOffRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OffRampPackageId,
+		Objects:   TransferOwnershipOffRampObjects{},
+	}, nil
+}
+
+var TransferOwnershipOffRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-offramp-transfer-ownership", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Transfers ownership of the OffRamp",
+	transferOwnershipOffRampHandler,
+)
+
+type AcceptOwnershipOffRampInput struct {
+	OffRampPackageId     string
+	OffRampRefObjectId   string
+	OffRampStateObjectId string
+}
+
+type AcceptOwnershipOffRampObjects struct {
+	// No specific objects are returned from accept_ownership
+}
+
+var acceptOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOffRampInput) (output sui_ops.OpTxResult[AcceptOwnershipOffRampObjects], err error) {
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, err
+	}
+
+	encodedCall, err := offRampPackage.Encoder().AcceptOwnership(bind.Object{Id: input.OffRampRefObjectId}, bind.Object{Id: input.OffRampStateObjectId})
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampRefObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AcceptOwnership on OffRamp as per no Signer provided")
+		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{
+			Digest:    "",
+			PackageId: input.OffRampPackageId,
+			Objects:   AcceptOwnershipOffRampObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := offRampPackage.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on OffRamp: %w", err)
+	}
+
+	b.Logger.Infow("Ownership accepted for OffRamp")
+
+	return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.OffRampPackageId,
+		Objects:   AcceptOwnershipOffRampObjects{},
+		Call:      call,
+	}, nil
+}
+
+var AcceptOwnershipOffRampOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip-offramp-accept-ownership", "package", "configure"),
+	semver.MustParse("0.1.0"),
+	"Accepts ownership of the OffRamp",
+	acceptOwnershipOffRampHandler,
+)
