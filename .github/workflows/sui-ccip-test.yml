@@ -62,28 +62,18 @@ jobs:
       # 1.5) Get core ref from PR body (optional override)
       - name: Get core ref from PR body
         if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Fetching core ref from PR body..."
-          pr_url="https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          comment=$(gh pr view "$pr_url" --json body -q '.body')
-
-          core_ref=$(echo "$comment" | grep -oP '(?<=core ref:\s*)\S+' || true)
-
-          if [ -n "$core_ref" ]; then
-            echo "Found custom core ref: $core_ref"
-            echo "CUSTOM_CORE_REF=$core_ref" >> "$GITHUB_ENV"
-          else
-            echo "No custom core ref found; using default ref: ${{ env.DEFAULT_CORE_REF }}"
-            echo "CUSTOM_CORE_REF=${{ env.DEFAULT_CORE_REF }}" >> "$GITHUB_ENV"
+          comment=$(gh pr view https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }} --json body -q '.body')
+          core_ref=$(echo $comment | grep -oP 'core ref: \K\S+' || true)
+          if [ ! -z "$core_ref" ]; then
+            echo "CUSTOM_CORE_REF=${core_ref}" >> "${GITHUB_ENV}"
           fi
 
       - name: Checkout chainlink
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
-          ref: ${{ env.CUSTOM_CORE_REF }}
+          ref: ${{ env.CUSTOM_CORE_REF || env.DEFAULT_CORE_REF }}
           path: temp/chainlink
           fetch-depth: 1
           
