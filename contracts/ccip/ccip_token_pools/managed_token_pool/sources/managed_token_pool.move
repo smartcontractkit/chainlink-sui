@@ -173,16 +173,27 @@ public fun set_pool<T>(
     state: &mut ManagedTokenPoolState<T>,
     owner_cap: &OwnerCap,
     coin_metadata_address: address,
-    lock_or_burn_params: vector<address>,
-    release_or_mint_params: vector<address>,
+    managed_token_state: address,
     ctx: &mut TxContext,
 ) {
     assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+
+    let managed_token_pool_state_address = object::uid_to_address(&state.id);
     token_admin_registry::set_pool(
         ref,
         coin_metadata_address,
-        lock_or_burn_params,
-        release_or_mint_params,
+        vector[
+            CLOCK_ADDRESS,
+            DENY_LIST_ADDRESS,
+            managed_token_state,
+            managed_token_pool_state_address,
+        ],
+        vector[
+            CLOCK_ADDRESS,
+            DENY_LIST_ADDRESS,
+            managed_token_state,
+            managed_token_pool_state_address,
+        ],
         TypeProof {},
         ctx,
     );
