@@ -11,6 +11,7 @@ import (
 type DeployAndInitCCIPOffRampSeqInput struct {
 	DeployCCIPOffRampInput
 	InitializeOffRampInput
+	CCIPObjectRefId     string
 	CommitOCR3Config    SetOCR3ConfigInput
 	ExecutionOCR3Config SetOCR3ConfigInput
 }
@@ -42,6 +43,19 @@ var DeployAndInitCCIPOffRampSequence = cld_ops.NewSequence(
 		input.InitializeOffRampInput.OffRampStateId = deployReport.Output.Objects.CCIPOffRampStateObjectId
 
 		_, err = cld_ops.ExecuteOperation(env, InitializeOffRampOp, deps, input.InitializeOffRampInput)
+		if err != nil {
+			return DeployCCIPOffRampSeqOutput{}, err
+		}
+
+		// init transfer to mcms
+		executeOwnershipTransferToMcmsInput := TransferOwnershipOffRampInput{
+			OffRampPackageId:     deployReport.Output.PackageId,
+			CCIPObjectRefId:      input.CCIPObjectRefId,
+			OffRampStateObjectId: deployReport.Output.Objects.CCIPOffRampStateObjectId,
+			OwnerCapObjectId:     deployReport.Output.Objects.OwnerCapObjectId,
+			To:                   input.DeployCCIPOffRampInput.MCMSPackageId,
+		}
+		_, err = cld_ops.ExecuteOperation(env, TransferOwnershipOffRampOp, deps, executeOwnershipTransferToMcmsInput)
 		if err != nil {
 			return DeployCCIPOffRampSeqOutput{}, err
 		}

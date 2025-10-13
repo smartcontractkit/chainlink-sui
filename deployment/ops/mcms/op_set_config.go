@@ -87,6 +87,7 @@ var setConfigMcmsHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input M
 	)
 
 	return sui_ops.OpTxResult[cld_ops.EmptyInput]{
+		Call:      call,
 		Digest:    tx.Digest,
 		PackageId: input.McmsPackageID,
 	}, err

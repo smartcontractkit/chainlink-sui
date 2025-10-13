@@ -83,6 +83,7 @@ var DeployAndInitCCIPOnRampSequence = cld_ops.NewSequence(
 		// transfer ownership to MCMS
 		executeOwnershipTransferToMcmsInput := TransferOwnershipOnRampInput{
 			OnRampPackageId:  deployReport.Output.PackageId,
+			CCIPObjectRefId:  input.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId,
 			StateObjectId:    deployReport.Output.Objects.CCIPOnrampStateObjectId,
 			OwnerCapObjectId: deployReport.Output.Objects.OwnerCapObjectId,
 			To:               input.DeployCCIPOnRampInput.MCMSPackageId,

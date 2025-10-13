@@ -555,6 +555,7 @@ var GetPendingTransferOnRampOp = cld_ops.NewOperation(
 
 type TransferOwnershipOnRampInput struct {
 	OnRampPackageId  string
+	CCIPObjectRefId  string
 	StateObjectId    string
 	OwnerCapObjectId string
 	To               string
@@ -575,7 +576,7 @@ var transferOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 	tx, err := onRampPackage.TransferOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.To,

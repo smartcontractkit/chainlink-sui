@@ -314,7 +314,7 @@ var RemovePackageIdOffRampOp = cld_ops.NewOperation(
 
 type TransferOwnershipOffRampInput struct {
 	OffRampPackageId     string
-	OffRampRefObjectId   string
+	CCIPObjectRefId      string
 	OffRampStateObjectId string
 	OwnerCapObjectId     string
 	To                   string
@@ -335,7 +335,7 @@ var transferOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDe
 	tx, err := offRampPackage.TransferOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.OffRampRefObjectId},
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.OffRampStateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.To,
