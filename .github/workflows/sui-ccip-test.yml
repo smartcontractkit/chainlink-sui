@@ -133,35 +133,29 @@ jobs:
           cd ..
           make gomodtidy
 
-      # 7) Tidy integration-tests module
-      - name: Tidy integration-tests
-        run: |
-          cd temp/chainlink/integration-tests/smoke/ccip
-          go mod tidy
-
-      # 8) Build LOOP plugin
+      # 7) Build LOOP plugin
       - name: Build LOOP plugin
         working-directory: temp/chainlink-sui
         run: go build -o chainlink-sui ./relayer/cmd/chainlink-sui/main.go
 
-      # 9) Setup Sui CLI using your reusable composite action
+      # 8) Setup Sui CLI using your reusable composite action
       - name: Setup Sui CLI
         uses: ./temp/chainlink-sui/.github/actions/setup-sui
         with:
           version: ${{ matrix.sui_version }}
 
-      # 10) Wait for Postgres
+      # 9) Wait for Postgres
       - name: Wait for Postgres
         run: |
           until pg_isready -h localhost -U postgres; do sleep 1; done
 
-      # 11) Prepare DB
+      # 10) Prepare DB
       - name: Prepare database
         run: |
           cd temp/chainlink
           make testdb
 
-      # 12) Run the integration test (isolated per job)
+      # 11) Run the integration test (isolated per job)
       - name: Run ${{ matrix.test_name }}
         env:
           CL_DATABASE_URL: ${{ env.CL_DATABASE_URL }}
@@ -177,7 +171,7 @@ jobs:
             -count=1 \
             -v
 
-      # 13) Upload test artifacts
+      # 12) Upload test artifacts
       - name: Upload Sui test artifacts
         if: always()
         uses: actions/upload-artifact@v4
