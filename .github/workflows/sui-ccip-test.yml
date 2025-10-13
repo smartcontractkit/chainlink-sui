@@ -63,13 +63,23 @@ jobs:
       # 1.5) Get core ref from PR body (optional override)
       - name: Get core ref from PR body
         if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          comment=$(gh pr view https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }} --json body -q '.body')
-          core_ref=$(echo $comment | grep -oP 'core ref: \K\S+' || true)
-          if [ ! -z "$core_ref" ]; then
-            echo "CUSTOM_CORE_REF=${core_ref}" >> "${GITHUB_ENV}"
+          echo "Fetching core ref from PR body..."
+          comment=$(gh pr view ${{ github.event.pull_request.number }} --json body -q '.body' | tr -d '\r')
+          
+          # Extract line containing "core ref:"
+          core_ref=$(echo "$comment" | grep -i "core ref:" | awk -F'core ref:' '{print $2}' | awk '{print $1}' | tr -d '[:space:]')
+          
+          if [ -n "$core_ref" ]; then
+            echo "Found custom core ref: $core_ref"
+            echo "CUSTOM_CORE_REF=$core_ref" >> "$GITHUB_ENV"
+          else
+            echo "No custom core ref found; using default ref: develop"
+            echo "CUSTOM_CORE_REF=develop" >> "$GITHUB_ENV"
           fi
-
+          
       - name: Checkout chainlink
         uses: actions/checkout@v4
         with:
