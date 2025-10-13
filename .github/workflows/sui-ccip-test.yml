@@ -29,7 +29,7 @@ jobs:
             sui_version: mainnet-v1.57.2
           
     env:
-      DEFAULT_CORE_REF: sish/sui-evm-test-1 # change this for customized test fixes, for ex: fixes on chainlink-sui requires chainlink core changes
+      DEFAULT_CORE_REF: develop 
       GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
       GOPRIVATE: github.com/smartcontractkit/chainlink-sui
       CL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable
@@ -59,11 +59,31 @@ jobs:
           path: temp/chainlink-sui
           fetch-depth: 1
 
+      # 1.5) Get core ref from PR body (optional override)
+      - name: Get core ref from PR body
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching core ref from PR body..."
+          pr_url="https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          comment=$(gh pr view "$pr_url" --json body -q '.body')
+
+          core_ref=$(echo "$comment" | grep -oP '(?<=core ref:\s*)\S+' || true)
+
+          if [ -n "$core_ref" ]; then
+            echo "Found custom core ref: $core_ref"
+            echo "CUSTOM_CORE_REF=$core_ref" >> "$GITHUB_ENV"
+          else
+            echo "No custom core ref found; using default ref: ${{ env.DEFAULT_CORE_REF }}"
+            echo "CUSTOM_CORE_REF=${{ env.DEFAULT_CORE_REF }}" >> "$GITHUB_ENV"
+          fi
+
       - name: Checkout chainlink
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
-          ref: ${{ env.DEFAULT_CORE_REF }}
+          ref: ${{ env.CUSTOM_CORE_REF }}
           path: temp/chainlink
           fetch-depth: 1
           
