@@ -70,14 +70,23 @@ jobs:
           pr_number=${{ github.event.pull_request.number }}
           repo=${{ github.repository }}
 
-          # Explicitly set repo to avoid 'not a git repository' error
+          # Fetch PR body (content)
+          # Use '.body' to get the full body and tr -d '\r' to handle line endings
           comment=$(gh pr view $pr_number --repo $repo --json body -q '.body' | tr -d '\r')
 
-          # Extract line containing "core ref:"
-          core_ref=$(echo "$comment" | grep -i "core ref:" | awk -F'core ref:' '{print $2}' | awk '{print $1}' | tr -d '[:space:]')
-
+          # Extract the core ref:
+          # 1. grep -i "core ref:" finds the line.
+          # 2. sed -E 's/.*[Cc]ore [Rr]ef:[[:space:]]*(.*)/\1/' removes everything up to "core ref:", including the space after the colon, capturing the rest of the line (the ref and anything after it).
+          # 3. awk '{print $1}' takes the output (e.g., "e7202f766eea1d8a7800919692743b8fc2d28f48" or "e7202f766eea1d8a7800919692743b8fc2d28f48 other text") and extracts ONLY the first word, which is the hash.
+          core_ref=$(echo "$comment" | \
+            grep -i "core ref:" | \
+            sed -E 's/.*[Cc]ore [Rr]ef:[[:space:]]*(.*)/\1/' | \
+            awk '{print $1}'
+          )
+          
           if [ -n "$core_ref" ]; then
             echo "Found custom core ref: $core_ref"
+            # The core ref is now clean and available to subsequent steps via $GITHUB_ENV
             echo "CUSTOM_CORE_REF=$core_ref" >> "$GITHUB_ENV"
           else
             echo "No custom core ref found; using default ref: develop"
