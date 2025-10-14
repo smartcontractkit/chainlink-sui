@@ -1,4 +1,4 @@
-//go:build hidden
+//go:build integration
 
 package ccip_test
 
@@ -29,11 +29,14 @@ import (
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
+	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb/offramp"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	rel "github.com/smartcontractkit/chainlink-sui/relayer/signer"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
+	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,6 +104,11 @@ func normalizeTo32Bytes(address string) []byte {
 		addressBytes = append(padding, addressBytesFull...)
 	}
 	return addressBytes
+}
+
+// stringPtr returns a pointer to the given string
+func stringPtr(s string) *string {
+	return &s
 }
 
 type EnvironmentSettings struct {
@@ -232,6 +240,28 @@ func SetupOffRamp(t *testing.T,
 
 	lggr.Debugw("Offramp deployment report", "output", offrampReport.Output)
 
+	commitConfig := seqOffRampInput.CommitOCR3Config
+	commitConfig.OffRampPackageId = offrampReport.Output.CCIPOffRampPackageId
+	commitConfig.OffRampStateId = offrampReport.Output.Objects.StateObjectId
+	commitConfig.OwnerCapObjectId = offrampReport.Output.Objects.OwnerCapId
+	commitConfig.CCIPObjectRefId = report.Output.Objects.CCIPObjectRefObjectId
+
+	_, err = cld_ops.ExecuteOperation(bundle, offrampops.SetOCR3ConfigOp, deps, commitConfig)
+	require.NoError(t, err, "failed to set Commit OCR3 config")
+
+	lggr.Debugw("Set Commit OCR3 Config")
+
+	executionConfig := seqOffRampInput.ExecutionOCR3Config
+	executionConfig.OffRampPackageId = offrampReport.Output.CCIPOffRampPackageId
+	executionConfig.OffRampStateId = offrampReport.Output.Objects.StateObjectId
+	executionConfig.OwnerCapObjectId = offrampReport.Output.Objects.OwnerCapId
+	executionConfig.CCIPObjectRefId = report.Output.Objects.CCIPObjectRefObjectId
+
+	_, err = cld_ops.ExecuteOperation(bundle, offrampops.SetOCR3ConfigOp, deps, executionConfig)
+	require.NoError(t, err, "failed to set Execution OCR3 config")
+
+	lggr.Debugw("Set Execution OCR3 Config")
+
 	return offrampReport
 }
 
@@ -354,7 +384,6 @@ func SetupDummyReceiver(t *testing.T,
 			McmsOwner:     signerAddr,
 		},
 		CCIPObjectRefObjectId: report.Output.Objects.CCIPObjectRefObjectId,
-		ReceiverStateParams:   []string{"0x6"}, // the clock object id
 	})
 
 	require.NoError(t, err, "failed to deploy and initialize dummy receiver")
@@ -532,6 +561,182 @@ func SetupTestEnvironment(t *testing.T, localChainSelector uint64, destChainSele
 	}
 }
 
+// CommitMerkleRoot commits a merkle root to the offramp using the ChainWriter
+func CommitMerkleRoot(
+	t *testing.T,
+	ctx context.Context,
+	lggr logger.Logger,
+	txManager txm.TxManager,
+	offrampPackageId string,
+	linkTokenPackageId string,
+	accountAddress string,
+	publicKeyBytes []byte,
+	onRampAddress []byte,
+	ethereumPoolAddress []byte,
+	rawContent string,
+	tokenAmount *big.Int,
+) {
+	t.Helper()
+
+	// Calculate the metadata hash
+	metadataHash, err := testutils.ComputeMetadataHash(
+		ETHEREUM_CHAIN_SELECTOR,
+		SUI_CHAIN_SELECTOR,
+		onRampAddress,
+	)
+	require.NoError(t, err, "failed to compute metadata hash")
+
+	// Decode link token package ID for use in message
+	hexEncodedLinkPackageId, err := hex.DecodeString(strings.Replace(linkTokenPackageId, "0x", "", 1))
+	require.NoError(t, err, "failed to decode link token package id")
+
+	// Prepare receiver bytes (must be exactly 32 bytes for ABI packing)
+	receiverBytes := make([]byte, 32)
+	// For token-only transfers, receiver can be zero address
+	// The tokenReceiver (accountAddress) will be used instead
+
+	// Calculate the message hash for the merkle tree
+	messageID := [32]byte{} // empty message ID
+	sequenceNumber := uint64(1)
+	gasLimit := big.NewInt(1_000_000)
+	nonce := uint64(0)
+	sender := make([]byte, 32) // empty sender (32 bytes)
+	data := []byte(rawContent)
+	tokenAmounts := []ccipocr3.RampTokenAmount{
+		{
+			SourcePoolAddress: ethereumPoolAddress,
+			DestTokenAddress:  hexEncodedLinkPackageId,
+			Amount:            ccipocr3.BigInt{Int: tokenAmount},
+			ExtraData:         []byte{},
+		},
+	}
+	destGasAmount := uint32(0)
+
+	messageHash, err := testutils.ComputeMessageDataHash(
+		metadataHash,
+		messageID,
+		receiverBytes,
+		sequenceNumber,
+		gasLimit,
+		nonce,
+		sender,
+		data,
+		tokenAmounts,
+		destGasAmount,
+	)
+	require.NoError(t, err, "failed to compute message hash")
+
+	// Create merkle tree with single leaf
+	leaves := [][32]byte{messageHash}
+	merkleTree, err := testutils.NewMerkleTree(leaves)
+	require.NoError(t, err, "failed to create merkle tree")
+
+	merkleRoot := merkleTree.GetRoot()
+	lggr.Infow("Calculated merkle root for commit", "root", hex.EncodeToString(merkleRoot[:]))
+
+	// Create commit report with the merkle root
+	commitReport := testutils.GetCommitReport(
+		onRampAddress,
+		merkleRoot[:],
+		linkTokenPackageId,
+		big.NewInt(5000000000000000000), // $5 per token
+		ETHEREUM_CHAIN_SELECTOR,
+		1,                       // min sequence number (must match source_chain_config.min_seq_nr)
+		1,                       // max sequence number (same as message sequence)
+		big.NewInt(20000000000), // 20 gwei gas price
+		[]byte{},                // r signature (empty for unblessed)
+		[]byte{},                // s signature (empty for unblessed)
+	)
+
+	commitReportBCS, err := testutils.SerializeCommitReport(commitReport)
+	require.NoError(t, err, "failed to serialize commit report")
+
+	// Create report context for commit
+	commitReportContext := [][]byte{
+		ConfigDigest,
+		make([]byte, 32), // sequence number
+	}
+	commitReportContext[1][31] = 0x01 // sequence number 1
+
+	// Create commit arguments for ChainWriter
+	commitArgs := map[string]interface{}{
+		"report_context": commitReportContext,
+		"report":         commitReportBCS,
+		"signatures":     [][]byte{}, // empty signatures for commit with signature verification
+	}
+
+	// Set up ChainWriter configuration for commit
+	commitConfig := cwConfig.ChainWriterConfig{
+		Modules: map[string]*cwConfig.ChainWriterModule{
+			"offramp": {
+				Name: "offramp",
+				Functions: map[string]*cwConfig.ChainWriterFunction{
+					"commit": {
+						Name:      "commit",
+						PublicKey: publicKeyBytes,
+						PTBCommands: []cwConfig.ChainWriterPTBCommand{
+							{
+								Type:      codec.SuiPTBCommandMoveCall,
+								PackageId: stringPtr(offrampPackageId),
+								ModuleId:  stringPtr("offramp"),
+								Function:  stringPtr("commit"),
+								Params: []codec.SuiFunctionParam{
+									{Name: "ref", Type: "object", Required: true},
+									{Name: "state", Type: "object", Required: true},
+									{Name: "clock", Type: "object", Required: true},
+									{Name: "report_context", Type: "vector<vector<u8>>", Required: true},
+									{Name: "report", Type: "vector<u8>", Required: true},
+									{Name: "signatures", Type: "vector<vector<u8>>", Required: true},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create and start ChainWriter
+	chainWriter, err := chainwriter.NewSuiChainWriter(lggr, txManager, commitConfig, false)
+	require.NoError(t, err, "failed to create chain writer")
+
+	err = chainWriter.Start(ctx)
+	require.NoError(t, err, "failed to start chain writer")
+	defer chainWriter.Close()
+
+	// Submit commit transaction via ChainWriter
+	commitTxID := "commit-offramp-test"
+	commitTxMetadata := &commontypes.TxMeta{
+		GasLimit: big.NewInt(500_000_000),
+	}
+
+	lggr.Infow("Submitting commit transaction", "txID", commitTxID)
+	err = chainWriter.SubmitTransaction(
+		ctx,
+		"offramp",        // contract/module name
+		"commit",         // method/function name
+		commitArgs,       // arguments
+		commitTxID,       // transaction ID
+		offrampPackageId, // to address (offramp package)
+		commitTxMetadata, // metadata
+		nil,              // unused value parameter
+	)
+	require.NoError(t, err, "failed to submit commit transaction")
+
+	// Wait for commit to finalize
+	require.Eventually(t, func() bool {
+		status, statusErr := chainWriter.GetTransactionStatus(ctx, commitTxID)
+		if statusErr != nil {
+			lggr.Errorw("Failed to get commit transaction status", "error", statusErr)
+			return false
+		}
+		lggr.Debugw("Commit transaction status", "status", status)
+		return status == commontypes.Finalized
+	}, 30*time.Second, 1*time.Second, "Commit transaction not finalized")
+
+	lggr.Infow("Merkle root committed successfully", "root", hex.EncodeToString(merkleRoot[:]))
+}
+
 func TestExecuteOffRamp(t *testing.T) {
 	lggr := logger.Test(t)
 	env := SetupTestEnvironment(t, ETHEREUM_CHAIN_SELECTOR, SUI_CHAIN_SELECTOR, testutils.NewTestKeystore(t))
@@ -582,6 +787,34 @@ func TestExecuteOffRamp(t *testing.T) {
 		hexEncodedLinkPackageId, err := hex.DecodeString(strings.Replace(linkTokenPackageId, "0x", "", 1))
 		require.NoError(t, err, "failed to decode link token package id")
 
+		// Create OnRamp address (matches the one used in SetupOffRamp)
+		OnRampAddress := make([]byte, 32)
+		OnRampAddress[31] = 20
+
+		// Setup transaction manager for commit
+		gasBudget := int64(1_000_000)
+		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr, gasBudget)
+		err = txManager.Start(ctx)
+		require.NoError(t, err)
+		defer txManager.Close()
+
+		// Commit the merkle root before executing
+		lggr.Infow("Committing merkle root to offramp before execution")
+		CommitMerkleRoot(
+			t,
+			ctx,
+			lggr,
+			txManager,
+			offrampPackageId,
+			linkTokenPackageId,
+			accountAddress,
+			publicKeyBytes,
+			OnRampAddress,
+			env.EthereumPoolAddress,
+			rawContent,
+			big.NewInt(300), // token amount
+		)
+
 		var messageIDBytes32 ccipocr3.Bytes32
 
 		execReport := ccipocr3.ExecuteReportInfo{
@@ -630,6 +863,7 @@ func TestExecuteOffRamp(t *testing.T) {
 			offChainTokenData,
 			proofs,
 			uint32(1_000_000),
+			normalizeTo32Bytes(accountAddress),
 		)
 
 		execReportBCSBytes, err := testutils.SerializeExecutionReport(report)
@@ -668,14 +902,10 @@ func TestExecuteOffRamp(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		_, txManager, _ := testutils.SetupClients(t, testutils.LocalUrl, keystoreInstance, lggr)
-		err = txManager.Start(ctx)
-		require.NoError(t, err)
-
 		txID := "execute-offramp-test"
 		txMetadata := &commontypes.TxMeta{}
 
-		_, err = txManager.EnqueuePTB(ctx, txID, txMetadata, publicKeyBytes, ptb, false)
+		_, err = txManager.EnqueuePTB(ctx, txID, txMetadata, publicKeyBytes, ptb)
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
