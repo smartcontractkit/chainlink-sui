@@ -21,6 +21,7 @@ type DeployCCIPSeqObjects struct {
 	UpgradeRegistryObjectId         string
 	SourceTransferCapObjectId       string
 	DestTransferCapObjectId         string
+	UpgradeCapObjectId              string
 }
 
 type DeployCCIPSeqOutput struct {
@@ -265,6 +266,7 @@ var DeployAndInitCCIPSequence = cld_ops.NewSequence(
 				UpgradeRegistryObjectId:         initUpgradeRegistryReport.Output.Objects.UpgradeRegistryObjectId,
 				SourceTransferCapObjectId:       deployReport.Output.Objects.SourceTransferCapObjectId,
 				DestTransferCapObjectId:         deployReport.Output.Objects.DestTransferCapObjectId,
+				UpgradeCapObjectId:              deployReport.Output.Objects.UpgradeCapObjectId,
 			},
 		}, nil
 	},
