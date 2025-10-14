@@ -10,11 +10,10 @@ import (
 
 type SeqDeployAndInitManagedTokenPoolInput struct {
 	// deploy
-	CCIPPackageId          string
-	CCIPTokenPoolPackageId string
-	ManagedTokenPackageId  string
-	MCMSAddress            string
-	MCMSOwnerAddress       string
+	CCIPPackageId         string
+	ManagedTokenPackageId string
+	MCMSAddress           string
+	MCMSOwnerAddress      string
 	// initialize
 	CoinObjectTypeArg         string
 	CCIPObjectRefObjectId     string
@@ -54,11 +53,10 @@ var DeployAndInitManagedTokenPoolSequence = cld_ops.NewSequence(
 	"Deploys and sets initial managed token pool configuration",
 	func(env cld_ops.Bundle, deps sui_ops.OpTxDeps, input SeqDeployAndInitManagedTokenPoolInput) (DeployManagedTokenPoolOutput, error) {
 		deployReport, err := cld_ops.ExecuteOperation(env, DeployCCIPManagedTokenPoolOp, deps, ManagedTokenPoolDeployInput{
-			CCIPPackageId:          input.CCIPPackageId,
-			CCIPTokenPoolPackageId: input.CCIPTokenPoolPackageId,
-			ManagedTokenPackageId:  input.ManagedTokenPackageId,
-			MCMSAddress:            input.MCMSAddress,
-			MCMSOwnerAddress:       input.MCMSOwnerAddress,
+			CCIPPackageId:         input.CCIPPackageId,
+			ManagedTokenPackageId: input.ManagedTokenPackageId,
+			MCMSAddress:           input.MCMSAddress,
+			MCMSOwnerAddress:      input.MCMSOwnerAddress,
 		})
 		if err != nil {
 			return DeployManagedTokenPoolOutput{}, err

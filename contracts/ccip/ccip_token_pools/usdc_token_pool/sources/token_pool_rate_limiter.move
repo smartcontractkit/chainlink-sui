@@ -1,9 +1,9 @@
-module ccip_token_pool::token_pool_rate_limiter;
+module usdc_token_pool::token_pool_rate_limiter;
 
-use ccip_token_pool::rate_limiter::{Self, TokenBucket};
 use sui::clock::Clock;
 use sui::event;
 use sui::table::{Self, Table};
+use usdc_token_pool::rate_limiter::{Self, TokenBucket};
 
 public struct RateLimitState has store {
     outbound_rate_limiter_config: Table<u64, TokenBucket>,
@@ -27,14 +27,14 @@ public struct ConfigChanged has copy, drop {
 
 const EBucketNotFound: u64 = 1;
 
-public fun new(ctx: &mut TxContext): RateLimitState {
+public(package) fun new(ctx: &mut TxContext): RateLimitState {
     RateLimitState {
         outbound_rate_limiter_config: table::new<u64, TokenBucket>(ctx),
         inbound_rate_limiter_config: table::new<u64, TokenBucket>(ctx),
     }
 }
 
-public fun consume_inbound(
+public(package) fun consume_inbound(
     clock: &Clock,
     state: &mut RateLimitState,
     dest_chain_selector: u64,
@@ -48,7 +48,7 @@ public fun consume_inbound(
     );
 }
 
-public fun consume_outbound(
+public(package) fun consume_outbound(
     clock: &Clock,
     state: &mut RateLimitState,
     dest_chain_selector: u64,
@@ -79,7 +79,7 @@ fun consume_from_bucket(
     });
 }
 
-public fun set_chain_rate_limiter_config(
+public(package) fun set_chain_rate_limiter_config(
     clock: &Clock,
     state: &mut RateLimitState,
     remote_chain_selector: u64,
@@ -135,7 +135,7 @@ public fun set_chain_rate_limiter_config(
     });
 }
 
-public fun get_current_inbound_rate_limiter_state(
+public(package) fun get_current_inbound_rate_limiter_state(
     state: &RateLimitState,
     clock: &Clock,
     remote_chain_selector: u64,
@@ -146,7 +146,7 @@ public fun get_current_inbound_rate_limiter_state(
     )
 }
 
-public fun get_current_outbound_rate_limiter_state(
+public(package) fun get_current_outbound_rate_limiter_state(
     state: &RateLimitState,
     clock: &Clock,
     remote_chain_selector: u64,
@@ -157,7 +157,7 @@ public fun get_current_outbound_rate_limiter_state(
     )
 }
 
-public fun destroy_rate_limiter(state: RateLimitState) {
+public(package) fun destroy_rate_limiter(state: RateLimitState) {
     let RateLimitState {
         outbound_rate_limiter_config,
         inbound_rate_limiter_config,

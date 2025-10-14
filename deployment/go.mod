@@ -16,8 +16,8 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.71
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908082700-aa3f5927af8c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
-	github.com/smartcontractkit/chainlink-sui v0.0.0-20251008002405-8646ac38ba49
-	github.com/smartcontractkit/mcms v0.26.1-0.20251009182503-22a4319a7bf4
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20251013155034-5f85c5f450ab
+	github.com/smartcontractkit/mcms v0.26.1
 	github.com/stretchr/testify v1.10.0
 )
 

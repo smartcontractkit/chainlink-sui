@@ -5,8 +5,6 @@ use ccip::offramp_state_helper as offramp_sh;
 use ccip::onramp_state_helper as onramp_sh;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
-use ccip_token_pool::ownable::{Self, OwnerCap, OwnableState};
-use ccip_token_pool::token_pool::{Self, TokenPoolState};
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -28,6 +26,8 @@ use token_messenger_minter::burn_message;
 use token_messenger_minter::deposit_for_burn::{Self, DepositForBurnWithCallerTicket};
 use token_messenger_minter::handle_receive_message;
 use token_messenger_minter::state::State as MinterState;
+use usdc_token_pool::ownable::{Self, OwnerCap, OwnableState};
+use usdc_token_pool::token_pool::{Self, TokenPoolState};
 
 // We restrict to the first version. New pool may be required for subsequent versions.
 const SUPPORTED_USDC_VERSION_U64: u64 = 0;
@@ -147,6 +147,40 @@ public fun initialize<T: drop>(
 
     transfer::share_object(usdc_token_pool);
     transfer::public_transfer(token_pool_owner_cap, ctx.sender());
+}
+
+public fun set_pool<T>(
+    ref: &mut CCIPObjectRef,
+    state: &mut USDCTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    coin_metadata_address: address,
+    ctx: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+
+    let token_pool_state_address = object::uid_to_address(&state.id);
+    token_admin_registry::set_pool(
+        ref,
+        coin_metadata_address,
+        vector[
+            CLOCK_ADDRESS,
+            DENY_LIST_ADDRESS,
+            token_pool_state_address,
+            @token_messenger_minter_state,
+            @message_transmitter_state,
+            @treasury,
+        ],
+        vector[
+            CLOCK_ADDRESS,
+            DENY_LIST_ADDRESS,
+            token_pool_state_address,
+            @token_messenger_minter_state,
+            @message_transmitter_state,
+            @treasury,
+        ],
+        TypeProof {},
+        ctx,
+    );
 }
 
 // ================================================================
@@ -340,7 +374,7 @@ public fun lock_or_burn<T: drop>(
     let nonce = message::nonce(&msg);
     let source_pool_data = encode_source_pool_data(pool.local_domain_identifier, nonce);
 
-    token_pool::emit_locked_or_burned(&mut pool.token_pool_state, amount, remote_chain_selector);
+    token_pool::emit_locked_or_burned(&pool.token_pool_state, amount, remote_chain_selector);
 
     onramp_sh::add_token_transfer_param(
         ref,
@@ -434,7 +468,7 @@ public fun release_or_mint<T: drop>(
     );
 
     token_pool::emit_released_or_minted(
-        &mut pool.token_pool_state,
+        &pool.token_pool_state,
         receiver,
         amount,
         remote_chain_selector,
@@ -732,7 +766,10 @@ public fun mcms_set_allowlist_enabled<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -756,7 +793,10 @@ public fun mcms_apply_allowlist_updates<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -787,7 +827,10 @@ public fun mcms_apply_chain_updates<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -836,7 +879,10 @@ public fun mcms_add_remote_pool<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -861,7 +907,10 @@ public fun mcms_remove_remote_pool<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -886,7 +935,10 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
     params: ExecutingCallbackParams,
     clock: &Clock,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -949,7 +1001,10 @@ public fun mcms_set_chain_rate_limiter_config<T>(
     params: ExecutingCallbackParams,
     clock: &Clock,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1018,7 +1073,10 @@ public fun mcms_transfer_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1043,7 +1101,10 @@ public fun mcms_execute_ownership_transfer<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
         registry,
         McmsCallback {},
         params,
@@ -1061,4 +1122,32 @@ public fun mcms_execute_ownership_transfer<T>(
 
     let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback {});
     execute_ownership_transfer(owner_cap, state, to, ctx);
+}
+
+public fun mcms_set_pool<T>(
+    ref: &mut CCIPObjectRef,
+    state: &mut USDCTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
+        &mut stream,
+    );
+    let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
 }

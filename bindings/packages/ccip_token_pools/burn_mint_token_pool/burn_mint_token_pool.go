@@ -49,12 +49,10 @@ func PublishCCIPBurnMintTokenPool(
 	opts *bind.CallOpts,
 	client sui.ISuiAPI,
 	ccipAddress,
-	ccipTokenPoolAddress,
 	mcmsAddress,
 	mcmsOwnerAddress string) (BurnMintTokenPool, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.BurnMintTokenPool, map[string]string{
 		"ccip":                 ccipAddress,
-		"ccip_token_pool":      ccipTokenPoolAddress,
 		"burn_mint_token_pool": "0x0",
 		"mcms":                 mcmsAddress,
 		"mcms_owner":           mcmsOwnerAddress,

@@ -12,7 +12,6 @@ import (
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
-	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 )
 
@@ -128,6 +127,12 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	err = ab.Save(config.SuiChainSelector, ccipSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionCCIPOwnerCapObjectId)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP ownerCapObjectId %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
+	}
+
+	typeAndVersionCCIPUpgradeCapObjectId := cldf.NewTypeAndVersion(deployment.SuiCCIPUpgradeCapObjectIDType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, ccipSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionCCIPUpgradeCapObjectId)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save CCIP UpgradeCapObjectId %s for Sui chain %d: %w", ccipSeqReport.Output.Objects.UpgradeCapObjectId, config.SuiChainSelector, err)
 	}
 
 	// No need to store rn
@@ -247,22 +252,11 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp StateObjectId %s for Sui chain %d: %w", ccipOffRampSeqReport.Output.Objects.StateObjectId, config.SuiChainSelector, err)
 	}
 
-	// Deploy CCIP TokenPool
-	deployTp, err := operations.ExecuteOperation(e.OperationsBundle, tokenpoolops.DeployCCIPTokenPoolOp, deps,
-		tokenpoolops.TokenPoolDeployInput{
-			CCIPPackageId:    ccipSeqReport.Output.CCIPPackageId,
-			MCMSAddress:      mcmsSeqReport.Output.PackageId,
-			MCMSOwnerAddress: signerAddr,
-		})
+	// save OnRampUpgradeCapId to addressbook
+	typeAndVersionOffRampUpgradeCapId := cldf.NewTypeAndVersion(deployment.SuiOffRampUpgradeCapObjectIDType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, ccipOffRampSeqReport.Output.Objects.UpgradeCapObjectId, typeAndVersionOffRampUpgradeCapId)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy TokenPool for Sui chain %d: %w", config.SuiChainSelector, err)
-	}
-
-	// save tokenPool address in addressbook
-	typeAndVersionTokenPoolId := cldf.NewTypeAndVersion(deployment.SuiTokenPoolType, deployment.Version1_0_0)
-	err = ab.Save(config.SuiChainSelector, deployTp.Output.PackageId, typeAndVersionTokenPoolId)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save offRamp StateObjectId %s for Sui chain %d: %w", deployTp.Output.PackageId, config.SuiChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampUpgradeCapId  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
 
 	return cldf.ChangesetOutput{

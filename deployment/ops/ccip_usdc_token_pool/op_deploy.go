@@ -11,7 +11,6 @@ import (
 
 type USDCTokenPoolDeployInput struct {
 	CCIPPackageId                     string
-	CCIPTokenPoolPackageId            string
 	USDCCoinMetadataObjectId          string
 	TokenMessengerMinterPackageId     string
 	TokenMessengerMinterStateObjectId string
@@ -33,7 +32,6 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCToke
 		opts,
 		deps.Client,
 		input.CCIPPackageId,
-		input.CCIPTokenPoolPackageId,
 		input.USDCCoinMetadataObjectId,
 		input.TokenMessengerMinterPackageId,
 		input.TokenMessengerMinterStateObjectId,

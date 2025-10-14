@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms","name":"bypasser_role","parameters":null},{"package":"mcms","module":"mcms","name":"canceller_role","parameters":null},{"package":"mcms","module":"mcms","name":"chain_id","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"compute_eth_message_hash","parameters":[{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"}]},{"package":"mcms","module":"mcms","name":"config_group_parents","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_group_quorums","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_signers","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"create_calls","parameters":[{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"data","parameters":[{"name":"call","type":"Call"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_block_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_bypasser_execute_batch","parameters":[{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_cancel","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_schedule_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_unblock_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_update_min_delay","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"nonce","type":"u64"},{"name":"to","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"proof","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"execute_dispatch_to_account","parameters":[{"name":"registry","type":"Registry"},{"name":"account_state","type":"AccountState"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_dispatch_to_deployer","parameters":[{"name":"registry","type":"Registry"},{"name":"deployer_state","type":"DeployerState"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_set_config","parameters":[{"name":"registry","type":"Registry"},{"name":"state","type":"MultisigState"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_timelock_block_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"registry","type":"Registry"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_timelock_bypasser_execute_batch","parameters":[{"name":"registry","type":"Registry"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_timelock_cancel","parameters":[{"name":"timelock","type":"Timelock"},{"name":"registry","type":"Registry"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_timelock_schedule_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_timelock_unblock_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"registry","type":"Registry"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute_timelock_update_min_delay","parameters":[{"name":"timelock","type":"Timelock"},{"name":"registry","type":"Registry"},{"name":"executing_callback_params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms","name":"expiring_root_and_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"function_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"get_config","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root_metadata","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"hash_op_leaf","parameters":[{"name":"domain_separator","type":"vector<u8>"},{"name":"op","type":"Op"}]},{"package":"mcms","module":"mcms","name":"hash_operation_batch","parameters":[{"name":"calls","type":"vector<Call>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"is_valid_role","parameters":[{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"max_num_signers","parameters":null},{"package":"mcms","module":"mcms","name":"module_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"num_groups","parameters":null},{"package":"mcms","module":"mcms","name":"override_previous_root","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"post_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"pre_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"proposer_role","parameters":null},{"package":"mcms","module":"mcms","name":"role","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"root_metadata","parameters":[{"name":"multisig","type":"Multisig"}]},{"package":"mcms","module":"mcms","name":"root_metadata_multisig","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"seen_signed_hashes","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"set_config","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"signer_addresses","type":"vector<vector<u8>>"},{"name":"signer_groups","type":"vector<u8>"},{"name":"group_quorums","type":"vector<u8>"},{"name":"group_parents","type":"vector<u8>"},{"name":"clear_root","type":"bool"}]},{"package":"mcms","module":"mcms","name":"set_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"pre_op_count","type":"u64"},{"name":"post_op_count","type":"u64"},{"name":"override_previous_root","type":"bool"},{"name":"metadata_proof","type":"vector<vector<u8>>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"signer_view","parameters":[{"name":"signer_","type":"Signer"}]},{"package":"mcms","module":"mcms","name":"signers","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"target","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"index","type":"u64"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions_count","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_timestamp","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_done","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_pending","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_ready","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_min_delay","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_role","parameters":null},{"package":"mcms","module":"mcms","name":"verify_merkle_proof","parameters":[{"name":"proof","type":"vector<vector<u8>>"},{"name":"root","type":"vector<u8>"},{"name":"leaf","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"zero_hash","parameters":null}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms","name":"bypasser_role","parameters":null},{"package":"mcms","module":"mcms","name":"canceller_role","parameters":null},{"package":"mcms","module":"mcms","name":"chain_id","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"compute_eth_message_hash","parameters":[{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"}]},{"package":"mcms","module":"mcms","name":"config_group_parents","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_group_quorums","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"config_signers","parameters":[{"name":"config","type":"Config"}]},{"package":"mcms","module":"mcms","name":"create_calls","parameters":[{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"data","parameters":[{"name":"call","type":"Call"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_block_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_bypasser_execute_batch","parameters":[{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_cancel","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_schedule_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_unblock_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"dispatch_timelock_update_min_delay","parameters":[{"name":"timelock","type":"Timelock"},{"name":"timelock_callback_params","type":"TimelockCallbackParams"}]},{"package":"mcms","module":"mcms","name":"execute","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"nonce","type":"u64"},{"name":"to","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"proof","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"expiring_root_and_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"function_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"get_config","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_op_count","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"get_root_metadata","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"hash_op_leaf","parameters":[{"name":"domain_separator","type":"vector<u8>"},{"name":"op","type":"Op"}]},{"package":"mcms","module":"mcms","name":"hash_operation_batch","parameters":[{"name":"calls","type":"vector<Call>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"is_valid_role","parameters":[{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"max_num_signers","parameters":null},{"package":"mcms","module":"mcms","name":"module_name","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"num_groups","parameters":null},{"package":"mcms","module":"mcms","name":"override_previous_root","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"post_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"pre_op_count","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"proposer_role","parameters":null},{"package":"mcms","module":"mcms","name":"role","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"root_metadata","parameters":[{"name":"multisig","type":"Multisig"}]},{"package":"mcms","module":"mcms","name":"root_metadata_multisig","parameters":[{"name":"root_metadata","type":"RootMetadata"}]},{"package":"mcms","module":"mcms","name":"seen_signed_hashes","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"set_config","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"},{"name":"chain_id","type":"u256"},{"name":"signer_addresses","type":"vector<vector<u8>>"},{"name":"signer_groups","type":"vector<u8>"},{"name":"group_quorums","type":"vector<u8>"},{"name":"group_parents","type":"vector<u8>"},{"name":"clear_root","type":"bool"}]},{"package":"mcms","module":"mcms","name":"set_root","parameters":[{"name":"state","type":"MultisigState"},{"name":"clock","type":"Clock"},{"name":"role","type":"u8"},{"name":"root","type":"vector<u8>"},{"name":"valid_until","type":"u64"},{"name":"chain_id","type":"u256"},{"name":"multisig_addr","type":"address"},{"name":"pre_op_count","type":"u64"},{"name":"post_op_count","type":"u64"},{"name":"override_previous_root","type":"bool"},{"name":"metadata_proof","type":"vector<vector<u8>>"},{"name":"signatures","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms","name":"signer_view","parameters":[{"name":"signer_","type":"Signer"}]},{"package":"mcms","module":"mcms","name":"signers","parameters":[{"name":"state","type":"MultisigState"},{"name":"role","type":"u8"}]},{"package":"mcms","module":"mcms","name":"target","parameters":[{"name":"function","type":"Function"}]},{"package":"mcms","module":"mcms","name":"timelock_execute_batch","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"registry","type":"Registry"},{"name":"targets","type":"vector<address>"},{"name":"module_names","type":"vector<String>"},{"name":"function_names","type":"vector<String>"},{"name":"datas","type":"vector<vector<u8>>"},{"name":"predecessor","type":"vector<u8>"},{"name":"salt","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_function","parameters":[{"name":"timelock","type":"Timelock"},{"name":"index","type":"u64"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_blocked_functions_count","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_get_timestamp","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_done","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_pending","parameters":[{"name":"timelock","type":"Timelock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_is_operation_ready","parameters":[{"name":"timelock","type":"Timelock"},{"name":"clock","type":"Clock"},{"name":"id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"timelock_min_delay","parameters":[{"name":"timelock","type":"Timelock"}]},{"package":"mcms","module":"mcms","name":"timelock_role","parameters":null},{"package":"mcms","module":"mcms","name":"verify_merkle_proof","parameters":[{"name":"proof","type":"vector<vector<u8>>"},{"name":"root","type":"vector<u8>"},{"name":"leaf","type":"vector<u8>"}]},{"package":"mcms","module":"mcms","name":"zero_hash","parameters":null}]`
 
 type IMcms interface {
 	SetRoot(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, root []byte, validUntil uint64, chainId *big.Int, multisigAddr string, preOpCount uint64, postOpCount uint64, overridePreviousRoot bool, metadataProof [][]byte, signatures [][]byte) (*models.SuiTransactionBlockResponse, error)
@@ -31,16 +31,16 @@ type IMcms interface {
 	DispatchTimelockUpdateMinDelay(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockBlockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	DispatchTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
-	ExecuteDispatchToAccount(ctx context.Context, opts *bind.CallOpts, registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteTimelockScheduleBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteTimelockCancel(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteTimelockUpdateMinDelay(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteTimelockBlockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
-	ExecuteSetConfig(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDispatchToAccount(ctx context.Context, opts *bind.CallOpts, registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTimelockScheduleBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTimelockCancel(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTimelockUpdateMinDelay(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTimelockBlockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetConfig(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	SetConfig(ctx context.Context, opts *bind.CallOpts, param bind.Object, state bind.Object, role byte, chainId *big.Int, signerAddresses [][]byte, signerGroups []byte, groupQuorums []byte, groupParents []byte, clearRoot bool) (*models.SuiTransactionBlockResponse, error)
 	VerifyMerkleProof(ctx context.Context, opts *bind.CallOpts, proof [][]byte, root []byte, leaf []byte) (*models.SuiTransactionBlockResponse, error)
 	ComputeEthMessageHash(ctx context.Context, opts *bind.CallOpts, root []byte, validUntil uint64) (*models.SuiTransactionBlockResponse, error)
@@ -96,9 +96,9 @@ type IMcmsDevInspect interface {
 	Execute(ctx context.Context, opts *bind.CallOpts, state bind.Object, clock bind.Object, role byte, chainId *big.Int, multisigAddr string, nonce uint64, to string, moduleName string, functionName string, data []byte, proof [][]byte) (TimelockCallbackParams, error)
 	DispatchTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, timelockCallbackParams TimelockCallbackParams) ([]bind.Object, error)
 	DispatchTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelockCallbackParams TimelockCallbackParams) ([]bind.Object, error)
-	ExecuteDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (bind.Object, error)
-	ExecuteTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error)
-	ExecuteTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error)
+	McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (bind.Object, error)
+	McmsTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error)
+	McmsTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error)
 	VerifyMerkleProof(ctx context.Context, opts *bind.CallOpts, proof [][]byte, root []byte, leaf []byte) (bool, error)
 	ComputeEthMessageHash(ctx context.Context, opts *bind.CallOpts, root []byte, validUntil uint64) ([]byte, error)
 	HashOpLeaf(ctx context.Context, opts *bind.CallOpts, domainSeparator []byte, op Op) ([]byte, error)
@@ -165,26 +165,26 @@ type McmsEncoder interface {
 	DispatchTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
 	DispatchTimelockUnblockFunction(timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*bind.EncodedCall, error)
 	DispatchTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteDispatchToAccount(registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteDispatchToAccountWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteDispatchToDeployer(registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteDispatchToDeployerWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteTimelockScheduleBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteTimelockScheduleBatchWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteTimelockExecuteBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteTimelockExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteTimelockBypasserExecuteBatch(registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteTimelockBypasserExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteTimelockCancel(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteTimelockCancelWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteTimelockUpdateMinDelay(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteTimelockUpdateMinDelayWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteTimelockBlockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteTimelockUnblockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteSetConfig(registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
-	ExecuteSetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsDispatchToAccount(registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsDispatchToAccountWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsDispatchToDeployer(registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsDispatchToDeployerWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTimelockScheduleBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsTimelockScheduleBatchWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTimelockExecuteBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsTimelockExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTimelockBypasserExecuteBatch(registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsTimelockBypasserExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTimelockCancel(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsTimelockCancelWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTimelockUpdateMinDelay(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsTimelockUpdateMinDelayWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTimelockBlockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsTimelockUnblockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsSetConfig(registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsSetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	SetConfig(param bind.Object, state bind.Object, role byte, chainId *big.Int, signerAddresses [][]byte, signerGroups []byte, groupQuorums []byte, groupParents []byte, clearRoot bool) (*bind.EncodedCall, error)
 	SetConfigWithArgs(args ...any) (*bind.EncodedCall, error)
 	VerifyMerkleProof(proof [][]byte, root []byte, leaf []byte) (*bind.EncodedCall, error)
@@ -1474,9 +1474,9 @@ func (c *McmsContract) DispatchTimelockUnblockFunction(ctx context.Context, opts
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteDispatchToAccount executes the execute_dispatch_to_account Move function.
-func (c *McmsContract) ExecuteDispatchToAccount(ctx context.Context, opts *bind.CallOpts, registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteDispatchToAccount(registry, accountState, executingCallbackParams)
+// McmsDispatchToAccount executes the mcms_dispatch_to_account Move function.
+func (c *McmsContract) McmsDispatchToAccount(ctx context.Context, opts *bind.CallOpts, registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsDispatchToAccount(registry, accountState, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1484,9 +1484,9 @@ func (c *McmsContract) ExecuteDispatchToAccount(ctx context.Context, opts *bind.
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteDispatchToDeployer executes the execute_dispatch_to_deployer Move function.
-func (c *McmsContract) ExecuteDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteDispatchToDeployer(registry, deployerState, executingCallbackParams)
+// McmsDispatchToDeployer executes the mcms_dispatch_to_deployer Move function.
+func (c *McmsContract) McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsDispatchToDeployer(registry, deployerState, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1494,9 +1494,9 @@ func (c *McmsContract) ExecuteDispatchToDeployer(ctx context.Context, opts *bind
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteTimelockScheduleBatch executes the execute_timelock_schedule_batch Move function.
-func (c *McmsContract) ExecuteTimelockScheduleBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteTimelockScheduleBatch(timelock, clock, registry, executingCallbackParams)
+// McmsTimelockScheduleBatch executes the mcms_timelock_schedule_batch Move function.
+func (c *McmsContract) McmsTimelockScheduleBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsTimelockScheduleBatch(timelock, clock, registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1504,9 +1504,9 @@ func (c *McmsContract) ExecuteTimelockScheduleBatch(ctx context.Context, opts *b
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteTimelockExecuteBatch executes the execute_timelock_execute_batch Move function.
-func (c *McmsContract) ExecuteTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteTimelockExecuteBatch(timelock, clock, registry, executingCallbackParams)
+// McmsTimelockExecuteBatch executes the mcms_timelock_execute_batch Move function.
+func (c *McmsContract) McmsTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsTimelockExecuteBatch(timelock, clock, registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1514,9 +1514,9 @@ func (c *McmsContract) ExecuteTimelockExecuteBatch(ctx context.Context, opts *bi
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteTimelockBypasserExecuteBatch executes the execute_timelock_bypasser_execute_batch Move function.
-func (c *McmsContract) ExecuteTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteTimelockBypasserExecuteBatch(registry, executingCallbackParams)
+// McmsTimelockBypasserExecuteBatch executes the mcms_timelock_bypasser_execute_batch Move function.
+func (c *McmsContract) McmsTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsTimelockBypasserExecuteBatch(registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1524,9 +1524,9 @@ func (c *McmsContract) ExecuteTimelockBypasserExecuteBatch(ctx context.Context, 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteTimelockCancel executes the execute_timelock_cancel Move function.
-func (c *McmsContract) ExecuteTimelockCancel(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteTimelockCancel(timelock, registry, executingCallbackParams)
+// McmsTimelockCancel executes the mcms_timelock_cancel Move function.
+func (c *McmsContract) McmsTimelockCancel(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsTimelockCancel(timelock, registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1534,9 +1534,9 @@ func (c *McmsContract) ExecuteTimelockCancel(ctx context.Context, opts *bind.Cal
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteTimelockUpdateMinDelay executes the execute_timelock_update_min_delay Move function.
-func (c *McmsContract) ExecuteTimelockUpdateMinDelay(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteTimelockUpdateMinDelay(timelock, registry, executingCallbackParams)
+// McmsTimelockUpdateMinDelay executes the mcms_timelock_update_min_delay Move function.
+func (c *McmsContract) McmsTimelockUpdateMinDelay(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsTimelockUpdateMinDelay(timelock, registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1544,9 +1544,9 @@ func (c *McmsContract) ExecuteTimelockUpdateMinDelay(ctx context.Context, opts *
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteTimelockBlockFunction executes the execute_timelock_block_function Move function.
-func (c *McmsContract) ExecuteTimelockBlockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteTimelockBlockFunction(timelock, registry, executingCallbackParams)
+// McmsTimelockBlockFunction executes the mcms_timelock_block_function Move function.
+func (c *McmsContract) McmsTimelockBlockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsTimelockBlockFunction(timelock, registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1554,9 +1554,9 @@ func (c *McmsContract) ExecuteTimelockBlockFunction(ctx context.Context, opts *b
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteTimelockUnblockFunction executes the execute_timelock_unblock_function Move function.
-func (c *McmsContract) ExecuteTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteTimelockUnblockFunction(timelock, registry, executingCallbackParams)
+// McmsTimelockUnblockFunction executes the mcms_timelock_unblock_function Move function.
+func (c *McmsContract) McmsTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsTimelockUnblockFunction(timelock, registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1564,9 +1564,9 @@ func (c *McmsContract) ExecuteTimelockUnblockFunction(ctx context.Context, opts 
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
-// ExecuteSetConfig executes the execute_set_config Move function.
-func (c *McmsContract) ExecuteSetConfig(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsEncoder.ExecuteSetConfig(registry, state, executingCallbackParams)
+// McmsSetConfig executes the mcms_set_config Move function.
+func (c *McmsContract) McmsSetConfig(ctx context.Context, opts *bind.CallOpts, registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsSetConfig(registry, state, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2100,11 +2100,11 @@ func (d *McmsDevInspect) DispatchTimelockBypasserExecuteBatch(ctx context.Contex
 	return result, nil
 }
 
-// ExecuteDispatchToDeployer executes the execute_dispatch_to_deployer Move function using DevInspect to get return values.
+// McmsDispatchToDeployer executes the mcms_dispatch_to_deployer Move function using DevInspect to get return values.
 //
 // Returns: UpgradeTicket
-func (d *McmsDevInspect) ExecuteDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (bind.Object, error) {
-	encoded, err := d.contract.mcmsEncoder.ExecuteDispatchToDeployer(registry, deployerState, executingCallbackParams)
+func (d *McmsDevInspect) McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (bind.Object, error) {
+	encoded, err := d.contract.mcmsEncoder.McmsDispatchToDeployer(registry, deployerState, executingCallbackParams)
 	if err != nil {
 		return bind.Object{}, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2122,11 +2122,11 @@ func (d *McmsDevInspect) ExecuteDispatchToDeployer(ctx context.Context, opts *bi
 	return result, nil
 }
 
-// ExecuteTimelockExecuteBatch executes the execute_timelock_execute_batch Move function using DevInspect to get return values.
+// McmsTimelockExecuteBatch executes the mcms_timelock_execute_batch Move function using DevInspect to get return values.
 //
 // Returns: vector<ExecutingCallbackParams>
-func (d *McmsDevInspect) ExecuteTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error) {
-	encoded, err := d.contract.mcmsEncoder.ExecuteTimelockExecuteBatch(timelock, clock, registry, executingCallbackParams)
+func (d *McmsDevInspect) McmsTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error) {
+	encoded, err := d.contract.mcmsEncoder.McmsTimelockExecuteBatch(timelock, clock, registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2144,11 +2144,11 @@ func (d *McmsDevInspect) ExecuteTimelockExecuteBatch(ctx context.Context, opts *
 	return result, nil
 }
 
-// ExecuteTimelockBypasserExecuteBatch executes the execute_timelock_bypasser_execute_batch Move function using DevInspect to get return values.
+// McmsTimelockBypasserExecuteBatch executes the mcms_timelock_bypasser_execute_batch Move function using DevInspect to get return values.
 //
 // Returns: vector<ExecutingCallbackParams>
-func (d *McmsDevInspect) ExecuteTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error) {
-	encoded, err := d.contract.mcmsEncoder.ExecuteTimelockBypasserExecuteBatch(registry, executingCallbackParams)
+func (d *McmsDevInspect) McmsTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) ([]bind.Object, error) {
+	encoded, err := d.contract.mcmsEncoder.McmsTimelockBypasserExecuteBatch(registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -3474,11 +3474,11 @@ func (c mcmsEncoder) DispatchTimelockUnblockFunctionWithArgs(args ...any) (*bind
 	return c.EncodeCallArgsWithGenerics("dispatch_timelock_unblock_function", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// ExecuteDispatchToAccount encodes a call to the execute_dispatch_to_account Move function.
-func (c mcmsEncoder) ExecuteDispatchToAccount(registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsDispatchToAccount encodes a call to the mcms_dispatch_to_account Move function.
+func (c mcmsEncoder) McmsDispatchToAccount(registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_dispatch_to_account", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_dispatch_to_account", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"&mut AccountState",
 		"ExecutingCallbackParams",
@@ -3489,9 +3489,9 @@ func (c mcmsEncoder) ExecuteDispatchToAccount(registry bind.Object, accountState
 	}, nil)
 }
 
-// ExecuteDispatchToAccountWithArgs encodes a call to the execute_dispatch_to_account Move function using arbitrary arguments.
+// McmsDispatchToAccountWithArgs encodes a call to the mcms_dispatch_to_account Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteDispatchToAccountWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsDispatchToAccountWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"&mut AccountState",
@@ -3503,14 +3503,14 @@ func (c mcmsEncoder) ExecuteDispatchToAccountWithArgs(args ...any) (*bind.Encode
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_dispatch_to_account", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_dispatch_to_account", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// ExecuteDispatchToDeployer encodes a call to the execute_dispatch_to_deployer Move function.
-func (c mcmsEncoder) ExecuteDispatchToDeployer(registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsDispatchToDeployer encodes a call to the mcms_dispatch_to_deployer Move function.
+func (c mcmsEncoder) McmsDispatchToDeployer(registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_dispatch_to_deployer", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_dispatch_to_deployer", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"&mut DeployerState",
 		"ExecutingCallbackParams",
@@ -3523,9 +3523,9 @@ func (c mcmsEncoder) ExecuteDispatchToDeployer(registry bind.Object, deployerSta
 	})
 }
 
-// ExecuteDispatchToDeployerWithArgs encodes a call to the execute_dispatch_to_deployer Move function using arbitrary arguments.
+// McmsDispatchToDeployerWithArgs encodes a call to the mcms_dispatch_to_deployer Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteDispatchToDeployerWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsDispatchToDeployerWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"&mut DeployerState",
@@ -3537,16 +3537,16 @@ func (c mcmsEncoder) ExecuteDispatchToDeployerWithArgs(args ...any) (*bind.Encod
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_dispatch_to_deployer", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_dispatch_to_deployer", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"UpgradeTicket",
 	})
 }
 
-// ExecuteTimelockScheduleBatch encodes a call to the execute_timelock_schedule_batch Move function.
-func (c mcmsEncoder) ExecuteTimelockScheduleBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsTimelockScheduleBatch encodes a call to the mcms_timelock_schedule_batch Move function.
+func (c mcmsEncoder) McmsTimelockScheduleBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_schedule_batch", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_schedule_batch", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&Clock",
 		"&mut Registry",
@@ -3559,9 +3559,9 @@ func (c mcmsEncoder) ExecuteTimelockScheduleBatch(timelock bind.Object, clock bi
 	}, nil)
 }
 
-// ExecuteTimelockScheduleBatchWithArgs encodes a call to the execute_timelock_schedule_batch Move function using arbitrary arguments.
+// McmsTimelockScheduleBatchWithArgs encodes a call to the mcms_timelock_schedule_batch Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteTimelockScheduleBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsTimelockScheduleBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
 		"&Clock",
@@ -3574,14 +3574,14 @@ func (c mcmsEncoder) ExecuteTimelockScheduleBatchWithArgs(args ...any) (*bind.En
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_schedule_batch", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_schedule_batch", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// ExecuteTimelockExecuteBatch encodes a call to the execute_timelock_execute_batch Move function.
-func (c mcmsEncoder) ExecuteTimelockExecuteBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsTimelockExecuteBatch encodes a call to the mcms_timelock_execute_batch Move function.
+func (c mcmsEncoder) McmsTimelockExecuteBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_execute_batch", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_execute_batch", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&Clock",
 		"&mut Registry",
@@ -3596,9 +3596,9 @@ func (c mcmsEncoder) ExecuteTimelockExecuteBatch(timelock bind.Object, clock bin
 	})
 }
 
-// ExecuteTimelockExecuteBatchWithArgs encodes a call to the execute_timelock_execute_batch Move function using arbitrary arguments.
+// McmsTimelockExecuteBatchWithArgs encodes a call to the mcms_timelock_execute_batch Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteTimelockExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsTimelockExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
 		"&Clock",
@@ -3611,16 +3611,16 @@ func (c mcmsEncoder) ExecuteTimelockExecuteBatchWithArgs(args ...any) (*bind.Enc
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_execute_batch", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_execute_batch", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"vector<ExecutingCallbackParams>",
 	})
 }
 
-// ExecuteTimelockBypasserExecuteBatch encodes a call to the execute_timelock_bypasser_execute_batch Move function.
-func (c mcmsEncoder) ExecuteTimelockBypasserExecuteBatch(registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsTimelockBypasserExecuteBatch encodes a call to the mcms_timelock_bypasser_execute_batch Move function.
+func (c mcmsEncoder) McmsTimelockBypasserExecuteBatch(registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_bypasser_execute_batch", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_bypasser_execute_batch", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
@@ -3631,9 +3631,9 @@ func (c mcmsEncoder) ExecuteTimelockBypasserExecuteBatch(registry bind.Object, e
 	})
 }
 
-// ExecuteTimelockBypasserExecuteBatchWithArgs encodes a call to the execute_timelock_bypasser_execute_batch Move function using arbitrary arguments.
+// McmsTimelockBypasserExecuteBatchWithArgs encodes a call to the mcms_timelock_bypasser_execute_batch Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteTimelockBypasserExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsTimelockBypasserExecuteBatchWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3644,16 +3644,16 @@ func (c mcmsEncoder) ExecuteTimelockBypasserExecuteBatchWithArgs(args ...any) (*
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_bypasser_execute_batch", typeArgsList, typeParamsList, expectedParams, args, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_bypasser_execute_batch", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"vector<ExecutingCallbackParams>",
 	})
 }
 
-// ExecuteTimelockCancel encodes a call to the execute_timelock_cancel Move function.
-func (c mcmsEncoder) ExecuteTimelockCancel(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsTimelockCancel encodes a call to the mcms_timelock_cancel Move function.
+func (c mcmsEncoder) McmsTimelockCancel(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_cancel", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_cancel", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3664,9 +3664,9 @@ func (c mcmsEncoder) ExecuteTimelockCancel(timelock bind.Object, registry bind.O
 	}, nil)
 }
 
-// ExecuteTimelockCancelWithArgs encodes a call to the execute_timelock_cancel Move function using arbitrary arguments.
+// McmsTimelockCancelWithArgs encodes a call to the mcms_timelock_cancel Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteTimelockCancelWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsTimelockCancelWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
 		"&mut Registry",
@@ -3678,14 +3678,14 @@ func (c mcmsEncoder) ExecuteTimelockCancelWithArgs(args ...any) (*bind.EncodedCa
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_cancel", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_cancel", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// ExecuteTimelockUpdateMinDelay encodes a call to the execute_timelock_update_min_delay Move function.
-func (c mcmsEncoder) ExecuteTimelockUpdateMinDelay(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsTimelockUpdateMinDelay encodes a call to the mcms_timelock_update_min_delay Move function.
+func (c mcmsEncoder) McmsTimelockUpdateMinDelay(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_update_min_delay", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_update_min_delay", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3696,9 +3696,9 @@ func (c mcmsEncoder) ExecuteTimelockUpdateMinDelay(timelock bind.Object, registr
 	}, nil)
 }
 
-// ExecuteTimelockUpdateMinDelayWithArgs encodes a call to the execute_timelock_update_min_delay Move function using arbitrary arguments.
+// McmsTimelockUpdateMinDelayWithArgs encodes a call to the mcms_timelock_update_min_delay Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteTimelockUpdateMinDelayWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsTimelockUpdateMinDelayWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
 		"&mut Registry",
@@ -3710,14 +3710,14 @@ func (c mcmsEncoder) ExecuteTimelockUpdateMinDelayWithArgs(args ...any) (*bind.E
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_update_min_delay", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_update_min_delay", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// ExecuteTimelockBlockFunction encodes a call to the execute_timelock_block_function Move function.
-func (c mcmsEncoder) ExecuteTimelockBlockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsTimelockBlockFunction encodes a call to the mcms_timelock_block_function Move function.
+func (c mcmsEncoder) McmsTimelockBlockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_block_function", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_block_function", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3728,9 +3728,9 @@ func (c mcmsEncoder) ExecuteTimelockBlockFunction(timelock bind.Object, registry
 	}, nil)
 }
 
-// ExecuteTimelockBlockFunctionWithArgs encodes a call to the execute_timelock_block_function Move function using arbitrary arguments.
+// McmsTimelockBlockFunctionWithArgs encodes a call to the mcms_timelock_block_function Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsTimelockBlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
 		"&mut Registry",
@@ -3742,14 +3742,14 @@ func (c mcmsEncoder) ExecuteTimelockBlockFunctionWithArgs(args ...any) (*bind.En
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_block_function", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_block_function", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// ExecuteTimelockUnblockFunction encodes a call to the execute_timelock_unblock_function Move function.
-func (c mcmsEncoder) ExecuteTimelockUnblockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsTimelockUnblockFunction encodes a call to the mcms_timelock_unblock_function Move function.
+func (c mcmsEncoder) McmsTimelockUnblockFunction(timelock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_unblock_function", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_unblock_function", typeArgsList, typeParamsList, []string{
 		"&mut Timelock",
 		"&mut Registry",
 		"ExecutingCallbackParams",
@@ -3760,9 +3760,9 @@ func (c mcmsEncoder) ExecuteTimelockUnblockFunction(timelock bind.Object, regist
 	}, nil)
 }
 
-// ExecuteTimelockUnblockFunctionWithArgs encodes a call to the execute_timelock_unblock_function Move function using arbitrary arguments.
+// McmsTimelockUnblockFunctionWithArgs encodes a call to the mcms_timelock_unblock_function Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsTimelockUnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Timelock",
 		"&mut Registry",
@@ -3774,14 +3774,14 @@ func (c mcmsEncoder) ExecuteTimelockUnblockFunctionWithArgs(args ...any) (*bind.
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_timelock_unblock_function", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_timelock_unblock_function", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
-// ExecuteSetConfig encodes a call to the execute_set_config Move function.
-func (c mcmsEncoder) ExecuteSetConfig(registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+// McmsSetConfig encodes a call to the mcms_set_config Move function.
+func (c mcmsEncoder) McmsSetConfig(registry bind.Object, state bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_set_config", typeArgsList, typeParamsList, []string{
+	return c.EncodeCallArgsWithGenerics("mcms_set_config", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
 		"&mut MultisigState",
 		"ExecutingCallbackParams",
@@ -3792,9 +3792,9 @@ func (c mcmsEncoder) ExecuteSetConfig(registry bind.Object, state bind.Object, e
 	}, nil)
 }
 
-// ExecuteSetConfigWithArgs encodes a call to the execute_set_config Move function using arbitrary arguments.
+// McmsSetConfigWithArgs encodes a call to the mcms_set_config Move function using arbitrary arguments.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
-func (c mcmsEncoder) ExecuteSetConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
+func (c mcmsEncoder) McmsSetConfigWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
 		"&mut MultisigState",
@@ -3806,7 +3806,7 @@ func (c mcmsEncoder) ExecuteSetConfigWithArgs(args ...any) (*bind.EncodedCall, e
 	}
 	typeArgsList := []string{}
 	typeParamsList := []string{}
-	return c.EncodeCallArgsWithGenerics("execute_set_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+	return c.EncodeCallArgsWithGenerics("mcms_set_config", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // SetConfig encodes a call to the set_config Move function.

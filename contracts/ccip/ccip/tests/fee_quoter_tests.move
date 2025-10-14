@@ -886,7 +886,7 @@ public fun test_get_static_config() {
         max_fee_juels_per_msg,
         link_token,
         token_price_staleness_threshold,
-    ) = fee_quoter::get_static_config(&ref);
+    ) = fee_quoter::get_static_config_fields(&ref);
 
     assert!(max_fee_juels_per_msg == DEFAULT_MAX_FEE_JUELS * ONE_E_18);
     assert!(link_token == MOCK_ADDRESS_1);

@@ -27,7 +27,6 @@ import (
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	lockreleaseops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
-	cciptokenpoolop "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	mocklinktokenops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mock_link_token"
 	cwConfig "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
@@ -259,21 +258,12 @@ func SetupTokenPool(t *testing.T,
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
-	// Deploy CCIP token pool
-	ccipTokenPoolReport, err := cld_ops.ExecuteOperation(bundle, cciptokenpoolop.DeployCCIPTokenPoolOp, deps, cciptokenpoolop.TokenPoolDeployInput{
-		CCIPPackageId:    report.Output.CCIPPackageId,
-		MCMSAddress:      reportMCMs.Output.PackageId,
-		MCMSOwnerAddress: accountAddress,
-	})
-	require.NoError(t, err, "failed to deploy CCIP Token Pool")
-
 	// Deploy and initialize the lock release token pool
 	seqLockReleaseDeployInput := lockreleaseops.DeployAndInitLockReleaseTokenPoolInput{
 		LockReleaseTokenPoolDeployInput: lockreleaseops.LockReleaseTokenPoolDeployInput{
-			CCIPPackageId:          report.Output.CCIPPackageId,
-			CCIPTokenPoolPackageId: ccipTokenPoolReport.Output.PackageId,
-			MCMSAddress:            reportMCMs.Output.PackageId,
-			MCMSOwnerAddress:       accountAddress,
+			CCIPPackageId:    report.Output.CCIPPackageId,
+			MCMSAddress:      reportMCMs.Output.PackageId,
+			MCMSOwnerAddress: accountAddress,
 		},
 		// Initialization parameters
 		CoinObjectTypeArg:      linkTokenType,

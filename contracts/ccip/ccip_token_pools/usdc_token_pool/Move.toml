@@ -3,15 +3,14 @@ name = "USDCTokenPool"
 edition = "2024"
 
 [dependencies]
-CCIPTokenPool = { local = "../token_pool" }
-
+ChainlinkCCIP = { local = "../../ccip" }
+ChainlinkManyChainMultisig = { local = "../../../mcms/mcms" }
 # Circle CCTP Imports
 MessageTransmitter = { local = "../../../vendored/circlefin/sui-cctp/packages/message_transmitter" }
 TokenMessengerMinter = { local = "../../../vendored/circlefin/sui-cctp/packages/token_messenger_minter" }
 
 [addresses]
 ccip = "_"
-ccip_token_pool = "_"
 usdc_token_pool = "_"
 usdc_coin_metadata_object_id = "_"
 token_messenger_minter = "_"
@@ -24,7 +23,6 @@ mcms_owner = "_"
 
 [dev-addresses]
 ccip = "0x1000"
-ccip_token_pool = "0x2000"
 usdc_token_pool = "0x2003"
 usdc_coin_metadata_object_id = "0x9000"
 token_messenger_minter = "0x31cc14d80c175ae39777c0238f20594c6d4869cfab199f40b69f3319956b8beb"
