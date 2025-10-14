@@ -58,3 +58,8 @@ tasks:
           matrix:
             MODULE: [".", "./integration-tests", "./deployment"]
         cmd: cd {{ .ITEM.MODULE }} && TEST_DB_URL={{.TEST_DB_URL}} go test {{.CLI_ARGS}} -count=1 -p=1 -tags="integration" ./...
+
+  mcms:
+    desc: "Run MCMS tests"
+    cmds:
+      - cd ./integration-tests && go test -v ./... -tags="integration" -test.run TestMCMSandCCIPSuite -count=1 -p=1 {{.CLI_ARGS}}
