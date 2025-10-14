@@ -367,7 +367,7 @@ func decodePrimitiveType(bcsDecoder *aptosBCS.Deserializer, primitiveType string
 	case "U32":
 		return bcsDecoder.U32(), nil
 	case "U64":
-		return bcsDecoder.U64(), nil
+		return strconv.FormatUint(bcsDecoder.U64(), 10), nil
 	case "U128":
 		value := bcsDecoder.U128()
 		return value.String(), nil
@@ -425,9 +425,46 @@ func decodeStruct(data any, target any) error {
 	return decoder.Decode(data)
 }
 
+// temp fix for uint64 and int64 to string when marshaling to JSON
+func preprocessForJSONSafeInteger(data any) any {
+	switch v := data.(type) {
+	case uint64:
+		return strconv.FormatUint(v, 10)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case []uint64:
+		result := make([]any, len(v))
+		for i, item := range v {
+			result[i] = strconv.FormatUint(item, 10)
+		}
+		return result
+	case []int64:
+		result := make([]any, len(v))
+		for i, item := range v {
+			result[i] = strconv.FormatInt(item, 10)
+		}
+		return result
+	case []any:
+		result := make([]any, len(v))
+		for i, item := range v {
+			result[i] = preprocessForJSONSafeInteger(item)
+		}
+		return result
+	case map[string]any:
+		result := make(map[string]any, len(v))
+		for key, val := range v {
+			result[key] = preprocessForJSONSafeInteger(val)
+		}
+		return result
+	default:
+		return data
+	}
+}
+
 // decodeGeneric handles other types via JSON marshaling/unmarshaling
 func decodeGeneric(data any, target any) error {
-	jsonBytes, err := json.Marshal(data)
+	preprocessedData := preprocessForJSONSafeInteger(data)
+	jsonBytes, err := json.Marshal(preprocessedData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal data: %w", err)
 	}
