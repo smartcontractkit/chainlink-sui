@@ -12,7 +12,7 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251013155034-5f85c5f450ab
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
-	github.com/smartcontractkit/mcms v0.26.1-0.20251009182503-22a4319a7bf4
+	github.com/smartcontractkit/mcms v0.26.1-0.20251013181329-bb6a47c7284c
 	github.com/stretchr/testify v1.10.0
 )
 
