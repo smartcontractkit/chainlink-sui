@@ -6,6 +6,7 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	"github.com/smartcontractkit/mcms"
@@ -16,6 +17,20 @@ var _ cldf.ChangeSetV2[mcmsops.ProposalGenerateInput] = MCMSProposalGenerate{}
 type MCMSProposalGenerate struct{}
 
 func (d MCMSProposalGenerate) Apply(e cldf.Environment, config mcmsops.ProposalGenerateInput) (cldf.ChangesetOutput, error) {
+	suiState, err := deployment.LoadOnchainStatesui(e)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
+	}
+
+	state := suiState[config.ChainSelector]
+
+	// Get necessary MCMS state from onchain AB
+	config.MmcsPackageID = state.MCMSPackageID
+	config.McmsStateObjID = state.MCMSStateObjectID
+	config.TimelockObjID = state.MCMSTimelockObjectID
+	config.AccountObjID = state.MCMSAccountStateObjectID
+	config.RegistryObjID = state.MCMSRegistryObjectID
+
 	suiChains := e.BlockChains.SuiChains()
 
 	suiChain := suiChains[config.ChainSelector]

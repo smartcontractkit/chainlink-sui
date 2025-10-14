@@ -9,6 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/mcms"
 )
 
 var _ cldf.ChangeSetV2[mcmsops.DeployMCMSSeqInput] = DeployMCMS{}
@@ -85,8 +86,9 @@ func (d DeployMCMS) Apply(e cldf.Environment, config mcmsops.DeployMCMSSeqInput)
 	}
 
 	return cldf.ChangesetOutput{
-		AddressBook: ab,
-		Reports:     seqReports,
+		AddressBook:           ab,
+		Reports:               seqReports,
+		MCMSTimelockProposals: []mcms.TimelockProposal{mcmsReport.Output.AcceptOwnershipProposal},
 	}, nil
 }
 

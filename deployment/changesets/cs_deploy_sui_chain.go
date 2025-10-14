@@ -5,6 +5,7 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
@@ -13,6 +14,8 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	"github.com/smartcontractkit/mcms"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 )
 
 type DeploySuiChainConfig struct {
@@ -52,24 +55,17 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		},
 	}
 
-	// Deploy MCMS
-	mcmsSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, mcmsops.DeployMCMSSeqInput{})
+	suiState, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for Sui chain %d: %w", config.SuiChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
 	}
-	seqReports = append(seqReports, mcmsSeqReport.ExecutionReports...)
 
-	// save MCMs address to the addressbook
-	typeAndVersionMCMS := cldf.NewTypeAndVersion(deployment.SuiMcmsPackageIDType, deployment.Version1_0_0)
-	err = ab.Save(config.SuiChainSelector, mcmsSeqReport.Output.PackageId, typeAndVersionMCMS)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save MCMS address %s for Sui chain %d: %w", mcmsSeqReport.Output.PackageId, config.SuiChainSelector, err)
-	}
+	state := suiState[config.SuiChainSelector]
 
 	// Deploy Router
 	// TODO: Maybe make this part of CCIP sequence
 	routerReport, err := operations.ExecuteOperation(e.OperationsBundle, routerops.DeployCCIPRouterOp, deps, routerops.DeployCCIPRouterInput{
-		McmsPackageId: mcmsSeqReport.Output.PackageId,
+		McmsPackageId: state.MCMSPackageID,
 		McmsOwner:     signerAddr,
 	})
 	if err != nil {
@@ -81,7 +77,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		RouterPackageId:     routerReport.Output.PackageId,
 		RouterStateObjectId: routerReport.Output.Objects.RouterStateObjectId,
 		OwnerCapObjectId:    routerReport.Output.Objects.OwnerCapObjectId,
-		NewOwner:            mcmsSeqReport.Output.PackageId,
+		NewOwner:            state.MCMSPackageID,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute ownership transfer to MCMS Router for Sui chain %d: %w", config.SuiChainSelector, err)
@@ -94,6 +90,12 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router address %s for Sui chain %d: %w", routerReport.Output.PackageId, config.SuiChainSelector, err)
 	}
 
+	typeAndVersionRouterObject := cldf.NewTypeAndVersion(deployment.SuiCCIPRouterStateObjectType, deployment.Version1_0_0)
+	err = ab.Save(config.SuiChainSelector, routerReport.Output.Objects.RouterStateObjectId, typeAndVersionRouterObject)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save Router state object Id %s for Sui chain %d: %w", routerReport.Output.Objects.RouterStateObjectId, config.SuiChainSelector, err)
+	}
+
 	// --------------------------
 	// CCIP SEQUENCE
 	// --------------------------
@@ -103,7 +105,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipSeqInput.LinkTokenCoinMetadataObjectId = config.LinkTokenCoinMetadataObjectId
 	ccipSeqInput.LocalChainSelector = config.SuiChainSelector
 	ccipSeqInput.DestChainSelector = config.DestChainSelector
-	ccipSeqInput.DeployCCIPInput.McmsPackageId = mcmsSeqReport.Output.PackageId
+	ccipSeqInput.DeployCCIPInput.McmsPackageId = state.MCMSPackageID
 	ccipSeqInput.DeployCCIPInput.McmsOwner = signerAddr
 
 	ccipSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, ccipops.DeployAndInitCCIPSequence, deps, ccipSeqInput)
@@ -168,7 +170,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipOnRampSeqInput := deployment.DefaultOnRampSeqConfig
 
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.CCIPPackageId = ccipSeqReport.Output.CCIPPackageId
-	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = mcmsSeqReport.Output.PackageId
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = state.MCMSPackageID
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSOwnerPackageId = signerAddr
 	ccipOnRampSeqInput.OnRampInitializeInput.NonceManagerCapId = ccipSeqReport.Output.Objects.NonceManagerCapObjectId
 	ccipOnRampSeqInput.OnRampInitializeInput.SourceTransferCapId = ccipSeqReport.Output.Objects.SourceTransferCapObjectId
@@ -225,8 +227,9 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	onRampBytes := [][]byte{config.DestChainOnRampAddressBytes}
 
 	// Inject dynamic values for deployment
+	ccipOffRampSeqInput.CCIPObjectRefId = ccipSeqReport.Output.Objects.CCIPObjectRefObjectId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.CCIPPackageId = ccipSeqReport.Output.CCIPPackageId
-	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = mcmsSeqReport.Output.PackageId
+	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = state.MCMSPackageID
 
 	ccipOffRampSeqInput.InitializeOffRampInput.DestTransferCapId = ccipSeqReport.Output.Objects.DestTransferCapObjectId
 	ccipOffRampSeqInput.InitializeOffRampInput.FeeQuoterCapId = ccipSeqReport.Output.Objects.FeeQuoterCapObjectId
@@ -270,9 +273,56 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampUpgradeCapId  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
 
+	// Generate the proposal to accept the ownership of the deployed contracts
+	proposalInput := mcmsops.ProposalGenerateInput{
+		Defs: []operations.Definition{
+			ccipops.AcceptOwnershipStateObjectOp.Def(),
+			routerops.AcceptOwnershipOp.Def(),
+			onrampops.AcceptOwnershipOnRampOp.Def(),
+			offrampops.AcceptOwnershipOffRampOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.AcceptOwnershipStateObjectInput{
+				CCIPPackageId:         ccipSeqReport.Output.CCIPPackageId,
+				CCIPObjectRefObjectId: ccipSeqReport.Output.Objects.CCIPObjectRefObjectId,
+			},
+			routerops.AcceptOwnershipInput{
+				RouterPackageId:     routerReport.Output.PackageId,
+				RouterStateObjectId: routerReport.Output.Objects.RouterStateObjectId,
+			},
+			onrampops.AcceptOwnershipOnRampInput{
+				OnRampPackageId: ccipOnRampSeqReport.Output.CCIPOnRampPackageId,
+				CCIPObjectRefId: ccipSeqReport.Output.Objects.CCIPObjectRefObjectId,
+				StateObjectId:   ccipOnRampSeqReport.Output.Objects.StateObjectId,
+			},
+			offrampops.AcceptOwnershipOffRampInput{
+				OffRampPackageId:     ccipOffRampSeqReport.Output.CCIPOffRampPackageId,
+				OffRampRefObjectId:   ccipSeqReport.Output.Objects.CCIPObjectRefObjectId,
+				OffRampStateObjectId: ccipOffRampSeqReport.Output.Objects.StateObjectId,
+			},
+		},
+		// MCMS related
+		MmcsPackageID:  state.MCMSPackageID,
+		McmsStateObjID: state.MCMSStateObjectID,
+		TimelockObjID:  state.MCMSTimelockObjectID,
+		AccountObjID:   state.MCMSAccountStateObjectID,
+		RegistryObjID:  state.MCMSRegistryObjectID,
+
+		// Proposal
+		Role: suisdk.TimelockRoleProposer,
+
+		ChainSelector: config.SuiChainSelector,
+	}
+
+	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+	if err != nil {
+		return cldf.ChangesetOutput{}, err
+	}
+
 	return cldf.ChangesetOutput{
-		AddressBook: ab,
-		Reports:     seqReports,
+		AddressBook:           ab,
+		Reports:               seqReports,
+		MCMSTimelockProposals: []mcms.TimelockProposal{acceptOwnershipProposalReport.Output},
 	}, nil
 }
 

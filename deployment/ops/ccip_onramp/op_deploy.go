@@ -603,37 +603,55 @@ var TransferOwnershipOnRampOp = cld_ops.NewOperation(
 
 type AcceptOwnershipOnRampInput struct {
 	OnRampPackageId string
+	CCIPObjectRefId string
 	StateObjectId   string
 }
 
-type AcceptOwnershipOnRampObjects struct {
+type NoObjects struct {
 	// No specific objects are returned from accept_ownership
 }
 
-var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[AcceptOwnershipOnRampObjects], err error) {
+var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, err
+		return sui_ops.OpTxResult[NoObjects]{}, err
+	}
+
+	encodedCall, err := onRampPackage.Encoder().AcceptOwnership(bind.Object{Id: input.CCIPObjectRefId}, bind.Object{Id: input.StateObjectId})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AcceptOwnership on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
 	}
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := onRampPackage.AcceptOwnership(
+	tx, err := onRampPackage.Bound().ExecuteTransaction(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
-		bind.Object{Id: input.StateObjectId},
+		encodedCall,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on OnRamp: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Ownership accepted for OnRamp")
+	b.Logger.Infow("Ownership accepted for CCIP StateObject")
 
-	return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{
+	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
-		Objects:   AcceptOwnershipOnRampObjects{},
+		Call:      call,
 	}, nil
 }
 
