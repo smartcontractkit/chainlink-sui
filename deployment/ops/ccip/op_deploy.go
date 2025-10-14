@@ -50,7 +50,7 @@ var deployHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input DeployCC
 	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "state_object", "CCIPObjectRef")
 	obj4, err4 := bind.FindObjectIdFromPublishTx(*tx, "onramp_state_helper", "SourceTransferCap")
 	obj5, err5 := bind.FindObjectIdFromPublishTx(*tx, "offramp_state_helper", "DestTransferCap")
-	obj6, err6 := bind.FindObjectIdFromPublishTx(*tx, "offramp_state_helper", "DestTransferCap")
+	obj6, err6 := bind.FindObjectIdFromPublishTx(*tx, "package", "UpgradeCap")
 
 	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil {
 		return sui_ops.OpTxResult[DeployCCIPObjects]{}, fmt.Errorf("failed to find object IDs in publish tx: %w", err)
