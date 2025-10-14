@@ -331,3 +331,47 @@ var USDCTokenPoolApplyAllowlistUpdatesOp = cld_ops.NewOperation(
 	"Applies allowlist updates to the USDC Token Pool",
 	applyAllowlistUpdatesHandler,
 )
+
+// USDC Token Pool -- SET_POOL
+type USDCTokenPoolSetPoolInput struct {
+	USDCTokenPoolPackageId string
+	CoinObjectTypeArg      string
+	RefObjectId            string
+	StateObjectId          string
+	OwnerCap               string
+	CoinMetadataAddress    string
+}
+
+var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input USDCTokenPoolSetPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_usdc_token_pool.NewUsdcTokenPool(input.USDCTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create USDC token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.SetPool(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.RefObjectId},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.CoinMetadataAddress,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute set pool: %w", err)
+	}
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.USDCTokenPoolPackageId,
+	}, nil
+}
+
+var USDCTokenPoolSetPoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "usdc_token_pool", "set_pool"),
+	semver.MustParse("0.1.0"),
+	"Sets the pool in the token admin registry for the USDC Token Pool",
+	setPoolHandler,
+)

@@ -354,3 +354,50 @@ var LockReleaseTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
 	"Adds a remote pool in the CCIP LockRelease Token Pool contract",
 	addRemotePoolHandler,
 )
+
+// LRTP -- set_pool
+type LockReleaseTokenPoolSetPoolInput struct {
+	LockReleaseTokenPoolPackageId string
+	CoinObjectTypeArg             string
+	RefObjectId                   string
+	StateObjectId                 string
+	OwnerCap                      string
+	CoinMetadataAddress           string
+}
+
+var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolSetPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleaseTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release token pool contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.SetPool(
+		b.GetContext(),
+		opts,
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.RefObjectId},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.CoinMetadataAddress,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute lock release token pool set pool: %w", err)
+	}
+
+	b.Logger.Infow("SetPool on LockReleaseTokenPool", "LockReleaseTokenPool PackageId:", input.LockReleaseTokenPoolPackageId)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.LockReleaseTokenPoolPackageId,
+		Objects:   NoObjects{},
+	}, err
+}
+
+var LockReleaseTokenPoolSetPoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "lock_release_token_pool", "set_pool"),
+	semver.MustParse("0.1.0"),
+	"Sets the pool in the token admin registry for the CCIP LockRelease Token Pool contract",
+	setPoolHandler,
+)
