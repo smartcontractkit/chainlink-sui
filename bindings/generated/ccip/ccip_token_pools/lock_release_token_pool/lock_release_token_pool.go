@@ -19,12 +19,13 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"destroy_token_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_balance","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_rebalancer","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_token","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"rebalancer","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"initialize_by_ccip_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"ccip_admin_proof","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"rebalancer","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"owner","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"provide_liquidity","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"c","type":"Coin<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_rebalancer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"rebalancer","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"type_and_version","parameters":null},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"withdraw_liquidity","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"amount","type":"u64"}]}]`
+const FunctionInfo = `[{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"accept_ownership","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"from","type":"sui::object::UID"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"add_remote_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"apply_allowlist_updates","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"removes","type":"vector<address>"},{"name":"adds","type":"vector<address>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"apply_chain_updates","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selectors_to_remove","type":"vector<u64>"},{"name":"remote_chain_selectors_to_add","type":"vector<u64>"},{"name":"remote_pool_addresses_to_add","type":"vector<vector<vector<u8>>>"},{"name":"remote_token_addresses_to_add","type":"vector<vector<u8>>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"destroy_token_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"to","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_allowlist","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_allowlist_enabled","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_balance","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_rebalancer","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_remote_pools","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_remote_token","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_supported_chains","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_token","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"get_token_decimals","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"has_pending_transfer","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"treasury_cap","type":"TreasuryCap<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"rebalancer","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"initialize_by_ccip_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"ccip_admin_proof","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"token_pool_administrator","type":"address"},{"name":"rebalancer","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"is_remote_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"is_supported_chain","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"remote_chain_selector","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"lock_or_burn","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token_transfer_params","type":"onramp_sh::TokenTransferParams"},{"name":"c","type":"Coin<T>"},{"name":"remote_chain_selector","type":"u64"},{"name":"clock","type":"Clock"},{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"owner","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"pending_transfer_from","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"pending_transfer_to","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"provide_liquidity","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"c","type":"Coin<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"release_or_mint","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"receiver_params","type":"offramp_sh::ReceiverParams"},{"name":"clock","type":"Clock"},{"name":"state","type":"LockReleaseTokenPoolState<T>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"remove_remote_pool","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"remote_chain_selector","type":"u64"},{"name":"remote_pool_address","type":"vector<u8>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_allowlist_enabled","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"enabled","type":"bool"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_chain_rate_limiter_config","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selector","type":"u64"},{"name":"outbound_is_enabled","type":"bool"},{"name":"outbound_capacity","type":"u64"},{"name":"outbound_rate","type":"u64"},{"name":"inbound_is_enabled","type":"bool"},{"name":"inbound_capacity","type":"u64"},{"name":"inbound_rate","type":"u64"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_chain_rate_limiter_configs","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"Clock"},{"name":"remote_chain_selectors","type":"vector<u64>"},{"name":"outbound_is_enableds","type":"vector<bool>"},{"name":"outbound_capacities","type":"vector<u64>"},{"name":"outbound_rates","type":"vector<u64>"},{"name":"inbound_is_enableds","type":"vector<bool>"},{"name":"inbound_capacities","type":"vector<u64>"},{"name":"inbound_rates","type":"vector<u64>"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"coin_metadata_address","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"set_rebalancer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"rebalancer","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"transfer_ownership","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"type_and_version","parameters":null},{"package":"lock_release_token_pool","module":"lock_release_token_pool","name":"withdraw_liquidity","parameters":[{"name":"state","type":"LockReleaseTokenPoolState<T>"},{"name":"amount","type":"u64"}]}]`
 
 type ILockReleaseTokenPool interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	Initialize(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadata bind.Object, treasuryCap bind.Object, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
 	InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error)
+	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	GetToken(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetTokenDecimals(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetRemotePools(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, remoteChainSelector uint64) (*models.SuiTransactionBlockResponse, error)
@@ -68,6 +69,7 @@ type ILockReleaseTokenPool interface {
 	McmsRemoveRemotePool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetChainRateLimiterConfigs(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DestroyTokenPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -105,6 +107,8 @@ type LockReleaseTokenPoolEncoder interface {
 	InitializeWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	InitializeByCcipAdmin(typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, tokenPoolAdministrator string, rebalancer string) (*bind.EncodedCall, error)
 	InitializeByCcipAdminWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
+	SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetToken(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
 	GetTokenWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetTokenDecimals(typeArgs []string, state bind.Object) (*bind.EncodedCall, error)
@@ -191,6 +195,8 @@ type LockReleaseTokenPoolEncoder interface {
 	McmsSetChainRateLimiterConfigsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsSetChainRateLimiterConfig(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*bind.EncodedCall, error)
 	McmsSetChainRateLimiterConfigWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsSetPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsTransferOwnership(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsTransferOwnershipWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
@@ -362,6 +368,16 @@ func (c *LockReleaseTokenPoolContract) Initialize(ctx context.Context, opts *bin
 // InitializeByCcipAdmin executes the initialize_by_ccip_admin Move function.
 func (c *LockReleaseTokenPoolContract) InitializeByCcipAdmin(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, ccipAdminProof bind.Object, coinMetadata bind.Object, tokenPoolAdministrator string, rebalancer string) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.lockReleaseTokenPoolEncoder.InitializeByCcipAdmin(typeArgs, ref, ccipAdminProof, coinMetadata, tokenPoolAdministrator, rebalancer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// SetPool executes the set_pool Move function.
+func (c *LockReleaseTokenPoolContract) SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.SetPool(typeArgs, ref, state, ownerCap, coinMetadataAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -792,6 +808,16 @@ func (c *LockReleaseTokenPoolContract) McmsSetChainRateLimiterConfigs(ctx contex
 // McmsSetChainRateLimiterConfig executes the mcms_set_chain_rate_limiter_config Move function.
 func (c *LockReleaseTokenPoolContract) McmsSetChainRateLimiterConfig(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object, clock bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.lockReleaseTokenPoolEncoder.McmsSetChainRateLimiterConfig(typeArgs, state, registry, params, clock)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsSetPool executes the mcms_set_pool Move function.
+func (c *LockReleaseTokenPoolContract) McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.lockReleaseTokenPoolEncoder.McmsSetPool(typeArgs, ref, state, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1349,6 +1375,45 @@ func (c lockReleaseTokenPoolEncoder) InitializeByCcipAdminWithArgs(typeArgs []st
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("initialize_by_ccip_admin", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// SetPool encodes a call to the set_pool Move function.
+func (c lockReleaseTokenPoolEncoder) SetPool(typeArgs []string, ref bind.Object, state bind.Object, ownerCap bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut LockReleaseTokenPoolState<T>",
+		"&OwnerCap",
+		"address",
+	}, []any{
+		ref,
+		state,
+		ownerCap,
+		coinMetadataAddress,
+	}, nil)
+}
+
+// SetPoolWithArgs encodes a call to the set_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c lockReleaseTokenPoolEncoder) SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut LockReleaseTokenPoolState<T>",
+		"&OwnerCap",
+		"address",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("set_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetToken encodes a call to the get_token Move function.
@@ -2946,6 +3011,45 @@ func (c lockReleaseTokenPoolEncoder) McmsSetChainRateLimiterConfigWithArgs(typeA
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_set_chain_rate_limiter_config", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsSetPool encodes a call to the mcms_set_pool Move function.
+func (c lockReleaseTokenPoolEncoder) McmsSetPool(typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&mut LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		ref,
+		state,
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsSetPoolWithArgs encodes a call to the mcms_set_pool Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c lockReleaseTokenPoolEncoder) McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&mut LockReleaseTokenPoolState<T>",
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsTransferOwnership encodes a call to the mcms_transfer_ownership Move function.
