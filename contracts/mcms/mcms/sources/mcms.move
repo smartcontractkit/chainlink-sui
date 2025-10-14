@@ -6,6 +6,7 @@ use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, ExecutingCallbackParams, Registry};
 use mcms::params;
 use std::string::String;
+use std::type_name::{Self, TypeName};
 use sui::bcs;
 use sui::clock::Clock;
 use sui::ecdsa_k1;
@@ -188,11 +189,10 @@ const EUnknownMCMSAccountModuleFunction: u64 = 37;
 const EUnknownMCMSModule: u64 = 38;
 const EUnknownMCMSDeployerModuleFunction: u64 = 39;
 const EInvalidMCMS: u64 = 40;
+const EWrongProofType: u64 = 41;
+const EProofDoesNotExist: u64 = 42;
 
 public struct MCMS has drop {}
-
-/// This acts as a proof type for the MCMS module.
-public struct McmsCallback has drop {}
 
 fun init(_witness: MCMS, ctx: &mut TxContext) {
     let bypasser = create_multisig(BYPASSER_ROLE);
@@ -606,6 +606,7 @@ public fun dispatch_timelock_execute_batch(
 
 public fun dispatch_timelock_bypasser_execute_batch(
     timelock_callback_params: TimelockCallbackParams,
+    registry: &Registry,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
     let TimelockCallbackParams {
@@ -627,6 +628,7 @@ public fun dispatch_timelock_bypasser_execute_batch(
 
     timelock_bypasser_execute_batch(
         role,
+        registry,
         targets,
         module_names,
         function_names,
@@ -703,18 +705,42 @@ public fun dispatch_timelock_unblock_function(
     These functions are ready to be executed therefore no validation is needed
     */
 
+/// Internal function which only returns `McmsProof` if MCMS is not registered
+/// Used for operations such as `mcms_account::accept_ownership_as_timelock` as MCMS is not registered yet
+fun get_expected_proof_type(registry: &Registry, target: address): TypeName {
+    if (mcms_registry::is_package_registered(registry, target)) {
+        mcms_registry::get_registered_proof_type(registry, target)
+    } else if (target == mcms_registry::get_multisig_address()) {
+        type_name::with_defining_ids<mcms_registry::McmsProof>()
+    } else {
+        abort EProofDoesNotExist
+    }
+}
+
+fun validate_proof_type(registry: &Registry, target: address, proof_type: TypeName) {
+    let expected_proof_type = get_expected_proof_type(registry, target);
+    assert!(proof_type == expected_proof_type, EWrongProofType);
+}
+
 public fun mcms_dispatch_to_account(
     registry: &mut Registry,
     account_state: &mut AccountState,
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms_account", EUnknownMCMSAccountModuleFunction);
+    validate_proof_type(registry, target, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
     let mut stream = bcs_stream::new(data);
@@ -745,13 +771,20 @@ public fun mcms_dispatch_to_deployer(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): UpgradeTicket {
-    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
 
     assert!(target == mcms_registry::get_multisig_address(), EUnknownMCMSModule);
     assert!(*module_name.as_bytes() == b"mcms_deployer", EUnknownMCMSDeployerModuleFunction);
+    validate_proof_type(registry, target, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
     let mut stream = bcs_stream::new(data);
@@ -783,12 +816,19 @@ public fun mcms_timelock_schedule_batch(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_schedule_batch", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let (
         targets,
@@ -822,12 +862,19 @@ public fun mcms_timelock_execute_batch(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_execute_batch", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let (
         targets,
@@ -857,12 +904,19 @@ public fun mcms_timelock_bypasser_execute_batch(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_bypasser_execute_batch", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let (
         targets,
@@ -873,6 +927,7 @@ public fun mcms_timelock_bypasser_execute_batch(
 
     timelock_bypasser_execute_batch(
         TIMELOCK_ROLE,
+        registry,
         targets,
         module_names,
         function_names,
@@ -887,12 +942,19 @@ public fun mcms_timelock_cancel(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_cancel", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let id = deserialize_timelock_cancel(data);
     timelock_cancel(timelock, TIMELOCK_ROLE, id, ctx)
@@ -904,12 +966,19 @@ public fun mcms_timelock_update_min_delay(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_update_min_delay", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let new_min_delay = deserialize_timelock_update_min_delay(data);
     timelock_update_min_delay(timelock, TIMELOCK_ROLE, new_min_delay, ctx)
@@ -921,12 +990,19 @@ public fun mcms_timelock_block_function(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_block_function", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let (target, module_name, function_name) = deserialize_timelock_function_action(data);
     timelock_block_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
@@ -938,12 +1014,19 @@ public fun mcms_timelock_unblock_function(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_unblock_function", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let (target, module_name, function_name) = deserialize_timelock_function_action(data);
     timelock_unblock_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
@@ -955,12 +1038,19 @@ public fun mcms_set_config(
     executing_callback_params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(
         registry,
         executing_callback_params,
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"set_config", EInvalidFunctionName);
+    validate_proof_type(registry, target, proof_type);
 
     let stream = &mut bcs_stream::new(data);
     let role_param = bcs_stream::deserialize_u8(stream);
@@ -1597,6 +1687,8 @@ public fun timelock_execute_batch(
         let function_name = function.function_name;
         let data = calls[i].data;
 
+        let expected_proof_type = get_expected_proof_type(registry, target);
+
         let params = mcms_registry::create_executing_callback_params(
             target,
             module_name,
@@ -1605,6 +1697,7 @@ public fun timelock_execute_batch(
             id, // batch_id = operation hash
             i, // sequence_number
             calls_len, // total_in_batch
+            expected_proof_type,
         );
         calls_to_execute.push_back(params);
 
@@ -1624,6 +1717,7 @@ public fun timelock_execute_batch(
 
 fun timelock_bypasser_execute_batch(
     role: u8,
+    registry: &Registry,
     targets: vector<address>,
     module_names: vector<String>,
     function_names: vector<String>,
@@ -1646,6 +1740,8 @@ fun timelock_bypasser_execute_batch(
         let function_name = function.function_name;
         let data = calls[i].data;
 
+        let expected_proof_type = get_expected_proof_type(registry, target);
+
         let params = mcms_registry::create_executing_callback_params(
             target,
             module_name,
@@ -1654,6 +1750,7 @@ fun timelock_bypasser_execute_batch(
             batch_id, // batch_id
             i, // sequence_number
             calls_len, // total_in_batch
+            expected_proof_type,
         );
         calls_to_execute.push_back(params);
 
@@ -2080,11 +2177,20 @@ public fun test_create_timelock_callback_params(
 #[test_only]
 public fun test_timelock_bypasser_execute_batch(
     role: u8,
+    registry: &Registry,
     targets: vector<address>,
     module_names: vector<String>,
     function_names: vector<String>,
     datas: vector<vector<u8>>,
     ctx: &mut TxContext,
 ): vector<ExecutingCallbackParams> {
-    timelock_bypasser_execute_batch(role, targets, module_names, function_names, datas, ctx)
+    timelock_bypasser_execute_batch(
+        role,
+        registry,
+        targets,
+        module_names,
+        function_names,
+        datas,
+        ctx,
+    )
 }

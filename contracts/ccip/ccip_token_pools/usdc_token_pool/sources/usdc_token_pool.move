@@ -737,6 +737,7 @@ public fun execute_ownership_transfer_to_mcms<T>(
         registry,
         to,
         McmsCallback {},
+        vector[b"usdc_token_pool"],
         ctx,
     );
 }

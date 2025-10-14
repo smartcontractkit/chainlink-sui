@@ -43,6 +43,7 @@ fun test_register_upgrade_cap() {
             &mut registry,
             MCMS_DEPLOYER_TEST {},
             TestOwnerCap { id: object::new(ctx) },
+            vector[b"mcms_deployer_test"], // Allowed test module
             ctx,
         );
 

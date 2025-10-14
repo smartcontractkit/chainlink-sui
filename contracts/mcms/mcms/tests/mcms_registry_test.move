@@ -3,6 +3,7 @@ module mcms::mcms_registry_test;
 
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
+use std::type_name;
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct TestModuleCap has key, store {
@@ -65,6 +66,7 @@ fun test_register_entrypoint() {
             &mut registry,
             TestModuleWitness {},
             module_cap,
+            vector[MODULE_NAME], // Allowed test module
             ctx,
         );
 
@@ -103,6 +105,7 @@ fun test_get_callback_params() {
             &mut registry,
             TestModuleWitness {},
             module_cap,
+            vector[MODULE_NAME], // Allowed test module
             ctx,
         );
 
@@ -124,6 +127,7 @@ fun test_get_callback_params() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<TestModuleWitness>(),
         );
 
         let (cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
@@ -169,6 +173,7 @@ fun test_get_callback_params_with_unregistered_package_cap() {
             x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<TestModuleWitness>(),
         );
 
         // This should fail because package is not registered
@@ -215,6 +220,7 @@ fun test_get_callback_params_with_wrong_package_name() {
             &mut registry,
             TestModuleWitness {},
             module_cap,
+            vector[MODULE_NAME], // Allowed test module
             ctx,
         );
 
@@ -227,6 +233,7 @@ fun test_get_callback_params_with_wrong_package_name() {
             x"0000000000000000000000000000000000000000000000000000000000000003", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<TestModuleWitness>(),
         );
 
         // This should fail because package ID doesn't match

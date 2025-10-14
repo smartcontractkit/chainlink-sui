@@ -571,6 +571,7 @@ public fun execute_ownership_transfer_to_mcms<T>(
         registry,
         to,
         McmsCallback<T> {},
+        vector[b"burn_mint_token_pool"],
         ctx,
     );
 }

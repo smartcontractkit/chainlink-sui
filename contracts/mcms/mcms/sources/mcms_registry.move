@@ -2,7 +2,7 @@ module mcms::mcms_registry;
 
 use mcms::params;
 use std::string::String;
-use std::type_name;
+use std::type_name::{Self, TypeName};
 use sui::address;
 use sui::bag::{Self, Bag};
 use sui::event;
@@ -13,6 +13,10 @@ public struct Registry has key {
     /// Maps account address -> package cap
     /// Only one cap per account address/package
     package_caps: Bag,
+    /// Maps package_address -> proof_type
+    registered_proof_types: Table<address, TypeName>,
+    /// Maps package_address -> allowed module names (as bytes)
+    allowed_modules: Table<address, vector<vector<u8>>>,
     /// Tracks batch execution state to enforce callback ordering
     batch_execution: Table<vector<u8>, BatchExecutionState>,
     /// Tracks completed batches for predecessor validation
@@ -34,19 +38,23 @@ public struct ExecutingCallbackParams {
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
+    expected_proof_type: TypeName,
 }
 
 public struct EntrypointRegistered has copy, drop {
     registry_id: ID,
     account_address: address,
-    module_name: String,
+    allowed_modules: vector<vector<u8>>,
 }
 
 const EPackageCapAlreadyRegistered: u64 = 1;
 const EPackageCapNotRegistered: u64 = 2;
 const EPackageIdMismatch: u64 = 3;
-const EModuleNameMismatch: u64 = 4;
 const EOutOfOrderExecution: u64 = 5;
+const EWrongProofType: u64 = 6;
+const EPackageNotRegistered: u64 = 7;
+const EModuleNotRegistered: u64 = 8;
+const EModuleNotAllowed: u64 = 9;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -54,6 +62,8 @@ fun init(_witness: MCMS_REGISTRY, ctx: &mut TxContext) {
     let registry = Registry {
         id: object::new(ctx),
         package_caps: bag::new(ctx),
+        registered_proof_types: table::new(ctx),
+        allowed_modules: table::new(ctx),
         batch_execution: table::new(ctx),
         completed_batches: table::new(ctx),
     };
@@ -97,10 +107,11 @@ public fun register_entrypoint<T: drop, C: key + store>(
     registry: &mut Registry,
     _proof: T,
     package_cap: C,
-    _ctx: &TxContext,
+    allowed_modules: vector<vector<u8>>,
+    _ctx: &mut TxContext,
 ) {
-    let proof_type = type_name::with_defining_ids<T>();
-    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
+    let proof_type = type_name::with_original_ids<T>();
+    let (proof_account_address, _proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
 
@@ -109,10 +120,16 @@ public fun register_entrypoint<T: drop, C: key + store>(
     // Register package cap for package address
     registry.package_caps.add(proof_account_address, package_cap);
 
+    // Register proof type for package address
+    registry.registered_proof_types.add(proof_account_address, proof_type);
+
+    // Register allowed modules for package address
+    registry.allowed_modules.add(proof_account_address, allowed_modules);
+
     event::emit(EntrypointRegistered {
         registry_id: object::id(registry),
         account_address: proof_account_address,
-        module_name: proof_module_name,
+        allowed_modules,
     });
 }
 
@@ -129,32 +146,42 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
         batch_id,
         sequence_number,
         total_in_batch,
+        expected_proof_type,
     } = params;
 
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
 
-    let proof_type = type_name::with_defining_ids<T>();
-    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
+    let proof_type = type_name::with_original_ids<T>();
+    let (proof_account_address, _proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
 
+    assert!(proof_type == expected_proof_type, EWrongProofType);
     assert!(target == proof_account_address, EPackageIdMismatch);
-    assert!(module_name == proof_module_name, EModuleNameMismatch);
 
     // Validate the proof comes from same package ID
     assert!(registry.package_caps.contains(proof_account_address), EPackageCapNotRegistered);
+    assert!(registry.allowed_modules.contains(proof_account_address), EPackageNotRegistered);
+
+    // Validate that the `module_name` is in the allowed modules list
+    let allowed = registry.allowed_modules.borrow(proof_account_address);
+    assert!(allowed.contains(module_name.as_bytes()), EModuleNotAllowed);
 
     let package_cap = registry.package_caps.borrow(proof_account_address);
     (package_cap, function_name, data)
 }
 
 public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _witness: T): C {
-    let proof_type = type_name::with_defining_ids<T>();
+    let proof_type = type_name::with_original_ids<T>();
     let (proof_account_address, _) = params::get_account_address_and_module_name(
         proof_type,
     );
 
     assert!(registry.package_caps.contains(proof_account_address), EPackageCapNotRegistered);
+    assert!(registry.registered_proof_types.contains(proof_account_address), EModuleNotRegistered);
+
+    let expected_type = registry.registered_proof_types.borrow(proof_account_address);
+    assert!(proof_type == *expected_type, EWrongProofType);
 
     registry.package_caps.remove(proof_account_address)
 }
@@ -176,17 +203,20 @@ public fun get_callback_params<T: drop>(
         batch_id,
         sequence_number,
         total_in_batch,
+        expected_proof_type,
     } = params;
 
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
 
-    let proof_type = type_name::with_defining_ids<T>();
-    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
+    let proof_type = type_name::with_original_ids<T>();
+    let (proof_account_address, _) = params::get_account_address_and_module_name(
         proof_type,
     );
 
     assert!(target == proof_account_address, EPackageIdMismatch);
-    assert!(module_name == proof_module_name, EModuleNameMismatch);
+
+    // Validate the proof type matches the expected proof type
+    assert!(proof_type == expected_proof_type, EWrongProofType);
 
     (target, module_name, function_name, data)
 }
@@ -194,7 +224,7 @@ public fun get_callback_params<T: drop>(
 public(package) fun get_callback_params_from_mcms(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
-): (address, String, String, vector<u8>) {
+): (address, String, String, vector<u8>, TypeName) {
     let ExecutingCallbackParams {
         target,
         module_name,
@@ -203,11 +233,12 @@ public(package) fun get_callback_params_from_mcms(
         batch_id,
         sequence_number,
         total_in_batch,
+        expected_proof_type,
     } = params;
 
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
 
-    (target, module_name, function_name, data)
+    (target, module_name, function_name, data, expected_proof_type)
 }
 
 public(package) fun create_executing_callback_params(
@@ -218,6 +249,7 @@ public(package) fun create_executing_callback_params(
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
+    expected_proof_type: TypeName,
 ): ExecutingCallbackParams {
     ExecutingCallbackParams {
         target,
@@ -227,11 +259,20 @@ public(package) fun create_executing_callback_params(
         batch_id,
         sequence_number,
         total_in_batch,
+        expected_proof_type,
     }
 }
 
 public fun is_package_registered(registry: &Registry, package_address: address): bool {
     registry.package_caps.contains(package_address)
+}
+
+public(package) fun get_registered_proof_type(
+    registry: &Registry,
+    package_address: address,
+): TypeName {
+    assert!(registry.registered_proof_types.contains(package_address), EPackageNotRegistered);
+    *registry.registered_proof_types.borrow(package_address)
 }
 
 public fun target(params: &ExecutingCallbackParams): address {
@@ -293,6 +334,7 @@ public fun test_create_executing_callback_params(
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
+    expected_proof_type: TypeName,
 ): ExecutingCallbackParams {
     create_executing_callback_params(
         target,
@@ -302,5 +344,6 @@ public fun test_create_executing_callback_params(
         batch_id,
         sequence_number,
         total_in_batch,
+        expected_proof_type,
     )
 }

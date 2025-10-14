@@ -150,6 +150,7 @@ public fun execute_ownership_transfer_to_mcms(
         registry,
         to,
         McmsCallback {},
+        vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"],
         ctx,
     );
 }
@@ -182,6 +183,10 @@ public fun pending_transfer_accepted(ref: &CCIPObjectRef): Option<bool> {
 public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
+
+public(package) fun mcms_callback(): McmsCallback {
+    McmsCallback {}
+}
 
 public fun mcms_add_package_id(
     ref: &mut CCIPObjectRef,

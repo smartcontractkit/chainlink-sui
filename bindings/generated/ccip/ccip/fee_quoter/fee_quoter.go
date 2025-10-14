@@ -292,9 +292,6 @@ type PremiumMultiplierWeiPerEthUpdated struct {
 	PremiumMultiplierWeiPerEth uint64 `move:"u64"`
 }
 
-type McmsCallback struct {
-}
-
 type bcsFeeQuoterState struct {
 	Id                           string
 	MaxFeeJuelsPerMsg            [32]byte
@@ -864,23 +861,6 @@ func init() {
 				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
 			}
 			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
 		}
 		return results, nil
 	})
