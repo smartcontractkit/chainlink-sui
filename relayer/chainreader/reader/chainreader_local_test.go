@@ -378,7 +378,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		// original key should not be present when renamed
 		_, hasOriginal := renamed["value"]
 		require.False(t, hasOriginal)
-		require.Equal(t, uint64(42), renamed["renamedValue"])
+		require.Equal(t, "42", renamed["renamedValue"])
 	})
 
 	t.Run("GetLatestValue_AddressList", func(t *testing.T) {
@@ -466,7 +466,7 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 
 		// Verify the returned struct
 		require.NotNil(t, retTupleStruct)
-		require.Equal(t, uint64(42), retTupleStruct["value"], "Expected value to be 42")
+		require.Equal(t, "42", retTupleStruct["value"], "Expected value to be 42")
 		require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000001", retTupleStruct["address"], "Expected address to be 0x0000000000000000000000000000000000000000000000000000000000000001")
 		require.Equal(t, true, retTupleStruct["bool"], "Expected bool to be true")
 

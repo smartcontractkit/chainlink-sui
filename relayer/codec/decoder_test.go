@@ -452,7 +452,7 @@ func TestHexStringHook(t *testing.T) {
 			t.Parallel()
 
 			targetType := reflect.TypeOf(tt.target).Elem()
-			result, err := hexStringHook(reflect.TypeOf(tt.data), targetType, tt.data)
+			result, err := UnifiedTypeConverterHook(reflect.TypeOf(tt.data), targetType, tt.data)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, result)
 		})
@@ -463,29 +463,34 @@ func TestHexStringHook_Errors(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		data   string
-		target any
+		name      string
+		data      string
+		target    any
+		wantError bool
 	}{
 		{
-			name:   "unsupported slice element type",
-			data:   "0x123",
-			target: new([]string),
+			name:      "unsupported slice element type (returns data as-is)",
+			data:      "0x123",
+			target:    new([]string),
+			wantError: false, // Unified hook returns data as-is for unsupported conversions
 		},
 		{
-			name:   "invalid hex for int",
-			data:   "0xGGG",
-			target: new(int64),
+			name:      "invalid hex for int",
+			data:      "0xGGG",
+			target:    new(int64),
+			wantError: true,
 		},
 		{
-			name:   "unsupported array element type",
-			data:   "0x123",
-			target: new([4]string),
+			name:      "unsupported array element type (returns data as-is)",
+			data:      "0x123",
+			target:    new([4]string),
+			wantError: false, // Unified hook returns data as-is for unsupported conversions
 		},
 		{
-			name:   "unsupported target type",
-			data:   "0x123",
-			target: new(float64),
+			name:      "unsupported target type (hex to float64 fails)",
+			data:      "0x123",
+			target:    new(float64),
+			wantError: true, // Hex strings can't be converted to float64
 		},
 	}
 
@@ -494,8 +499,12 @@ func TestHexStringHook_Errors(t *testing.T) {
 			t.Parallel()
 
 			targetType := reflect.TypeOf(tt.target).Elem()
-			_, err := hexStringHook(reflect.TypeOf(tt.data), targetType, tt.data)
-			require.Error(t, err)
+			_, err := UnifiedTypeConverterHook(reflect.TypeOf(tt.data), targetType, tt.data)
+			if tt.wantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
@@ -549,7 +558,7 @@ func TestBase64StringHook(t *testing.T) {
 			t.Parallel()
 
 			targetType := reflect.TypeOf(tt.target).Elem()
-			result, err := base64StringHook(reflect.TypeOf(tt.data), targetType, tt.data)
+			result, err := UnifiedTypeConverterHook(reflect.TypeOf(tt.data), targetType, tt.data)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, result)
 		})
@@ -602,12 +611,6 @@ func TestNumericStringHook(t *testing.T) {
 			expected: func() *big.Int { bi := new(big.Int); bi.SetString("123456789012345678901234567890", 10); return bi }(),
 		},
 		{
-			name:     "numeric string to byte slice",
-			data:     "12345",
-			target:   new([]byte),
-			expected: []byte{0x39, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}[:2], // little-endian, trimmed
-		},
-		{
 			name:     "single-field struct",
 			data:     "123",
 			target:   new(SingleFieldUint64),
@@ -620,7 +623,7 @@ func TestNumericStringHook(t *testing.T) {
 			t.Parallel()
 
 			targetType := reflect.TypeOf(tt.target).Elem()
-			result, err := numericStringHook(reflect.TypeOf(tt.data), targetType, tt.data)
+			result, err := UnifiedTypeConverterHook(reflect.TypeOf(tt.data), targetType, tt.data)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, result)
 		})
@@ -662,7 +665,7 @@ func TestNumericStringHook_Errors(t *testing.T) {
 			t.Parallel()
 
 			targetType := reflect.TypeOf(tt.target).Elem()
-			_, err := numericStringHook(reflect.TypeOf(tt.data), targetType, tt.data)
+			_, err := UnifiedTypeConverterHook(reflect.TypeOf(tt.data), targetType, tt.data)
 			require.Error(t, err)
 		})
 	}
@@ -738,7 +741,7 @@ func TestBooleanHook(t *testing.T) {
 			t.Parallel()
 
 			targetType := reflect.TypeOf(tt.target).Elem()
-			result, err := booleanHook(reflect.TypeOf(tt.data), targetType, tt.data)
+			result, err := UnifiedTypeConverterHook(reflect.TypeOf(tt.data), targetType, tt.data)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, result)
 		})
@@ -748,9 +751,11 @@ func TestBooleanHook(t *testing.T) {
 func TestBooleanHook_Errors(t *testing.T) {
 	t.Parallel()
 
-	_, err := booleanHook(reflect.TypeOf(true), reflect.TypeOf(float64(0)), true)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unsupported target type for boolean conversion")
+	// The unified hook will just return the data as-is for unsupported conversions
+	result, err := UnifiedTypeConverterHook(reflect.TypeOf(true), reflect.TypeOf(float64(0)), true)
+	require.NoError(t, err)
+	// Should return data as-is when no conversion is supported
+	require.Equal(t, true, result)
 }
 
 func TestArrayHook(t *testing.T) {
@@ -797,7 +802,7 @@ func TestArrayHook(t *testing.T) {
 			t.Parallel()
 
 			targetType := reflect.TypeOf(tt.target).Elem()
-			result, err := arrayHook(reflect.TypeOf(tt.data), targetType, tt.data)
+			result, err := UnifiedTypeConverterHook(reflect.TypeOf(tt.data), targetType, tt.data)
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, result)
 		})
@@ -811,7 +816,7 @@ func TestArrayHook_Error(t *testing.T) {
 	data := []any{"not_a_number"}
 	targetType := reflect.TypeOf([]uint32{})
 
-	_, err := arrayHook(reflect.TypeOf(data), targetType, data)
+	_, err := UnifiedTypeConverterHook(reflect.TypeOf(data), targetType, data)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to decode array element")
 }

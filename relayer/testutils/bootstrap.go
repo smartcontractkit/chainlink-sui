@@ -8,10 +8,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
-	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 	"github.com/test-go/testify/require"
 	"golang.org/x/net/context"
+
+	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/txm"
 )
 
 const (
@@ -120,10 +121,13 @@ func SetupTestEnv(
 
 	lgr.Debugw("Published Contract", "packageId", packageId)
 
-	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
+	// counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
+	// require.NoError(t, err)
+
+	counterTableObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "CounterTable")
 	require.NoError(t, err)
 
 	suiClient, txManager, transactionRepository := SetupClients(t, LocalUrl, keystoreInstance, lgr, gasLimit)
 
-	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
+	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterTableObjectId
 }
