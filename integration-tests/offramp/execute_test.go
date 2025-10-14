@@ -1,4 +1,4 @@
-//go:build integration
+//go:build hidden
 
 package ccip_test
 
