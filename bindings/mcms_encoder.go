@@ -43,7 +43,6 @@ func overrideCall(call *bind.EncodedCall, module, function string) *bind.Encoded
 	call.Module.ModuleName = module
 	call.Function = fmt.Sprintf("mcms_%s", strings.TrimPrefix(function, "mcms_"))
 
-	fmt.Println("OVERRIDING CALL", "MODULE", call.Module.ModuleName, "FUNCTION", call.Function)
 	return call
 }
 
@@ -127,7 +126,7 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			return moduleStateObj.Encoder().McmsAcceptOwnershipWithArgs(stateObj, executingCallbackParams)
+			return moduleStateObj.Encoder().McmsAcceptOwnershipWithArgs(stateObj, registryObj, executingCallbackParams)
 		}
 
 	// OFFRAMP
