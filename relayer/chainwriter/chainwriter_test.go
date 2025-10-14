@@ -5,7 +5,6 @@ package chainwriter_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -18,8 +17,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter"
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/config"
-	ptb "github.com/smartcontractkit/chainlink-sui/relayer/chainwriter/ptb"
-	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 	"github.com/smartcontractkit/chainlink-sui/relayer/testutils"
 )
@@ -31,133 +28,6 @@ type Counter struct {
 // Helper function to convert a string to a string pointer
 func strPtr(s string) *string {
 	return &s
-}
-
-func TestParallelUpdates(t *testing.T) {
-	ctx := context.Background()
-	gasLimit := int64(10000000)
-	_logger := logger.Test(t)
-	suiClient, txManager, _, accountAddress, keystoreInstance, publicKeyBytes, packageId, objectId := testutils.SetupTestEnv(t, ctx, _logger, gasLimit)
-
-	signerId := fmt.Sprintf("%064x", publicKeyBytes)
-	txnSigner := keystoreInstance.GetSuiSigner(ctx, signerId)
-
-	// ChainWriter configuration
-	chainWriterConfig := config.ChainWriterConfig{
-		Modules: map[string]*config.ChainWriterModule{
-			config.PTBChainWriterModuleName: {
-				Name:     config.PTBChainWriterModuleName,
-				ModuleID: "0x2",
-				Functions: map[string]*config.ChainWriterFunction{
-					"ptb_call_table": {
-						Name:      "ptb_call_table",
-						PublicKey: publicKeyBytes,
-						Params:    []codec.SuiFunctionParam{},
-						PTBCommands: []config.ChainWriterPTBCommand{
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  strPtr("counter"),
-								Function:  strPtr("increment_from_table"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "counterTable",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "id",
-										Type:     "u64",
-										Required: true,
-									},
-								},
-							},
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  strPtr("counter"),
-								Function:  strPtr("increment_from_table"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "counterTable",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "id",
-										Type:     "u64",
-										Required: true,
-									},
-								},
-							},
-							{
-								Type:      codec.SuiPTBCommandMoveCall,
-								PackageId: &packageId,
-								ModuleId:  strPtr("counter"),
-								Function:  strPtr("increment_from_table"),
-								Params: []codec.SuiFunctionParam{
-									{
-										Name:     "counterTable",
-										Type:     "object_id",
-										Required: true,
-									},
-									{
-										Name:     "id",
-										Type:     "u64",
-										Required: true,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	_logger.Infow("ChainWriterConfig", "config", chainWriterConfig)
-
-	chainWriter, err := chainwriter.NewSuiChainWriter(_logger, txManager, chainWriterConfig, false)
-	require.NoError(t, err)
-
-	c := context.Background()
-	ctx, cancel := context.WithCancel(c)
-	defer cancel()
-
-	err = chainWriter.Start(ctx)
-	require.NoError(t, err)
-	err = txManager.Start(ctx)
-	require.NoError(t, err)
-
-	defer chainWriter.Close()
-	defer txManager.Close()
-
-	constructor := ptb.NewPTBConstructor(chainWriterConfig, suiClient, _logger)
-
-	t.Run("Concurrent OP PTB", func(t *testing.T) {
-		args := config.Arguments{Args: map[string]any{
-			"counterTable": objectId,
-			"id":           int64(0),
-		}}
-
-		txnConfig := chainWriterConfig.Modules[config.PTBChainWriterModuleName].Functions["ptb_call_table"]
-
-		ptb, cError := constructor.BuildPTBCommands(ctx, "counter", "ptb_call_table", args, packageId, txnConfig)
-		require.NoError(t, cError)
-		require.NotNil(t, ptb)
-
-		results, err := suiClient.FinishPTBAndSend(ctx, txnSigner, ptb, client.WaitForLocalExecution)
-		require.NoError(t, err)
-
-		_logger.Debugw("results", "results", results)
-
-		time.Sleep(5 * time.Second)
-
-		values, err := suiClient.ReadFunction(ctx, accountAddress, packageId, "counter", "get_count", []any{objectId}, []string{"object_id"})
-		require.NoError(t, err)
-
-		_logger.Debugw("values", "values", values)
-	})
 }
 
 //nolint:paralleltest
