@@ -15,6 +15,11 @@ require (
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
+// use local modules
+replace github.com/smartcontractkit/chainlink-sui => ../
+
+replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
@@ -133,7 +138,7 @@ require (
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250905115425-2785a5cee79d // indirect
-	github.com/smartcontractkit/mcms v0.26.1-0.20251013181329-bb6a47c7284c // indirect
+	github.com/smartcontractkit/mcms v0.26.1 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/stephenlacy/go-ethereum-hdwallet v0.0.0-20230913225845-a4fa94429863 // indirect
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect
@@ -190,8 +195,3 @@ require (
 	google.golang.org/protobuf v1.36.7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// use local modules
-// TODO: Temporary remove until mcms lib has the latest compatible release
-// github.com/smartcontractkit/chainlink-sui => ../
-replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
