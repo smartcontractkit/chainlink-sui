@@ -15,6 +15,11 @@ require (
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
+// use local modules
+replace github.com/smartcontractkit/chainlink-sui => ../
+
+replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
@@ -190,8 +195,3 @@ require (
 	google.golang.org/protobuf v1.36.7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// use local modules
-// TODO: Temporary remove until mcms lib has the latest compatible release
-// github.com/smartcontractkit/chainlink-sui => ../
-replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
