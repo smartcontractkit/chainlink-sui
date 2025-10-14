@@ -276,6 +276,8 @@ public fun initialize(
     state_object::add(ref, owner_cap, state, ctx);
 }
 
+// create a new fee quoter cap if we need to create a new offramp state object
+// or to update a token price on demand
 public fun new_fee_quoter_cap(
     ref: &CCIPObjectRef,
     owner_cap: &OwnerCap,

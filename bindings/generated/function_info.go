@@ -5,6 +5,7 @@ package generated
 import (
     module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
     module_nonce_manager "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/nonce_manager"
+    module_offramp_state_helper "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/offramp_state_helper"
     module_receiver_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/receiver_registry"
     module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
     module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
@@ -35,6 +36,7 @@ import (
 var FunctionInfoByModule = map[string]string{
     "fee_quoter": module_fee_quoter.FunctionInfo,
     "nonce_manager": module_nonce_manager.FunctionInfo,
+    "offramp_state_helper": module_offramp_state_helper.FunctionInfo,
     "receiver_registry": module_receiver_registry.FunctionInfo,
     "rmn_remote": module_rmn_remote.FunctionInfo,
     "state_object": module_state_object.FunctionInfo,
