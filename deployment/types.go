@@ -10,6 +10,7 @@ var (
 	SuiCCIPType                      deployment.ContractType = "SuiCCIP"
 	SuiCCIPObjectRefType             deployment.ContractType = "SuiCCIPObjectRef"
 	SuiCCIPOwnerCapObjectIDType      deployment.ContractType = "SuiCCIPOwnerCapObjectID"
+	SuiCCIPUpgradeCapObjectIDType    deployment.ContractType = "SuiCCIPUpgradeCapObjectID"
 	SuiFeeQuoterCapType              deployment.ContractType = "SuiCCIPFeeQuoterCap"
 	SuiOnRampType                    deployment.ContractType = "SuiOnRamp"
 	SuiOnRampStateObjectIDType       deployment.ContractType = "SuiOnRampStateObjectID"
