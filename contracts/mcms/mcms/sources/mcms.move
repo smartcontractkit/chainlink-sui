@@ -845,6 +845,22 @@ public fun mcms_dispatch_to_registry(
             new_module_names,
             ctx,
         );
+    } else if (function_name_bytes == b"remove_allowed_modules") {
+        let mut stream = bcs_stream::new(data);
+        bcs_stream::validate_obj_addr(object::id_address(registry), &mut stream);
+
+        let module_names = bcs_stream::deserialize_vector!(
+            &mut stream,
+            |stream| bcs_stream::deserialize_vector_u8(stream),
+        );
+        bcs_stream::assert_is_consumed(&stream);
+
+        mcms_registry::remove_allowed_modules(
+            registry,
+            mcms_registry::create_mcms_proof(),
+            module_names,
+            ctx,
+        );
     } else {
         abort EUnknownMCMSRegistryModuleFunction
     }

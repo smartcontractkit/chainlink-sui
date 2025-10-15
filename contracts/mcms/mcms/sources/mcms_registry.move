@@ -53,6 +53,12 @@ public struct ModulesAdded has copy, drop {
     module_names: vector<vector<u8>>,
 }
 
+public struct ModulesRemoved has copy, drop {
+    registry_id: ID,
+    package_address: address,
+    module_names: vector<vector<u8>>,
+}
+
 const EPackageCapAlreadyRegistered: u64 = 1;
 const EPackageCapNotRegistered: u64 = 2;
 const EPackageIdMismatch: u64 = 3;
@@ -62,6 +68,7 @@ const EPackageNotRegistered: u64 = 7;
 const EModuleNotRegistered: u64 = 8;
 const EModuleNotAllowed: u64 = 9;
 const EModuleAlreadyAllowed: u64 = 10;
+const EModuleNotInAllowlist: u64 = 11;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -172,6 +179,43 @@ public fun add_allowed_modules<T: drop>(
         registry_id: object::id(registry),
         package_address: proof_account_address,
         module_names: new_allowed_modules,
+    });
+}
+
+/// Remove modules from the allowed modules list for a registered package.
+public fun remove_allowed_modules<T: drop>(
+    registry: &mut Registry,
+    _proof: T,
+    modules_to_remove: vector<vector<u8>>,
+    _ctx: &mut TxContext,
+) {
+    let proof_type = type_name::with_original_ids<T>();
+    let (proof_account_address, _) = params::get_account_address_and_module_name(
+        proof_type,
+    );
+
+    // Validate the package is registered
+    assert!(registry.allowed_modules.contains(proof_account_address), EPackageNotRegistered);
+
+    // Validate proof type matches the expected proof type
+    let expected_proof_type = *registry.registered_proof_types.borrow(proof_account_address);
+    assert!(proof_type == expected_proof_type, EWrongProofType);
+
+    let allowed_modules = registry.allowed_modules.borrow_mut(proof_account_address);
+    
+    let mut i = 0;
+    while (i < modules_to_remove.length()) {
+        let (found, index) = allowed_modules.index_of(&modules_to_remove[i]);
+        assert!(found, EModuleNotInAllowlist);
+
+        allowed_modules.remove(index);
+        i = i + 1;
+    };
+
+    event::emit(ModulesRemoved {
+        registry_id: object::id(registry),
+        package_address: proof_account_address,
+        module_names: modules_to_remove,
     });
 }
 

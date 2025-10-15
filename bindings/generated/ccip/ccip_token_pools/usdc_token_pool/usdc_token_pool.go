@@ -70,6 +70,7 @@ type IUsdcTokenPool interface {
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsSetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IUsdcTokenPoolDevInspect
 	Encoder() UsdcTokenPoolEncoder
 	Bound() bind.IBoundContract
@@ -192,6 +193,8 @@ type UsdcTokenPoolEncoder interface {
 	McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type UsdcTokenPoolContract struct {
@@ -821,6 +824,16 @@ func (c *UsdcTokenPoolContract) McmsSetPool(ctx context.Context, opts *bind.Call
 // McmsAddAllowedModules executes the mcms_add_allowed_modules Move function.
 func (c *UsdcTokenPoolContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.usdcTokenPoolEncoder.McmsAddAllowedModules(registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsRemoveAllowedModules executes the mcms_remove_allowed_modules Move function.
+func (c *UsdcTokenPoolContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.usdcTokenPoolEncoder.McmsRemoveAllowedModules(registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -3006,4 +3019,33 @@ func (c usdcTokenPoolEncoder) McmsAddAllowedModulesWithArgs(args ...any) (*bind.
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsRemoveAllowedModules encodes a call to the mcms_remove_allowed_modules Move function.
+func (c usdcTokenPoolEncoder) McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsRemoveAllowedModulesWithArgs encodes a call to the mcms_remove_allowed_modules Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c usdcTokenPoolEncoder) McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

@@ -444,3 +444,200 @@ fun test_add_module_package_not_registered() {
 
     ts::end(scenario);
 }
+
+// ================================================================
+// |         Remove Allowed Modules Tests                        |
+// ================================================================
+
+#[test]
+#[allow(implicit_const_copy)]
+fun test_remove_allowed_modules() {
+    let mut scenario = create_test_scenario();
+
+    // Transaction 1: Initialize registry
+    {
+        let ctx = ts::ctx(&mut scenario);
+        mcms_registry::test_init(ctx);
+    };
+
+    ts::next_tx(&mut scenario, @0xA);
+
+    // Transaction 2: Register module with initial allowed modules
+    {
+        let mut registry = ts::take_shared<Registry>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+        let module_cap = TestModuleCap { id: object::new(ctx) };
+
+        mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
+            &mut registry,
+            TestModuleWitness {},
+            module_cap,
+            vector[MODULE_NAME, b"extra_module"], // Register with two modules
+            ctx,
+        );
+
+        ts::return_shared(registry);
+    };
+
+    ts::next_tx(&mut scenario, @0xA);
+
+    // Transaction 3: Remove one module from allowed list
+    {
+        let mut registry = ts::take_shared<Registry>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+
+        // Remove extra_module
+        mcms_registry::remove_allowed_modules(
+            &mut registry,
+            TestModuleWitness {},
+            vector[b"extra_module"],
+            ctx,
+        );
+
+        // Verify extra_module was removed, but MODULE_NAME still exists
+        let allowed = mcms_registry::get_allowed_modules(
+            &registry,
+            mcms_registry::get_multisig_address(),
+        );
+        assert!(allowed.contains(&MODULE_NAME), 0);
+        assert!(!allowed.contains(&b"extra_module"), 1);
+
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::EModuleNotInAllowlist)]
+fun test_remove_module_not_in_allowlist() {
+    let mut scenario = create_test_scenario();
+
+    // Transaction 1: Initialize registry
+    {
+        let ctx = ts::ctx(&mut scenario);
+        mcms_registry::test_init(ctx);
+    };
+
+    ts::next_tx(&mut scenario, @0xA);
+
+    // Transaction 2: Register module
+    {
+        let mut registry = ts::take_shared<Registry>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+        let module_cap = TestModuleCap { id: object::new(ctx) };
+
+        mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
+            &mut registry,
+            TestModuleWitness {},
+            module_cap,
+            vector[MODULE_NAME],
+            ctx,
+        );
+
+        ts::return_shared(registry);
+    };
+
+    ts::next_tx(&mut scenario, @0xA);
+
+    // Transaction 3: Try to remove a module that doesn't exist (should fail)
+    {
+        let mut registry = ts::take_shared<Registry>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+
+        // Try to remove nonexistent_module (should fail with EModuleNotInAllowlist)
+        mcms_registry::remove_allowed_modules(
+            &mut registry,
+            TestModuleWitness {},
+            vector[b"nonexistent_module"],
+            ctx,
+        );
+
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::EWrongProofType)]
+fun test_remove_module_wrong_proof_type() {
+    let mut scenario = create_test_scenario();
+
+    // Transaction 1: Initialize registry
+    {
+        let ctx = ts::ctx(&mut scenario);
+        mcms_registry::test_init(ctx);
+    };
+
+    ts::next_tx(&mut scenario, @0xA);
+
+    // Transaction 2: Register module with TestModuleWitness
+    {
+        let mut registry = ts::take_shared<Registry>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+        let module_cap = TestModuleCap { id: object::new(ctx) };
+
+        mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
+            &mut registry,
+            TestModuleWitness {},
+            module_cap,
+            vector[MODULE_NAME],
+            ctx,
+        );
+
+        ts::return_shared(registry);
+    };
+
+    ts::next_tx(&mut scenario, @0xA);
+
+    // Transaction 3: Try to remove module with a different unregistered witness type
+    {
+        let mut registry = ts::take_shared<Registry>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+
+        // This should fail because DifferentWitness package is not registered `EWrongProofType`
+        mcms_registry::remove_allowed_modules(
+            &mut registry,
+            DifferentWitness {},
+            vector[MODULE_NAME],
+            ctx,
+        );
+
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::EPackageNotRegistered)]
+fun test_remove_module_package_not_registered() {
+    let mut scenario = create_test_scenario();
+
+    // Transaction 1: Initialize registry
+    {
+        let ctx = ts::ctx(&mut scenario);
+        mcms_registry::test_init(ctx);
+    };
+
+    ts::next_tx(&mut scenario, @0xA);
+
+    // Transaction 2: Try to remove module without registering package first
+    {
+        let mut registry = ts::take_shared<Registry>(&scenario);
+        let ctx = ts::ctx(&mut scenario);
+
+        // This should fail because package is not registered
+        mcms_registry::remove_allowed_modules(
+            &mut registry,
+            TestModuleWitness {},
+            vector[MODULE_NAME],
+            ctx,
+        );
+
+        ts::return_shared(registry);
+    };
+
+    ts::end(scenario);
+}

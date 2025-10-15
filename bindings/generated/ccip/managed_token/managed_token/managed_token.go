@@ -61,6 +61,7 @@ type IManagedToken interface {
 	McmsPause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsUnpause(ctx context.Context, opts *bind.CallOpts, typeArgs []string, state bind.Object, registry bind.Object, denyList bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IManagedTokenDevInspect
 	Encoder() ManagedTokenEncoder
 	Bound() bind.IBoundContract
@@ -161,6 +162,8 @@ type ManagedTokenEncoder interface {
 	McmsUnpauseWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	McmsAddAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsAddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 }
 
 type ManagedTokenContract struct {
@@ -1016,6 +1019,16 @@ func (c *ManagedTokenContract) McmsUnpause(ctx context.Context, opts *bind.CallO
 // McmsAddAllowedModules executes the mcms_add_allowed_modules Move function.
 func (c *ManagedTokenContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.managedTokenEncoder.McmsAddAllowedModules(typeArgs, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsRemoveAllowedModules executes the mcms_remove_allowed_modules Move function.
+func (c *ManagedTokenContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.managedTokenEncoder.McmsRemoveAllowedModules(typeArgs, registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -2715,4 +2728,37 @@ func (c managedTokenEncoder) McmsAddAllowedModulesWithArgs(typeArgs []string, ar
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsRemoveAllowedModules encodes a call to the mcms_remove_allowed_modules Move function.
+func (c managedTokenEncoder) McmsRemoveAllowedModules(typeArgs []string, registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsRemoveAllowedModulesWithArgs encodes a call to the mcms_remove_allowed_modules Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c managedTokenEncoder) McmsRemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

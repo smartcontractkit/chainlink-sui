@@ -19,11 +19,12 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"add_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"new_allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"},{"name":"expected_proof_type","type":"TypeName"}]},{"package":"mcms","module":"mcms_registry","name":"create_mcms_proof","parameters":null},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_with_caps","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"get_registered_proof_type","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"_witness","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"add_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"new_allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"},{"name":"expected_proof_type","type":"TypeName"}]},{"package":"mcms","module":"mcms_registry","name":"create_mcms_proof","parameters":null},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_with_caps","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"get_registered_proof_type","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"address"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"_witness","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"remove_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"modules_to_remove","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
 
 type IMcmsRegistry interface {
 	RegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
 	AddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, newAllowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
+	RemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, modulesToRemove [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, witness bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BorrowOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -71,6 +72,8 @@ type McmsRegistryEncoder interface {
 	RegisterEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	AddAllowedModules(typeArgs []string, registry bind.Object, proof bind.Object, newAllowedModules [][]byte) (*bind.EncodedCall, error)
 	AddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	RemoveAllowedModules(typeArgs []string, registry bind.Object, proof bind.Object, modulesToRemove [][]byte) (*bind.EncodedCall, error)
+	RemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetCallbackParamsWithCaps(typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*bind.EncodedCall, error)
 	GetCallbackParamsWithCapsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	ReleaseCap(typeArgs []string, registry bind.Object, witness bind.Object) (*bind.EncodedCall, error)
@@ -183,6 +186,12 @@ type ModulesAdded struct {
 	ModuleNames    [][]byte    `move:"vector<vector<u8>>"`
 }
 
+type ModulesRemoved struct {
+	RegistryId     bind.Object `move:"ID"`
+	PackageAddress string      `move:"address"`
+	ModuleNames    [][]byte    `move:"vector<vector<u8>>"`
+}
+
 type MCMS_REGISTRY struct {
 }
 
@@ -238,6 +247,21 @@ type bcsModulesAdded struct {
 func convertModulesAddedFromBCS(bcs bcsModulesAdded) (ModulesAdded, error) {
 
 	return ModulesAdded{
+		RegistryId:     bcs.RegistryId,
+		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
+		ModuleNames:    bcs.ModuleNames,
+	}, nil
+}
+
+type bcsModulesRemoved struct {
+	RegistryId     bind.Object
+	PackageAddress [32]byte
+	ModuleNames    [][]byte
+}
+
+func convertModulesRemovedFromBCS(bcs bcsModulesRemoved) (ModulesRemoved, error) {
+
+	return ModulesRemoved{
 		RegistryId:     bcs.RegistryId,
 		PackageAddress: fmt.Sprintf("0x%x", bcs.PackageAddress),
 		ModuleNames:    bcs.ModuleNames,
@@ -372,6 +396,37 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("mcms::mcms_registry::ModulesRemoved", func(data []byte) (interface{}, error) {
+		var temp bcsModulesRemoved
+		_, err := mystenbcs.Unmarshal(data, &temp)
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := convertModulesRemovedFromBCS(temp)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for ModulesRemoved
+	bind.RegisterStructDecoder("vector<mcms::mcms_registry::ModulesRemoved>", func(data []byte) (interface{}, error) {
+		var temps []bcsModulesRemoved
+		_, err := mystenbcs.Unmarshal(data, &temps)
+		if err != nil {
+			return nil, err
+		}
+
+		results := make([]ModulesRemoved, len(temps))
+		for i, temp := range temps {
+			result, err := convertModulesRemovedFromBCS(temp)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
+			}
+			results[i] = result
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("mcms::mcms_registry::MCMS_REGISTRY", func(data []byte) (interface{}, error) {
 		var result MCMS_REGISTRY
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -421,6 +476,16 @@ func (c *McmsRegistryContract) RegisterEntrypoint(ctx context.Context, opts *bin
 // AddAllowedModules executes the add_allowed_modules Move function.
 func (c *McmsRegistryContract) AddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, newAllowedModules [][]byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsRegistryEncoder.AddAllowedModules(typeArgs, registry, proof, newAllowedModules)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// RemoveAllowedModules executes the remove_allowed_modules Move function.
+func (c *McmsRegistryContract) RemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, modulesToRemove [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsRegistryEncoder.RemoveAllowedModules(typeArgs, registry, proof, modulesToRemove)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1029,6 +1094,42 @@ func (c mcmsRegistryEncoder) AddAllowedModulesWithArgs(typeArgs []string, args .
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("add_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// RemoveAllowedModules encodes a call to the remove_allowed_modules Move function.
+func (c mcmsRegistryEncoder) RemoveAllowedModules(typeArgs []string, registry bind.Object, proof bind.Object, modulesToRemove [][]byte) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("remove_allowed_modules", typeArgsList, typeParamsList, []string{
+		"&mut Registry",
+		"T",
+		"vector<vector<u8>>",
+	}, []any{
+		registry,
+		proof,
+		modulesToRemove,
+	}, nil)
+}
+
+// RemoveAllowedModulesWithArgs encodes a call to the remove_allowed_modules Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsRegistryEncoder) RemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Registry",
+		"T",
+		"vector<vector<u8>>",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("remove_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetCallbackParamsWithCaps encodes a call to the get_callback_params_with_caps Move function.
