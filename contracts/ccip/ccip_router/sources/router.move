@@ -331,7 +331,11 @@ public fun mcms_execute_ownership_transfer(
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
-public fun mcms_add_allowed_modules(registry: &mut Registry, params: ExecutingCallbackParams) {
+public fun mcms_add_allowed_modules(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
         OwnerCap,
@@ -351,7 +355,7 @@ public fun mcms_add_allowed_modules(registry: &mut Registry, params: ExecutingCa
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names);
+    mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names, ctx);
 }
 
 fun validate_obj_addrs(addrs: vector<address>, stream: &mut BCSStream) {

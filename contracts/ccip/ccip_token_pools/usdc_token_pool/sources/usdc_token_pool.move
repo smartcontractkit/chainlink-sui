@@ -1153,7 +1153,11 @@ public fun mcms_set_pool<T>(
     set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
 }
 
-public fun mcms_add_allowed_modules(registry: &mut Registry, params: ExecutingCallbackParams) {
+public fun mcms_add_allowed_modules(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback,
         OwnerCap,
@@ -1173,5 +1177,5 @@ public fun mcms_add_allowed_modules(registry: &mut Registry, params: ExecutingCa
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names);
+    mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names, ctx);
 }

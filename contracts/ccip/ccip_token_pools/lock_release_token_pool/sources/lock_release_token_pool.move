@@ -1024,7 +1024,11 @@ public fun mcms_execute_ownership_transfer<T>(
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
-public fun mcms_add_allowed_modules<T>(registry: &mut Registry, params: ExecutingCallbackParams) {
+public fun mcms_add_allowed_modules<T>(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
     let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
         OwnerCap,
@@ -1044,7 +1048,7 @@ public fun mcms_add_allowed_modules<T>(registry: &mut Registry, params: Executin
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    mcms_registry::add_allowed_modules(registry, McmsCallback<T> {}, new_module_names);
+    mcms_registry::add_allowed_modules(registry, McmsCallback<T> {}, new_module_names, ctx);
 }
 
 /// destroy the lock release token pool state and the owner cap, return the remaining balance to the owner

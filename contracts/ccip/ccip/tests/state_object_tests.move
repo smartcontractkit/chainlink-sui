@@ -271,7 +271,7 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
 
 #[test]
 fun test_mcms_add_allowed_modules_success() {
-    let (scenario, mut registry, ref) = setup_with_mcms_ownership();
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
     let initial_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
@@ -304,6 +304,7 @@ fun test_mcms_add_allowed_modules_success() {
     state_object::mcms_add_allowed_modules(
         &mut registry,
         params,
+        scenario.ctx(),
     );
 
     // Verify nonce_manager was added
@@ -319,7 +320,7 @@ fun test_mcms_add_allowed_modules_success() {
 #[test]
 #[expected_failure(abort_code = mcms_registry::EModuleAlreadyAllowed)]
 fun test_mcms_add_allowed_modules_already_exists() {
-    let (scenario, mut registry, ref) = setup_with_mcms_ownership();
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Try to add "fee_quoter" which already exists in initial allowed modules
     // Data format: [registry_address][vector<vector<u8>> of module names]
@@ -345,6 +346,7 @@ fun test_mcms_add_allowed_modules_already_exists() {
     state_object::mcms_add_allowed_modules(
         &mut registry,
         params,
+        scenario.ctx(),
     );
 
     // Cleanup (won't be reached due to expected failure)
@@ -356,7 +358,7 @@ fun test_mcms_add_allowed_modules_already_exists() {
 #[test]
 #[expected_failure(abort_code = state_object::EInvalidFunction)]
 fun test_mcms_add_allowed_modules_wrong_function_name() {
-    let (scenario, mut registry, ref) = setup_with_mcms_ownership();
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Prepare data with correct format
     // Data format: [registry_address][vector<vector<u8>> of module names]
@@ -383,6 +385,7 @@ fun test_mcms_add_allowed_modules_wrong_function_name() {
     state_object::mcms_add_allowed_modules(
         &mut registry,
         params,
+        scenario.ctx(),
     );
 
     // Cleanup (won't be reached due to expected failure)
