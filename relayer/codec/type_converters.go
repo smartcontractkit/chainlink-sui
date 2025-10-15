@@ -13,16 +13,7 @@ import (
 // TypeConversionFunc defines a function that converts data from one type to another
 type TypeConversionFunc func(from reflect.Type, to reflect.Type, data any) (any, error)
 
-// TypeConversionKey uniquely identifies a type conversion path
-type TypeConversionKey struct {
-	FromKind reflect.Kind
-	ToKind   reflect.Kind
-	// Optional: specific type information for more precise matching
-	FromType string
-	ToType   string
-}
-
-// TypeConverter provides a registry-based approach to type conversions for mapstructure
+// TypeConverter provides a registry approach to type conversions for mapstructure
 type TypeConverter struct {
 	converters map[string]TypeConversionFunc
 }
