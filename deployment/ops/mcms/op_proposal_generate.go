@@ -46,7 +46,7 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	for i, def := range input.Defs {
 		op, err := b.OperationRegistry.Retrieve(def)
 		if err != nil {
-			return mcms.TimelockProposal{}, err
+			return mcms.TimelockProposal{}, fmt.Errorf("failed to retrieve operation %s: %w", def.ID, err)
 		}
 		// Remove the signer to make the operations read-only, and prevent accidental tx sends during execution
 		deps.Signer = nil
