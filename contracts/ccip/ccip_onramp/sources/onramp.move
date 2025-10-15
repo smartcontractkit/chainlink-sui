@@ -1068,7 +1068,10 @@ public fun mcms_accept_ownership(
     assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
-    bcs_stream::validate_obj_addr(object::id_address(state), &mut stream);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(ref), object::id_address(state)], 
+        &mut stream
+    );
     bcs_stream::assert_is_consumed(&stream);
 
     let mcms = mcms_registry::get_multisig_address();
