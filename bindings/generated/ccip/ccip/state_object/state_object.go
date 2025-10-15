@@ -45,6 +45,7 @@ type IStateObject interface {
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsProofEntrypoint(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IStateObjectDevInspect
 	Encoder() StateObjectEncoder
@@ -113,6 +114,8 @@ type StateObjectEncoder interface {
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(ref bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsProofEntrypoint(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsProofEntrypointWithArgs(args ...any) (*bind.EncodedCall, error)
 }
@@ -570,6 +573,16 @@ func (c *StateObjectContract) McmsAcceptOwnership(ctx context.Context, opts *bin
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
 func (c *StateObjectContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.stateObjectEncoder.McmsExecuteOwnershipTransfer(ref, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsAddAllowedModules executes the mcms_add_allowed_modules Move function.
+func (c *StateObjectContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.stateObjectEncoder.McmsAddAllowedModules(registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1577,6 +1590,35 @@ func (c stateObjectEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsAddAllowedModules encodes a call to the mcms_add_allowed_modules Move function.
+func (c stateObjectEncoder) McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsAddAllowedModulesWithArgs encodes a call to the mcms_add_allowed_modules Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c stateObjectEncoder) McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsProofEntrypoint encodes a call to the mcms_proof_entrypoint Move function.

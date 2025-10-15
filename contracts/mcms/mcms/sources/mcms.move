@@ -191,6 +191,7 @@ const EUnknownMCMSDeployerModuleFunction: u64 = 39;
 const EInvalidMCMS: u64 = 40;
 const EWrongProofType: u64 = 41;
 const EProofDoesNotExist: u64 = 42;
+const EUnknownMCMSRegistryModuleFunction: u64 = 43;
 
 public struct MCMS has drop {}
 
@@ -806,6 +807,46 @@ public fun mcms_dispatch_to_deployer(
         )
     } else {
         abort EUnknownMCMSDeployerModuleFunction
+    }
+}
+
+public fun mcms_dispatch_to_registry(
+    registry: &mut Registry,
+    executing_callback_params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (
+        target,
+        module_name,
+        function_name,
+        data,
+        proof_type,
+    ) = mcms_registry::get_callback_params_from_mcms(registry, executing_callback_params);
+
+    assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
+    assert!(*module_name.as_bytes() == b"mcms_registry", EUnknownMCMSRegistryModuleFunction);
+    validate_proof_type(registry, target, proof_type);
+
+    let function_name_bytes = *function_name.as_bytes();
+
+    if (function_name_bytes == b"add_allowed_modules") {
+        let mut stream = bcs_stream::new(data);
+        bcs_stream::validate_obj_addr(object::id_address(registry), &mut stream);
+
+        let new_module_names = bcs_stream::deserialize_vector!(
+            &mut stream,
+            |stream| bcs_stream::deserialize_vector_u8(stream),
+        );
+        bcs_stream::assert_is_consumed(&stream);
+
+        mcms_registry::add_allowed_modules(
+            registry,
+            mcms_registry::create_mcms_proof(),
+            new_module_names,
+            ctx,
+        );
+    } else {
+        abort EUnknownMCMSRegistryModuleFunction
     }
 }
 
@@ -1770,7 +1811,6 @@ fun timelock_bypasser_execute_batch(
 // Each package defines an `OwnerCap` object
 // Ownership of `OwnerCap` dictates the owner of the code object
 // Transferring ownership of `OwnerCap` must be done by calling `mcms_entrypoint` in CCIP `ownable.move`
-// This replaces `timelock_dispatch_to_registry`
 
 fun timelock_cancel(timelock: &mut Timelock, role: u8, id: vector<u8>, _ctx: &mut TxContext) {
     assert!(role == CANCELLER_ROLE || role == TIMELOCK_ROLE, ENotAuthorizedRole);

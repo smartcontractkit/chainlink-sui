@@ -1680,6 +1680,33 @@ public fun mcms_execute_ownership_transfer(
     execute_ownership_transfer(ref, owner_cap, state, to, ctx);
 }
 
+public fun mcms_add_allowed_modules(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"add_allowed_modules"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(registry), &mut stream);
+
+    let new_module_names = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names, ctx);
+}
+
 // ============================== Test Functions ============================== //
 
 #[test_only]

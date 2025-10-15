@@ -1024,6 +1024,29 @@ public fun mcms_execute_ownership_transfer<T>(
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
+public fun mcms_add_allowed_modules<T>(registry: &mut Registry, params: ExecutingCallbackParams) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"add_allowed_modules"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(registry), &mut stream);
+
+    let new_module_names = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    mcms_registry::add_allowed_modules(registry, McmsCallback<T> {}, new_module_names);
+}
+
 /// destroy the lock release token pool state and the owner cap, return the remaining balance to the owner
 /// this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(

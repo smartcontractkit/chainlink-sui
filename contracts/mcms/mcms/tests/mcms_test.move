@@ -3526,3 +3526,77 @@ fun test_dispatch_timelock_unblock_function_invalid_function() {
 
     env.destroy();
 }
+
+#[test]
+fun test_mcms_dispatch_to_registry_add_allowed_modules() {
+    let mut env = setup();
+
+    // Transaction 1: Initialize registry
+    {
+        let ctx = env.scenario.ctx();
+        mcms_registry::test_init(ctx);
+    };
+
+    ts::next_tx(&mut env.scenario, OWNER);
+
+    // Transaction 2: Register MCMS's own package with McmsProof (normally done during MCMS account registration)
+    {
+        let mut registry = ts::take_shared<Registry>(&env.scenario);
+        let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+        let ctx = ts::ctx(&mut env.scenario);
+
+        // Register MCMS package with McmsProof witness
+        mcms_registry::register_entrypoint<mcms_registry::McmsProof, OwnerCap>(
+            &mut registry,
+            mcms_registry::create_mcms_proof(),
+            owner_cap,
+            vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"],
+            ctx,
+        );
+
+        ts::return_shared(registry);
+    };
+
+    ts::next_tx(&mut env.scenario, @0xA);
+
+    // Transaction 3: Use mcms_dispatch_to_registry to add a new module
+    {
+        let mut registry = ts::take_shared<Registry>(&env.scenario);
+
+        // Prepare data for add_allowed_modules
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address
+
+        // Serialize vector of module names
+        let module_names = vector[b"new_mcms_module"];
+        data.append(bcs::to_bytes(&module_names));
+
+        let proof_type = type_name::with_original_ids<mcms_registry::McmsProof>();
+        let params = mcms_registry::test_create_executing_callback_params(
+            mcms_registry::get_multisig_address(),
+            string::utf8(b"mcms_registry"),
+            string::utf8(b"add_allowed_modules"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+            proof_type,
+        );
+
+        // Dispatch to registry
+        let ctx = ts::ctx(&mut env.scenario);
+        mcms::mcms_dispatch_to_registry(&mut registry, params, ctx);
+
+        // Verify the new module was added
+        let allowed_modules = mcms_registry::get_allowed_modules(
+            &registry,
+            mcms_registry::get_multisig_address(),
+        );
+        assert!(allowed_modules.length() == 4); // Original 3 + 1 new
+        assert!(allowed_modules[3] == b"new_mcms_module");
+
+        ts::return_shared(registry);
+    };
+
+    env.destroy();
+}

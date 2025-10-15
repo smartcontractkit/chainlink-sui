@@ -47,6 +47,12 @@ public struct EntrypointRegistered has copy, drop {
     allowed_modules: vector<vector<u8>>,
 }
 
+public struct ModulesAdded has copy, drop {
+    registry_id: ID,
+    package_address: address,
+    module_names: vector<vector<u8>>,
+}
+
 const EPackageCapAlreadyRegistered: u64 = 1;
 const EPackageCapNotRegistered: u64 = 2;
 const EPackageIdMismatch: u64 = 3;
@@ -55,6 +61,7 @@ const EWrongProofType: u64 = 6;
 const EPackageNotRegistered: u64 = 7;
 const EModuleNotRegistered: u64 = 8;
 const EModuleNotAllowed: u64 = 9;
+const EModuleAlreadyAllowed: u64 = 10;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -130,6 +137,41 @@ public fun register_entrypoint<T: drop, C: key + store>(
         registry_id: object::id(registry),
         account_address: proof_account_address,
         allowed_modules,
+    });
+}
+
+/// Add a new module to the allowed modules list for a registered package.
+public fun add_allowed_modules<T: drop>(
+    registry: &mut Registry,
+    _proof: T,
+    new_allowed_modules: vector<vector<u8>>,
+    _ctx: &mut TxContext,
+) {
+    let proof_type = type_name::with_original_ids<T>();
+    let (proof_account_address, _) = params::get_account_address_and_module_name(
+        proof_type,
+    );
+
+    // Validate the package is registered
+    assert!(registry.allowed_modules.contains(proof_account_address), EPackageNotRegistered);
+
+    // Validate proof type matches the expected proof type
+    let expected_proof_type = *registry.registered_proof_types.borrow(proof_account_address);
+    assert!(proof_type == expected_proof_type, EWrongProofType);
+
+    let allowed_modules = registry.allowed_modules.borrow_mut(proof_account_address);
+    let mut i = 0;
+    while (i < new_allowed_modules.length()) {
+        let new_module = new_allowed_modules[i];
+        assert!(!allowed_modules.contains(&new_module), EModuleAlreadyAllowed);
+        allowed_modules.push_back(new_module);
+        i = i + 1;
+    };
+
+    event::emit(ModulesAdded {
+        registry_id: object::id(registry),
+        package_address: proof_account_address,
+        module_names: new_allowed_modules,
     });
 }
 
@@ -273,6 +315,12 @@ public(package) fun get_registered_proof_type(
 ): TypeName {
     assert!(registry.registered_proof_types.contains(package_address), EPackageNotRegistered);
     *registry.registered_proof_types.borrow(package_address)
+}
+
+/// Get the list of allowed module names for a registered package
+public fun get_allowed_modules(registry: &Registry, package_address: address): vector<vector<u8>> {
+    assert!(registry.allowed_modules.contains(package_address), EPackageNotRegistered);
+    *registry.allowed_modules.borrow(package_address)
 }
 
 public fun target(params: &ExecutingCallbackParams): address {

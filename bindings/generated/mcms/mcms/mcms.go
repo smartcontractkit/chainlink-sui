@@ -33,6 +33,7 @@ type IMcms interface {
 	DispatchTimelockUnblockFunction(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, timelockCallbackParams TimelockCallbackParams) (*models.SuiTransactionBlockResponse, error)
 	McmsDispatchToAccount(ctx context.Context, opts *bind.CallOpts, registry bind.Object, accountState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsDispatchToRegistry(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTimelockScheduleBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTimelockExecuteBatch(ctx context.Context, opts *bind.CallOpts, timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTimelockBypasserExecuteBatch(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -169,6 +170,8 @@ type McmsEncoder interface {
 	McmsDispatchToAccountWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsDispatchToDeployer(registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
 	McmsDispatchToDeployerWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsDispatchToRegistry(registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
+	McmsDispatchToRegistryWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsTimelockScheduleBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
 	McmsTimelockScheduleBatchWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsTimelockExecuteBatch(timelock bind.Object, clock bind.Object, registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error)
@@ -1467,6 +1470,16 @@ func (c *McmsContract) McmsDispatchToAccount(ctx context.Context, opts *bind.Cal
 // McmsDispatchToDeployer executes the mcms_dispatch_to_deployer Move function.
 func (c *McmsContract) McmsDispatchToDeployer(ctx context.Context, opts *bind.CallOpts, registry bind.Object, deployerState bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsEncoder.McmsDispatchToDeployer(registry, deployerState, executingCallbackParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsDispatchToRegistry executes the mcms_dispatch_to_registry Move function.
+func (c *McmsContract) McmsDispatchToRegistry(ctx context.Context, opts *bind.CallOpts, registry bind.Object, executingCallbackParams bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsEncoder.McmsDispatchToRegistry(registry, executingCallbackParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -3523,6 +3536,35 @@ func (c mcmsEncoder) McmsDispatchToDeployerWithArgs(args ...any) (*bind.EncodedC
 	return c.EncodeCallArgsWithGenerics("mcms_dispatch_to_deployer", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"UpgradeTicket",
 	})
+}
+
+// McmsDispatchToRegistry encodes a call to the mcms_dispatch_to_registry Move function.
+func (c mcmsEncoder) McmsDispatchToRegistry(registry bind.Object, executingCallbackParams bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_dispatch_to_registry", typeArgsList, typeParamsList, []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		registry,
+		executingCallbackParams,
+	}, nil)
+}
+
+// McmsDispatchToRegistryWithArgs encodes a call to the mcms_dispatch_to_registry Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsEncoder) McmsDispatchToRegistryWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_dispatch_to_registry", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // McmsTimelockScheduleBatch encodes a call to the mcms_timelock_schedule_batch Move function.
