@@ -107,58 +107,6 @@ var TokenAdminRegistryUnregisterPoolOp = cld_ops.NewOperation(
 )
 
 // ================================================================
-// |                        Set Pool                             |
-// ================================================================
-
-type SetPoolInput struct {
-	CCIPPackageId       string
-	StateObjectId       string
-	CoinMetadataAddress string
-	LockOrBurnParams    []string
-	ReleaseOrMintParams []string
-	TypeArgs            []string
-	TypeProofObjectId   string
-}
-
-var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input SetPoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	contract, err := module_token_admin_registry.NewTokenAdminRegistry(input.CCIPPackageId, deps.Client)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create token admin registry contract: %w", err)
-	}
-
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.SetPool(
-		b.GetContext(),
-		opts,
-		input.TypeArgs,
-		bind.Object{Id: input.StateObjectId},
-		input.CoinMetadataAddress,
-		input.LockOrBurnParams,
-		input.ReleaseOrMintParams,
-		bind.Object{Id: input.TypeProofObjectId},
-	)
-	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute set pool: %w", err)
-	}
-
-	b.Logger.Infow("SetPool on TokenAdminRegistry", "PackageId:", input.CCIPPackageId, "CoinMetadataAddress:", input.CoinMetadataAddress, "TokenPoolPackageId:", input.TypeProofObjectId)
-
-	return sui_ops.OpTxResult[NoObjects]{
-		Digest:    tx.Digest,
-		PackageId: input.CCIPPackageId,
-		Objects:   NoObjects{},
-	}, nil
-}
-
-var TokenAdminRegistrySetPoolOp = cld_ops.NewOperation(
-	sui_ops.NewSuiOperationName("ccip", "token_admin_registry", "set_pool"),
-	semver.MustParse("0.1.0"),
-	"Sets a token pool configuration in the CCIP Token Admin Registry",
-	setPoolHandler,
-)
-
-// ================================================================
 // |                  Transfer Admin Role                        |
 // ================================================================
 
@@ -247,3 +195,10 @@ var TokenAdminRegistryAcceptAdminRoleOp = cld_ops.NewOperation(
 	"Accepts admin role for a token in the CCIP Token Admin Registry",
 	acceptAdminRoleHandler,
 )
+
+var AllOperationsTokenAdminRegistry = []cld_ops.Operation[any, any, any]{
+	*TokenAdminRegistryInitializeOp.AsUntyped(),
+	*TokenAdminRegistryUnregisterPoolOp.AsUntyped(),
+	*TokenAdminRegistryTransferAdminRoleOp.AsUntyped(),
+	*TokenAdminRegistryAcceptAdminRoleOp.AsUntyped(),
+}

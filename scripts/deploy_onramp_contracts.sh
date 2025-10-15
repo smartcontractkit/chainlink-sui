@@ -171,14 +171,6 @@ sui client call --package "$ONRAMP_PKG_ID" --module onramp --function initialize
         "$DEST_CHAIN_SELECTORS_JSON" "$DEST_CHAIN_ALLOWLIST_ENABLED_JSON" '["0x4488418e4980acbb2c83b8ce98ba1b3f557dd37b392e95bbd98215233cdd5ed3"]' \
   --gas-budget "$GAS" --json | tee artifacts.onramp.init.json >/dev/null
 
-echo "--- Deploying token_pool (base) ---"
-TP_BASE_DIR="$ROOT_DIR/ccip/ccip_token_pools/token_pool"
-# The guide suggests pointing router ref to a dummy 0x1 to simplify deployment.
-patch_move_toml "$TP_BASE_DIR/Move.toml" "ccip" "$CCIP_PKG_ID"
-patch_move_toml "$TP_BASE_DIR/Move.toml" "mcms" "$MCMS_PKG_ID"
-patch_move_toml "$TP_BASE_DIR/Move.toml" "mcms_owner" "$OWNER"
-TP_BASE_PKG_ID="$(publish_and_pin "$TP_BASE_DIR" "ccip_token_pool" "token_pool_base")"
-
 echo "--- Deploying & initializing lock_release_token_pool ---"
 LR_DIR="$ROOT_DIR/ccip/ccip_token_pools/lock_release_token_pool"
 patch_move_toml "$LR_DIR/Move.toml" "ccip" "$CCIP_PKG_ID"
@@ -281,23 +273,115 @@ sui client call --package "$BM_PKG_ID" --module burn_mint_token_pool --function 
   --args "$BM_STATE_ID" "$BM_OWNER_CAP_ID" "$CLOCK_ID" "2" "false" "200000000000" "20000000000" "false" "200000000000" "20000000000" \
   --gas-budget "$GAS" --json | tee artifacts.bm_tp.rate_limiters.json >/dev/null
 
+echo "--- Deploying mock USDC token for managed token pool ---"
+USDC_DIR="$ROOT_DIR/ccip/mock_eth_token"
+USDC_PKG_KEY="mock_eth_token"
+# Reusing mock_eth_token structure but treating it as USDC for this example
+USDC_PKG_ID="$(publish_and_pin "$USDC_DIR" "$USDC_PKG_KEY" "usdc")"
+USDC_METADATA_ID="$(extract_created artifacts.usdc.publish.json '::coin::CoinMetadata<' | head -n1)"
+USDC_TREASURY_CAP_ID="$(extract_created artifacts.usdc.publish.json '::coin::TreasuryCap<' | head -n1)"
+
+USDC_COIN_T="$(
+  jq -r '
+    .objectChanges[]
+    | select(.type=="created" and (.objectType|test("::coin::CoinMetadata<")))
+    | .objectType
+  ' artifacts.usdc.publish.json \
+    | sed -E 's/^.*CoinMetadata<([^>]+)>.*/\1/' \
+    | head -n1
+)"
+
+echo "Detected USDC coin type: $USDC_COIN_T"
+
+echo "--- Deploying & initializing managed_token ---"
+MANAGED_TOKEN_DIR="$ROOT_DIR/ccip/managed_token"
+patch_move_toml "$MANAGED_TOKEN_DIR/Move.toml" "mcms" "$MCMS_PKG_ID"
+patch_move_toml "$MANAGED_TOKEN_DIR/Move.toml" "mcms_owner" "$OWNER"
+MANAGED_TOKEN_PKG_ID="$(publish_and_pin "$MANAGED_TOKEN_DIR" "managed_token" "managed_token")"
+
+# Initialize managed_token with the USDC treasury cap
+sui client call --package "$MANAGED_TOKEN_PKG_ID" --module managed_token --function initialize \
+  --type-args "$USDC_COIN_T" \
+  --args "$USDC_TREASURY_CAP_ID" \
+  --gas-budget "$GAS" --json | tee artifacts.managed_token.init.json >/dev/null
+
+MANAGED_TOKEN_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("TokenState"))) | .objectId' artifacts.managed_token.init.json | head -n1)"
+MANAGED_TOKEN_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.managed_token.init.json | head -n1)"
+
+echo "  Managed Token State: $MANAGED_TOKEN_STATE_ID"
+echo "  Managed Token Owner Cap: $MANAGED_TOKEN_OWNER_CAP_ID"
+
+# Configure a new minter and issue a MintCap (unlimited allowance for token pool)
+ACTIVE_ADDR="$(sui client active-address 2>/dev/null)"
+sui client call --package "$MANAGED_TOKEN_PKG_ID" --module managed_token --function configure_new_minter \
+  --type-args "$USDC_COIN_T" \
+  --args "$MANAGED_TOKEN_STATE_ID" "$MANAGED_TOKEN_OWNER_CAP_ID" "$ACTIVE_ADDR" "0" "true" \
+  --gas-budget "$GAS" --json | tee artifacts.managed_token.mint_cap.json >/dev/null
+
+MINT_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("MintCap"))) | .objectId' artifacts.managed_token.mint_cap.json | head -n1)"
+echo "  MintCap ID: $MINT_CAP_ID"
+
+echo "--- Deploying & initializing managed_token_pool ---"
+MANAGED_TP_DIR="$ROOT_DIR/ccip/ccip_token_pools/managed_token_pool"
+patch_move_toml "$MANAGED_TP_DIR/Move.toml" "ccip" "$CCIP_PKG_ID"
+patch_move_toml "$MANAGED_TP_DIR/Move.toml" "mcms" "$MCMS_PKG_ID"
+patch_move_toml "$MANAGED_TP_DIR/Move.toml" "mcms_owner" "$OWNER"
+patch_move_toml "$MANAGED_TP_DIR/Move.toml" "managed_token" "$MANAGED_TOKEN_PKG_ID"
+MANAGED_TP_PKG_ID="$(publish_and_pin "$MANAGED_TP_DIR" "managed_token_pool" "managed_tp")"
+
+# Get the token pool administrator address (reusing active address)
+TOKEN_POOL_ADMIN="$ACTIVE_ADDR"
+
+# Initialize managed token pool with the managed token
+sui client call --package "$MANAGED_TP_PKG_ID" --module managed_token_pool --function initialize_with_managed_token \
+  --type-args "$USDC_COIN_T" \
+  --args "$CCIP_STATE_REF_ID" "$MANAGED_TOKEN_STATE_ID" "$MANAGED_TOKEN_OWNER_CAP_ID" "$USDC_METADATA_ID" "$MINT_CAP_ID" "$TOKEN_POOL_ADMIN" \
+  --gas-budget "$GAS" --json | tee artifacts.managed_tp.init.json >/dev/null
+
+MANAGED_TP_STATE_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("ManagedTokenPoolState"))) | .objectId' artifacts.managed_tp.init.json | head -n1)"
+MANAGED_TP_OWNER_CAP_ID="$(jq -r '.objectChanges[] | select(.type=="created" and (.objectType|test("OwnerCap"))) | .objectId' artifacts.managed_tp.init.json | head -n1)"
+
+echo "  Managed Token Pool State: $MANAGED_TP_STATE_ID"
+echo "  Managed Token Pool Owner Cap: $MANAGED_TP_OWNER_CAP_ID"
+
+# Apply chain updates for chain 2
+sui client call --package "$MANAGED_TP_PKG_ID" --module managed_token_pool --function apply_chain_updates \
+  --type-args "$USDC_COIN_T" \
+  --args "$MANAGED_TP_STATE_ID" "$MANAGED_TP_OWNER_CAP_ID" "[]" "[2]" "[[[24, 42, 24, 42]]]" "[[0,0,0,0,0,0,0,0,0,0,0,0,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42,24,42]]" \
+  --gas-budget "$GAS" --json | tee artifacts.managed_tp.apply_chains.json >/dev/null
+
+# Set chain rate limiter config
+sui client call --package "$MANAGED_TP_PKG_ID" --module managed_token_pool --function set_chain_rate_limiter_config \
+  --type-args "$USDC_COIN_T" \
+  --args "$MANAGED_TP_STATE_ID" "$MANAGED_TP_OWNER_CAP_ID" "$CLOCK_ID" "2" "false" "200000000000" "20000000000" "false" "200000000000" "20000000000" \
+  --gas-budget "$GAS" --json | tee artifacts.managed_tp.rate_limiters.json >/dev/null
+
+echo "--- Minting USDC tokens for testing ---"
+sui client call --package "$MANAGED_TOKEN_PKG_ID" --module managed_token --function mint_and_transfer \
+  --type-args "$USDC_COIN_T" \
+  --args "$MANAGED_TOKEN_STATE_ID" "$MINT_CAP_ID" "$DENY_LIST_ID" "1000000000000000" "$ACTIVE_ADDR" \
+  --gas-budget "$GAS" --json | tee artifacts.usdc.mint.json >/dev/null
+
+USDC_COIN_ID="$(jq -r '.balanceChanges[] | select(.coinType | contains("mock_eth_token")) | .coinObjectId' artifacts.usdc.mint.json | head -n1)"
+echo "  USDC Coin ID: $USDC_COIN_ID"
+
 echo "--- Debugging ---"
 echo "CCIP_PKG_ID: $CCIP_PKG_ID"
 echo "CCIP_STATE_REF_ID: $CCIP_STATE_REF_ID"
 echo "CCIP_OWNER_CAP_ID: $CCIP_OWNER_CAP_ID"
 
-# fee_quoter::apply_token_transfer_fee_config_updates for LINK and ETH
-echo "Applying token transfer fee config updates for LINK and ETH..."
+# fee_quoter::apply_token_transfer_fee_config_updates for LINK, ETH, and USDC
+echo "Applying token transfer fee config updates for LINK, ETH, and USDC..."
 sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function apply_token_transfer_fee_config_updates \
   --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" 2 \
-    "[\"$LINK_METADATA_ID\",\"$ETH_METADATA_ID\"]" "[50,50]" "[5000,5000]" "[0,0]" "[180000,180000]" "[640,640]" "[true,true]" "[]" \
+    "[\"$LINK_METADATA_ID\",\"$ETH_METADATA_ID\",\"$USDC_METADATA_ID\"]" "[50,50,50]" "[5000,5000,5000]" "[0,0,0]" "[180000,180000,180000]" "[640,640,640]" "[true,true,true]" "[]" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.token_transfer_fee_config.json >/dev/null
 
-# fee_quoter::apply_premium_multiplier_wei_per_eth_updates for LINK and ETH
-echo "Applying premium multiplier updates for LINK and ETH..."
+# fee_quoter::apply_premium_multiplier_wei_per_eth_updates for LINK, ETH, and USDC
+echo "Applying premium multiplier updates for LINK, ETH, and USDC..."
 sui client call --package "$CCIP_PKG_ID" --module fee_quoter --function apply_premium_multiplier_wei_per_eth_updates \
   --args "$CCIP_STATE_REF_ID" "$CCIP_OWNER_CAP_ID" \
-    "[\"$LINK_METADATA_ID\",\"$ETH_METADATA_ID\"]" "[1,1]" \
+    "[\"$LINK_METADATA_ID\",\"$ETH_METADATA_ID\",\"$USDC_METADATA_ID\"]" "[1,1,1]" \
   --gas-budget "$GAS" --json | tee artifacts.ccip.fee_quoter.premium_multiplier.json >/dev/null
 
 # fee_quoter::apply_dest_chain_config_updates (no change needed)
@@ -330,25 +414,44 @@ git checkout $ROOT_DIR
 echo
 echo "✅ Deployment complete. Artifacts written: artifacts.*.json"
 echo "Packages:"
-echo "  CCIP:           $CCIP_PKG_ID"
-echo "  OnRamp:         $ONRAMP_PKG_ID"
-echo "  LR Pool:        $LR_PKG_ID"
-echo "  BM Pool:        $BM_PKG_ID"
-echo "  LINK Coin Type: $LINK_COIN_T"
-echo "  ETH Coin Type:  $ETH_COIN_T"
-echo "Important objects:"
-echo "  CCIP state:     $CCIP_STATE_REF_ID"
-echo "  CCIP Owner Cap: $CCIP_OWNER_CAP_ID"
-echo "  OnRamp state:   $ONRAMP_STATE_ID"
-echo "  LR state: $LR_STATE_ID"
-echo "  BM state: $BM_STATE_ID"
-echo "  ETH Treasury Cap: $ETH_TREASURY_CAP_ID"
-echo "  LINK Treasury Cap: $LINK_TREASURY_CAP_ID"
-ECHO "  ETH Metadata: $ETH_METADATA_ID"
-ECHO "  LINK Metadata: $LINK_METADATA_ID"
-echo "  ETH Coin: $ETH_COIN_ID"
-echo "  LINK Coin: $LINK_COIN_ID"
-echo "  FEE Coin: $FEE_COIN_ID"
-echo "Token Pool Support:"
-echo "  ETH -> BM Token Pool"
-echo "  LINK -> LR Token Pool"
+echo "  CCIP:                $CCIP_PKG_ID"
+echo "  MCMS:                $MCMS_PKG_ID"
+echo "  OnRamp:              $ONRAMP_PKG_ID"
+echo "  LR Pool:             $LR_PKG_ID"
+echo "  BM Pool:             $BM_PKG_ID"
+echo "  Managed Token:       $MANAGED_TOKEN_PKG_ID"
+echo "  Managed Token Pool:  $MANAGED_TP_PKG_ID"
+echo ""
+echo "Coin Types:"
+echo "  LINK:                $LINK_COIN_T"
+echo "  ETH:                 $ETH_COIN_T"
+echo "  USDC:                $USDC_COIN_T"
+echo ""
+echo "Important State Objects:"
+echo "  CCIP state:              $CCIP_STATE_REF_ID"
+echo "  CCIP Owner Cap:          $CCIP_OWNER_CAP_ID"
+echo "  OnRamp state:            $ONRAMP_STATE_ID"
+echo "  LR Pool state:           $LR_STATE_ID"
+echo "  BM Pool state:           $BM_STATE_ID"
+echo "  Managed Token state:     $MANAGED_TOKEN_STATE_ID"
+echo "  Managed Token Pool state: $MANAGED_TP_STATE_ID"
+echo ""
+echo "Treasury & Metadata:"
+echo "  LINK Treasury Cap:       $LINK_TREASURY_CAP_ID"
+echo "  LINK Metadata:           $LINK_METADATA_ID"
+echo "  ETH Treasury Cap:        $ETH_TREASURY_CAP_ID"
+echo "  ETH Metadata:            $ETH_METADATA_ID"
+echo "  USDC Treasury (wrapped): $USDC_TREASURY_CAP_ID"
+echo "  USDC Metadata:           $USDC_METADATA_ID"
+echo "  MintCap (Managed Pool):  $MINT_CAP_ID"
+echo ""
+echo "Test Coins:"
+echo "  LINK Coin:               $LINK_COIN_ID"
+echo "  ETH Coin:                $ETH_COIN_ID"
+echo "  USDC Coin:               $USDC_COIN_ID"
+echo "  FEE Coin (LINK):         $FEE_COIN_ID"
+echo ""
+echo "Token Pool Mapping:"
+echo "  LINK   -> Lock/Release Token Pool"
+echo "  ETH    -> Burn/Mint Token Pool"
+echo "  USDC   -> Managed Token Pool"
