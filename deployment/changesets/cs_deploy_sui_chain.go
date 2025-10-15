@@ -14,6 +14,7 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 )
@@ -32,7 +33,6 @@ type DeploySuiChain struct{}
 
 // Apply implements deployment.ChangeSetV2.
 func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (cldf.ChangesetOutput, error) {
-
 	ab := cldf.NewMemoryAddressBook()
 	seqReports := make([]operations.Report[any, any], 0)
 
@@ -55,6 +55,18 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		},
 	}
 
+	// in case the registry is not loaded with all operations. Needed to build accept ownership proposals
+	if e.OperationsBundle.OperationRegistry == nil {
+		ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
+		for i := range opregistry.AllOperations {
+			ops[i] = &opregistry.AllOperations[i]
+		}
+		registry := cld_ops.NewOperationRegistry(
+			ops...,
+		)
+		e.OperationsBundle.OperationRegistry = registry
+	}
+
 	suiState, err := deployment.LoadOnchainStatesui(e)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load onchain state: %w", err)
@@ -63,8 +75,8 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	state := suiState[config.SuiChainSelector]
 
 	mcmsPackageId := state.MCMSPackageID
+	// If MCMS is not deployed, deploy it
 	if mcmsPackageId == "" {
-		// Run DeployMCMS Sequence
 		mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, mcmsops.DeployMCMSSeqInput{
 			ChainSelector: config.SuiChainSelector,
 		})

@@ -335,12 +335,3 @@ var VerifyFunctionAllowedOp = cld_ops.NewOperation(
 	"Verifies that a function is allowed in the UpgradeRegistry (throws error if not allowed)",
 	verifyFunctionAllowedHandler,
 )
-
-var AllOperationsUpgradeRegistry = []cld_ops.Operation[any, any, any]{
-	*UpgradeRegistryInitializeOp.AsUntyped(),
-	*BlockVersionOp.AsUntyped(),
-	*BlockFunctionOp.AsUntyped(),
-	*GetModuleRestrictionsOp.AsUntyped(),
-	*IsFunctionAllowedOp.AsUntyped(),
-	*VerifyFunctionAllowedOp.AsUntyped(),
-}

@@ -536,14 +536,3 @@ var ExecuteOwnershipTransferToMcmsStateObjectOp = cld_ops.NewOperation(
 	"Executes ownership transfer to MCMS for the CCIP StateObject",
 	executeOwnershipTransferToMcmsStateObjectHandler,
 )
-
-var AllOperationsStateObject = []cld_ops.Operation[any, any, any]{
-	*AddPackageIdStateObjectOp.AsUntyped(),
-	*RemovePackageIdStateObjectOp.AsUntyped(),
-	*GetOwnerCapIdStateObjectOp.AsUntyped(),
-	*GetOwnerStateObjectOp.AsUntyped(),
-	*GetPendingTransferStateObjectOp.AsUntyped(),
-	*TransferOwnershipStateObjectOp.AsUntyped(),
-	*AcceptOwnershipStateObjectOp.AsUntyped(),
-	*ExecuteOwnershipTransferToMcmsStateObjectOp.AsUntyped(),
-}
