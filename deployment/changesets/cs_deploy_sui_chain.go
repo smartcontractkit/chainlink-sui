@@ -62,10 +62,28 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 
 	state := suiState[config.SuiChainSelector]
 
+	mcmsPackageId := state.MCMSPackageID
+	if mcmsPackageId == "" {
+		// Run DeployMCMS Sequence
+		mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, mcmsops.DeployMCMSSeqInput{
+			ChainSelector: config.SuiChainSelector,
+		})
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for Sui chain %d: %w", config.SuiChainSelector, err)
+		}
+
+		err = storeMCMSInAddressBook(ab, config.SuiChainSelector, mcmsReport.Output)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to store MCMS in address book for Sui chain %d: %w", config.SuiChainSelector, err)
+		}
+
+		mcmsPackageId = mcmsReport.Output.PackageId
+	}
+
 	// Deploy Router
 	// TODO: Maybe make this part of CCIP sequence
 	routerReport, err := operations.ExecuteOperation(e.OperationsBundle, routerops.DeployCCIPRouterOp, deps, routerops.DeployCCIPRouterInput{
-		McmsPackageId: state.MCMSPackageID,
+		McmsPackageId: mcmsPackageId,
 		McmsOwner:     signerAddr,
 	})
 	if err != nil {
@@ -77,7 +95,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		RouterPackageId:     routerReport.Output.PackageId,
 		RouterStateObjectId: routerReport.Output.Objects.RouterStateObjectId,
 		OwnerCapObjectId:    routerReport.Output.Objects.OwnerCapObjectId,
-		NewOwner:            state.MCMSPackageID,
+		NewOwner:            mcmsPackageId,
 	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute ownership transfer to MCMS Router for Sui chain %d: %w", config.SuiChainSelector, err)
@@ -105,7 +123,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipSeqInput.LinkTokenCoinMetadataObjectId = config.LinkTokenCoinMetadataObjectId
 	ccipSeqInput.LocalChainSelector = config.SuiChainSelector
 	ccipSeqInput.DestChainSelector = config.DestChainSelector
-	ccipSeqInput.DeployCCIPInput.McmsPackageId = state.MCMSPackageID
+	ccipSeqInput.DeployCCIPInput.McmsPackageId = mcmsPackageId
 	ccipSeqInput.DeployCCIPInput.McmsOwner = signerAddr
 
 	ccipSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, ccipops.DeployAndInitCCIPSequence, deps, ccipSeqInput)
@@ -170,7 +188,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	ccipOnRampSeqInput := deployment.DefaultOnRampSeqConfig
 
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.CCIPPackageId = ccipSeqReport.Output.CCIPPackageId
-	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = state.MCMSPackageID
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = mcmsPackageId
 	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSOwnerPackageId = signerAddr
 	ccipOnRampSeqInput.OnRampInitializeInput.NonceManagerCapId = ccipSeqReport.Output.Objects.NonceManagerCapObjectId
 	ccipOnRampSeqInput.OnRampInitializeInput.SourceTransferCapId = ccipSeqReport.Output.Objects.SourceTransferCapObjectId
@@ -229,7 +247,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	// Inject dynamic values for deployment
 	ccipOffRampSeqInput.CCIPObjectRefId = ccipSeqReport.Output.Objects.CCIPObjectRefObjectId
 	ccipOffRampSeqInput.DeployCCIPOffRampInput.CCIPPackageId = ccipSeqReport.Output.CCIPPackageId
-	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = state.MCMSPackageID
+	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = mcmsPackageId
 
 	ccipOffRampSeqInput.InitializeOffRampInput.DestTransferCapId = ccipSeqReport.Output.Objects.DestTransferCapObjectId
 	ccipOffRampSeqInput.InitializeOffRampInput.FeeQuoterCapId = ccipSeqReport.Output.Objects.FeeQuoterCapObjectId
@@ -302,7 +320,7 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 			},
 		},
 		// MCMS related
-		MmcsPackageID:  state.MCMSPackageID,
+		MmcsPackageID:  mcmsPackageId,
 		McmsStateObjID: state.MCMSStateObjectID,
 		TimelockObjID:  state.MCMSTimelockObjectID,
 		AccountObjID:   state.MCMSAccountStateObjectID,
