@@ -25,11 +25,13 @@ func (d MCMSProposalGenerate) Apply(e cldf.Environment, config mcmsops.ProposalG
 	state := suiState[config.ChainSelector]
 
 	// Get necessary MCMS state from onchain AB
-	config.MmcsPackageID = state.MCMSPackageID
-	config.McmsStateObjID = state.MCMSStateObjectID
-	config.TimelockObjID = state.MCMSTimelockObjectID
-	config.AccountObjID = state.MCMSAccountStateObjectID
-	config.RegistryObjID = state.MCMSRegistryObjectID
+	if config.MmcsPackageID == "" || config.McmsStateObjID == "" || config.TimelockObjID == "" || config.AccountObjID == "" || config.RegistryObjID == "" {
+		config.MmcsPackageID = state.MCMSPackageID
+		config.McmsStateObjID = state.MCMSStateObjectID
+		config.TimelockObjID = state.MCMSTimelockObjectID
+		config.AccountObjID = state.MCMSAccountStateObjectID
+		config.RegistryObjID = state.MCMSRegistryObjectID
+	}
 
 	suiChains := e.BlockChains.SuiChains()
 

@@ -15,7 +15,6 @@ import (
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 )
 
 type DeploySuiChainConfig struct {
@@ -69,10 +68,6 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	state := suiState[config.SuiChainSelector]
 
 	mcmsPackageId := state.MCMSPackageID
-	mcmsStateObjID := state.MCMSStateObjectID
-	timelockObjID := state.MCMSTimelockObjectID
-	accountObjID := state.MCMSAccountStateObjectID
-	registryObjID := state.MCMSRegistryObjectID
 	// If MCMS is not deployed, deploy it
 	if mcmsPackageId == "" {
 		mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, mcmsops.DeployMCMSSeqInput{
@@ -88,10 +83,6 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		}
 
 		mcmsPackageId = mcmsReport.Output.PackageId
-		mcmsStateObjID = mcmsReport.Output.Objects.McmsMultisigStateObjectId
-		timelockObjID = mcmsReport.Output.Objects.TimelockObjectId
-		accountObjID = mcmsReport.Output.Objects.McmsAccountStateObjectId
-		registryObjID = mcmsReport.Output.Objects.McmsRegistryObjectId
 	}
 
 	// Deploy Router
@@ -305,56 +296,11 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to save OnRampUpgradeCapId  %s for Sui chain %d: %w", ccipOnRampSeqReport.Output.Objects.StateObjectId, config.DestChainSelector, err)
 	}
 
-	// Generate the proposal to accept the ownership of the deployed contracts
-	proposalInput := mcmsops.ProposalGenerateInput{
-		Defs: []operations.Definition{
-			ccipops.AcceptOwnershipStateObjectOp.Def(),
-			routerops.AcceptOwnershipOp.Def(),
-			onrampops.AcceptOwnershipOnRampOp.Def(),
-			offrampops.AcceptOwnershipOffRampOp.Def(),
-		},
-		Inputs: []any{
-			ccipops.AcceptOwnershipStateObjectInput{
-				CCIPPackageId:         ccipSeqReport.Output.CCIPPackageId,
-				CCIPObjectRefObjectId: ccipSeqReport.Output.Objects.CCIPObjectRefObjectId,
-			},
-			routerops.AcceptOwnershipInput{
-				RouterPackageId:     routerReport.Output.PackageId,
-				RouterStateObjectId: routerReport.Output.Objects.RouterStateObjectId,
-			},
-			onrampops.AcceptOwnershipOnRampInput{
-				OnRampPackageId: ccipOnRampSeqReport.Output.CCIPOnRampPackageId,
-				CCIPObjectRefId: ccipSeqReport.Output.Objects.CCIPObjectRefObjectId,
-				StateObjectId:   ccipOnRampSeqReport.Output.Objects.StateObjectId,
-			},
-			offrampops.AcceptOwnershipOffRampInput{
-				OffRampPackageId:     ccipOffRampSeqReport.Output.CCIPOffRampPackageId,
-				OffRampRefObjectId:   ccipSeqReport.Output.Objects.CCIPObjectRefObjectId,
-				OffRampStateObjectId: ccipOffRampSeqReport.Output.Objects.StateObjectId,
-			},
-		},
-		// MCMS related
-		MmcsPackageID:  mcmsPackageId,
-		McmsStateObjID: mcmsStateObjID,
-		TimelockObjID:  timelockObjID,
-		AccountObjID:   accountObjID,
-		RegistryObjID:  registryObjID,
-
-		// Proposal
-		Role: suisdk.TimelockRoleProposer,
-
-		ChainSelector: config.SuiChainSelector,
-	}
-
-	_, err = cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
-	if err != nil {
-		return cldf.ChangesetOutput{}, err
-	}
+	// TODO: This could return the accept ownership proposal instead of having a different changeset for it
 
 	return cldf.ChangesetOutput{
 		AddressBook: ab,
 		Reports:     seqReports,
-		// MCMSTimelockProposals: []mcms.TimelockProposal{acceptOwnershipProposalReport.Output},
 	}, nil
 }
 
