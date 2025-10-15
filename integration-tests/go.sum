@@ -623,6 +623,8 @@ github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20250908151016-bf310c
 github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20250908151016-bf310cf85379/go.mod h1:jUC52kZzEnWF9tddHh85zolKybmLpbQ1oNA4FjOHt1Q=
 github.com/smartcontractkit/chainlink-protos/job-distributor v0.12.0 h1:/bhoALRzNXZkdzxBkNM505pMofNy0K0eW1nCzXw+AUI=
 github.com/smartcontractkit/chainlink-protos/job-distributor v0.12.0/go.mod h1:/dVVLXrsp+V0AbcYGJo3XMzKg3CkELsweA/TTopCsKE=
+github.com/smartcontractkit/chainlink-sui v0.0.0-20251014163547-378bb81ae000 h1:R5cTFsqPNp3gDueOvGIZ81uN7Dde8YXkS0Pl+poditg=
+github.com/smartcontractkit/chainlink-sui v0.0.0-20251014163547-378bb81ae000/go.mod h1:VlyZhVw+a93Sk8rVHOIH6tpiXrMzuWLZrjs1eTIExW8=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.24 h1:i8+fR76yn0yxAFAkdhy7BgIB2VJgwec9BqnSPp6fZ7M=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.24/go.mod h1:gdW2dlrvHcTawMCtAIXQYZcZ9Ggx16L55kA7wONvzJ4=
 github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20250815105909-75499abc4335 h1:7bxYNrPpygn8PUSBiEKn8riMd7CXMi/4bjTy0fHhcrY=

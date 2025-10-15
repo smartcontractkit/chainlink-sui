@@ -11,6 +11,7 @@ use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
+use std::type_name;
 use sui::bcs;
 use sui::test_scenario::{Self as ts, Scenario};
 
@@ -127,6 +128,7 @@ fun transfer_to_mcms(
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
+        type_name::with_original_ids<onramp::McmsCallback>(),
     );
     onramp::mcms_accept_ownership(
         ref,
@@ -171,6 +173,7 @@ public fun test_mcms_set_dynamic_config() {
         x"0000000000000000000000000000000000000000000000000000000000000002",
         0,
         1,
+        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_set_dynamic_config(
@@ -222,6 +225,7 @@ public fun test_mcms_apply_dest_chain_config_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000003",
         0,
         1,
+        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_apply_dest_chain_config_updates(
@@ -284,6 +288,7 @@ public fun test_mcms_apply_allowlist_updates() {
         x"0000000000000000000000000000000000000000000000000000000000000004",
         0,
         1,
+        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_apply_allowlist_updates(
@@ -344,6 +349,7 @@ public fun test_mcms_transfer_ownership_e2e() {
         x"0000000000000000000000000000000000000000000000000000000000000005",
         0,
         1,
+        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_transfer_ownership(
@@ -372,6 +378,7 @@ public fun test_mcms_transfer_ownership_e2e() {
         x"0000000000000000000000000000000000000000000000000000000000000006",
         0,
         1,
+        type_name::with_original_ids<onramp::McmsCallback>(),
     );
 
     onramp::mcms_execute_ownership_transfer(

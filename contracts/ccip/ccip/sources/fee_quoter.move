@@ -1679,8 +1679,6 @@ fun slice<T: copy>(vec: &vector<T>, start: u64, len: u64): vector<T> {
 // |                      MCMS Entrypoint                         |
 // ================================================================
 
-public struct McmsCallback has drop {}
-
 public fun mcms_apply_fee_token_updates(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
@@ -1688,11 +1686,11 @@ public fun mcms_apply_fee_token_updates(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"apply_fee_token_updates"), EInvalidFunction);
@@ -1723,11 +1721,11 @@ public fun mcms_apply_dest_chain_config_updates(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"apply_dest_chain_config_updates"), EInvalidFunction);
@@ -1794,11 +1792,11 @@ public fun mcms_apply_token_transfer_fee_config_updates(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"apply_token_transfer_fee_config_updates"), EInvalidFunction);
@@ -1868,11 +1866,11 @@ public fun mcms_update_prices_with_owner_cap(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"update_prices_with_owner_cap"), EInvalidFunction);
@@ -1920,11 +1918,11 @@ public fun mcms_apply_premium_multiplier_wei_per_eth_updates(
     ctx: &mut TxContext,
 ) {
     let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
-        McmsCallback,
+        state_object::McmsCallback,
         OwnerCap,
     >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(

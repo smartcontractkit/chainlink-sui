@@ -67,6 +67,8 @@ type IOfframp interface {
 	McmsSetOcr3Config(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsTransferOwnership(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
+	McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOfframpDevInspect
 	Encoder() OfframpEncoder
 	Bound() bind.IBoundContract
@@ -189,6 +191,10 @@ type OfframpEncoder interface {
 	McmsTransferOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransfer(ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
 	McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error)
+	McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type OfframpContract struct {
@@ -1639,6 +1645,26 @@ func (c *OfframpContract) McmsTransferOwnership(ctx context.Context, opts *bind.
 // McmsExecuteOwnershipTransfer executes the mcms_execute_ownership_transfer Move function.
 func (c *OfframpContract) McmsExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ref bind.Object, state bind.Object, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.offrampEncoder.McmsExecuteOwnershipTransfer(ref, state, registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsAddAllowedModules executes the mcms_add_allowed_modules Move function.
+func (c *OfframpContract) McmsAddAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsAddAllowedModules(registry, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// McmsRemoveAllowedModules executes the mcms_remove_allowed_modules Move function.
+func (c *OfframpContract) McmsRemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.offrampEncoder.McmsRemoveAllowedModules(registry, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -3731,4 +3757,62 @@ func (c offrampEncoder) McmsExecuteOwnershipTransferWithArgs(args ...any) (*bind
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("mcms_execute_ownership_transfer", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsAddAllowedModules encodes a call to the mcms_add_allowed_modules Move function.
+func (c offrampEncoder) McmsAddAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsAddAllowedModulesWithArgs encodes a call to the mcms_add_allowed_modules Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) McmsAddAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_add_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// McmsRemoveAllowedModules encodes a call to the mcms_remove_allowed_modules Move function.
+func (c offrampEncoder) McmsRemoveAllowedModules(registry bind.Object, params bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}, []any{
+		registry,
+		params,
+	}, nil)
+}
+
+// McmsRemoveAllowedModulesWithArgs encodes a call to the mcms_remove_allowed_modules Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c offrampEncoder) McmsRemoveAllowedModulesWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut Registry",
+		"ExecutingCallbackParams",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("mcms_remove_allowed_modules", typeArgsList, typeParamsList, expectedParams, args, nil)
 }

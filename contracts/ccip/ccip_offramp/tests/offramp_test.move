@@ -10,8 +10,9 @@ use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
 use ccip_offramp::ocr3_base;
-use ccip_offramp::offramp::{Self, OffRampState};
+use ccip_offramp::offramp::{Self, OffRampState, StaticConfig};
 use ccip_offramp::ownable::OwnerCap;
+use mcms::mcms_registry::{Self, Registry};
 use sui::clock;
 use sui::test_scenario::{Self as ts, Scenario};
 
@@ -698,4 +699,129 @@ public fun test_remove_package_id_invalid_owner_cap() {
     tear_down(env);
     ts::return_to_address(OWNER, owner_cap);
     ts::return_shared(test_obj);
+}
+
+const EXPLOITER: address = @0x199;
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::EWrongProofType)]
+public fun test_release_cap_should_fail_with_wrong_proof_type() {
+    let (mut env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
+    initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
+
+    mcms_registry::test_init(env.scenario.ctx());
+
+    env.scenario.next_tx(OWNER);
+
+    // -----------------------------------------------------
+    // Transfer the OffRamp ownership to MCMS
+
+    let mcms = mcms_registry::get_multisig_address();
+    offramp::transfer_ownership(&env.ref, &mut env.state, &owner_cap, mcms, env.scenario.ctx());
+    assert!(offramp::pending_transfer_from(&env.state).extract() == OWNER);
+    assert!(offramp::pending_transfer_to(&env.state).extract() == mcms);
+    assert!(!offramp::pending_transfer_accepted(&env.state).extract());
+
+    assert!(offramp::owner(&env.state) == OWNER);
+
+    let TestEnv {
+        scenario,
+        state,
+        ref,
+        clock,
+    } = env;
+
+    ts::end(scenario);
+
+    // -----------------------------------------------------
+    // MCMS accepts ownership
+
+    let scenario_2 = ts::begin(mcms);
+
+    let mut env = TestEnv {
+        scenario: scenario_2,
+        state,
+        ref,
+        clock,
+    };
+
+    offramp::accept_ownership(&env.ref, &mut env.state, env.scenario.ctx());
+    assert!(offramp::pending_transfer_from(&env.state).extract() == OWNER);
+    assert!(offramp::pending_transfer_to(&env.state).extract() == mcms);
+    assert!(offramp::pending_transfer_accepted(&env.state).extract());
+
+    assert!(offramp::owner(&env.state) == OWNER);
+
+    let TestEnv {
+        scenario,
+        state,
+        ref,
+        clock,
+    } = env;
+
+    ts::end(scenario);
+
+    // -----------------------------------------------------
+    // Execute the ownership transfer
+
+    let scenario_3 = ts::begin(OWNER);
+
+    let mut env = TestEnv {
+        scenario: scenario_3,
+        state,
+        ref,
+        clock,
+    };
+
+    let mut registry = ts::take_shared<Registry>(&env.scenario);
+    let cap_id = object::id(&owner_cap);
+
+    offramp::execute_ownership_transfer_to_mcms(
+        &env.ref,
+        owner_cap,
+        &mut env.state,
+        &mut registry,
+        mcms,
+        env.scenario.ctx(),
+    );
+
+    assert!(offramp::owner(&env.state) == mcms);
+
+    let TestEnv {
+        scenario,
+        state,
+        ref,
+        clock,
+    } = env;
+
+    ts::end(scenario);
+
+    // -----------------------------------------------------
+    // Attempt to extract OwnerCap with wrong witness (StaticConfig instead of McmsCallback)
+    // This SHOULD FAIL with EWrongProofType
+
+    let scenario_4 = ts::begin(EXPLOITER);
+
+    let env = TestEnv {
+        scenario: scenario_4,
+        state,
+        ref,
+        clock,
+    };
+
+    let static_config = offramp::get_static_config(&env.ref, &env.state);
+
+    // This will abort with EWrongProofType because StaticConfig != McmsCallback
+    let extracted_owner_cap = mcms_registry::release_cap<StaticConfig, OwnerCap>(
+        &mut registry,
+        static_config,
+    );
+
+    // Code below will never execute due to abort above
+    let extracted_cap_id = object::id(&extracted_owner_cap);
+    assert!(cap_id == extracted_cap_id);
+
+    ts::return_shared(registry);
+    tear_down(env);
+    transfer::public_transfer(extracted_owner_cap, EXPLOITER);
 }

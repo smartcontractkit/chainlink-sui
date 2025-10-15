@@ -174,9 +174,6 @@ type Uncursed struct {
 	Subjects [][]byte `move:"vector<vector<u8>>"`
 }
 
-type McmsCallback struct {
-}
-
 func init() {
 	bind.RegisterStructDecoder("ccip::rmn_remote::RMNRemoteState", func(data []byte) (interface{}, error) {
 		var result RMNRemoteState
@@ -274,23 +271,6 @@ func init() {
 	// Register vector decoder for Uncursed
 	bind.RegisterStructDecoder("vector<ccip::rmn_remote::Uncursed>", func(data []byte) (interface{}, error) {
 		var results []Uncursed
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::rmn_remote::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip::rmn_remote::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err

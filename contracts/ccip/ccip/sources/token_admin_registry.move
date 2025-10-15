@@ -609,17 +609,18 @@ public fun is_administrator(
 // |                       MCMS Functions                         |
 // ================================================================
 
-public struct McmsCallback has drop {}
-
 public fun mcms_unregister_pool(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"unregister_pool"), EInvalidFunction);
@@ -642,9 +643,12 @@ public fun mcms_set_pool(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"set_pool"), EInvalidFunction);
@@ -689,9 +693,12 @@ public fun mcms_transfer_admin_role(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"transfer_admin_role"), EInvalidFunction);
@@ -720,9 +727,12 @@ public fun mcms_accept_admin_role(
     params: ExecutingCallbackParams,
     _ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"accept_admin_role"), EInvalidFunction);
@@ -814,5 +824,11 @@ public fun test_mcms_register_entrypoint(
     registry: &mut Registry,
     ctx: &mut TxContext,
 ) {
-    mcms_registry::register_entrypoint(registry, McmsCallback {}, owner_cap, ctx);
+    mcms_registry::register_entrypoint(
+        registry,
+        state_object::mcms_callback(),
+        owner_cap,
+        vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"], // Allowed CCIP modules
+        ctx,
+    );
 }
