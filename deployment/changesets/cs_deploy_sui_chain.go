@@ -56,15 +56,10 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	}
 
 	// in case the registry is not loaded with all operations. Needed to build accept ownership proposals
-	if e.OperationsBundle.OperationRegistry == nil {
-		ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
-		for i := range opregistry.AllOperations {
-			ops[i] = &opregistry.AllOperations[i]
-		}
-		registry := cld_ops.NewOperationRegistry(
-			ops...,
-		)
-		e.OperationsBundle.OperationRegistry = registry
+	ops := make([]*cld_ops.Operation[any, any, any], len(opregistry.AllOperations))
+	for i := range opregistry.AllOperations {
+		ops[i] = &opregistry.AllOperations[i]
+		cld_ops.RegisterOperation(e.OperationsBundle.OperationRegistry, &opregistry.AllOperations[i])
 	}
 
 	suiState, err := deployment.LoadOnchainStatesui(e)
