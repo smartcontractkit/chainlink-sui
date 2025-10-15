@@ -121,13 +121,10 @@ func SetupTestEnv(
 
 	lgr.Debugw("Published Contract", "packageId", packageId)
 
-	// counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
-	// require.NoError(t, err)
-
-	counterTableObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "CounterTable")
+	counterObjectId, err := QueryCreatedObjectID(tx.ObjectChanges, packageId, "counter", "Counter")
 	require.NoError(t, err)
 
 	suiClient, txManager, transactionRepository := SetupClients(t, LocalUrl, keystoreInstance, lgr, gasLimit)
 
-	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterTableObjectId
+	return suiClient, txManager, transactionRepository, accountAddress, keystoreInstance, publicKeyBytes, packageId, counterObjectId
 }
