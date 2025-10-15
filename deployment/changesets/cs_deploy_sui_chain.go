@@ -70,6 +70,10 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 	state := suiState[config.SuiChainSelector]
 
 	mcmsPackageId := state.MCMSPackageID
+	mcmsStateObjID := state.MCMSStateObjectID
+	timelockObjID := state.MCMSTimelockObjectID
+	accountObjID := state.MCMSAccountStateObjectID
+	registryObjID := state.MCMSRegistryObjectID
 	// If MCMS is not deployed, deploy it
 	if mcmsPackageId == "" {
 		mcmsReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.DeployMCMSSequence, deps, mcmsops.DeployMCMSSeqInput{
@@ -85,6 +89,10 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		}
 
 		mcmsPackageId = mcmsReport.Output.PackageId
+		mcmsStateObjID = mcmsReport.Output.Objects.McmsMultisigStateObjectId
+		timelockObjID = mcmsReport.Output.Objects.TimelockObjectId
+		accountObjID = mcmsReport.Output.Objects.McmsAccountStateObjectId
+		registryObjID = mcmsReport.Output.Objects.McmsRegistryObjectId
 	}
 
 	// Deploy Router
@@ -328,10 +336,10 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		},
 		// MCMS related
 		MmcsPackageID:  mcmsPackageId,
-		McmsStateObjID: state.MCMSStateObjectID,
-		TimelockObjID:  state.MCMSTimelockObjectID,
-		AccountObjID:   state.MCMSAccountStateObjectID,
-		RegistryObjID:  state.MCMSRegistryObjectID,
+		McmsStateObjID: mcmsStateObjID,
+		TimelockObjID:  timelockObjID,
+		AccountObjID:   accountObjID,
+		RegistryObjID:  registryObjID,
 
 		// Proposal
 		Role: suisdk.TimelockRoleProposer,
