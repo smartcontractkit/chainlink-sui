@@ -219,8 +219,8 @@ func TestDecodeSuiJsonValue_StringType(t *testing.T) {
 
 	// Test error case
 	err = DecodeSuiJsonValue(123, &target)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "expected string")
+	require.NoError(t, err)
+	require.Equal(t, "123", target)
 }
 
 func TestDecodeSuiJsonValue_SliceTypes(t *testing.T) {

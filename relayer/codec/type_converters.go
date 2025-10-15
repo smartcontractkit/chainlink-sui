@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -55,6 +56,18 @@ func (tc *TypeConverter) registerStandardConverters() {
 
 	// Array/Slice conversions
 	tc.RegisterConverter("slice_to_slice", tc.sliceToSlice)
+
+	// Float64 conversions (JSON unmarshals numbers as float64)
+	tc.RegisterConverter("float64_to_uint", tc.float64ToUint)
+	tc.RegisterConverter("float64_to_int", tc.float64ToInt)
+
+	// json.Number conversions
+	tc.RegisterConverter("json_number_to_uint", tc.jsonNumberToUint)
+	tc.RegisterConverter("json_number_to_int", tc.jsonNumberToInt)
+
+	// Bytes to numeric conversions (for BCS decoding)
+	tc.RegisterConverter("bytes_to_uint", tc.bytesToUint)
+	tc.RegisterConverter("slice_any_to_uint", tc.sliceAnyToUint)
 }
 
 // RegisterConverter registers a conversion function with a unique key
@@ -64,6 +77,22 @@ func (tc *TypeConverter) RegisterConverter(key string, fn TypeConversionFunc) {
 
 // Convert attempts to convert data using registered converters
 func (tc *TypeConverter) Convert(from reflect.Type, to reflect.Type, data any) (any, error) {
+	// Try float64 conversions (JSON unmarshals numbers as float64)
+	if from.Kind() == reflect.Float64 {
+		result, err, handled := tc.handleFloat64(data.(float64), to)
+		if handled {
+			return result, err
+		}
+	}
+
+	// Try json.Number conversions
+	if _, ok := data.(json.Number); ok {
+		result, err, handled := tc.handleJSONNumber(data.(json.Number), to)
+		if handled {
+			return result, err
+		}
+	}
+
 	// Try hex string conversions
 	if from.Kind() == reflect.String {
 		if str, ok := data.(string); ok && strings.HasPrefix(str, "0x") {
@@ -74,17 +103,17 @@ func (tc *TypeConverter) Convert(from reflect.Type, to reflect.Type, data any) (
 		}
 	}
 
-	// Try base64 conversions
-	if from.Kind() == reflect.String && (to.Kind() == reflect.Slice || to.Kind() == reflect.Array) && to.Elem().Kind() == reflect.Uint8 {
-		result, err, handled := tc.handleBase64String(data.(string), to)
+	// Try numeric string conversions (before base64, as numeric strings can be valid base64)
+	if from.Kind() == reflect.String {
+		result, err, handled := tc.handleNumericString(data.(string), to)
 		if handled {
 			return result, err
 		}
 	}
 
-	// Try numeric string conversions
-	if from.Kind() == reflect.String {
-		result, err, handled := tc.handleNumericString(data.(string), to)
+	// Try base64 conversions (fallback for non-numeric strings to []byte)
+	if from.Kind() == reflect.String && (to.Kind() == reflect.Slice || to.Kind() == reflect.Array) && to.Elem().Kind() == reflect.Uint8 {
+		result, err, handled := tc.handleBase64String(data.(string), to)
 		if handled {
 			return result, err
 		}
@@ -98,11 +127,22 @@ func (tc *TypeConverter) Convert(from reflect.Type, to reflect.Type, data any) (
 		}
 	}
 
-	// Try array/slice conversions
-	if (from.Kind() == reflect.Slice || from.Kind() == reflect.Array) && to.Kind() == reflect.Slice {
-		result, err, handled := tc.handleSlice(from, to, data)
-		if handled {
-			return result, err
+	// Try bytes/slice to numeric conversions
+	if from.Kind() == reflect.Slice || from.Kind() == reflect.Array {
+		// Handle []byte or []any to numeric
+		if isNumericTarget(to) {
+			result, err, handled := tc.handleBytesToNumeric(from, to, data)
+			if handled {
+				return result, err
+			}
+		}
+
+		// Handle slice to slice conversions
+		if to.Kind() == reflect.Slice {
+			result, err, handled := tc.handleSlice(from, to, data)
+			if handled {
+				return result, err
+			}
 		}
 	}
 
@@ -162,6 +202,11 @@ func (tc *TypeConverter) handleHexString(str string, to reflect.Type, data any) 
 func (tc *TypeConverter) handleBase64String(str string, to reflect.Type) (result any, err error, handled bool) {
 	if fn, ok := tc.converters["base64_string_to_bytes"]; ok {
 		result, err = fn(reflect.TypeOf(str), to, str)
+		// If base64ToBytes returns the original string unchanged, it means
+		// base64 decoding failed, so we should let default handling try
+		if resultStr, isStr := result.(string); isStr && resultStr == str {
+			return nil, nil, false
+		}
 		return result, err, true
 	}
 	return nil, nil, false
@@ -191,6 +236,11 @@ func (tc *TypeConverter) handleNumericString(str string, to reflect.Type) (resul
 		if to.Elem().Kind() == reflect.Uint8 {
 			if fn, ok := tc.converters["string_to_bytes"]; ok {
 				result, err = fn(reflect.TypeOf(str), to, str)
+				// If stringToBytes returns the original string unchanged, it means
+				// it's not a numeric string, so we should let other handlers try
+				if resultStr, isStr := result.(string); isStr && resultStr == str {
+					return nil, nil, false
+				}
 				return result, err, true
 			}
 		}
@@ -332,7 +382,8 @@ func (tc *TypeConverter) base64ToBytes(from, to reflect.Type, data any) (any, er
 		return bytes, nil
 	}
 
-	return data, nil
+	// Base64 decoding failed - return string unchanged so handler knows to pass to default
+	return str, nil
 }
 
 func (tc *TypeConverter) stringToInt(from, to reflect.Type, data any) (any, error) {
@@ -395,10 +446,12 @@ func (tc *TypeConverter) stringToBytes(from, to reflect.Type, data any) (any, er
 		return data, nil
 	}
 
+	// Try numeric string first (convert to little-endian bytes)
 	if num, err := strconv.ParseUint(str, base10, uint64Bits); err == nil {
 		return numericToBytes(num), nil
 	}
 
+	// Not a numeric string - return unchanged so other handlers (base64) can try
 	return str, nil
 }
 
@@ -472,6 +525,185 @@ func (tc *TypeConverter) sliceToSlice(from, to reflect.Type, data any) (any, err
 	}
 
 	return targetSlice.Interface(), nil
+}
+
+// float64ToUint converts float64 to uint types (JSON unmarshals numbers as float64)
+func (tc *TypeConverter) float64ToUint(from, to reflect.Type, data any) (any, error) {
+	floatVal, ok := data.(float64)
+	if !ok {
+		return data, nil
+	}
+
+	uintVal := uint64(floatVal)
+	if overflowUint(to, uintVal) {
+		return nil, fmt.Errorf("value %d overflows %v", uintVal, to)
+	}
+
+	return reflect.ValueOf(uintVal).Convert(to).Interface(), nil
+}
+
+// float64ToInt converts float64 to int types
+func (tc *TypeConverter) float64ToInt(from, to reflect.Type, data any) (any, error) {
+	floatVal, ok := data.(float64)
+	if !ok {
+		return data, nil
+	}
+
+	intVal := int64(floatVal)
+	if overflowInt(to, intVal) {
+		return nil, fmt.Errorf("value %d overflows %v", intVal, to)
+	}
+
+	return reflect.ValueOf(intVal).Convert(to).Interface(), nil
+}
+
+// jsonNumberToUint converts json.Number to uint types
+func (tc *TypeConverter) jsonNumberToUint(from, to reflect.Type, data any) (any, error) {
+	jsonNum, ok := data.(json.Number)
+	if !ok {
+		return data, nil
+	}
+
+	intVal, err := jsonNum.Int64()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JSON number: %w", err)
+	}
+
+	if intVal < 0 {
+		return nil, fmt.Errorf("cannot convert negative value %d to uint", intVal)
+	}
+
+	uintVal := uint64(intVal)
+	if overflowUint(to, uintVal) {
+		return nil, fmt.Errorf("value %d overflows %v", uintVal, to)
+	}
+
+	return reflect.ValueOf(uintVal).Convert(to).Interface(), nil
+}
+
+// jsonNumberToInt converts json.Number to int types
+func (tc *TypeConverter) jsonNumberToInt(from, to reflect.Type, data any) (any, error) {
+	jsonNum, ok := data.(json.Number)
+	if !ok {
+		return data, nil
+	}
+
+	intVal, err := jsonNum.Int64()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JSON number: %w", err)
+	}
+
+	if overflowInt(to, intVal) {
+		return nil, fmt.Errorf("value %d overflows %v", intVal, to)
+	}
+
+	return reflect.ValueOf(intVal).Convert(to).Interface(), nil
+}
+
+// bytesToUint converts []byte to uint types (little-endian)
+func (tc *TypeConverter) bytesToUint(from, to reflect.Type, data any) (any, error) {
+	bytes, ok := data.([]byte)
+	if !ok {
+		return data, nil
+	}
+
+	if len(bytes) == 0 {
+		return nil, fmt.Errorf("empty byte array cannot be converted to numeric value")
+	}
+
+	var result uint64
+	// Process bytes in little-endian order
+	for i := 0; i < len(bytes) && i < 8; i++ {
+		result |= uint64(bytes[i]) << (8 * i)
+	}
+
+	if overflowUint(to, result) {
+		return nil, fmt.Errorf("value %d overflows %v", result, to)
+	}
+
+	return reflect.ValueOf(result).Convert(to).Interface(), nil
+}
+
+// sliceAnyToUint converts []any to uint types (converts to bytes first)
+func (tc *TypeConverter) sliceAnyToUint(from, to reflect.Type, data any) (any, error) {
+	anySlice, ok := data.([]any)
+	if !ok {
+		return data, nil
+	}
+
+	bytes, err := AnySliceToBytes(anySlice)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert slice to bytes: %w", err)
+	}
+
+	return tc.bytesToUint(reflect.TypeOf(bytes), to, bytes)
+}
+
+// handleFloat64 handles float64 conversions
+func (tc *TypeConverter) handleFloat64(floatVal float64, to reflect.Type) (result any, err error, handled bool) {
+	switch to.Kind() {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if fn, ok := tc.converters["float64_to_uint"]; ok {
+			result, err = fn(reflect.TypeOf(floatVal), to, floatVal)
+			return result, err, true
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if fn, ok := tc.converters["float64_to_int"]; ok {
+			result, err = fn(reflect.TypeOf(floatVal), to, floatVal)
+			return result, err, true
+		}
+	}
+
+	return nil, nil, false
+}
+
+// handleJSONNumber handles json.Number conversions
+func (tc *TypeConverter) handleJSONNumber(jsonNum json.Number, to reflect.Type) (result any, err error, handled bool) {
+	switch to.Kind() {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if fn, ok := tc.converters["json_number_to_uint"]; ok {
+			result, err = fn(reflect.TypeOf(jsonNum), to, jsonNum)
+			return result, err, true
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if fn, ok := tc.converters["json_number_to_int"]; ok {
+			result, err = fn(reflect.TypeOf(jsonNum), to, jsonNum)
+			return result, err, true
+		}
+	}
+
+	return nil, nil, false
+}
+
+// handleBytesToNumeric handles conversions from []byte or []any to numeric types
+func (tc *TypeConverter) handleBytesToNumeric(from, to reflect.Type, data any) (result any, err error, handled bool) {
+	if from.Kind() == reflect.Slice && from.Elem().Kind() == reflect.Uint8 {
+		// []byte to numeric
+		if fn, ok := tc.converters["bytes_to_uint"]; ok {
+			result, err = fn(from, to, data)
+			return result, err, true
+		}
+	}
+
+	if from.Kind() == reflect.Slice && from.Elem().Kind() == reflect.Interface {
+		// []any to numeric
+		if fn, ok := tc.converters["slice_any_to_uint"]; ok {
+			result, err = fn(from, to, data)
+			return result, err, true
+		}
+	}
+
+	return nil, nil, false
+}
+
+// isNumericTarget checks if the target type is a numeric type
+func isNumericTarget(to reflect.Type) bool {
+	switch to.Kind() {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	}
+	return false
 }
 
 // Global type converter instance for package-wide use (lazy initialization)
