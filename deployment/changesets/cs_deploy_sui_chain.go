@@ -15,7 +15,6 @@ import (
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	opregistry "github.com/smartcontractkit/chainlink-sui/deployment/ops/registry"
-	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 )
 
@@ -347,15 +346,15 @@ func (d DeploySuiChain) Apply(e cldf.Environment, config DeploySuiChainConfig) (
 		ChainSelector: config.SuiChainSelector,
 	}
 
-	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
+	_, err = cld_ops.ExecuteSequence(e.OperationsBundle, mcmsops.MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
 
 	return cldf.ChangesetOutput{
-		AddressBook:           ab,
-		Reports:               seqReports,
-		MCMSTimelockProposals: []mcms.TimelockProposal{acceptOwnershipProposalReport.Output},
+		AddressBook: ab,
+		Reports:     seqReports,
+		// MCMSTimelockProposals: []mcms.TimelockProposal{acceptOwnershipProposalReport.Output},
 	}, nil
 }
 
