@@ -380,7 +380,7 @@ var acceptOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampRefObjectId)
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampStateObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
