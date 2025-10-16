@@ -196,6 +196,7 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
     registry: &mut Registry,
     to: address,
     proof: P,
+    allowed_modules: vector<vector<u8>>,
     ctx: &mut TxContext,
 ) {
     assert!(object::id(&owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
@@ -219,17 +220,14 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
         registry,
         proof,
         owner_cap,
+        allowed_modules,
         ctx,
     );
 
     event::emit(OwnershipTransferred { from: current_owner, to: new_owner });
 }
 
-public fun destroy<T>(
-    state: OwnableState<T>,
-    owner_cap: OwnerCap<T>,
-    _ctx: &mut TxContext,
-) {
+public fun destroy<T>(state: OwnableState<T>, owner_cap: OwnerCap<T>, _ctx: &mut TxContext) {
     let OwnableState<T> {
         id: state_id,
         owner: _,
@@ -239,7 +237,7 @@ public fun destroy<T>(
 
     let OwnerCap<T> { id: owner_cap_id } = owner_cap;
 
-    assert!( owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
+    assert!(owner_cap_id.uid_to_inner() == state_owner_cap_id, EInvalidOwnerCap);
 
     object::delete(state_id);
     object::delete(owner_cap_id);

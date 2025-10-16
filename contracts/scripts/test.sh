@@ -9,6 +9,8 @@ sui move test --path ccip/ccip_token_pools/managed_token_pool
 sui move test --path ccip/ccip_token_pools/lock_release_token_pool
 sui move test --path ccip/ccip_token_pools/burn_mint_token_pool
 sui move test --path mcms/mcms
+sui move test --path mcms/mcms_test
+sui move test --path mcms/mcms_test_v2
 sui move test --path ccip/ccip_onramp
 sui move test --path ccip/ccip_offramp
 sui move test --path ccip/managed_token

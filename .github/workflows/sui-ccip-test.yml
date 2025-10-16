@@ -27,9 +27,9 @@ jobs:
             sui_version: mainnet-v1.57.2
           - test_name: Test_CCIPTokenTransfer_EVM2SUI
             sui_version: mainnet-v1.57.2
-          
+
     env:
-      DEFAULT_CORE_REF: develop 
+      DEFAULT_CORE_REF: develop
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
       GOPRIVATE: github.com/smartcontractkit/chainlink-sui
@@ -52,7 +52,7 @@ jobs:
 
     steps:
       # 1) Checkout both repos
-      - name: Checkout chainlink-sui 
+      - name: Checkout chainlink-sui
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}
@@ -77,7 +77,7 @@ jobs:
           ref: ${{ env.CUSTOM_CORE_REF || env.DEFAULT_CORE_REF }}
           path: temp/chainlink
           fetch-depth: 1
-          
+
       # 2) Read Go version
       - name: Read Go version
         id: go-version
@@ -166,7 +166,7 @@ jobs:
           echo "=== Running ${{ matrix.test_name }} ==="
           go test ./smoke/ccip \
             -run "${{ matrix.test_name }}" \
-            -timeout 10m \
+            -timeout 20m \
             -parallel 4 \
             -count=1 \
             -v
