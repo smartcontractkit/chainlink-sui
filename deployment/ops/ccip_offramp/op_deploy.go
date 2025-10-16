@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
+	module_ownable "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/ownable"
 	"github.com/smartcontractkit/chainlink-sui/bindings/packages/offramp"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 )
@@ -371,16 +372,20 @@ type AcceptOwnershipOffRampObjects struct {
 }
 
 var acceptOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOffRampInput) (output sui_ops.OpTxResult[AcceptOwnershipOffRampObjects], err error) {
-	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	// mcms_accept_ownership uses the Ownable module
+	ownablePackage, err := module_ownable.NewOwnable(input.OffRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, err
 	}
 
-	encodedCall, err := offRampPackage.Encoder().AcceptOwnership(bind.Object{Id: input.OffRampRefObjectId}, bind.Object{Id: input.OffRampStateObjectId})
+	encodedCall, err := ownablePackage.Encoder().AcceptOwnership(bind.Object{Id: input.OffRampStateObjectId})
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampStateObjectId)
+	// We need ownable encoding, but we call the offramp
+	encodedCall.Module.ModuleName = "offramp"
+	// we set the ref object as the state of the call, so we can access it in the entrypoint encoder
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.OffRampRefObjectId)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
@@ -394,12 +399,18 @@ var acceptOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 		}, nil
 	}
 
+	// If we have a signer, this is accepting the ownership from EOA, we use the offramp directly
+	offRampPackage, err := module_offramp.NewOfframp(input.OffRampPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, err
+	}
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := offRampPackage.Bound().ExecuteTransaction(
+	tx, err := offRampPackage.AcceptOwnership(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.OffRampRefObjectId},
+		bind.Object{Id: input.OffRampStateObjectId},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipOffRampObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on OffRamp: %w", err)
@@ -411,7 +422,6 @@ var acceptOwnershipOffRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 		Digest:    tx.Digest,
 		PackageId: input.OffRampPackageId,
 		Objects:   AcceptOwnershipOffRampObjects{},
-		Call:      call,
 	}, nil
 }
 

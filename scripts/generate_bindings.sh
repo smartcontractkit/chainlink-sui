@@ -20,9 +20,12 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/cc
 
 # CCIP - Onramp
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/onramp.move --output ./bindings/generated/ccip/ccip_onramp/onramp
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/ownable.move --output ./bindings/generated/ccip/ccip_onramp/ownable
+
 
 # CCIP - Offramp
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./contracts/ccip/ccip_offramp/sources/offramp.move --output ./bindings/generated/ccip/ccip_offramp/offramp
+
 
 # CCIP - LINK
 go run bindgen/main.go --moveConfig ./contracts/ccip/mock_link_token --input ./contracts/ccip/mock_link_token/sources/mock_link_token.move --output ./bindings/generated/ccip/mock_link_token/mock_link_token

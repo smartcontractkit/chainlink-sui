@@ -12,6 +12,7 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+	module_ownable "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/ownable"
 )
 
 type DeployCCIPOnRampObjects struct {
@@ -612,16 +613,20 @@ type NoObjects struct {
 }
 
 var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[NoObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+	// mcms_accept_ownership uses the Ownable module
+	ownablePackage, err := module_ownable.NewOwnable(input.OnRampPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, err
 	}
 
-	encodedCall, err := onRampPackage.Encoder().AcceptOwnership(bind.Object{Id: input.CCIPObjectRefId}, bind.Object{Id: input.StateObjectId})
+	encodedCall, err := ownablePackage.Encoder().AcceptOwnership(bind.Object{Id: input.StateObjectId})
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	// We need ownable encoding, but we call the onramp
+	encodedCall.Module.ModuleName = "onramp"
+	// we set the ref object as the state of the call, so we can access it in the entrypoint encoder
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefId)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}
@@ -635,12 +640,15 @@ var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		}, nil
 	}
 
+	// If we have a signer, this is accepting the ownership from EOA, we use the onramp directly
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	tx, err := onRampPackage.Bound().ExecuteTransaction(
+	tx, err := onRampPackage.AcceptOwnership(
 		b.GetContext(),
 		opts,
-		encodedCall,
+		bind.Object{Id: input.CCIPObjectRefId},
+		bind.Object{Id: input.StateObjectId},
 	)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
@@ -651,7 +659,6 @@ var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
-		Call:      call,
 	}, nil
 }
 
