@@ -77,7 +77,7 @@ public fun register_mcms_entrypoint(
     assert_valid_owner_cap(user_data, &owner_cap);
 
     // Transfer owner_cap to MCMS
-    mcms_registry::register_entrypoint(registry, SampleMcmsCallback {}, owner_cap, ctx);
+    mcms_registry::register_entrypoint(registry, SampleMcmsCallback {}, owner_cap, vector[b"mcms_user"], ctx);
 }
 
 public fun register_upgrade_cap(
