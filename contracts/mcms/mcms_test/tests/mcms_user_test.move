@@ -3,10 +3,11 @@ module mcms_test::mcms_user_test;
 
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry};
-use mcms_test::mcms_user::{Self, UserData};
+use mcms_test::mcms_user::{Self, UserData, SampleMcmsCallback};
 use mcms_test::ownable::{OwnerCap};
 
 use std::string;
+use std::type_name;
 use sui::bcs;
 use sui::package;
 use sui::test_scenario::{Self as ts, Scenario};
@@ -152,6 +153,7 @@ fun test_mcms_function_one() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<SampleMcmsCallback>(),
         );
 
         // Command 2: Call mcms_function_one with params hot potato
@@ -208,6 +210,7 @@ fun test_mcms_function_two() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<SampleMcmsCallback>(),
         );
 
         // Command 2: Call mcms_function_two
@@ -254,6 +257,7 @@ fun test_mcms_function_one_invalid_function() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<SampleMcmsCallback>(),
         );
 
         let ctx = ts::ctx(&mut scenario);
@@ -273,7 +277,7 @@ fun test_mcms_function_one_invalid_function() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EModuleNameMismatch)]
+#[expected_failure(abort_code = mcms_registry::EModuleNotAllowed)]
 fun test_mcms_entrypoint_wrong_module_name() {
     let mut scenario = create_test_scenario();
 
@@ -296,6 +300,7 @@ fun test_mcms_entrypoint_wrong_module_name() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<SampleMcmsCallback>(),
         );
 
         let ctx = ts::ctx(&mut scenario);
@@ -349,6 +354,7 @@ fun test_sequential_function_calls() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<SampleMcmsCallback>(),
         );
 
         // Command 2: Call mcms_function_one
@@ -392,6 +398,7 @@ fun test_sequential_function_calls() {
             x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<SampleMcmsCallback>(),
         );
 
         let ctx = ts::ctx(&mut scenario);
@@ -453,6 +460,7 @@ fun test_call_function_with_invalid_user_data() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
+            type_name::with_original_ids<SampleMcmsCallback>(),
         );
 
         // Command 2: This should fail because we provide an unregistered user_data

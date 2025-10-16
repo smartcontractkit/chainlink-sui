@@ -219,6 +219,7 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
         registry,
         proof,
         owner_cap,
+        vector[b"mcms_user"],
         ctx,
     );
 
