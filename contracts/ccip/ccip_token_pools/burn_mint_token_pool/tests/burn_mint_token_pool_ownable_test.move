@@ -7,6 +7,8 @@ use ccip::rmn_remote;
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry;
 use ccip::upgrade_registry;
+use std::bcs;
+use std::string;
 use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
 
@@ -16,6 +18,16 @@ const OWNER: address = @0x123;
 const NEW_OWNER: address = @0x456;
 const OTHER_USER: address = @0x789;
 const Decimals: u8 = 8;
+
+/// Helper function to create proof data for initialize_by_ccip_admin
+fun create_init_proof_data(token_pool_administrator: address): vector<u8> {
+    let mut proof_data = vector[];
+    proof_data.append(bcs::to_bytes(&@burn_mint_token_pool));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"burn_mint_token_pool")));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+    proof_data.append(bcs::to_bytes(&token_pool_administrator));
+    proof_data
+}
 
 public struct TestEnv {
     scenario: Scenario,
@@ -52,10 +64,9 @@ fun setup(): (TestEnv, OwnerCap) {
 
     burn_mint_token_pool::initialize_by_ccip_admin(
         &mut ccip_ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(create_init_proof_data(OWNER), false),
         &coin_metadata,
         treasury_cap,
-        @0x123,
         scenario.ctx(),
     );
 

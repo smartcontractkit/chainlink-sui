@@ -74,6 +74,10 @@ const EDomainNotFound: u64 = 10;
 const EDomainDisabled: u64 = 11;
 const ETokenAmountOverflow: u64 = 12;
 const EInvalidFunction: u64 = 13;
+const EInvalidProof: u64 = 14;
+const EInvalidPackageId: u64 = 15;
+const EInvalidModuleName: u64 = 16;
+const EInvalidFunctionName: u64 = 17;
 
 // ================================================================
 // |                             Init                             |
@@ -85,15 +89,34 @@ public fun type_and_version(): String {
 
 // TODO: should we just import USDC as type arg?
 #[allow(lint(self_transfer))]
-public fun initialize<T: drop>(
+public fun initialize_by_ccip_admin<T: drop>(
     ref: &mut CCIPObjectRef,
     ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>, // this can be provided as an address or in Move.toml
-    local_domain_identifier: u32,
-    token_pool_package_id: address,
-    token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
+    assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);
+
+    let data = state_object::get_ccip_admin_proof_data(&ccip_admin_proof);
+    let mut stream = bcs_stream::new(data);
+
+    let target_package_id = bcs_stream::deserialize_address(&mut stream);
+    let target_module_name = bcs_stream::deserialize_string(&mut stream);
+    let target_function_name = bcs_stream::deserialize_string(&mut stream);
+    let local_domain_identifier = bcs_stream::deserialize_u32(&mut stream);
+    let token_pool_package_id = bcs_stream::deserialize_address(&mut stream);
+    let token_pool_administrator = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    assert!(target_package_id == @usdc_token_pool, EInvalidPackageId);
+    assert!(target_module_name == string::utf8(b"usdc_token_pool"), EInvalidModuleName);
+    assert!(
+        target_function_name == string::utf8(b"initialize_by_ccip_admin"),
+        EInvalidFunctionName,
+    );
+
+    state_object::set_ccip_admin_proof_validated(&mut ccip_admin_proof, true);
+
     let coin_metadata_address: address = object::id_to_address(&object::id(coin_metadata));
     assert!(coin_metadata_address == @usdc_coin_metadata_object_id, EInvalidCoinMetadata);
 

@@ -16,6 +16,7 @@ use std::type_name;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario;
+use mcms::bcs_stream;
 
 public struct BURN_MINT_TOKEN_POOL_TESTS has drop {}
 
@@ -27,6 +28,16 @@ const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const NewRemoteChain: u64 = 3000;
 const NewRemotePool: vector<u8> = b"new_remote_pool";
 const NewRemoteToken: vector<u8> = b"new_remote_token";
+
+/// Helper function to create proof data for initialize_by_ccip_admin
+fun create_init_proof_data(token_pool_administrator: address): vector<u8> {
+    let mut proof_data = vector[];
+    proof_data.append(bcs::to_bytes(&@burn_mint_token_pool));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"burn_mint_token_pool")));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+    proof_data.append(bcs::to_bytes(&token_pool_administrator));
+    proof_data
+}
 
 fun setup_ccip_environment(
     scenario: &mut test_scenario::Scenario,
@@ -84,10 +95,9 @@ public fun test_initialize_and_basic_functionality() {
         // Initialize burn mint token pool
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123, // token_pool_administrator
             ctx,
         );
 
@@ -148,10 +158,9 @@ public fun test_chain_configuration_management() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -264,10 +273,9 @@ public fun test_allowlist_management() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -322,10 +330,9 @@ public fun test_rate_limiter_configuration() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -425,10 +432,9 @@ public fun test_invalid_arguments_rate_limiter_configs() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -489,10 +495,9 @@ public fun test_comprehensive_allowlist_operations() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -550,10 +555,9 @@ public fun test_destroy_token_pool() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -606,10 +610,9 @@ public fun test_comprehensive_rate_limiter_operations() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -708,10 +711,9 @@ public fun test_edge_cases_and_boundary_conditions() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -844,12 +846,18 @@ public fun test_lock_or_burn_comprehensive() {
         let test_coin = coin::mint(&mut treasury_cap, 1000, ctx); // Small amount to stay within rate limiter
         transfer::public_transfer(test_coin, @0x456); // Transfer to test user
 
+        // Create proof data with proper BCS encoding
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@burn_mint_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"burn_mint_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123)); // token_pool_administrator
+
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
             &coin_metadata,
             treasury_cap, // treasury_cap is moved here
-            @0x123,
             ctx,
         );
 
@@ -992,10 +1000,9 @@ public fun test_release_or_mint_comprehensive() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -1134,10 +1141,9 @@ public fun test_set_allowlist_enabled() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -1198,10 +1204,9 @@ public fun test_apply_allowlist_updates() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -1303,10 +1308,9 @@ public fun test_set_pool() {
         // Initialize normally with burn_mint_token_pool
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -1374,7 +1378,7 @@ public fun test_set_pool() {
 
         token_admin_registry::register_pool_by_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1519,10 +1523,9 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
 
         burn_mint_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(create_init_proof_data(@0x123), false),
             &coin_metadata,
             treasury_cap,
-            @0x123,
             ctx,
         );
 
@@ -1580,6 +1583,321 @@ public fun test_allowlist_enabled_and_updates_comprehensive() {
         burn_mint_token_pool::set_allowlist_enabled(&mut pool_state, &owner_cap, true);
         assert!(burn_mint_token_pool::get_allowlist_enabled(&pool_state));
         assert!(burn_mint_token_pool::get_allowlist(&pool_state).length() == 4); // Data preserved
+
+        scenario.return_to_sender(owner_cap);
+        test_scenario::return_shared(pool_state);
+    };
+
+    test_scenario::end(scenario);
+}
+
+// ================================================================
+// |          CCIPAdminProof Tests         |
+// ================================================================
+
+#[test]
+#[expected_failure(abort_code = burn_mint_token_pool::EInvalidPackageId)]
+public fun test_initialize_with_invalid_package_id() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with WRONG package ID
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@0xbad)); // Wrong package!
+        proof_data.append(bcs::to_bytes(&string::utf8(b"burn_mint_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123));
+
+        // This should fail with EInvalidPackageId
+        burn_mint_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            treasury_cap,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = burn_mint_token_pool::EInvalidModuleName)]
+public fun test_initialize_with_invalid_module_name() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with WRONG module name
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@burn_mint_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_module_name"))); // Wrong module!
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123));
+
+        // This should fail with EInvalidModuleName
+        burn_mint_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            treasury_cap,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = burn_mint_token_pool::EInvalidFunctionName)]
+public fun test_initialize_with_invalid_function_name() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with WRONG function name
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@burn_mint_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"burn_mint_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_function"))); // Wrong function!
+        proof_data.append(bcs::to_bytes(&@0x123));
+
+        // This should fail with EInvalidFunctionName
+        burn_mint_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            treasury_cap,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = burn_mint_token_pool::EInvalidProof)]
+public fun test_initialize_with_already_validated_proof() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with validated=true (simulating proof reuse attack)
+        let proof_data = create_init_proof_data(@0x123);
+
+        // This should fail with EInvalidProof because proof is already marked as validated
+        burn_mint_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, true), // validated=true!
+            &coin_metadata,
+            treasury_cap,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[allow(implicit_const_copy)]
+#[expected_failure(abort_code = bcs_stream::E_OUT_OF_BYTES)]
+public fun test_initialize_with_malformed_proof_missing_parameter() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with MISSING parameter (only 3 instead of 4)
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@burn_mint_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"burn_mint_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        // Missing: token_pool_administrator!
+
+        // This should fail during deserialization
+        burn_mint_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            treasury_cap,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[allow(implicit_const_copy)]
+#[expected_failure(abort_code = bcs_stream::E_NOT_CONSUMED)]
+public fun test_initialize_with_malformed_proof_extra_data() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with EXTRA unexpected data
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@burn_mint_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"burn_mint_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123));
+        proof_data.append(bcs::to_bytes(&@0x456)); // Extra data that shouldn't be here!
+
+        // This should fail at assert_is_consumed check
+        burn_mint_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            treasury_cap,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+public fun test_initialize_with_valid_proof_comprehensive() {
+    let mut scenario = test_scenario::begin(@burn_mint_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            BURN_MINT_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"BMTP",
+            b"BurnMintTestToken",
+            b"burn_mint_test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create VALID proof with all correct data
+        let proof_data = create_init_proof_data(@0x999);
+
+        // This should succeed
+        burn_mint_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            treasury_cap,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+
+    // Verify initialization was successful
+    scenario.next_tx(@burn_mint_token_pool);
+    {
+        let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Verify pool was created correctly
+        assert!(burn_mint_token_pool::get_token_decimals(&pool_state) == Decimals);
+        let token_address = burn_mint_token_pool::get_token(&pool_state);
+        assert!(token_address != @0x0);
 
         scenario.return_to_sender(owner_cap);
         test_scenario::return_shared(pool_state);

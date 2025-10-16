@@ -20,6 +20,7 @@ use sui::address;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
+use mcms::bcs_stream;
 
 public struct MANAGED_TOKEN_POOL_TESTS has drop {}
 
@@ -29,6 +30,20 @@ const DefaultRemotePool: vector<u8> = b"default_remote_pool";
 const DefaultRemoteToken: vector<u8> = b"default_remote_token";
 
 const CCIP_ADMIN: address = @0x400;
+
+/// Helper function to create proof data for initialize_by_ccip_admin
+fun create_init_proof_data(
+    token_pool_administrator: address,
+    managed_token_state_address: address,
+): vector<u8> {
+    let mut proof_data = vector[];
+    proof_data.append(bcs::to_bytes(&@managed_token_pool));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+    proof_data.append(bcs::to_bytes(&token_pool_administrator));
+    proof_data.append(bcs::to_bytes(&managed_token_state_address));
+    proof_data
+}
 
 fun setup_ccip_environment(scenario: &mut Scenario): (CCIPOwnerCap, CCIPObjectRef) {
     scenario.next_tx(CCIP_ADMIN);
@@ -780,11 +795,12 @@ public fun test_initialize_by_ccip_admin() {
         // Test initialize_by_ccip_admin function (doesn't require treasury cap)
         managed_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(
+                create_init_proof_data(@0x123, managed_token_state_address),
+                false
+            ),
             &coin_metadata,
             mint_cap,
-            managed_token_state_address, // Use the actual managed token state address
-            @0x123, // token_pool_administrator
             scenario.ctx(),
         );
     };
@@ -1365,11 +1381,12 @@ public fun test_set_pool() {
 
         managed_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(
+                create_init_proof_data(TOKEN_ADMIN, token_state_address),
+                false
+            ),
             &coin_metadata,
             mint_cap,
-            token_state_address,
-            TOKEN_ADMIN,
             scenario.ctx(),
         );
 
@@ -1435,7 +1452,7 @@ public fun test_set_pool() {
 
         token_admin_registry::register_pool_by_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1554,6 +1571,508 @@ public fun test_set_pool() {
         scenario.return_to_sender(owner_cap);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(ccip_ref);
+    };
+
+    test_scenario::end(scenario);
+}
+
+// ================================================================
+// |          CCIPAdminProof Tests         |
+// ================================================================
+
+#[test]
+#[expected_failure(abort_code = managed_token_pool::EInvalidPackageId)]
+public fun test_initialize_with_invalid_package_id() {
+    let mut scenario = test_scenario::begin(@managed_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Create managed token
+    scenario.next_tx(@managed_token_pool);
+    let coin_metadata = {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"MTPT",
+            b"ManagedTokenPoolTest",
+            b"managed_token_pool_test",
+            option::none(),
+            ctx,
+        );
+        managed_token::initialize(treasury_cap, ctx);
+        coin_metadata
+    };
+
+    // Get the managed token state address and create mint cap
+    scenario.next_tx(@managed_token_pool);
+    let managed_token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            @managed_token_pool,
+            1000000,
+            true,
+            scenario.ctx(),
+        );
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+        managed_token_state_address
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        // Create proof with WRONG package ID
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@0xbad)); // Wrong package!
+        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123));
+        proof_data.append(bcs::to_bytes(&managed_token_state_address));
+
+        // This should fail with EInvalidPackageId
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            mint_cap,
+            scenario.ctx(),
+        );
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = managed_token_pool::EInvalidModuleName)]
+public fun test_initialize_with_invalid_module_name() {
+    let mut scenario = test_scenario::begin(@managed_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Create managed token
+    scenario.next_tx(@managed_token_pool);
+    let coin_metadata = {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"MTPT",
+            b"ManagedTokenPoolTest",
+            b"managed_token_pool_test",
+            option::none(),
+            ctx,
+        );
+        managed_token::initialize(treasury_cap, ctx);
+        coin_metadata
+    };
+
+    // Get the managed token state address and create mint cap
+    scenario.next_tx(@managed_token_pool);
+    let managed_token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            @managed_token_pool,
+            1000000,
+            true,
+            scenario.ctx(),
+        );
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+        managed_token_state_address
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        // Create proof with WRONG module name
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@managed_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_module_name"))); // Wrong module!
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123));
+        proof_data.append(bcs::to_bytes(&managed_token_state_address));
+
+        // This should fail with EInvalidModuleName
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            mint_cap,
+            scenario.ctx(),
+        );
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = managed_token_pool::EInvalidFunctionName)]
+public fun test_initialize_with_invalid_function_name() {
+    let mut scenario = test_scenario::begin(@managed_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Create managed token
+    scenario.next_tx(@managed_token_pool);
+    let coin_metadata = {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"MTPT",
+            b"ManagedTokenPoolTest",
+            b"managed_token_pool_test",
+            option::none(),
+            ctx,
+        );
+        managed_token::initialize(treasury_cap, ctx);
+        coin_metadata
+    };
+
+    // Get the managed token state address and create mint cap
+    scenario.next_tx(@managed_token_pool);
+    let managed_token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            @managed_token_pool,
+            1000000,
+            true,
+            scenario.ctx(),
+        );
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+        managed_token_state_address
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        // Create proof with WRONG function name
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@managed_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_function"))); // Wrong function!
+        proof_data.append(bcs::to_bytes(&@0x123));
+        proof_data.append(bcs::to_bytes(&managed_token_state_address));
+
+        // This should fail with EInvalidFunctionName
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            mint_cap,
+            scenario.ctx(),
+        );
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = managed_token_pool::EInvalidProof)]
+public fun test_initialize_with_already_validated_proof() {
+    let mut scenario = test_scenario::begin(@managed_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Create managed token
+    scenario.next_tx(@managed_token_pool);
+    let coin_metadata = {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"MTPT",
+            b"ManagedTokenPoolTest",
+            b"managed_token_pool_test",
+            option::none(),
+            ctx,
+        );
+        managed_token::initialize(treasury_cap, ctx);
+        coin_metadata
+    };
+
+    // Get the managed token state address and create mint cap
+    scenario.next_tx(@managed_token_pool);
+    let managed_token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            @managed_token_pool,
+            1000000,
+            true,
+            scenario.ctx(),
+        );
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+        managed_token_state_address
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        // Create proof with validated=true (simulating proof reuse attack)
+        let proof_data = create_init_proof_data(@0x123, managed_token_state_address);
+
+        // This should fail with EInvalidProof because proof is already marked as validated
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, true), // validated=true!
+            &coin_metadata,
+            mint_cap,
+            scenario.ctx(),
+        );
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[allow(implicit_const_copy)]
+#[expected_failure(abort_code = bcs_stream::E_OUT_OF_BYTES)]
+public fun test_initialize_with_malformed_proof_missing_parameter() {
+    let mut scenario = test_scenario::begin(@managed_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Create managed token
+    scenario.next_tx(@managed_token_pool);
+    let coin_metadata = {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"MTPT",
+            b"ManagedTokenPoolTest",
+            b"managed_token_pool_test",
+            option::none(),
+            ctx,
+        );
+        managed_token::initialize(treasury_cap, ctx);
+        coin_metadata
+    };
+
+    // Get the managed token state address and create mint cap
+    scenario.next_tx(@managed_token_pool);
+    let _managed_token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            @managed_token_pool,
+            1000000,
+            true,
+            scenario.ctx(),
+        );
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+        managed_token_state_address
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        // Create proof with MISSING parameter (only 4 instead of 5)
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@managed_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123));
+        // Missing: managed_token_state_address!
+
+        // This should fail during deserialization
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            mint_cap,
+            scenario.ctx(),
+        );
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[allow(implicit_const_copy)]
+#[expected_failure(abort_code = bcs_stream::E_NOT_CONSUMED)]
+public fun test_initialize_with_malformed_proof_extra_data() {
+    let mut scenario = test_scenario::begin(@managed_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Create managed token
+    scenario.next_tx(@managed_token_pool);
+    let coin_metadata = {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"MTPT",
+            b"ManagedTokenPoolTest",
+            b"managed_token_pool_test",
+            option::none(),
+            ctx,
+        );
+        managed_token::initialize(treasury_cap, ctx);
+        coin_metadata
+    };
+
+    // Get the managed token state address and create mint cap
+    scenario.next_tx(@managed_token_pool);
+    let managed_token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            @managed_token_pool,
+            1000000,
+            true,
+            scenario.ctx(),
+        );
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+        managed_token_state_address
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        // Create proof with EXTRA unexpected data
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@managed_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"managed_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&@0x123));
+        proof_data.append(bcs::to_bytes(&managed_token_state_address));
+        proof_data.append(bcs::to_bytes(&@0x456)); // Extra data that shouldn't be here!
+
+        // This should fail at assert_is_consumed check
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            mint_cap,
+            scenario.ctx(),
+        );
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+public fun test_initialize_with_valid_proof_comprehensive() {
+    let mut scenario = test_scenario::begin(@managed_token_pool);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    // Create managed token
+    scenario.next_tx(@managed_token_pool);
+    let coin_metadata = {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            MANAGED_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"MTPT",
+            b"ManagedTokenPoolTest",
+            b"managed_token_pool_test",
+            option::none(),
+            ctx,
+        );
+        managed_token::initialize(treasury_cap, ctx);
+        coin_metadata
+    };
+
+    // Get the managed token state address and create mint cap
+    scenario.next_tx(@managed_token_pool);
+    let managed_token_state_address = {
+        let mut token_state = scenario.take_shared<TokenState<MANAGED_TOKEN_POOL_TESTS>>();
+        let token_owner_cap = scenario.take_from_sender<TokenOwnerCap<MANAGED_TOKEN_POOL_TESTS>>();
+        let managed_token_state_address = object::id_to_address(&object::id(&token_state));
+        managed_token::configure_new_minter(
+            &mut token_state,
+            &token_owner_cap,
+            @managed_token_pool,
+            1000000,
+            true,
+            scenario.ctx(),
+        );
+        scenario.return_to_sender(token_owner_cap);
+        test_scenario::return_shared(token_state);
+        managed_token_state_address
+    };
+
+    scenario.next_tx(@managed_token_pool);
+    {
+        let mint_cap = scenario.take_from_sender<MintCap<MANAGED_TOKEN_POOL_TESTS>>();
+
+        // Create VALID proof with all correct data
+        let proof_data = create_init_proof_data(@0x999, managed_token_state_address);
+
+        // This should succeed
+        managed_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            mint_cap,
+            scenario.ctx(),
+        );
+    };
+
+    transfer::public_freeze_object(coin_metadata);
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+
+    // Verify initialization was successful
+    scenario.next_tx(@managed_token_pool);
+    {
+        let pool_state = scenario.take_shared<ManagedTokenPoolState<MANAGED_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Verify pool was created correctly
+        assert!(managed_token_pool::get_token_decimals(&pool_state) == Decimals);
+        let token_address = managed_token_pool::get_token(&pool_state);
+        assert!(token_address != @0x0);
+
+        scenario.return_to_sender(owner_cap);
+        test_scenario::return_shared(pool_state);
     };
 
     test_scenario::end(scenario);

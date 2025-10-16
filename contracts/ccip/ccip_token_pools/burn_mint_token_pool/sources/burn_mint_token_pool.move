@@ -31,6 +31,10 @@ public struct BurnMintTokenPoolState<phantom T> has key {
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
+const EInvalidProof: u64 = 4;
+const EInvalidPackageId: u64 = 5;
+const EInvalidModuleName: u64 = 6;
+const EInvalidFunctionName: u64 = 7;
 
 const CLOCK_ADDRESS: address = @0x6;
 
@@ -71,12 +75,30 @@ public fun initialize<T>(
 
 public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
+    mut ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>,
     treasury_cap: TreasuryCap<T>,
-    token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
+    assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);
+
+    let data = state_object::get_ccip_admin_proof_data(&ccip_admin_proof);
+    let mut stream = bcs_stream::new(data);
+    let target_package_id = bcs_stream::deserialize_address(&mut stream);
+    let target_module_name = bcs_stream::deserialize_string(&mut stream);
+    let target_function_name = bcs_stream::deserialize_string(&mut stream);
+    let token_pool_administrator = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    assert!(target_package_id == @burn_mint_token_pool, EInvalidPackageId);
+    assert!(target_module_name == string::utf8(b"burn_mint_token_pool"), EInvalidModuleName);
+    assert!(
+        target_function_name == string::utf8(b"initialize_by_ccip_admin"),
+        EInvalidFunctionName,
+    );
+
+    state_object::set_ccip_admin_proof_validated(&mut ccip_admin_proof, true);
+
     let (
         coin_metadata_address,
         type_proof_type_name,

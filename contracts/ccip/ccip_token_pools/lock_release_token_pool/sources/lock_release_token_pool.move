@@ -34,6 +34,10 @@ const ETokenPoolBalanceTooLow: u64 = 2;
 const EUnauthorized: u64 = 3;
 const EInvalidOwnerCap: u64 = 4;
 const EInvalidFunction: u64 = 5;
+const EInvalidPackageId: u64 = 6;
+const EInvalidModuleName: u64 = 7;
+const EInvalidFunctionName: u64 = 8;
+const EInvalidProof: u64 = 9;
 
 // ================================================================
 // |                             Init                             |
@@ -73,12 +77,31 @@ public fun initialize<T>(
 /// it does not require a treasury cap object
 public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
+    mut ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>,
-    token_pool_administrator: address,
-    rebalancer: address,
     ctx: &mut TxContext,
 ) {
+    assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);
+
+    let data = state_object::get_ccip_admin_proof_data(&ccip_admin_proof);
+    let mut stream = bcs_stream::new(data);
+
+    let target_package_id = bcs_stream::deserialize_address(&mut stream);
+    let target_module_name = bcs_stream::deserialize_string(&mut stream);
+    let target_function_name = bcs_stream::deserialize_string(&mut stream);
+    let token_pool_administrator = bcs_stream::deserialize_address(&mut stream);
+    let rebalancer = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    assert!(target_package_id == @lock_release_token_pool, EInvalidPackageId);
+    assert!(target_module_name == string::utf8(b"lock_release_token_pool"), EInvalidModuleName);
+    assert!(
+        target_function_name == string::utf8(b"initialize_by_ccip_admin"),
+        EInvalidFunctionName,
+    );
+
+    state_object::set_ccip_admin_proof_validated(&mut ccip_admin_proof, true);
+
     let (
         coin_metadata_address,
         lock_release_token_pool_state_address,

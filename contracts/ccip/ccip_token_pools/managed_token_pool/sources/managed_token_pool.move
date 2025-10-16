@@ -33,6 +33,10 @@ public struct ManagedTokenPoolState<phantom T> has key {
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
+const EInvalidProof: u64 = 4;
+const EInvalidPackageId: u64 = 5;
+const EInvalidModuleName: u64 = 6;
+const EInvalidFunctionName: u64 = 7;
 
 const CLOCK_ADDRESS: address = @0x6;
 const DENY_LIST_ADDRESS: address = @0x403;
@@ -94,13 +98,32 @@ public fun initialize_with_managed_token<T>(
 
 public fun initialize_by_ccip_admin<T>(
     ref: &mut CCIPObjectRef,
-    ccip_admin_proof: state_object::CCIPAdminProof,
+    mut ccip_admin_proof: state_object::CCIPAdminProof,
     coin_metadata: &CoinMetadata<T>,
     mint_cap: MintCap<T>,
-    managed_token_state: address,
-    token_pool_administrator: address,
     ctx: &mut TxContext,
 ) {
+    assert!(!state_object::get_ccip_admin_proof_validated(&ccip_admin_proof), EInvalidProof);
+
+    let data = state_object::get_ccip_admin_proof_data(&ccip_admin_proof);
+    let mut stream = bcs_stream::new(data);
+
+    let target_package_id = bcs_stream::deserialize_address(&mut stream);
+    let target_module_name = bcs_stream::deserialize_string(&mut stream);
+    let target_function_name = bcs_stream::deserialize_string(&mut stream);
+    let token_pool_administrator = bcs_stream::deserialize_address(&mut stream);
+    let managed_token_state = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    assert!(target_package_id == @managed_token_pool, EInvalidPackageId);
+    assert!(target_module_name == string::utf8(b"managed_token_pool"), EInvalidModuleName);
+    assert!(
+        target_function_name == string::utf8(b"initialize_by_ccip_admin"),
+        EInvalidFunctionName,
+    );
+
+    state_object::set_ccip_admin_proof_validated(&mut ccip_admin_proof, true);
+
     let (
         coin_metadata_address,
         managed_token_pool_state_address,

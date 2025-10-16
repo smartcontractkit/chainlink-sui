@@ -18,6 +18,7 @@ use sui::address;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self, Scenario};
+use mcms::bcs_stream;
 
 public struct LOCK_RELEASE_TOKEN_POOL_TESTS has drop {}
 
@@ -29,6 +30,17 @@ const DefaultRemoteToken: vector<u8> = b"default_remote_token";
 const REBALANCER: address = @0x100;
 const TOKEN_ADMIN: address = @0x200;
 const CCIP_ADMIN: address = @0x400;
+
+/// Helper function to create proof data for initialize_by_ccip_admin
+fun create_init_proof_data(token_pool_administrator: address, rebalancer: address): vector<u8> {
+    let mut proof_data = vector[];
+    proof_data.append(bcs::to_bytes(&@lock_release_token_pool));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"lock_release_token_pool")));
+    proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+    proof_data.append(bcs::to_bytes(&token_pool_administrator));
+    proof_data.append(bcs::to_bytes(&rebalancer));
+    proof_data
+}
 
 fun create_test_scenario(addr: address): Scenario {
     test_scenario::begin(addr)
@@ -1047,10 +1059,11 @@ public fun test_lock_or_burn_functionality() {
 
     lock_release_token_pool::initialize_by_ccip_admin(
         &mut ccip_ref,
-        state_object::create_ccip_admin_proof_for_test(),
+        state_object::create_ccip_admin_proof_for_test(
+            create_init_proof_data(TOKEN_ADMIN, REBALANCER),
+            false
+        ),
         &coin_metadata,
-        TOKEN_ADMIN,
-        REBALANCER,
         ctx,
     );
 
@@ -1227,10 +1240,11 @@ public fun test_release_or_mint_functionality() {
 
         lock_release_token_pool::initialize_by_ccip_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(
+                create_init_proof_data(TOKEN_ADMIN, REBALANCER),
+                false
+            ),
             &coin_metadata,
-            TOKEN_ADMIN,
-            REBALANCER,
             ctx,
         );
 
@@ -1504,7 +1518,7 @@ public fun test_set_pool() {
 
         token_admin_registry::register_pool_by_admin(
             &mut ccip_ref,
-            state_object::create_ccip_admin_proof_for_test(),
+            state_object::create_ccip_admin_proof_for_test(vector[], true),
             coin_metadata_address,
             different_package_id,
             string::utf8(b"different_pool"),
@@ -1622,6 +1636,327 @@ public fun test_set_pool() {
         scenario.return_to_sender(owner_cap);
         test_scenario::return_shared(pool_state);
         test_scenario::return_shared(ccip_ref);
+    };
+
+    test_scenario::end(scenario);
+}
+
+// ==========================================
+// |          CCIPAdminProof Tests         |
+// ==========================================
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::EInvalidPackageId)]
+public fun test_initialize_with_invalid_package_id() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with WRONG package ID
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@0xbad)); // Wrong package!
+        proof_data.append(bcs::to_bytes(&string::utf8(b"lock_release_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&TOKEN_ADMIN));
+        proof_data.append(bcs::to_bytes(&REBALANCER));
+
+        // This should fail with EInvalidPackageId
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::EInvalidModuleName)]
+public fun test_initialize_with_invalid_module_name() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with WRONG module name
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@lock_release_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_module_name"))); // Wrong module!
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&TOKEN_ADMIN));
+        proof_data.append(bcs::to_bytes(&REBALANCER));
+
+        // This should fail with EInvalidModuleName
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::EInvalidFunctionName)]
+public fun test_initialize_with_invalid_function_name() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with WRONG function name
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@lock_release_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"lock_release_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"wrong_function"))); // Wrong function!
+        proof_data.append(bcs::to_bytes(&TOKEN_ADMIN));
+        proof_data.append(bcs::to_bytes(&REBALANCER));
+
+        // This should fail with EInvalidFunctionName
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = lock_release_token_pool::EInvalidProof)]
+public fun test_initialize_with_already_validated_proof() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with validated=true (simulating proof reuse attack)
+        let proof_data = create_init_proof_data(TOKEN_ADMIN, REBALANCER);
+
+        // This should fail with EInvalidProof because proof is already marked as validated
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, true), // validated=true!
+            &coin_metadata,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[allow(implicit_const_copy)]
+#[expected_failure(abort_code = bcs_stream::E_OUT_OF_BYTES)]
+public fun test_initialize_with_malformed_proof_missing_parameter() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with MISSING parameter (only 4 instead of 5)
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@lock_release_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"lock_release_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&TOKEN_ADMIN));
+        // Missing: rebalancer!
+
+        // This should fail during deserialization
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[allow(implicit_const_copy)]
+#[expected_failure(abort_code = bcs_stream::E_NOT_CONSUMED)]
+public fun test_initialize_with_malformed_proof_extra_data() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create proof with EXTRA unexpected data
+        let mut proof_data = vector[];
+        proof_data.append(bcs::to_bytes(&@lock_release_token_pool));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"lock_release_token_pool")));
+        proof_data.append(bcs::to_bytes(&string::utf8(b"initialize_by_ccip_admin")));
+        proof_data.append(bcs::to_bytes(&TOKEN_ADMIN));
+        proof_data.append(bcs::to_bytes(&REBALANCER));
+        proof_data.append(bcs::to_bytes(&@0x456)); // Extra data that shouldn't be here!
+
+        // This should fail at assert_is_consumed check
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+public fun test_initialize_with_valid_proof_comprehensive() {
+    let mut scenario = create_test_scenario(TOKEN_ADMIN);
+    let (ccip_owner_cap, mut ccip_ref) = setup_ccip_environment(&mut scenario);
+
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let ctx = scenario.ctx();
+        let (treasury_cap, coin_metadata) = coin::create_currency(
+            LOCK_RELEASE_TOKEN_POOL_TESTS {},
+            Decimals,
+            b"TEST",
+            b"TestToken",
+            b"test_token",
+            option::none(),
+            ctx,
+        );
+
+        // Create VALID proof with all correct data
+        let proof_data = create_init_proof_data(@0x999, @0x888);
+
+        // This should succeed
+        lock_release_token_pool::initialize_by_ccip_admin(
+            &mut ccip_ref,
+            state_object::create_ccip_admin_proof_for_test(proof_data, false),
+            &coin_metadata,
+            ctx,
+        );
+
+        transfer::public_freeze_object(coin_metadata);
+        transfer::public_transfer(treasury_cap, ctx.sender());
+    };
+
+    transfer::public_transfer(ccip_owner_cap, @0x0);
+    test_scenario::return_shared(ccip_ref);
+
+    // Verify initialization was successful
+    scenario.next_tx(TOKEN_ADMIN);
+    {
+        let pool_state = scenario.take_shared<LockReleaseTokenPoolState<LOCK_RELEASE_TOKEN_POOL_TESTS>>();
+        let owner_cap = scenario.take_from_sender<OwnerCap>();
+
+        // Verify pool was created correctly
+        assert!(lock_release_token_pool::get_token_decimals(&pool_state) == Decimals);
+        let token_address = lock_release_token_pool::get_token(&pool_state);
+        assert!(token_address != @0x0);
+        assert!(lock_release_token_pool::get_rebalancer(&pool_state) == @0x888);
+
+        scenario.return_to_sender(owner_cap);
+        test_scenario::return_shared(pool_state);
     };
 
     test_scenario::end(scenario);
