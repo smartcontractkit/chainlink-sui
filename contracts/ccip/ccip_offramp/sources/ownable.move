@@ -213,6 +213,7 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
     registry: &mut Registry,
     to: address,
     proof: T,
+    allowed_modules: vector<vector<u8>>,
     ctx: &mut TxContext,
 ) {
     assert!(object::id(&owner_cap) == state.owner_cap_id, EInvalidOwnerCap);
@@ -236,6 +237,7 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
         registry,
         proof,
         owner_cap,
+        allowed_modules,
         ctx,
     );
 

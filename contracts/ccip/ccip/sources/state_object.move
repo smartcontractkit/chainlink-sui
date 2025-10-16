@@ -150,6 +150,7 @@ public fun execute_ownership_transfer_to_mcms(
         registry,
         to,
         McmsCallback {},
+        vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"],
         ctx,
     );
 }
@@ -182,6 +183,10 @@ public fun pending_transfer_accepted(ref: &CCIPObjectRef): Option<bool> {
 public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
+
+public(package) fun mcms_callback(): McmsCallback {
+    McmsCallback {}
+}
 
 public fun mcms_add_package_id(
     ref: &mut CCIPObjectRef,
@@ -309,6 +314,60 @@ public fun mcms_execute_ownership_transfer(
 
     let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
     execute_ownership_transfer(ref, owner_cap, to, ctx);
+}
+
+public fun mcms_add_allowed_modules(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"add_allowed_modules"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(registry), &mut stream);
+
+    let new_module_names = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    mcms_registry::add_allowed_modules(registry, McmsCallback {}, new_module_names, ctx);
+}
+
+public fun mcms_remove_allowed_modules(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback,
+        OwnerCap,
+    >(
+        registry,
+        McmsCallback {},
+        params,
+    );
+    assert!(function == string::utf8(b"remove_allowed_modules"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addr(object::id_address(registry), &mut stream);
+
+    let module_names = bcs_stream::deserialize_vector!(
+        &mut stream,
+        |stream| bcs_stream::deserialize_vector_u8(stream),
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    mcms_registry::remove_allowed_modules(registry, McmsCallback {}, module_names, ctx);
 }
 
 public fun mcms_proof_entrypoint(

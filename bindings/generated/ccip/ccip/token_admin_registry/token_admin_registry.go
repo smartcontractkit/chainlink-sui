@@ -185,9 +185,6 @@ type AdministratorTransferred struct {
 	NewAdmin            string `move:"address"`
 }
 
-type McmsCallback struct {
-}
-
 type bcsTokenConfig struct {
 	TokenPoolPackageId   [32]byte
 	TokenPoolModule      string
@@ -517,23 +514,6 @@ func init() {
 				return nil, fmt.Errorf("failed to convert element %d: %w", i, err)
 			}
 			results[i] = result
-		}
-		return results, nil
-	})
-	bind.RegisterStructDecoder("ccip::token_admin_registry::McmsCallback", func(data []byte) (interface{}, error) {
-		var result McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip::token_admin_registry::McmsCallback>", func(data []byte) (interface{}, error) {
-		var results []McmsCallback
-		_, err := mystenbcs.Unmarshal(data, &results)
-		if err != nil {
-			return nil, err
 		}
 		return results, nil
 	})

@@ -331,16 +331,17 @@ public fun is_cursed_u128(ref: &CCIPObjectRef, subject_value: u128): bool {
 // |                      MCMS Entrypoints                       |
 // ================================================================
 
-public struct McmsCallback has drop {}
-
 public fun mcms_set_config(
     ref: &mut CCIPObjectRef,
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"set_config"), EInvalidFunction);
@@ -378,9 +379,12 @@ public fun mcms_curse(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"curse"), EInvalidFunction);
@@ -402,9 +406,12 @@ public fun mcms_curse_multiple(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"curse_multiple"), EInvalidFunction);
@@ -429,9 +436,12 @@ public fun mcms_uncurse(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"uncurse"), EInvalidFunction);
@@ -453,9 +463,12 @@ public fun mcms_uncurse_multiple(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<McmsCallback, OwnerCap>(
+    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        state_object::McmsCallback,
+        OwnerCap,
+    >(
         registry,
-        McmsCallback {},
+        state_object::mcms_callback(),
         params,
     );
     assert!(function == string::utf8(b"uncurse_multiple"), EInvalidFunction);
