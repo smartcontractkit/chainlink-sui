@@ -245,6 +245,7 @@ public fun execute_ownership_transfer_to_mcms(
         registry,
         to,
         SampleMcmsCallback {},
+        vector[b"mcms_user"],
         ctx,
     );
 }

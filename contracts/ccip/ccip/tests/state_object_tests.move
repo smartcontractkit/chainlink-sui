@@ -3,6 +3,12 @@ module ccip::state_object_test;
 
 use ccip::ownable::{Self, OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
+use mcms::mcms_account;
+use mcms::mcms_deployer;
+use mcms::mcms_registry::{Self, Registry};
+use std::string;
+use std::type_name;
+use sui::bcs;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -208,6 +214,325 @@ public fun test_add_package_id_with_invalid_owner_cap() {
 
     // Cleanup the original scenario objects
     test_scenario::return_to_sender(&scenario, owner_cap);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+// ================================================================
+// |                  MCMS Integration Tests                      |
+// ================================================================
+
+const OWNER: address = @0x123;
+
+fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
+    let mut scenario = test_scenario::begin(OWNER);
+
+    // Initialize MCMS components
+    {
+        let ctx = scenario.ctx();
+        mcms_account::test_init(ctx);
+        mcms_registry::test_init(ctx);
+        mcms_deployer::test_init(ctx);
+        state_object::test_init(ctx);
+    };
+
+    scenario.next_tx(OWNER);
+
+    let mut registry = test_scenario::take_shared<Registry>(&scenario);
+    let mut ref = test_scenario::take_shared<CCIPObjectRef>(&scenario);
+    let owner_cap = test_scenario::take_from_sender<OwnerCap>(&scenario);
+
+    // Transfer ownership to MCMS (3-step process)
+    // Step 1: transfer_ownership
+    state_object::transfer_ownership(
+        &mut ref,
+        &owner_cap,
+        mcms_registry::get_multisig_address(),
+        scenario.ctx(),
+    );
+
+    // Step 2: accept_ownership
+    scenario.next_tx(mcms_registry::get_multisig_address());
+    state_object::accept_ownership(&mut ref, scenario.ctx());
+
+    // Step 3: execute_ownership_transfer (registers with MCMS)
+    state_object::execute_ownership_transfer_to_mcms(
+        &mut ref,
+        owner_cap,
+        &mut registry,
+        @mcms,
+        scenario.ctx(),
+    );
+
+    scenario.next_tx(OWNER);
+
+    (scenario, registry, ref)
+}
+
+#[test]
+fun test_mcms_add_allowed_modules_success() {
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
+
+    // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
+    let initial_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    assert!(initial_modules.contains(&b"fee_quoter"), 0);
+    assert!(initial_modules.contains(&b"rmn_remote"), 1);
+    assert!(initial_modules.contains(&b"state_object"), 2);
+    assert!(initial_modules.contains(&b"token_admin_registry"), 3);
+    assert!(!initial_modules.contains(&b"nonce_manager"), 4); // Should not exist yet
+
+    // Prepare data for mcms_add_allowed_modules
+    // Data format: [registry_address][vector<vector<u8>> of module names]
+    let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
+
+    // Serialize vector of module names (vector<vector<u8>>)
+    let module_names = vector[b"nonce_manager"];
+    data.append(bcs::to_bytes(&module_names));
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"state_object"),
+        string::utf8(b"add_allowed_modules"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
+        0, // sequence_number
+        1, // total_in_batch
+        type_name::with_original_ids<state_object::McmsCallback>(),
+    );
+
+    state_object::mcms_add_allowed_modules(
+        &mut registry,
+        params,
+        scenario.ctx(),
+    );
+
+    // Verify nonce_manager was added
+    let updated_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    assert!(updated_modules.contains(&b"nonce_manager"), 5); // Should exist now
+
+    // Cleanup
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::EModuleAlreadyAllowed)]
+fun test_mcms_add_allowed_modules_already_exists() {
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
+
+    // Try to add "fee_quoter" which already exists in initial allowed modules
+    // Data format: [registry_address][vector<vector<u8>> of module names]
+    let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
+
+    // Serialize vector of module names (vector<vector<u8>>)
+    let module_names = vector[b"fee_quoter"]; // Already exists
+    data.append(bcs::to_bytes(&module_names));
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"state_object"),
+        string::utf8(b"add_allowed_modules"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+        1,
+        type_name::with_original_ids<state_object::McmsCallback>(),
+    );
+
+    // This should fail with EModuleAlreadyAllowed
+    state_object::mcms_add_allowed_modules(
+        &mut registry,
+        params,
+        scenario.ctx(),
+    );
+
+    // Cleanup (won't be reached due to expected failure)
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = state_object::EInvalidFunction)]
+fun test_mcms_add_allowed_modules_wrong_function_name() {
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
+
+    // Prepare data with correct format
+    // Data format: [registry_address][vector<vector<u8>> of module names]
+    let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&registry))); // Registry address for validation
+
+    // Serialize vector of module names (vector<vector<u8>>)
+    let module_names = vector[b"new_module"];
+    data.append(bcs::to_bytes(&module_names));
+
+    // But use wrong function name in params
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"state_object"),
+        string::utf8(b"wrong_function"), // Wrong function name!
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+        1,
+        type_name::with_original_ids<state_object::McmsCallback>(),
+    );
+
+    // This should fail with EInvalidFunction
+    state_object::mcms_add_allowed_modules(
+        &mut registry,
+        params,
+        scenario.ctx(),
+    );
+
+    // Cleanup (won't be reached due to expected failure)
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+// ================================================================
+// |         MCMS Remove Allowed Modules Tests                   |
+// ================================================================
+
+#[test]
+fun test_mcms_remove_allowed_modules_success() {
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
+
+    // First, add a module that we'll later remove
+    {
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&registry)));
+        let module_names = vector[b"nonce_manager"];
+        data.append(bcs::to_bytes(&module_names));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"add_allowed_modules"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000001",
+            0,
+            1,
+            type_name::with_original_ids<state_object::McmsCallback>(),
+        );
+
+        state_object::mcms_add_allowed_modules(
+            &mut registry,
+            params,
+            scenario.ctx(),
+        );
+    };
+
+    // Verify nonce_manager was added
+    let modules_before = mcms_registry::get_allowed_modules(&registry, @ccip);
+    assert!(modules_before.contains(&b"nonce_manager"), 0);
+
+    // Now remove the module
+    {
+        let mut data = vector::empty<u8>();
+        data.append(bcs::to_bytes(&object::id_address(&registry)));
+        let module_names = vector[b"nonce_manager"];
+        data.append(bcs::to_bytes(&module_names));
+
+        let params = mcms_registry::test_create_executing_callback_params(
+            @ccip,
+            string::utf8(b"state_object"),
+            string::utf8(b"remove_allowed_modules"),
+            data,
+            x"0000000000000000000000000000000000000000000000000000000000000002",
+            0,
+            1,
+            type_name::with_original_ids<state_object::McmsCallback>(),
+        );
+
+        state_object::mcms_remove_allowed_modules(
+            &mut registry,
+            params,
+            scenario.ctx(),
+        );
+    };
+
+    // Verify nonce_manager was removed
+    let modules_after = mcms_registry::get_allowed_modules(&registry, @ccip);
+    assert!(!modules_after.contains(&b"nonce_manager"), 1);
+
+    // Cleanup
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::EModuleNotInAllowlist)]
+fun test_mcms_remove_allowed_modules_not_in_allowlist() {
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
+
+    // Try to remove a module that doesn't exist
+    let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&registry)));
+    let module_names = vector[b"nonexistent_module"];
+    data.append(bcs::to_bytes(&module_names));
+
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"state_object"),
+        string::utf8(b"remove_allowed_modules"),
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+        1,
+        type_name::with_original_ids<state_object::McmsCallback>(),
+    );
+
+    // This should fail with EModuleNotInAllowlist
+    state_object::mcms_remove_allowed_modules(
+        &mut registry,
+        params,
+        scenario.ctx(),
+    );
+
+    // Cleanup (won't be reached due to expected failure)
+    test_scenario::return_shared(registry);
+    test_scenario::return_shared(ref);
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = state_object::EInvalidFunction)]
+fun test_mcms_remove_allowed_modules_wrong_function_name() {
+    let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
+
+    // Prepare data with correct format
+    let mut data = vector::empty<u8>();
+    data.append(bcs::to_bytes(&object::id_address(&registry)));
+    let module_names = vector[b"fee_quoter"];
+    data.append(bcs::to_bytes(&module_names));
+
+    // But use wrong function name in params
+    let params = mcms_registry::test_create_executing_callback_params(
+        @ccip,
+        string::utf8(b"state_object"),
+        string::utf8(b"wrong_function"), // Wrong function name!
+        data,
+        x"0000000000000000000000000000000000000000000000000000000000000001",
+        0,
+        1,
+        type_name::with_original_ids<state_object::McmsCallback>(),
+    );
+
+    // This should fail with EInvalidFunction
+    state_object::mcms_remove_allowed_modules(
+        &mut registry,
+        params,
+        scenario.ctx(),
+    );
+
+    // Cleanup (won't be reached due to expected failure)
+    test_scenario::return_shared(registry);
     test_scenario::return_shared(ref);
     test_scenario::end(scenario);
 }

@@ -143,6 +143,7 @@ public fun execute_ownership_transfer(
             registry,
             mcms_registry::create_mcms_proof(),
             owner_cap,
+            vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
             ctx,
         );
     } else {
