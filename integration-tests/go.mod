@@ -12,15 +12,14 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251014163547-378bb81ae000
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
-	github.com/smartcontractkit/mcms v0.26.1
+	github.com/smartcontractkit/mcms v0.27.0
 	github.com/stretchr/testify v1.10.0
 )
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
 // use local modules
-// TODO: Temporary remove until mcms lib has the latest compatible release
-// replace github.com/smartcontractkit/chainlink-sui => ../
+replace github.com/smartcontractkit/chainlink-sui => ../
 
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
 
