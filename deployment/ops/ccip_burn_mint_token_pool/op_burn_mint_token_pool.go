@@ -358,3 +358,345 @@ var BurnMintTokenPoolSetPoolOp = cld_ops.NewOperation(
 	"Sets the pool in the token admin registry for the CCIP Burn Mint Token Pool",
 	setPoolHandler,
 )
+
+// BMTP -- set_allowlist_enabled
+type BurnMintTokenPoolSetAllowlistEnabledInput struct {
+	BurnMintTokenPoolPackageId string
+	CoinObjectTypeArg          string
+	StateObjectId              string
+	OwnerCap                   string
+	Enabled                    bool
+}
+
+func setAllowlistEnabledHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolSetAllowlistEnabledInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
+	}
+
+	encodedCall, err := contract.Encoder().SetAllowlistEnabled(
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.Enabled,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetAllowlistEnabled call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetAllowlistEnabled on BurnMintTokenPool as per no Signer provided", "enabled", input.Enabled)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute SetAllowlistEnabled on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Allowlist enabled state set on BurnMintTokenPool", "PackageId", input.BurnMintTokenPoolPackageId, "Enabled", input.Enabled)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.BurnMintTokenPoolPackageId,
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
+}
+
+var BurnMintTokenPoolSetAllowlistEnabledOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "set_allowlist_enabled"),
+	semver.MustParse("0.1.0"),
+	"Sets the allowlist enabled state for the CCIP Burn Mint Token Pool",
+	setAllowlistEnabledHandler,
+)
+
+// BMTP -- apply_allowlist_updates
+type BurnMintTokenPoolApplyAllowlistUpdatesInput struct {
+	BurnMintTokenPoolPackageId string
+	CoinObjectTypeArg          string
+	StateObjectId              string
+	OwnerCap                   string
+	Removes                    []string
+	Adds                       []string
+}
+
+func applyAllowlistUpdatesHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolApplyAllowlistUpdatesInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
+	}
+
+	encodedCall, err := contract.Encoder().ApplyAllowlistUpdates(
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.Removes,
+		input.Adds,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyAllowlistUpdates call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyAllowlistUpdates on BurnMintTokenPool as per no Signer provided",
+			"removes", len(input.Removes), "adds", len(input.Adds))
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyAllowlistUpdates on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Allowlist updates applied on BurnMintTokenPool", "PackageId", input.BurnMintTokenPoolPackageId,
+		"Removes", len(input.Removes), "Adds", len(input.Adds))
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.BurnMintTokenPoolPackageId,
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
+}
+
+var BurnMintTokenPoolApplyAllowlistUpdatesOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "apply_allowlist_updates"),
+	semver.MustParse("0.1.0"),
+	"Applies allowlist updates for the CCIP Burn Mint Token Pool",
+	applyAllowlistUpdatesHandler,
+)
+
+// BMTP -- remove_remote_pool
+type BurnMintTokenPoolRemoveRemotePoolInput struct {
+	BurnMintTokenPoolPackageId string
+	CoinObjectTypeArg          string
+	StateObjectId              string
+	OwnerCap                   string
+	RemoteChainSelector        uint64
+	RemotePoolAddress          string
+}
+
+func removeRemotePoolHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolRemoveRemotePoolInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
+	}
+
+	encodedCall, err := contract.Encoder().RemoveRemotePool(
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.RemoteChainSelector,
+		[]byte(input.RemotePoolAddress),
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode RemoveRemotePool call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of RemoveRemotePool on BurnMintTokenPool as per no Signer provided",
+			"chain", input.RemoteChainSelector)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute RemoveRemotePool on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Remote pool removed from BurnMintTokenPool", "PackageId", input.BurnMintTokenPoolPackageId,
+		"Chain", input.RemoteChainSelector)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.BurnMintTokenPoolPackageId,
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
+}
+
+var BurnMintTokenPoolRemoveRemotePoolOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "remove_remote_pool"),
+	semver.MustParse("0.1.0"),
+	"Removes a remote pool from the CCIP Burn Mint Token Pool",
+	removeRemotePoolHandler,
+)
+
+// BMTP -- transfer_ownership
+type BurnMintTokenPoolTransferOwnershipInput struct {
+	BurnMintTokenPoolPackageId string
+	CoinObjectTypeArg          string
+	StateObjectId              string
+	OwnerCap                   string
+	NewOwner                   string
+}
+
+func transferOwnershipHandler(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolTransferOwnershipInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
+	}
+
+	encodedCall, err := contract.Encoder().TransferOwnership(
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCap},
+		input.NewOwner,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode TransferOwnership call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of TransferOwnership on BurnMintTokenPool as per no Signer provided",
+			"newOwner", input.NewOwner)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute TransferOwnership on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Ownership transfer initiated on BurnMintTokenPool", "PackageId", input.BurnMintTokenPoolPackageId,
+		"NewOwner", input.NewOwner)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.BurnMintTokenPoolPackageId,
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
+}
+
+var BurnMintTokenPoolTransferOwnershipOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "transfer_ownership"),
+	semver.MustParse("0.1.0"),
+	"Transfers ownership of the CCIP Burn Mint Token Pool",
+	transferOwnershipHandler,
+)
+
+// BMTP -- execute_ownership_transfer
+type BurnMintTokenPoolExecuteOwnershipTransferInput struct {
+	BurnMintTokenPoolPackageId string
+	CoinObjectTypeArg          string
+	OwnerCap                   string
+	StateObjectId              string
+	To                         string
+}
+
+var executeOwnershipTransferHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMintTokenPoolExecuteOwnershipTransferInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	contract, err := module_burn_mint_token_pool.NewBurnMintTokenPool(input.BurnMintTokenPoolPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
+	}
+
+	encodedCall, err := contract.Encoder().ExecuteOwnershipTransfer(
+		[]string{input.CoinObjectTypeArg},
+		bind.Object{Id: input.OwnerCap},
+		bind.Object{Id: input.StateObjectId},
+		input.To,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ExecuteOwnershipTransfer call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ExecuteOwnershipTransfer on BurnMintTokenPool as per no Signer provided",
+			"to", input.To)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ExecuteOwnershipTransfer on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Ownership transfer executed on BurnMintTokenPool", "PackageId", input.BurnMintTokenPoolPackageId,
+		"To", input.To)
+
+	return sui_ops.OpTxResult[NoObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.BurnMintTokenPoolPackageId,
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
+}
+
+var BurnMintTokenPoolExecuteOwnershipTransferOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "burn_mint_token_pool", "execute_ownership_transfer"),
+	semver.MustParse("0.1.0"),
+	"Executes ownership transfer for the CCIP Burn Mint Token Pool",
+	executeOwnershipTransferHandler,
+)
