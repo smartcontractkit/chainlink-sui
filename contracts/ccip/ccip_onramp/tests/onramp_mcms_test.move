@@ -128,7 +128,7 @@ fun transfer_to_mcms(
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<onramp::McmsCallback>(),
+        type_name::with_original_ids<mcms_registry::McmsProof>(),
     );
     onramp::mcms_accept_ownership(
         ref,

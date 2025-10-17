@@ -69,6 +69,9 @@ const EModuleNotRegistered: u64 = 8;
 const EModuleNotAllowed: u64 = 9;
 const EModuleAlreadyAllowed: u64 = 10;
 const EModuleNotInAllowlist: u64 = 11;
+const EOnlyAcceptOwnershipAllowed: u64 = 12;
+const ENotMcmsAuthorized: u64 = 13;
+const EInvalidModuleName: u64 = 14;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -202,7 +205,7 @@ public fun remove_allowed_modules<T: drop>(
     assert!(proof_type == expected_proof_type, EWrongProofType);
 
     let allowed_modules = registry.allowed_modules.borrow_mut(proof_account_address);
-    
+
     let mut i = 0;
     while (i < modules_to_remove.length()) {
         let (found, index) = allowed_modules.index_of(&modules_to_remove[i]);
@@ -276,6 +279,8 @@ public(package) fun borrow_owner_cap<C: key + store>(registry: &Registry): &C {
     registry.package_caps.borrow(get_multisig_address())
 }
 
+/// This is only ever called by `mcms_accept_ownership`, precursor to the package being registered with MCMS
+/// Therefore we validate the proof type and function name are as expected.
 public fun get_callback_params<T: drop>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
@@ -295,14 +300,14 @@ public fun get_callback_params<T: drop>(
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
 
     let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, _) = params::get_account_address_and_module_name(
+    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
 
     assert!(target == proof_account_address, EPackageIdMismatch);
-
-    // Validate the proof type matches the expected proof type
-    assert!(proof_type == expected_proof_type, EWrongProofType);
+    assert!(proof_module_name == module_name, EInvalidModuleName);
+    assert!(function_name.as_bytes() == b"accept_ownership", EOnlyAcceptOwnershipAllowed);
+    assert!(expected_proof_type == type_name::with_defining_ids<McmsProof>(), ENotMcmsAuthorized);
 
     (target, module_name, function_name, data)
 }
@@ -438,4 +443,9 @@ public fun test_create_executing_callback_params(
         total_in_batch,
         expected_proof_type,
     )
+}
+
+#[test_only]
+public fun expected_proof_type(params: &ExecutingCallbackParams): TypeName {
+    params.expected_proof_type
 }
