@@ -174,11 +174,7 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 		remoteTokenAddressesBytes[i] = b32
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.ApplyChainUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().ApplyChainUpdates(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
@@ -188,16 +184,43 @@ var applyChainUpdates = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Burn
 		remoteTokenAddressesBytes,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool apply chain updates: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyChainUpdates call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyChainUpdates on BurnMintTokenPool as per no Signer provided",
+			"chainsToRemove", len(input.RemoteChainSelectorsToRemove), "chainsToAdd", len(input.RemoteChainSelectorsToAdd))
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
 	}
 
-	b.Logger.Infow("ApplyChainUpdates on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintPackageId)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyChainUpdates on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Chain updates applied on BurnMintTokenPool", "PackageId", input.BurnMintPackageId,
+		"ChainsRemoved", len(input.RemoteChainSelectorsToRemove), "ChainsAdded", len(input.RemoteChainSelectorsToAdd))
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.BurnMintPackageId,
 		Objects:   NoObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 var BurnMintTokenPoolApplyChainUpdatesOp = cld_ops.NewOperation(
@@ -228,11 +251,7 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.SetChainRateLimiterConfigs(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().SetChainRateLimiterConfigs(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
@@ -246,16 +265,43 @@ var setChainRateLimiterHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		input.InboundRates,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool set configs rate limiter: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetChainRateLimiterConfigs call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetChainRateLimiterConfigs on BurnMintTokenPool as per no Signer provided",
+			"chains", len(input.RemoteChainSelectors))
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
 	}
 
-	b.Logger.Infow("SetChainRateLimiter on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintPackageId)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute SetChainRateLimiterConfigs on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Chain rate limiter configs set on BurnMintTokenPool", "PackageId", input.BurnMintPackageId,
+		"Chains", len(input.RemoteChainSelectors))
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.BurnMintPackageId,
 		Objects:   NoObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 var BurnMintTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
@@ -281,11 +327,7 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.AddRemotePool(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().AddRemotePool(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCap},
@@ -293,16 +335,43 @@ var addRemotePoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input B
 		[]byte(input.RemotePoolAddress),
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool add remote pool: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AddRemotePool call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AddRemotePool on BurnMintTokenPool as per no Signer provided",
+			"chain", input.RemoteChainSelector)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
 	}
 
-	b.Logger.Infow("AddRemotePool on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintTokenPoolPackageId, "Chain:", input.RemoteChainSelector)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AddRemotePool on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Remote pool added to BurnMintTokenPool", "PackageId", input.BurnMintTokenPoolPackageId,
+		"Chain", input.RemoteChainSelector)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.BurnMintTokenPoolPackageId,
 		Objects:   NoObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 var BurnMintTokenPoolAddRemotePoolOp = cld_ops.NewOperation(
@@ -328,11 +397,7 @@ var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMin
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create burn mint token pool contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.SetPool(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().SetPool(
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.RefObjectId},
 		bind.Object{Id: input.StateObjectId},
@@ -340,16 +405,43 @@ var setPoolHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input BurnMin
 		input.CoinMetadataAddress,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute burn mint token pool set pool: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode SetPool call: %w", err)
+	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of SetPool on BurnMintTokenPool as per no Signer provided",
+			"coinMetadata", input.CoinMetadataAddress)
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.BurnMintTokenPoolPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
 	}
 
-	b.Logger.Infow("SetPool on BurnMintTokenPool", "BurnMintTokenPool PackageId:", input.BurnMintTokenPoolPackageId)
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute SetPool on BurnMintTokenPool: %w", err)
+	}
+
+	b.Logger.Infow("Pool set on BurnMintTokenPool", "PackageId", input.BurnMintTokenPoolPackageId,
+		"CoinMetadata", input.CoinMetadataAddress)
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.BurnMintTokenPoolPackageId,
 		Objects:   NoObjects{},
-	}, err
+		Call:      call,
+	}, nil
 }
 
 var BurnMintTokenPoolSetPoolOp = cld_ops.NewOperation(
