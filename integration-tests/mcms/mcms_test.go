@@ -4,6 +4,7 @@ package mcms
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	cselectors "github.com/smartcontractkit/chain-selectors"
@@ -14,6 +15,7 @@ import (
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
+	module_mcms_account "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_account"
 	"github.com/smartcontractkit/chainlink-sui/deployment"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
@@ -198,6 +200,59 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
 func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	// 1a. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
+
+	// Transfer MCMS ownership to itself
+	{
+		mcmsAccount, err := module_mcms_account.NewMcmsAccount(s.mcmsPackageID, s.client)
+		s.Require().NoError(err, "creating MCMS account contract")
+		tx, err := mcmsAccount.TransferOwnershipToSelf(
+			s.T().Context(),
+			&bind.CallOpts{
+				Signer:           s.signer,
+				WaitForExecution: true,
+			},
+			bind.Object{Id: s.ownerCapObj},
+			bind.Object{Id: s.accountObj},
+		)
+		s.Require().NoError(err, "Failed to transfer ownership to self")
+		s.Require().NotEmpty(tx, "Transaction should not be empty")
+	}
+
+	// 0. Register CCIP module in MCMS registry
+	addModulesProposalInput := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			mcmsops.AddModulesMCMSOp.Def(),
+		},
+		Inputs: []any{
+			mcmsops.AddModulesMCMSInput{
+				MCMSPackageId:     s.mcmsPackageID,
+				MCMSRegistryObjId: s.registryObj,
+				AllowedModules:    []string{"ccip"},
+			},
+		},
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+
+		// Proposal
+		Role:          suisdk.TimelockRoleBypasser,
+		ChainSelector: uint64(s.chainSelector),
+	}
+	addModulesProposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, addModulesProposalInput)
+	s.Require().NoError(err, "executing add modules proposal sequence")
+
+	addModulesProposal := addModulesProposalReport.Output
+
+	proposalJson, _ := json.MarshalIndent(addModulesProposal, "", "  ")
+	s.T().Logf("Add Modules Proposal: %s", string(proposalJson))
+
+	// Execute the proposal to add CCIP module to the registry
+	s.ExecuteProposalE2e(&addModulesProposal, s.bypasserConfig, 0)
+
+	// 1. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
 	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
 	require.NoError(s.T(), err, "creating ccip state object contract")
 

@@ -22,6 +22,7 @@ var AllOperations = func() []cld_ops.Operation[any, any, any] {
 	// MCMS Operations
 	operations = append(operations, mcmsops.AllOperationsMCMS...)
 
+	operations = append(operations, *mcmsops.AddModulesMCMSOp.AsUntyped())
 	// Add more operation slices here as needed:
 	// operations = append(operations, anotherops.AllOperations...)
 
