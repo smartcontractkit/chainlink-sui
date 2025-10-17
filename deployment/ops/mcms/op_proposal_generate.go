@@ -7,6 +7,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_mcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
@@ -87,8 +89,18 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		Transactions:  mcmsTxs,
 	}
 
+	mcmsContract, err := module_mcms.NewMcms(input.MmcsPackageID, deps.Client)
+	if err != nil {
+		return mcms.TimelockProposal{}, fmt.Errorf("failed to create MCMS contract instance: %w", err)
+	}
+
+	opCount, err := mcmsContract.DevInspect().GetOpCount(b.GetContext(), deps.GetCallOpts(), bind.Object{Id: input.McmsStateObjID}, input.Role.Byte())
+	if err != nil {
+		return mcms.TimelockProposal{}, fmt.Errorf("failed to get operation count from MCMS: %w", err)
+	}
+
 	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultTimelockExpirationInHours) * time.Hour).Unix())
-	metadata, err := suisdk.NewChainMetadata(0, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
+	metadata, err := suisdk.NewChainMetadata(opCount, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create chain metadata: %w", err)
 	}

@@ -67,7 +67,7 @@ var acceptOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, errors.New("Accept Ownership as timelock cannot be called directly, only through MCMS proposal")
 	}
 
-	b.Logger.Infow("Skipping execution of AcceptOwnership on StateObject as per no Signer provided")
+	b.Logger.Infow("Skipping execution of AcceptOwnership on MCMS Account as per no Signer provided")
 	return sui_ops.OpTxResult[cld_ops.EmptyInput]{
 		Digest:    "",
 		PackageId: input.McmsPackageID,
