@@ -140,16 +140,14 @@ var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input 
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	encoded, err := contract.Encoder().UnblockVersion(
+	tx, err := contract.UnblockVersion(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.ModuleName,
 		input.Version,
 	)
-	if err != nil {
-		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to encode UnblockVersion: %w", err)
-	}
-	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encoded)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to execute UnblockVersion: %w", err)
 	}
@@ -252,17 +250,15 @@ var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input
 
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
-	encoded, err := contract.Encoder().UnblockFunction(
+	tx, err := contract.UnblockFunction(
+		b.GetContext(),
+		opts,
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.ModuleName,
 		input.FunctionName,
 		input.Version,
 	)
-	if err != nil {
-		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to encode UnblockFunction: %w", err)
-	}
-	tx, err := contract.Bound().ExecuteTransaction(b.GetContext(), opts, encoded)
 	if err != nil {
 		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to execute UnblockFunction: %w", err)
 	}
