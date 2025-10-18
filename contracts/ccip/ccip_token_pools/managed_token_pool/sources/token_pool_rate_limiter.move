@@ -26,6 +26,7 @@ public struct ConfigChanged has copy, drop {
 }
 
 const EBucketNotFound: u64 = 1;
+const ERateLimiterConfigNotFound: u64 = 2;
 
 public(package) fun new(ctx: &mut TxContext): RateLimitState {
     RateLimitState {
@@ -140,6 +141,7 @@ public(package) fun get_current_inbound_rate_limiter_state(
     clock: &Clock,
     remote_chain_selector: u64,
 ): rate_limiter::TokenBucket {
+    assert!(state.inbound_rate_limiter_config.contains(remote_chain_selector), ERateLimiterConfigNotFound);
     rate_limiter::get_current_token_bucket_state(
         clock,
         state.inbound_rate_limiter_config.borrow(remote_chain_selector),
@@ -151,6 +153,7 @@ public(package) fun get_current_outbound_rate_limiter_state(
     clock: &Clock,
     remote_chain_selector: u64,
 ): rate_limiter::TokenBucket {
+    assert!(state.outbound_rate_limiter_config.contains(remote_chain_selector), ERateLimiterConfigNotFound);
     rate_limiter::get_current_token_bucket_state(
         clock,
         state.outbound_rate_limiter_config.borrow(remote_chain_selector),
