@@ -678,6 +678,7 @@ public fun get_validated_fee(
         string::utf8(b"get_validated_fee"),
         VERSION,
     );
+    assert!(local_token_addresses.length() == local_token_amounts.length(), ETokenAmountMismatch);
     let state = state_object::borrow<FeeQuoterState>(ref);
 
     let dest_chain_config = get_dest_chain_config_internal(
@@ -803,6 +804,7 @@ public fun apply_premium_multiplier_wei_per_eth_updates(
         VERSION,
     );
     assert!(object::id(owner_cap) == ref.owner_cap_id(), EInvalidOwnerCap);
+    assert!(tokens.length() == premium_multiplier_wei_per_eth.length(), ETokenAmountMismatch);
 
     let state = state_object::borrow_mut<FeeQuoterState>(ref);
 
@@ -1212,6 +1214,8 @@ public fun process_message_args(
         string::utf8(b"process_message_args"),
         VERSION,
     );
+    assert!(local_token_addresses.length() == dest_token_addresses.length(), ETokenAmountMismatch);
+    assert!(local_token_addresses.length() == dest_pool_datas.length(), ETokenAmountMismatch);
     let state = state_object::borrow<FeeQuoterState>(ref);
     // This is the fee in Sui denomination. We convert it to juels (1e18 based) below.
     let msg_fee_link_local_denomination = if (fee_token == state.link_token) {
