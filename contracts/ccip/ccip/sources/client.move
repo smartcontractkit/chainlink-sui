@@ -10,6 +10,7 @@ const EInvalidSVMTokenReceiverLength: u64 = 1;
 const EInvalidSVMAccountLength: u64 = 2;
 const EInvalidSUITokenReceiverLength: u64 = 3;
 const EInvalidSUIReceiverObjectIdLength: u64 = 4;
+const ETokenAmountMismatch: u64 = 5;
 
 public fun generic_extra_args_v2_tag(): vector<u8> {
     GENERIC_EXTRA_ARGS_V2_TAG
@@ -130,6 +131,7 @@ public fun new_dest_token_amounts(
     token_addresses: vector<address>,
     token_amounts: vector<u256>,
 ): vector<Any2SuiTokenAmount> {
+    assert!(token_addresses.length() == token_amounts.length(), ETokenAmountMismatch);
     token_addresses.zip_map_ref!(&token_amounts, |token_address, token_amount| {
         Any2SuiTokenAmount { token: *token_address, amount: *token_amount }
     })
