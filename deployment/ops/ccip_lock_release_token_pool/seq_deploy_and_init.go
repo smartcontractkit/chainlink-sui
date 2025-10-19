@@ -9,8 +9,9 @@ import (
 )
 
 type DeployLockReleaseTokenPoolObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId      string
+	StateObjectId         string
+	RebalancerCapObjectId string
 }
 
 type DeployLockReleaseTokenPoolOutput struct {
@@ -114,8 +115,9 @@ var DeployAndInitLockReleaseTokenPoolSequence = cld_ops.NewSequence(
 		return DeployLockReleaseTokenPoolOutput{
 			LockReleaseTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:      initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:         initReport.Output.Objects.StateObjectId,
+				RebalancerCapObjectId: initReport.Output.Objects.RebalancerCapObjectId,
 			},
 		}, nil
 	},
@@ -218,8 +220,9 @@ var DeployAndInitLockReleaseTokenPoolByCcipAdminSequence = cld_ops.NewSequence(
 		return DeployLockReleaseTokenPoolOutput{
 			LockReleaseTPPackageID: deployReport.Output.PackageId,
 			Objects: DeployLockReleaseTokenPoolObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:      initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:         initReport.Output.Objects.StateObjectId,
+				RebalancerCapObjectId: initReport.Output.Objects.RebalancerCapObjectId,
 			},
 		}, nil
 	},

@@ -15,8 +15,9 @@ import (
 
 // LRTP -- INITIALIZE
 type LockReleaseTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId      string
+	StateObjectId         string
+	RebalancerCapObjectId string
 }
 
 type LockReleaseTokenPoolInitializeInput struct {
