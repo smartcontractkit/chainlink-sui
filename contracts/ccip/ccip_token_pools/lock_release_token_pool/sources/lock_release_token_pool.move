@@ -15,6 +15,7 @@ use std::type_name::{Self, TypeName};
 use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
+use sui::event;
 use sui::package::UpgradeCap;
 
 #[allow(lint(coin_field))]
@@ -30,6 +31,11 @@ public struct RebalancerCap has key, store {
     id: UID,
 }
 
+public struct RebalancerSet has copy, drop {
+    old_rebalancer_cap_id: ID,
+    new_rebalancer_cap_id: ID,
+}
+
 const CLOCK_ADDRESS: address = @0x6;
 
 const EInvalidArguments: u64 = 1;
@@ -37,6 +43,11 @@ const ETokenPoolBalanceTooLow: u64 = 2;
 const EInvalidOwnerCap: u64 = 3;
 const EInvalidFunction: u64 = 4;
 const EInvalidRebalancerCap: u64 = 5;
+const EMcmsRebalancerAlreadySet: u64 = 6;
+const ERebalancerCapIsInUse: u64 = 7;
+const ERebalancerCapNotTransferredOut: u64 = 8;
+const EInvalidRebalancer: u64 = 9;
+const ERebalancerCapDoesNotExist: u64 = 10;
 
 // ================================================================
 // |                             Init                             |
@@ -515,6 +526,146 @@ public fun get_rebalancer<T>(state: &LockReleaseTokenPoolState<T>): address {
     object::id_to_address(&state.rebalancer_cap_id)
 }
 
+public struct McmsCap has key, store {
+    id: UID,
+    owner_cap: OwnerCap,
+    rebalancer_cap: Option<RebalancerCap>,
+}
+
+fun new_mcms_cap(
+    owner_cap: OwnerCap,
+    rebalancer_cap: Option<RebalancerCap>,
+    ctx: &mut TxContext,
+): McmsCap {
+    McmsCap {
+        id: object::new(ctx),
+        owner_cap,
+        rebalancer_cap,
+    }
+}
+
+public fun mcms_set_rebalancer<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        McmsCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"set_rebalancer"), EInvalidFunction);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(&mcms_cap.owner_cap)],
+        &mut stream,
+    );
+    let rebalancer = bcs_stream::deserialize_address(&mut stream);
+    bcs_stream::assert_is_consumed(&stream);
+
+    if (rebalancer == mcms_registry::get_multisig_address()) {
+        assert!(mcms_cap.rebalancer_cap.is_none(), EMcmsRebalancerAlreadySet);
+
+        let new_rebalancer_cap = RebalancerCap {
+            id: object::new(ctx),
+        };
+        let new_rebalancer_cap_id = object::id(&new_rebalancer_cap);
+        mcms_cap.rebalancer_cap.fill(new_rebalancer_cap);
+
+        set_rebalancer_cap_id(state, &mcms_cap.owner_cap, new_rebalancer_cap_id, ctx);
+    } else {
+        set_rebalancer(state, &mcms_cap.owner_cap, rebalancer, ctx);
+        // If MCMS previously owned the rebalancer cap, we destroy it now that MCMS no longer owns it
+        if (mcms_cap.rebalancer_cap.is_some()) {
+            destroy_rebalancer_cap(state, mcms_cap.rebalancer_cap.extract(), ctx);
+        }
+    }
+}
+
+public fun set_rebalancer<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    rebalancer: address,
+    ctx: &mut TxContext,
+) {
+    // Setting MCMS as rebalancer should be done via `mcms_set_rebalancer`
+    assert!(rebalancer != mcms_registry::get_multisig_address(), EInvalidRebalancer);
+
+    let rebalancer_cap = RebalancerCap {
+        id: object::new(ctx),
+    };
+
+    // Update `LockReleaseTokenPoolState` before sending to rebalancer address
+    set_rebalancer_cap_id(
+        state,
+        owner_cap,
+        object::id(&rebalancer_cap),
+        ctx,
+    );
+
+    transfer::public_transfer(rebalancer_cap, rebalancer);
+}
+
+/// Only owner can set rebalancer cap id
+fun set_rebalancer_cap_id<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    owner_cap: &OwnerCap,
+    new_rebalancer_cap_id: ID,
+    _ctx: &mut TxContext,
+) {
+    assert!(object::id(owner_cap) == ownable::owner_cap_id(&state.ownable_state), EInvalidOwnerCap);
+
+    let old_rebalancer_cap_id = state.rebalancer_cap_id;
+    state.rebalancer_cap_id = new_rebalancer_cap_id;
+
+    event::emit(RebalancerSet { old_rebalancer_cap_id, new_rebalancer_cap_id });
+}
+
+public fun mcms_destroy_mcms_cap<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
+    ctx: &mut TxContext,
+) {
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+        McmsCallback<T>,
+        McmsCap,
+    >(
+        registry,
+        McmsCallback<T> {},
+        params,
+    );
+    assert!(function == string::utf8(b"destroy_mcms_cap"), EInvalidFunction);
+    assert!(mcms_cap.rebalancer_cap.is_some(), ERebalancerCapDoesNotExist);
+
+    let mut stream = bcs_stream::new(data);
+    bcs_stream::validate_obj_addrs(
+        vector[object::id_address(state), object::id_address(mcms_cap.rebalancer_cap.borrow())],
+        &mut stream,
+    );
+    bcs_stream::assert_is_consumed(&stream);
+
+    let rebalancer_cap = mcms_cap.rebalancer_cap.extract();
+    destroy_rebalancer_cap(state, rebalancer_cap, ctx);
+}
+
+/// Clean up old rebalancer caps not in use, anyone can call this function to clean up old rebalancer caps not in use.
+public fun destroy_rebalancer_cap<T>(
+    state: &mut LockReleaseTokenPoolState<T>,
+    rebalancer_cap: RebalancerCap,
+    _ctx: &mut TxContext,
+) {
+    assert!(state.rebalancer_cap_id != object::id(&rebalancer_cap), ERebalancerCapIsInUse);
+
+    let RebalancerCap { id } = rebalancer_cap;
+    object::delete(id);
+}
+
 #[test_only]
 public fun create_fake_rebalancer_cap(ctx: &mut TxContext): RebalancerCap {
     RebalancerCap {
@@ -597,6 +748,7 @@ public fun execute_ownership_transfer<T>(
     ownable::execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
 }
 
+/// Setting rebalancer cap should be called via `mcms_set_rebalancer`
 public fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap,
     state: &mut LockReleaseTokenPoolState<T>,
@@ -604,10 +756,12 @@ public fun execute_ownership_transfer_to_mcms<T>(
     to: address,
     ctx: &mut TxContext,
 ) {
-    ownable::execute_ownership_transfer_to_mcms(
-        owner_cap,
+    assert!(object::id(&owner_cap) == state.ownable_state.owner_cap_id(), EInvalidOwnerCap);
+
+    ownable::execute_ownership_and_cap_transfer_to_mcms(
         &mut state.ownable_state,
         registry,
+        new_mcms_cap(owner_cap, option::none(), ctx),
         to,
         McmsCallback<T> {},
         vector[b"lock_release_token_pool"],
@@ -640,9 +794,9 @@ public fun mcms_set_allowlist_enabled<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -652,14 +806,14 @@ public fun mcms_set_allowlist_enabled<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(state), object::id_address(&mcms_cap.owner_cap)],
         &mut stream,
     );
 
     let enabled = bcs_stream::deserialize_bool(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    set_allowlist_enabled(state, owner_cap, enabled);
+    set_allowlist_enabled(state, &mcms_cap.owner_cap, enabled);
 }
 
 public fun mcms_apply_allowlist_updates<T>(
@@ -667,9 +821,9 @@ public fun mcms_apply_allowlist_updates<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -679,7 +833,7 @@ public fun mcms_apply_allowlist_updates<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(state), object::id_address(&mcms_cap.owner_cap)],
         &mut stream,
     );
 
@@ -693,7 +847,7 @@ public fun mcms_apply_allowlist_updates<T>(
     );
     bcs_stream::assert_is_consumed(&stream);
 
-    apply_allowlist_updates(state, owner_cap, removes, adds);
+    apply_allowlist_updates(state, &mcms_cap.owner_cap, removes, adds);
 }
 
 public fun mcms_apply_chain_updates<T>(
@@ -701,9 +855,9 @@ public fun mcms_apply_chain_updates<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -713,7 +867,7 @@ public fun mcms_apply_chain_updates<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(state), object::id_address(&mcms_cap.owner_cap)],
         &mut stream,
     );
 
@@ -740,7 +894,7 @@ public fun mcms_apply_chain_updates<T>(
 
     apply_chain_updates(
         state,
-        owner_cap,
+        &mcms_cap.owner_cap,
         remote_chain_selectors_to_remove,
         remote_chain_selectors_to_add,
         remote_pool_addresses_to_add,
@@ -753,9 +907,9 @@ public fun mcms_add_remote_pool<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -765,14 +919,14 @@ public fun mcms_add_remote_pool<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(state), object::id_address(&mcms_cap.owner_cap)],
         &mut stream,
     );
     let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
     let remote_pool_address = bcs_stream::deserialize_vector_u8(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    add_remote_pool(state, owner_cap, remote_chain_selector, remote_pool_address);
+    add_remote_pool(state, &mcms_cap.owner_cap, remote_chain_selector, remote_pool_address);
 }
 
 public fun mcms_remove_remote_pool<T>(
@@ -780,9 +934,9 @@ public fun mcms_remove_remote_pool<T>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -792,14 +946,14 @@ public fun mcms_remove_remote_pool<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(state), object::id_address(&mcms_cap.owner_cap)],
         &mut stream,
     );
     let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
     let remote_pool_address = bcs_stream::deserialize_vector_u8(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    remove_remote_pool(state, owner_cap, remote_chain_selector, remote_pool_address);
+    remove_remote_pool(state, &mcms_cap.owner_cap, remote_chain_selector, remote_pool_address);
 }
 
 public fun mcms_set_chain_rate_limiter_configs<T>(
@@ -808,9 +962,9 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
     params: ExecutingCallbackParams,
     clock: &Clock,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -820,7 +974,11 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap), object::id_address(clock)],
+        vector[
+            object::id_address(state),
+            object::id_address(&mcms_cap.owner_cap),
+            object::id_address(clock),
+        ],
         &mut stream,
     );
 
@@ -856,7 +1014,7 @@ public fun mcms_set_chain_rate_limiter_configs<T>(
 
     set_chain_rate_limiter_configs(
         state,
-        owner_cap,
+        &mcms_cap.owner_cap,
         clock,
         remote_chain_selectors,
         outbound_is_enableds,
@@ -874,9 +1032,9 @@ public fun mcms_set_chain_rate_limiter_config<T>(
     params: ExecutingCallbackParams,
     clock: &Clock,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -886,7 +1044,11 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap), object::id_address(clock)],
+        vector[
+            object::id_address(state),
+            object::id_address(&mcms_cap.owner_cap),
+            object::id_address(clock),
+        ],
         &mut stream,
     );
     let remote_chain_selector = bcs_stream::deserialize_u64(&mut stream);
@@ -900,7 +1062,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 
     set_chain_rate_limiter_config(
         state,
-        owner_cap,
+        &mcms_cap.owner_cap,
         clock,
         remote_chain_selector,
         outbound_is_enabled,
@@ -919,9 +1081,9 @@ public fun mcms_set_pool<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -931,13 +1093,17 @@ public fun mcms_set_pool<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(ref), object::id_address(state), object::id_address(owner_cap)],
+        vector[
+            object::id_address(ref),
+            object::id_address(state),
+            object::id_address(&mcms_cap.owner_cap),
+        ],
         &mut stream,
     );
     let coin_metadata_address = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    set_pool(ref, state, owner_cap, coin_metadata_address, ctx);
+    set_pool(ref, state, &mcms_cap.owner_cap, coin_metadata_address, ctx);
 }
 
 public fun mcms_transfer_ownership<T>(
@@ -946,9 +1112,9 @@ public fun mcms_transfer_ownership<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -958,14 +1124,14 @@ public fun mcms_transfer_ownership<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(state), object::id_address(owner_cap)],
+        vector[object::id_address(state), object::id_address(&mcms_cap.owner_cap)],
         &mut stream,
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    transfer_ownership(state, owner_cap, to, ctx);
+    transfer_ownership(state, &mcms_cap.owner_cap, to, ctx);
 }
 
 public fun mcms_execute_ownership_transfer<T>(
@@ -974,9 +1140,9 @@ public fun mcms_execute_ownership_transfer<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -986,14 +1152,22 @@ public fun mcms_execute_ownership_transfer<T>(
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addrs(
-        vector[object::id_address(_owner_cap), object::id_address(state)],
+        vector[object::id_address(&mcms_cap.owner_cap), object::id_address(state)],
         &mut stream,
     );
 
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap(registry, McmsCallback<T> {});
+    let McmsCap { id, owner_cap, rebalancer_cap } = mcms_registry::release_cap(
+        registry,
+        McmsCallback<T> {},
+    );
+    assert!(rebalancer_cap.is_none(), ERebalancerCapNotTransferredOut);
+
+    rebalancer_cap.destroy_none();
+    object::delete(id);
+
     execute_ownership_transfer(owner_cap, state, to, ctx);
 }
 
@@ -1002,9 +1176,9 @@ public fun mcms_add_allowed_modules<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (_mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1029,9 +1203,9 @@ public fun mcms_remove_allowed_modules<T>(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_owner_cap, function, data) = mcms_registry::get_callback_params_with_caps<
+    let (_mcms_cap, function, data) = mcms_registry::get_callback_params_with_caps<
         McmsCallback<T>,
-        OwnerCap,
+        McmsCap,
     >(
         registry,
         McmsCallback<T> {},
@@ -1077,4 +1251,9 @@ public fun destroy_token_pool<T>(
     ownable::destroy(ownable_state, owner_cap, ctx);
 
     reserve
+}
+
+#[test_only]
+public fun mcms_rebalancer_cap_address(mcms_cap: &McmsCap): address {
+    object::id_address(mcms_cap.rebalancer_cap.borrow())
 }

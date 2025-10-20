@@ -202,7 +202,7 @@ public fun remove_allowed_modules<T: drop>(
     assert!(proof_type == expected_proof_type, EWrongProofType);
 
     let allowed_modules = registry.allowed_modules.borrow_mut(proof_account_address);
-    
+
     let mut i = 0;
     while (i < modules_to_remove.length()) {
         let (found, index) = allowed_modules.index_of(&modules_to_remove[i]);
@@ -223,7 +223,7 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     registry: &mut Registry,
     _proof: T,
     params: ExecutingCallbackParams,
-): (&C, String, vector<u8>) {
+): (&mut C, String, vector<u8>) {
     let ExecutingCallbackParams {
         target,
         module_name,
@@ -253,7 +253,7 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     let allowed = registry.allowed_modules.borrow(proof_account_address);
     assert!(allowed.contains(module_name.as_bytes()), EModuleNotAllowed);
 
-    let package_cap = registry.package_caps.borrow(proof_account_address);
+    let package_cap = registry.package_caps.borrow_mut(proof_account_address);
     (package_cap, function_name, data)
 }
 
@@ -438,4 +438,9 @@ public fun test_create_executing_callback_params(
         total_in_batch,
         expected_proof_type,
     )
+}
+
+#[test_only]
+public fun get_cap<C: key + store>(registry: &Registry, package_address: address): &C {
+    registry.package_caps.borrow(package_address)
 }
