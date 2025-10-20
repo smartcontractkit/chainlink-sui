@@ -1,19 +1,24 @@
 package mcmsops
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/block-vision/sui-go-sdk/models"
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	mocksui "github.com/smartcontractkit/mcms/sdk/sui/mocks/sui"
+	"github.com/smartcontractkit/mcms/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
-	"github.com/smartcontractkit/mcms/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func newTestBundle(t *testing.T, registry *cld_ops.OperationRegistry) cld_ops.Bundle {
@@ -38,9 +43,32 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		ccipops.AcceptOwnershipStateObjectOp.AsUntyped(),
 	)
 
+	mockClient := mocksui.NewISuiAPI(t)
+	// This response doesn't matter much
+	mockClient.EXPECT().SuiGetObject(mock.Anything, mock.Anything).
+		Return(models.SuiObjectResponse{
+			Data: &models.SuiObjectData{
+				ObjectId: "0xf2facb344885659b11e707838ee131b407654f75f6589984af462c13de41ef84",
+				Version:  "3",
+				Digest:   "4TRR2ZC9r7UUDUeke2DUhHdRQkZWYjkygHrRSNVM4YmX",
+				Owner:    nil,
+			},
+			Error: nil,
+		}, nil)
+	// This is the response from getOpCount
+	mockClient.EXPECT().SuiDevInspectTransactionBlock(mock.Anything, mock.Anything).
+		Return(models.SuiTransactionBlockResponse{
+			Effects: models.SuiEffects{
+				Status: models.ExecutionStatus{
+					Status: "success",
+					Error:  "",
+				},
+			},
+			Results: json.RawMessage(`[{"returnValues":[[[1,0,0,0,0,0,0,0],"u64"]]}]`), // Returns 1
+		}, nil)
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
-		Client: nil, // We don't need a real client for this test since NoExecute=true
+		Client: mockClient,
 		Signer: nil, // We don't need a real signer for this test since NoExecute=true
 		GetCallOpts: func() *bind.CallOpts {
 			return &bind.CallOpts{}
@@ -121,6 +149,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Verify chain metadata
 		require.Len(t, proposal.ChainMetadata, 1, "should have one chain metadata")
+		require.Equal(t, proposal.ChainMetadata[types.ChainSelector(testChainSelector)].StartingOpCount, uint64(1), "starting op count should be 1 as mocked")
 		// Note: ChainMetadata structure verification simplified for test
 
 		// Verify operations
