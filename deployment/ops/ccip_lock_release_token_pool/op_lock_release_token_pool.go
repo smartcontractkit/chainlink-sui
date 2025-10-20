@@ -15,8 +15,9 @@ import (
 
 // LRTP -- INITIALIZE
 type LockReleaseTokenPoolInitializeObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId      string
+	StateObjectId         string
+	RebalancerCapObjectId string
 }
 
 type LockReleaseTokenPoolInitializeInput struct {
@@ -272,6 +273,7 @@ type LockReleaseTokenPoolProviderLiquidityInput struct {
 	LockReleaseTokenPoolPackageId string
 	CoinObjectTypeArg             string
 	StateObjectId                 string
+	RebalancerCapObjectId         string
 	Coin                          string
 }
 
@@ -288,6 +290,7 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 		opts,
 		[]string{input.CoinObjectTypeArg},
 		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.RebalancerCapObjectId},
 		bind.Object{Id: input.Coin},
 	)
 	if err != nil {
