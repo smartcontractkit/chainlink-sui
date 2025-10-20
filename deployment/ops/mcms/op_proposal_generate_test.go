@@ -1,3 +1,5 @@
+//go:build integration
+
 package mcmsops
 
 import (
@@ -8,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
@@ -38,14 +41,27 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		ccipops.AcceptOwnershipStateObjectOp.AsUntyped(),
 	)
 
+	// Execute the operation
+	bundle := newTestBundle(t, registry)
+	signer, client := testenv.SetupEnvironment(t)
+
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
-		Client: nil, // We don't need a real client for this test since NoExecute=true
-		Signer: nil, // We don't need a real signer for this test since NoExecute=true
+		Client: client,
+		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			return &bind.CallOpts{}
+			b := uint64(300_000_000)
+			return &bind.CallOpts{
+				WaitForExecution: true,
+				GasBudget:        &b,
+			}
 		},
 	}
+
+	report, err := cld_ops.ExecuteSequence(bundle, DeployMCMSSequence, deps, DeployMCMSSeqInput{
+		ChainSelector: cselectors.SUI_TESTNET.Selector,
+	})
+	require.NoError(t, err, "should deploy mcms successfully")
 
 	// Test data
 	testCCIPPackageId := "0x1234567890abcdef"
@@ -89,11 +105,11 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs,
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:  report.Output.PackageId,
+			McmsStateObjID: report.Output.Objects.McmsMultisigStateObjectId,
+			TimelockObjID:  report.Output.Objects.TimelockObjectId,
+			AccountObjID:   report.Output.Objects.McmsAccountStateObjectId,
+			RegistryObjID:  report.Output.Objects.McmsRegistryObjectId,
 
 			Role:  suisdk.TimelockRoleProposer,
 			Delay: time.Hour * 24,
@@ -101,8 +117,6 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			ChainSelector: testChainSelector,
 		}
 
-		// Execute the operation
-		bundle := newTestBundle(t, registry)
 		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 

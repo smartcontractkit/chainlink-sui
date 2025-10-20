@@ -27,6 +27,11 @@ var transferOwnershipHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	}
 
 	tx, err := mcmsAccount.TransferOwnershipToSelf(b.GetContext(), opts, bind.Object{Id: input.OwnerCap}, bind.Object{Id: input.AccountObjectID})
+	if err != nil {
+		return sui_ops.OpTxResult[cld_ops.EmptyInput]{}, err
+	}
+
+	b.Logger.Infow("Transfer ownership to MCMS executed successfully", "to", input.McmsPackageID)
 
 	return sui_ops.OpTxResult[cld_ops.EmptyInput]{
 		Digest:    tx.Digest,

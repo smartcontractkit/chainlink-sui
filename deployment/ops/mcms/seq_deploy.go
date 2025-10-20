@@ -1,6 +1,8 @@
 package mcmsops
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -35,7 +37,7 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 		// Deploy MCMS first
 		deployReport, err := cld_ops.ExecuteOperation(env, DeployMCMSOp, deps, cld_ops.EmptyInput{})
 		if err != nil {
-			return DeployMCMSSeqOutput{}, err
+			return DeployMCMSSeqOutput{}, fmt.Errorf("failed to deploy MCMS: %w", err)
 		}
 
 		// Configure each timelock role if config is provided
@@ -62,7 +64,7 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 
 				_, err = cld_ops.ExecuteOperation(env, SetConfigMCMSOp, deps, setConfigInput)
 				if err != nil {
-					return DeployMCMSSeqOutput{}, err
+					return DeployMCMSSeqOutput{}, fmt.Errorf("failed to set config for role %s: %w", roleConfig.name, err)
 				}
 
 				env.Logger.Infow("Set MCMS config", "role", roleConfig.name, "chainSelector", input.ChainSelector)
@@ -77,7 +79,7 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 		}
 		_, err = cld_ops.ExecuteOperation(env, MCMSTransferOwnershipOp, deps, transferOwnershipInput)
 		if err != nil {
-			return DeployMCMSSeqOutput{}, err
+			return DeployMCMSSeqOutput{}, fmt.Errorf("failed to transfer ownership to MCMS: %w", err)
 		}
 
 		// Generate the proposal to accept the ownership
@@ -106,7 +108,7 @@ var DeployMCMSSequence = cld_ops.NewSequence(
 
 		acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(env, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		if err != nil {
-			return DeployMCMSSeqOutput{}, err
+			return DeployMCMSSeqOutput{}, fmt.Errorf("failed to generate accept ownership proposal: %w", err)
 		}
 
 		output := DeployMCMSSeqOutput{
