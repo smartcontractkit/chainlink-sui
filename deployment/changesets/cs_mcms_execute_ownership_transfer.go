@@ -169,5 +169,11 @@ func (d MCMSExecuteTransferOwnership) Apply(e cldf.Environment, config MCMSExecu
 
 // VerifyPreconditions implements deployment.ChangeSetV2.
 func (d MCMSExecuteTransferOwnership) VerifyPreconditions(e cldf.Environment, config MCMSExecuteTransferOwnershipInput) error {
+	// Check that at least one contract type is selected
+	if !config.MCMS && !config.StateObject && !config.OnRamp && !config.OffRamp &&
+		!config.Router && !config.ManagedToken && !config.BurnMintTokenPool &&
+		!config.LockReleaseTokenPool && !config.UsdcTokenPool && !config.ManagedTokenPool {
+		return fmt.Errorf("at least one contract type must be selected for ownership transfer")
+	}
 	return nil
 }

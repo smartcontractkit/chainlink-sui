@@ -198,8 +198,6 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
 func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	// 1a. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
-
-	// 1. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
 	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
 	require.NoError(s.T(), err, "creating ccip state object contract")
 
