@@ -18,7 +18,7 @@ import (
 func TestRateLimit_OffRampRead_MultiNode(t *testing.T) {
 	log := logger.Test(t)
 
-	rpcURL := "https://spectrum-cl-01.simplystaking.xyz/Y2hhaW5saW5rLTAxLWVhNDQ2OTRlLWNoYWlubGluaw/0LnfL2h-7WUp9Q/sui/testnet/"
+	rpcURL := ""
 
 	// Simulation parameters
 	numNodes := 4               // number of independent nodes
