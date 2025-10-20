@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/assert"
@@ -77,6 +78,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 	t.Run("Generate Proposal with Multiple Operations - Proposer Role", func(t *testing.T) {
 		// Create operation definitions and inputs
 		defs := []cld_ops.Definition{
+			mcmsops.MCMSAcceptOwnershipOp.Def(),
 			ccipops.AddPackageIdStateObjectOp.Def(),
 			ccipops.TransferOwnershipStateObjectOp.Def(),
 			ccipops.AcceptOwnershipStateObjectOp.Def(),
