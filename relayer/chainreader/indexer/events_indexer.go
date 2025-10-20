@@ -314,10 +314,6 @@ eventLoop:
 				// change every []byte field to a hex string
 				normalizedData = convertBytesToHex(normalizedData)
 
-				fmt.Println("--------------------------------")
-				fmt.Println(normalizedData)
-				fmt.Println("--------------------------------")
-
 				// optionally use the initial package ID if it is provided
 				packageIdToInsert := selector.Package
 				if selector.InitialPackageId != nil {
