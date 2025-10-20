@@ -231,6 +231,7 @@ const ETokenTransferLimitExceeded: u64 = 28;
 const EPackageIdNotFound: u64 = 29;
 const EInvalidOwnerCap: u64 = 30;
 const EUnknownSequenceNumber: u64 = 31;
+const EInvalidReportContextLength: u64 = 32;
 
 const VERSION: u8 = 1;
 
@@ -994,6 +995,7 @@ public fun commit(
         string::utf8(b"commit"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let commit_report = deserialize_commit_report(report);
 
     if (

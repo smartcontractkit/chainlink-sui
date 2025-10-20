@@ -72,15 +72,14 @@ const EConfigDigestMismatch: u64 = 10;
 const EUnauthorizedTransmitter: u64 = 11;
 const EWrongNumberOfSignatures: u64 = 12;
 const ECouldNotValidateSignerKey: u64 = 13;
-const EInvalidReportContextLength: u64 = 14;
-const EInvalidConfigDigestLength: u64 = 15;
-const EInvalidSequenceLength: u64 = 16;
-const EUnauthorizedSigner: u64 = 17;
-const ENonUniqueSignatures: u64 = 18;
-const EInvalidSignature: u64 = 19;
-const EOutOfBytes: u64 = 20;
-const EConfigNotSet: u64 = 21;
-const EInvalidSignatureLength: u64 = 22;
+const EInvalidConfigDigestLength: u64 = 14;
+const EInvalidSequenceLength: u64 = 15;
+const EUnauthorizedSigner: u64 = 16;
+const ENonUniqueSignatures: u64 = 17;
+const EInvalidSignature: u64 = 18;
+const EOutOfBytes: u64 = 19;
+const EConfigNotSet: u64 = 20;
+const EInvalidSignatureLength: u64 = 21;
 
 // there is no init or initialize functions in ocr3 base
 // ocr3 base state is only created and stored in offramp state
@@ -236,8 +235,6 @@ public(package) fun transmit(
 ) {
     let ocr_config = latest_config_details(ocr3_state, ocr_plugin_type);
     let config_info = &ocr_config.config_info;
-
-    assert!(report_context.length() == 2, EInvalidReportContextLength);
 
     let config_digest = report_context[0];
     assert!(config_digest.length() == 32, EInvalidConfigDigestLength);
