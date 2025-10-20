@@ -13,9 +13,12 @@ type Package string
 const (
 	// CCIP
 	CCIP                 = Package("ccip")
+	CCIPMockV2           = Package("mock_ccip_v2")
 	CCIPDummyReceiver    = Package("ccip_dummy_receiver")
 	CCIPOfframp          = Package("ccip_offramp")
 	CCIPOnramp           = Package("ccip_onramp")
+	CCIPOnrampMockV2     = Package("mock_onramp_v2")
+	CCIPOfframpMockV2    = Package("mock_offramp_v2")
 	CCIPRouter           = Package("ccip_router")
 	LockReleaseTokenPool = Package("lock_release_token_pool")
 	BurnMintTokenPool    = Package("burn_mint_token_pool")
@@ -40,9 +43,12 @@ const (
 var Contracts map[Package]string = map[Package]string{
 	// CCIP
 	CCIP:                 filepath.Join("ccip", "ccip"),
+	CCIPMockV2:           filepath.Join("ccip", "mock_ccip_v2"),
 	CCIPDummyReceiver:    filepath.Join("ccip", "ccip_dummy_receiver"),
 	CCIPOfframp:          filepath.Join("ccip", "ccip_offramp"),
 	CCIPOnramp:           filepath.Join("ccip", "ccip_onramp"),
+	CCIPOnrampMockV2:     filepath.Join("ccip", "mock_onramp_v2"),
+	CCIPOfframpMockV2:    filepath.Join("ccip", "mock_offramp_v2"),
 	CCIPRouter:           filepath.Join("ccip", "ccip_router"),
 	LockReleaseTokenPool: filepath.Join("ccip", "ccip_token_pools", "lock_release_token_pool"),
 	BurnMintTokenPool:    filepath.Join("ccip", "ccip_token_pools", "burn_mint_token_pool"),

@@ -21,10 +21,6 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/cc
 # CCIP - Onramp
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/onramp.move --output ./bindings/generated/ccip/ccip_onramp/onramp
 
-# CCIP - onramp_mock_v2
-go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/mock_onramp_v2.move --output ./bindings/generated/ccip/ccip_onramp/mock_onramp_v2
-
-
 # CCIP - Offramp
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./contracts/ccip/ccip_offramp/sources/offramp.move --output ./bindings/generated/ccip/ccip_offramp/offramp
 
@@ -33,6 +29,15 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/mock_link_token --input ./c
 
 # CCIP - ETH
 go run bindgen/main.go --moveConfig ./contracts/ccip/mock_eth_token --input ./contracts/ccip/mock_eth_token/sources/mock_eth_token.move --output ./bindings/generated/ccip/mock_eth_token/mock_eth_token
+
+# CCIP - Mock OnRamp
+go run bindgen/main.go --moveConfig ./contracts/ccip/mock_onramp_v2 --input ./contracts/ccip/mock_onramp_v2/sources/onramp.move --output ./bindings/generated/ccip/mock_onramp_v2/mock_onramp_v2
+
+# CCIP - Mock OffRamp
+go run bindgen/main.go --moveConfig ./contracts/ccip/mock_offramp_v2 --input ./contracts/ccip/mock_offramp_v2/sources/offramp.move --output ./bindings/generated/ccip/mock_offramp_v2/mock_offramp_v2
+
+# CCIP - Mock CCIP (example: feeQuoter)
+go run bindgen/main.go --moveConfig ./contracts/ccip/mock_ccip_v2 --input ./contracts/ccip/mock_ccip_v2/sources/fee_quoter.move --output ./bindings/generated/ccip/mock_ccip_v2/fee_quoter
 
 # CCIP - Managed Token
 go run bindgen/main.go --moveConfig ./contracts/ccip/managed_token --input ./contracts/ccip/managed_token/sources/managed_token.move --output ./bindings/generated/ccip/managed_token/managed_token
