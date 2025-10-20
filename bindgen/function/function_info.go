@@ -63,6 +63,18 @@ func getPackagesWithFunctionInfo(baseDir string) ([]FunctionInfoData, error) {
 		if err != nil {
 			return err
 		}
+
+		// Skip certain directories
+		if info.IsDir() {
+			dirName := info.Name()
+			if strings.HasPrefix(dirName, "mock_ccip_v2") ||
+				strings.HasPrefix(dirName, "mock_onramp_v2") ||
+				strings.HasPrefix(dirName, "mock_offramp_v2") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
 		if info.IsDir() || filepath.Ext(path) != ".go" {
 			return nil
 		}
@@ -75,6 +87,7 @@ func getPackagesWithFunctionInfo(baseDir string) ([]FunctionInfoData, error) {
 		}
 		dir := filepath.Dir(path)
 		packagePrefix := strings.TrimPrefix(dir, baseDir)
+
 		fiData = append(fiData, FunctionInfoData{
 			ImportPath: modulePrefix + packagePrefix,
 			ModuleName: strings.TrimPrefix(*packageName, "module_"),
