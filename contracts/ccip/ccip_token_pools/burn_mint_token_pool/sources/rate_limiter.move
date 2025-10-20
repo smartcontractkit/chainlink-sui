@@ -23,7 +23,10 @@ public(package) fun new(clock: &Clock, is_enabled: bool, capacity: u64, rate: u6
     }
 }
 
-public fun get_current_token_bucket_state(clock: &Clock, state: &TokenBucket): TokenBucket {
+public(package) fun get_current_token_bucket_state(
+    clock: &Clock,
+    state: &TokenBucket,
+): TokenBucket {
     TokenBucket {
         tokens: calculate_refill(
             state,
@@ -75,10 +78,16 @@ fun update_bucket(clock: &Clock, bucket: &mut TokenBucket) {
 }
 
 fun calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
-    min(
-        bucket.capacity,
-        bucket.tokens + time_diff * bucket.rate,
-    )
+    if (bucket.tokens >= bucket.capacity) { return bucket.capacity };
+    if (bucket.rate == 0) { return bucket.tokens };
+
+    let remaining = bucket.capacity - bucket.tokens;
+    // If time_diff * rate would exceed remaining, saturate to capacity
+    if (time_diff > remaining / bucket.rate) {
+        bucket.capacity
+    } else {
+        bucket.tokens + time_diff * bucket.rate
+    }
 }
 
 fun min(a: u64, b: u64): u64 {
