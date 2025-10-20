@@ -436,6 +436,7 @@ public fun init_execute(
         string::utf8(b"init_execute"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let reports = deserialize_execution_report(report);
 
     ocr3_base::transmit(
