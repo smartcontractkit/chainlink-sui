@@ -559,6 +559,8 @@ fun deserialize_execution_report(report_bytes: vector<u8>): ExecutionReport {
         |stream| { bcs_stream::deserialize_fixed_vector_u8(stream, 32) },
     );
 
+    bcs_stream::assert_is_consumed(&stream);
+
     ExecutionReport { source_chain_selector, message, offchain_token_data, proofs }
 }
 
