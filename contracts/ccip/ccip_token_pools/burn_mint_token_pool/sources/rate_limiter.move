@@ -93,3 +93,29 @@ fun calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
 fun min(a: u64, b: u64): u64 {
     if (a > b) b else a
 }
+
+// ================================================================
+// |                      Test-only functions                     |
+// ================================================================
+
+#[test_only]
+public fun test_calculate_refill(bucket: &TokenBucket, time_diff: u64): u64 {
+    calculate_refill(bucket, time_diff)
+}
+
+#[test_only]
+public fun test_create_token_bucket(
+    tokens: u64,
+    last_updated: u64,
+    is_enabled: bool,
+    capacity: u64,
+    rate: u64,
+): TokenBucket {
+    TokenBucket {
+        tokens,
+        last_updated,
+        is_enabled,
+        capacity,
+        rate,
+    }
+}
