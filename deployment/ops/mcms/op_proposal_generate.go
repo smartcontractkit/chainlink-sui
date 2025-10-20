@@ -44,6 +44,22 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return mcms.TimelockProposal{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(input.Defs), len(input.Inputs))
 	}
 
+	var action types.TimelockAction
+	var delay *types.Duration
+	switch input.Role {
+	case suisdk.TimelockRoleProposer:
+		action = types.TimelockActionSchedule
+		delayDuration := types.NewDuration(input.Delay)
+		delay = &delayDuration
+	case suisdk.TimelockRoleBypasser:
+		action = types.TimelockActionBypass
+	case suisdk.TimelockRoleCanceller:
+		action = types.TimelockActionCancel
+	default:
+		// NewChainMetadata will always error on invalid role, but this is a safeguard
+		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
+	}
+
 	mcmsContract, err := module_mcms.NewMcms(input.MmcsPackageID, deps.Client)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create MCMS contract instance: %w", err)
@@ -107,22 +123,6 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	metadata, err := suisdk.NewChainMetadata(opCount, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create chain metadata: %w", err)
-	}
-
-	var action types.TimelockAction
-	var delay *types.Duration
-	switch input.Role {
-	case suisdk.TimelockRoleProposer:
-		action = types.TimelockActionSchedule
-		delayDuration := types.NewDuration(input.Delay)
-		delay = &delayDuration
-	case suisdk.TimelockRoleBypasser:
-		action = types.TimelockActionBypass
-	case suisdk.TimelockRoleCanceller:
-		action = types.TimelockActionCancel
-	default:
-		// NewChainMetadata will always error on invalid role, but this is a safeguard
-		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
 	}
 
 	var description string = "Invokes the following set of operations: "
