@@ -14,6 +14,7 @@ import (
     module_dummy_receiver "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver"
     module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
     module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+    module_ownable "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/ownable"
     module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
     module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
     module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
@@ -45,6 +46,7 @@ var FunctionInfoByModule = map[string]string{
     "dummy_receiver": module_dummy_receiver.FunctionInfo,
     "offramp": module_offramp.FunctionInfo,
     "onramp": module_onramp.FunctionInfo,
+    "ownable": module_ownable.FunctionInfo,
     "router": module_router.FunctionInfo,
     "burn_mint_token_pool": module_burn_mint_token_pool.FunctionInfo,
     "lock_release_token_pool": module_lock_release_token_pool.FunctionInfo,

@@ -190,8 +190,8 @@ const EUnknownMCMSModule: u64 = 38;
 const EUnknownMCMSDeployerModuleFunction: u64 = 39;
 const EInvalidMCMS: u64 = 40;
 const EWrongProofType: u64 = 41;
-const EProofDoesNotExist: u64 = 42;
-const EUnknownMCMSRegistryModuleFunction: u64 = 43;
+const EUnknownMCMSRegistryModuleFunction: u64 = 42;
+const EProofNotRegisteredWithMcms: u64 = 43;
 
 public struct MCMS has drop {}
 
@@ -706,20 +706,32 @@ public fun dispatch_timelock_unblock_function(
     These functions are ready to be executed therefore no validation is needed
     */
 
-/// Internal function which only returns `McmsProof` if MCMS is not registered
-/// Used for operations such as `mcms_account::accept_ownership_as_timelock` as MCMS is not registered yet
-fun get_expected_proof_type(registry: &Registry, target: address): TypeName {
+/// Internal function that returns the expected proof type for a target package
+/// - For registered packages: returns their registered proof type
+/// - For MCMS: returns McmsProof
+/// - For unregistered packages: Only allows `accept_ownership` function and returns McmsProof
+/// `mcms_registry::get_callback_params` validates the proof type and function name are as expected.
+fun get_expected_proof_type(registry: &Registry, target: address, function_name: String): TypeName {
+    let mcms_address = mcms_registry::get_multisig_address();
     if (mcms_registry::is_package_registered(registry, target)) {
         mcms_registry::get_registered_proof_type(registry, target)
-    } else if (target == mcms_registry::get_multisig_address()) {
+    } else if (
+        target == mcms_address ||
+            (target != mcms_address && function_name.as_bytes() == b"accept_ownership")
+    ) {
         type_name::with_defining_ids<mcms_registry::McmsProof>()
     } else {
-        abort EProofDoesNotExist
+        abort EProofNotRegisteredWithMcms
     }
 }
 
-fun validate_proof_type(registry: &Registry, target: address, proof_type: TypeName) {
-    let expected_proof_type = get_expected_proof_type(registry, target);
+fun validate_proof_type(
+    registry: &Registry,
+    target: address,
+    function_name: String,
+    proof_type: TypeName,
+) {
+    let expected_proof_type = get_expected_proof_type(registry, target, function_name);
     assert!(proof_type == expected_proof_type, EWrongProofType);
 }
 
@@ -741,7 +753,7 @@ public fun mcms_dispatch_to_account(
     );
     assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms_account", EUnknownMCMSAccountModuleFunction);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
     let mut stream = bcs_stream::new(data);
@@ -785,7 +797,7 @@ public fun mcms_dispatch_to_deployer(
 
     assert!(target == mcms_registry::get_multisig_address(), EUnknownMCMSModule);
     assert!(*module_name.as_bytes() == b"mcms_deployer", EUnknownMCMSDeployerModuleFunction);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
     let mut stream = bcs_stream::new(data);
@@ -825,7 +837,7 @@ public fun mcms_dispatch_to_registry(
 
     assert!(target == mcms_registry::get_multisig_address(), EWrongMultisig);
     assert!(*module_name.as_bytes() == b"mcms_registry", EUnknownMCMSRegistryModuleFunction);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let function_name_bytes = *function_name.as_bytes();
 
@@ -885,7 +897,7 @@ public fun mcms_timelock_schedule_batch(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_schedule_batch", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let (
         targets,
@@ -931,7 +943,7 @@ public fun mcms_timelock_execute_batch(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_execute_batch", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let (
         targets,
@@ -973,7 +985,7 @@ public fun mcms_timelock_bypasser_execute_batch(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_bypasser_execute_batch", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let (
         targets,
@@ -1011,7 +1023,7 @@ public fun mcms_timelock_cancel(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_cancel", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let id = deserialize_timelock_cancel(data);
     timelock_cancel(timelock, TIMELOCK_ROLE, id, ctx)
@@ -1035,7 +1047,7 @@ public fun mcms_timelock_update_min_delay(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_update_min_delay", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let new_min_delay = deserialize_timelock_update_min_delay(data);
     timelock_update_min_delay(timelock, TIMELOCK_ROLE, new_min_delay, ctx)
@@ -1059,7 +1071,7 @@ public fun mcms_timelock_block_function(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_block_function", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let (target, module_name, function_name) = deserialize_timelock_function_action(data);
     timelock_block_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
@@ -1083,7 +1095,7 @@ public fun mcms_timelock_unblock_function(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"timelock_unblock_function", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let (target, module_name, function_name) = deserialize_timelock_function_action(data);
     timelock_unblock_function(timelock, TIMELOCK_ROLE, target, module_name, function_name, ctx)
@@ -1107,7 +1119,7 @@ public fun mcms_set_config(
     );
     assert!(*module_name.as_bytes() == b"mcms", EInvalidModuleName);
     assert!(*function_name.as_bytes() == b"set_config", EInvalidFunctionName);
-    validate_proof_type(registry, target, proof_type);
+    validate_proof_type(registry, target, function_name, proof_type);
 
     let stream = &mut bcs_stream::new(data);
     let role_param = bcs_stream::deserialize_u8(stream);
@@ -1744,7 +1756,7 @@ public fun timelock_execute_batch(
         let function_name = function.function_name;
         let data = calls[i].data;
 
-        let expected_proof_type = get_expected_proof_type(registry, target);
+        let expected_proof_type = get_expected_proof_type(registry, target, function_name);
 
         let params = mcms_registry::create_executing_callback_params(
             target,
@@ -1797,7 +1809,7 @@ fun timelock_bypasser_execute_batch(
         let function_name = function.function_name;
         let data = calls[i].data;
 
-        let expected_proof_type = get_expected_proof_type(registry, target);
+        let expected_proof_type = get_expected_proof_type(registry, target, function_name);
 
         let params = mcms_registry::create_executing_callback_params(
             target,
