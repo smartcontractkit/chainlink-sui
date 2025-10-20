@@ -2,8 +2,10 @@ package indexer
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 type EventsIndexer struct {
@@ -188,6 +191,30 @@ func convertMapKeysToCamelCaseWithPath(input any, path string) any {
 	return input
 }
 
+func convertBytesToHex(input any) any {
+	kind := reflect.ValueOf(input).Kind()
+
+	switch kind {
+	case reflect.Map:
+		result := make(map[string]any)
+		for k, v := range input.(map[string]any) {
+			result[k] = convertBytesToHex(v)
+		}
+
+		return result
+
+	case reflect.Slice, reflect.Array:
+		bytes, err := codec.AnySliceToBytes(input.([]any))
+		if err != nil {
+			return input
+		}
+
+		return "0x" + hex.EncodeToString(bytes)
+	}
+
+	return input
+}
+
 func (eIndexer *EventsIndexer) SyncEvent(ctx context.Context, selector *client.EventSelector) error {
 	if selector == nil {
 		return fmt.Errorf("unspecified selector for SyncEvent call")
@@ -283,6 +310,13 @@ eventLoop:
 
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
+
+				// change every []byte field to a hex string
+				normalizedData = convertBytesToHex(normalizedData)
+
+				fmt.Println("--------------------------------")
+				fmt.Println(normalizedData)
+				fmt.Println("--------------------------------")
 
 				// optionally use the initial package ID if it is provided
 				packageIdToInsert := selector.Package
