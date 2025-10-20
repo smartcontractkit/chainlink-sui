@@ -49,7 +49,10 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create MCMS contract instance: %w", err)
 	}
 
-	opCount, err := mcmsContract.DevInspect().GetOpCount(b.GetContext(), deps.GetCallOpts(), bind.Object{Id: input.McmsStateObjID}, input.Role.Byte())
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+
+	opCount, err := mcmsContract.DevInspect().GetOpCount(b.GetContext(), opts, bind.Object{Id: input.McmsStateObjID}, input.Role.Byte())
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to get operation count from MCMS: %w", err)
 	}
