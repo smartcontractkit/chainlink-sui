@@ -430,3 +430,62 @@ public fun test_complete_token_transfer_twice_should_fail() {
     offramp_state_helper::deconstruct_receiver_params(&dest_cap, receiver_params);
     cleanup_test(scenario, owner_cap, ref, dest_cap);
 }
+
+#[test]
+public fun test_new_dest_transfer_cap() {
+    let (mut scenario, owner_cap, ref, dest_cap) = setup_test();
+
+    // Create a new DestTransferCap using the new_dest_transfer_cap function
+    let new_dest_cap = offramp_state_helper::new_dest_transfer_cap(
+        &ref,
+        &owner_cap,
+        scenario.ctx(),
+    );
+
+    // Use the new DestTransferCap to create receiver params
+    let mut receiver_params = offramp_state_helper::create_receiver_params(
+        &new_dest_cap,
+        SOURCE_CHAIN_SELECTOR,
+    );
+
+    // Use the new cap to add a token transfer
+    offramp_state_helper::add_dest_token_transfer(
+        &new_dest_cap,
+        &mut receiver_params,
+        RECEIVER_ADDRESS,
+        SOURCE_CHAIN_SELECTOR,
+        5000, // source_amount
+        TOKEN_ADDRESS_1,
+        TOKEN_POOL_ADDRESS_1,
+        b"new_source_pool",
+        b"new_pool_data",
+        b"new_offchain_data",
+    );
+
+    // Verify the token transfer data
+    let (
+        receiver,
+        source_amount,
+        dest_token_address,
+        source_pool_address,
+        source_pool_data,
+        offchain_data,
+    ) = offramp_state_helper::get_token_param_data(&receiver_params);
+
+    assert!(receiver == RECEIVER_ADDRESS);
+    assert!(source_amount == 5000);
+    assert!(dest_token_address == TOKEN_ADDRESS_1);
+    assert!(source_pool_address == b"new_source_pool");
+    assert!(source_pool_data == b"new_pool_data");
+    assert!(offchain_data == b"new_offchain_data");
+
+    // Clean up with the new cap
+    offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
+        &new_dest_cap,
+        receiver_params,
+    );
+
+    // Transfer both caps to address 0x0 for cleanup
+    transfer::public_transfer(new_dest_cap, @0x0);
+    cleanup_test(scenario, owner_cap, ref, dest_cap);
+}
