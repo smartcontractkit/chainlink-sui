@@ -32,6 +32,10 @@ type CCIPChainState struct {
 	CCIPBurnMintTokenPool        string
 	CCIPBurnMintTokenPoolState   string
 	CCIPBurnMintTokenPoolOwnerId string
+	UpgradeRegistryObjectId      string
+	OnRampMockV2PackageId        string
+	OffRampMockV2PackageId       string
+	CCIPMockV2PackageId          string
 }
 
 // LoadOnchainStatesui loads chain state for sui chains from env
@@ -134,6 +138,18 @@ func loadsuiChainStateFromAddresses(addresses map[string]cldf.TypeAndVersion) (C
 
 		case SuiBnMTokenPoolOwnerIDType:
 			chainState.CCIPBurnMintTokenPoolOwnerId = addr
+
+		case SuiUpgradeRegistryObjectId:
+			chainState.UpgradeRegistryObjectId = addr
+
+		case SuiOnRampMockV2:
+			chainState.OnRampMockV2PackageId = addr
+
+		case SuiOffRampMockV2:
+			chainState.OffRampMockV2PackageId = addr
+
+		case SuiCCIPMockV2:
+			chainState.CCIPMockV2PackageId = addr
 		}
 		// Set address based on type
 	}

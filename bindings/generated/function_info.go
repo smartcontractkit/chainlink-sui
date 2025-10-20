@@ -13,7 +13,6 @@ import (
     module_upgrade_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/upgrade_registry"
     module_dummy_receiver "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver"
     module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
-    module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/mock_onramp_v2"
     module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
     module_ownable "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/ownable"
     module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
@@ -22,8 +21,11 @@ import (
     module_managed_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/managed_token_pool"
     module_usdc_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/usdc_token_pool"
     module_managed_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/managed_token/managed_token"
+    module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_ccip_v2/fee_quoter"
     module_mock_eth_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_eth_token/mock_eth_token"
     module_mock_link_token "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_link_token/mock_link_token"
+    module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_offramp_v2/mock_offramp_v2"
+    module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/mock_onramp_v2/mock_onramp_v2"
     module_link "github.com/smartcontractkit/chainlink-sui/bindings/generated/link/link"
     module_mcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
     module_mcms_account "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms_account"
@@ -47,7 +49,6 @@ var FunctionInfoByModule = map[string]string{
     "dummy_receiver": module_dummy_receiver.FunctionInfo,
     "offramp": module_offramp.FunctionInfo,
     "onramp": module_onramp.FunctionInfo,
-    "onramp": module_onramp.FunctionInfo,
     "ownable": module_ownable.FunctionInfo,
     "router": module_router.FunctionInfo,
     "burn_mint_token_pool": module_burn_mint_token_pool.FunctionInfo,
@@ -55,8 +56,11 @@ var FunctionInfoByModule = map[string]string{
     "managed_token_pool": module_managed_token_pool.FunctionInfo,
     "usdc_token_pool": module_usdc_token_pool.FunctionInfo,
     "managed_token": module_managed_token.FunctionInfo,
+    "fee_quoter": module_fee_quoter.FunctionInfo,
     "mock_eth_token": module_mock_eth_token.FunctionInfo,
     "mock_link_token": module_mock_link_token.FunctionInfo,
+    "offramp": module_offramp.FunctionInfo,
+    "onramp": module_onramp.FunctionInfo,
     "link": module_link.FunctionInfo,
     "mcms": module_mcms.FunctionInfo,
     "mcms_account": module_mcms_account.FunctionInfo,

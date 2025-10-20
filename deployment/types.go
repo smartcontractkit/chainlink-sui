@@ -44,6 +44,12 @@ var (
 	SuiBnMTokenPoolType          deployment.ContractType = "SuiBnMTokenPool"
 	SuiBnMTokenPoolStateType     deployment.ContractType = "SuiBnMTokenPoolState"
 	SuiBnMTokenPoolOwnerIDType   deployment.ContractType = "SuiBnMTokenPoolOwnerID"
+
+	// Upgrade Related
+	SuiCCIPMockV2              deployment.ContractType = "SuiCCIPMockV2PackageID"
+	SuiOnRampMockV2            deployment.ContractType = "SuiOnRampMockV2PackageID"
+	SuiOffRampMockV2           deployment.ContractType = "SuiOffRampMockV2PackageID"
+	SuiUpgradeRegistryObjectId deployment.ContractType = "SuiUpgradeRegistryObjectId"
 )
 
 var (
