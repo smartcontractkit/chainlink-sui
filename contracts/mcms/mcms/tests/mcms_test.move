@@ -86,6 +86,21 @@ public struct Env {
     clock: sui::clock::Clock,
 }
 
+// Accessor functions for Env
+public fun env_scenario(env: &mut Env): &mut ts::Scenario { &mut env.scenario }
+
+public fun env_state(env: &mut Env): &mut MultisigState { &mut env.state }
+
+public fun env_timelock(env: &mut Env): &mut Timelock { &mut env.timelock }
+
+public fun env_registry(env: &mut Env): &mut Registry { &mut env.registry }
+
+public fun env_account_state(env: &mut Env): &mut AccountState { &mut env.account_state }
+
+public fun env_deployer_state(env: &mut Env): &mut DeployerState { &mut env.deployer_state }
+
+public fun env_clock(env: &Env): &sui::clock::Clock { &env.clock }
+
 public struct SetRootArgs has drop {
     role: u8,
     root: vector<u8>,
@@ -264,7 +279,7 @@ public fun test_e2e() {
     env.destroy();
 }
 
-fun setup(): Env {
+public fun setup(): Env {
     let mut scenario = ts::begin(OWNER);
     let ctx = scenario.ctx();
 
@@ -3234,7 +3249,7 @@ fun timelock_execute_dispatch_to_acc_helper(
     executing_callback_params.destroy_empty();
 }
 
-fun destroy(env: Env) {
+public fun destroy(env: Env) {
     let Env {
         scenario,
         state,
@@ -3253,6 +3268,19 @@ fun destroy(env: Env) {
     clock.destroy_for_testing();
 
     scenario.end();
+}
+
+/// Helper function for tests in other modules to call mcms_dispatch_to_account
+public fun test_mcms_dispatch_to_account(
+    env: &mut Env,
+    params: mcms_registry::ExecutingCallbackParams,
+) {
+    mcms::mcms_dispatch_to_account(
+        &mut env.registry,
+        &mut env.account_state,
+        params,
+        env.scenario.ctx(),
+    )
 }
 
 #[test]
