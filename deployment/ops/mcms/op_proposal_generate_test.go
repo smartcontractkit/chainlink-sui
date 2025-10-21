@@ -1,3 +1,5 @@
+//go:build integration
+
 package mcmsops
 
 import (
@@ -8,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	"github.com/smartcontractkit/chainlink-sui/bindings/tests/testenv"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
@@ -32,30 +35,46 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 	// Create a registry with state object operations that support exporting the Call
 	registry := cld_ops.NewOperationRegistry(
+		MCMSAcceptOwnershipOp.AsUntyped(),
 		ccipops.AddPackageIdStateObjectOp.AsUntyped(),
 		ccipops.RemovePackageIdStateObjectOp.AsUntyped(),
 		ccipops.TransferOwnershipStateObjectOp.AsUntyped(),
 		ccipops.AcceptOwnershipStateObjectOp.AsUntyped(),
 	)
 
+	// Execute the operation
+	bundle := newTestBundle(t, registry)
+	signer, client := testenv.SetupEnvironment(t)
+
 	// Create mock dependencies
 	deps := sui_ops.OpTxDeps{
-		Client: nil, // We don't need a real client for this test since NoExecute=true
-		Signer: nil, // We don't need a real signer for this test since NoExecute=true
+		Client: client,
+		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			return &bind.CallOpts{}
+			b := uint64(300_000_000)
+			return &bind.CallOpts{
+				WaitForExecution: true,
+				GasBudget:        &b,
+			}
 		},
 	}
+
+	report, err := cld_ops.ExecuteSequence(bundle, DeployMCMSSequence, deps, DeployMCMSSeqInput{
+		ChainSelector: cselectors.SUI_TESTNET.Selector,
+	})
+	require.NoError(t, err, "should deploy mcms successfully")
 
 	// Test data
 	testCCIPPackageId := "0x1234567890abcdef"
 	testObjectRefId := "0xabcdef1234567890"
 	testOwnerCapId := "0x9876543210fedcba"
-	testPackageId := "0xdeadbeefcafebabe"
+
+	mcmsPackageId := report.Output.PackageId
+	mcmsStateObjID := report.Output.Objects.McmsMultisigStateObjectId
+	timelockObjID := report.Output.Objects.TimelockObjectId
+	accountObjID := report.Output.Objects.McmsAccountStateObjectId
+	registryObjID := report.Output.Objects.McmsRegistryObjectId
 	testNewOwner := "0x1111111111111111"
-	testTimelockObjID := "0x2222222222222222"
-	testAccountObjID := "0x3333333333333333"
-	testRegistryObjID := "0x4444444444444444"
 	testChainSelector := cselectors.SUI_TESTNET.Selector
 
 	t.Run("Generate Proposal with Multiple Operations - Proposer Role", func(t *testing.T) {
@@ -71,7 +90,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 				CCIPPackageId:         testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				PackageId:             mcmsPackageId,
 			},
 			ccipops.TransferOwnershipStateObjectInput{
 				CCIPPackageId:         testCCIPPackageId,
@@ -89,11 +108,11 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs,
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:  mcmsPackageId,
+			McmsStateObjID: mcmsStateObjID,
+			TimelockObjID:  timelockObjID,
+			AccountObjID:   accountObjID,
+			RegistryObjID:  registryObjID,
 
 			Role:  suisdk.TimelockRoleProposer,
 			Delay: time.Hour * 24,
@@ -101,8 +120,6 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			ChainSelector: testChainSelector,
 		}
 
-		// Execute the operation
-		bundle := newTestBundle(t, registry)
 		result, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.NoError(t, err, "should generate proposal successfully")
 
@@ -117,7 +134,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Verify timelock addresses
 		require.Len(t, proposal.TimelockAddresses, 1, "should have one timelock address")
-		assert.Equal(t, testTimelockObjID, proposal.TimelockAddresses[types.ChainSelector(testChainSelector)], "timelock address should match")
+		assert.Equal(t, timelockObjID, proposal.TimelockAddresses[types.ChainSelector(testChainSelector)], "timelock address should match")
 
 		// Verify chain metadata
 		require.Len(t, proposal.ChainMetadata, 1, "should have one chain metadata")
@@ -131,8 +148,6 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 
 		// Verify delay is set for proposer role
 		assert.NotZero(t, proposal.Delay, "delay should be set for proposer role")
-		// Note: Delay verification simplified for test
-
 	})
 
 	t.Run("Generate Proposal with Single Operation - Bypasser Role", func(t *testing.T) {
@@ -142,12 +157,11 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		inputs := []any{
-
 			ccipops.RemovePackageIdStateObjectInput{
 				CCIPPackageId:         testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				PackageId:             mcmsPackageId,
 			},
 		}
 
@@ -155,11 +169,11 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs,
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:  mcmsPackageId,
+			McmsStateObjID: mcmsStateObjID,
+			TimelockObjID:  timelockObjID,
+			AccountObjID:   accountObjID,
+			RegistryObjID:  registryObjID,
 
 			Role:  suisdk.TimelockRoleBypasser,
 			Delay: 0, // No delay for bypasser
@@ -193,12 +207,11 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		}
 
 		inputs := []any{
-
 			ccipops.AddPackageIdStateObjectInput{
 				CCIPPackageId:         testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				PackageId:             mcmsPackageId,
 			},
 		}
 
@@ -206,11 +219,11 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs,
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:  mcmsPackageId,
+			McmsStateObjID: mcmsStateObjID,
+			TimelockObjID:  timelockObjID,
+			AccountObjID:   accountObjID,
+			RegistryObjID:  registryObjID,
 
 			Role:  suisdk.TimelockRole(100), // Invalid role
 			Delay: time.Hour,
@@ -222,7 +235,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		bundle := newTestBundle(t, registry)
 		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with invalid role")
-		assert.Contains(t, err.Error(), "invalid timelock role", "error should mention invalid timelock role")
+		assert.Contains(t, err.Error(), "unsupported role", "error should mention unsupported role")
 	})
 
 	t.Run("Generate Proposal with Mismatched Definitions and Inputs", func(t *testing.T) {
@@ -238,7 +251,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 				CCIPPackageId:         testCCIPPackageId,
 				CCIPObjectRefObjectId: testObjectRefId,
 				OwnerCapObjectId:      testOwnerCapId,
-				PackageId:             testPackageId,
+				PackageId:             mcmsPackageId,
 			},
 
 			// Missing second input
@@ -248,11 +261,11 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 			Defs:   defs,
 			Inputs: inputs[:1], // Only one input for two definitions
 
-			MmcsPackageID:  testCCIPPackageId,
-			McmsStateObjID: testObjectRefId,
-			TimelockObjID:  testTimelockObjID,
-			AccountObjID:   testAccountObjID,
-			RegistryObjID:  testRegistryObjID,
+			MmcsPackageID:  mcmsPackageId,
+			McmsStateObjID: mcmsStateObjID,
+			TimelockObjID:  timelockObjID,
+			AccountObjID:   accountObjID,
+			RegistryObjID:  registryObjID,
 
 			Role:  suisdk.TimelockRoleProposer,
 			Delay: time.Hour,
