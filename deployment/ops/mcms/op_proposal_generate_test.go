@@ -251,7 +251,7 @@ func TestMCMSDynamicProposalGenerateSeq(t *testing.T) {
 		bundle := newTestBundle(t, registry)
 		_, err := cld_ops.ExecuteSequence(bundle, MCMSDynamicProposalGenerateSeq, deps, proposalInput)
 		require.Error(t, err, "should fail with invalid role")
-		assert.Contains(t, err.Error(), "invalid timelock role", "error should mention invalid timelock role")
+		assert.Contains(t, err.Error(), "unsupported role", "error should mention `unsupported role`")
 	})
 
 	t.Run("Generate Proposal with Mismatched Definitions and Inputs", func(t *testing.T) {
