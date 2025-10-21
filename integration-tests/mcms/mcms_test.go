@@ -35,6 +35,7 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 
 	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
 		RunTestCCIPFeeQuoterProposal(s)
+		// RunCCIPOffRampProposal(s)
 	})
 }
 
@@ -150,14 +151,27 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	// 3. Execute transfer ownership from original owner
 	// 3.1. Execute the proposal
 	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
 	// 3.2. Finish the ownership transfer with the original owner signer
 	_, err = ccipContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipObjects.OwnerCapObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
 	s.Require().NoError(err, "executing ownership transfer of CCIP to MCMS")
+	_, err = ccipOnRampContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipOnrampObjects.OwnerCapObjectId}, bind.Object{Id: s.ccipOnrampObjects.StateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
+	s.Require().NoError(err, "executing ownership transfer of OnRamp to MCMS")
+	_, err = ccipOffRampContract.ExecuteOwnershipTransferToMcms(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}, bind.Object{Id: s.ccipOfframpObjects.OwnerCapId}, bind.Object{Id: s.ccipOfframpObjects.StateObjectId}, bind.Object{Id: s.registryObj}, s.mcmsPackageID)
+	s.Require().NoError(err, "executing ownership transfer of OffRamp to MCMS")
 
 	// 4. Verify the new owner is MCMS
 	newOwner, err := ccipContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId})
 	s.Require().NoError(err, "getting new owner of CCIP state object")
 	s.Require().Equal(s.mcmsPackageID, newOwner, "new owner of CCIP should be MCMS")
+
+	newOwnerOnRamp, err := ccipOnRampContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipOnrampObjects.StateObjectId})
+	s.Require().NoError(err, "getting new owner of OnRamp state object")
+	s.Require().Equal(s.mcmsPackageID, newOwnerOnRamp, "new owner of OnRamp should be MCMS")
+
+	newOwnerOffRamp, err := ccipOffRampContract.DevInspect().Owner(s.T().Context(), s.deps.GetCallOpts(), bind.Object{Id: s.ccipOfframpObjects.StateObjectId})
+	s.Require().NoError(err, "getting new owner of OffRamp state object")
+	s.Require().Equal(s.mcmsPackageID, newOwnerOffRamp, "new owner of OffRamp should be MCMS")
 }
 
 func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
