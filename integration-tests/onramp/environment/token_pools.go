@@ -394,6 +394,7 @@ func SetupTokenPool(
 	provideLiquidityInput := lockreleaseops.LockReleaseTokenPoolProviderLiquidityInput{
 		LockReleaseTokenPoolPackageId: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
 		StateObjectId:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectId,
+		RebalancerCapObjectId:         tokenPoolLockReleaseReport.Output.Objects.RebalancerCapObjectId,
 		Coin:                          mintedCoinId,
 		CoinObjectTypeArg:             linkTokenType,
 	}
