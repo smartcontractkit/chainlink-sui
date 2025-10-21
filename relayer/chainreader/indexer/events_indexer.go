@@ -203,7 +203,7 @@ func convertBytesToHex(input any) any {
 
 		return result
 
-	case reflect.Slice, reflect.Array:
+	case reflect.Slice:
 		bytes, err := codec.AnySliceToBytes(input.([]any))
 		if err != nil {
 			return input
@@ -310,9 +310,6 @@ eventLoop:
 
 				// normalize the data, convert snake case to camel case
 				normalizedData := convertMapKeysToCamelCase(event.ParsedJson)
-
-				// change every []byte field to a hex string
-				normalizedData = convertBytesToHex(normalizedData)
 
 				// optionally use the initial package ID if it is provided
 				packageIdToInsert := selector.Package
