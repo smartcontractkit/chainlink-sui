@@ -154,7 +154,6 @@ func TestEncodeEntryPointArg_Offramp(t *testing.T) {
 	executingCallbackParams := &transaction.Argument{}
 
 	testCases := []string{
-		"accept_ownership",
 		"set_dynamic_config",
 		"apply_source_chain_config_updates",
 		"set_ocr3_config",
@@ -283,7 +282,6 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 	})
 
 	ccipTestCases := []string{
-		"accept_ownership",
 		"set_dynamic_config",
 		"apply_dest_chain_config_updates",
 		"apply_allowlist_updates",

@@ -12,6 +12,7 @@ import (
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+	module_ownable "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/ownable"
 )
 
 type DeployCCIPOnRampObjects struct {
@@ -555,6 +556,7 @@ var GetPendingTransferOnRampOp = cld_ops.NewOperation(
 
 type TransferOwnershipOnRampInput struct {
 	OnRampPackageId  string
+	CCIPObjectRefId  string
 	StateObjectId    string
 	OwnerCapObjectId string
 	To               string
@@ -575,7 +577,7 @@ var transferOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDep
 	tx, err := onRampPackage.TransferOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.To,
@@ -602,37 +604,61 @@ var TransferOwnershipOnRampOp = cld_ops.NewOperation(
 
 type AcceptOwnershipOnRampInput struct {
 	OnRampPackageId string
+	CCIPObjectRefId string
 	StateObjectId   string
 }
 
-type AcceptOwnershipOnRampObjects struct {
+type NoObjects struct {
 	// No specific objects are returned from accept_ownership
 }
 
-var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[AcceptOwnershipOnRampObjects], err error) {
-	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
+var acceptOwnershipOnRampHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input AcceptOwnershipOnRampInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+	// mcms_accept_ownership uses the Ownable module
+	ownablePackage, err := module_ownable.NewOwnable(input.OnRampPackageId, deps.Client)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, err
+		return sui_ops.OpTxResult[NoObjects]{}, err
 	}
 
+	encodedCall, err := ownablePackage.Encoder().AcceptOwnership(bind.Object{Id: input.StateObjectId})
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
+	}
+	// We need ownable encoding, but we call the onramp
+	encodedCall.Module.ModuleName = "onramp"
+	// we set the ref object as the state of the call, so we can access it in the entrypoint encoder
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.CCIPObjectRefId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of AcceptOwnership on OnRamp as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.OnRampPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	// If we have a signer, this is accepting the ownership from EOA, we use the onramp directly
+	onRampPackage, err := module_onramp.NewOnramp(input.OnRampPackageId, deps.Client)
 	opts := deps.GetCallOpts()
 	opts.Signer = deps.Signer
 	tx, err := onRampPackage.AcceptOwnership(
 		b.GetContext(),
 		opts,
-		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.CCIPObjectRefId},
 		bind.Object{Id: input.StateObjectId},
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on OnRamp: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute AcceptOwnership on StateObject: %w", err)
 	}
 
-	b.Logger.Infow("Ownership accepted for OnRamp")
+	b.Logger.Infow("Ownership accepted for CCIP StateObject")
 
-	return sui_ops.OpTxResult[AcceptOwnershipOnRampObjects]{
+	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.OnRampPackageId,
-		Objects:   AcceptOwnershipOnRampObjects{},
 	}, nil
 }
 

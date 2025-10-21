@@ -487,15 +487,3 @@ var FeeQuoterUpdatePricesWithOwnerCapOp = cld_ops.NewOperation(
 	"Update prices using owner cap in CCIP Fee Quoter contract",
 	updatePricesWithOwnerCapHandler,
 )
-
-var AllOperationsFeeQuoter = []cld_ops.Operation[any, any, any]{
-	*FeeQuoterInitializeOp.AsUntyped(),
-	*FeeQuoterApplyFeeTokenUpdatesOp.AsUntyped(),
-	*FeeQuoterApplyTokenTransferFeeConfigUpdatesOp.AsUntyped(),
-	*FeeQuoterApplyDestChainConfigUpdatesOp.AsUntyped(),
-	*FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp.AsUntyped(),
-	*FeeQuoterUpdateTokenPricesOp.AsUntyped(),
-	*FeeQuoterNewFeeQuoterCapOp.AsUntyped(),
-	*FeeQuoterDestroyFeeQuoterCapOp.AsUntyped(),
-	*FeeQuoterUpdatePricesWithOwnerCapOp.AsUntyped(),
-}

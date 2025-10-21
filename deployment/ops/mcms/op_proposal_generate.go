@@ -7,6 +7,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_mcms "github.com/smartcontractkit/chainlink-sui/bindings/generated/mcms/mcms"
 	sui_ops "github.com/smartcontractkit/chainlink-sui/deployment/ops"
 	"github.com/smartcontractkit/mcms"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
@@ -41,12 +43,42 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	if len(input.Defs) != len(input.Inputs) {
 		return mcms.TimelockProposal{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(input.Defs), len(input.Inputs))
 	}
+
+	var action types.TimelockAction
+	var delay *types.Duration
+	switch input.Role {
+	case suisdk.TimelockRoleProposer:
+		action = types.TimelockActionSchedule
+		delayDuration := types.NewDuration(input.Delay)
+		delay = &delayDuration
+	case suisdk.TimelockRoleBypasser:
+		action = types.TimelockActionBypass
+	case suisdk.TimelockRoleCanceller:
+		action = types.TimelockActionCancel
+	default:
+		// NewChainMetadata will always error on invalid role, but this is a safeguard
+		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
+	}
+
+	mcmsContract, err := module_mcms.NewMcms(input.MmcsPackageID, deps.Client)
+	if err != nil {
+		return mcms.TimelockProposal{}, fmt.Errorf("failed to create MCMS contract instance: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+
+	opCount, err := mcmsContract.DevInspect().GetOpCount(b.GetContext(), opts, bind.Object{Id: input.McmsStateObjID}, input.Role.Byte())
+	if err != nil {
+		return mcms.TimelockProposal{}, fmt.Errorf("failed to get operation count from MCMS: %w", err)
+	}
+
 	mcmsTxs := make([]mcmstypes.Transaction, len(input.Defs))
 
 	for i, def := range input.Defs {
 		op, err := b.OperationRegistry.Retrieve(def)
 		if err != nil {
-			return mcms.TimelockProposal{}, err
+			return mcms.TimelockProposal{}, fmt.Errorf("failed to retrieve operation %s: %w", def.ID, err)
 		}
 		// Remove the signer to make the operations read-only, and prevent accidental tx sends during execution
 		deps.Signer = nil
@@ -88,25 +120,9 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	}
 
 	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultTimelockExpirationInHours) * time.Hour).Unix())
-	metadata, err := suisdk.NewChainMetadata(0, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
+	metadata, err := suisdk.NewChainMetadata(opCount, input.Role, input.MmcsPackageID, input.McmsStateObjID, input.AccountObjID, input.RegistryObjID, input.TimelockObjID)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create chain metadata: %w", err)
-	}
-
-	var action types.TimelockAction
-	var delay *types.Duration
-	switch input.Role {
-	case suisdk.TimelockRoleProposer:
-		action = types.TimelockActionSchedule
-		delayDuration := types.NewDuration(input.Delay)
-		delay = &delayDuration
-	case suisdk.TimelockRoleBypasser:
-		action = types.TimelockActionBypass
-	case suisdk.TimelockRoleCanceller:
-		action = types.TimelockActionCancel
-	default:
-		// NewChainMetadata will always error on invalid role, but this is a safeguard
-		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
 	}
 
 	var description string = "Invokes the following set of operations: "

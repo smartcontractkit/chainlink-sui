@@ -15,7 +15,7 @@ import (
 
 const (
 	// DefaultGasBudget is the default gas budget for transactions
-	DefaultGasBudget uint64 = 10_000_000
+	DefaultGasBudget uint64 = 500_000_000
 )
 
 type IBoundContract interface {
