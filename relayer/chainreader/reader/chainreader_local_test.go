@@ -4,6 +4,7 @@ package reader
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-aptos/relayer/chainreader"
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 
 	"github.com/stretchr/testify/require"
@@ -229,6 +231,15 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 							Package: packageId,
 							Module:  "counter",
 							Event:   "CounterDecremented",
+						},
+					},
+					"counter_bytes": {
+						Name:      "counter_bytes",
+						EventType: "CounterBytes",
+						EventSelector: client.EventSelector{
+							Package: packageId,
+							Module:  "counter",
+							Event:   "CounterBytes",
 						},
 					},
 				},
@@ -583,6 +594,99 @@ func runChainReaderCounterTest(t *testing.T, log logger.Logger, rpcUrl string) {
 		require.NotNil(t, event)
 		log.Debugw("Event data", "counterId", event.CounterID, "newValue", event.NewValue)
 		require.Equal(t, uint64(1), event.NewValue, "Expected counter value to be 1")
+	})
+
+	t.Run("QueryKey_WithBytes", func(t *testing.T) {
+		// Increment the counter to emit an event
+		log.Debugw("Emitting counter bytes event", "counterObjectId", counterObjectId)
+
+		// Use relayerClient to call increment instead of using CLI
+		moveCallReq := client.MoveCallRequest{
+			Signer:          accountAddress,
+			PackageObjectId: packageId,
+			Module:          "counter",
+			Function:        "emit_counter_bytes",
+			TypeArguments:   []any{},
+			Arguments:       []any{},
+			GasBudget:       2000000,
+		}
+
+		log.Debugw("Calling moveCall", "moveCallReq", moveCallReq)
+
+		txMetadata, testErr := relayerClient.MoveCall(ctx, moveCallReq)
+		require.NoError(t, testErr)
+
+		txnResult, testErr := relayerClient.SignAndSendTransaction(ctx, txMetadata.TxBytes, publicKeyBytes, "WaitForLocalExecution")
+		require.NoError(t, testErr)
+
+		log.Debugw("Transaction result", "result", txnResult)
+
+		// Query for counter bytes events
+		type NestedCounterBytes struct {
+			Value uint64 `json:"value"`
+			Bytes string `json:"bytes"`
+		}
+
+		type CounterBytesEvent struct {
+			Bytes  string             `json:"bytes"`
+			Nested NestedCounterBytes `json:"nested"`
+			Values []uint64           `json:"values"`
+		}
+
+		// Create a filter for events
+		filter := query.KeyFilter{
+			Key: "counter_bytes",
+		}
+
+		// Setup limit and sort
+		limitAndSort := query.LimitAndSort{
+			Limit: query.Limit{
+				Count:  50,
+				Cursor: "",
+			},
+		}
+
+		log.Debugw("Querying for counter events",
+			"filter", filter.Key,
+			"limit", limitAndSort.Limit.Count,
+			"packageId", packageId,
+			"contract", counterBinding.Name,
+			"eventType", "CounterIncremented")
+
+		sequences := []types.Sequence{}
+		require.Eventually(t, func() bool {
+			// Query for events
+			var counterEvent CounterBytesEvent
+			sequences, err = chainReader.QueryKey(
+				ctx,
+				counterBinding,
+				filter,
+				limitAndSort,
+				&counterEvent,
+			)
+			if err != nil {
+				log.Errorw("Failed to query events", "error", err)
+				require.NoError(t, err)
+			}
+
+			return len(sequences) > 0
+		}, 60*time.Second, 1*time.Second, "Event should eventually be indexed and found")
+
+		log.Debugw("Query results", "sequences", sequences)
+
+		// Verify we got at least one event
+		require.NotEmpty(t, sequences, "Expected at least one event")
+
+		// Verify the event data
+		event := sequences[0].Data.(*CounterBytesEvent)
+		require.NotNil(t, event)
+
+		log.Debugw("Event data with bytes", event)
+
+		require.Equal(t, "0x"+hex.EncodeToString([]byte("test")), event.Bytes, "Expected bytes to be test")
+		require.Equal(t, uint64(42), event.Nested.Value, "Expected nested value to be 42")
+		require.Equal(t, "0x"+hex.EncodeToString([]byte("test")), event.Nested.Bytes, "Expected nested bytes to be test")
+		require.Equal(t, []uint64{1, 2, 3, 4}, event.Values, "Expected values to be [1, 2, 3, 4]")
 	})
 
 	t.Run("QueryKey_WithFilter", func(t *testing.T) {
