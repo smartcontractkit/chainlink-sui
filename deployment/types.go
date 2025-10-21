@@ -7,6 +7,7 @@ import (
 
 var (
 	SuiCCIPRouterType                deployment.ContractType = "SuiRouter"
+	SuiCCIPRouterStateObjectType     deployment.ContractType = "SuiRouterStateObjectID"
 	SuiCCIPType                      deployment.ContractType = "SuiCCIP"
 	SuiCCIPObjectRefType             deployment.ContractType = "SuiCCIPObjectRef"
 	SuiCCIPOwnerCapObjectIDType      deployment.ContractType = "SuiCCIPOwnerCapObjectID"

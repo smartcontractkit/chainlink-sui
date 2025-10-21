@@ -43,12 +43,29 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 	if len(input.Defs) != len(input.Inputs) {
 		return mcms.TimelockProposal{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(input.Defs), len(input.Inputs))
 	}
+
+	var action types.TimelockAction
+	var delay *types.Duration
+	switch input.Role {
+	case suisdk.TimelockRoleProposer:
+		action = types.TimelockActionSchedule
+		delayDuration := types.NewDuration(input.Delay)
+		delay = &delayDuration
+	case suisdk.TimelockRoleBypasser:
+		action = types.TimelockActionBypass
+	case suisdk.TimelockRoleCanceller:
+		action = types.TimelockActionCancel
+	default:
+		// NewChainMetadata will always error on invalid role, but this is a safeguard
+		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
+	}
+
 	mcmsTxs := make([]mcmstypes.Transaction, len(input.Defs))
 
 	for i, def := range input.Defs {
 		op, err := b.OperationRegistry.Retrieve(def)
 		if err != nil {
-			return mcms.TimelockProposal{}, err
+			return mcms.TimelockProposal{}, fmt.Errorf("failed to retrieve operation %s: %w", def.ID, err)
 		}
 		// Remove the signer to make the operations read-only, and prevent accidental tx sends during execution
 		deps.Signer = nil
@@ -89,8 +106,6 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		Transactions:  mcmsTxs,
 	}
 
-	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultTimelockExpirationInHours) * time.Hour).Unix())
-
 	// Get OP Count from inspector
 	devInspectSigner := signer.NewDevInspectSigner("0x0")
 	inspector, err := suisdk.NewInspector(deps.Client, devInspectSigner, input.MmcsPackageID, input.Role)
@@ -107,22 +122,6 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to create chain metadata: %w", err)
 	}
 
-	var action types.TimelockAction
-	var delay *types.Duration
-	switch input.Role {
-	case suisdk.TimelockRoleProposer:
-		action = types.TimelockActionSchedule
-		delayDuration := types.NewDuration(input.Delay)
-		delay = &delayDuration
-	case suisdk.TimelockRoleBypasser:
-		action = types.TimelockActionBypass
-	case suisdk.TimelockRoleCanceller:
-		action = types.TimelockActionCancel
-	default:
-		// NewChainMetadata will always error on invalid role, but this is a safeguard
-		return mcms.TimelockProposal{}, fmt.Errorf("unsupported role: %v", input.Role)
-	}
-
 	var description string = "Invokes the following set of operations: "
 	for i, def := range input.Defs {
 		if i > 0 {
@@ -131,6 +130,7 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 		description += def.ID
 	}
 
+	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultTimelockExpirationInHours) * time.Hour).Unix())
 	builder := mcms.NewTimelockProposalBuilder().
 		SetVersion("v1").
 		SetValidUntil(validUntilMs).

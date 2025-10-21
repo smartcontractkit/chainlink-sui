@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	cselectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/stretchr/testify/require"
@@ -13,17 +15,38 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
+	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
+	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
+	"github.com/smartcontractkit/chainlink-sui/deployment"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
+	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
+	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
+	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
+	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
 )
 
 type CCIPMCMSTestSuite struct {
 	MCMSTestSuite
 
+	// CCIP
 	ccipPackageId string
 	ccipObjects   ccipops.DeployCCIPSeqObjects
 	linkObjects   linkops.DeployLinkObjects
+
+	// Router
+	ccipRouterPackageId string
+	ccipRouterObjects   routerops.DeployCCIPRouterObjects
+
+	// Onramp
+	ccipOnrampPackageId string
+	ccipOnrampObjects   onrampops.DeployCCIPOnRampSeqObjects
+
+	// offramp
+	ccipOfframpPackageId string
+	ccipOfframpObjects   offrampops.DeployCCIPOffRampSeqObjects
 }
 
 func (s *CCIPMCMSTestSuite) SetupSuite() {
@@ -54,7 +77,7 @@ func (s *CCIPMCMSTestSuite) SetupSuite() {
 	require.NoError(s.T(), err, "failed to decode public key 4")
 
 	// Use the same seq as in production deployment
-	report, err := cld_ops.ExecuteSequence(s.bundle, ccipops.DeployAndInitCCIPSequence, s.deps, ccipops.DeployAndInitCCIPSeqInput{
+	ccipReport, err := cld_ops.ExecuteSequence(s.bundle, ccipops.DeployAndInitCCIPSequence, s.deps, ccipops.DeployAndInitCCIPSeqInput{
 		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
 		LocalChainSelector:            1,
 		DestChainSelector:             2,
@@ -101,11 +124,70 @@ func (s *CCIPMCMSTestSuite) SetupSuite() {
 		FSign:                       uint64(1),
 	})
 	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
-	require.NotEmpty(s.T(), report.Output.CCIPPackageId, "CCIP package ID should not be empty")
+	require.NotEmpty(s.T(), ccipReport.Output.CCIPPackageId, "CCIP package ID should not be empty")
 
-	s.ccipPackageId = report.Output.CCIPPackageId
-	s.ccipObjects = report.Output.Objects
 	s.linkObjects = linkReport.Output.Objects
+	s.ccipPackageId = ccipReport.Output.CCIPPackageId
+	s.ccipObjects = ccipReport.Output.Objects
+
+	// Deploy Router
+	routerReport, err := cld_ops.ExecuteOperation(s.bundle, routerops.DeployCCIPRouterOp, s.deps, routerops.DeployCCIPRouterInput{
+		McmsPackageId: s.mcmsPackageID,
+		McmsOwner:     s.mcmsOwnerAddress,
+	})
+	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
+
+	s.ccipRouterPackageId = routerReport.Output.PackageId
+	s.ccipRouterObjects = routerReport.Output.Objects
+
+	// Deploy Onramp
+	ccipOnRampSeqInput := deployment.DefaultOnRampSeqConfig
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = s.mcmsPackageID
+	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSOwnerPackageId = s.mcmsOwnerAddress
+	ccipOnRampSeqInput.OnRampInitializeInput.NonceManagerCapId = ccipReport.Output.Objects.NonceManagerCapObjectId
+	ccipOnRampSeqInput.OnRampInitializeInput.SourceTransferCapId = ccipReport.Output.Objects.SourceTransferCapObjectId
+	ccipOnRampSeqInput.OnRampInitializeInput.ChainSelector = uint64(s.chainSelector)
+	ccipOnRampSeqInput.OnRampInitializeInput.FeeAggregator = s.mcmsOwnerAddress
+	ccipOnRampSeqInput.OnRampInitializeInput.AllowListAdmin = s.mcmsOwnerAddress
+	ccipOnRampSeqInput.OnRampInitializeInput.DestChainSelectors = []uint64{cselectors.ETHEREUM_MAINNET.Selector}
+	ccipOnRampSeqInput.OnRampInitializeInput.DestChainRouters = []string{routerReport.Output.PackageId}
+	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.DestChainSelector = []uint64{cselectors.ETHEREUM_MAINNET.Selector}
+	ccipOnRampSeqInput.ApplyAllowListUpdatesInput.DestChainSelector = []uint64{cselectors.ETHEREUM_MAINNET.Selector}
+	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.DestChainRouters = []string{routerReport.Output.PackageId}
+	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId = ccipReport.Output.Objects.CCIPObjectRefObjectId
+
+	ccipOnRampSeqReport, err := operations.ExecuteSequence(s.bundle, onrampops.DeployAndInitCCIPOnRampSequence, s.deps, ccipOnRampSeqInput)
+	require.NoError(s.T(), err, "failed to execute CCIP OnRamp deploy sequence")
+
+	s.ccipOnrampPackageId = ccipOnRampSeqReport.Output.CCIPOnRampPackageId
+	s.ccipOnrampObjects = ccipOnRampSeqReport.Output.Objects
+
+	// Deploy offramp
+	ccipOffRampSeqInput := deployment.DefaultOffRampSeqConfig
+	// note: this is a regression, can't acess other chains state very cleanly
+	onRampBytes := [][]byte{
+		{0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+	}
+
+	// Inject dynamic values for deployment
+	ccipOffRampSeqInput.CCIPObjectRefId = ccipReport.Output.Objects.CCIPObjectRefObjectId
+	ccipOffRampSeqInput.DeployCCIPOffRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
+	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = s.mcmsPackageID
+
+	ccipOffRampSeqInput.InitializeOffRampInput.DestTransferCapId = ccipReport.Output.Objects.DestTransferCapObjectId
+	ccipOffRampSeqInput.InitializeOffRampInput.FeeQuoterCapId = ccipReport.Output.Objects.FeeQuoterCapObjectId
+	ccipOffRampSeqInput.InitializeOffRampInput.ChainSelector = uint64(s.chainSelector)
+	ccipOffRampSeqInput.InitializeOffRampInput.SourceChainSelectors = []uint64{
+		cselectors.ETHEREUM_MAINNET.Selector,
+	}
+	ccipOffRampSeqInput.InitializeOffRampInput.SourceChainsOnRamp = onRampBytes
+
+	ccipOffRampSeqReport, err := operations.ExecuteSequence(s.bundle, offrampops.DeployAndInitCCIPOffRampSequence, s.deps, ccipOffRampSeqInput)
+	require.NoError(s.T(), err, "failed to execute CCIP OffRamp deploy sequence")
+
+	s.ccipOfframpPackageId = ccipOffRampSeqReport.Output.CCIPOffRampPackageId
+	s.ccipOfframpObjects = ccipOffRampSeqReport.Output.Objects
 }
 
 func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
@@ -120,7 +202,7 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 
 // TODO: For prod env, the initial deployment sequence should start the ownership transfer flow of every deployed contract
 func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
-	// 1. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
+	// 1a. Transfer OwnerCap of CCIP to MCMS (this should be done in the initial deployment sequence)
 	ccipContract, err := module_state_object.NewStateObject(s.ccipPackageId, s.client)
 	require.NoError(s.T(), err, "creating ccip state object contract")
 
@@ -132,7 +214,6 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 		},
 		bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId},
 		bind.Object{Id: s.ccipObjects.OwnerCapObjectId},
-		// TODO: not sure which address should be
 		s.mcmsPackageID,
 	)
 	require.NoError(s.T(), err, "transferring ownership of CCIP to MCMS")
@@ -140,30 +221,90 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 
 	s.T().Logf("✅ Transferred ownership of CCIP to MCMS in tx: %s", tx.Digest)
 
-	// 2. Proposal execution with acceptance from MCMS (through proposer)
-	input := mcmsops.ProposalGenerateInput{
-		Defs: []cld_ops.Definition{
-			ccipops.AcceptOwnershipStateObjectOp.Def(),
+	// 1b. Transfer ownership of the CCIP Router to MCMS
+	ccipRouterContract, err := module_router.NewRouter(s.ccipRouterPackageId, s.client)
+	require.NoError(s.T(), err, "creating ccip router contract")
+
+	tx, err = ccipRouterContract.TransferOwnership(
+		s.T().Context(),
+		&bind.CallOpts{
+			Signer:           s.signer,
+			WaitForExecution: true,
 		},
-		Inputs: []any{
-			ccipops.AcceptOwnershipStateObjectInput{
-				CCIPPackageId:         s.ccipPackageId,
-				CCIPObjectRefObjectId: s.ccipObjects.CCIPObjectRefObjectId,
-			},
+		bind.Object{Id: s.ccipRouterObjects.RouterStateObjectId},
+		bind.Object{Id: s.ccipRouterObjects.OwnerCapObjectId},
+		s.mcmsPackageID,
+	)
+	require.NoError(s.T(), err, "transferring ownership of CCIP Router to MCMS")
+	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
+
+	s.T().Logf("✅ Transferred ownership of CCIP Router to MCMS in tx: %s", tx.Digest)
+
+	// 1c. Transfer ownership of the CCIP OnRamp to MCMS
+	ccipOnRampContract, err := module_onramp.NewOnramp(s.ccipOnrampPackageId, s.client)
+	require.NoError(s.T(), err, "creating ccip onramp contract")
+
+	tx, err = ccipOnRampContract.TransferOwnership(
+		s.T().Context(),
+		&bind.CallOpts{
+			Signer:           s.signer,
+			WaitForExecution: true,
 		},
+		bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId},
+		bind.Object{Id: s.ccipOnrampObjects.StateObjectId},
+		bind.Object{Id: s.ccipOnrampObjects.OwnerCapObjectId},
+		s.mcmsPackageID,
+	)
+	require.NoError(s.T(), err, "transferring ownership of CCIP OnRamp to MCMS")
+	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
+
+	s.T().Logf("✅ Transferred ownership of CCIP OnRamp to MCMS in tx: %s", tx.Digest)
+
+	// 1d. Transfer ownership of the CCIP OffRamp to MCMS
+	ccipOffRampContract, err := module_offramp.NewOfframp(s.ccipOfframpPackageId, s.client)
+	require.NoError(s.T(), err, "creating ccip offramp contract")
+
+	tx, err = ccipOffRampContract.TransferOwnership(
+		s.T().Context(),
+		&bind.CallOpts{
+			Signer:           s.signer,
+			WaitForExecution: true,
+		},
+		bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId},
+		bind.Object{Id: s.ccipOfframpObjects.StateObjectId},
+		bind.Object{Id: s.ccipOfframpObjects.OwnerCapId},
+		s.mcmsPackageID,
+	)
+	require.NoError(s.T(), err, "transferring ownership of CCIP OffRamp to MCMS")
+	require.NotEmpty(s.T(), tx, "Transaction should not be empty")
+
+	// 2. Proposal execution with acceptance from MCMS (through bypasser)
+	input := ownershipops.AcceptCCIPOwnershipInput{
 		// MCMS related
-		MmcsPackageID:  s.mcmsPackageID,
-		McmsStateObjID: s.mcmsObj,
-		TimelockObjID:  s.timelockObj,
-		AccountObjID:   s.accountObj,
-		RegistryObjID:  s.registryObj,
+		MCMSPackageId:     s.mcmsPackageID,
+		MCMSStateObjId:    s.mcmsObj,
+		MCMSTimelockObjId: s.timelockObj,
+		MCMSAccountObjId:  s.accountObj,
+		MCMSRegistryObjId: s.registryObj,
+
+		CCIPPackageId: s.ccipPackageId,
+		CCIPObjectRef: s.ccipObjects.CCIPObjectRefObjectId,
+
+		RouterPackageId:     s.ccipRouterPackageId,
+		RouterStateObjectId: s.ccipRouterObjects.RouterStateObjectId,
+
+		OnRampPackageId:     s.ccipOnrampPackageId,
+		OnRampStateObjectId: s.ccipOnrampObjects.StateObjectId,
+
+		OffRampPackageId:     s.ccipOfframpPackageId,
+		OffRampStateObjectId: s.ccipOfframpObjects.StateObjectId,
 
 		// Proposal
 		Role: suisdk.TimelockRoleBypasser,
 
 		ChainSelector: uint64(s.chainSelector),
 	}
-	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	acceptOwnershipProposalReport, err := cld_ops.ExecuteSequence(s.bundle, ownershipops.AcceptCCIPOwnershipSeq, s.deps, input)
 	s.Require().NoError(err, "executing ownership acceptance proposal sequence")
 
 	timelockProposal := acceptOwnershipProposalReport.Output

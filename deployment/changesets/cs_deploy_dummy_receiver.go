@@ -48,7 +48,7 @@ func (d DeployDummyReceiver) Apply(e cldf.Environment, config DeployDummyReceive
 	// Run DummyReceiver Operation
 	DeployDummyReceiverOp, err := operations.ExecuteOperation(e.OperationsBundle, ccipops.DeployCCIPDummyReceiverOp, deps, ccipops.DeployDummyReceiverInput{
 		CCIPPackageId: state[config.SuiChainSelector].CCIPAddress,
-		McmsPackageId: state[config.SuiChainSelector].MCMsAddress,
+		McmsPackageId: state[config.SuiChainSelector].MCMSPackageID,
 		McmsOwner:     config.McmsOwner,
 	})
 	if err != nil {
