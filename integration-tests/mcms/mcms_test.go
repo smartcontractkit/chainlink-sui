@@ -9,7 +9,11 @@ import (
 	cselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
+	module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
 	module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
@@ -20,9 +24,8 @@ import (
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
 	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
+	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
-	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
-	"github.com/stretchr/testify/require"
 )
 
 type CCIPMCMSTestSuite struct {
@@ -31,6 +34,7 @@ type CCIPMCMSTestSuite struct {
 	// CCIP
 	ccipPackageId string
 	ccipObjects   ccipops.DeployCCIPSeqObjects
+	linkObjects   linkops.DeployLinkObjects
 
 	// Router
 	ccipRouterPackageId string
@@ -122,6 +126,7 @@ func (s *CCIPMCMSTestSuite) SetupSuite() {
 	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
 	require.NotEmpty(s.T(), ccipReport.Output.CCIPPackageId, "CCIP package ID should not be empty")
 
+	s.linkObjects = linkReport.Output.Objects
 	s.ccipPackageId = ccipReport.Output.CCIPPackageId
 	s.ccipObjects = ccipReport.Output.Objects
 
@@ -191,7 +196,7 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 	})
 
 	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
-		RunTestCCIPProposal(s)
+		RunTestCCIPFeeQuoterProposal(s)
 	})
 }
 
@@ -317,6 +322,148 @@ func RunTestCCIPOwnershipTransfer(s *CCIPMCMSTestSuite) {
 	s.Require().Equal(s.mcmsPackageID, newOwner, "new owner of CCIP should be MCMS")
 }
 
-func RunTestCCIPProposal(s *CCIPMCMSTestSuite) {
-	// TODO: Build a proposal that changes some configuration in CCIP
+func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
+	// 1. Build configs
+	expectedTTFC := module_fee_quoter.TokenTransferFeeConfig{
+		MinFeeUsdCents:    3007,
+		MaxFeeUsdCents:    30007,
+		DeciBps:           1007,
+		DestGasOverhead:   1000007,
+		DestBytesOverhead: 1007,
+		IsEnabled:         true,
+	}
+
+	expectedDestChainConfig := module_fee_quoter.DestChainConfig{
+		IsEnabled:                         true,
+		MaxNumberOfTokensPerMsg:           2,
+		MaxDataBytes:                      2007,
+		MaxPerMsgGasLimit:                 5000007,
+		DestGasOverhead:                   1000007,
+		DestGasPerPayloadByteBase:         byte(7),
+		DestGasPerPayloadByteHigh:         byte(7),
+		DestGasPerPayloadByteThreshold:    uint16(17),
+		DestDataAvailabilityOverheadGas:   300007,
+		DestGasPerDataAvailabilityByte:    7,
+		DestDataAvailabilityMultiplierBps: 7,
+		ChainFamilySelector:               []byte{0x28, 0x12, 0xd5, 0x2c},
+		EnforceOutOfOrder:                 false,
+		DefaultTokenFeeUsdCents:           7,
+		DefaultTokenDestGasOverhead:       100007,
+		DefaultTxGasLimit:                 500007,
+		GasMultiplierWeiPerEth:            107,
+		GasPriceStalenessThreshold:        307,
+		NetworkFeeUsdCents:                7,
+	}
+
+	expectedPremiumMultiplier := uint64(77)
+	destChainSelector := uint64(16015286601757825753)
+
+	// 2. Run ops to generate proposal
+	input := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			ccipops.FeeQuoterApplyFeeTokenUpdatesOp.Def(),
+			ccipops.FeeQuoterApplyTokenTransferFeeConfigUpdatesOp.Def(),
+			ccipops.FeeQuoterApplyDestChainConfigUpdatesOp.Def(),
+			ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp.Def(),
+		},
+		Inputs: []any{
+			ccipops.FeeQuoterApplyFeeTokenUpdatesInput{
+				CCIPPackageId:     s.ccipPackageId,
+				StateObjectId:     s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:  s.ccipObjects.OwnerCapObjectId,
+				FeeTokensToRemove: []string{},
+				FeeTokensToAdd:    []string{s.linkObjects.CoinMetadataObjectId},
+			},
+			ccipops.FeeQuoterApplyTokenTransferFeeConfigUpdatesInput{
+				CCIPPackageId:        s.ccipPackageId,
+				StateObjectId:        s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:     s.ccipObjects.OwnerCapObjectId,
+				DestChainSelector:    destChainSelector,
+				AddTokens:            []string{s.linkObjects.CoinMetadataObjectId},
+				AddMinFeeUsdCents:    []uint32{expectedTTFC.MinFeeUsdCents},
+				AddMaxFeeUsdCents:    []uint32{expectedTTFC.MaxFeeUsdCents},
+				AddDeciBps:           []uint16{expectedTTFC.DeciBps},
+				AddDestGasOverhead:   []uint32{expectedTTFC.DestGasOverhead},
+				AddDestBytesOverhead: []uint32{expectedTTFC.DestBytesOverhead},
+				AddIsEnabled:         []bool{expectedTTFC.IsEnabled},
+				RemoveTokens:         []string{},
+			},
+			ccipops.FeeQuoterApplyDestChainConfigUpdatesInput{
+				CCIPPackageId:                     s.ccipPackageId,
+				StateObjectId:                     s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:                  s.ccipObjects.OwnerCapObjectId,
+				DestChainSelector:                 destChainSelector,
+				IsEnabled:                         expectedDestChainConfig.IsEnabled,
+				MaxNumberOfTokensPerMsg:           expectedDestChainConfig.MaxNumberOfTokensPerMsg,
+				MaxDataBytes:                      expectedDestChainConfig.MaxDataBytes,
+				MaxPerMsgGasLimit:                 expectedDestChainConfig.MaxPerMsgGasLimit,
+				DestGasOverhead:                   expectedDestChainConfig.DestGasOverhead,
+				DestGasPerPayloadByteBase:         expectedDestChainConfig.DestGasPerPayloadByteBase,
+				DestGasPerPayloadByteHigh:         expectedDestChainConfig.DestGasPerPayloadByteHigh,
+				DestGasPerPayloadByteThreshold:    expectedDestChainConfig.DestGasPerPayloadByteThreshold,
+				DestDataAvailabilityOverheadGas:   expectedDestChainConfig.DestDataAvailabilityOverheadGas,
+				DestGasPerDataAvailabilityByte:    expectedDestChainConfig.DestGasPerDataAvailabilityByte,
+				DestDataAvailabilityMultiplierBps: expectedDestChainConfig.DestDataAvailabilityMultiplierBps,
+				ChainFamilySelector:               expectedDestChainConfig.ChainFamilySelector,
+				EnforceOutOfOrder:                 expectedDestChainConfig.EnforceOutOfOrder,
+				DefaultTokenFeeUsdCents:           expectedDestChainConfig.DefaultTokenFeeUsdCents,
+				DefaultTokenDestGasOverhead:       expectedDestChainConfig.DefaultTokenDestGasOverhead,
+				DefaultTxGasLimit:                 expectedDestChainConfig.DefaultTxGasLimit,
+				GasMultiplierWeiPerEth:            expectedDestChainConfig.GasMultiplierWeiPerEth,
+				GasPriceStalenessThreshold:        expectedDestChainConfig.GasPriceStalenessThreshold,
+				NetworkFeeUsdCents:                expectedDestChainConfig.NetworkFeeUsdCents,
+			},
+			ccipops.FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesInput{
+				CCIPPackageId:              s.ccipPackageId,
+				StateObjectId:              s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:           s.ccipObjects.OwnerCapObjectId,
+				Tokens:                     []string{s.linkObjects.CoinMetadataObjectId},
+				PremiumMultiplierWeiPerEth: []uint64{expectedPremiumMultiplier},
+			},
+		},
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+		// Proposal
+		Role:          suisdk.TimelockRoleBypasser,
+		ChainSelector: uint64(s.chainSelector),
+		Delay:         0,
+	}
+	feeQuoterReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	s.Require().NoError(err, "executing fee quoter proposal sequence")
+
+	timelockProposal := feeQuoterReport.Output
+
+	// 3. Execute proposal
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// 4. Verify the changes in CCIP state object
+	fqContract, err := module_fee_quoter.NewFeeQuoter(s.ccipPackageId, s.client)
+	require.NoError(s.T(), err)
+
+	ccipObjRef := bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}
+	linkTokenID := s.linkObjects.CoinMetadataObjectId
+
+	// Verify fee tokens
+	feeTokens, err := fqContract.DevInspect().GetFeeTokens(s.T().Context(), s.deps.GetCallOpts(), ccipObjRef)
+	require.NoError(s.T(), err)
+	require.Contains(s.T(), feeTokens, linkTokenID)
+
+	// Verify token transfer fee config matches input
+	actualTTFC, err := fqContract.DevInspect().GetTokenTransferFeeConfig(s.T().Context(), s.deps.GetCallOpts(), ccipObjRef, destChainSelector, linkTokenID)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), expectedTTFC, actualTTFC)
+
+	// Verify destination chain config matches input
+	actualDestChainConfig, err := fqContract.DevInspect().GetDestChainConfig(s.T().Context(), s.deps.GetCallOpts(), ccipObjRef, destChainSelector)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), expectedDestChainConfig, actualDestChainConfig)
+
+	// Verify premium multiplier matches input
+	actualPremiumMultiplier, err := fqContract.DevInspect().GetPremiumMultiplierWeiPerEth(s.T().Context(), s.deps.GetCallOpts(), ccipObjRef, linkTokenID)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), expectedPremiumMultiplier, actualPremiumMultiplier)
 }
