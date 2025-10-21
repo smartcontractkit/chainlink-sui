@@ -132,13 +132,20 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 	// OFFRAMP
 	case "offramp":
 		switch function {
-		case "accept_ownership",
-			"set_dynamic_config",
+		case "set_dynamic_config",
 			"apply_source_chain_config_updates",
 			"set_ocr3_config",
 			"transfer_ownership",
 			"execute_ownership_transfer":
 			return encodeWithCCIPObjectRefAndState()
+		case "accept_ownership":
+			offramp, err := module_offramp.NewOfframp(target, nil)
+			if err != nil {
+				return nil, err
+			}
+			ccipObjectRef := bind.Object{Id: stateObjID} // For accept_ownership, the state object is the CCIP object ref
+			stateObj := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return offramp.Encoder().McmsAcceptOwnershipWithArgs(ccipObjectRef, stateObj, registryObj, executingCallbackParams)
 		}
 
 	// ONRAMP
@@ -148,8 +155,16 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 			return nil, err
 		}
 		switch function {
-		case "accept_ownership",
-			"set_dynamic_config",
+		case "accept_ownership":
+			onramp, err := module_onramp.NewOnramp(target, nil)
+			if err != nil {
+				return nil, err
+			}
+			ccipObjectRef := bind.Object{Id: stateObjID} // For accept_ownership, the state object is the CCIP object ref
+			stateObj := bind.Object{Id: toHexString(deserializeFirst32Bytes(data))}
+			return onramp.Encoder().McmsAcceptOwnershipWithArgs(ccipObjectRef, stateObj, registryObj, executingCallbackParams)
+
+		case "set_dynamic_config",
 			"apply_dest_chain_config_updates",
 			"apply_allowlist_updates",
 			"transfer_ownership",

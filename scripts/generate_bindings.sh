@@ -16,12 +16,16 @@ go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/cc
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/rmn_remote.move --output ./bindings/generated/ccip/ccip/rmn_remote
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/token_admin_registry.move --output ./bindings/generated/ccip/ccip/token_admin_registry
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/upgrade_registry.move --output ./bindings/generated/ccip/ccip/upgrade_registry
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip --input ./contracts/ccip/ccip/sources/offramp_state_helper.move --output ./bindings/generated/ccip/ccip/offramp_state_helper
 
 # CCIP - Onramp
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/onramp.move --output ./bindings/generated/ccip/ccip_onramp/onramp
+go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_onramp --input ./contracts/ccip/ccip_onramp/sources/ownable.move --output ./bindings/generated/ccip/ccip_onramp/ownable
+
 
 # CCIP - Offramp
 go run bindgen/main.go --moveConfig ./contracts/ccip/ccip_offramp --input ./contracts/ccip/ccip_offramp/sources/offramp.move --output ./bindings/generated/ccip/ccip_offramp/offramp
+
 
 # CCIP - LINK
 go run bindgen/main.go --moveConfig ./contracts/ccip/mock_link_token --input ./contracts/ccip/mock_link_token/sources/mock_link_token.move --output ./bindings/generated/ccip/mock_link_token/mock_link_token

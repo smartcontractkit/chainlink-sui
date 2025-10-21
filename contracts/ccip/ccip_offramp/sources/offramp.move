@@ -231,6 +231,7 @@ const ETokenTransferLimitExceeded: u64 = 28;
 const EPackageIdNotFound: u64 = 29;
 const EInvalidOwnerCap: u64 = 30;
 const EUnknownSequenceNumber: u64 = 31;
+const EInvalidReportContextLength: u64 = 32;
 
 const VERSION: u8 = 1;
 
@@ -435,6 +436,7 @@ public fun init_execute(
         string::utf8(b"init_execute"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let reports = deserialize_execution_report(report);
 
     ocr3_base::transmit(
@@ -556,6 +558,8 @@ fun deserialize_execution_report(report_bytes: vector<u8>): ExecutionReport {
         &mut stream,
         |stream| { bcs_stream::deserialize_fixed_vector_u8(stream, 32) },
     );
+
+    bcs_stream::assert_is_consumed(&stream);
 
     ExecutionReport { source_chain_selector, message, offchain_token_data, proofs }
 }
@@ -994,6 +998,7 @@ public fun commit(
         string::utf8(b"commit"),
         VERSION,
     );
+    assert!(report_context.length() == 2, EInvalidReportContextLength);
     let commit_report = deserialize_commit_report(report);
 
     if (

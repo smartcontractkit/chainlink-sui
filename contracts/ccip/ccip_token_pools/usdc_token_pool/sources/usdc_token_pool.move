@@ -547,6 +547,7 @@ fun validate_receipt(receipt: &Receipt, expected_source_domain: u32, expected_no
 // ================================================================
 
 public fun get_domain<T>(pool: &USDCTokenPoolState<T>, chain_selector: u64): Domain {
+    assert!(pool.chain_to_domain.contains(chain_selector), EDomainNotFound);
     *pool.chain_to_domain.borrow(chain_selector)
 }
 

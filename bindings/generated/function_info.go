@@ -5,6 +5,7 @@ package generated
 import (
     module_fee_quoter "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/fee_quoter"
     module_nonce_manager "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/nonce_manager"
+    module_offramp_state_helper "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/offramp_state_helper"
     module_receiver_registry "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/receiver_registry"
     module_rmn_remote "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/rmn_remote"
     module_state_object "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip/state_object"
@@ -13,6 +14,7 @@ import (
     module_dummy_receiver "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_dummy_receiver/ccip_dummy_receiver"
     module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
     module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
+    module_ownable "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/ownable"
     module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
     module_burn_mint_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/burn_mint_token_pool"
     module_lock_release_token_pool "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_token_pools/lock_release_token_pool"
@@ -35,6 +37,7 @@ import (
 var FunctionInfoByModule = map[string]string{
     "fee_quoter": module_fee_quoter.FunctionInfo,
     "nonce_manager": module_nonce_manager.FunctionInfo,
+    "offramp_state_helper": module_offramp_state_helper.FunctionInfo,
     "receiver_registry": module_receiver_registry.FunctionInfo,
     "rmn_remote": module_rmn_remote.FunctionInfo,
     "state_object": module_state_object.FunctionInfo,
@@ -43,6 +46,7 @@ var FunctionInfoByModule = map[string]string{
     "dummy_receiver": module_dummy_receiver.FunctionInfo,
     "offramp": module_offramp.FunctionInfo,
     "onramp": module_onramp.FunctionInfo,
+    "ownable": module_ownable.FunctionInfo,
     "router": module_router.FunctionInfo,
     "burn_mint_token_pool": module_burn_mint_token_pool.FunctionInfo,
     "lock_release_token_pool": module_lock_release_token_pool.FunctionInfo,

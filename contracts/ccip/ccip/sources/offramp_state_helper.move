@@ -1,8 +1,9 @@
 module ccip::offramp_state_helper;
 
 use ccip::client::{Self, Any2SuiMessage, Any2SuiTokenAmount};
+use ccip::ownable::OwnerCap;
 use ccip::receiver_registry;
-use ccip::state_object::CCIPObjectRef;
+use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 use std::ascii;
 use std::type_name;
@@ -17,6 +18,7 @@ const ETokenTransferAlreadyExists: u64 = 6;
 const ETokenTransferDoesNotExist: u64 = 7;
 const ETokenTransferAlreadyCompleted: u64 = 8;
 const EMessageAlreadyExists: u64 = 9;
+const EInvalidOwnerCap: u64 = 10;
 
 public struct OFFRAMP_STATE_HELPER has drop {}
 
@@ -60,6 +62,19 @@ fun init(_witness: OFFRAMP_STATE_HELPER, ctx: &mut TxContext) {
     };
 
     transfer::transfer(dest_cap, ctx.sender());
+}
+
+// create a new dest transfer cap if we need to create a new offramp state object
+public fun new_dest_transfer_cap(
+    ref: &CCIPObjectRef,
+    owner_cap: &OwnerCap,
+    ctx: &mut TxContext,
+): DestTransferCap {
+    assert!(object::id(owner_cap) == state_object::owner_cap_id(ref), EInvalidOwnerCap);
+
+    DestTransferCap {
+        id: object::new(ctx),
+    }
 }
 
 public fun create_receiver_params(_: &DestTransferCap, source_chain_selector: u64): ReceiverParams {

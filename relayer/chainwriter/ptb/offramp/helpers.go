@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	"github.com/smartcontractkit/chainlink-sui/bindings/bind"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 )
@@ -67,7 +68,7 @@ func GetOfframpAddressMappings(
 
 	ccipPkgID, err := ptbClient.GetCCIPPackageID(ctx, addressMappings.OffRampPackageId, signerAddress)
 	if err != nil {
-		return OffRampAddressMappings{}, nil
+		return OffRampAddressMappings{}, err
 	}
 
 	addressMappings.CcipPackageId = ccipPkgID
