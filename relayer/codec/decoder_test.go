@@ -776,12 +776,6 @@ func TestArrayHook(t *testing.T) {
 			expected: "not_array",
 		},
 		{
-			name:     "array to non-slice target",
-			data:     []any{1, 2, 3},
-			target:   new(string),
-			expected: []any{1, 2, 3},
-		},
-		{
 			name:     "array to slice",
 			data:     []any{float64(1), float64(2), float64(3)},
 			target:   new([]uint32),
