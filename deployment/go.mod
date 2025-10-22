@@ -8,8 +8,6 @@ toolchain go1.24.7
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.4
 
 replace github.com/smartcontractkit/chainlink-sui => ../
-replace github.com/smartcontractkit/mcms => ../../mcms
-
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -20,7 +18,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250908082700-aa3f5927af8c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251016153021-3d4a0208cf70
-	github.com/smartcontractkit/mcms v0.28.0
+	github.com/smartcontractkit/mcms v0.28.1-0.20251022085337-3e36d8c39620
 	github.com/stretchr/testify v1.10.0
 )
 

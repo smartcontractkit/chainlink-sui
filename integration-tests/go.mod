@@ -12,7 +12,7 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.47.0
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251016153021-3d4a0208cf70
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20250903045200-c3d973201e55
-	github.com/smartcontractkit/mcms v0.28.0
+	github.com/smartcontractkit/mcms v0.28.1-0.20251022085337-3e36d8c39620
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -22,7 +22,6 @@ replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlin
 replace github.com/smartcontractkit/chainlink-sui => ../
 
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
-replace github.com/smartcontractkit/mcms => ../../mcms
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
