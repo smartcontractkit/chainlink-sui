@@ -243,7 +243,6 @@ func (e *CCIPEntrypointArgEncoder) EncodeEntryPointArg(executingCallbackParams *
 		}
 		switch function {
 		case "accept_ownership":
-			fmt.Println("Encoding accept_ownership for lock_release_token_pool...")
 			return lockReleaseTokenPool.Encoder().McmsAcceptOwnershipWithArgs(typeArgs, stateObj, registryObj, executingCallbackParams)
 		case "set_rebalancer",
 			"set_allowlist_enabled",

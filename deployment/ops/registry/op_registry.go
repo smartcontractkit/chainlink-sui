@@ -5,6 +5,7 @@ import (
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
+	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
 	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
 	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
 	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
@@ -27,6 +28,7 @@ var AllOperations = func() []cld_ops.Operation[any, any, any] {
 	// TP Operations
 	operations = append(operations, lockreleasetokenpoolops.AllOperationsLockReleaseTP...)
 	operations = append(operations, burnminttokenpoolops.AllOperationsBurnMintTP...)
+	operations = append(operations, managedtokenpoolops.AllOperationsManagedTP...)
 	// Add more operation slices here as needed:
 	// operations = append(operations, anotherops.AllOperations...)
 

@@ -9,8 +9,9 @@ import (
 )
 
 type DeployManagedTokenObjects struct {
-	OwnerCapObjectId string
-	StateObjectId    string
+	OwnerCapObjectId  string
+	StateObjectId     string
+	MinterCapObjectId string
 }
 
 type DeployManagedTokenOutput struct {
@@ -55,9 +56,10 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			return DeployManagedTokenOutput{}, err
 		}
 
+		minterObjectId := ""
 		// Configure a new minter if specified
 		if input.MinterAddress != "" {
-			_, err = cld_ops.ExecuteOperation(
+			minterReport, err := cld_ops.ExecuteOperation(
 				env,
 				ManagedTokenConfigureNewMinterOp,
 				deps,
@@ -74,13 +76,17 @@ var DeployAndInitManagedTokenSequence = cld_ops.NewSequence(
 			if err != nil {
 				return DeployManagedTokenOutput{}, err
 			}
+
+			minterObjectId = minterReport.Output.Objects.MinterCapObjectId
+
 		}
 
 		return DeployManagedTokenOutput{
 			ManagedTokenPackageId: deployReport.Output.PackageId,
 			Objects: DeployManagedTokenObjects{
-				OwnerCapObjectId: initReport.Output.Objects.OwnerCapObjectId,
-				StateObjectId:    initReport.Output.Objects.StateObjectId,
+				OwnerCapObjectId:  initReport.Output.Objects.OwnerCapObjectId,
+				StateObjectId:     initReport.Output.Objects.StateObjectId,
+				MinterCapObjectId: minterObjectId,
 			},
 		}, nil
 	},
