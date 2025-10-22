@@ -18,6 +18,10 @@ var AllOperationsLockReleaseTP = []cld_ops.Operation[any, any, any]{
 	*LockReleaseTokenPoolProviderLiquidityOp.AsUntyped(),
 	*LockReleaseTokenPoolAddRemotePoolOp.AsUntyped(),
 	*LockReleaseTokenPoolSetPoolOp.AsUntyped(),
+	*LockReleaseTokenPoolSetRebalancerOp.AsUntyped(),
+	*LockReleaseTokenPoolSetAllowlistEnabledOp.AsUntyped(),
+	*LockReleaseTokenPoolApplyAllowlistUpdatesOp.AsUntyped(),
+	*LockReleaseTokenPoolRemoveRemotePoolOp.AsUntyped(),
 	// MCMS Operations
 	*ExecuteOwnershipTransferToMcmsLockReleaseTokenPoolOp.AsUntyped(),
 }
