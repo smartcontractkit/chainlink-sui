@@ -54,8 +54,9 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "LockReleaseTokenPoolState")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "RebalancerCap")
 
-	if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -63,8 +64,9 @@ var initLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockRe
 		Digest:    tx.Digest,
 		PackageId: input.LockReleasePackageId,
 		Objects: LockReleaseTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			OwnerCapObjectId:      obj1,
+			StateObjectId:         obj2,
+			RebalancerCapObjectId: obj3,
 		},
 	}, err
 }
@@ -111,8 +113,9 @@ var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 
 	obj1, err1 := bind.FindObjectIdFromPublishTx(*tx, "ownable", "OwnerCap")
 	obj2, err2 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "LockReleaseTokenPoolState")
+	obj3, err3 := bind.FindObjectIdFromPublishTx(*tx, "lock_release_token_pool", "RebalancerCap")
 
-	if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil || err3 != nil {
 		return sui_ops.OpTxResult[LockReleaseTokenPoolInitializeObjects]{}, fmt.Errorf("failed to find object IDs in tx: %w", err)
 	}
 
@@ -120,8 +123,9 @@ var initByCcipAdminLRTPHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		Digest:    tx.Digest,
 		PackageId: input.LockReleasePackageId,
 		Objects: LockReleaseTokenPoolInitializeObjects{
-			OwnerCapObjectId: obj1,
-			StateObjectId:    obj2,
+			OwnerCapObjectId:      obj1,
+			StateObjectId:         obj2,
+			RebalancerCapObjectId: obj3,
 		},
 	}, err
 }
@@ -269,7 +273,7 @@ var LockReleaseTokenPoolSetChainRateLimiterOp = cld_ops.NewOperation(
 )
 
 // LRTP -- provide_liquidity
-type LockReleaseTokenPoolProviderLiquidityInput struct {
+type LockReleaseTokenPoolProvideLiquidityInput struct {
 	LockReleaseTokenPoolPackageId string
 	CoinObjectTypeArg             string
 	StateObjectId                 string
@@ -277,7 +281,7 @@ type LockReleaseTokenPoolProviderLiquidityInput struct {
 	Coin                          string
 }
 
-var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProviderLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
+var provideLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input LockReleaseTokenPoolProvideLiquidityInput) (output sui_ops.OpTxResult[NoObjects], err error) {
 	contract, err := module_lock_release_token_pool.NewLockReleaseTokenPool(input.LockReleaseTokenPoolPackageId, deps.Client)
 	if err != nil {
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create lock release contract: %w", err)
@@ -304,11 +308,11 @@ var providerLiquidityHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inp
 	}, err
 }
 
-var LockReleaseTokenPoolProviderLiquidityOp = cld_ops.NewOperation(
+var LockReleaseTokenPoolProvideLiquidityOp = cld_ops.NewOperation(
 	sui_ops.NewSuiOperationName("ccip", "lock_release_token_pool", "provide_liquidity"),
 	semver.MustParse("0.1.0"),
 	"Provide liquidity CCIP Lock Release Token Pool contract",
-	providerLiquidityHandler,
+	provideLiquidityHandler,
 )
 
 // LRTP -- add_remote_pool

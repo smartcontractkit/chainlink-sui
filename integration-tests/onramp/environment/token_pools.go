@@ -391,7 +391,7 @@ func SetupTokenPool(
 	lggr.Debugw("Minted coin ID", "mintedCoinId", mintedCoinId)
 
 	// Provide the minted tokens as liquidity to the pool
-	provideLiquidityInput := lockreleaseops.LockReleaseTokenPoolProviderLiquidityInput{
+	provideLiquidityInput := lockreleaseops.LockReleaseTokenPoolProvideLiquidityInput{
 		LockReleaseTokenPoolPackageId: tokenPoolLockReleaseReport.Output.LockReleaseTPPackageID,
 		StateObjectId:                 tokenPoolLockReleaseReport.Output.Objects.StateObjectId,
 		RebalancerCapObjectId:         tokenPoolLockReleaseReport.Output.Objects.RebalancerCapObjectId,
@@ -399,7 +399,7 @@ func SetupTokenPool(
 		CoinObjectTypeArg:             linkTokenType,
 	}
 
-	_, err = cld_ops.ExecuteOperation(bundle, lockreleaseops.LockReleaseTokenPoolProviderLiquidityOp, deps, provideLiquidityInput)
+	_, err = cld_ops.ExecuteOperation(bundle, lockreleaseops.LockReleaseTokenPoolProvideLiquidityOp, deps, provideLiquidityInput)
 	require.NoError(t, err, "failed to provide liquidity to Lock Release Token Pool")
 
 	lggr.Debugw("Provided liquidity to Lock Release Token Pool", "amount", liquidityAmount)
