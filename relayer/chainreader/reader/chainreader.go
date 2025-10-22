@@ -384,8 +384,13 @@ func (s *suiChainReader) QueryKeyWithMetadata(ctx context.Context, contract pkgt
 		return nil, err
 	}
 
+	eventOutputType := sequenceDataType
+	if eventConfig.ExpectedEventType != nil {
+		eventOutputType = eventConfig.ExpectedEventType
+	}
+
 	// Transform events to sequences
-	sequences, err := s.transformEventsToSequences(eventRecords, sequenceDataType, true)
+	sequences, err := s.transformEventsToSequences(eventRecords, eventOutputType, true)
 	if err != nil {
 		return nil, err
 	}
