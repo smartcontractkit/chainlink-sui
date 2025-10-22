@@ -184,6 +184,9 @@ public struct CCIPAdminProof has drop {}
 
 public struct McmsCallback has drop {}
 
+/// Proof for MCMS Accept Ownership
+public struct McmsAcceptOwnershipProof has drop {}
+
 public(package) fun mcms_callback(): McmsCallback {
     McmsCallback {}
 }
@@ -272,12 +275,11 @@ public fun mcms_accept_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        McmsCallback {},
+        McmsAcceptOwnershipProof {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(ref), &mut stream);

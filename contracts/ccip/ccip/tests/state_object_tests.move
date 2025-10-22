@@ -7,7 +7,6 @@ use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
-use std::type_name;
 use sui::bcs;
 use sui::test_scenario::{Self, Scenario};
 
@@ -298,7 +297,6 @@ fun test_mcms_add_allowed_modules_success() {
         x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
         0, // sequence_number
         1, // total_in_batch
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     state_object::mcms_add_allowed_modules(
@@ -339,7 +337,6 @@ fun test_mcms_add_allowed_modules_already_exists() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EModuleAlreadyAllowed
@@ -378,7 +375,6 @@ fun test_mcms_add_allowed_modules_wrong_function_name() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EInvalidFunction
@@ -417,7 +413,6 @@ fun test_mcms_remove_allowed_modules_success() {
             x"0000000000000000000000000000000000000000000000000000000000000001",
             0,
             1,
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_add_allowed_modules(
@@ -446,7 +441,6 @@ fun test_mcms_remove_allowed_modules_success() {
             x"0000000000000000000000000000000000000000000000000000000000000002",
             0,
             1,
-            type_name::with_original_ids<state_object::McmsCallback>(),
         );
 
         state_object::mcms_remove_allowed_modules(
@@ -485,7 +479,6 @@ fun test_mcms_remove_allowed_modules_not_in_allowlist() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EModuleNotInAllowlist
@@ -521,7 +514,6 @@ fun test_mcms_remove_allowed_modules_wrong_function_name() {
         x"0000000000000000000000000000000000000000000000000000000000000001",
         0,
         1,
-        type_name::with_original_ids<state_object::McmsCallback>(),
     );
 
     // This should fail with EInvalidFunction

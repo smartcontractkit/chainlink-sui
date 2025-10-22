@@ -3,7 +3,6 @@ module mcms::mcms_registry_test;
 
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
-use std::type_name;
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct TestModuleCap has key, store {
@@ -83,7 +82,7 @@ fun test_register_entrypoint() {
 }
 
 #[test]
-fun test_get_callback_params() {
+fun test_get_accept_ownership_data() {
     let mut scenario = create_test_scenario();
 
     // Transaction 1: Initialize registry
@@ -129,7 +128,6 @@ fun test_get_callback_params() {
             x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
             0, // sequence_number
             1, // total_in_batch
-            type_name::with_original_ids<TestModuleWitness>(),
         );
 
         let (cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
@@ -150,8 +148,8 @@ fun test_get_callback_params() {
 }
 
 #[test]
-#[expected_failure(abort_code = mcms_registry::EPackageCapNotRegistered)]
-fun test_get_callback_params_with_unregistered_package_cap() {
+#[expected_failure(abort_code = mcms_registry::EPackageNotRegistered)]
+fun test_get_accept_ownership_data_with_unregistered_package_cap() {
     let mut scenario = create_test_scenario();
 
     // Transaction 1: Initialize registry
@@ -160,22 +158,21 @@ fun test_get_callback_params_with_unregistered_package_cap() {
         mcms_registry::test_init(ctx);
     };
 
-    // Transaction 2: Try to use callback without registration
+    // Transaction 2: Try to use accept ownership data without registration
     {
         scenario.next_tx(@0xB);
 
         let mut registry = scenario.take_shared<Registry>();
 
-        // Create callback params
+        // Create accept ownership data params
         let params = mcms_registry::test_create_executing_callback_params(
             mcms_registry::get_multisig_address(),
-            string::utf8(b"mcms_registry_test"),
-            string::utf8(b"test_function"),
+            string::utf8(MODULE_NAME),
+            string::utf8(b"accept_ownership"),
             vector::empty(),
             x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
             0, // sequence_number
             1, // total_in_batch
-            type_name::with_original_ids<TestModuleWitness>(),
         );
 
         // This should fail because package is not registered
@@ -235,7 +232,6 @@ fun test_get_callback_params_with_wrong_package_name() {
             x"0000000000000000000000000000000000000000000000000000000000000003", // batch_id
             0, // sequence_number
             1, // total_in_batch
-            type_name::with_original_ids<TestModuleWitness>(),
         );
 
         // This should fail because package ID doesn't match

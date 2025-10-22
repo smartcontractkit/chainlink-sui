@@ -8,7 +8,6 @@ use mcms::mcms_registry::{Self, Registry};
 use mcms::params;
 use std::bcs;
 use std::string::{Self, String};
-use std::type_name;
 use sui::package;
 use sui::test_scenario as ts;
 
@@ -1517,7 +1516,6 @@ fun test_bypasser_execute_batch() {
     // Use bypasser role to execute batch - this should return ExecutingCallbackParams
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
-        &env.registry,
         vector[mcms_registry::get_multisig_address()], // targets
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
@@ -1563,7 +1561,6 @@ fun test_bypasser_execute_batch() {
         module_name,
         function_name,
         data,
-        proof_type,
     ) = mcms_registry::get_callback_params_from_mcms(
         &mut env.registry,
         params,
@@ -1574,7 +1571,6 @@ fun test_bypasser_execute_batch() {
     assert!(module_name == string::utf8(b"mcms"));
     assert!(function_name == string::utf8(b"timelock_update_min_delay"));
     assert!(!data.is_empty()); // Should contain the serialized new_delay
-    assert!(proof_type == type_name::with_original_ids<mcms_registry::McmsProof>());
 
     // Now the vector should be empty
     vector::destroy_empty(executing_params);
@@ -2396,7 +2392,6 @@ fun test_timelock_dispatching_system() {
         x"0000000000000000000000000000000000000000000000000000000000000004", // batch_id
         0, // sequence_number
         1, // total_in_batch
-        type_name::with_original_ids<mcms_registry::McmsProof>(),
     );
 
     // Verify ExecutingCallbackParams properties
@@ -2412,14 +2407,12 @@ fun test_timelock_dispatching_system() {
         consumed_module,
         consumed_function,
         consumed_data,
-        consumed_proof_type,
     ) = mcms_registry::get_callback_params_from_mcms(&mut env.registry, executing_params);
     // Verify the consumed values match what we expect
     assert!(consumed_target == test_target);
     assert!(consumed_module == test_module);
     assert!(consumed_function == test_function);
     assert!(consumed_data == vector[1, 2, 3]);
-    assert!(consumed_proof_type == type_name::with_original_ids<mcms_registry::McmsProof>());
 
     env.destroy();
 }
@@ -2503,7 +2496,6 @@ fun test_bypasser_execute_blocked_function() {
     // Bypasser should be able to directly execute the blocked function
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
-        &env.registry,
         vector[target], // targets
         vector[module_name], // module_names
         vector[function_name], // function_names
@@ -2518,7 +2510,6 @@ fun test_bypasser_execute_blocked_function() {
         callback_module,
         callback_function,
         callback_data,
-        callback_proof_type,
     ) = mcms_registry::get_callback_params_from_mcms(&mut env.registry, params);
 
     // Verify callback params structure
@@ -2526,7 +2517,6 @@ fun test_bypasser_execute_blocked_function() {
     assert!(callback_module == module_name);
     assert!(callback_function == function_name);
     assert!(!callback_data.is_empty());
-    assert!(callback_proof_type == type_name::with_original_ids<mcms_registry::McmsProof>());
 
     // Now dispatch the timelock function to actually update the min delay
     let timelock_params = mcms::test_create_timelock_callback_params(
@@ -2682,7 +2672,6 @@ fun test_bypasser_allowed_when_timelock_active() {
     // This should succeed because bypassers are allowed to bypass the timelock
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
-        &env.registry,
         vector[mcms_registry::get_multisig_address()], // targets
         vector[string::utf8(b"mcms")], // module_names
         vector[string::utf8(b"timelock_update_min_delay")], // function_names
@@ -2759,7 +2748,6 @@ fun test_timelock_dispatch_to_self() {
         x"0000000000000000000000000000000000000000000000000000000000000001", // batch_id
         0, // sequence_number
         1, // total_in_batch
-        type_name::with_original_ids<mcms_registry::McmsProof>(),
     );
 
     mcms::mcms_timelock_update_min_delay(
@@ -2844,7 +2832,6 @@ fun test_timelock_dispatch_to_account() {
         x"0000000000000000000000000000000000000000000000000000000000000005", // batch_id
         0, // sequence_number
         1, // total_in_batch,
-        type_name::with_original_ids<mcms_registry::McmsProof>(),
     );
 
     // Test the dispatch routing - this should route to mcms_account::transfer_ownership
@@ -2906,7 +2893,6 @@ fun test_timelock_dispatch_to_deployer() {
 
     let mut executing_params = mcms::test_timelock_bypasser_execute_batch(
         mcms::bypasser_role(),
-        &env.registry,
         vector[mcms_registry::get_multisig_address()],
         vector[string::utf8(b"mcms_deployer")],
         vector[string::utf8(b"authorize_upgrade")],
@@ -2956,7 +2942,6 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
         x"0000000000000000000000000000000000000000000000000000000000000002", // batch_id
         0, // sequence_number
         1, // total_in_batch
-        type_name::with_original_ids<mcms_registry::McmsProof>(),
     );
 
     // This should fail with EModuleNameMismatch when the registry validates the module name
@@ -3068,7 +3053,6 @@ fun test_dispatch_timelock_bypasser_execute_batch() {
 
     let mut executing_params = mcms::dispatch_timelock_bypasser_execute_batch(
         callback_params,
-        &env.registry,
         env.scenario.ctx(),
     );
     assert!(executing_params.length() == 1);
@@ -3187,7 +3171,6 @@ fun test_dispatch_timelock_bypasser_execute_batch_invalid_function() {
     // This should fail with EInvalidFunctionName
     let executing_params = mcms::dispatch_timelock_bypasser_execute_batch(
         callback_params,
-        &env.registry,
         env.scenario.ctx(),
     );
 
@@ -3599,7 +3582,6 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
         let module_names = vector[b"new_mcms_module"];
         data.append(bcs::to_bytes(&module_names));
 
-        let proof_type = type_name::with_original_ids<mcms_registry::McmsProof>();
         let params = mcms_registry::test_create_executing_callback_params(
             mcms_registry::get_multisig_address(),
             string::utf8(b"mcms_registry"),
@@ -3608,7 +3590,6 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
             x"0000000000000000000000000000000000000000000000000000000000000001",
             0,
             1,
-            proof_type,
         );
 
         // Dispatch to registry

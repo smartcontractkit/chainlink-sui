@@ -99,6 +99,8 @@ fun assert_valid_owner_cap(user_data: &UserData, owner_cap: &OwnerCap) {
 
 public struct SampleMcmsCallback has drop {}
 
+public struct McmsAcceptOwnershipProof has drop {}
+
 public fun mcms_function_one(
     user_data: &mut UserData,
     registry: &mut Registry,
@@ -208,12 +210,11 @@ public fun mcms_accept_ownership(
     params: ExecutingCallbackParams,
     ctx: &mut TxContext,
 ) {
-    let (_, _, function, data) = mcms_registry::get_callback_params(
+    let data = mcms_registry::get_accept_ownership_data(
         registry,
         params,
-        SampleMcmsCallback {},
+        McmsAcceptOwnershipProof {},
     );
-    assert!(function == string::utf8(b"accept_ownership"), EInvalidFunction);
 
     let mut stream = bcs_stream::new(data);
     bcs_stream::validate_obj_addr(object::id_address(user_data), &mut stream);

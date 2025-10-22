@@ -242,6 +242,9 @@ type TypeProof struct {
 type McmsCallback struct {
 }
 
+type McmsAcceptOwnershipProof struct {
+}
+
 func init() {
 	bind.RegisterStructDecoder("managed_token_pool::managed_token_pool::ManagedTokenPoolState", func(data []byte) (interface{}, error) {
 		var result ManagedTokenPoolState
@@ -288,6 +291,23 @@ func init() {
 	// Register vector decoder for McmsCallback
 	bind.RegisterStructDecoder("vector<managed_token_pool::managed_token_pool::McmsCallback>", func(data []byte) (interface{}, error) {
 		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("managed_token_pool::managed_token_pool::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<managed_token_pool::managed_token_pool::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err

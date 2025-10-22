@@ -269,6 +269,9 @@ type MinterUnlimitedAllowanceSet struct {
 type McmsCallback struct {
 }
 
+type McmsAcceptOwnershipProof struct {
+}
+
 type bcsMinterConfigured struct {
 	MintCapOwner [32]byte
 	MintCap      bind.Object
@@ -628,6 +631,23 @@ func init() {
 	// Register vector decoder for McmsCallback
 	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsCallback>", func(data []byte) (interface{}, error) {
 		var results []McmsCallback
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("managed_token::managed_token::McmsAcceptOwnershipProof", func(data []byte) (interface{}, error) {
+		var result McmsAcceptOwnershipProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAcceptOwnershipProof
+	bind.RegisterStructDecoder("vector<managed_token::managed_token::McmsAcceptOwnershipProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAcceptOwnershipProof
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err

@@ -38,7 +38,6 @@ public struct ExecutingCallbackParams {
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
-    expected_proof_type: TypeName,
 }
 
 public struct EntrypointRegistered has copy, drop {
@@ -70,8 +69,9 @@ const EModuleNotAllowed: u64 = 9;
 const EModuleAlreadyAllowed: u64 = 10;
 const EModuleNotInAllowlist: u64 = 11;
 const EOnlyAcceptOwnershipAllowed: u64 = 12;
-const ENotMcmsAuthorized: u64 = 13;
+const EOnlyMcmsAcceptOwnershipProofAllowed: u64 = 13;
 const EInvalidModuleName: u64 = 14;
+const EProofNotAtCapAddress: u64 = 15;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -131,6 +131,12 @@ public fun register_entrypoint<T: drop, C: key + store>(
     let (proof_account_address, _proof_module_name) = params::get_account_address_and_module_name(
         proof_type,
     );
+    let cap_proof_type = type_name::with_original_ids<C>();
+    let (cap_account_address, _) = params::get_account_address_and_module_name(
+        cap_proof_type,
+    );
+
+    assert!(proof_account_address == cap_account_address, EProofNotAtCapAddress);
 
     assert!(!registry.package_caps.contains(proof_account_address), EPackageCapAlreadyRegistered);
 
@@ -235,7 +241,6 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     } = params;
 
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
@@ -245,6 +250,7 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
         proof_type,
     );
 
+    let expected_proof_type = get_registered_proof_type(registry, proof_account_address);
     assert!(proof_type == expected_proof_type, EWrongProofType);
     assert!(target == proof_account_address, EPackageIdMismatch);
 
@@ -279,12 +285,44 @@ public(package) fun borrow_owner_cap<C: key + store>(registry: &Registry): &C {
     registry.package_caps.borrow(get_multisig_address())
 }
 
+/// Only proof with struct name "McmsAcceptOwnershipProof" are allowed to be used with this function.
+/// Validate the target, module name and function name are as expected.
 /// This is only ever called by `mcms_accept_ownership`, precursor to the package being registered with MCMS
-/// Therefore we validate the proof type and function name are as expected.
-public fun get_callback_params<T: drop>(
+/// ExecutingCallbackParams can only be created by MCMS
+public fun get_accept_ownership_data<T: drop>(
     registry: &mut Registry,
     params: ExecutingCallbackParams,
     _proof: T,
+): vector<u8> {
+    let ExecutingCallbackParams {
+        target,
+        module_name,
+        function_name,
+        data,
+        batch_id,
+        sequence_number,
+        total_in_batch,
+    } = params;
+
+    enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
+
+    let proof_type = type_name::with_original_ids<T>();
+    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
+        proof_type,
+    );
+    let struct_name = params::get_struct_name(&proof_type);
+
+    assert!(target == proof_account_address, EPackageIdMismatch);
+    assert!(proof_module_name == module_name, EInvalidModuleName);
+    assert!(function_name.as_bytes() == b"accept_ownership", EOnlyAcceptOwnershipAllowed);
+    assert!(struct_name == b"McmsAcceptOwnershipProof", EOnlyMcmsAcceptOwnershipProofAllowed);
+
+    data
+}
+
+public(package) fun get_callback_params_from_mcms(
+    registry: &mut Registry,
+    params: ExecutingCallbackParams,
 ): (address, String, String, vector<u8>) {
     let ExecutingCallbackParams {
         target,
@@ -294,42 +332,11 @@ public fun get_callback_params<T: drop>(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     } = params;
 
     enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
-
-    let proof_type = type_name::with_original_ids<T>();
-    let (proof_account_address, proof_module_name) = params::get_account_address_and_module_name(
-        proof_type,
-    );
-
-    assert!(target == proof_account_address, EPackageIdMismatch);
-    assert!(proof_module_name == module_name, EInvalidModuleName);
-    assert!(function_name.as_bytes() == b"accept_ownership", EOnlyAcceptOwnershipAllowed);
-    assert!(expected_proof_type == type_name::with_defining_ids<McmsProof>(), ENotMcmsAuthorized);
 
     (target, module_name, function_name, data)
-}
-
-public(package) fun get_callback_params_from_mcms(
-    registry: &mut Registry,
-    params: ExecutingCallbackParams,
-): (address, String, String, vector<u8>, TypeName) {
-    let ExecutingCallbackParams {
-        target,
-        module_name,
-        function_name,
-        data,
-        batch_id,
-        sequence_number,
-        total_in_batch,
-        expected_proof_type,
-    } = params;
-
-    enforce_execution_order(registry, batch_id, sequence_number, total_in_batch);
-
-    (target, module_name, function_name, data, expected_proof_type)
 }
 
 public(package) fun create_executing_callback_params(
@@ -340,7 +347,6 @@ public(package) fun create_executing_callback_params(
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
-    expected_proof_type: TypeName,
 ): ExecutingCallbackParams {
     ExecutingCallbackParams {
         target,
@@ -350,7 +356,6 @@ public(package) fun create_executing_callback_params(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     }
 }
 
@@ -358,6 +363,10 @@ public fun is_package_registered(registry: &Registry, package_address: address):
     registry.package_caps.contains(package_address)
 }
 
+/// Internal function that returns the expected proof type for a target package
+/// - For registered packages: returns their registered proof type
+/// - For unregistered packages: Only allows `accept_ownership` function and returns McmsProof
+/// `mcms_registry::get_callback_params` validates the proof type and function name are as expected.
 public(package) fun get_registered_proof_type(
     registry: &Registry,
     package_address: address,
@@ -431,7 +440,6 @@ public fun test_create_executing_callback_params(
     batch_id: vector<u8>,
     sequence_number: u64,
     total_in_batch: u64,
-    expected_proof_type: TypeName,
 ): ExecutingCallbackParams {
     create_executing_callback_params(
         target,
@@ -441,11 +449,5 @@ public fun test_create_executing_callback_params(
         batch_id,
         sequence_number,
         total_in_batch,
-        expected_proof_type,
     )
-}
-
-#[test_only]
-public fun expected_proof_type(params: &ExecutingCallbackParams): TypeName {
-    params.expected_proof_type
 }
