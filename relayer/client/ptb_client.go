@@ -174,8 +174,9 @@ func (c *PTBClient) WithRateLimit(ctx context.Context, methodName string, f func
 	}
 
 	// acquire with the timeout context so it can't hang forever
-	if err := c.rateLimiter.Acquire(timeoutCtx, 1); err != nil {
-		return fmt.Errorf("failed to acquire rate limit for %s: %w", methodName, err)
+	if !c.rateLimiter.TryAcquire(1) {
+		c.log.Warnw("Rate limiter full, skipping", "methodName", methodName)
+		return nil // or return ErrRateLimited
 	}
 
 	// ensure cleanup on exit and panic recovery

@@ -9,7 +9,7 @@ import (
 // Default constant values
 const (
 	DefaultBroadcastChannelSize       = uint64(4096)
-	DefaultMaxConcurrentRequests      = int64(250)
+	DefaultMaxConcurrentRequests      = int64(500)
 	DefaultRetryCount                 = int64(5)
 	DefaultMaxGasLimit                = int64(10000000)
 	DefaultTxTimeoutSeconds           = 120
