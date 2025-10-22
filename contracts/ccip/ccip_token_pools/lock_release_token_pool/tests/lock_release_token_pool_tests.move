@@ -881,10 +881,17 @@ public fun test_destroy_token_pool() {
         );
         assert!(initial_balance > 0); // Should have some liquidity
 
+        token_admin_registry::unregister_pool(
+            &mut ccip_ref,
+            lock_release_token_pool::get_token(&pool_state),
+            ctx,
+        );
+
         // Destroy the pool and get remaining balance
         let remaining_coin = lock_release_token_pool::destroy_token_pool<
             LOCK_RELEASE_TOKEN_POOL_TESTS,
         >(
+            &mut ccip_ref,
             pool_state,
             owner_cap,
             ctx,

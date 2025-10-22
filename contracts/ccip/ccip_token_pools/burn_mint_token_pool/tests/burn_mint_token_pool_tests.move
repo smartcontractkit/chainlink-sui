@@ -553,7 +553,7 @@ public fun test_destroy_token_pool() {
             state_object::create_ccip_admin_proof_for_test(),
             &coin_metadata,
             treasury_cap,
-            @0x123,
+            @burn_mint_token_pool,
             ctx,
         );
 
@@ -561,15 +561,21 @@ public fun test_destroy_token_pool() {
     };
 
     transfer::public_transfer(ccip_owner_cap, @0x0);
-    test_scenario::return_shared(ccip_ref);
 
     scenario.next_tx(@burn_mint_token_pool);
     {
         let pool_state = scenario.take_shared<BurnMintTokenPoolState<BURN_MINT_TOKEN_POOL_TESTS>>();
         let owner_cap = scenario.take_from_sender<OwnerCap>();
 
+        token_admin_registry::unregister_pool(
+            &mut ccip_ref,
+            burn_mint_token_pool::get_token(&pool_state),
+            scenario.ctx(),
+        );
+
         // Test destroy_token_pool function
         let returned_treasury_cap = burn_mint_token_pool::destroy_token_pool(
+            &mut ccip_ref,
             pool_state,
             owner_cap,
             scenario.ctx(),
@@ -579,6 +585,7 @@ public fun test_destroy_token_pool() {
         transfer::public_transfer(returned_treasury_cap, scenario.ctx().sender());
     };
 
+    test_scenario::return_shared(ccip_ref);
     test_scenario::end(scenario);
 }
 
