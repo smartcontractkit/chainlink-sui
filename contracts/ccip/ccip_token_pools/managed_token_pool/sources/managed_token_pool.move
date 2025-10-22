@@ -33,6 +33,7 @@ public struct ManagedTokenPoolState<phantom T> has key {
 const EInvalidArguments: u64 = 1;
 const EInvalidOwnerCap: u64 = 2;
 const EInvalidFunction: u64 = 3;
+const EPoolStillRegistered: u64 = 4;
 
 const CLOCK_ADDRESS: address = @0x6;
 const DENY_LIST_ADDRESS: address = @0x403;
@@ -915,6 +916,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 /// destroy the managed token pool state and the owner cap, return the mint cap to the owner
 /// this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(
+    ref: &mut CCIPObjectRef,
     state: ManagedTokenPoolState<T>,
     owner_cap: OwnerCap,
     ctx: &mut TxContext,
@@ -922,6 +924,10 @@ public fun destroy_token_pool<T>(
     assert!(
         object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state),
         EInvalidOwnerCap,
+    );
+    assert!(
+        !token_admin_registry::is_pool_registered(ref, get_token(&state)),
+        EPoolStillRegistered,
     );
 
     let ManagedTokenPoolState<T> {

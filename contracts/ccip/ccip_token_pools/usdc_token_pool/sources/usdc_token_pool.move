@@ -74,6 +74,7 @@ const EDomainNotFound: u64 = 10;
 const EDomainDisabled: u64 = 11;
 const ETokenAmountOverflow: u64 = 12;
 const EInvalidFunction: u64 = 13;
+const EPoolStillRegistered: u64 = 14;
 
 // ================================================================
 // |                             Init                             |
@@ -1045,6 +1046,7 @@ public fun mcms_set_chain_rate_limiter_config<T>(
 /// destroy the USDC token pool state and the owner cap
 /// this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(
+    ref: &mut CCIPObjectRef,
     state: USDCTokenPoolState<T>,
     owner_cap: OwnerCap,
     ctx: &mut TxContext,
@@ -1052,6 +1054,10 @@ public fun destroy_token_pool<T>(
     assert!(
         object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state),
         EInvalidOwnerCap,
+    );
+    assert!(
+        !token_admin_registry::is_pool_registered(ref, get_token(&state)),
+        EPoolStillRegistered,
     );
 
     let USDCTokenPoolState<T> {
