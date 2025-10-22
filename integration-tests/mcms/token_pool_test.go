@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var dummyChainSelector uint64 = 100
+
 type TokenPoolTestSuite struct {
 	// TODO: it shouldn't rely another specific suite
 	CCIPMCMSTestSuite
@@ -112,7 +114,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 			Rebalancer:             "0x5555666677778888999900001111222233334444",
 			// apply chain updates
 			RemoteChainSelectorsToRemove: []uint64{}, // Empty - no chains to remove from new token pool
-			RemoteChainSelectorsToAdd:    []uint64{4, 5, 6},
+			RemoteChainSelectorsToAdd:    []uint64{dummyChainSelector, 5, 6},
 			RemotePoolAddressesToAdd:     [][]string{{"0x1111111111111111111111111111111111111111"}, {"0x2222222222222222222222222222222222222222"}, {"0x3333333333333333333333333333333333333333"}}, // Must match number of chains
 			RemoteTokenAddressesToAdd:    []string{"0x4444444444444444444444444444444444444444", "0x5555555555555555555555555555555555555555", "0x6666666666666666666666666666666666666666"},         // Must match number of chains
 			// set chain rate limiter configs
@@ -138,7 +140,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 
 			// apply chain updates
 			RemoteChainSelectorsToRemove: []uint64{}, // Empty - no chains to remove from new token pool
-			RemoteChainSelectorsToAdd:    []uint64{4, 5, 6},
+			RemoteChainSelectorsToAdd:    []uint64{dummyChainSelector, 5, 6},
 			RemotePoolAddressesToAdd:     [][]string{{"0x1111111111111111111111111111111111111111"}, {"0x2222222222222222222222222222222222222222"}, {"0x3333333333333333333333333333333333333333"}}, // Must match number of chains
 			RemoteTokenAddressesToAdd:    []string{"0x4444444444444444444444444444444444444444", "0x5555555555555555555555555555555555555555", "0x6666666666666666666666666666666666666666"},         // Must match number of chains
 			// set chain rate limiter configs
@@ -166,7 +168,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 			TokenPoolAdministrator:    s.mcmsPackageID,
 			// apply chain updates
 			RemoteChainSelectorsToRemove: []uint64{}, // Empty - no chains to remove from new token pool
-			RemoteChainSelectorsToAdd:    []uint64{4, 5, 6},
+			RemoteChainSelectorsToAdd:    []uint64{dummyChainSelector, 5, 6},
 			RemotePoolAddressesToAdd:     [][]string{{"0x1111111111111111111111111111111111111111"}, {"0x2222222222222222222222222222222222222222"}, {"0x3333333333333333333333333333333333333333"}}, // Must match number of chains
 			RemoteTokenAddressesToAdd:    []string{"0x4444444444444444444444444444444444444444", "0x5555555555555555555555555555555555555555", "0x6666666666666666666666666666666666666666"},         // Must match number of chains
 			// set chain rate limiter configs
@@ -197,8 +199,17 @@ func (s *TokenPoolTestSuite) Test_Token_Pool_MCMS() {
 	s.T().Run("Transfer ownership of token pools to MCMS", func(t *testing.T) {
 		RunOwnershipTokenPoolProposal(s)
 	})
-	s.T().Run("Run config ops of token pools through MCMS", func(t *testing.T) {
-		RunConfigOpsTokenPoolProposal(s)
+
+	s.T().Run("Run Lock and Release TP config ops through MCMS", func(t *testing.T) {
+		RunLnRConfigOpsTokenPoolProposal(s)
+	})
+
+	s.T().Run("Run Burn and Mint TP config ops through MCMS", func(t *testing.T) {
+		RunBnMConfigOpsTokenPoolProposal(s)
+	})
+
+	s.T().Run("Run Managed Token TP config ops through MCMS", func(t *testing.T) {
+		RunManagedConfigOpsTokenPoolProposal(s)
 	})
 }
 
@@ -277,38 +288,98 @@ func RunOwnershipTokenPoolProposal(s *TokenPoolTestSuite) {
 	}
 
 	executeOwnershipReport, err := cld_ops.ExecuteSequence(s.bundle, ownershipops.ExecuteOwnershipTransferToMcmsSequence, s.deps, input)
-	s.Require().NoError(err, "executing ownership transfer to MCMS sequence")
+	s.Require().NoError(err, "executing ownership transfer to MCMS sequence") // ownership transfer is checked inside the op
 
 	s.Require().NotNil(executeOwnershipReport.Output.Results[ownershipops.ContractTypeBurnMintTokenPool], "burn mint token pool ownership transfer tx is nil")
 	s.Require().NotNil(executeOwnershipReport.Output.Results[ownershipops.ContractTypeLockReleaseTokenPool], "lock release token pool ownership transfer tx is nil")
 	s.Require().NotNil(executeOwnershipReport.Output.Results[ownershipops.ContractTypeManagedTokenPool], "managed token pool ownership transfer tx is nil")
 }
 
-func RunConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
-	proposalInput := mcmsops.ProposalGenerateInput{
+func RunLnRConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
+	lnrProposalInput := mcmsops.ProposalGenerateInput{
 		Defs: []cld_ops.Definition{
 			// lnr config ops
+			lockreleasetokenpoolops.LockReleaseTokenPoolSetRebalancerOp.Def(),
+			lockreleasetokenpoolops.LockReleaseTokenPoolSetAllowlistEnabledOp.Def(),
+			lockreleasetokenpoolops.LockReleaseTokenPoolApplyAllowlistUpdatesOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolAddRemotePoolOp.Def(),
+			lockreleasetokenpoolops.LockReleaseTokenPoolRemoveRemotePoolOp.Def(),
 			lockreleasetokenpoolops.LockReleaseTokenPoolSetChainRateLimiterOp.Def(),
-			lockreleasetokenpoolops.LockReleaseTokenPoolSetPoolOp.Def(),
-			// bnm config ops
-			burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesOp.Def(),
-			burnminttokenpoolops.BurnMintTokenPoolAddRemotePoolOp.Def(),
-			burnminttokenpoolops.BurnMintTokenPoolSetChainRateLimiterOp.Def(),
-			burnminttokenpoolops.BurnMintTokenPoolSetPoolOp.Def(),
-			// managed config ops
-			managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolSetChainRateLimiterOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolSetPoolOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolSetAllowlistEnabledOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolApplyAllowlistUpdatesOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolAddRemotePoolOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolRemoveRemotePoolOp.Def(),
-			managedtokenpoolops.ManagedTokenPoolSetChainRateLimiterOp.Def(),
+			// lockreleasetokenpoolops.LockReleaseTokenPoolSetPoolOp.Def(), // Disabled as TAR caller issue
 		},
-		Inputs: []any{},
+		Inputs: []any{
+			// lnr config ops
+			lockreleasetokenpoolops.LockReleaseTokenPoolSetRebalancerInput{
+				LockReleaseTokenPoolPackageId: s.lnrPackageId,
+				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+				StateObjectId:                 s.lnrObjects.StateObjectId,
+				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
+				Rebalancer:                    "0x9999000011112222333344445555666677778888",
+			},
+			lockreleasetokenpoolops.LockReleaseTokenPoolSetAllowlistEnabledInput{
+				LockReleaseTokenPoolPackageId: s.lnrPackageId,
+				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+				StateObjectId:                 s.lnrObjects.StateObjectId,
+				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
+				Enabled:                       true,
+			},
+			lockreleasetokenpoolops.LockReleaseTokenPoolApplyAllowlistUpdatesInput{
+				LockReleaseTokenPoolPackageId: s.lnrPackageId,
+				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+				StateObjectId:                 s.lnrObjects.StateObjectId,
+				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
+				Removes:                       []string{},
+				Adds:                          []string{"0x1111111111111111111111111111111111111111"},
+			},
+			lockreleasetokenpoolops.LockReleaseTokenPoolApplyChainUpdatesInput{
+				LockReleasePackageId:         s.lnrPackageId,
+				CoinObjectTypeArg:            fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+				StateObjectId:                s.lnrObjects.StateObjectId,
+				OwnerCap:                     s.lnrObjects.OwnerCapObjectId,
+				RemoteChainSelectorsToRemove: []uint64{},
+				RemoteChainSelectorsToAdd:    []uint64{421}, // Use a different chain selector to avoid conflicts with initial setup
+				RemotePoolAddressesToAdd:     [][]string{{"0x2222222222222222222222222222222222222222"}},
+				RemoteTokenAddressesToAdd:    []string{"0x3333333333333333333333333333333333333333"},
+			},
+			lockreleasetokenpoolops.LockReleaseTokenPoolAddRemotePoolInput{
+				LockReleaseTokenPoolPackageId: s.lnrPackageId,
+				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+				StateObjectId:                 s.lnrObjects.StateObjectId,
+				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
+				RemoteChainSelector:           421, // Use the same chain we added in ApplyChainUpdates
+				RemotePoolAddress:             "0x4444444444444444444444444444444444444444",
+			},
+			lockreleasetokenpoolops.LockReleaseTokenPoolRemoveRemotePoolInput{
+				LockReleaseTokenPoolPackageId: s.lnrPackageId,
+				CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+				StateObjectId:                 s.lnrObjects.StateObjectId,
+				OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
+				RemoteChainSelector:           421,                                          // Remove from the same chain we just added to
+				RemotePoolAddress:             "0x4444444444444444444444444444444444444444", // Remove the same pool we just added
+			},
+			lockreleasetokenpoolops.LockReleaseTokenPoolSetChainRateLimiterInput{
+				LockReleasePackageId: s.lnrPackageId,
+				CoinObjectTypeArg:    fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+				StateObjectId:        s.lnrObjects.StateObjectId,
+				OwnerCap:             s.lnrObjects.OwnerCapObjectId,
+				RemoteChainSelectors: []uint64{420},
+				OutboundIsEnableds:   []bool{true},
+				OutboundCapacities:   []uint64{1000000},
+				OutboundRates:        []uint64{100000},
+				InboundIsEnableds:    []bool{true},
+				InboundCapacities:    []uint64{2000000},
+				InboundRates:         []uint64{200000},
+			},
+			// lockreleasetokenpoolops.LockReleaseTokenPoolSetPoolInput{
+			// 	LockReleaseTokenPoolPackageId: s.lnrPackageId,
+			// 	CoinObjectTypeArg:             fmt.Sprintf("%s::link::LINK", s.lnrTokenPackageId),
+			// 	RefObjectId:                   s.ccipObjects.CCIPObjectRefObjectId,
+			// 	StateObjectId:                 s.lnrObjects.StateObjectId,
+			// 	OwnerCap:                      s.lnrObjects.OwnerCapObjectId,
+			// 	CoinMetadataAddress:           s.lnrTokenObjects.CoinMetadataObjectId,
+			// },
+		},
 
 		// MCMS related
 		MmcsPackageID:  s.mcmsPackageID,
@@ -322,4 +393,213 @@ func RunConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
 
 		ChainSelector: uint64(s.chainSelector),
 	}
+
+	// Execute LNR proposal
+	proposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, lnrProposalInput)
+	s.Require().NoError(err, "executing ownership acceptance proposal sequence")
+
+	timelockProposal := proposalReport.Output
+
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+}
+
+func RunBnMConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
+	bnmProposalInput := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			// bnm config ops
+			burnminttokenpoolops.BurnMintTokenPoolSetAllowlistEnabledOp.Def(),
+			burnminttokenpoolops.BurnMintTokenPoolApplyAllowlistUpdatesOp.Def(),
+			burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesOp.Def(),
+			burnminttokenpoolops.BurnMintTokenPoolAddRemotePoolOp.Def(),
+			burnminttokenpoolops.BurnMintTokenPoolRemoveRemotePoolOp.Def(),
+			burnminttokenpoolops.BurnMintTokenPoolSetChainRateLimiterOp.Def(),
+			// burnminttokenpoolops.BurnMintTokenPoolSetPoolOp.Def(), // Disabled as TAR caller issue
+		},
+		Inputs: []any{
+			// bnm config ops
+			burnminttokenpoolops.BurnMintTokenPoolSetAllowlistEnabledInput{
+				BurnMintPackageId: s.bnmPackageId,
+				StateObjectId:     s.bnmObjects.StateObjectId,
+				OwnerCap:          s.bnmObjects.OwnerCapObjectId,
+				CoinObjectTypeArg: fmt.Sprintf("%s::link::LINK", s.linkPackageId),
+				Enabled:           true,
+			},
+			burnminttokenpoolops.BurnMintTokenPoolApplyAllowlistUpdatesInput{
+				BurnMintPackageId: s.bnmPackageId,
+				StateObjectId:     s.bnmObjects.StateObjectId,
+				OwnerCap:          s.bnmObjects.OwnerCapObjectId,
+				CoinObjectTypeArg: fmt.Sprintf("%s::link::LINK", s.linkPackageId),
+				Removes:           []string{},
+				Adds:              []string{"0x1111111111111111111111111111111111111111"},
+			},
+			burnminttokenpoolops.BurnMintTokenPoolApplyChainUpdatesInput{
+				BurnMintPackageId:            s.bnmPackageId,
+				CoinObjectTypeArg:            fmt.Sprintf("%s::link::LINK", s.linkPackageId),
+				StateObjectId:                s.bnmObjects.StateObjectId,
+				OwnerCap:                     s.bnmObjects.OwnerCapObjectId,
+				RemoteChainSelectorsToRemove: []uint64{},
+				RemoteChainSelectorsToAdd:    []uint64{419},
+				RemotePoolAddressesToAdd:     [][]string{{"0x8888888888888888888888888888888888888888"}}, // Use different pool address to avoid conflict
+				RemoteTokenAddressesToAdd:    []string{"0x9999999999999999999999999999999999999999"},     // Use different token address too
+			},
+			burnminttokenpoolops.BurnMintTokenPoolAddRemotePoolInput{
+				BurnMintTokenPoolPackageId: s.bnmPackageId,
+				CoinObjectTypeArg:          fmt.Sprintf("%s::link::LINK", s.linkPackageId),
+				StateObjectId:              s.bnmObjects.StateObjectId,
+				OwnerCap:                   s.bnmObjects.OwnerCapObjectId,
+				RemoteChainSelector:        5,                                            // Add to existing chain 5 that already has pools
+				RemotePoolAddress:          "0x7777777777777777777777777777777777777777", // New pool address
+			},
+			burnminttokenpoolops.BurnMintTokenPoolRemoveRemotePoolInput{
+				BurnMintPackageId:   s.bnmPackageId,
+				StateObjectId:       s.bnmObjects.StateObjectId,
+				OwnerCap:            s.bnmObjects.OwnerCapObjectId,
+				CoinObjectTypeArg:   fmt.Sprintf("%s::link::LINK", s.linkPackageId),
+				RemoteChainSelector: 5,                                            // Remove from existing chain 5
+				RemotePoolAddress:   "0x2222222222222222222222222222222222222222", // Remove the pool that exists from initial setup
+			},
+			burnminttokenpoolops.BurnMintTokenPoolSetChainRateLimiterInput{
+				BurnMintPackageId:    s.bnmPackageId,
+				CoinObjectTypeArg:    fmt.Sprintf("%s::link::LINK", s.linkPackageId),
+				StateObjectId:        s.bnmObjects.StateObjectId,
+				OwnerCap:             s.bnmObjects.OwnerCapObjectId,
+				RemoteChainSelectors: []uint64{419}, // Use the chain we added in ApplyChainUpdates
+				OutboundIsEnableds:   []bool{true},
+				OutboundCapacities:   []uint64{1000000},
+				OutboundRates:        []uint64{100000},
+				InboundIsEnableds:    []bool{true},
+				InboundCapacities:    []uint64{2000000},
+				InboundRates:         []uint64{200000},
+			},
+			// burnminttokenpoolops.BurnMintTokenPoolSetPoolInput{
+			// 	BurnMintTokenPoolPackageId: s.bnmPackageId,
+			// 	CoinObjectTypeArg:          fmt.Sprintf("%s::link::LINK", s.linkPackageId),
+			// 	RefObjectId:                s.ccipObjects.CCIPObjectRefObjectId,
+			// 	StateObjectId:              s.bnmObjects.StateObjectId,
+			// 	OwnerCap:                   s.bnmObjects.OwnerCapObjectId,
+			// 	CoinMetadataAddress:        s.lnrTokenObjects.CoinMetadataObjectId,
+			// },
+		},
+
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+
+		// Proposal
+		Role: suisdk.TimelockRoleBypasser,
+
+		ChainSelector: uint64(s.chainSelector),
+	}
+
+	// Execute BNM proposal
+	proposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, bnmProposalInput)
+	s.Require().NoError(err, "executing ownership acceptance proposal sequence")
+
+	timelockProposal := proposalReport.Output
+
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+}
+
+func RunManagedConfigOpsTokenPoolProposal(s *TokenPoolTestSuite) {
+	managedProposalInput := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			// managed config ops
+			managedtokenpoolops.ManagedTokenPoolSetAllowlistEnabledOp.Def(),
+			managedtokenpoolops.ManagedTokenPoolApplyAllowlistUpdatesOp.Def(),
+			managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesOp.Def(),
+			managedtokenpoolops.ManagedTokenPoolAddRemotePoolOp.Def(),
+			managedtokenpoolops.ManagedTokenPoolRemoveRemotePoolOp.Def(),
+			managedtokenpoolops.ManagedTokenPoolSetChainRateLimiterOp.Def(),
+			// managedtokenpoolops.ManagedTokenPoolSetPoolOp.Def(), // Disabled as TAR caller issue
+		},
+		Inputs: []any{
+			managedtokenpoolops.ManagedTokenPoolSetAllowlistEnabledInput{
+				ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
+				CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
+				StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
+				OwnerCap:                  s.managedTokenPoolObjects.OwnerCapObjectId,
+				Enabled:                   true,
+			},
+			managedtokenpoolops.ManagedTokenPoolApplyAllowlistUpdatesInput{
+				ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
+				CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
+				StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
+				OwnerCap:                  s.managedTokenPoolObjects.OwnerCapObjectId,
+				Removes:                   []string{},
+				Adds:                      []string{"0x1111111111111111111111111111111111111111"},
+			},
+			managedtokenpoolops.ManagedTokenPoolApplyChainUpdatesInput{
+				ManagedTokenPoolPackageId:    s.managedTokenPoolPackageId,
+				CoinObjectTypeArg:            fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
+				StateObjectId:                s.managedTokenPoolObjects.StateObjectId,
+				OwnerCap:                     s.managedTokenPoolObjects.OwnerCapObjectId,
+				RemoteChainSelectorsToRemove: []uint64{},
+				RemoteChainSelectorsToAdd:    []uint64{421},
+				RemotePoolAddressesToAdd:     [][]string{{"0x8888888888888888888888888888888888888888"}}, // Use different pool address to avoid conflict
+				RemoteTokenAddressesToAdd:    []string{"0x9999999999999999999999999999999999999999"},     // Use different token address too
+			},
+			managedtokenpoolops.ManagedTokenPoolAddRemotePoolInput{
+				ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
+				CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
+				StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
+				OwnerCap:                  s.managedTokenPoolObjects.OwnerCapObjectId,
+				RemoteChainSelector:       421, // Use the same chain we added in ApplyChainUpdates
+				RemotePoolAddress:         "0x4444444444444444444444444444444444444444",
+			},
+			managedtokenpoolops.ManagedTokenPoolRemoveRemotePoolInput{
+				ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
+				CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
+				StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
+				OwnerCap:                  s.managedTokenPoolObjects.OwnerCapObjectId,
+				RemoteChainSelector:       421,                                          // Remove from the same chain we just added to
+				RemotePoolAddress:         "0x4444444444444444444444444444444444444444", // Remove the same pool we just added
+			},
+			managedtokenpoolops.ManagedTokenPoolSetChainRateLimiterInput{
+				ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
+				CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
+				StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
+				OwnerCap:                  s.managedTokenPoolObjects.OwnerCapObjectId,
+				RemoteChainSelectors:      []uint64{419}, // Use the same chain we added in ApplyChainUpdates
+				OutboundIsEnableds:        []bool{true},
+				OutboundCapacities:        []uint64{1000000},
+				OutboundRates:             []uint64{100000},
+				InboundIsEnableds:         []bool{true},
+				InboundCapacities:         []uint64{2000000},
+				InboundRates:              []uint64{200000},
+			},
+			// managedtokenpoolops.ManagedTokenPoolSetPoolInput{
+			// 	ManagedTokenPoolPackageId: s.managedTokenPoolPackageId,
+			// 	CoinObjectTypeArg:         fmt.Sprintf("%s::link::LINK", s.managedTokenLinkPackageId),
+			// 	RefObjectId:               s.ccipObjects.CCIPObjectRefObjectId,
+			// 	StateObjectId:             s.managedTokenPoolObjects.StateObjectId,
+			// 	OwnerCap:                  s.managedTokenPoolObjects.OwnerCapObjectId,
+			// 	CoinMetadataAddress:       s.managedTokenLinkObjects.CoinMetadataObjectId,
+			// 	ManagedTokenState:         s.managedTokenObjects.StateObjectId,
+			// },
+		},
+
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+
+		// Proposal
+		Role: suisdk.TimelockRoleBypasser,
+
+		ChainSelector: uint64(s.chainSelector),
+	}
+
+	// Execute Managed proposal
+	proposalReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, managedProposalInput)
+	s.Require().NoError(err, "executing ownership acceptance proposal sequence")
+
+	timelockProposal := proposalReport.Output
+
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
 }

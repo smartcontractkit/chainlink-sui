@@ -93,7 +93,7 @@ func (s *MCMSTestSuite) SetupSuite() {
 		Client: client,
 		Signer: signer,
 		GetCallOpts: func() *bind.CallOpts {
-			b := uint64(500_000_000) // needs to be high for publishing
+			b := uint64(10_000_000_000) // needs to be high for publishing and big proposals
 			return &bind.CallOpts{
 				WaitForExecution: true,
 				GasBudget:        &b,
