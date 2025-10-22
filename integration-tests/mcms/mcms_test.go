@@ -31,6 +31,10 @@ import (
 type CCIPMCMSTestSuite struct {
 	MCMSTestSuite
 
+	// LINK
+	linkPackageId string
+	linkObjects   linkops.DeployLinkObjects
+
 	// CCIP
 	ccipPackageId string
 	ccipObjects   ccipops.DeployCCIPSeqObjects
@@ -55,6 +59,8 @@ func (s *CCIPMCMSTestSuite) SetupSuite() {
 	// Deploy LINK
 	linkReport, err := cld_ops.ExecuteOperation(s.bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
 	require.NoError(s.T(), err, "failed to deploy LINK token")
+	s.linkPackageId = linkReport.Output.PackageId
+	s.linkObjects = linkReport.Output.Objects
 
 	configDigestHex := "e3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	configDigest, err := hex.DecodeString(configDigestHex)

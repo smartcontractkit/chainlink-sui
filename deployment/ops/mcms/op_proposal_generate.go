@@ -97,6 +97,7 @@ var generateProposalHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, inpu
 			call.Module,
 			[]string{},
 			call.StateObjID,
+			call.TypeArgs,
 		)
 		mcmsTxs[i] = tx
 	}

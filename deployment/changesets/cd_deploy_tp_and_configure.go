@@ -11,6 +11,7 @@ import (
 	burnminttokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_burn_mint_token_pool"
 	lockreleasetokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_lock_release_token_pool"
 	managedtokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_managed_token_pool"
+	tokenpoolops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_token_pool"
 )
 
 type DeployTPAndConfigureConfig struct {
@@ -55,72 +56,72 @@ func (d DeployTPAndConfigure) Apply(e cldf.Environment, config DeployTPAndConfig
 			}
 		},
 	}
-	// the below can be part of (DeployAndInitBurnMintTokenPoolSequence)
-	// Initialize TP
-	// ApplyChainUpdates
-	// SetChainRateLimiterConfigs
-	// Add remote TP
 
+	// Populate state information for each token pool type
 	for _, tokenPoolType := range config.TokenPoolTypes {
-		if tokenPoolType == "bnm" {
+		switch tokenPoolType {
+		case "bnm":
 			config.BurnMintTpInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.BurnMintTpInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
+			// TODO: MCMSOwner address should come state
 			config.BurnMintTpInput.MCMSOwnerAddress = deployerAddr
 			config.BurnMintTpInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
-			config.BurnMintTpInput.TokenPoolAdministrator = deployerAddr // check with felix if this is fine
-
-			BnMTokenPoolSeqReport, err := operations.ExecuteSequence(e.OperationsBundle, burnminttokenpoolops.DeployAndInitBurnMintTokenPoolSequence, deps, config.BurnMintTpInput)
-			if err != nil {
-				return cldf.ChangesetOutput{}, err
-			}
-
-			// save BnM Pool to the addressbook
-			typeAndVersionBurnMintTokenPool := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolType, deployment.Version1_0_0)
-			err = ab.Save(config.SuiChainSelector, BnMTokenPoolSeqReport.Output.BurnMintTPPackageID, typeAndVersionBurnMintTokenPool)
-			if err != nil {
-				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPool address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.BurnMintTPPackageID, config.SuiChainSelector, err)
-			}
-
-			// save BnM Pool State to the addressBook
-			typeAndVersionBurnMintTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolStateType, deployment.Version1_0_0)
-			err = ab.Save(config.SuiChainSelector, BnMTokenPoolSeqReport.Output.Objects.StateObjectId, typeAndVersionBurnMintTokenPoolState)
-			if err != nil {
-				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolState address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.Objects.StateObjectId, config.SuiChainSelector, err)
-			}
-
-			// save BnM Pool OwnerId to the addressBook
-			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerIDType, deployment.Version1_0_0)
-			err = ab.Save(config.SuiChainSelector, BnMTokenPoolSeqReport.Output.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
-			if err != nil {
-				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", BnMTokenPoolSeqReport.Output.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
-			}
-		}
-
-		if tokenPoolType == "lnr" {
+			config.BurnMintTpInput.TokenPoolAdministrator = deployerAddr
+		case "lnr":
 			config.LockReleaseTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.LockReleaseTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			config.LockReleaseTPInput.MCMSOwnerAddress = deployerAddr
 			config.LockReleaseTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.LockReleaseTPInput.TokenPoolAdministrator = deployerAddr
-
-			_, err = operations.ExecuteSequence(e.OperationsBundle, lockreleasetokenpoolops.DeployAndInitLockReleaseTokenPoolSequence, deps, config.LockReleaseTPInput)
-			if err != nil {
-				return cldf.ChangesetOutput{}, err
-			}
-		}
-
-		if tokenPoolType == "managed" {
+		case "managed":
 			config.ManagedTPInput.CCIPPackageId = state[config.SuiChainSelector].CCIPAddress
 			config.ManagedTPInput.MCMSAddress = state[config.SuiChainSelector].MCMSPackageID
 			config.ManagedTPInput.MCMSOwnerAddress = deployerAddr
 			config.ManagedTPInput.CCIPObjectRefObjectId = state[config.SuiChainSelector].CCIPObjectRef
 			config.ManagedTPInput.TokenPoolAdministrator = deployerAddr
+		}
+	}
 
-			_, err = operations.ExecuteSequence(e.OperationsBundle, managedtokenpoolops.DeployAndInitManagedTokenPoolSequence, deps, config.ManagedTPInput)
+	// Execute the unified token pool deployment sequence
+	tokenPoolInput := tokenpoolops.DeployAndInitAllTokenPoolsInput{
+		SuiChainSelector:   config.SuiChainSelector,
+		TokenPoolTypes:     config.TokenPoolTypes,
+		ManagedTPInput:     config.ManagedTPInput,
+		LockReleaseTPInput: config.LockReleaseTPInput,
+		BurnMintTpInput:    config.BurnMintTpInput,
+	}
+
+	tokenPoolReport, err := operations.ExecuteSequence(e.OperationsBundle, tokenpoolops.DeployAndInitAllTokenPoolsSequence, deps, tokenPoolInput)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy token pools: %w", err)
+	}
+
+	// Save addresses to the address book based on what was deployed
+	for _, tokenPoolType := range config.TokenPoolTypes {
+		switch tokenPoolType {
+		case "bnm":
+			// save BnM Pool to the addressbook
+			typeAndVersionBurnMintTokenPool := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolType, deployment.Version1_0_0)
+			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.BurnMintTPPackageID, typeAndVersionBurnMintTokenPool)
 			if err != nil {
-				return cldf.ChangesetOutput{}, err
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPool address %s for Sui chain %d: %w", tokenPoolReport.Output.BurnMintTPPackageID, config.SuiChainSelector, err)
+			}
+
+			// save BnM Pool State to the addressBook
+			typeAndVersionBurnMintTokenPoolState := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolStateType, deployment.Version1_0_0)
+			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, typeAndVersionBurnMintTokenPoolState)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolState address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.StateObjectId, config.SuiChainSelector, err)
+			}
+
+			// save BnM Pool OwnerId to the addressBook
+			typeAndVersionBurnMintTokenPoolOwnerId := cldf.NewTypeAndVersion(deployment.SuiBnMTokenPoolOwnerIDType, deployment.Version1_0_0)
+			err = ab.Save(config.SuiChainSelector, tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, typeAndVersionBurnMintTokenPoolOwnerId)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to save BnMTokenPoolOwnerCapId address %s for Sui chain %d: %w", tokenPoolReport.Output.DeployBurnMintTokenPoolOutput.Objects.OwnerCapObjectId, config.SuiChainSelector, err)
 			}
 		}
+		// Note: Address book saving for "lnr" and "managed" token pools can be added here if needed
 	}
 
 	return cldf.ChangesetOutput{

@@ -9,5 +9,6 @@ import (
 )
 
 func TestMCMSandCCIPSuite(t *testing.T) {
-	suite.Run(t, new(CCIPMCMSTestSuite))
+	// suite.Run(t, new(CCIPMCMSTestSuite))
+	suite.Run(t, new(TokenPoolTestSuite))
 }

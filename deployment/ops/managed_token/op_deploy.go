@@ -116,7 +116,7 @@ var acceptOwnershipManagedTokenHandler = func(b cld_ops.Bundle, deps sui_ops.OpT
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipManagedTokenObjects]{}, fmt.Errorf("failed to encode AcceptOwnership call: %w", err)
 	}
-	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	call, err := sui_ops.ToTransactionCallWithTypeArgs(encodedCall, input.StateObjectId, input.TypeArgs)
 	if err != nil {
 		return sui_ops.OpTxResult[AcceptOwnershipManagedTokenObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
 	}

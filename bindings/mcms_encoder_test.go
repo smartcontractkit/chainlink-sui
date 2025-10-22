@@ -107,6 +107,7 @@ func TestEncodeEntryPointArg_FeeQuoter(t *testing.T) {
 			"update_prices_with_owner_cap",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -134,6 +135,7 @@ func TestEncodeEntryPointArg_FeeQuoter(t *testing.T) {
 			"apply_fee_token_updates",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -172,6 +174,7 @@ func TestEncodeEntryPointArg_Offramp(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -214,6 +217,7 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 			"initialize",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -254,6 +258,7 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 			"withdraw_fee_tokens",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -300,6 +305,7 @@ func TestEncodeEntryPointArg_Onramp(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -337,6 +343,7 @@ func TestEncodeEntryPointArg_Router(t *testing.T) {
 			"accept_ownership",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -373,6 +380,7 @@ func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 			"accept_ownership",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -402,6 +410,7 @@ func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -435,6 +444,7 @@ func TestEncodeEntryPointArg_BurnMintTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -472,6 +482,7 @@ func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 			"accept_ownership",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -502,6 +513,7 @@ func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -535,6 +547,7 @@ func TestEncodeEntryPointArg_LockReleaseTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -572,6 +585,7 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 			"accept_ownership",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -601,6 +615,7 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -634,6 +649,7 @@ func TestEncodeEntryPointArg_ManagedTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -671,6 +687,7 @@ func TestEncodeEntryPointArg_UsdcTokenPool(t *testing.T) {
 			"accept_ownership",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -700,6 +717,7 @@ func TestEncodeEntryPointArg_UsdcTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -733,6 +751,7 @@ func TestEncodeEntryPointArg_UsdcTokenPool(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -770,6 +789,7 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 			"accept_ownership",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -796,6 +816,7 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 			"configure_new_minter",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -834,6 +855,7 @@ func TestEncodeEntryPointArg_ManagedToken(t *testing.T) {
 				fn,
 				stateObjID,
 				data,
+				[]string{"0x1::sui::SUI"},
 			)
 
 			require.NoError(t, err)
@@ -869,6 +891,7 @@ func TestEncodeEntryPointArg_UnknownModule(t *testing.T) {
 			"unknown_function",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.NoError(t, err)
@@ -899,6 +922,7 @@ func TestEncodeEntryPointArg_ErrorCases(t *testing.T) {
 			"update_prices_with_owner_cap",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.Error(t, err)
@@ -920,6 +944,7 @@ func TestEncodeEntryPointArg_ErrorCases(t *testing.T) {
 			"initialize",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.Error(t, err)
@@ -941,6 +966,7 @@ func TestEncodeEntryPointArg_ErrorCases(t *testing.T) {
 			"withdraw_fee_tokens",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.Error(t, err)
@@ -961,6 +987,7 @@ func TestEncodeEntryPointArg_ErrorCases(t *testing.T) {
 			"pause",
 			stateObjID,
 			data,
+			[]string{"0x1::sui::SUI"},
 		)
 
 		require.Error(t, err)

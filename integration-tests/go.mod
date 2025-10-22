@@ -22,6 +22,7 @@ replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlin
 replace github.com/smartcontractkit/chainlink-sui => ../
 
 replace github.com/smartcontractkit/chainlink-sui/deployment => ../deployment
+replace github.com/smartcontractkit/mcms => ../../mcms
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
