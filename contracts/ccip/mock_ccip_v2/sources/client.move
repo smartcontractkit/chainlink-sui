@@ -1,4 +1,4 @@
-module ccip::client;
+module mock_ccip_v2::client;
 
 use std::bcs;
 

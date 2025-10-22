@@ -1,4 +1,4 @@
-module ccip::allowlist;
+module mock_ccip_v2::allowlist;
 
 use sui::event;
 

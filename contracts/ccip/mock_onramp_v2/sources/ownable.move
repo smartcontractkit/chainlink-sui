@@ -1,4 +1,4 @@
-module ccip_onramp::ownable;
+module mock_ccip_v2_onramp::ownable;
 
 use mcms::mcms_registry::{Self, Registry};
 use sui::derived_object;

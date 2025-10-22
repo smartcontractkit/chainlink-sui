@@ -1,19 +1,19 @@
 [package]
-name = "ChainlinkCCIPOnramp"
+name = "MockChainlinkCCIPOnramp"
 edition = "2024"
 
 [addresses]
-ccip = "_"
-ccip_onramp = "_"
+mock_ccip_v2 = "_"
+mock_ccip_v2_onramp = "_"
 mcms = "_"
 mcms_owner = "_"
 
 [dev-addresses]
-ccip = "0x1000"
-ccip_onramp = "0x1001"
+mock_ccip_v2 = "0x1000"
+mock_ccip_v2_onramp = "0x1001"
 mcms = "0x4000"
 mcms_owner = "0x4010"
 
 [dependencies]
-ChainlinkCCIP = { local = "../ccip" }
+MockChainlinkCCIP = { local = "../mock_ccip_v2" }
 ChainlinkManyChainMultisig = { local = "../../mcms/mcms" }

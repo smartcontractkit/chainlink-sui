@@ -1,7 +1,7 @@
-module ccip::onramp_state_helper;
+module mock_ccip_v2::onramp_state_helper;
 
-use ccip::state_object::CCIPObjectRef;
-use ccip::token_admin_registry as registry;
+use mock_ccip_v2::state_object::CCIPObjectRef;
+use mock_ccip_v2::token_admin_registry as registry;
 use std::type_name;
 
 const ETypeProofMismatch: u64 = 1;

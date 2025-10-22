@@ -1,8 +1,8 @@
-module ccip::receiver_registry;
+module mock_ccip_v2::receiver_registry;
 
-use ccip::ownable::OwnerCap;
-use ccip::state_object::{Self, CCIPObjectRef};
-use ccip::upgrade_registry::verify_function_allowed;
+use mock_ccip_v2::ownable::OwnerCap;
+use mock_ccip_v2::state_object::{Self, CCIPObjectRef};
+use mock_ccip_v2::upgrade_registry::verify_function_allowed;
 use std::ascii;
 use std::string::{Self, String};
 use std::type_name;

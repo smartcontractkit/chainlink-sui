@@ -1,5 +1,5 @@
 // module to do the equivalent packing as ethereum's abi.encode and abi.encodePacked
-module ccip::eth_abi;
+module mock_ccip_v2::eth_abi;
 
 use sui::address;
 use sui::bcs;

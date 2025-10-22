@@ -1,4 +1,4 @@
-module ccip::address {
+module mock_ccip_v2::address {
 
     const EZeroAddressNotAllowed: u64 = 1;
 

@@ -1,14 +1,14 @@
-module ccip_onramp::onramp;
+module mock_ccip_v2_onramp::onramp;
 
-use ccip::eth_abi;
-use ccip::fee_quoter;
-use ccip::merkle_proof;
-use ccip::nonce_manager::{Self, NonceManagerCap};
-use ccip::onramp_state_helper::{Self as osh, TokenTransferParams};
-use ccip::rmn_remote;
-use ccip::state_object::CCIPObjectRef;
-use ccip::upgrade_registry::verify_function_allowed;
-use ccip_onramp::ownable::{Self, OwnerCap, OwnableState};
+use mock_ccip_v2::eth_abi;
+use mock_ccip_v2::fee_quoter;
+use mock_ccip_v2::merkle_proof;
+use mock_ccip_v2::nonce_manager::{Self, NonceManagerCap};
+use mock_ccip_v2::onramp_state_helper::{Self as osh, TokenTransferParams};
+use mock_ccip_v2::rmn_remote;
+use mock_ccip_v2::state_object::CCIPObjectRef;
+use mock_ccip_v2::upgrade_registry::verify_function_allowed;
+use mock_ccip_v2_onramp::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_deployer::{Self, DeployerState};
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
@@ -283,8 +283,8 @@ fun set_dynamic_config_internal(
     fee_aggregator: address,
     allowlist_admin: address,
 ) {
-    ccip::address::assert_non_zero_address(fee_aggregator);
-    ccip::address::assert_non_zero_address(allowlist_admin);
+    mock_ccip_v2::address::assert_non_zero_address(fee_aggregator);
+    mock_ccip_v2::address::assert_non_zero_address(allowlist_admin);
 
     state.fee_aggregator = fee_aggregator;
     state.allowlist_admin = allowlist_admin;
@@ -979,7 +979,7 @@ fun construct_message(
 }
 
 public fun get_ccip_package_id(): address {
-    @ccip
+    @mock_ccip_v2
 }
 
 // ================================================================

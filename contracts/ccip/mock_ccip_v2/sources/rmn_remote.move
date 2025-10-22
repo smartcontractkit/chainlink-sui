@@ -1,9 +1,9 @@
-module ccip::rmn_remote;
+module mock_ccip_v2::rmn_remote;
 
-use ccip::eth_abi;
-use ccip::ownable::OwnerCap;
-use ccip::state_object::{Self, CCIPObjectRef};
-use ccip::upgrade_registry::verify_function_allowed;
+use mock_ccip_v2::eth_abi;
+use mock_ccip_v2::ownable::OwnerCap;
+use mock_ccip_v2::state_object::{Self, CCIPObjectRef};
+use mock_ccip_v2::upgrade_registry::verify_function_allowed;
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::bcs;

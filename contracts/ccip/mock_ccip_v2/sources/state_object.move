@@ -1,6 +1,6 @@
-module ccip::state_object;
+module mock_ccip_v2::state_object;
 
-use ccip::ownable::{Self, OwnerCap, OwnableState};
+use mock_ccip_v2::ownable::{Self, OwnerCap, OwnableState};
 use mcms::bcs_stream;
 use mcms::mcms_registry::{Self, Registry, ExecutingCallbackParams};
 use std::ascii;

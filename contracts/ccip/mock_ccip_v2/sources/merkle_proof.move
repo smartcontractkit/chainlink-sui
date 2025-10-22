@@ -1,4 +1,4 @@
-module ccip::merkle_proof;
+module mock_ccip_v2::merkle_proof;
 
 use sui::hash;
 

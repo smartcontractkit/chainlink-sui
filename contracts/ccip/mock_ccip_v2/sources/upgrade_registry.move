@@ -1,7 +1,7 @@
-module ccip::upgrade_registry;
+module mock_ccip_v2::upgrade_registry;
 
-use ccip::ownable::OwnerCap;
-use ccip::state_object::{Self, CCIPObjectRef};
+use mock_ccip_v2::ownable::OwnerCap;
+use mock_ccip_v2::state_object::{Self, CCIPObjectRef};
 use std::string::String;
 use sui::event;
 use sui::table::{Self, Table};

@@ -54,8 +54,18 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 	}
 
 	// Special-case: update published-at of CCIP if this is the onramp package
-	if packageName == contracts.CCIPOnramp || packageName == contracts.CCIPOnrampMockV2 {
+	if packageName == contracts.CCIPOnramp {
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
+		}
+
+		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
+			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
+		}
+	}
+
+	if packageName == contracts.CCIPOnrampMockV2 {
+		if err = updatePublishedAt(dstRoot, contracts.CCIPMockV2, namedAddresses["mock_ccip_v2"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
 

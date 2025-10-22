@@ -1,10 +1,10 @@
-module ccip::offramp_state_helper;
+module mock_ccip_v2::offramp_state_helper;
 
-use ccip::client::{Self, Any2SuiMessage, Any2SuiTokenAmount};
-use ccip::ownable::OwnerCap;
-use ccip::receiver_registry;
-use ccip::state_object::{Self, CCIPObjectRef};
-use ccip::token_admin_registry as registry;
+use mock_ccip_v2::client::{Self, Any2SuiMessage, Any2SuiTokenAmount};
+use mock_ccip_v2::ownable::OwnerCap;
+use mock_ccip_v2::receiver_registry;
+use mock_ccip_v2::state_object::{Self, CCIPObjectRef};
+use mock_ccip_v2::token_admin_registry as registry;
 use std::ascii;
 use std::type_name;
 use sui::address;
@@ -235,7 +235,7 @@ public fun consume_any2sui_message<TypeProof: drop>(
     client::consume_any2sui_message(message)
 }
 
-/// this function is called by ccip offramp directly, permissioned by the dest transfer cap.
+/// this function is called by mock_ccip_v2 offramp directly, permissioned by the dest transfer cap.
 /// it compares token transfers vectors from both hot potatoes and ensures that the message
 /// in receiver params is empty.
 public fun deconstruct_receiver_params(_: &DestTransferCap, receiver_params: ReceiverParams) {

@@ -1,4 +1,4 @@
-module ccip::ownable;
+module mock_ccip_v2::ownable;
 
 use mcms::mcms_registry::{Self, Registry};
 use sui::derived_object;

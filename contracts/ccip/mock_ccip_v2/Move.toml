@@ -1,14 +1,14 @@
 [package]
-name = "ChainlinkCCIP"
+name = "MockChainlinkCCIP"
 edition = "2024"
 
 [addresses]
-ccip = "_"
+mock_ccip_v2 = "_"
 mcms = "_"
 mcms_owner = "_"
 
 [dev-addresses]
-ccip = "0x1000"
+mock_ccip_v2 = "0x1000"
 mcms = "0x4000"
 mcms_owner = "0x4010"
 
