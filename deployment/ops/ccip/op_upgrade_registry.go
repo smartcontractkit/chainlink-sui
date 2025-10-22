@@ -118,6 +118,59 @@ var BlockVersionOp = cld_ops.NewOperation(
 	blockVersionHandler,
 )
 
+// =================== Unblock Version Operations =================== //
+
+type UnblockVersionInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+	ModuleName       string
+	Version          uint8
+}
+
+type UnblockVersionObjects struct {
+	// No specific objects are returned from unblock operations
+}
+
+var unblockVersionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UnblockVersionInput) (output sui_ops.OpTxResult[UnblockVersionObjects], err error) {
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.UnblockVersion(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.ModuleName,
+		input.Version,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockVersionObjects]{}, fmt.Errorf("failed to execute UnblockVersion: %w", err)
+	}
+
+	b.Logger.Infow("Version unblocked",
+		"moduleName", input.ModuleName,
+		"version", input.Version,
+	)
+
+	return sui_ops.OpTxResult[UnblockVersionObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   UnblockVersionObjects{},
+	}, nil
+}
+
+var UnblockVersionOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "unblock_version"),
+	semver.MustParse("0.1.0"),
+	"Unblocks an entire version of a module in the UpgradeRegistry",
+	unblockVersionHandler,
+)
+
 // =================== Function Blocking Operations =================== //
 
 type BlockFunctionInput struct {
@@ -172,6 +225,62 @@ var BlockFunctionOp = cld_ops.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Blocks a specific function in a specific version in the UpgradeRegistry",
 	blockFunctionHandler,
+)
+
+// =================== Unblock Function Operations =================== //
+
+type UnblockFunctionInput struct {
+	CCIPPackageId    string
+	StateObjectId    string
+	OwnerCapObjectId string
+	ModuleName       string
+	FunctionName     string
+	Version          uint8
+}
+
+type UnblockFunctionObjects struct {
+	// No specific objects are returned from unblock operations
+}
+
+var unblockFunctionHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input UnblockFunctionInput) (output sui_ops.OpTxResult[UnblockFunctionObjects], err error) {
+	contract, err := module_upgrade_registry.NewUpgradeRegistry(input.CCIPPackageId, deps.Client)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to create UpgradeRegistry contract: %w", err)
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.UnblockFunction(
+		b.GetContext(),
+		opts,
+		bind.Object{Id: input.StateObjectId},
+		bind.Object{Id: input.OwnerCapObjectId},
+		input.ModuleName,
+		input.FunctionName,
+		input.Version,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[UnblockFunctionObjects]{}, fmt.Errorf("failed to execute UnblockFunction: %w", err)
+	}
+
+	b.Logger.Infow("Function unblocked",
+		"moduleName", input.ModuleName,
+		"functionName", input.FunctionName,
+		"version", input.Version,
+	)
+
+	return sui_ops.OpTxResult[UnblockFunctionObjects]{
+		Digest:    tx.Digest,
+		PackageId: input.CCIPPackageId,
+		Objects:   UnblockFunctionObjects{},
+	}, nil
+}
+
+var UnblockFunctionOp = cld_ops.NewOperation(
+	sui_ops.NewSuiOperationName("ccip", "upgrade_registry", "unblock_function"),
+	semver.MustParse("0.1.0"),
+	"Unblocks a specific function in a specific version in the UpgradeRegistry",
+	unblockFunctionHandler,
 )
 
 // =================== Module Restrictions Operations =================== //
