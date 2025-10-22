@@ -120,7 +120,7 @@ func NewPTBClient(
 		maxRetries:         maxRetries,
 		transactionTimeout: transactionTimeout,
 		keystoreService:    keystoreService,
-		rateLimiter:        semaphore.NewWeighted(maxConcurrentRequests),
+		rateLimiter:        semaphore.NewWeighted(1000),
 		defaultRequestType: defaultRequestType,
 		normalizedModules:  make(map[string]map[string]models.GetNormalizedMoveModuleResponse),
 		cache:              cache.New(DefaultCacheExpiration, DefaultCacheCleanupInterval),
