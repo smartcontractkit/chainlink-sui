@@ -155,6 +155,20 @@ func (s *MCMSTestSuite) SetupSuite() {
 
 	s.deps = deps
 	s.bundle = bundle
+
+	// Accept MCMS ownership to itself
+	acceptProposal := mcmsDeploymentReport.Output.AcceptOwnershipProposal
+	// Execute the proposal to accept ownership
+	s.ExecuteProposalE2e(&acceptProposal, s.proposerConfig, 0)
+
+	rep, err := cld_ops.ExecuteOperation(s.bundle, mcmsops.MCMSExecuteTransferOwnershipOp, s.deps, mcmsops.MCMSExecuteTransferOwnershipInput{
+		McmsPackageID:    s.mcmsPackageID,
+		OwnerCap:         s.ownerCapObj,
+		AccountObjectID:  s.accountObj,
+		RegistryObjectID: s.registryObj,
+	})
+	s.Require().NoError(err, "executing ownership transfer to self")
+	s.T().Logf("✅ Transferred ownership of MCMS to itself in tx: %s", rep.Output.Digest)
 }
 
 func (s *MCMSTestSuite) SignProposal(proposal *mcms.Proposal, roleConfig *RoleConfig) {

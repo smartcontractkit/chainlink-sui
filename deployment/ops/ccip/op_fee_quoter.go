@@ -100,24 +100,48 @@ var applyUpdatesHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input Fe
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.ApplyFeeTokenUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().ApplyFeeTokenUpdates(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.FeeTokensToRemove,
 		input.FeeTokensToAdd,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_fee_token_updates: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyFeeTokenUpdates call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyFeeTokenUpdates on FeeQuoter as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyFeeTokenUpdates on FeeQuoter: %w", err)
+	}
+
+	b.Logger.Infow("Fee token updates applied to CCIP FeeQuoter")
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-	}, err
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
 }
 
 var FeeQuoterApplyFeeTokenUpdatesOp = cld_ops.NewOperation(
@@ -149,11 +173,7 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.ApplyTokenTransferFeeConfigUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().ApplyTokenTransferFeeConfigUpdates(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -167,13 +187,41 @@ var applyTokenTransferFeeHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps,
 		input.RemoveTokens,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_token_transfer_fee_config_updates: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyTokenTransferFeeConfigUpdates call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyTokenTransferFeeConfigUpdates on FeeQuoter as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyTokenTransferFeeConfigUpdates on FeeQuoter: %w", err)
+	}
+
+	b.Logger.Infow("Token transfer fee config updates applied to CCIP FeeQuoter")
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-	}, err
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
 }
 
 var FeeQuoterApplyTokenTransferFeeConfigUpdatesOp = cld_ops.NewOperation(
@@ -216,11 +264,7 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.ApplyDestChainConfigUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().ApplyDestChainConfigUpdates(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.DestChainSelector,
@@ -245,13 +289,41 @@ var applyDestChainConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, 
 		input.NetworkFeeUsdCents,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_dest_chain_config_updates: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyDestChainConfigUpdates call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyDestChainConfigUpdates on FeeQuoter as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyDestChainConfigUpdates on FeeQuoter: %w", err)
+	}
+
+	b.Logger.Infow("Destination chain config updates applied to CCIP FeeQuoter")
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-	}, err
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
 }
 
 var FeeQuoterApplyDestChainConfigUpdatesOp = cld_ops.NewOperation(
@@ -276,24 +348,48 @@ var applyPremiumMultiplierHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps
 		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to create fee quoter contract: %w", err)
 	}
 
-	opts := deps.GetCallOpts()
-	opts.Signer = deps.Signer
-	tx, err := contract.ApplyPremiumMultiplierWeiPerEthUpdates(
-		b.GetContext(),
-		opts,
+	encodedCall, err := contract.Encoder().ApplyPremiumMultiplierWeiPerEthUpdates(
 		bind.Object{Id: input.StateObjectId},
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.Tokens,
 		input.PremiumMultiplierWeiPerEth,
 	)
 	if err != nil {
-		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute fee quoter apply_premium_multiplier_wei_per_eth_updates: %w", err)
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to encode ApplyPremiumMultiplierWeiPerEthUpdates call: %w", err)
 	}
+	call, err := sui_ops.ToTransactionCall(encodedCall, input.StateObjectId)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to convert encoded call to TransactionCall: %w", err)
+	}
+	if deps.Signer == nil {
+		b.Logger.Infow("Skipping execution of ApplyPremiumMultiplierWeiPerEthUpdates on FeeQuoter as per no Signer provided")
+		return sui_ops.OpTxResult[NoObjects]{
+			Digest:    "",
+			PackageId: input.CCIPPackageId,
+			Objects:   NoObjects{},
+			Call:      call,
+		}, nil
+	}
+
+	opts := deps.GetCallOpts()
+	opts.Signer = deps.Signer
+	tx, err := contract.Bound().ExecuteTransaction(
+		b.GetContext(),
+		opts,
+		encodedCall,
+	)
+	if err != nil {
+		return sui_ops.OpTxResult[NoObjects]{}, fmt.Errorf("failed to execute ApplyPremiumMultiplierWeiPerEthUpdates on FeeQuoter: %w", err)
+	}
+
+	b.Logger.Infow("Premium multiplier wei per eth updates applied to CCIP FeeQuoter")
 
 	return sui_ops.OpTxResult[NoObjects]{
 		Digest:    tx.Digest,
 		PackageId: input.CCIPPackageId,
-	}, err
+		Objects:   NoObjects{},
+		Call:      call,
+	}, nil
 }
 
 var FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp = cld_ops.NewOperation(
@@ -487,15 +583,3 @@ var FeeQuoterUpdatePricesWithOwnerCapOp = cld_ops.NewOperation(
 	"Update prices using owner cap in CCIP Fee Quoter contract",
 	updatePricesWithOwnerCapHandler,
 )
-
-var AllOperationsFeeQuoter = []cld_ops.Operation[any, any, any]{
-	*FeeQuoterInitializeOp.AsUntyped(),
-	*FeeQuoterApplyFeeTokenUpdatesOp.AsUntyped(),
-	*FeeQuoterApplyTokenTransferFeeConfigUpdatesOp.AsUntyped(),
-	*FeeQuoterApplyDestChainConfigUpdatesOp.AsUntyped(),
-	*FeeQuoterApplyPremiumMultiplierWeiPerEthUpdatesOp.AsUntyped(),
-	*FeeQuoterUpdateTokenPricesOp.AsUntyped(),
-	*FeeQuoterNewFeeQuoterCapOp.AsUntyped(),
-	*FeeQuoterDestroyFeeQuoterCapOp.AsUntyped(),
-	*FeeQuoterUpdatePricesWithOwnerCapOp.AsUntyped(),
-}

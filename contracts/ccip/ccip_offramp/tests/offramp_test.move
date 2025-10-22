@@ -668,6 +668,30 @@ public fun test_apply_source_chain_config_zero_onramp() {
     ts::return_to_address(OWNER, owner_cap);
 }
 
+#[test]
+#[expected_failure(abort_code = offramp::EInvalidReportContextLength)]
+public fun test_commit_invalid_report_context_length() {
+    let (mut env, owner_cap, fee_quoter_cap, dest_transfer_cap) = setup();
+    initialize_offramp(&mut env, &owner_cap, fee_quoter_cap, dest_transfer_cap);
+
+    let TestEnv { mut scenario, mut state, mut ref, clock } = env;
+
+    // Call commit with invalid report_context length (should be 2, using 1)
+    offramp::commit(
+        &mut ref,
+        &mut state,
+        &clock,
+        vector[b"invalid"], // length 1 instead of required 2
+        vector[],
+        vector[],
+        scenario.ctx(),
+    );
+
+    let env = TestEnv { scenario, state, ref, clock };
+    tear_down(env);
+    ts::return_to_address(OWNER, owner_cap);
+}
+
 #[test_only]
 public struct TestObj has key {
     id: UID,
