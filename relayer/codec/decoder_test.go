@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
 	"reflect"
@@ -360,8 +361,38 @@ func TestDecodeSuiJsonValue_StructTypes(t *testing.T) {
 	err = DecodeSuiJsonValue(nestedData, &nestedTarget)
 	require.NoError(t, err)
 
+	fmt.Println("nestedTarget value", nestedTarget)
+
 	require.Equal(t, uint64(123), nestedTarget.Outer.ID)
 	require.Equal(t, uint32(42), nestedTarget.Inner.Count)
+}
+
+type OffRampExecutionStateChanged struct {
+	SourceChainSelector uint64 `json:"sourceChainSelector"`
+	SequenceNumber      uint64 `json:"sequenceNumber"`
+	MessageId           string `json:"messageId"`
+	MessageHash         string `json:"messageHash"`
+	State               uint8  `json:"state"`
+}
+
+func TestDecodeSuiJsonValue_JSONToConcreteTypeWithConversion(t *testing.T) {
+	t.Parallel()
+
+	var target OffRampExecutionStateChanged
+	data := map[string]any{
+		"messageHash":         []any{215, 69, 180, 120, 33, 15, 185, 125, 146, 191, 158, 230, 234, 71, 83, 167, 220, 109, 221, 71, 40, 78, 0, 131, 153, 145, 135, 109, 177, 230, 82, 44},
+		"messageId":           []any{118, 34, 229, 246, 4, 217, 15, 72, 26, 36, 56, 60, 216, 147, 91, 189, 79, 23, 199, 27, 235, 197, 139, 23, 237, 79, 36, 36, 7, 100, 220, 143},
+		"sequenceNumber":      "1",
+		"sourceChainSelector": "16015286601757825753",
+		"state":               uint8(2),
+	}
+
+	err := DecodeSuiJsonValue(data, &target)
+	require.NoError(t, err)
+
+	fmt.Println("target value", target)
+
+	// fmt.Println("target value", target.sourceChainSelector, target.sequenceNumber, target.messageId, target.messageHash, target.state)
 }
 
 func TestHexStringHook(t *testing.T) {
