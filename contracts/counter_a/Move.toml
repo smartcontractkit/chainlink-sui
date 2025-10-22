@@ -1,6 +1,7 @@
 [package]
 name = "counterA"
 edition = "2024" 
+published-at="0x4f9a563b120c09717b76662b4256b10f470abdaf8dc10f0239e6ab5d744ce45e"
 
 [dependencies]
   [dependencies.Sui]
