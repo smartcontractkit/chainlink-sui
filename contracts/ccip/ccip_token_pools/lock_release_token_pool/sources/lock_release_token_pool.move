@@ -37,6 +37,7 @@ const ETokenPoolBalanceTooLow: u64 = 2;
 const EInvalidOwnerCap: u64 = 3;
 const EInvalidFunction: u64 = 4;
 const EInvalidRebalancerCap: u64 = 5;
+const EPoolStillRegistered: u64 = 6;
 
 // ================================================================
 // |                             Init                             |
@@ -1056,6 +1057,7 @@ public fun mcms_remove_allowed_modules<T>(
 /// destroy the lock release token pool state and the owner cap, return the remaining balance to the owner
 /// this should only be called after unregistering the pool from the token admin registry
 public fun destroy_token_pool<T>(
+    ref: &mut CCIPObjectRef,
     state: LockReleaseTokenPoolState<T>,
     owner_cap: OwnerCap,
     ctx: &mut TxContext,
@@ -1063,6 +1065,10 @@ public fun destroy_token_pool<T>(
     assert!(
         object::id(&owner_cap) == ownable::owner_cap_id(&state.ownable_state),
         EInvalidOwnerCap,
+    );
+    assert!(
+        !token_admin_registry::is_pool_registered(ref, get_token(&state)),
+        EPoolStillRegistered,
     );
 
     let LockReleaseTokenPoolState<T> {

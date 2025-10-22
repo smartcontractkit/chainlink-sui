@@ -586,6 +586,17 @@ fun accept_admin_role_internal(
     });
 }
 
+public fun is_pool_registered(ref: &CCIPObjectRef, coin_metadata_address: address): bool {
+    verify_function_allowed(
+        ref,
+        string::utf8(b"token_admin_registry"),
+        string::utf8(b"is_pool_registered"),
+        VERSION,
+    );
+    let state = state_object::borrow<TokenAdminRegistryState>(ref);
+    state.token_configs.contains(coin_metadata_address)
+}
+
 public fun is_administrator(
     ref: &CCIPObjectRef,
     coin_metadata_address: address,
