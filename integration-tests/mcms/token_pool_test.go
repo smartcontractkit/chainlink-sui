@@ -20,11 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var dummyChainSelector uint64 = 100
-
 type TokenPoolTestSuite struct {
-	// TODO: it shouldn't rely another specific suite
-	CCIPMCMSTestSuite
+	MCMSTestSuite
 
 	// managed token
 	managedTokenLinkPackageId string
@@ -48,17 +45,18 @@ type TokenPoolTestSuite struct {
 }
 
 func (s *TokenPoolTestSuite) SetupSuite() {
-	s.CCIPMCMSTestSuite.SetupSuite()
+	s.MCMSTestSuite.SetupSuite()
 
 	// Deploy another link token to wrap into managed token
 	// Deploy LINK
+
+	// build another reporter, common reporter is getting the report from the prev deployment...
 	reporter := cld_ops.NewMemoryReporter()
 	bundle := cld_ops.NewBundle(
 		s.T().Context,
 		logger.Test(s.T()),
 		reporter,
 	)
-	// is getting the report from the prev deployment... Ops shouldn't do that...
 	linkManagedTokenReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
 	require.NoError(s.T(), err, "failed to deploy LINK token")
 	s.managedTokenLinkPackageId = linkManagedTokenReport.Output.PackageId
@@ -88,7 +86,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 		logger.Test(s.T()),
 		reporter,
 	)
-	// is getting the report from the prev deployment... Ops shouldn't do that...
+
 	linkReport, err := cld_ops.ExecuteOperation(bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
 	require.NoError(s.T(), err, "failed to deploy LINK token")
 	s.lnrTokenPackageId = linkReport.Output.PackageId
@@ -114,7 +112,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 			Rebalancer:             "0x5555666677778888999900001111222233334444",
 			// apply chain updates
 			RemoteChainSelectorsToRemove: []uint64{}, // Empty - no chains to remove from new token pool
-			RemoteChainSelectorsToAdd:    []uint64{dummyChainSelector, 5, 6},
+			RemoteChainSelectorsToAdd:    []uint64{4, 5, 6},
 			RemotePoolAddressesToAdd:     [][]string{{"0x1111111111111111111111111111111111111111"}, {"0x2222222222222222222222222222222222222222"}, {"0x3333333333333333333333333333333333333333"}}, // Must match number of chains
 			RemoteTokenAddressesToAdd:    []string{"0x4444444444444444444444444444444444444444", "0x5555555555555555555555555555555555555555", "0x6666666666666666666666666666666666666666"},         // Must match number of chains
 			// set chain rate limiter configs
@@ -140,7 +138,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 
 			// apply chain updates
 			RemoteChainSelectorsToRemove: []uint64{}, // Empty - no chains to remove from new token pool
-			RemoteChainSelectorsToAdd:    []uint64{dummyChainSelector, 5, 6},
+			RemoteChainSelectorsToAdd:    []uint64{4, 5, 6},
 			RemotePoolAddressesToAdd:     [][]string{{"0x1111111111111111111111111111111111111111"}, {"0x2222222222222222222222222222222222222222"}, {"0x3333333333333333333333333333333333333333"}}, // Must match number of chains
 			RemoteTokenAddressesToAdd:    []string{"0x4444444444444444444444444444444444444444", "0x5555555555555555555555555555555555555555", "0x6666666666666666666666666666666666666666"},         // Must match number of chains
 			// set chain rate limiter configs
@@ -168,7 +166,7 @@ func (s *TokenPoolTestSuite) SetupSuite() {
 			TokenPoolAdministrator:    s.mcmsPackageID,
 			// apply chain updates
 			RemoteChainSelectorsToRemove: []uint64{}, // Empty - no chains to remove from new token pool
-			RemoteChainSelectorsToAdd:    []uint64{dummyChainSelector, 5, 6},
+			RemoteChainSelectorsToAdd:    []uint64{4, 5, 6},
 			RemotePoolAddressesToAdd:     [][]string{{"0x1111111111111111111111111111111111111111"}, {"0x2222222222222222222222222222222222222222"}, {"0x3333333333333333333333333333333333333333"}}, // Must match number of chains
 			RemoteTokenAddressesToAdd:    []string{"0x4444444444444444444444444444444444444444", "0x5555555555555555555555555555555555555555", "0x6666666666666666666666666666666666666666"},         // Must match number of chains
 			// set chain rate limiter configs

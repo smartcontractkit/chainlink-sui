@@ -3,11 +3,8 @@
 package mcms
 
 import (
-	"encoding/hex"
 	"testing"
 
-	cselectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	suisdk "github.com/smartcontractkit/mcms/sdk/sui"
 	"github.com/stretchr/testify/require"
@@ -18,182 +15,17 @@ import (
 	module_offramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_offramp/offramp"
 	module_onramp "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_onramp/onramp"
 	module_router "github.com/smartcontractkit/chainlink-sui/bindings/generated/ccip/ccip_router"
-	"github.com/smartcontractkit/chainlink-sui/deployment"
 	ccipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip"
-	offrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_offramp"
-	onrampops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_onramp"
-	routerops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ccip_router"
-	linkops "github.com/smartcontractkit/chainlink-sui/deployment/ops/link"
 	mcmsops "github.com/smartcontractkit/chainlink-sui/deployment/ops/mcms"
 	ownershipops "github.com/smartcontractkit/chainlink-sui/deployment/ops/ownership"
 )
 
 type CCIPMCMSTestSuite struct {
 	MCMSTestSuite
-
-	// LINK
-	linkPackageId string
-	linkObjects   linkops.DeployLinkObjects
-
-	// CCIP
-	ccipPackageId string
-	ccipObjects   ccipops.DeployCCIPSeqObjects
-	linkObjects   linkops.DeployLinkObjects
-
-	// Router
-	ccipRouterPackageId string
-	ccipRouterObjects   routerops.DeployCCIPRouterObjects
-
-	// Onramp
-	ccipOnrampPackageId string
-	ccipOnrampObjects   onrampops.DeployCCIPOnRampSeqObjects
-
-	// offramp
-	ccipOfframpPackageId string
-	ccipOfframpObjects   offrampops.DeployCCIPOffRampSeqObjects
 }
 
 func (s *CCIPMCMSTestSuite) SetupSuite() {
 	s.MCMSTestSuite.SetupSuite()
-
-	// Deploy LINK
-	linkReport, err := cld_ops.ExecuteOperation(s.bundle, linkops.DeployLINKOp, s.deps, cld_ops.EmptyInput{})
-	require.NoError(s.T(), err, "failed to deploy LINK token")
-	s.linkPackageId = linkReport.Output.PackageId
-	s.linkObjects = linkReport.Output.Objects
-
-	configDigestHex := "e3b1c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-	configDigest, err := hex.DecodeString(configDigestHex)
-	require.NoError(s.T(), err, "failed to decode config digest")
-
-	publicKey1Hex := "8a1b2c3d4e5f60718293a4b5c6d7e8f901234567"
-	publicKey1, err := hex.DecodeString(publicKey1Hex)
-	require.NoError(s.T(), err, "failed to decode public key 1")
-
-	publicKey2Hex := "7b8c9dab0c1d2e3f405162738495a6b7c8d9e0f1"
-	publicKey2, err := hex.DecodeString(publicKey2Hex)
-	require.NoError(s.T(), err, "failed to decode public key 2")
-
-	publicKey3Hex := "1234567890abcdef1234567890abcdef12345678"
-	publicKey3, err := hex.DecodeString(publicKey3Hex)
-	require.NoError(s.T(), err, "failed to decode public key 3")
-
-	publicKey4Hex := "90abcdef1234567890abcdef1234567890abcdef"
-	publicKey4, err := hex.DecodeString(publicKey4Hex)
-	require.NoError(s.T(), err, "failed to decode public key 4")
-
-	// Use the same seq as in production deployment
-	ccipReport, err := cld_ops.ExecuteSequence(s.bundle, ccipops.DeployAndInitCCIPSequence, s.deps, ccipops.DeployAndInitCCIPSeqInput{
-		LinkTokenCoinMetadataObjectId: linkReport.Output.Objects.CoinMetadataObjectId,
-		LocalChainSelector:            1,
-		DestChainSelector:             2,
-		DeployCCIPInput: ccipops.DeployCCIPInput{
-			McmsPackageId: s.mcmsPackageID,
-			McmsOwner:     s.mcmsOwnerAddress,
-		},
-		MaxFeeJuelsPerMsg:            "100000000",
-		TokenPriceStalenessThreshold: 60,
-		// Fee Quoter configuration
-		AddMinFeeUsdCents:    []uint32{3000},
-		AddMaxFeeUsdCents:    []uint32{30000},
-		AddDeciBps:           []uint16{1000},
-		AddDestGasOverhead:   []uint32{1000000},
-		AddDestBytesOverhead: []uint32{1000},
-		AddIsEnabled:         []bool{true},
-		RemoveTokens:         []string{},
-		// Fee Quoter destination chain configuration
-		IsEnabled:                         true,
-		MaxNumberOfTokensPerMsg:           2,
-		MaxDataBytes:                      2000,
-		MaxPerMsgGasLimit:                 5000000,
-		DestGasOverhead:                   1000000,
-		DestGasPerPayloadByteBase:         byte(2),
-		DestGasPerPayloadByteHigh:         byte(5),
-		DestGasPerPayloadByteThreshold:    uint16(10),
-		DestDataAvailabilityOverheadGas:   300000,
-		DestGasPerDataAvailabilityByte:    4,
-		DestDataAvailabilityMultiplierBps: 1,
-		ChainFamilySelector:               []byte{0x28, 0x12, 0xd5, 0x2c},
-		EnforceOutOfOrder:                 false,
-		DefaultTokenFeeUsdCents:           3,
-		DefaultTokenDestGasOverhead:       100000,
-		DefaultTxGasLimit:                 500000,
-		GasMultiplierWeiPerEth:            100,
-		GasPriceStalenessThreshold:        1000000000,
-		NetworkFeeUsdCents:                10,
-		// Premium multiplier updates
-		PremiumMultiplierWeiPerEth: []uint64{10},
-
-		RmnHomeContractConfigDigest: configDigest,
-		SignerOnchainPublicKeys:     [][]byte{publicKey1, publicKey2, publicKey3, publicKey4},
-		NodeIndexes:                 []uint64{0, 1, 2, 3},
-		FSign:                       uint64(1),
-	})
-	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
-	require.NotEmpty(s.T(), ccipReport.Output.CCIPPackageId, "CCIP package ID should not be empty")
-
-	s.linkObjects = linkReport.Output.Objects
-	s.ccipPackageId = ccipReport.Output.CCIPPackageId
-	s.ccipObjects = ccipReport.Output.Objects
-
-	// Deploy Router
-	routerReport, err := cld_ops.ExecuteOperation(s.bundle, routerops.DeployCCIPRouterOp, s.deps, routerops.DeployCCIPRouterInput{
-		McmsPackageId: s.mcmsPackageID,
-		McmsOwner:     s.mcmsOwnerAddress,
-	})
-	require.NoError(s.T(), err, "failed to execute CCIP deploy sequence")
-
-	s.ccipRouterPackageId = routerReport.Output.PackageId
-	s.ccipRouterObjects = routerReport.Output.Objects
-
-	// Deploy Onramp
-	ccipOnRampSeqInput := deployment.DefaultOnRampSeqConfig
-	ccipOnRampSeqInput.DeployCCIPOnRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
-	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSPackageId = s.mcmsPackageID
-	ccipOnRampSeqInput.DeployCCIPOnRampInput.MCMSOwnerPackageId = s.mcmsOwnerAddress
-	ccipOnRampSeqInput.OnRampInitializeInput.NonceManagerCapId = ccipReport.Output.Objects.NonceManagerCapObjectId
-	ccipOnRampSeqInput.OnRampInitializeInput.SourceTransferCapId = ccipReport.Output.Objects.SourceTransferCapObjectId
-	ccipOnRampSeqInput.OnRampInitializeInput.ChainSelector = uint64(s.chainSelector)
-	ccipOnRampSeqInput.OnRampInitializeInput.FeeAggregator = s.mcmsOwnerAddress
-	ccipOnRampSeqInput.OnRampInitializeInput.AllowListAdmin = s.mcmsOwnerAddress
-	ccipOnRampSeqInput.OnRampInitializeInput.DestChainSelectors = []uint64{cselectors.ETHEREUM_MAINNET.Selector}
-	ccipOnRampSeqInput.OnRampInitializeInput.DestChainRouters = []string{routerReport.Output.PackageId}
-	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.DestChainSelector = []uint64{cselectors.ETHEREUM_MAINNET.Selector}
-	ccipOnRampSeqInput.ApplyAllowListUpdatesInput.DestChainSelector = []uint64{cselectors.ETHEREUM_MAINNET.Selector}
-	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.DestChainRouters = []string{routerReport.Output.PackageId}
-	ccipOnRampSeqInput.ApplyDestChainConfigureOnRampInput.CCIPObjectRefId = ccipReport.Output.Objects.CCIPObjectRefObjectId
-
-	ccipOnRampSeqReport, err := operations.ExecuteSequence(s.bundle, onrampops.DeployAndInitCCIPOnRampSequence, s.deps, ccipOnRampSeqInput)
-	require.NoError(s.T(), err, "failed to execute CCIP OnRamp deploy sequence")
-
-	s.ccipOnrampPackageId = ccipOnRampSeqReport.Output.CCIPOnRampPackageId
-	s.ccipOnrampObjects = ccipOnRampSeqReport.Output.Objects
-
-	// Deploy offramp
-	ccipOffRampSeqInput := deployment.DefaultOffRampSeqConfig
-	// note: this is a regression, can't acess other chains state very cleanly
-	onRampBytes := [][]byte{
-		{0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
-	}
-
-	// Inject dynamic values for deployment
-	ccipOffRampSeqInput.CCIPObjectRefId = ccipReport.Output.Objects.CCIPObjectRefObjectId
-	ccipOffRampSeqInput.DeployCCIPOffRampInput.CCIPPackageId = ccipReport.Output.CCIPPackageId
-	ccipOffRampSeqInput.DeployCCIPOffRampInput.MCMSPackageId = s.mcmsPackageID
-
-	ccipOffRampSeqInput.InitializeOffRampInput.DestTransferCapId = ccipReport.Output.Objects.DestTransferCapObjectId
-	ccipOffRampSeqInput.InitializeOffRampInput.FeeQuoterCapId = ccipReport.Output.Objects.FeeQuoterCapObjectId
-	ccipOffRampSeqInput.InitializeOffRampInput.ChainSelector = uint64(s.chainSelector)
-	ccipOffRampSeqInput.InitializeOffRampInput.SourceChainSelectors = []uint64{
-		cselectors.ETHEREUM_MAINNET.Selector,
-	}
-	ccipOffRampSeqInput.InitializeOffRampInput.SourceChainsOnRamp = onRampBytes
-
-	ccipOffRampSeqReport, err := operations.ExecuteSequence(s.bundle, offrampops.DeployAndInitCCIPOffRampSequence, s.deps, ccipOffRampSeqInput)
-	require.NoError(s.T(), err, "failed to execute CCIP OffRamp deploy sequence")
-
-	s.ccipOfframpPackageId = ccipOffRampSeqReport.Output.CCIPOffRampPackageId
-	s.ccipOfframpObjects = ccipOffRampSeqReport.Output.Objects
 }
 
 func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
