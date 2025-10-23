@@ -333,6 +333,9 @@ func TestDeserializer(t *testing.T) {
 }
 
 func TestDeserializer_ShouldFail(t *testing.T) {
+	// TODO: this test will fail when https://github.com/block-vision/sui-go-sdk/pull/78
+	// is released and will have to be removed
+
 	// mystenbcs encoder has an issue where fixed-size byte arrays ([n]byte) are treated as regular slices.
 	// so encoding a u128 via their encoder will result in failure to decode it back.
 	// We're using this behavior to test our DeserializeBCS error handling.
