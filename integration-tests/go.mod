@@ -3,7 +3,7 @@ module github.com/smartcontractkit/chainlink-sui/integration-tests
 go 1.24.7
 
 require (
-	github.com/block-vision/sui-go-sdk v1.1.2
+	github.com/block-vision/sui-go-sdk v1.1.3-0.20251020021739-62582bed7399
 	github.com/ethereum/go-ethereum v1.16.2
 	github.com/holiman/uint256 v1.3.2
 	github.com/smartcontractkit/chain-selectors v1.0.71
