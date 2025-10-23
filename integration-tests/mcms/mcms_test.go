@@ -35,7 +35,7 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 
 	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
 		RunTestCCIPFeeQuoterProposal(s)
-		// RunCCIPOffRampProposal(s)
+		RunCCIPOffRampProposal(s)
 	})
 }
 
@@ -318,4 +318,97 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 	actualPremiumMultiplier, err := fqContract.DevInspect().GetPremiumMultiplierWeiPerEth(s.T().Context(), s.deps.GetCallOpts(), ccipObjRef, linkTokenID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), expectedPremiumMultiplier, actualPremiumMultiplier)
+}
+
+func RunCCIPOffRampProposal(s *CCIPMCMSTestSuite) {
+	// 1. Build configs
+	// onRampBytes := []byte{
+	// 	0x33, 0x17, 0xaa, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+	// 	0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+	// }
+	// expectedSCC := module_offramp.SourceChainConfig{
+	// 	IsEnabled:                 false,
+	// 	IsRmnVerificationDisabled: true,
+	// 	OnRamp:                    onRampBytes,
+	// }
+	expectedDCC := module_onramp.DestChainConfig{
+		AllowlistEnabled: true,
+		Router:           "0x304121906bf93b21f915a04cffea4df21090432e3c2fd60e51ebe68f79c90a41",
+		AllowedSenders: []string{
+			"0x1cf00ee891001df44fc0736e56f469ab85dcf9b78511ac9268f292716fc04447",
+			"0x1cf00ee891001df44fc0736e56f469ab85dcf9b78511ac9268f292716fc04447",
+		},
+	}
+
+	// 2. Run ops to generate proposal
+	input := mcmsops.ProposalGenerateInput{
+		Defs: []cld_ops.Definition{
+			// offrampops.ApplySourceChainConfigUpdatesOp.Def(),
+			// offrampops.SetOCR3ConfigOp.Def(),
+			onrampops.ApplyDestChainConfigUpdateOp.Def(),
+			onrampops.ApplyAllowListUpdateOp.Def(),
+		},
+		Inputs: []any{
+			// offrampops.ApplySourceChainConfigUpdateInput{
+			// 	CCIPObjectRef:                         s.ccipObjects.CCIPObjectRefObjectId,
+			// 	OffRampPackageId:                      s.ccipOfframpPackageId,
+			// 	OffRampStateId:                        s.ccipOfframpObjects.StateObjectId,
+			// 	OwnerCapObjectId:                      s.ccipOfframpObjects.OwnerCapId,
+			// 	SourceChainsSelectors:                 []uint64{cselectors.ETHEREUM_MAINNET.Selector},
+			// 	SourceChainsIsEnabled:                 []bool{expectedSCC.IsEnabled},
+			// 	SourceChainsIsRMNVerificationDisabled: []bool{expectedSCC.IsRmnVerificationDisabled},
+			// 	SourceChainsOnRamp:                    [][]byte{expectedSCC.OnRamp},
+			// },
+			// offrampops.SetOCR3ConfigInput{
+			// 	OffRampPackageId:               s.ccipOfframpPackageId,
+			// 	OffRampStateId:                 s.ccipOfframpObjects.StateObjectId,
+			// 	CCIPObjectRefId:                s.ccipObjects.CCIPObjectRefObjectId,
+			// 	OwnerCapObjectId:               s.ccipOfframpObjects.OwnerCapId,
+			// 	ConfigDigest:                   []byte{0x01, 0x02, 0x03},
+			// 	OCRPluginType:                  1,
+			// 	BigF:                           0,
+			// 	IsSignatureVerificationEnabled: false,
+			// 	Signers:                        [][]byte{onRampBytes},
+			// 	Transmitters:                   []string{"0x11223344556677889900aabbccddeeff00112233"},
+			// },
+			onrampops.ApplyDestChainConfigureOnRampInput{
+				OnRampPackageId:           s.ccipOnrampPackageId,
+				CCIPObjectRefId:           s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:          s.ccipOnrampObjects.OwnerCapObjectId,
+				StateObjectId:             s.ccipOnrampObjects.StateObjectId,
+				DestChainSelector:         []uint64{cselectors.ETHEREUM_MAINNET.Selector},
+				DestChainAllowListEnabled: []bool{false},
+				DestChainRouters:          []string{expectedDCC.Router},
+			},
+			onrampops.ApplyAllowListUpdatesInput{
+				OnRampPackageId:               s.ccipOnrampPackageId,
+				CCIPObjectRefId:               s.ccipObjects.CCIPObjectRefObjectId,
+				OwnerCapObjectId:              s.ccipOnrampObjects.OwnerCapObjectId,
+				StateObjectId:                 s.ccipOnrampObjects.StateObjectId,
+				DestChainSelector:             []uint64{cselectors.ETHEREUM_MAINNET.Selector},
+				DestChainAllowListEnabled:     []bool{expectedDCC.AllowlistEnabled},
+				DestChainAddAllowedSenders:    [][]string{expectedDCC.AllowedSenders},
+				DestChainRemoveAllowedSenders: [][]string{{}},
+			},
+		},
+		// MCMS related
+		MmcsPackageID:  s.mcmsPackageID,
+		McmsStateObjID: s.mcmsObj,
+		TimelockObjID:  s.timelockObj,
+		AccountObjID:   s.accountObj,
+		RegistryObjID:  s.registryObj,
+		// Proposal
+		Role:          suisdk.TimelockRoleBypasser,
+		ChainSelector: uint64(s.chainSelector),
+		Delay:         0,
+	}
+	rampsReport, err := cld_ops.ExecuteSequence(s.bundle, mcmsops.MCMSDynamicProposalGenerateSeq, s.deps, input)
+	s.Require().NoError(err, "executing ramps proposal sequence")
+
+	timelockProposal := rampsReport.Output
+
+	// 3. Execute proposal
+	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
+
+	// TODO: 4. Assert changes in contracts
 }

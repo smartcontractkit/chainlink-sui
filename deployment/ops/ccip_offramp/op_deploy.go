@@ -176,14 +176,14 @@ var setOCR3ConfigHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input S
 }
 
 type ApplySourceChainConfigUpdateInput struct {
-	CCIPObjectRef                        string
-	OffRampPackageId                     string
-	OffRampStateId                       string
-	OwnerCapObjectId                     string
-	SourceChainsSelectors                []uint64
-	SourceChainsIsEnabled                []bool
-	SouceChainsIsRMNVerificationDisabled []bool
-	SourceChainsOnRamp                   [][]byte
+	CCIPObjectRef                         string
+	OffRampPackageId                      string
+	OffRampStateId                        string
+	OwnerCapObjectId                      string
+	SourceChainsSelectors                 []uint64
+	SourceChainsIsEnabled                 []bool
+	SourceChainsIsRMNVerificationDisabled []bool
+	SourceChainsOnRamp                    [][]byte
 }
 
 var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, input ApplySourceChainConfigUpdateInput) (output sui_ops.OpTxResult[DeployCCIPOffRampObjects], err error) {
@@ -198,7 +198,7 @@ var applySourceChainConfigUpdateHandler = func(b cld_ops.Bundle, deps sui_ops.Op
 		bind.Object{Id: input.OwnerCapObjectId},
 		input.SourceChainsSelectors,
 		input.SourceChainsIsEnabled,
-		input.SouceChainsIsRMNVerificationDisabled,
+		input.SourceChainsIsRMNVerificationDisabled,
 		input.SourceChainsOnRamp,
 	)
 	if err != nil {
