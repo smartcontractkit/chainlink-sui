@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"fee_quoter","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"is_enabled","type":"bool"},{"name":"max_number_of_tokens_per_msg","type":"u16"},{"name":"max_data_bytes","type":"u32"},{"name":"max_per_msg_gas_limit","type":"u32"},{"name":"dest_gas_overhead","type":"u32"},{"name":"dest_gas_per_payload_byte_base","type":"u8"},{"name":"dest_gas_per_payload_byte_high","type":"u8"},{"name":"dest_gas_per_payload_byte_threshold","type":"u16"},{"name":"dest_data_availability_overhead_gas","type":"u32"},{"name":"dest_gas_per_data_availability_byte","type":"u16"},{"name":"dest_data_availability_multiplier_bps","type":"u16"},{"name":"chain_family_selector","type":"vector<u8>"},{"name":"enforce_out_of_order","type":"bool"},{"name":"default_token_fee_usd_cents","type":"u16"},{"name":"default_token_dest_gas_overhead","type":"u32"},{"name":"default_tx_gas_limit","type":"u32"},{"name":"gas_multiplier_wei_per_eth","type":"u64"},{"name":"gas_price_staleness_threshold","type":"u32"},{"name":"network_fee_usd_cents","type":"u32"}]},{"package":"ccip","module":"fee_quoter","name":"apply_fee_token_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_tokens_to_remove","type":"vector<address>"},{"name":"fee_tokens_to_add","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_premium_multiplier_wei_per_eth_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"tokens","type":"vector<address>"},{"name":"premium_multiplier_wei_per_eth","type":"vector<u64>"}]},{"package":"ccip","module":"fee_quoter","name":"apply_token_transfer_fee_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"add_tokens","type":"vector<address>"},{"name":"add_min_fee_usd_cents","type":"vector<u32>"},{"name":"add_max_fee_usd_cents","type":"vector<u32>"},{"name":"add_deci_bps","type":"vector<u16>"},{"name":"add_dest_gas_overhead","type":"vector<u32>"},{"name":"add_dest_bytes_overhead","type":"vector<u32>"},{"name":"add_is_enabled","type":"vector<bool>"},{"name":"remove_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"convert_token_amount","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from_token","type":"address"},{"name":"from_token_amount","type":"u64"},{"name":"to_token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"destroy_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap","type":"FeeQuoterCap"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_config_fields","parameters":[{"name":"dest_chain_config","type":"DestChainConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_dest_chain_gas_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_premium_multiplier_wei_per_eth","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"ccip","module":"fee_quoter","name":"get_timestamped_price_fields","parameters":[{"name":"tp","type":"TimestampedPrice"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_and_gas_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"token","type":"address"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"message_receiver","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"token","type":"address"}]},{"package":"ccip","module":"fee_quoter","name":"get_token_transfer_fee_config_fields","parameters":[{"name":"cfg","type":"TokenTransferFeeConfig"}]},{"package":"ccip","module":"fee_quoter","name":"get_validated_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"local_token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"address"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip","module":"fee_quoter","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"max_fee_juels_per_msg","type":"u256"},{"name":"link_token","type":"address"},{"name":"token_price_staleness_threshold","type":"u64"},{"name":"fee_tokens","type":"vector<address>"}]},{"package":"ccip","module":"fee_quoter","name":"new_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"fee_quoter","name":"process_message_args","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"dest_pool_datas","type":"vector<vector<u8>>"}]},{"package":"ccip","module":"fee_quoter","name":"type_and_version","parameters":null},{"package":"ccip","module":"fee_quoter","name":"update_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"FeeQuoterCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]},{"package":"ccip","module":"fee_quoter","name":"update_prices_with_owner_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]}]`
+const FunctionInfo = `[{"package":"mock_ccip_v2","module":"fee_quoter","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"is_enabled","type":"bool"},{"name":"max_number_of_tokens_per_msg","type":"u16"},{"name":"max_data_bytes","type":"u32"},{"name":"max_per_msg_gas_limit","type":"u32"},{"name":"dest_gas_overhead","type":"u32"},{"name":"dest_gas_per_payload_byte_base","type":"u8"},{"name":"dest_gas_per_payload_byte_high","type":"u8"},{"name":"dest_gas_per_payload_byte_threshold","type":"u16"},{"name":"dest_data_availability_overhead_gas","type":"u32"},{"name":"dest_gas_per_data_availability_byte","type":"u16"},{"name":"dest_data_availability_multiplier_bps","type":"u16"},{"name":"chain_family_selector","type":"vector<u8>"},{"name":"enforce_out_of_order","type":"bool"},{"name":"default_token_fee_usd_cents","type":"u16"},{"name":"default_token_dest_gas_overhead","type":"u32"},{"name":"default_tx_gas_limit","type":"u32"},{"name":"gas_multiplier_wei_per_eth","type":"u64"},{"name":"gas_price_staleness_threshold","type":"u32"},{"name":"network_fee_usd_cents","type":"u32"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"apply_fee_token_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_tokens_to_remove","type":"vector<address>"},{"name":"fee_tokens_to_add","type":"vector<address>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"apply_premium_multiplier_wei_per_eth_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"tokens","type":"vector<address>"},{"name":"premium_multiplier_wei_per_eth","type":"vector<u64>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"apply_token_transfer_fee_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selector","type":"u64"},{"name":"add_tokens","type":"vector<address>"},{"name":"add_min_fee_usd_cents","type":"vector<u32>"},{"name":"add_max_fee_usd_cents","type":"vector<u32>"},{"name":"add_deci_bps","type":"vector<u16>"},{"name":"add_dest_gas_overhead","type":"vector<u32>"},{"name":"add_dest_bytes_overhead","type":"vector<u32>"},{"name":"add_is_enabled","type":"vector<bool>"},{"name":"remove_tokens","type":"vector<address>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"convert_token_amount","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"from_token","type":"address"},{"name":"from_token_amount","type":"u64"},{"name":"to_token","type":"address"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"destroy_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"cap","type":"FeeQuoterCap"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_dest_chain_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_dest_chain_config_fields","parameters":[{"name":"dest_chain_config","type":"DestChainConfig"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_dest_chain_gas_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_premium_multiplier_wei_per_eth","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_static_config","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_static_config_fields","parameters":[{"name":"ref","type":"CCIPObjectRef"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_timestamped_price_fields","parameters":[{"name":"tp","type":"TimestampedPrice"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_token_and_gas_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"token","type":"address"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_token_price","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"token","type":"address"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_token_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"tokens","type":"vector<address>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_token_receiver","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"message_receiver","type":"vector<u8>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_token_transfer_fee_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"token","type":"address"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_token_transfer_fee_config_fields","parameters":[{"name":"cfg","type":"TokenTransferFeeConfig"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"get_validated_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"clock::Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"local_token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"address"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"max_fee_juels_per_msg","type":"u256"},{"name":"link_token","type":"address"},{"name":"token_price_staleness_threshold","type":"u64"},{"name":"fee_tokens","type":"vector<address>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"new_fee_quoter_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"process_message_args","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"extra_args","type":"vector<u8>"},{"name":"local_token_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"dest_pool_datas","type":"vector<vector<u8>>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"type_and_version","parameters":null},{"package":"mock_ccip_v2","module":"fee_quoter","name":"update_prices","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"FeeQuoterCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]},{"package":"mock_ccip_v2","module":"fee_quoter","name":"update_prices_with_owner_cap","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"clock","type":"clock::Clock"},{"name":"source_tokens","type":"vector<address>"},{"name":"source_usd_per_token","type":"vector<u256>"},{"name":"gas_dest_chain_selectors","type":"vector<u64>"},{"name":"gas_usd_per_unit_gas","type":"vector<u256>"}]}]`
 
 type IFeeQuoter interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -162,7 +162,7 @@ var _ IFeeQuoter = (*FeeQuoterContract)(nil)
 var _ IFeeQuoterDevInspect = (*FeeQuoterDevInspect)(nil)
 
 func NewFeeQuoter(packageID string, client sui.ISuiAPI) (IFeeQuoter, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip", "fee_quoter", client)
+	contract, err := bind.NewBoundContract(packageID, "mock_ccip_v2", "fee_quoter", client)
 	if err != nil {
 		return nil, err
 	}
@@ -469,7 +469,7 @@ func convertPremiumMultiplierWeiPerEthUpdatedFromBCS(bcs bcsPremiumMultiplierWei
 }
 
 func init() {
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterState", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::FeeQuoterState", func(data []byte) (interface{}, error) {
 		var temp bcsFeeQuoterState
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -483,7 +483,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for FeeQuoterState
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeQuoterState>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::FeeQuoterState>", func(data []byte) (interface{}, error) {
 		var temps []bcsFeeQuoterState
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -500,7 +500,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::StaticConfig", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::StaticConfig", func(data []byte) (interface{}, error) {
 		var temp bcsStaticConfig
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -514,7 +514,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for StaticConfig
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::StaticConfig>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::StaticConfig>", func(data []byte) (interface{}, error) {
 		var temps []bcsStaticConfig
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -531,7 +531,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::FeeQuoterCap", func(data []byte) (interface{}, error) {
 		var result FeeQuoterCap
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -540,7 +540,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for FeeQuoterCap
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeQuoterCap>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::FeeQuoterCap>", func(data []byte) (interface{}, error) {
 		var results []FeeQuoterCap
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -548,7 +548,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfig", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::DestChainConfig", func(data []byte) (interface{}, error) {
 		var result DestChainConfig
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -557,7 +557,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for DestChainConfig
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainConfig>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::DestChainConfig>", func(data []byte) (interface{}, error) {
 		var results []DestChainConfig
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -565,7 +565,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfig", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::TokenTransferFeeConfig", func(data []byte) (interface{}, error) {
 		var result TokenTransferFeeConfig
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -574,7 +574,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for TokenTransferFeeConfig
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfig>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::TokenTransferFeeConfig>", func(data []byte) (interface{}, error) {
 		var results []TokenTransferFeeConfig
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -582,7 +582,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TimestampedPrice", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::TimestampedPrice", func(data []byte) (interface{}, error) {
 		var temp bcsTimestampedPrice
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -596,7 +596,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for TimestampedPrice
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TimestampedPrice>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::TimestampedPrice>", func(data []byte) (interface{}, error) {
 		var temps []bcsTimestampedPrice
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -613,7 +613,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenAdded", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::FeeTokenAdded", func(data []byte) (interface{}, error) {
 		var temp bcsFeeTokenAdded
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -627,7 +627,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for FeeTokenAdded
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeTokenAdded>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::FeeTokenAdded>", func(data []byte) (interface{}, error) {
 		var temps []bcsFeeTokenAdded
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -644,7 +644,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::FeeTokenRemoved", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::FeeTokenRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsFeeTokenRemoved
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -658,7 +658,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for FeeTokenRemoved
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::FeeTokenRemoved>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::FeeTokenRemoved>", func(data []byte) (interface{}, error) {
 		var temps []bcsFeeTokenRemoved
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -675,7 +675,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigAdded", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::TokenTransferFeeConfigAdded", func(data []byte) (interface{}, error) {
 		var temp bcsTokenTransferFeeConfigAdded
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -689,7 +689,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for TokenTransferFeeConfigAdded
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfigAdded>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::TokenTransferFeeConfigAdded>", func(data []byte) (interface{}, error) {
 		var temps []bcsTokenTransferFeeConfigAdded
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -706,7 +706,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::TokenTransferFeeConfigRemoved", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::TokenTransferFeeConfigRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsTokenTransferFeeConfigRemoved
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -720,7 +720,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for TokenTransferFeeConfigRemoved
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::TokenTransferFeeConfigRemoved>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::TokenTransferFeeConfigRemoved>", func(data []byte) (interface{}, error) {
 		var temps []bcsTokenTransferFeeConfigRemoved
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -737,7 +737,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerTokenUpdated", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::UsdPerTokenUpdated", func(data []byte) (interface{}, error) {
 		var temp bcsUsdPerTokenUpdated
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -751,7 +751,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for UsdPerTokenUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::UsdPerTokenUpdated>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::UsdPerTokenUpdated>", func(data []byte) (interface{}, error) {
 		var temps []bcsUsdPerTokenUpdated
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -768,7 +768,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::UsdPerUnitGasUpdated", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::UsdPerUnitGasUpdated", func(data []byte) (interface{}, error) {
 		var temp bcsUsdPerUnitGasUpdated
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -782,7 +782,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for UsdPerUnitGasUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::UsdPerUnitGasUpdated>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::UsdPerUnitGasUpdated>", func(data []byte) (interface{}, error) {
 		var temps []bcsUsdPerUnitGasUpdated
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -799,7 +799,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainAdded", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::DestChainAdded", func(data []byte) (interface{}, error) {
 		var result DestChainAdded
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -808,7 +808,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for DestChainAdded
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainAdded>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::DestChainAdded>", func(data []byte) (interface{}, error) {
 		var results []DestChainAdded
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -816,7 +816,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::DestChainConfigUpdated", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::DestChainConfigUpdated", func(data []byte) (interface{}, error) {
 		var result DestChainConfigUpdated
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -825,7 +825,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for DestChainConfigUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::DestChainConfigUpdated>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::DestChainConfigUpdated>", func(data []byte) (interface{}, error) {
 		var results []DestChainConfigUpdated
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -833,7 +833,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip::fee_quoter::PremiumMultiplierWeiPerEthUpdated", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2::fee_quoter::PremiumMultiplierWeiPerEthUpdated", func(data []byte) (interface{}, error) {
 		var temp bcsPremiumMultiplierWeiPerEthUpdated
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -847,7 +847,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for PremiumMultiplierWeiPerEthUpdated
-	bind.RegisterStructDecoder("vector<ccip::fee_quoter::PremiumMultiplierWeiPerEthUpdated>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2::fee_quoter::PremiumMultiplierWeiPerEthUpdated>", func(data []byte) (interface{}, error) {
 		var temps []bcsPremiumMultiplierWeiPerEthUpdated
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -1660,7 +1660,7 @@ func (c feeQuoterEncoder) NewFeeQuoterCap(ref bind.Object, ownerCap bind.Object)
 		ref,
 		ownerCap,
 	}, []string{
-		"ccip::fee_quoter::FeeQuoterCap",
+		"mock_ccip_v2::fee_quoter::FeeQuoterCap",
 	})
 }
 
@@ -1678,7 +1678,7 @@ func (c feeQuoterEncoder) NewFeeQuoterCapWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("new_fee_quoter_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::FeeQuoterCap",
+		"mock_ccip_v2::fee_quoter::FeeQuoterCap",
 	})
 }
 
@@ -1693,7 +1693,7 @@ func (c feeQuoterEncoder) GetTokenPrice(ref bind.Object, token string) (*bind.En
 		ref,
 		token,
 	}, []string{
-		"ccip::fee_quoter::TimestampedPrice",
+		"mock_ccip_v2::fee_quoter::TimestampedPrice",
 	})
 }
 
@@ -1711,7 +1711,7 @@ func (c feeQuoterEncoder) GetTokenPriceWithArgs(args ...any) (*bind.EncodedCall,
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_price", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::TimestampedPrice",
+		"mock_ccip_v2::fee_quoter::TimestampedPrice",
 	})
 }
 
@@ -1720,7 +1720,7 @@ func (c feeQuoterEncoder) GetTimestampedPriceFields(tp TimestampedPrice) (*bind.
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_timestamped_price_fields", typeArgsList, typeParamsList, []string{
-		"ccip::fee_quoter::TimestampedPrice",
+		"mock_ccip_v2::fee_quoter::TimestampedPrice",
 	}, []any{
 		tp,
 	}, []string{
@@ -1733,7 +1733,7 @@ func (c feeQuoterEncoder) GetTimestampedPriceFields(tp TimestampedPrice) (*bind.
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetTimestampedPriceFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"ccip::fee_quoter::TimestampedPrice",
+		"mock_ccip_v2::fee_quoter::TimestampedPrice",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -1758,7 +1758,7 @@ func (c feeQuoterEncoder) GetTokenPrices(ref bind.Object, tokens []string) (*bin
 		ref,
 		tokens,
 	}, []string{
-		"vector<ccip::fee_quoter::TimestampedPrice>",
+		"vector<mock_ccip_v2::fee_quoter::TimestampedPrice>",
 	})
 }
 
@@ -1776,7 +1776,7 @@ func (c feeQuoterEncoder) GetTokenPricesWithArgs(args ...any) (*bind.EncodedCall
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_prices", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"vector<ccip::fee_quoter::TimestampedPrice>",
+		"vector<mock_ccip_v2::fee_quoter::TimestampedPrice>",
 	})
 }
 
@@ -1791,7 +1791,7 @@ func (c feeQuoterEncoder) GetDestChainGasPrice(ref bind.Object, destChainSelecto
 		ref,
 		destChainSelector,
 	}, []string{
-		"ccip::fee_quoter::TimestampedPrice",
+		"mock_ccip_v2::fee_quoter::TimestampedPrice",
 	})
 }
 
@@ -1809,7 +1809,7 @@ func (c feeQuoterEncoder) GetDestChainGasPriceWithArgs(args ...any) (*bind.Encod
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dest_chain_gas_price", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::TimestampedPrice",
+		"mock_ccip_v2::fee_quoter::TimestampedPrice",
 	})
 }
 
@@ -1971,7 +1971,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfig(ref bind.Object, destChainSe
 		destChainSelector,
 		token,
 	}, []string{
-		"ccip::fee_quoter::TokenTransferFeeConfig",
+		"mock_ccip_v2::fee_quoter::TokenTransferFeeConfig",
 	})
 }
 
@@ -1990,7 +1990,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigWithArgs(args ...any) (*bind.
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::TokenTransferFeeConfig",
+		"mock_ccip_v2::fee_quoter::TokenTransferFeeConfig",
 	})
 }
 
@@ -2367,7 +2367,7 @@ func (c feeQuoterEncoder) GetDestChainConfig(ref bind.Object, destChainSelector 
 		ref,
 		destChainSelector,
 	}, []string{
-		"ccip::fee_quoter::DestChainConfig",
+		"mock_ccip_v2::fee_quoter::DestChainConfig",
 	})
 }
 
@@ -2385,7 +2385,7 @@ func (c feeQuoterEncoder) GetDestChainConfigWithArgs(args ...any) (*bind.Encoded
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dest_chain_config", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::DestChainConfig",
+		"mock_ccip_v2::fee_quoter::DestChainConfig",
 	})
 }
 
@@ -2394,7 +2394,7 @@ func (c feeQuoterEncoder) GetDestChainConfigFields(destChainConfig DestChainConf
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dest_chain_config_fields", typeArgsList, typeParamsList, []string{
-		"ccip::fee_quoter::DestChainConfig",
+		"mock_ccip_v2::fee_quoter::DestChainConfig",
 	}, []any{
 		destChainConfig,
 	}, []string{
@@ -2424,7 +2424,7 @@ func (c feeQuoterEncoder) GetDestChainConfigFields(destChainConfig DestChainConf
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetDestChainConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"ccip::fee_quoter::DestChainConfig",
+		"mock_ccip_v2::fee_quoter::DestChainConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2553,7 +2553,7 @@ func (c feeQuoterEncoder) GetStaticConfig(ref bind.Object) (*bind.EncodedCall, e
 	}, []any{
 		ref,
 	}, []string{
-		"ccip::fee_quoter::StaticConfig",
+		"mock_ccip_v2::fee_quoter::StaticConfig",
 	})
 }
 
@@ -2570,7 +2570,7 @@ func (c feeQuoterEncoder) GetStaticConfigWithArgs(args ...any) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip::fee_quoter::StaticConfig",
+		"mock_ccip_v2::fee_quoter::StaticConfig",
 	})
 }
 
@@ -2613,7 +2613,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeCo
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_token_transfer_fee_config_fields", typeArgsList, typeParamsList, []string{
-		"ccip::fee_quoter::TokenTransferFeeConfig",
+		"mock_ccip_v2::fee_quoter::TokenTransferFeeConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2630,7 +2630,7 @@ func (c feeQuoterEncoder) GetTokenTransferFeeConfigFields(cfg TokenTransferFeeCo
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c feeQuoterEncoder) GetTokenTransferFeeConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"ccip::fee_quoter::TokenTransferFeeConfig",
+		"mock_ccip_v2::fee_quoter::TokenTransferFeeConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2818,7 +2818,7 @@ func (c feeQuoterEncoder) DestroyFeeQuoterCap(ref bind.Object, ownerCap bind.Obj
 	return c.EncodeCallArgsWithGenerics("destroy_fee_quoter_cap", typeArgsList, typeParamsList, []string{
 		"&CCIPObjectRef",
 		"&OwnerCap",
-		"ccip::fee_quoter::FeeQuoterCap",
+		"mock_ccip_v2::fee_quoter::FeeQuoterCap",
 	}, []any{
 		ref,
 		ownerCap,
@@ -2832,7 +2832,7 @@ func (c feeQuoterEncoder) DestroyFeeQuoterCapWithArgs(args ...any) (*bind.Encode
 	expectedParams := []string{
 		"&CCIPObjectRef",
 		"&OwnerCap",
-		"ccip::fee_quoter::FeeQuoterCap",
+		"mock_ccip_v2::fee_quoter::FeeQuoterCap",
 	}
 
 	if len(args) != len(expectedParams) {

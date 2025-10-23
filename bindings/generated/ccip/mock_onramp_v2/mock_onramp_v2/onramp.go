@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_onramp","module":"onramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"onramp","name":"add_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_allowlist_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_allowlist_updates_by_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"ccip_onramp","module":"onramp","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"ccip_onramp","module":"onramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"on_ramp_address","type":"address"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"address"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"source_pool_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u64>"},{"name":"dest_exec_datas","type":"vector<vector<u8>>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp_address","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"ccip_send","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_params","type":"TokenTransferParams"},{"name":"fee_token_metadata","type":"CoinMetadata<T>"},{"name":"fee_token","type":"Coin<T>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"get_allowed_senders_list","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_ccip_package_id","parameters":null},{"package":"ccip_onramp","module":"onramp","name":"get_dest_chain_config","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_dynamic_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"get_dynamic_config_fields","parameters":[{"name":"cfg","type":"DynamicConfig"}]},{"package":"ccip_onramp","module":"onramp","name":"get_expected_next_sequence_number","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"get_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_addresses","type":"vector<address>"},{"name":"token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"CoinMetadata<T>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"ccip_onramp","module":"onramp","name":"get_outbound_nonce","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"sender","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"get_static_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"get_static_config_fields","parameters":[{"name":"cfg","type":"StaticConfig"}]},{"package":"ccip_onramp","module":"onramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"initialize","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"nonce_manager_cap","type":"NonceManagerCap"},{"name":"source_transfer_cap","type":"osh::SourceTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"ccip_onramp","module":"onramp","name":"is_chain_supported","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"ccip_onramp","module":"onramp","name":"owner","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"ccip_onramp","module":"onramp","name":"remove_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"ccip_onramp","module":"onramp","name":"type_and_version","parameters":null},{"package":"ccip_onramp","module":"onramp","name":"withdraw_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_token_metadata","type":"CoinMetadata<T>"}]}]`
+const FunctionInfo = `[{"package":"mock_ccip_v2_onramp","module":"onramp","name":"accept_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"accept_ownership_from_object","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"from","type":"sui::object::UID"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"add_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"apply_allowlist_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"apply_allowlist_updates_by_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_add_allowed_senders","type":"vector<vector<address>>"},{"name":"dest_chain_remove_allowed_senders","type":"vector<vector<address>>"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"apply_dest_chain_config_updates","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"calculate_message_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"on_ramp_address","type":"address"},{"name":"message_id","type":"vector<u8>"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"sequence_number","type":"u64"},{"name":"nonce","type":"u64"},{"name":"sender","type":"address"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"fee_token","type":"address"},{"name":"fee_token_amount","type":"u64"},{"name":"source_pool_addresses","type":"vector<address>"},{"name":"dest_token_addresses","type":"vector<vector<u8>>"},{"name":"extra_datas","type":"vector<vector<u8>>"},{"name":"amounts","type":"vector<u64>"},{"name":"dest_exec_datas","type":"vector<vector<u8>>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"calculate_metadata_hash","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"source_chain_selector","type":"u64"},{"name":"dest_chain_selector","type":"u64"},{"name":"on_ramp_address","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"ccip_send","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_params","type":"TokenTransferParams"},{"name":"fee_token_metadata","type":"CoinMetadata<T>"},{"name":"fee_token","type":"Coin<T>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"execute_ownership_transfer","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"to","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OnRampState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_allowed_senders_list","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_ccip_package_id","parameters":null},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_dest_chain_config","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_dynamic_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_dynamic_config_fields","parameters":[{"name":"cfg","type":"DynamicConfig"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_expected_next_sequence_number","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_fee","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"clock","type":"Clock"},{"name":"dest_chain_selector","type":"u64"},{"name":"receiver","type":"vector<u8>"},{"name":"data","type":"vector<u8>"},{"name":"token_addresses","type":"vector<address>"},{"name":"token_amounts","type":"vector<u64>"},{"name":"fee_token","type":"CoinMetadata<T>"},{"name":"extra_args","type":"vector<u8>"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_outbound_nonce","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"dest_chain_selector","type":"u64"},{"name":"sender","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_static_config","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"get_static_config_fields","parameters":[{"name":"cfg","type":"StaticConfig"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"has_pending_transfer","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"initialize","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"nonce_manager_cap","type":"NonceManagerCap"},{"name":"source_transfer_cap","type":"osh::SourceTransferCap"},{"name":"chain_selector","type":"u64"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"},{"name":"dest_chain_selectors","type":"vector<u64>"},{"name":"dest_chain_allowlist_enabled","type":"vector<bool>"},{"name":"dest_chain_routers","type":"vector<address>"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"is_chain_supported","parameters":[{"name":"state","type":"OnRampState"},{"name":"dest_chain_selector","type":"u64"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"owner","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"pending_transfer_from","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"pending_transfer_to","parameters":[{"name":"state","type":"OnRampState"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"remove_package_id","parameters":[{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"package_id","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"set_dynamic_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_aggregator","type":"address"},{"name":"allowlist_admin","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"transfer_ownership","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"new_owner","type":"address"}]},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"type_and_version","parameters":null},{"package":"mock_ccip_v2_onramp","module":"onramp","name":"withdraw_fee_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"state","type":"OnRampState"},{"name":"owner_cap","type":"OwnerCap"},{"name":"fee_token_metadata","type":"CoinMetadata<T>"}]}]`
 
 type IOnramp interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -205,7 +205,7 @@ var _ IOnramp = (*OnrampContract)(nil)
 var _ IOnrampDevInspect = (*OnrampDevInspect)(nil)
 
 func NewOnramp(packageID string, client sui.ISuiAPI) (IOnramp, error) {
-	contract, err := bind.NewBoundContract(packageID, "ccip_onramp", "onramp", client)
+	contract, err := bind.NewBoundContract(packageID, "mock_ccip_v2_onramp", "onramp", client)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +577,7 @@ func convertFeeTokenWithdrawnFromBCS(bcs bcsFeeTokenWithdrawn) (FeeTokenWithdraw
 }
 
 func init() {
-	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampState", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::OnRampState", func(data []byte) (interface{}, error) {
 		var temp bcsOnRampState
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -591,7 +591,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for OnRampState
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::OnRampState>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::OnRampState>", func(data []byte) (interface{}, error) {
 		var temps []bcsOnRampState
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -608,7 +608,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampObject", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::OnRampObject", func(data []byte) (interface{}, error) {
 		var result OnRampObject
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -617,7 +617,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for OnRampObject
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::OnRampObject>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::OnRampObject>", func(data []byte) (interface{}, error) {
 		var results []OnRampObject
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -625,7 +625,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::OnRampStatePointer", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::OnRampStatePointer", func(data []byte) (interface{}, error) {
 		var temp bcsOnRampStatePointer
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -639,7 +639,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for OnRampStatePointer
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::OnRampStatePointer>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::OnRampStatePointer>", func(data []byte) (interface{}, error) {
 		var temps []bcsOnRampStatePointer
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -656,7 +656,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::DestChainConfig", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::DestChainConfig", func(data []byte) (interface{}, error) {
 		var temp bcsDestChainConfig
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -670,7 +670,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for DestChainConfig
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::DestChainConfig>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::DestChainConfig>", func(data []byte) (interface{}, error) {
 		var temps []bcsDestChainConfig
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -687,7 +687,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::RampMessageHeader", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::RampMessageHeader", func(data []byte) (interface{}, error) {
 		var result RampMessageHeader
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -696,7 +696,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for RampMessageHeader
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::RampMessageHeader>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::RampMessageHeader>", func(data []byte) (interface{}, error) {
 		var results []RampMessageHeader
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -704,7 +704,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::Sui2AnyRampMessage", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::Sui2AnyRampMessage", func(data []byte) (interface{}, error) {
 		var temp bcsSui2AnyRampMessage
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -718,7 +718,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for Sui2AnyRampMessage
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::Sui2AnyRampMessage>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::Sui2AnyRampMessage>", func(data []byte) (interface{}, error) {
 		var temps []bcsSui2AnyRampMessage
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -735,7 +735,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::Sui2AnyTokenTransfer", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::Sui2AnyTokenTransfer", func(data []byte) (interface{}, error) {
 		var temp bcsSui2AnyTokenTransfer
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -749,7 +749,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for Sui2AnyTokenTransfer
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::Sui2AnyTokenTransfer>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::Sui2AnyTokenTransfer>", func(data []byte) (interface{}, error) {
 		var temps []bcsSui2AnyTokenTransfer
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -766,7 +766,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::StaticConfig", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::StaticConfig", func(data []byte) (interface{}, error) {
 		var result StaticConfig
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -775,7 +775,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for StaticConfig
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::StaticConfig>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::StaticConfig>", func(data []byte) (interface{}, error) {
 		var results []StaticConfig
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -783,7 +783,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::DynamicConfig", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::DynamicConfig", func(data []byte) (interface{}, error) {
 		var temp bcsDynamicConfig
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -797,7 +797,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for DynamicConfig
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::DynamicConfig>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::DynamicConfig>", func(data []byte) (interface{}, error) {
 		var temps []bcsDynamicConfig
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -814,7 +814,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::ConfigSet", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::ConfigSet", func(data []byte) (interface{}, error) {
 		var temp bcsConfigSet
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -828,7 +828,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for ConfigSet
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::ConfigSet>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::ConfigSet>", func(data []byte) (interface{}, error) {
 		var temps []bcsConfigSet
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -845,7 +845,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::DestChainConfigSet", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::DestChainConfigSet", func(data []byte) (interface{}, error) {
 		var temp bcsDestChainConfigSet
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -859,7 +859,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for DestChainConfigSet
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::DestChainConfigSet>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::DestChainConfigSet>", func(data []byte) (interface{}, error) {
 		var temps []bcsDestChainConfigSet
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -876,7 +876,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::CCIPMessageSent", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::CCIPMessageSent", func(data []byte) (interface{}, error) {
 		var temp bcsCCIPMessageSent
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -890,7 +890,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for CCIPMessageSent
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::CCIPMessageSent>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::CCIPMessageSent>", func(data []byte) (interface{}, error) {
 		var temps []bcsCCIPMessageSent
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -907,7 +907,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::AllowlistSendersAdded", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::AllowlistSendersAdded", func(data []byte) (interface{}, error) {
 		var temp bcsAllowlistSendersAdded
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -921,7 +921,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for AllowlistSendersAdded
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::AllowlistSendersAdded>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::AllowlistSendersAdded>", func(data []byte) (interface{}, error) {
 		var temps []bcsAllowlistSendersAdded
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -938,7 +938,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::AllowlistSendersRemoved", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::AllowlistSendersRemoved", func(data []byte) (interface{}, error) {
 		var temp bcsAllowlistSendersRemoved
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -952,7 +952,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for AllowlistSendersRemoved
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::AllowlistSendersRemoved>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::AllowlistSendersRemoved>", func(data []byte) (interface{}, error) {
 		var temps []bcsAllowlistSendersRemoved
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -969,7 +969,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::FeeTokenWithdrawn", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::FeeTokenWithdrawn", func(data []byte) (interface{}, error) {
 		var temp bcsFeeTokenWithdrawn
 		_, err := mystenbcs.Unmarshal(data, &temp)
 		if err != nil {
@@ -983,7 +983,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for FeeTokenWithdrawn
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::FeeTokenWithdrawn>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::FeeTokenWithdrawn>", func(data []byte) (interface{}, error) {
 		var temps []bcsFeeTokenWithdrawn
 		_, err := mystenbcs.Unmarshal(data, &temps)
 		if err != nil {
@@ -1000,7 +1000,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::ONRAMP", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::ONRAMP", func(data []byte) (interface{}, error) {
 		var result ONRAMP
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -1009,7 +1009,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for ONRAMP
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::ONRAMP>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::ONRAMP>", func(data []byte) (interface{}, error) {
 		var results []ONRAMP
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -1017,7 +1017,7 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("ccip_onramp::onramp::McmsCallback", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("mock_ccip_v2_onramp::onramp::McmsCallback", func(data []byte) (interface{}, error) {
 		var result McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
@@ -1026,7 +1026,7 @@ func init() {
 		return result, nil
 	})
 	// Register vector decoder for McmsCallback
-	bind.RegisterStructDecoder("vector<ccip_onramp::onramp::McmsCallback>", func(data []byte) (interface{}, error) {
+	bind.RegisterStructDecoder("vector<mock_ccip_v2_onramp::onramp::McmsCallback>", func(data []byte) (interface{}, error) {
 		var results []McmsCallback
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
@@ -2502,7 +2502,7 @@ func (c onrampEncoder) GetStaticConfig(state bind.Object) (*bind.EncodedCall, er
 	}, []any{
 		state,
 	}, []string{
-		"ccip_onramp::onramp::StaticConfig",
+		"mock_ccip_v2_onramp::onramp::StaticConfig",
 	})
 }
 
@@ -2519,7 +2519,7 @@ func (c onrampEncoder) GetStaticConfigWithArgs(args ...any) (*bind.EncodedCall, 
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip_onramp::onramp::StaticConfig",
+		"mock_ccip_v2_onramp::onramp::StaticConfig",
 	})
 }
 
@@ -2528,7 +2528,7 @@ func (c onrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCal
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_static_config_fields", typeArgsList, typeParamsList, []string{
-		"ccip_onramp::onramp::StaticConfig",
+		"mock_ccip_v2_onramp::onramp::StaticConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2540,7 +2540,7 @@ func (c onrampEncoder) GetStaticConfigFields(cfg StaticConfig) (*bind.EncodedCal
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) GetStaticConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"ccip_onramp::onramp::StaticConfig",
+		"mock_ccip_v2_onramp::onramp::StaticConfig",
 	}
 
 	if len(args) != len(expectedParams) {
@@ -2562,7 +2562,7 @@ func (c onrampEncoder) GetDynamicConfig(state bind.Object) (*bind.EncodedCall, e
 	}, []any{
 		state,
 	}, []string{
-		"ccip_onramp::onramp::DynamicConfig",
+		"mock_ccip_v2_onramp::onramp::DynamicConfig",
 	})
 }
 
@@ -2579,7 +2579,7 @@ func (c onrampEncoder) GetDynamicConfigWithArgs(args ...any) (*bind.EncodedCall,
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config", typeArgsList, typeParamsList, expectedParams, args, []string{
-		"ccip_onramp::onramp::DynamicConfig",
+		"mock_ccip_v2_onramp::onramp::DynamicConfig",
 	})
 }
 
@@ -2588,7 +2588,7 @@ func (c onrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedC
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("get_dynamic_config_fields", typeArgsList, typeParamsList, []string{
-		"ccip_onramp::onramp::DynamicConfig",
+		"mock_ccip_v2_onramp::onramp::DynamicConfig",
 	}, []any{
 		cfg,
 	}, []string{
@@ -2601,7 +2601,7 @@ func (c onrampEncoder) GetDynamicConfigFields(cfg DynamicConfig) (*bind.EncodedC
 // This method allows passing both regular values and transaction.Argument values for PTB chaining.
 func (c onrampEncoder) GetDynamicConfigFieldsWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
-		"ccip_onramp::onramp::DynamicConfig",
+		"mock_ccip_v2_onramp::onramp::DynamicConfig",
 	}
 
 	if len(args) != len(expectedParams) {

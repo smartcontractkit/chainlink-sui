@@ -672,12 +672,12 @@ public fun get_validated_fee(
     fee_token: address, // the fee token's coin metadata object id
     extra_args: vector<u8>,
 ): u64 {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"fee_quoter"),
-        string::utf8(b"get_validated_fee"),
-        VERSION,
-    );
+    // verify_function_allowed(
+    //     ref,
+    //     string::utf8(b"fee_quoter"),
+    //     string::utf8(b"get_validated_fee"),
+    //     VERSION,
+    // );
     assert!(local_token_addresses.length() == local_token_amounts.length(), ETokenAmountMismatch);
     let state = state_object::borrow<FeeQuoterState>(ref);
 
@@ -1208,12 +1208,12 @@ public fun process_message_args(
     dest_token_addresses: vector<vector<u8>>,
     dest_pool_datas: vector<vector<u8>>,
 ): (u256, bool, vector<u8>, vector<vector<u8>>) {
-    verify_function_allowed(
-        ref,
-        string::utf8(b"fee_quoter"),
-        string::utf8(b"process_message_args"),
-        VERSION,
-    );
+    // verify_function_allowed(
+    //     ref,
+    //     string::utf8(b"fee_quoter"),
+    //     string::utf8(b"process_message_args"),
+    //     VERSION,
+    // );
     assert!(local_token_addresses.length() == dest_token_addresses.length(), ETokenAmountMismatch);
     assert!(local_token_addresses.length() == dest_pool_datas.length(), ETokenAmountMismatch);
     let state = state_object::borrow<FeeQuoterState>(ref);
