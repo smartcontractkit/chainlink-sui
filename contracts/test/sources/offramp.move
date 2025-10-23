@@ -16,6 +16,7 @@ module test::offramp {
     use sui::table::{Self, Table};
     use sui::vec_map::{Self, VecMap};
     use sui::object::{Self, UID};
+    use sui::derived_object;
 
     use test::ocr3_base::{Self, OCR3BaseState, OCRConfig};
 
@@ -28,10 +29,15 @@ module test::offramp {
         package_ids: vector<address>,
     }
 
+    public struct OffRampObject has key {
+        id: UID,
+    }
+
     public struct OffRampStatePointer has key, store {
         id: UID,
         off_ramp_state_id: address,
         owner_cap_id: address,
+        off_ramp_object_id: address,
     }
 
     public struct SourceChainConfig has store, drop, copy {
@@ -209,6 +215,15 @@ module test::offramp {
             message_hash,
             state
         });
+    }
+
+    public fun emit_sample_execution_state_changed_event() {
+        let source_chain_selector = 24;
+        let sequence_number = 12;
+        let message_id = x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        let message_hash = x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        let state = 1;
+        emit_execution_state_changed_event(source_chain_selector, sequence_number, message_id, message_hash, state);
     }
 
     /// Emit a CommitReportAccepted event
@@ -435,13 +450,27 @@ module test::offramp {
         };
         event::emit(config_set);
 
+        let mut off_ramp_object = OffRampObject {
+            id: object::new(ctx)
+        };
+
         let pointer = OffRampStatePointer {
             id: object::new(ctx),
             off_ramp_state_id: object::uid_to_address(&state.id),
-            owner_cap_id: @0x0
+            owner_cap_id: @0x0,
+            off_ramp_object_id: object::id_address(&off_ramp_object),
+        };
+
+        let another_state_object = OffRampState {
+            id: derived_object::claim(&mut off_ramp_object.id, b"OffRampState"),
+            package_ids: vector[
+                package_id
+            ],
         };
         
         transfer::share_object(state);
+        transfer::share_object(another_state_object);
+        transfer::share_object(off_ramp_object);
         transfer::public_share_object(ref);
         transfer::transfer(pointer, package_id);
     }
