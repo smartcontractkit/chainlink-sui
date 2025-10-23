@@ -288,6 +288,7 @@ fun test_new_any2sui_message() {
     let source_chain_selector = 12345u64;
     let sender = x"1234567890123456789012345678901234567890";
     let data = x"deadbeef";
+    let message_receiver = @0x12345;
     let token_receiver = @0x1234;
     let dest_token_amounts = vector[];
 
@@ -296,6 +297,7 @@ fun test_new_any2sui_message() {
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
     );
@@ -306,16 +308,18 @@ fun test_new_any2sui_message() {
         consumed_source_chain_selector,
         consumed_sender,
         consumed_data,
+        consumed_message_receiver,
         consumed_token_receiver,
         consumed_dest_token_amounts,
-    ) = client::consume_any2sui_message(message);
+    ) = client::consume_any2sui_message(message, message_receiver);
 
     assert!(consumed_message_id == message_id, 0);
     assert!(consumed_source_chain_selector == source_chain_selector, 1);
     assert!(consumed_sender == sender, 2);
     assert!(consumed_data == data, 3);
-    assert!(consumed_token_receiver == token_receiver, 4);
-    assert!(consumed_dest_token_amounts == dest_token_amounts, 5);
+    assert!(consumed_message_receiver == message_receiver, 4);
+    assert!(consumed_token_receiver == token_receiver, 5);
+    assert!(consumed_dest_token_amounts == dest_token_amounts, 6);
 }
 
 #[test]
@@ -352,6 +356,7 @@ fun test_consume_any2sui_message() {
         1u64,
         x"deadbeef",
         x"cafebabe",
+        @0x6543,
         @0x12345,
         vector[],
     );
@@ -361,15 +366,17 @@ fun test_consume_any2sui_message() {
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
-    ) = client::consume_any2sui_message(message);
+    ) = client::consume_any2sui_message(message, @0x6543);
     assert!(consumed_message_id == message_id, 0);
     assert!(source_chain_selector == 1u64, 1);
     assert!(sender == x"deadbeef", 2);
     assert!(data == x"cafebabe", 3);
     assert!(token_receiver == @0x12345, 4);
     assert!(dest_token_amounts == vector[], 5);
+    assert!(message_receiver == @0x6543, 6);
 }
 
 #[test]
@@ -389,6 +396,7 @@ fun test_message_with_token_amounts() {
     let data = x"cafebabe";
 
     // Create some token amounts
+    let message_receiver = @0x6543;
     let token_receiver = @0x12345;
     let token_addresses = vector[@0xa, @0xb];
     let token_amounts = vector[1000u256, 2000u256];
@@ -399,6 +407,7 @@ fun test_message_with_token_amounts() {
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
     );
@@ -409,9 +418,10 @@ fun test_message_with_token_amounts() {
         chain_selector,
         returned_sender,
         returned_data,
+        returned_message_receiver,
         returned_token_receiver,
         returned_dest_token_amounts,
-    ) = client::consume_any2sui_message(message);
+    ) = client::consume_any2sui_message(message, message_receiver);
 
     assert!(consumed_message_id == message_id, 0);
     assert!(chain_selector == source_chain_selector, 1);
@@ -423,4 +433,5 @@ fun test_message_with_token_amounts() {
     assert!(client::get_amount(&returned_dest_token_amounts[0]) == 1000u256, 7);
     assert!(client::get_token(&returned_dest_token_amounts[1]) == @0xb, 8);
     assert!(client::get_amount(&returned_dest_token_amounts[1]) == 2000u256, 9);
+    assert!(returned_message_receiver == message_receiver, 10);
 }
