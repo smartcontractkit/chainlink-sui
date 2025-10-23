@@ -376,6 +376,10 @@ public fun get_fee<T>(
     )
 }
 
+public fun get_fq_type_and_version(): String {
+    return fee_quoter::type_and_version()
+}
+
 fun get_fee_internal(
     ref: &CCIPObjectRef,
     clock: &Clock,
