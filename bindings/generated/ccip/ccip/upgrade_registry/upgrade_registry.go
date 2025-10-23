@@ -19,12 +19,14 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"upgrade_registry","name":"block_function","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"block_version","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"module_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"get_module_restrictions","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"module_name","type":"0x1::string::String"}]},{"package":"ccip","module":"upgrade_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"upgrade_registry","name":"is_function_allowed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"verify_function_allowed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"upgrade_registry","name":"block_function","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"block_version","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"module_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"get_module_restrictions","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"module_name","type":"0x1::string::String"}]},{"package":"ccip","module":"upgrade_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"upgrade_registry","name":"is_function_allowed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"unblock_function","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"unblock_version","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"},{"name":"module_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]},{"package":"ccip","module":"upgrade_registry","name":"verify_function_allowed","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"version","type":"u8"}]}]`
 
 type IUpgradeRegistry interface {
 	Initialize(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BlockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error)
+	UnblockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error)
 	BlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
+	UnblockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
 	GetModuleRestrictions(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string) (*models.SuiTransactionBlockResponse, error)
 	IsFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
 	VerifyFunctionAllowed(ctx context.Context, opts *bind.CallOpts, ref bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error)
@@ -43,8 +45,12 @@ type UpgradeRegistryEncoder interface {
 	InitializeWithArgs(args ...any) (*bind.EncodedCall, error)
 	BlockVersion(ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*bind.EncodedCall, error)
 	BlockVersionWithArgs(args ...any) (*bind.EncodedCall, error)
+	UnblockVersion(ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*bind.EncodedCall, error)
+	UnblockVersionWithArgs(args ...any) (*bind.EncodedCall, error)
 	BlockFunction(ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error)
 	BlockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
+	UnblockFunction(ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error)
+	UnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error)
 	GetModuleRestrictions(ref bind.Object, moduleName string) (*bind.EncodedCall, error)
 	GetModuleRestrictionsWithArgs(args ...any) (*bind.EncodedCall, error)
 	IsFunctionAllowed(ref bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error)
@@ -97,7 +103,18 @@ type VersionBlocked struct {
 	Version    byte   `move:"u8"`
 }
 
+type VersionUnblocked struct {
+	ModuleName string `move:"0x1::string::String"`
+	Version    byte   `move:"u8"`
+}
+
 type FunctionBlocked struct {
+	ModuleName   string `move:"0x1::string::String"`
+	FunctionName string `move:"0x1::string::String"`
+	Version      byte   `move:"u8"`
+}
+
+type FunctionUnblocked struct {
 	ModuleName   string `move:"0x1::string::String"`
 	FunctionName string `move:"0x1::string::String"`
 	Version      byte   `move:"u8"`
@@ -126,6 +143,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("ccip::upgrade_registry::VersionUnblocked", func(data []byte) (interface{}, error) {
+		var result VersionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for VersionUnblocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::VersionUnblocked>", func(data []byte) (interface{}, error) {
+		var results []VersionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 	bind.RegisterStructDecoder("ccip::upgrade_registry::FunctionBlocked", func(data []byte) (interface{}, error) {
 		var result FunctionBlocked
 		_, err := mystenbcs.Unmarshal(data, &result)
@@ -137,6 +171,23 @@ func init() {
 	// Register vector decoder for FunctionBlocked
 	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::FunctionBlocked>", func(data []byte) (interface{}, error) {
 		var results []FunctionBlocked
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
+	bind.RegisterStructDecoder("ccip::upgrade_registry::FunctionUnblocked", func(data []byte) (interface{}, error) {
+		var result FunctionUnblocked
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for FunctionUnblocked
+	bind.RegisterStructDecoder("vector<ccip::upgrade_registry::FunctionUnblocked>", func(data []byte) (interface{}, error) {
+		var results []FunctionUnblocked
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -182,9 +233,29 @@ func (c *UpgradeRegistryContract) BlockVersion(ctx context.Context, opts *bind.C
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// UnblockVersion executes the unblock_version Move function.
+func (c *UpgradeRegistryContract) UnblockVersion(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.UnblockVersion(ref, ownerCap, moduleName, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // BlockFunction executes the block_function Move function.
 func (c *UpgradeRegistryContract) BlockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.upgradeRegistryEncoder.BlockFunction(ref, ownerCap, moduleName, functionName, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// UnblockFunction executes the unblock_function Move function.
+func (c *UpgradeRegistryContract) UnblockFunction(ctx context.Context, opts *bind.CallOpts, ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.upgradeRegistryEncoder.UnblockFunction(ref, ownerCap, moduleName, functionName, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -334,6 +405,41 @@ func (c upgradeRegistryEncoder) BlockVersionWithArgs(args ...any) (*bind.Encoded
 	return c.EncodeCallArgsWithGenerics("block_version", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
+// UnblockVersion encodes a call to the unblock_version Move function.
+func (c upgradeRegistryEncoder) UnblockVersion(ref bind.Object, ownerCap bind.Object, moduleName string, version byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("unblock_version", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"0x1::string::String",
+		"u8",
+	}, []any{
+		ref,
+		ownerCap,
+		moduleName,
+		version,
+	}, nil)
+}
+
+// UnblockVersionWithArgs encodes a call to the unblock_version Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c upgradeRegistryEncoder) UnblockVersionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"0x1::string::String",
+		"u8",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("unblock_version", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
 // BlockFunction encodes a call to the block_function Move function.
 func (c upgradeRegistryEncoder) BlockFunction(ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
@@ -370,6 +476,44 @@ func (c upgradeRegistryEncoder) BlockFunctionWithArgs(args ...any) (*bind.Encode
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("block_function", typeArgsList, typeParamsList, expectedParams, args, nil)
+}
+
+// UnblockFunction encodes a call to the unblock_function Move function.
+func (c upgradeRegistryEncoder) UnblockFunction(ref bind.Object, ownerCap bind.Object, moduleName string, functionName string, version byte) (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("unblock_function", typeArgsList, typeParamsList, []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"0x1::string::String",
+		"0x1::string::String",
+		"u8",
+	}, []any{
+		ref,
+		ownerCap,
+		moduleName,
+		functionName,
+		version,
+	}, nil)
+}
+
+// UnblockFunctionWithArgs encodes a call to the unblock_function Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c upgradeRegistryEncoder) UnblockFunctionWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&mut CCIPObjectRef",
+		"&OwnerCap",
+		"0x1::string::String",
+		"0x1::string::String",
+		"u8",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("unblock_function", typeArgsList, typeParamsList, expectedParams, args, nil)
 }
 
 // GetModuleRestrictions encodes a call to the get_module_restrictions Move function.

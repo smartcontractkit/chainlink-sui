@@ -107,6 +107,7 @@ func TestDeployAndInitCCIPOfframpSeq(t *testing.T) {
 
 	// Run OffRamp Sequence
 	seqOffRampInput := DeployAndInitCCIPOffRampSeqInput{
+		CCIPObjectRefId: reportCCIP.Output.Objects.CCIPObjectRefObjectId,
 		DeployCCIPOffRampInput: DeployCCIPOffRampInput{
 			CCIPPackageId: reportCCIP.Output.PackageId,
 			MCMSPackageId: reportMCMs.Output.PackageId,
