@@ -21,18 +21,18 @@ type PackageManifest struct {
 	DevAddresses any               `toml:"dev-addresses"`
 }
 
-func CompilePackage(packageName contracts.Package, namedAddresses map[string]string) (PackageArtifact, error) {
+func CompilePackage(packageName contracts.Package, namedAddresses map[string]string, isUpgrade bool) (PackageArtifact, error) {
 	packageDir, ok := contracts.Contracts[packageName]
 	if !ok {
 		return PackageArtifact{}, fmt.Errorf("unknown package: %s", packageName)
 	}
 
 	// Create temp dir for isolated compilation
-	dstDir, err := os.MkdirTemp("", "sui-temp-*")
+	dstDir, err := os.MkdirTemp("/Users/stackman/Desktop/chainlink-sui/", "sui-temp-*")
 	if err != nil {
 		return PackageArtifact{}, fmt.Errorf("creating temp dir: %w", err)
 	}
-	defer os.RemoveAll(dstDir)
+	// defer os.RemoveAll(dstDir)
 
 	dstRoot := filepath.Join(dstDir, "contracts")
 	packageRoot := filepath.Join(dstRoot, packageDir)
@@ -55,6 +55,26 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 
 	// Special-case: update published-at of CCIP if this is the onramp package
 	if packageName == contracts.CCIPOnramp {
+		if isUpgrade {
+			// Replace onramp.move inside the temp sui-temp-* workspace with upgraded mock version
+			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_onramp_v2", "onramp.move")
+			upgradeDst := filepath.Join(packageRoot, "sources", "onramp.move")
+
+			// Read the mock upgrade file from repo
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading onramp upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the onramp.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing onramp.move inside sui-temp workspace: %w", err)
+			}
+
+			fmt.Printf(" Using upgraded onramp.move inside sui-temp workspace:\n  SRC: %s\n  DST: %s\n", upgradeSrc, upgradeDst)
+
+		}
+
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
@@ -62,20 +82,11 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
 		}
-	}
 
-	if packageName == contracts.CCIPOnrampMockV2 {
-		if err = updatePublishedAt(dstRoot, contracts.CCIPMockV2, namedAddresses["mock_ccip_v2"]); err != nil {
-			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
-		}
-
-		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
-			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
-		}
 	}
 
 	// Special-case: update published-at of CCIP & MCMs if it's a offRamp package
-	if packageName == contracts.CCIPOfframp || packageName == contracts.CCIPOfframpMockV2 {
+	if packageName == contracts.CCIPOfframp {
 		if err = updatePublishedAt(dstRoot, contracts.CCIP, namedAddresses["ccip"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating CCIP published-at: %w", err)
 		}
@@ -84,7 +95,27 @@ func CompilePackage(packageName contracts.Package, namedAddresses map[string]str
 		}
 	}
 
-	if packageName == contracts.CCIP || packageName == contracts.CCIPMockV2 {
+	if packageName == contracts.CCIP {
+		if isUpgrade {
+			// Replace fee_quoter.move inside the temp sui-temp-* workspace with upgraded mock version
+			upgradeSrc := filepath.Join(dstRoot, "ccip", "mock_ccip_v2", "fee_quoter.move")
+
+			// Path inside the temp workspace (automatically created)
+			upgradeDst := filepath.Join(packageRoot, "sources", "fee_quoter.move")
+
+			input, err := os.ReadFile(upgradeSrc)
+			if err != nil {
+				return PackageArtifact{}, fmt.Errorf("reading feequoter upgrade mock %q: %w", upgradeSrc, err)
+			}
+
+			// Overwrite the onramp.move in the sui-temp workspace
+			if err := os.WriteFile(upgradeDst, input, 0o644); err != nil {
+				return PackageArtifact{}, fmt.Errorf("replacing feequoter.move inside sui-temp workspace: %w", err)
+			}
+
+			fmt.Printf(" Using upgraded feequoter.move inside sui-temp workspace:\n  SRC: %s\n  DST: %s\n", upgradeSrc, upgradeDst)
+		}
+
 		if err = updatePublishedAt(dstRoot, contracts.MCMS, namedAddresses["mcms"]); err != nil {
 			return PackageArtifact{}, fmt.Errorf("updating MCMs published-at: %w", err)
 		}

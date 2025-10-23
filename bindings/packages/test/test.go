@@ -76,7 +76,7 @@ func PublishTest(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (
 	artifact, err := bind.CompilePackage(contracts.Test, map[string]string{
 		"test":           "0x0",
 		"test_secondary": "_",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

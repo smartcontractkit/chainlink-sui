@@ -52,7 +52,7 @@ func NewLink(address string, client sui.ISuiAPI) (Link, error) {
 func PublishLink(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (Link, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.LINK, map[string]string{
 		"link": "0x0",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

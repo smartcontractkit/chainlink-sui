@@ -57,7 +57,7 @@ func PublishCCIPLockReleaseTokenPool(
 		"lock_release_token_pool": "0x0",
 		"mcms":                    mcmsAddress,
 		"mcms_owner":              mcmsOwnerAddress,
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to compile package: %w", err)
 	}

@@ -52,7 +52,7 @@ func NewMockEthToken(address string, client sui.ISuiAPI) (MockEthToken, error) {
 func PublishMockEthToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (MockEthToken, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.MockEthToken, map[string]string{
 		"mock_eth_token": "0x0",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

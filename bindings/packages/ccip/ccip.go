@@ -106,7 +106,7 @@ func PublishCCIP(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI, m
 		"mcms":       mcmsAddress,
 		"mcms_owner": mcmsOwner,
 		"ccip":       "0x0",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

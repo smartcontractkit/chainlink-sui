@@ -50,7 +50,7 @@ func PublishCCIPRouter(ctx context.Context, opts *bind.CallOpts, client sui.ISui
 		"mcms":                      mcmsAddress,
 		"mcms_owner":                mcmsOwner,
 		"mcms_register_entrypoints": "0x2",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

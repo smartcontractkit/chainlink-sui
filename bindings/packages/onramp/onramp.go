@@ -50,7 +50,7 @@ func PublishOnramp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI,
 		"ccip_onramp": "0x0",
 		"mcms":        mcmsAddress,
 		"mcms_owner":  mcmsOwnerAddress,
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

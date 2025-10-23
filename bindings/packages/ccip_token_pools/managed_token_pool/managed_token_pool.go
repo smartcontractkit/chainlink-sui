@@ -58,7 +58,7 @@ func PublishCCIPManagedTokenPool(
 		"managed_token":      managedTokenAddress,
 		"mcms":               mcmsAddress,
 		"mcms_owner":         mcmsOwnerAddress,
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -56,7 +56,7 @@ func PublishOfframp(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI
 		"ccip_offramp":              "0x0",
 		"mcms_owner":                "0x1",
 		"mcms_register_entrypoints": "0x2",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -53,7 +53,7 @@ func PublishMCMS(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (
 	artifact, err := bind.CompilePackage(contracts.MCMS, map[string]string{
 		"mcms":       "0x0",
 		"mcms_owner": "0x2",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

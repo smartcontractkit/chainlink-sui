@@ -33,7 +33,7 @@ var deployDummyReceiverHandler = func(b cld_ops.Bundle, deps sui_ops.OpTxDeps, i
 		"ccip_dummy_receiver": "0x0",
 		"mcms":                input.McmsPackageId,
 		"mcms_owner":          input.McmsOwner,
-	})
+	}, false)
 	if err != nil {
 		return sui_ops.OpTxResult[DeployDummyReceiverObjects]{}, fmt.Errorf("failed to compile dummy receiver package: %w", err)
 	}

@@ -54,7 +54,7 @@ func PublishMCMSUser(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAP
 		"mcms_test":  "0x0",
 		"mcms":       mcmsAddress,
 		"mcms_owner": mcmsOwnerAddress,
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

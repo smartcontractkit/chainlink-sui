@@ -2075,3 +2075,4 @@ fun test_decode_sui_extra_args_v1() {
     assert!(token_receiver == expected_token_receiver, 0);
     assert!(receiver_object_ids == expected_receiver_object_ids, 0);
 }
+

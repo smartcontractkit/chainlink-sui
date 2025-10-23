@@ -52,7 +52,7 @@ func NewMockLinkToken(address string, client sui.ISuiAPI) (MockLinkToken, error)
 func PublishMockLinkToken(ctx context.Context, opts *bind.CallOpts, client sui.ISuiAPI) (MockLinkToken, *models.SuiTransactionBlockResponse, error) {
 	artifact, err := bind.CompilePackage(contracts.MockLinkToken, map[string]string{
 		"mock_link_token": "0x0",
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}

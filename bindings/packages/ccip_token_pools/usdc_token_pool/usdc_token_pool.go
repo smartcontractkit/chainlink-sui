@@ -68,7 +68,7 @@ func PublishCCIPUSDCTokenPool(
 		"treasury":                          treasuryObjectId,
 		"mcms":                              mcmsAddress,
 		"mcms_owner":                        mcmsOwnerAddress,
-	})
+	}, false)
 	if err != nil {
 		return nil, nil, err
 	}
