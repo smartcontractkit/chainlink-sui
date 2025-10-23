@@ -973,7 +973,7 @@ func (s *suiChainReader) transformEventsToSequences(eventRecords []database.Even
 		})
 	}
 
-	s.logger.Infow("Successfully transformed events to sequences", "sequenceCount", len(sequences), "sequences", sequences)
+	s.logger.Debugw("Successfully transformed events to sequences", "sequenceCount", len(sequences), "sequences", sequences)
 
 	return sequences, nil
 }
