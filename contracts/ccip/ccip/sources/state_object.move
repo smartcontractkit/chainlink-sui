@@ -9,6 +9,7 @@ use std::type_name;
 use sui::address;
 use sui::derived_object;
 use sui::dynamic_object_field as dof;
+use sui::package::{Self, Publisher};
 
 const EModuleAlreadyExists: u64 = 1;
 const EModuleDoesNotExist: u64 = 2;
@@ -33,7 +34,7 @@ public struct CCIPObjectRefPointer has key, store {
 
 public struct STATE_OBJECT has drop {}
 
-fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
+fun init(otw: STATE_OBJECT, ctx: &mut TxContext) {
     let mut ccip_object = CCIPObject { id: object::new(ctx) };
     let (ownable_state, owner_cap) = ownable::new(&mut ccip_object.id, ctx);
 
@@ -58,6 +59,8 @@ fun init(_witness: STATE_OBJECT, ctx: &mut TxContext) {
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
+
+    package::claim_and_keep(otw, ctx)
 }
 
 public fun add_package_id(ref: &mut CCIPObjectRef, owner_cap: &OwnerCap, package_id: address) {
@@ -131,15 +134,18 @@ public fun accept_ownership(ref: &mut CCIPObjectRef, ctx: &mut TxContext) {
 public fun execute_ownership_transfer(
     ref: &mut CCIPObjectRef,
     owner_cap: OwnerCap,
+    publisher: Publisher,
     to: address,
     ctx: &mut TxContext,
 ) {
     ownable::execute_ownership_transfer(owner_cap, &mut ref.ownable_state, to, ctx);
+    transfer::public_transfer(publisher, to);
 }
 
 public fun execute_ownership_transfer_to_mcms(
     ref: &mut CCIPObjectRef,
     owner_cap: OwnerCap,
+    publisher: Publisher,
     registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
@@ -147,6 +153,7 @@ public fun execute_ownership_transfer_to_mcms(
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut ref.ownable_state,
+        publisher,
         registry,
         to,
         McmsCallback {},
@@ -314,8 +321,8 @@ public fun mcms_execute_ownership_transfer(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-    execute_ownership_transfer(ref, owner_cap, to, ctx);
+    let (owner_cap, publisher) = mcms_registry::release_cap(registry, McmsCallback {});
+    execute_ownership_transfer(ref, owner_cap, publisher, to, ctx);
 }
 
 public fun mcms_add_allowed_modules(

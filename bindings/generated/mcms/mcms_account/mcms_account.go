@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_account","name":"accept_ownership","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_as_timelock","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"AccountState"},{"name":"from","type":"sui::object::UID"}]},{"package":"mcms","module":"mcms_account","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"AccountState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"owner","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_from","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_to","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"AccountState"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership_to_self","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"AccountState"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_account","name":"accept_ownership","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_as_timelock","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"AccountState"},{"name":"from","type":"sui::object::UID"}]},{"package":"mcms","module":"mcms_account","name":"create_mcms_account_proof","parameters":null},{"package":"mcms","module":"mcms_account","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"publisher","type":"Publisher"},{"name":"state","type":"AccountState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"owner","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_from","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_to","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"AccountState"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership_to_self","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"AccountState"}]}]`
 
 type IMcmsAccount interface {
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -28,10 +28,11 @@ type IMcmsAccount interface {
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipAsTimelock(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
+	CreateMcmsAccountProof(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IMcmsAccountDevInspect
 	Encoder() McmsAccountEncoder
 	Bound() bind.IBoundContract
@@ -42,6 +43,7 @@ type IMcmsAccountDevInspect interface {
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*string, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*bool, error)
+	CreateMcmsAccountProof(ctx context.Context, opts *bind.CallOpts) (McmsAccountProof, error)
 }
 
 type McmsAccountEncoder interface {
@@ -57,7 +59,7 @@ type McmsAccountEncoder interface {
 	AcceptOwnershipAsTimelockWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	PendingTransferFrom(state bind.Object) (*bind.EncodedCall, error)
 	PendingTransferFromWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -65,6 +67,8 @@ type McmsAccountEncoder interface {
 	PendingTransferToWithArgs(args ...any) (*bind.EncodedCall, error)
 	PendingTransferAccepted(state bind.Object) (*bind.EncodedCall, error)
 	PendingTransferAcceptedWithArgs(args ...any) (*bind.EncodedCall, error)
+	CreateMcmsAccountProof() (*bind.EncodedCall, error)
+	CreateMcmsAccountProofWithArgs(args ...any) (*bind.EncodedCall, error)
 }
 
 type McmsAccountContract struct {
@@ -138,6 +142,9 @@ type OwnershipTransferred struct {
 }
 
 type MCMS_ACCOUNT struct {
+}
+
+type McmsAccountProof struct {
 }
 
 type bcsAccountState struct {
@@ -399,6 +406,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("mcms::mcms_account::McmsAccountProof", func(data []byte) (interface{}, error) {
+		var result McmsAccountProof
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for McmsAccountProof
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::McmsAccountProof>", func(data []byte) (interface{}, error) {
+		var results []McmsAccountProof
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // Owner executes the owner Move function.
@@ -462,8 +486,8 @@ func (c *McmsAccountContract) AcceptOwnershipFromObject(ctx context.Context, opt
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *McmsAccountContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsAccountEncoder.ExecuteOwnershipTransfer(ownerCap, state, registry, to)
+func (c *McmsAccountContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.ExecuteOwnershipTransfer(ownerCap, publisher, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -494,6 +518,16 @@ func (c *McmsAccountContract) PendingTransferTo(ctx context.Context, opts *bind.
 // PendingTransferAccepted executes the pending_transfer_accepted Move function.
 func (c *McmsAccountContract) PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error) {
 	encoded, err := c.mcmsAccountEncoder.PendingTransferAccepted(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
+// CreateMcmsAccountProof executes the create_mcms_account_proof Move function.
+func (c *McmsAccountContract) CreateMcmsAccountProof(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.CreateMcmsAccountProof()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -585,6 +619,28 @@ func (d *McmsAccountDevInspect) PendingTransferAccepted(ctx context.Context, opt
 	result, ok := results[0].(*bool)
 	if !ok {
 		return nil, fmt.Errorf("unexpected return type: expected *bool, got %T", results[0])
+	}
+	return result, nil
+}
+
+// CreateMcmsAccountProof executes the create_mcms_account_proof Move function using DevInspect to get return values.
+//
+// Returns: McmsAccountProof
+func (d *McmsAccountDevInspect) CreateMcmsAccountProof(ctx context.Context, opts *bind.CallOpts) (McmsAccountProof, error) {
+	encoded, err := d.contract.mcmsAccountEncoder.CreateMcmsAccountProof()
+	if err != nil {
+		return McmsAccountProof{}, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return McmsAccountProof{}, err
+	}
+	if len(results) == 0 {
+		return McmsAccountProof{}, fmt.Errorf("no return value")
+	}
+	result, ok := results[0].(McmsAccountProof)
+	if !ok {
+		return McmsAccountProof{}, fmt.Errorf("unexpected return type: expected McmsAccountProof, got %T", results[0])
 	}
 	return result, nil
 }
@@ -766,16 +822,18 @@ func (c mcmsAccountEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bin
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
+func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"mcms::mcms_account::OwnerCap",
+		"Publisher",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",
 	}, []any{
 		ownerCap,
+		publisher,
 		state,
 		registry,
 		to,
@@ -787,6 +845,7 @@ func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state
 func (c mcmsAccountEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"mcms::mcms_account::OwnerCap",
+		"Publisher",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",
@@ -887,5 +946,29 @@ func (c mcmsAccountEncoder) PendingTransferAcceptedWithArgs(args ...any) (*bind.
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("pending_transfer_accepted", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"0x1::option::Option<bool>",
+	})
+}
+
+// CreateMcmsAccountProof encodes a call to the create_mcms_account_proof Move function.
+func (c mcmsAccountEncoder) CreateMcmsAccountProof() (*bind.EncodedCall, error) {
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_mcms_account_proof", typeArgsList, typeParamsList, []string{}, []any{}, []string{
+		"mcms::mcms_account::McmsAccountProof",
+	})
+}
+
+// CreateMcmsAccountProofWithArgs encodes a call to the create_mcms_account_proof Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsAccountEncoder) CreateMcmsAccountProofWithArgs(args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := []string{}
+	typeParamsList := []string{}
+	return c.EncodeCallArgsWithGenerics("create_mcms_account_proof", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"mcms::mcms_account::McmsAccountProof",
 	})
 }

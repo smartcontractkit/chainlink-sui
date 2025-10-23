@@ -12,6 +12,7 @@ use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::bcs;
 use sui::clock::{Self, Clock};
+use sui::package::Publisher;
 use sui::test_scenario::{Self as ts, Scenario};
 
 const OWNER: address = @0x123;
@@ -96,9 +97,14 @@ fun transfer_ownership_to_mcms(env: &mut Env, owner_cap: OwnerCap) {
     state_object::accept_ownership(&mut env.ref, env.scenario.ctx());
 
     // Step 3: register the OwnerCap with MCMS
+    // Publisher is owned by the original owner (OWNER), need to get it first
+    env.scenario.next_tx(OWNER);
+    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
+    env.scenario.next_tx(mcms_registry::get_multisig_address());
     state_object::execute_ownership_transfer_to_mcms(
         &mut env.ref,
         owner_cap,
+        publisher,
         &mut env.registry,
         @mcms,
         env.scenario.ctx(),

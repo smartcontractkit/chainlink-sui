@@ -21,7 +21,13 @@ use sui::address;
 use sui::clock::Clock;
 use sui::coin::{Coin, CoinMetadata};
 use sui::deny_list::DenyList;
-use sui::package::UpgradeCap;
+use sui::package::{Self, Publisher, UpgradeCap};
+
+public struct MANAGED_TOKEN_POOL has drop {}
+
+fun init(otw: MANAGED_TOKEN_POOL, ctx: &mut TxContext) {
+    package::claim_and_keep(otw, ctx);
+}
 
 public struct ManagedTokenPoolState<phantom T> has key {
     id: UID,
@@ -597,6 +603,7 @@ public fun execute_ownership_transfer<T>(
 public fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap,
     state: &mut ManagedTokenPoolState<T>,
+    publisher: Publisher,
     registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
@@ -604,6 +611,7 @@ public fun execute_ownership_transfer_to_mcms<T>(
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
         &mut state.ownable_state,
+        publisher,
         registry,
         to,
         McmsCallback<T> {},
@@ -1023,8 +1031,9 @@ public fun mcms_execute_ownership_transfer<T>(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap: OwnerCap = mcms_registry::release_cap(registry, McmsCallback<T> {});
+    let (owner_cap, publisher) = mcms_registry::release_cap(registry, McmsCallback<T> {});
     execute_ownership_transfer(owner_cap, state, to, ctx);
+    transfer::public_transfer(publisher, to);
 }
 
 public fun mcms_add_allowed_modules<T>(

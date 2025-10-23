@@ -8,7 +8,7 @@ use mcms::mcms_registry::{Self, Registry};
 use mcms::params;
 use std::bcs;
 use std::string::{Self, String};
-use sui::package;
+use sui::package::{Self, Publisher};
 use sui::test_scenario as ts;
 
 const OWNER: address = @0x123;
@@ -262,9 +262,11 @@ public fun test_e2e() {
         x"68c6c85200000000000000000000000000000000000000000000000000000000", // salt
     );
 
+    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
     let ctx = env.scenario.ctx();
     mcms_account::execute_ownership_transfer(
         owner_cap,
+        publisher,
         &mut env.account_state,
         &mut env.registry,
         mcms_registry::get_multisig_address(),
@@ -1378,9 +1380,13 @@ fun test_ownable__transfer_ownership() {
     // Check ownership has not changes
     assert!(mcms_account::owner(&env.account_state) == current_owner);
 
-    // Execute ownership transfer
+    // Execute ownership transfer - need to switch back to original owner to get Publisher
+    env.scenario.next_tx(current_owner);
+    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
+    env.scenario.next_tx(new_owner_addr); // Switch back to new owner for execution
     mcms_account::execute_ownership_transfer(
         owner_cap,
+        publisher,
         &mut env.account_state,
         &mut env.registry,
         new_owner_addr,
@@ -1556,12 +1562,7 @@ fun test_bypasser_execute_batch() {
     // Must consume the ExecutingCallbackParams hot potato
     // We know there's exactly 1 param, so just consume it directly
     let params = executing_params.pop_back();
-    let (
-        target,
-        module_name,
-        function_name,
-        data,
-    ) = mcms_registry::get_callback_params_from_mcms(
+    let (target, module_name, function_name, data) = mcms_registry::get_callback_params_from_mcms(
         &mut env.registry,
         params,
     );
@@ -2815,9 +2816,11 @@ fun test_timelock_dispatch_to_account() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        publisher,
+        mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
         env.scenario.ctx(),
@@ -2864,9 +2867,11 @@ fun test_timelock_dispatch_to_deployer() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        publisher,
+        mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
         env.scenario.ctx(),
@@ -2925,9 +2930,11 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
+    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        publisher,
+        mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
         env.scenario.ctx(),
@@ -2946,11 +2953,11 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
 
     // This should fail with EModuleNameMismatch when the registry validates the module name
     let (_cap, _function_name, _data) = mcms_registry::get_callback_params_with_caps<
-        mcms_registry::McmsProof,
+        mcms_account::McmsAccountProof,
         mcms_account::OwnerCap,
     >(
         &mut env.registry,
-        mcms_registry::create_mcms_proof(),
+        mcms_account::create_mcms_account_proof(),
         params,
     );
 
@@ -3554,12 +3561,14 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
     {
         let mut registry = ts::take_shared<Registry>(&env.scenario);
         let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
+        let publisher = ts::take_from_sender<Publisher>(&env.scenario);
         let ctx = ts::ctx(&mut env.scenario);
 
         // Register MCMS package with McmsProof witness
-        mcms_registry::register_entrypoint<mcms_registry::McmsProof, OwnerCap>(
+        mcms_registry::register_entrypoint<mcms_account::McmsAccountProof, OwnerCap>(
             &mut registry,
-            mcms_registry::create_mcms_proof(),
+            publisher,
+            mcms_account::create_mcms_account_proof(),
             owner_cap,
             vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"],
             ctx,
@@ -3599,7 +3608,7 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
         // Verify the new module was added
         let allowed_modules = mcms_registry::get_allowed_modules(
             &registry,
-            mcms_registry::get_multisig_address(),
+            mcms_registry::get_multisig_address_ascii(),
         );
         assert!(allowed_modules.length() == 4); // Original 3 + 1 new
         assert!(allowed_modules[3] == b"new_mcms_module");

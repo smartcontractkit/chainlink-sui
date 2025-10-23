@@ -26,8 +26,14 @@ use sui::coin::{
 };
 use sui::deny_list::DenyList;
 use sui::event;
-use sui::package::UpgradeCap;
+use sui::package::{Self, Publisher, UpgradeCap};
 use sui::vec_map::{Self, VecMap};
+
+public struct MANAGED_TOKEN has drop {}
+
+fun init(otw: MANAGED_TOKEN, ctx: &mut TxContext) {
+    package::claim_and_keep(otw, ctx);
+}
 
 public struct TokenState<phantom T> has key, store {
     id: UID,
@@ -549,12 +555,14 @@ public fun execute_ownership_transfer<T>(
 public fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap<T>,
     state: &mut TokenState<T>,
+    publisher: Publisher,
     registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
 ) {
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
+        publisher,
         &mut state.ownable_state,
         registry,
         to,

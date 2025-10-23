@@ -2,6 +2,7 @@ module mcms::mcms_account;
 
 use mcms::mcms_registry::{Self, Registry};
 use sui::event;
+use sui::package::{Self, Publisher};
 
 public struct OwnerCap has key, store {
     id: UID,
@@ -46,7 +47,9 @@ const ETransferAlreadyAccepted: u64 = 7;
 
 public struct MCMS_ACCOUNT has drop {}
 
-fun init(_witness: MCMS_ACCOUNT, ctx: &mut TxContext) {
+public struct McmsAccountProof has drop {}
+
+fun init(otw: MCMS_ACCOUNT, ctx: &mut TxContext) {
     transfer::share_object(AccountState {
         id: object::new(ctx),
         owner: ctx.sender(),
@@ -54,6 +57,8 @@ fun init(_witness: MCMS_ACCOUNT, ctx: &mut TxContext) {
     });
 
     transfer::transfer(OwnerCap { id: object::new(ctx) }, ctx.sender());
+
+    package::claim_and_keep(otw, ctx);
 }
 
 public fun owner(state: &AccountState): address {
@@ -120,6 +125,7 @@ fun accept_ownership_internal(state: &mut AccountState, caller: address) {
 #[allow(lint(custom_state_change))]
 public fun execute_ownership_transfer(
     owner_cap: OwnerCap,
+    publisher: Publisher,
     state: &mut AccountState,
     registry: &mut Registry,
     to: address,
@@ -141,13 +147,15 @@ public fun execute_ownership_transfer(
     if (new_owner == mcms_registry::get_multisig_address()) {
         mcms_registry::register_entrypoint(
             registry,
-            mcms_registry::create_mcms_proof(),
+            publisher,
+            create_mcms_account_proof(),
             owner_cap,
             vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
             ctx,
         );
     } else {
         transfer::transfer(owner_cap, new_owner);
+        transfer::public_transfer(publisher, new_owner);
     };
 
     state.owner = new_owner;
@@ -166,6 +174,10 @@ public fun pending_transfer_to(state: &AccountState): Option<address> {
 
 public fun pending_transfer_accepted(state: &AccountState): Option<bool> {
     state.pending_transfer.map_ref!(|pending_transfer| pending_transfer.accepted)
+}
+
+public fun create_mcms_account_proof(): McmsAccountProof {
+    McmsAccountProof {}
 }
 
 // =================== Test Functions =================== //

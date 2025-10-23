@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip_onramp","module":"ownable","name":"accept_ownership","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"OwnableState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"default_key","parameters":null},{"package":"ccip_onramp","module":"ownable","name":"destroy","parameters":[{"name":"state","type":"OwnableState"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"},{"name":"proof","type":"T"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"ccip_onramp","module":"ownable","name":"has_pending_transfer","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"new","parameters":[{"name":"uid","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"new_with_key","parameters":[{"name":"uid","type":"sui::object::UID"},{"name":"key","type":"K"}]},{"package":"ccip_onramp","module":"ownable","name":"owner","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"owner_cap_id","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_from","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_to","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"transfer_ownership","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]}]`
+const FunctionInfo = `[{"package":"ccip_onramp","module":"ownable","name":"accept_ownership","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"OwnableState"},{"name":"from","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"default_key","parameters":null},{"package":"ccip_onramp","module":"ownable","name":"destroy","parameters":[{"name":"state","type":"OwnableState"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]},{"package":"ccip_onramp","module":"ownable","name":"execute_ownership_transfer_to_mcms","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"publisher","type":"Publisher"},{"name":"state","type":"OwnableState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"},{"name":"proof","type":"T"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"ccip_onramp","module":"ownable","name":"has_pending_transfer","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"new","parameters":[{"name":"uid","type":"sui::object::UID"}]},{"package":"ccip_onramp","module":"ownable","name":"new_with_key","parameters":[{"name":"uid","type":"sui::object::UID"},{"name":"key","type":"K"}]},{"package":"ccip_onramp","module":"ownable","name":"owner","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"owner_cap_id","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_from","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"pending_transfer_to","parameters":[{"name":"state","type":"OwnableState"}]},{"package":"ccip_onramp","module":"ownable","name":"transfer_ownership","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"OwnableState"},{"name":"to","type":"address"}]}]`
 
 type IOwnable interface {
 	DefaultKey(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -36,7 +36,7 @@ type IOwnable interface {
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
 	McmsAcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object, mcms string) (*models.SuiTransactionBlockResponse, error)
 	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
 	Destroy(ctx context.Context, opts *bind.CallOpts, state bind.Object, ownerCap bind.Object) (*models.SuiTransactionBlockResponse, error)
 	DevInspect() IOwnableDevInspect
 	Encoder() OwnableEncoder
@@ -84,7 +84,7 @@ type OwnableEncoder interface {
 	McmsAcceptOwnershipWithArgs(args ...any) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	Destroy(state bind.Object, ownerCap bind.Object) (*bind.EncodedCall, error)
 	DestroyWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -600,8 +600,8 @@ func (c *OwnableContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bi
 }
 
 // ExecuteOwnershipTransferToMcms executes the execute_ownership_transfer_to_mcms Move function.
-func (c *OwnableContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.ownableEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, state, registry, to, proof, allowedModules)
+func (c *OwnableContract) ExecuteOwnershipTransferToMcms(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.ownableEncoder.ExecuteOwnershipTransferToMcms(typeArgs, ownerCap, publisher, state, registry, to, proof, allowedModules)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1229,13 +1229,14 @@ func (c ownableEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.Enc
 }
 
 // ExecuteOwnershipTransferToMcms encodes a call to the execute_ownership_transfer_to_mcms Move function.
-func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error) {
+func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string, proof bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
 	}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer_to_mcms", typeArgsList, typeParamsList, []string{
 		"ccip_onramp::ownable::OwnerCap",
+		"Publisher",
 		"&mut OwnableState",
 		"&mut Registry",
 		"address",
@@ -1243,6 +1244,7 @@ func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerC
 		"vector<vector<u8>>",
 	}, []any{
 		ownerCap,
+		publisher,
 		state,
 		registry,
 		to,
@@ -1256,6 +1258,7 @@ func (c ownableEncoder) ExecuteOwnershipTransferToMcms(typeArgs []string, ownerC
 func (c ownableEncoder) ExecuteOwnershipTransferToMcmsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"ccip_onramp::ownable::OwnerCap",
+		"Publisher",
 		"&mut OwnableState",
 		"&mut Registry",
 		"address",

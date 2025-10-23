@@ -2,6 +2,7 @@ module managed_token::ownable;
 
 use mcms::mcms_registry::{Self, Registry};
 use sui::event;
+use sui::package::Publisher;
 
 public struct OwnerCap<phantom T> has key, store {
     id: UID,
@@ -192,6 +193,7 @@ public fun execute_ownership_transfer<T>(
 #[allow(lint(custom_state_change))]
 public fun execute_ownership_transfer_to_mcms<T, P: drop>(
     owner_cap: OwnerCap<T>,
+    publisher: Publisher,
     state: &mut OwnableState<T>,
     registry: &mut Registry,
     to: address,
@@ -218,6 +220,7 @@ public fun execute_ownership_transfer_to_mcms<T, P: drop>(
 
     mcms_registry::register_entrypoint(
         registry,
+        publisher,
         proof,
         owner_cap,
         allowed_modules,

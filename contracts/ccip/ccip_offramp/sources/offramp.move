@@ -26,7 +26,7 @@ use sui::clock;
 use sui::derived_object;
 use sui::event;
 use sui::hash;
-use sui::package::UpgradeCap;
+use sui::package::{Self, UpgradeCap, Publisher};
 use sui::table::{Self, Table};
 use sui::vec_map::{Self, VecMap};
 
@@ -241,7 +241,7 @@ public fun type_and_version(): String {
 
 public struct OFFRAMP has drop {}
 
-fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
+fun init(otw: OFFRAMP, ctx: &mut TxContext) {
     let mut off_ramp_object = OffRampObject { id: object::new(ctx) };
     let (ownable_state, owner_cap) = ownable::new(&mut off_ramp_object.id, ctx);
 
@@ -274,6 +274,9 @@ fun init(_witness: OFFRAMP, ctx: &mut TxContext) {
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
+
+    // Send the publisher to the caller
+    package::claim_and_keep(otw, ctx)
 }
 
 public fun initialize(
@@ -1378,6 +1381,7 @@ public fun mcms_accept_ownership(
 public fun execute_ownership_transfer(
     ref: &CCIPObjectRef,
     owner_cap: OwnerCap,
+    publisher: Publisher,
     state: &mut OffRampState,
     to: address,
     ctx: &mut TxContext,
@@ -1389,11 +1393,13 @@ public fun execute_ownership_transfer(
         VERSION,
     );
     ownable::execute_ownership_transfer(owner_cap, &mut state.ownable_state, to, ctx);
+    transfer::public_transfer(publisher, to);
 }
 
 public fun execute_ownership_transfer_to_mcms(
     ref: &CCIPObjectRef,
     owner_cap: OwnerCap,
+    publisher: Publisher,
     state: &mut OffRampState,
     registry: &mut Registry,
     to: address,
@@ -1407,6 +1413,7 @@ public fun execute_ownership_transfer_to_mcms(
     );
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
+        publisher,
         &mut state.ownable_state,
         registry,
         to,
@@ -1683,8 +1690,8 @@ public fun mcms_execute_ownership_transfer(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
-    execute_ownership_transfer(ref, owner_cap, state, to, ctx);
+    let (owner_cap, publisher) = mcms_registry::release_cap(registry, McmsCallback {});
+    execute_ownership_transfer(ref, owner_cap, publisher, state, to, ctx);
 }
 
 public fun mcms_add_allowed_modules(

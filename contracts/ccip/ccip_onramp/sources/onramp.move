@@ -23,7 +23,7 @@ use sui::coin::{Self, Coin, CoinMetadata};
 use sui::derived_object;
 use sui::event;
 use sui::hash;
-use sui::package::UpgradeCap;
+use sui::package::{Self, UpgradeCap, Publisher};
 use sui::table::{Self, Table};
 
 public struct OnRampState has key, store {
@@ -159,7 +159,7 @@ public fun type_and_version(): String {
 
 public struct ONRAMP has drop {}
 
-fun init(_witness: ONRAMP, ctx: &mut TxContext) {
+fun init(otw: ONRAMP, ctx: &mut TxContext) {
     let mut on_ramp_object = OnRampObject { id: object::new(ctx) };
     let (ownable_state, owner_cap) = ownable::new(&mut on_ramp_object.id, ctx);
 
@@ -190,6 +190,9 @@ fun init(_witness: ONRAMP, ctx: &mut TxContext) {
 
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(pointer, package_id);
+
+    // Send the publisher to the caller
+    package::claim_and_keep(otw, ctx)
 }
 
 public fun initialize(
@@ -1093,6 +1096,7 @@ public fun execute_ownership_transfer(
 public fun execute_ownership_transfer_to_mcms(
     ref: &CCIPObjectRef,
     owner_cap: OwnerCap,
+    publisher: Publisher,
     state: &mut OnRampState,
     registry: &mut Registry,
     to: address,
@@ -1106,6 +1110,7 @@ public fun execute_ownership_transfer_to_mcms(
     );
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
+        publisher,
         &mut state.ownable_state,
         registry,
         to,

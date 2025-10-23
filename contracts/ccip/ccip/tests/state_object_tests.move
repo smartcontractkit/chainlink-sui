@@ -7,7 +7,9 @@ use mcms::mcms_account;
 use mcms::mcms_deployer;
 use mcms::mcms_registry::{Self, Registry};
 use std::string;
+use sui::address;
 use sui::bcs;
+use sui::package::Publisher;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -255,9 +257,14 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
     state_object::accept_ownership(&mut ref, scenario.ctx());
 
     // Step 3: execute_ownership_transfer (registers with MCMS)
+    // Publisher is owned by the original owner (OWNER), need to switch back first
+    scenario.next_tx(OWNER);
+    let publisher = test_scenario::take_from_sender<Publisher>(&scenario);
+    scenario.next_tx(mcms_registry::get_multisig_address());
     state_object::execute_ownership_transfer_to_mcms(
         &mut ref,
         owner_cap,
+        publisher,
         &mut registry,
         @mcms,
         scenario.ctx(),
@@ -273,7 +280,7 @@ fun test_mcms_add_allowed_modules_success() {
     let (mut scenario, mut registry, ref) = setup_with_mcms_ownership();
 
     // Verify initial allowed modules (should have fee_quoter, rmn_remote, state_object, token_admin_registry)
-    let initial_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let initial_modules = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(initial_modules.contains(&b"fee_quoter"), 0);
     assert!(initial_modules.contains(&b"rmn_remote"), 1);
     assert!(initial_modules.contains(&b"state_object"), 2);
@@ -306,7 +313,7 @@ fun test_mcms_add_allowed_modules_success() {
     );
 
     // Verify nonce_manager was added
-    let updated_modules = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let updated_modules = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(updated_modules.contains(&b"nonce_manager"), 5); // Should exist now
 
     // Cleanup
@@ -423,7 +430,7 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was added
-    let modules_before = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let modules_before = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(modules_before.contains(&b"nonce_manager"), 0);
 
     // Now remove the module
@@ -451,7 +458,7 @@ fun test_mcms_remove_allowed_modules_success() {
     };
 
     // Verify nonce_manager was removed
-    let modules_after = mcms_registry::get_allowed_modules(&registry, @ccip);
+    let modules_after = mcms_registry::get_allowed_modules(&registry, address::to_ascii_string(@ccip));
     assert!(!modules_after.contains(&b"nonce_manager"), 1);
 
     // Cleanup

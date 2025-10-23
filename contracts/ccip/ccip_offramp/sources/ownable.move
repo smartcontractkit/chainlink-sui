@@ -3,6 +3,7 @@ module ccip_offramp::ownable;
 use mcms::mcms_registry::{Self, Registry};
 use sui::derived_object;
 use sui::event;
+use sui::package::Publisher;
 
 public struct OwnerCap has key, store {
     id: UID,
@@ -209,6 +210,7 @@ public fun execute_ownership_transfer(
 #[allow(lint(custom_state_change))]
 public fun execute_ownership_transfer_to_mcms<T: drop>(
     owner_cap: OwnerCap,
+    publisher: Publisher,
     state: &mut OwnableState,
     registry: &mut Registry,
     to: address,
@@ -235,6 +237,7 @@ public fun execute_ownership_transfer_to_mcms<T: drop>(
 
     mcms_registry::register_entrypoint(
         registry,
+        publisher,
         proof,
         owner_cap,
         allowed_modules,

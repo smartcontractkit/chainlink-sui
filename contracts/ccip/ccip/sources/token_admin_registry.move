@@ -819,13 +819,18 @@ public fun get_pending_admin_transfer(
 }
 
 #[test_only]
+use sui::package::Publisher;
+
+#[test_only]
 public fun test_mcms_register_entrypoint(
     owner_cap: OwnerCap,
+    publisher: Publisher,
     registry: &mut Registry,
     ctx: &mut TxContext,
 ) {
     mcms_registry::register_entrypoint(
         registry,
+        publisher,
         state_object::mcms_callback(),
         owner_cap,
         vector[b"fee_quoter", b"rmn_remote", b"state_object", b"token_admin_registry"], // Allowed CCIP modules
