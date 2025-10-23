@@ -79,6 +79,7 @@ public struct Sui2AnyRampMessage has copy, drop, store {
 }
 
 public struct Sui2AnyTokenTransfer has copy, drop, store {
+    // source token pool state object id
     source_pool_address: address,
     // the token address on the destination chain
     dest_token_address: vector<u8>,
@@ -493,6 +494,7 @@ public fun apply_allowlist_updates(
     );
 }
 
+// figure out for tx sender
 public fun apply_allowlist_updates_by_admin(
     ref: &CCIPObjectRef,
     state: &mut OnRampState,
@@ -795,7 +797,8 @@ public fun ccip_send<T>(
     if (osh::has_token_transfer(&token_params)) {
         let (
             remote_chain_selector,
-            source_pool_package_id,
+            _source_pool_package_id, // unused
+            source_pool_state_object_id,
             amount,
             source_token_coin_metadata_address,
             dest_token_address,
@@ -805,7 +808,7 @@ public fun ccip_send<T>(
         assert!(amount > 0, ECannotSendZeroTokens);
 
         token_transfers.push_back(Sui2AnyTokenTransfer {
-            source_pool_address: source_pool_package_id,
+            source_pool_address: source_pool_state_object_id,
             amount,
             dest_token_address,
             extra_data,

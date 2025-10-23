@@ -35,6 +35,8 @@ const RANDOM_USER: address = @0x3;
 // Mock pool addresses
 const MOCK_TOKEN_POOL_PACKAGE_ID_1: address =
     @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
+const MOCK_TOKEN_POOL_STATE_OBJECT_ID_1: address =
+    @0x2a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 
 // === Helper Functions ===
 
@@ -91,6 +93,7 @@ fun register_test_pool<T>(
         ref,
         treasury_cap,
         coin_metadata,
+        MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
         admin,
         vector<address>[], // lock_or_burn_params
         vector<address>[], // release_or_mint_params
@@ -101,6 +104,7 @@ fun register_test_pool<T>(
 fun assert_empty_token_config(ref: &CCIPObjectRef, token_address: address) {
     let (
         token_pool_package_id,
+        _token_pool_state_object_id,
         token_pool_module,
         token_type,
         administrator,
@@ -129,6 +133,7 @@ fun assert_token_config(
 ) {
     let (
         token_pool_package_id,
+        _token_pool_state_object_id,
         token_pool_module,
         token_type,
         administrator,
@@ -226,6 +231,7 @@ public fun test_register_pool_by_admin() {
             state_object::create_ccip_admin_proof_for_test(),
             @0x123, // coin_metadata_address
             MOCK_TOKEN_POOL_PACKAGE_ID_1, // token_pool_package_id
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             string::utf8(b"admin_registered_pool"), // token_pool_module
             ascii::string(b"TestType"),
             TOKEN_ADMIN_ADDRESS, // initial_administrator
@@ -334,7 +340,7 @@ public fun test_register_and_set_pool() {
             @0x0,
         );
 
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
@@ -349,6 +355,7 @@ public fun test_register_and_set_pool() {
         registry::set_pool(
             &mut ref,
             local_token,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
@@ -382,7 +389,7 @@ public fun test_register_and_set_pool() {
             TOKEN_ADMIN_ADDRESS_2,
         );
 
-        let (_, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, token_type, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
@@ -574,7 +581,7 @@ public fun test_set_pool_comprehensive() {
             @0x0,
         );
 
-        let (_, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
@@ -586,6 +593,7 @@ public fun test_set_pool_comprehensive() {
         registry::set_pool(
             &mut ref,
             local_token,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
@@ -608,7 +616,7 @@ public fun test_set_pool_comprehensive() {
             @0x0,
         );
 
-        let (_, _, _, _, _, updated_type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, _, _, _, updated_type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
@@ -621,6 +629,7 @@ public fun test_set_pool_comprehensive() {
         registry::set_pool(
             &mut ref,
             local_token,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof {},
@@ -638,7 +647,7 @@ public fun test_set_pool_comprehensive() {
             @0x0,
         );
 
-        let (_, _, _, _, _, final_type_proof, _, _) = registry::get_token_config_data(
+        let (_, _, _, _, _, _, final_type_proof, _, _) = registry::get_token_config_data(
             &ref,
             local_token,
         );
@@ -754,6 +763,7 @@ public fun test_set_pool_unregistered_token() {
         registry::set_pool(
             &mut ref,
             @0x999, // unregistered token
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof {},
@@ -802,6 +812,7 @@ public fun test_set_pool_unauthorized() {
         registry::set_pool(
             &mut ref,
             local_token,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},
@@ -1417,6 +1428,8 @@ public fun test_set_pool_with_different_package_ids() {
     let mock_token_address = @0x999;
     let original_pool_package_id =
         @0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
+    let original_pool_state_object_id =
+        @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 
     // Step 1: Register a pool with a specific package ID (simulates original pool)
     scenario.next_tx(CCIP_ADMIN);
@@ -1429,6 +1442,7 @@ public fun test_set_pool_with_different_package_ids() {
             state_object::create_ccip_admin_proof_for_test(),
             mock_token_address,
             original_pool_package_id,
+            original_pool_state_object_id,
             string::utf8(b"original_pool_module"),
             ascii::string(b"OriginalTokenType"),
             TOKEN_ADMIN_ADDRESS,
@@ -1444,6 +1458,7 @@ public fun test_set_pool_with_different_package_ids() {
 
         let (
             _pkg_id,
+            _token_pool_state_object_id,
             pool_module,
             _token_type,
             _admin,
@@ -1472,6 +1487,7 @@ public fun test_set_pool_with_different_package_ids() {
         registry::set_pool(
             &mut ref,
             mock_token_address,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector[@0x6, @0x3333], // new lock_or_burn_params
             vector[@0x6, @0x4444], // new release_or_mint_params
             TypeProof {}, // This has the test module's package ID
@@ -1493,6 +1509,7 @@ public fun test_set_pool_with_different_package_ids() {
 
         let (
             pkg_id,
+            token_pool_state_object_id,
             pool_module,
             _token_type,
             admin,
@@ -1505,20 +1522,23 @@ public fun test_set_pool_with_different_package_ids() {
         // Verify package ID updated
         assert!(pkg_id == new_package_id, 7);
 
+        // Verify token pool state object ID updated
+        assert!(token_pool_state_object_id == MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, 8);
+
         // Verify module name updated
-        assert!(pool_module == new_module, 8);
+        assert!(pool_module == new_module, 9);
 
         // Verify type proof updated
-        assert!(type_proof == new_type_proof_str, 9);
+        assert!(type_proof == new_type_proof_str, 10);
 
         // Verify lock_or_burn_params updated
-        assert!(lock_params == vector[@0x6, @0x3333], 10);
+        assert!(lock_params == vector[@0x6, @0x3333], 11);
 
         // Verify release_or_mint_params updated
-        assert!(release_params == vector[@0x6, @0x4444], 11);
+        assert!(release_params == vector[@0x6, @0x4444], 12);
 
         // Verify administrator unchanged
-        assert!(admin == TOKEN_ADMIN_ADDRESS, 12);
+        assert!(admin == TOKEN_ADMIN_ADDRESS, 13);
 
         ts::return_shared(ref);
     };
@@ -1553,7 +1573,6 @@ public fun test_set_pool_same_package_id_no_update() {
         ts::return_shared(ref);
     };
 
-    // Get initial configuration
     scenario.next_tx(TOKEN_ADMIN_ADDRESS);
     let (
         initial_pkg,
@@ -1567,6 +1586,7 @@ public fun test_set_pool_same_package_id_no_update() {
 
         let (
             pkg_id,
+            _,
             pool_module,
             token_type,
             _admin,
@@ -1591,6 +1611,7 @@ public fun test_set_pool_same_package_id_no_update() {
         registry::set_pool(
             &mut ref,
             local_token,
+            @0x0,
             vector[@0x6, @0x5555], // different params
             vector[@0x6, @0x6666], // different params
             TypeProof {},
@@ -1600,6 +1621,7 @@ public fun test_set_pool_same_package_id_no_update() {
         // Verify nothing changed
         let (
             pkg_id,
+            _token_pool_state_object_id,
             pool_module,
             token_type,
             _admin,
@@ -1643,6 +1665,7 @@ public fun test_set_pool_only_admin_can_call() {
             state_object::create_ccip_admin_proof_for_test(),
             mock_token_address,
             @0xAAAA,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             string::utf8(b"test_pool"),
             ascii::string(b"TestType"),
             TOKEN_ADMIN_ADDRESS,
@@ -1664,6 +1687,7 @@ public fun test_set_pool_only_admin_can_call() {
         registry::set_pool(
             &mut ref,
             mock_token_address,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector[@0x6, @0x3333],
             vector[@0x6, @0x4444],
             TypeProof {},
@@ -1678,6 +1702,7 @@ public fun test_set_pool_only_admin_can_call() {
 
 /// Test MCMS set_pool with actual package ID change
 #[test]
+#[allow(implicit_const_copy)]
 public fun test_mcms_set_pool_with_package_change() {
     let mut scenario = create_test_scenario(TOKEN_ADMIN_ADDRESS);
     initialize_state_and_registry(&mut scenario, CCIP_ADMIN);
@@ -1709,6 +1734,7 @@ public fun test_mcms_set_pool_with_package_change() {
             state_object::create_ccip_admin_proof_for_test(),
             mock_token_address,
             original_pool_package_id,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             string::utf8(b"original_pool"),
             ascii::string(b"OriginalType"),
             TOKEN_ADMIN_ADDRESS,
@@ -1778,6 +1804,7 @@ public fun test_mcms_set_pool_with_package_change() {
         data.append(bcs::to_bytes(&object::id_address(&ref)));
         data.append(bcs::to_bytes(&mock_token_address));
         data.append(bcs::to_bytes(&new_package_id));
+        data.append(bcs::to_bytes(&MOCK_TOKEN_POOL_STATE_OBJECT_ID_1));
         data.append(bcs::to_bytes(&new_module));
         data.append(bcs::to_bytes(&vector[@0x6, @0xABCD])); // lock_or_burn_params
         data.append(bcs::to_bytes(&vector[@0x6, @0xDCBA])); // release_or_mint_params
@@ -1802,6 +1829,7 @@ public fun test_mcms_set_pool_with_package_change() {
 
         let (
             pkg_id,
+            token_pool_state_object_id,
             pool_module,
             _token_type,
             _admin,
@@ -1813,9 +1841,10 @@ public fun test_mcms_set_pool_with_package_change() {
 
         assert!(pkg_id == new_package_id, 2);
         assert!(pool_module == new_module, 3);
-        assert!(type_proof == new_type_proof, 4);
-        assert!(lock_params == vector[@0x6, @0xABCD], 5);
-        assert!(release_params == vector[@0x6, @0xDCBA], 6);
+        assert!(token_pool_state_object_id == MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, 4);
+        assert!(type_proof == new_type_proof, 5);
+        assert!(lock_params == vector[@0x6, @0xABCD], 6);
+        assert!(release_params == vector[@0x6, @0xDCBA], 7);
 
         ts::return_shared(ref);
         ts::return_shared(registry_obj);
@@ -1879,6 +1908,7 @@ public fun test_set_pool_function_not_allowed() {
         registry::set_pool(
             &mut ref,
             local_token,
+            MOCK_TOKEN_POOL_STATE_OBJECT_ID_1, // token_pool_state_object_id
             vector<address>[], // lock_or_burn_params
             vector<address>[], // release_or_mint_params
             TypeProof2 {},

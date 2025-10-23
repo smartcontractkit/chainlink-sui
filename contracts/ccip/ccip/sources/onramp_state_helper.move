@@ -28,6 +28,7 @@ public fun get_token_receiver(params: &TokenTransferParams): vector<u8> {
 public struct TokenTransferMetadata {
     remote_chain_selector: u64,
     token_pool_package_id: address,
+    token_pool_state_object_id: address,
     amount: u64,
     source_token_coin_metadata_address: address,
     dest_token_address: vector<u8>,
@@ -62,7 +63,17 @@ public fun add_token_transfer_param<TypeProof: drop>(
     extra_data: vector<u8>,
     _: TypeProof,
 ) {
-    let (token_pool_package_id, _, _, _, _, type_proof, _, _) = registry::get_token_config_data(
+    let (
+        token_pool_package_id,
+        token_pool_state_object_id,
+        _,
+        _,
+        _,
+        _,
+        type_proof,
+        _,
+        _,
+    ) = registry::get_token_config_data(
         ref,
         source_token_coin_metadata_address,
     );
@@ -78,6 +89,7 @@ public fun add_token_transfer_param<TypeProof: drop>(
         .fill(TokenTransferMetadata {
             remote_chain_selector,
             token_pool_package_id,
+            token_pool_state_object_id,
             amount,
             source_token_coin_metadata_address,
             dest_token_address,
@@ -99,6 +111,7 @@ public fun deconstruct_token_params(
         let TokenTransferMetadata {
             remote_chain_selector: _,
             token_pool_package_id: _,
+            token_pool_state_object_id: _,
             amount: _,
             source_token_coin_metadata_address: _,
             dest_token_address: _,
@@ -110,12 +123,13 @@ public fun deconstruct_token_params(
 
 public fun get_source_token_transfer_data(
     token_transfer_params: &TokenTransferParams,
-): (u64, address, u64, address, vector<u8>, vector<u8>) {
+): (u64, address, address, u64, address, vector<u8>, vector<u8>) {
     assert!(token_transfer_params.token_transfer.is_some(), ETokenTransferDoesNotExist);
     let token_transfer = token_transfer_params.token_transfer.borrow();
     (
         token_transfer.remote_chain_selector,
         token_transfer.token_pool_package_id,
+        token_transfer.token_pool_state_object_id,
         token_transfer.amount,
         token_transfer.source_token_coin_metadata_address,
         token_transfer.dest_token_address,

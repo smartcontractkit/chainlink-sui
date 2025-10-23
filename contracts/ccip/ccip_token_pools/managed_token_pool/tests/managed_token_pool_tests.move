@@ -494,6 +494,7 @@ public fun test_lock_or_burn_functionality() {
         let (
             chain_selector,
             token_pool_package_id,
+            token_pool_state_object_id,
             amount,
             _,
             dest_token_address,
@@ -501,6 +502,7 @@ public fun test_lock_or_burn_functionality() {
         ) = onramp_sh::get_source_token_transfer_data(&token_transfer_params);
         assert!(chain_selector == DefaultRemoteChain);
         assert!(token_pool_package_id == @managed_token_pool);
+        assert!(token_pool_state_object_id != @0x0);
         assert!(amount == initial_coin_value);
         // Note: source_pool should be the token address (coin metadata address), not the package address
         // This is different from the burn mint token pool due to different implementation
@@ -1187,6 +1189,7 @@ public fun test_initialize_with_managed_token_function() {
 
         let (
             pool_package_id,
+            token_pool_state_object_id,
             pool_module,
             token_type,
             admin,
@@ -1200,6 +1203,7 @@ public fun test_initialize_with_managed_token_function() {
         );
 
         assert!(pool_package_id == actual_package_id);
+        assert!(token_pool_state_object_id != @0x0);
         assert!(pool_module == string::utf8(b"managed_token_pool"));
         assert!(
             token_type == type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>().into_string(),
@@ -1393,6 +1397,7 @@ public fun test_set_pool() {
         // Get initial configuration
         let (
             initial_package_id,
+            initial_token_pool_state_object_id,
             initial_module,
             _token_type,
             administrator,
@@ -1404,6 +1409,7 @@ public fun test_set_pool() {
 
         // Verify correct initial registration
         assert!(initial_package_id == @managed_token_pool);
+        assert!(initial_token_pool_state_object_id != @0x0);
         assert!(initial_module == string::utf8(b"managed_token_pool"));
         assert!(administrator == TOKEN_ADMIN);
         assert!(pending_admin == @0x0);
@@ -1430,6 +1436,7 @@ public fun test_set_pool() {
 
         // Register with a different package ID using CCIP admin
         let different_package_id = @0xcafe;
+        let different_token_pool_state_object_id = @0xcafe1234;
         let different_type_proof = ascii::string(b"0xcafe::different_pool::DifferentTypeProof");
         let different_params = vector[@0x6, @0x403, @0xfade, @0xbeef];
 
@@ -1438,6 +1445,7 @@ public fun test_set_pool() {
             state_object::create_ccip_admin_proof_for_test(),
             coin_metadata_address,
             different_package_id,
+            different_token_pool_state_object_id,
             string::utf8(b"different_pool"),
             type_name::into_string(type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>()),
             TOKEN_ADMIN, // administrator
@@ -1457,6 +1465,7 @@ public fun test_set_pool() {
 
         let (
             before_package_id,
+            before_token_pool_state_object_id,
             before_module,
             before_token_type,
             _before_administrator,
@@ -1468,6 +1477,7 @@ public fun test_set_pool() {
 
         // Verify it's different from managed_token_pool
         assert!(before_package_id == @0xcafe);
+        assert!(before_token_pool_state_object_id != @0x0);
         assert!(before_module == string::utf8(b"different_pool"));
         assert!(
             before_token_type == type_name::into_string(type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>()),
@@ -1491,6 +1501,7 @@ public fun test_set_pool() {
         // Get configuration before set_pool
         let (
             before_package_id,
+            _before_token_pool_state_object_id,
             before_module,
             before_token_type,
             _before_admin,
@@ -1522,6 +1533,7 @@ public fun test_set_pool() {
 
         let (
             after_package_id,
+            after_token_pool_state_object_id,
             after_module,
             after_token_type,
             after_administrator,
@@ -1533,6 +1545,9 @@ public fun test_set_pool() {
 
         // Verify the configuration changed to managed_token_pool
         assert!(after_package_id == @managed_token_pool);
+        assert!(
+            after_token_pool_state_object_id == object::id_to_address(&object::id(&pool_state)),
+        );
         assert!(after_module == string::utf8(b"managed_token_pool"));
         assert!(
             after_token_type == type_name::into_string(type_name::with_defining_ids<MANAGED_TOKEN_POOL_TESTS>()),

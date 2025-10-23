@@ -19,6 +19,8 @@ public struct TestTypeProof has drop {}
 const OWNER: address = @0x1000;
 const TOKEN_ADDRESS_1: address =
     @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
+const TOKEN_POOL_STATE_OBJECT_ID_1: address =
+    @0x2a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 const DESTINATION_CHAIN_SELECTOR: u64 = 1000;
 
 fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, SourceTransferCap) {
@@ -74,6 +76,7 @@ public fun test_create_token_transfer_params() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER, // administrator
@@ -102,6 +105,7 @@ public fun test_create_token_transfer_params() {
     let (
         remote_chain,
         token_pool_package_id,
+        token_pool_state_object_id,
         amount,
         source_token,
         dest_token,
@@ -110,6 +114,7 @@ public fun test_create_token_transfer_params() {
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);
+    assert!(token_pool_state_object_id == TOKEN_POOL_STATE_OBJECT_ID_1);
     assert!(amount == 1000);
     assert!(source_token == TOKEN_ADDRESS_1);
     assert!(dest_token == b"dest_token_address");
@@ -131,6 +136,7 @@ public fun test_create_token_transfer_params_basic() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -170,6 +176,7 @@ public fun test_get_remote_chain_selector() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -210,12 +217,12 @@ public fun test_get_remote_chain_selector() {
     );
 
     // Test retrieving the remote chain selectors
-    let (remote_chain1, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
+    let (remote_chain1, _, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params1,
     );
     assert!(remote_chain1 == DESTINATION_CHAIN_SELECTOR);
 
-    let (remote_chain2, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
+    let (remote_chain2, _, _, _, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params2,
     );
     assert!(remote_chain2 == different_chain);
@@ -237,6 +244,7 @@ public fun test_create_and_verify_token_transfer() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER, // administrator
@@ -265,6 +273,7 @@ public fun test_create_and_verify_token_transfer() {
     let (
         remote_chain,
         token_pool_package_id,
+        token_pool_state_object_id,
         amount,
         source_token_address,
         dest_token_address,
@@ -273,6 +282,7 @@ public fun test_create_and_verify_token_transfer() {
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);
+    assert!(token_pool_state_object_id == TOKEN_POOL_STATE_OBJECT_ID_1);
     assert!(amount == 1000);
     assert!(source_token_address == TOKEN_ADDRESS_1);
     assert!(dest_token_address == b"dest_token_address");
@@ -308,6 +318,7 @@ public fun test_add_multiple_token_transfers_should_fail() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -363,6 +374,7 @@ public fun test_get_token_transfer_data_when_empty() {
     let (
         _remote_chain,
         _token_pool_package_id,
+        _token_pool_state_object_id,
         _amount,
         _source_token_address,
         _dest_token_address,
@@ -384,6 +396,7 @@ public fun test_get_source_token_transfer_data() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -412,6 +425,7 @@ public fun test_get_source_token_transfer_data() {
     let (
         remote_chain,
         token_pool_package_id,
+        token_pool_state_object_id,
         amount,
         source_token_address,
         dest_token_address,
@@ -420,6 +434,7 @@ public fun test_get_source_token_transfer_data() {
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);
+    assert!(token_pool_state_object_id == TOKEN_POOL_STATE_OBJECT_ID_1);
     assert!(amount == 12345);
     assert!(source_token_address == TOKEN_ADDRESS_1);
     assert!(dest_token_address == x"deadbeef");
@@ -441,6 +456,7 @@ public fun test_edge_case_large_amounts() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -466,7 +482,7 @@ public fun test_edge_case_large_amounts() {
         TestTypeProof {},
     );
 
-    let (_, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
+    let (_, _, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params,
     );
 
@@ -488,6 +504,7 @@ public fun test_edge_case_empty_data() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -517,6 +534,7 @@ public fun test_edge_case_empty_data() {
         _,
         _,
         _,
+        _,
         dest_token_address,
         extra_data,
     ) = onramp_state_helper::get_source_token_transfer_data(&token_params);
@@ -540,6 +558,7 @@ public fun test_zero_amount_transfer() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -564,7 +583,7 @@ public fun test_zero_amount_transfer() {
         TestTypeProof {},
     );
 
-    let (_, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
+    let (_, _, _, amount, _, _, _) = onramp_state_helper::get_source_token_transfer_data(
         &token_params,
     );
 
@@ -586,6 +605,7 @@ public fun test_source_transfer_cap_permission() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         @0x1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -615,6 +635,7 @@ public fun test_source_transfer_cap_permission() {
     let (
         remote_chain,
         token_pool_package_id,
+        token_pool_state_object_id,
         amount,
         source_token_address,
         dest_token_address,
@@ -623,6 +644,7 @@ public fun test_source_transfer_cap_permission() {
 
     assert!(remote_chain == DESTINATION_CHAIN_SELECTOR);
     assert!(token_pool_package_id == @0x1);
+    assert!(token_pool_state_object_id == TOKEN_POOL_STATE_OBJECT_ID_1);
     assert!(amount == 1000);
     assert!(source_token_address == TOKEN_ADDRESS_1);
     assert!(dest_token_address == b"dest_token_address");

@@ -25,6 +25,8 @@ const TOKEN_ADDRESS_1: address =
     @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 const TOKEN_POOL_ADDRESS_1: address =
     @0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270;
+const TOKEN_POOL_STATE_OBJECT_ID_1: address =
+    @0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b;
 const SOURCE_CHAIN_SELECTOR: u64 = 1000;
 
 fun setup_test(): (Scenario, OwnerCap, CCIPObjectRef, DestTransferCap) {
@@ -195,6 +197,7 @@ public fun test_complete_token_transfer() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,
@@ -380,6 +383,7 @@ public fun test_complete_token_transfer_twice_should_fail() {
         state_object::create_ccip_admin_proof_for_test(),
         TOKEN_ADDRESS_1,
         TOKEN_POOL_ADDRESS_1,
+        TOKEN_POOL_STATE_OBJECT_ID_1,
         string::utf8(b"test_pool"),
         ascii::string(b"TestType"),
         OWNER,

@@ -61,6 +61,7 @@ public fun initialize<T>(
         ref,
         &burn_mint_token_pool.treasury_cap,
         coin_metadata,
+        object::uid_to_address(&burn_mint_token_pool.id),
         token_pool_administrator,
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
         vector[CLOCK_ADDRESS, object::uid_to_address(&burn_mint_token_pool.id)],
@@ -95,6 +96,7 @@ public fun initialize_by_ccip_admin<T>(
         ccip_admin_proof,
         coin_metadata_address,
         burn_mint_token_pool_package_id,
+        object::uid_to_address(&burn_mint_token_pool.id),
         string::utf8(b"burn_mint_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
@@ -148,6 +150,7 @@ public fun set_pool<T>(
     token_admin_registry::set_pool(
         ref,
         coin_metadata_address,
+        token_pool_state_address,
         vector[CLOCK_ADDRESS, token_pool_state_address],
         vector[CLOCK_ADDRESS, token_pool_state_address],
         TypeProof {},
@@ -284,6 +287,7 @@ public fun apply_allowlist_updates<T>(
 
 public struct TypeProof has drop {}
 
+// explore the option to send state object id to remote chain
 public fun lock_or_burn<T>(
     ref: &CCIPObjectRef,
     token_transfer_params: &mut onramp_sh::TokenTransferParams,

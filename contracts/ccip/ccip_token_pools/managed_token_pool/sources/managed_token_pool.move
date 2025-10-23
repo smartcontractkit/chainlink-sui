@@ -76,6 +76,7 @@ public fun initialize_with_managed_token<T>(
         ref,
         treasury_cap_ref,
         coin_metadata,
+        managed_token_pool_state_address,
         token_pool_administrator,
         vector[
             CLOCK_ADDRESS,
@@ -119,6 +120,7 @@ public fun initialize_by_ccip_admin<T>(
         ccip_admin_proof,
         coin_metadata_address,
         managed_token_pool_package_id,
+        managed_token_pool_state_address,
         string::utf8(b"managed_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
@@ -183,6 +185,7 @@ public fun set_pool<T>(
     token_admin_registry::set_pool(
         ref,
         coin_metadata_address,
+        managed_token_pool_state_address,
         vector[
             CLOCK_ADDRESS,
             DENY_LIST_ADDRESS,

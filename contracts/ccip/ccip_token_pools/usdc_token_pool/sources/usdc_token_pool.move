@@ -122,6 +122,7 @@ public fun initialize<T: drop>(
         ccip_admin_proof,
         coin_metadata_address,
         token_pool_package_id,
+        token_pool_state_address,
         string::utf8(b"usdc_token_pool"),
         token_type.into_string(),
         token_pool_administrator,
@@ -163,6 +164,7 @@ public fun set_pool<T>(
     token_admin_registry::set_pool(
         ref,
         coin_metadata_address,
+        token_pool_state_address,
         vector[
             CLOCK_ADDRESS,
             DENY_LIST_ADDRESS,

@@ -949,6 +949,7 @@ public fun test_lock_or_burn_comprehensive() {
         let (
             remote_chain,
             token_pool_package_id,
+            token_pool_state_object_id,
             amount,
             source_token_address,
             dest_token_address,
@@ -958,6 +959,7 @@ public fun test_lock_or_burn_comprehensive() {
 
         assert!(amount == initial_coin_value);
         assert!(token_pool_package_id == @burn_mint_token_pool);
+        assert!(token_pool_state_object_id == object::id_to_address(&object::id(&pool_state)));
         assert!(source_token_address == burn_mint_token_pool::get_token(&pool_state));
         assert!(dest_token_address == DefaultRemoteToken);
         assert!(extra_data.length() > 0); // Should contain encoded decimals
@@ -1338,6 +1340,7 @@ public fun test_set_pool() {
         // Get initial configuration
         let (
             initial_package_id,
+            initial_token_pool_state_object_id,
             initial_module,
             _token_type,
             administrator,
@@ -1349,6 +1352,9 @@ public fun test_set_pool() {
 
         // Verify correct initial registration
         assert!(initial_package_id == @burn_mint_token_pool);
+        assert!(
+            initial_token_pool_state_object_id == object::id_to_address(&object::id(&pool_state)),
+        );
         assert!(initial_module == string::utf8(b"burn_mint_token_pool"));
         assert!(administrator == @0x123);
         assert!(pending_admin == @0x0);
@@ -1376,6 +1382,7 @@ public fun test_set_pool() {
 
         // Register with a different package ID using CCIP admin
         let different_package_id = @0xcafe;
+        let different_token_pool_state_object_id = @0xcafe1234;
         let different_type_proof = ascii::string(b"0xcafe::different_pool::DifferentTypeProof");
         let different_params = vector[@0x6, @0xfade];
 
@@ -1384,6 +1391,7 @@ public fun test_set_pool() {
             state_object::create_ccip_admin_proof_for_test(),
             coin_metadata_address,
             different_package_id,
+            different_token_pool_state_object_id,
             string::utf8(b"different_pool"),
             type_name::into_string(type_name::with_defining_ids<BURN_MINT_TOKEN_POOL_TESTS>()),
             @0x123, // administrator
@@ -1403,6 +1411,7 @@ public fun test_set_pool() {
 
         let (
             before_package_id,
+            before_token_pool_state_object_id,
             before_module,
             before_token_type,
             _before_administrator,
@@ -1414,6 +1423,7 @@ public fun test_set_pool() {
 
         // Verify it's different from burn_mint_token_pool
         assert!(before_package_id == @0xcafe);
+        assert!(before_token_pool_state_object_id != @0x0);
         assert!(before_module == string::utf8(b"different_pool"));
         assert!(
             before_token_type == type_name::into_string(type_name::with_defining_ids<BURN_MINT_TOKEN_POOL_TESTS>()),
@@ -1437,6 +1447,7 @@ public fun test_set_pool() {
         // Get configuration before set_pool
         let (
             before_package_id,
+            before_token_pool_state_object_id,
             before_module,
             before_token_type,
             _before_admin,
@@ -1447,6 +1458,7 @@ public fun test_set_pool() {
         ) = token_admin_registry::get_token_config_data(&ccip_ref, coin_metadata_address);
 
         assert!(before_package_id == @0xcafe);
+        assert!(before_token_pool_state_object_id != @0x0);
         assert!(before_module == string::utf8(b"different_pool"));
         assert!(
             before_token_type == type_name::into_string(type_name::with_defining_ids<BURN_MINT_TOKEN_POOL_TESTS>()),
@@ -1467,6 +1479,7 @@ public fun test_set_pool() {
 
         let (
             after_package_id,
+            after_token_pool_state_object_id,
             after_module,
             after_token_type,
             after_administrator,
@@ -1478,6 +1491,9 @@ public fun test_set_pool() {
 
         // Verify the configuration changed to burn_mint_token_pool
         assert!(after_package_id == @burn_mint_token_pool);
+        assert!(
+            after_token_pool_state_object_id == object::id_to_address(&object::id(&pool_state)),
+        );
         assert!(after_module == string::utf8(b"burn_mint_token_pool"));
         assert!(
             after_token_type == type_name::into_string(type_name::with_defining_ids<BURN_MINT_TOKEN_POOL_TESTS>()),
