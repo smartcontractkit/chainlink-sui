@@ -35,7 +35,7 @@ func (s *CCIPMCMSTestSuite) Test_CCIP_MCMS() {
 
 	s.T().Run("Execute config proposal against CCIP from MCMS", func(t *testing.T) {
 		RunTestCCIPFeeQuoterProposal(s)
-		RunCCIPOffRampProposal(s)
+		RunCCIPRampsProposal(s)
 	})
 }
 
@@ -320,7 +320,7 @@ func RunTestCCIPFeeQuoterProposal(s *CCIPMCMSTestSuite) {
 	require.Equal(s.T(), expectedPremiumMultiplier, actualPremiumMultiplier)
 }
 
-func RunCCIPOffRampProposal(s *CCIPMCMSTestSuite) {
+func RunCCIPRampsProposal(s *CCIPMCMSTestSuite) {
 	// 1. Build configs
 	mock32Bytes := []byte{
 		0x33, 0x17, 0xaa, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
@@ -342,7 +342,7 @@ func RunCCIPOffRampProposal(s *CCIPMCMSTestSuite) {
 		Router:           "0x304121906bf93b21f915a04cffea4df21090432e3c2fd60e51ebe68f79c90a41",
 		AllowedSenders: []string{
 			"0x1cf00ee891001df44fc0736e56f469ab85dcf9b78511ac9268f292716fc04447",
-			"0x1cf00ee891001df44fc0736e56f469ab85dcf9b78511ac9268f292716fc04447",
+			"0x2d011ff9a2112e0550d1847f67057abc96ed09b78511ac9268f292716fc04447",
 		},
 	}
 
@@ -416,5 +416,54 @@ func RunCCIPOffRampProposal(s *CCIPMCMSTestSuite) {
 	// 3. Execute proposal
 	s.ExecuteProposalE2e(&timelockProposal, s.bypasserConfig, 0)
 
-	// TODO: 4. Assert changes in contracts
+	// 4. Assert changes in contracts
+
+	// Create contract instances
+	offrampContract, err := module_offramp.NewOfframp(s.ccipOfframpPackageId, s.client)
+	require.NoError(s.T(), err, "creating offramp contract")
+
+	onrampContract, err := module_onramp.NewOnramp(s.ccipOnrampPackageId, s.client)
+	require.NoError(s.T(), err, "creating onramp contract")
+
+	ccipObjRef := bind.Object{Id: s.ccipObjects.CCIPObjectRefObjectId}
+	offRampStateObj := bind.Object{Id: s.ccipOfframpObjects.StateObjectId}
+	onRampStateObj := bind.Object{Id: s.ccipOnrampObjects.StateObjectId}
+
+	// Verify SourceChainConfig changes in OffRamp
+	actualSCC, err := offrampContract.DevInspect().GetSourceChainConfig(s.T().Context(), s.deps.GetCallOpts(), ccipObjRef, offRampStateObj, cselectors.ETHEREUM_MAINNET.Selector)
+	require.NoError(s.T(), err, "getting source chain config")
+	require.Equal(s.T(), expectedSCC.IsEnabled, actualSCC.IsEnabled, "source chain config IsEnabled should match")
+	require.Equal(s.T(), expectedSCC.IsRmnVerificationDisabled, actualSCC.IsRmnVerificationDisabled, "source chain config IsRmnVerificationDisabled should match")
+	require.Equal(s.T(), expectedSCC.OnRamp, actualSCC.OnRamp, "source chain config OnRamp should match")
+
+	// Verify DestChainConfig changes in OnRamp
+	actualDCCResults, err := onrampContract.DevInspect().GetDestChainConfig(s.T().Context(), s.deps.GetCallOpts(), onRampStateObj, cselectors.ETHEREUM_MAINNET.Selector)
+	require.NoError(s.T(), err, "getting dest chain config")
+	// GetDestChainConfig returns multiple values: [0]: u64, [1]: bool, [2]: address
+	// Based on the bindings, it seems to return sequence number, allowlist enabled, and router
+	require.Len(s.T(), actualDCCResults, 3, "dest chain config should return 3 values")
+	actualAllowlistEnabled, ok := actualDCCResults[1].(bool)
+	require.True(s.T(), ok, "second value should be bool for allowlist enabled")
+	actualRouter, ok := actualDCCResults[2].(string)
+	require.True(s.T(), ok, "third value should be string for router")
+
+	// Note: The allowlist enabled in the ApplyDestChainConfigureOnRampInput was set to false,
+	// but in ApplyAllowListUpdatesInput it was set to true. The final state should be true.
+	require.Equal(s.T(), expectedDCC.AllowlistEnabled, actualAllowlistEnabled, "dest chain config AllowlistEnabled should match")
+	require.Equal(s.T(), expectedDCC.Router, actualRouter, "dest chain config Router should match")
+
+	// Verify AllowList changes in OnRamp
+	actualAllowListResults, err := onrampContract.DevInspect().GetAllowedSendersList(s.T().Context(), s.deps.GetCallOpts(), onRampStateObj, cselectors.ETHEREUM_MAINNET.Selector)
+	require.NoError(s.T(), err, "getting allowed senders list")
+	// GetAllowedSendersList returns [0]: bool, [1]: vector<address>
+	require.Len(s.T(), actualAllowListResults, 2, "allowed senders list should return 2 values")
+	actualAllowlistEnabledFromList, ok := actualAllowListResults[0].(bool)
+	require.True(s.T(), ok, "first value should be bool for allowlist enabled")
+	actualAllowedSenders, ok := actualAllowListResults[1].([]string)
+	require.True(s.T(), ok, "second value should be []string for allowed senders")
+
+	require.Equal(s.T(), expectedDCC.AllowlistEnabled, actualAllowlistEnabledFromList, "allowlist enabled should match")
+	for _, expectedSender := range expectedDCC.AllowedSenders {
+		require.Contains(s.T(), actualAllowedSenders, expectedSender, "allowed senders should contain expected sender")
+	}
 }
