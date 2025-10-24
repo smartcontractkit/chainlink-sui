@@ -43,10 +43,15 @@ fun test_register_upgrade_cap() {
         let ctx = ts::ctx(&mut scenario);
         let publisher = package::test_claim(MCMS_DEPLOYER_TEST {}, ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            MCMS_DEPLOYER_TEST {},
+        );
+
         // First register with MCMS registry
         mcms_registry::register_entrypoint<MCMS_DEPLOYER_TEST, TestOwnerCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             MCMS_DEPLOYER_TEST {},
             TestOwnerCap { id: object::new(ctx) },
             vector[b"mcms_deployer_test"], // Allowed test module
@@ -61,6 +66,7 @@ fun test_register_upgrade_cap() {
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(deployer_state);
         ts::return_shared(registry);
     };

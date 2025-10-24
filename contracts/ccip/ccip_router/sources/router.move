@@ -10,7 +10,7 @@ use std::type_name;
 use sui::address;
 use sui::derived_object;
 use sui::event;
-use sui::package::{Self, Publisher, UpgradeCap};
+use sui::package::{Self, UpgradeCap};
 use sui::table::{Self, Table};
 
 public struct ROUTER has drop {}
@@ -44,7 +44,7 @@ const EInvalidOnrampAddress: u64 = 6;
 
 fun init(otw: ROUTER, ctx: &mut TxContext) {
     let mut router_object = RouterObject { id: object::new(ctx) };
-    let (ownable_state, owner_cap) = ownable::new(&mut router_object.id, ctx);
+    let (ownable_state, mut owner_cap) = ownable::new(&mut router_object.id, ctx);
 
     let router = RouterState {
         id: derived_object::claim(&mut router_object.id, b"RouterState"),
@@ -64,10 +64,11 @@ fun init(otw: ROUTER, ctx: &mut TxContext) {
     transfer::share_object(router);
     transfer::share_object(router_object);
 
+    let publisher = package::claim(otw, ctx);
+    ownable::attach_publisher(&mut owner_cap, publisher);
+
     transfer::public_transfer(owner_cap, ctx.sender());
     transfer::transfer(router_state_pointer, package_id);
-
-    package::claim_and_keep(otw, ctx);
 }
 
 public(package) fun get_uid(router_object: &mut RouterObject): &mut UID {
@@ -201,17 +202,21 @@ public fun execute_ownership_transfer(
 public fun execute_ownership_transfer_to_mcms(
     owner_cap: OwnerCap,
     state: &mut RouterState,
-    publisher: Publisher,
     registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
-        publisher,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"router"],
         ctx,
@@ -333,9 +338,8 @@ public fun mcms_execute_ownership_transfer(
     let to = bcs_stream::deserialize_address(&mut stream);
     bcs_stream::assert_is_consumed(&stream);
 
-    let (owner_cap, publisher) = mcms_registry::release_cap(registry, McmsCallback {});
+    let owner_cap = mcms_registry::release_cap(registry, McmsCallback {});
     execute_ownership_transfer(owner_cap, state, to, ctx);
-    transfer::public_transfer(publisher, to);
 }
 
 public fun mcms_add_allowed_modules(

@@ -3,7 +3,6 @@ module mcms::mcms_account_test;
 
 use mcms::mcms_account::{Self, AccountState, OwnerCap};
 use mcms::mcms_registry::{Self, Registry};
-use sui::package::Publisher;
 use sui::test_scenario as ts;
 
 const OWNER: address = @0x123;
@@ -51,10 +50,8 @@ fun test_transfer_ownership_to_self_flow() {
     );
     assert!(mcms_account::pending_transfer_accepted(&env.state) == option::some(true));
 
-    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
     mcms_account::execute_ownership_transfer(
         owner_cap,
-        publisher,
         &mut env.state,
         &mut env.registry,
         mcms_registry::get_multisig_address(),

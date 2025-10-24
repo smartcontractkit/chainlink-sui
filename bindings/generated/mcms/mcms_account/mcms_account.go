@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_account","name":"accept_ownership","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_as_timelock","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"AccountState"},{"name":"from","type":"sui::object::UID"}]},{"package":"mcms","module":"mcms_account","name":"create_mcms_account_proof","parameters":null},{"package":"mcms","module":"mcms_account","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"publisher","type":"Publisher"},{"name":"state","type":"AccountState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"owner","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_from","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_to","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"AccountState"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership_to_self","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"AccountState"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_account","name":"accept_ownership","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_as_timelock","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"accept_ownership_from_object","parameters":[{"name":"state","type":"AccountState"},{"name":"from","type":"sui::object::UID"}]},{"package":"mcms","module":"mcms_account","name":"create_mcms_account_proof","parameters":null},{"package":"mcms","module":"mcms_account","name":"execute_ownership_transfer","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"AccountState"},{"name":"registry","type":"Registry"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"owner","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_accepted","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_from","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"pending_transfer_to","parameters":[{"name":"state","type":"AccountState"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership","parameters":[{"name":"_","type":"OwnerCap"},{"name":"state","type":"AccountState"},{"name":"to","type":"address"}]},{"package":"mcms","module":"mcms_account","name":"transfer_ownership_to_self","parameters":[{"name":"owner_cap","type":"OwnerCap"},{"name":"state","type":"AccountState"}]}]`
 
 type IMcmsAccount interface {
 	Owner(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -28,7 +28,7 @@ type IMcmsAccount interface {
 	AcceptOwnership(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipAsTimelock(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	AcceptOwnershipFromObject(ctx context.Context, opts *bind.CallOpts, state bind.Object, from string) (*models.SuiTransactionBlockResponse, error)
-	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
+	ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferFrom(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferTo(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
 	PendingTransferAccepted(ctx context.Context, opts *bind.CallOpts, state bind.Object) (*models.SuiTransactionBlockResponse, error)
@@ -59,7 +59,7 @@ type McmsAccountEncoder interface {
 	AcceptOwnershipAsTimelockWithArgs(args ...any) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObject(state bind.Object, from string) (*bind.EncodedCall, error)
 	AcceptOwnershipFromObjectWithArgs(args ...any) (*bind.EncodedCall, error)
-	ExecuteOwnershipTransfer(ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
+	ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error)
 	ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error)
 	PendingTransferFrom(state bind.Object) (*bind.EncodedCall, error)
 	PendingTransferFromWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -145,6 +145,9 @@ type MCMS_ACCOUNT struct {
 }
 
 type McmsAccountProof struct {
+}
+
+type PublisherKey struct {
 }
 
 type bcsAccountState struct {
@@ -423,6 +426,23 @@ func init() {
 		}
 		return results, nil
 	})
+	bind.RegisterStructDecoder("mcms::mcms_account::PublisherKey", func(data []byte) (interface{}, error) {
+		var result PublisherKey
+		_, err := mystenbcs.Unmarshal(data, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	})
+	// Register vector decoder for PublisherKey
+	bind.RegisterStructDecoder("vector<mcms::mcms_account::PublisherKey>", func(data []byte) (interface{}, error) {
+		var results []PublisherKey
+		_, err := mystenbcs.Unmarshal(data, &results)
+		if err != nil {
+			return nil, err
+		}
+		return results, nil
+	})
 }
 
 // Owner executes the owner Move function.
@@ -486,8 +506,8 @@ func (c *McmsAccountContract) AcceptOwnershipFromObject(ctx context.Context, opt
 }
 
 // ExecuteOwnershipTransfer executes the execute_ownership_transfer Move function.
-func (c *McmsAccountContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsAccountEncoder.ExecuteOwnershipTransfer(ownerCap, publisher, state, registry, to)
+func (c *McmsAccountContract) ExecuteOwnershipTransfer(ctx context.Context, opts *bind.CallOpts, ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsAccountEncoder.ExecuteOwnershipTransfer(ownerCap, state, registry, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -822,18 +842,16 @@ func (c mcmsAccountEncoder) AcceptOwnershipFromObjectWithArgs(args ...any) (*bin
 }
 
 // ExecuteOwnershipTransfer encodes a call to the execute_ownership_transfer Move function.
-func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, publisher bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
+func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, state bind.Object, registry bind.Object, to string) (*bind.EncodedCall, error) {
 	typeArgsList := []string{}
 	typeParamsList := []string{}
 	return c.EncodeCallArgsWithGenerics("execute_ownership_transfer", typeArgsList, typeParamsList, []string{
 		"mcms::mcms_account::OwnerCap",
-		"Publisher",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",
 	}, []any{
 		ownerCap,
-		publisher,
 		state,
 		registry,
 		to,
@@ -845,7 +863,6 @@ func (c mcmsAccountEncoder) ExecuteOwnershipTransfer(ownerCap bind.Object, publi
 func (c mcmsAccountEncoder) ExecuteOwnershipTransferWithArgs(args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"mcms::mcms_account::OwnerCap",
-		"Publisher",
 		"&mut AccountState",
 		"&mut Registry",
 		"address",

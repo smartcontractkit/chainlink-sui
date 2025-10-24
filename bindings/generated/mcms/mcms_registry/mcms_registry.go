@@ -19,14 +19,15 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"add_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"new_allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"}]},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_accept_ownership_data","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_with_caps","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address_ascii","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"publisher","type":"Publisher"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"publitness","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"remove_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"modules_to_remove","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
+const FunctionInfo = `[{"package":"mcms","module":"mcms_registry","name":"add_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"new_allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"borrow_owner_cap","parameters":[{"name":"registry","type":"Registry"}]},{"package":"mcms","module":"mcms_registry","name":"create_executing_callback_params","parameters":[{"name":"target","type":"address"},{"name":"module_name","type":"0x1::string::String"},{"name":"function_name","type":"0x1::string::String"},{"name":"data","type":"vector<u8>"},{"name":"batch_id","type":"vector<u8>"},{"name":"sequence_number","type":"u64"},{"name":"total_in_batch","type":"u64"}]},{"package":"mcms","module":"mcms_registry","name":"create_publisher_wrapper","parameters":[{"name":"publisher","type":"Publisher"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"data","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"function_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_accept_ownership_data","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"get_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_from_mcms","parameters":[{"name":"registry","type":"Registry"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_callback_params_with_caps","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_multisig_address_ascii","parameters":null},{"package":"mcms","module":"mcms_registry","name":"get_next_expected_sequence","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_batch_completed","parameters":[{"name":"registry","type":"Registry"},{"name":"batch_id","type":"vector<u8>"}]},{"package":"mcms","module":"mcms_registry","name":"is_package_registered","parameters":[{"name":"registry","type":"Registry"},{"name":"package_address","type":"ascii::String"}]},{"package":"mcms","module":"mcms_registry","name":"module_name","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]},{"package":"mcms","module":"mcms_registry","name":"register_entrypoint","parameters":[{"name":"registry","type":"Registry"},{"name":"publisher_wrapper","type":"PublisherWrapper<T>"},{"name":"_proof","type":"T"},{"name":"package_cap","type":"C"},{"name":"allowed_modules","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"release_cap","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"}]},{"package":"mcms","module":"mcms_registry","name":"remove_allowed_modules","parameters":[{"name":"registry","type":"Registry"},{"name":"_proof","type":"T"},{"name":"modules_to_remove","type":"vector<vector<u8>>"}]},{"package":"mcms","module":"mcms_registry","name":"target","parameters":[{"name":"params","type":"ExecutingCallbackParams"}]}]`
 
 type IMcmsRegistry interface {
-	RegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publisher bind.Object, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
+	CreatePublisherWrapper(ctx context.Context, opts *bind.CallOpts, typeArgs []string, publisher bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
+	RegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publisherWrapper PublisherWrapper, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
 	AddAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, newAllowedModules [][]byte) (*models.SuiTransactionBlockResponse, error)
 	RemoveAllowedModules(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, modulesToRemove [][]byte) (*models.SuiTransactionBlockResponse, error)
 	GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
-	ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publitness bind.Object) (*models.SuiTransactionBlockResponse, error)
+	ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	BorrowOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetAcceptOwnershipData(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	GetCallbackParamsFromMcms(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params ExecutingCallbackParams) (*models.SuiTransactionBlockResponse, error)
@@ -47,8 +48,9 @@ type IMcmsRegistry interface {
 }
 
 type IMcmsRegistryDevInspect interface {
+	CreatePublisherWrapper(ctx context.Context, opts *bind.CallOpts, typeArgs []string, publisher bind.Object, proof bind.Object) (any, error)
 	GetCallbackParamsWithCaps(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) ([]any, error)
-	ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publitness bind.Object) ([]any, error)
+	ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object) (any, error)
 	BorrowOwnerCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object) (bind.Object, error)
 	GetAcceptOwnershipData(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, params ExecutingCallbackParams, proof bind.Object) ([]byte, error)
 	GetCallbackParamsFromMcms(ctx context.Context, opts *bind.CallOpts, registry bind.Object, params ExecutingCallbackParams) ([]any, error)
@@ -66,7 +68,9 @@ type IMcmsRegistryDevInspect interface {
 }
 
 type McmsRegistryEncoder interface {
-	RegisterEntrypoint(typeArgs []string, registry bind.Object, publisher bind.Object, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error)
+	CreatePublisherWrapper(typeArgs []string, publisher bind.Object, proof bind.Object) (*bind.EncodedCall, error)
+	CreatePublisherWrapperWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
+	RegisterEntrypoint(typeArgs []string, registry bind.Object, publisherWrapper PublisherWrapper, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error)
 	RegisterEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	AddAllowedModules(typeArgs []string, registry bind.Object, proof bind.Object, newAllowedModules [][]byte) (*bind.EncodedCall, error)
 	AddAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -74,7 +78,7 @@ type McmsRegistryEncoder interface {
 	RemoveAllowedModulesWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	GetCallbackParamsWithCaps(typeArgs []string, registry bind.Object, proof bind.Object, params ExecutingCallbackParams) (*bind.EncodedCall, error)
 	GetCallbackParamsWithCapsWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
-	ReleaseCap(typeArgs []string, registry bind.Object, publitness bind.Object) (*bind.EncodedCall, error)
+	ReleaseCap(typeArgs []string, registry bind.Object, proof bind.Object) (*bind.EncodedCall, error)
 	ReleaseCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	BorrowOwnerCap(typeArgs []string, registry bind.Object) (*bind.EncodedCall, error)
 	BorrowOwnerCapWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
@@ -155,9 +159,8 @@ type Registry struct {
 	CompletedBatches     bind.Object `move:"Table<vector<u8>, bool>"`
 }
 
-type OwnerData struct {
-	PackageCap bind.Object `move:"C"`
-	Publisher  bind.Object `move:"Publisher"`
+type PublisherWrapper struct {
+	PackageAddress string `move:"ascii::String"`
 }
 
 type BatchExecutionState struct {
@@ -237,17 +240,17 @@ func init() {
 		}
 		return results, nil
 	})
-	bind.RegisterStructDecoder("mcms::mcms_registry::OwnerData", func(data []byte) (interface{}, error) {
-		var result OwnerData
+	bind.RegisterStructDecoder("mcms::mcms_registry::PublisherWrapper", func(data []byte) (interface{}, error) {
+		var result PublisherWrapper
 		_, err := mystenbcs.Unmarshal(data, &result)
 		if err != nil {
 			return nil, err
 		}
 		return result, nil
 	})
-	// Register vector decoder for OwnerData
-	bind.RegisterStructDecoder("vector<mcms::mcms_registry::OwnerData>", func(data []byte) (interface{}, error) {
-		var results []OwnerData
+	// Register vector decoder for PublisherWrapper
+	bind.RegisterStructDecoder("vector<mcms::mcms_registry::PublisherWrapper>", func(data []byte) (interface{}, error) {
+		var results []PublisherWrapper
 		_, err := mystenbcs.Unmarshal(data, &results)
 		if err != nil {
 			return nil, err
@@ -372,9 +375,19 @@ func init() {
 	})
 }
 
+// CreatePublisherWrapper executes the create_publisher_wrapper Move function.
+func (c *McmsRegistryContract) CreatePublisherWrapper(ctx context.Context, opts *bind.CallOpts, typeArgs []string, publisher bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsRegistryEncoder.CreatePublisherWrapper(typeArgs, publisher, proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+
+	return c.ExecuteTransaction(ctx, opts, encoded)
+}
+
 // RegisterEntrypoint executes the register_entrypoint Move function.
-func (c *McmsRegistryContract) RegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publisher bind.Object, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsRegistryEncoder.RegisterEntrypoint(typeArgs, registry, publisher, proof, packageCap, allowedModules)
+func (c *McmsRegistryContract) RegisterEntrypoint(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publisherWrapper PublisherWrapper, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsRegistryEncoder.RegisterEntrypoint(typeArgs, registry, publisherWrapper, proof, packageCap, allowedModules)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -413,8 +426,8 @@ func (c *McmsRegistryContract) GetCallbackParamsWithCaps(ctx context.Context, op
 }
 
 // ReleaseCap executes the release_cap Move function.
-func (c *McmsRegistryContract) ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publitness bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.mcmsRegistryEncoder.ReleaseCap(typeArgs, registry, publitness)
+func (c *McmsRegistryContract) ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.mcmsRegistryEncoder.ReleaseCap(typeArgs, registry, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -562,6 +575,24 @@ func (c *McmsRegistryContract) GetMultisigAddressAscii(ctx context.Context, opts
 	return c.ExecuteTransaction(ctx, opts, encoded)
 }
 
+// CreatePublisherWrapper executes the create_publisher_wrapper Move function using DevInspect to get return values.
+//
+// Returns: PublisherWrapper<T>
+func (d *McmsRegistryDevInspect) CreatePublisherWrapper(ctx context.Context, opts *bind.CallOpts, typeArgs []string, publisher bind.Object, proof bind.Object) (any, error) {
+	encoded, err := d.contract.mcmsRegistryEncoder.CreatePublisherWrapper(typeArgs, publisher, proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode function call: %w", err)
+	}
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	return results[0], nil
+}
+
 // GetCallbackParamsWithCaps executes the get_callback_params_with_caps Move function using DevInspect to get return values.
 //
 // Returns:
@@ -579,16 +610,20 @@ func (d *McmsRegistryDevInspect) GetCallbackParamsWithCaps(ctx context.Context, 
 
 // ReleaseCap executes the release_cap Move function using DevInspect to get return values.
 //
-// Returns:
-//
-//	[0]: C
-//	[1]: Publisher
-func (d *McmsRegistryDevInspect) ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, publitness bind.Object) ([]any, error) {
-	encoded, err := d.contract.mcmsRegistryEncoder.ReleaseCap(typeArgs, registry, publitness)
+// Returns: C
+func (d *McmsRegistryDevInspect) ReleaseCap(ctx context.Context, opts *bind.CallOpts, typeArgs []string, registry bind.Object, proof bind.Object) (any, error) {
+	encoded, err := d.contract.mcmsRegistryEncoder.ReleaseCap(typeArgs, registry, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
-	return d.contract.Call(ctx, opts, encoded)
+	results, err := d.contract.Call(ctx, opts, encoded)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no return value")
+	}
+	return results[0], nil
 }
 
 // BorrowOwnerCap executes the borrow_owner_cap Move function using DevInspect to get return values.
@@ -897,8 +932,45 @@ type mcmsRegistryEncoder struct {
 	*bind.BoundContract
 }
 
+// CreatePublisherWrapper encodes a call to the create_publisher_wrapper Move function.
+func (c mcmsRegistryEncoder) CreatePublisherWrapper(typeArgs []string, publisher bind.Object, proof bind.Object) (*bind.EncodedCall, error) {
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("create_publisher_wrapper", typeArgsList, typeParamsList, []string{
+		"&Publisher",
+		"T",
+	}, []any{
+		publisher,
+		proof,
+	}, []string{
+		"PublisherWrapper<T>",
+	})
+}
+
+// CreatePublisherWrapperWithArgs encodes a call to the create_publisher_wrapper Move function using arbitrary arguments.
+// This method allows passing both regular values and transaction.Argument values for PTB chaining.
+func (c mcmsRegistryEncoder) CreatePublisherWrapperWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
+	expectedParams := []string{
+		"&Publisher",
+		"T",
+	}
+
+	if len(args) != len(expectedParams) {
+		return nil, fmt.Errorf("expected %d arguments, got %d", len(expectedParams), len(args))
+	}
+	typeArgsList := typeArgs
+	typeParamsList := []string{
+		"T",
+	}
+	return c.EncodeCallArgsWithGenerics("create_publisher_wrapper", typeArgsList, typeParamsList, expectedParams, args, []string{
+		"PublisherWrapper<T>",
+	})
+}
+
 // RegisterEntrypoint encodes a call to the register_entrypoint Move function.
-func (c mcmsRegistryEncoder) RegisterEntrypoint(typeArgs []string, registry bind.Object, publisher bind.Object, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error) {
+func (c mcmsRegistryEncoder) RegisterEntrypoint(typeArgs []string, registry bind.Object, publisherWrapper PublisherWrapper, proof bind.Object, packageCap bind.Object, allowedModules [][]byte) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -906,13 +978,13 @@ func (c mcmsRegistryEncoder) RegisterEntrypoint(typeArgs []string, registry bind
 	}
 	return c.EncodeCallArgsWithGenerics("register_entrypoint", typeArgsList, typeParamsList, []string{
 		"&mut Registry",
-		"Publisher",
+		"PublisherWrapper<T>",
 		"T",
 		"C",
 		"vector<vector<u8>>",
 	}, []any{
 		registry,
-		publisher,
+		publisherWrapper,
 		proof,
 		packageCap,
 		allowedModules,
@@ -924,7 +996,7 @@ func (c mcmsRegistryEncoder) RegisterEntrypoint(typeArgs []string, registry bind
 func (c mcmsRegistryEncoder) RegisterEntrypointWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut Registry",
-		"Publisher",
+		"PublisherWrapper<T>",
 		"T",
 		"C",
 		"vector<vector<u8>>",
@@ -1060,7 +1132,7 @@ func (c mcmsRegistryEncoder) GetCallbackParamsWithCapsWithArgs(typeArgs []string
 }
 
 // ReleaseCap encodes a call to the release_cap Move function.
-func (c mcmsRegistryEncoder) ReleaseCap(typeArgs []string, registry bind.Object, publitness bind.Object) (*bind.EncodedCall, error) {
+func (c mcmsRegistryEncoder) ReleaseCap(typeArgs []string, registry bind.Object, proof bind.Object) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"T",
@@ -1071,10 +1143,9 @@ func (c mcmsRegistryEncoder) ReleaseCap(typeArgs []string, registry bind.Object,
 		"T",
 	}, []any{
 		registry,
-		publitness,
+		proof,
 	}, []string{
 		"C",
-		"Publisher",
 	})
 }
 
@@ -1096,7 +1167,6 @@ func (c mcmsRegistryEncoder) ReleaseCapWithArgs(typeArgs []string, args ...any) 
 	}
 	return c.EncodeCallArgsWithGenerics("release_cap", typeArgsList, typeParamsList, expectedParams, args, []string{
 		"C",
-		"Publisher",
 	})
 }
 

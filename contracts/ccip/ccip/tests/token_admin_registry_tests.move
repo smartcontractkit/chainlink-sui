@@ -1,7 +1,7 @@
 #[test_only]
 module ccip::token_admin_registry_tests;
 
-use ccip::ownable::OwnerCap;
+use ccip::ownable::{OwnerCap};
 use ccip::state_object::{Self, CCIPObjectRef};
 use ccip::token_admin_registry as registry;
 use ccip::upgrade_registry;
@@ -14,7 +14,6 @@ use std::string;
 use std::type_name;
 use sui::address;
 use sui::coin;
-use sui::package::Publisher;
 use sui::test_scenario::{Self as ts, Scenario};
 
 // === Test Witness Types ===
@@ -1021,10 +1020,9 @@ public fun test_mcms_transfer_admin_role() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-        let publisher = scenario.take_from_sender<Publisher>();
         let mut registry = scenario.take_shared<Registry>();
 
-        registry::test_mcms_register_entrypoint(owner_cap, publisher, &mut registry, scenario.ctx());
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
 
         ts::return_shared(registry);
     };
@@ -1078,10 +1076,9 @@ public fun test_mcms_accept_admin_role() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-        let publisher = scenario.take_from_sender<Publisher>();
         let mut registry = scenario.take_shared<Registry>();
 
-        registry::test_mcms_register_entrypoint(owner_cap, publisher, &mut registry, scenario.ctx());
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
 
         ts::return_shared(registry);
     };
@@ -1154,10 +1151,9 @@ public fun test_mcms_full_admin_transfer_flow() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-        let publisher = scenario.take_from_sender<Publisher>();
         let mut registry = scenario.take_shared<Registry>();
 
-        registry::test_mcms_register_entrypoint(owner_cap, publisher, &mut registry, scenario.ctx());
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
 
         ts::return_shared(registry);
     };
@@ -1238,10 +1234,9 @@ public fun test_mcms_accept_admin_role_no_pending_transfer_fails() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-        let publisher = scenario.take_from_sender<Publisher>();
         let mut registry = scenario.take_shared<Registry>();
 
-        registry::test_mcms_register_entrypoint(owner_cap, publisher, &mut registry, scenario.ctx());
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
 
         ts::return_shared(registry);
     };
@@ -1304,10 +1299,9 @@ public fun test_mcms_transfer_admin_role_token_not_registered_fails() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-        let publisher = scenario.take_from_sender<Publisher>();
         let mut registry = scenario.take_shared<Registry>();
 
-        registry::test_mcms_register_entrypoint(owner_cap, publisher, &mut registry, scenario.ctx());
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry, scenario.ctx());
 
         ts::return_shared(registry);
     };
@@ -1689,10 +1683,9 @@ public fun test_mcms_set_pool_with_package_change() {
     scenario.next_tx(CCIP_ADMIN);
     {
         let owner_cap = scenario.take_from_sender<OwnerCap>();
-        let publisher = scenario.take_from_sender<Publisher>();
         let mut registry_obj = scenario.take_shared<Registry>();
 
-        registry::test_mcms_register_entrypoint(owner_cap, publisher, &mut registry_obj, scenario.ctx());
+        registry::test_mcms_register_entrypoint(owner_cap, &mut registry_obj, scenario.ctx());
 
         ts::return_shared(registry_obj);
     };

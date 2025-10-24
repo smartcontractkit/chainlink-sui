@@ -70,9 +70,14 @@ fun test_register_entrypoint() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME], // Allowed test module
@@ -86,6 +91,7 @@ fun test_register_entrypoint() {
             ),
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -113,16 +119,22 @@ fun test_get_accept_ownership_data() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         // Register the module
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME], // Allowed test module
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -228,10 +240,15 @@ fun test_get_callback_params_with_wrong_package_name() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         // Register the module
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME], // Allowed test module
@@ -259,6 +276,7 @@ fun test_get_callback_params_with_wrong_package_name() {
             params,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -285,15 +303,21 @@ fun test_add_allowed_modules() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME], // Initial allowed module
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -346,15 +370,21 @@ fun test_add_module_already_exists() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME],
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -399,15 +429,21 @@ fun test_add_module_wrong_proof_type() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME],
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -486,15 +522,21 @@ fun test_remove_allowed_modules() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME, b"extra_module"], // Register with two modules
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -547,15 +589,21 @@ fun test_remove_module_not_in_allowlist() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME],
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 
@@ -600,15 +648,21 @@ fun test_remove_module_wrong_proof_type() {
         let module_cap = TestModuleCap { id: object::new(ctx) };
         let publisher = create_test_publisher(ctx);
 
+        let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+            &publisher,
+            TestModuleWitness {},
+        );
+
         mcms_registry::register_entrypoint<TestModuleWitness, TestModuleCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             TestModuleWitness {},
             module_cap,
             vector[MODULE_NAME],
             ctx,
         );
 
+        transfer::public_transfer(publisher, @0xA);
         ts::return_shared(registry);
     };
 

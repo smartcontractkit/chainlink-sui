@@ -733,17 +733,21 @@ public fun execute_ownership_transfer<T>(
 public fun execute_ownership_transfer_to_mcms<T>(
     owner_cap: OwnerCap,
     state: &mut USDCTokenPoolState<T>,
-    publisher: Publisher,
     registry: &mut Registry,
     to: address,
     ctx: &mut TxContext,
 ) {
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        ownable::borrow_publisher(&owner_cap),
+        McmsCallback {},
+    );
+
     ownable::execute_ownership_transfer_to_mcms(
         owner_cap,
-        publisher,
         &mut state.ownable_state,
         registry,
         to,
+        publisher_wrapper,
         McmsCallback {},
         vector[b"usdc_token_pool"],
         ctx,

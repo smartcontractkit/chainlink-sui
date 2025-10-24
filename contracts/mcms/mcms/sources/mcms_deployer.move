@@ -2,7 +2,6 @@ module mcms::mcms_deployer;
 
 use mcms::mcms_account::OwnerCap;
 use mcms::mcms_registry::{Self, Registry};
-use sui::address;
 use sui::event;
 use sui::package::{Self, UpgradeCap, UpgradeTicket, UpgradeReceipt};
 use sui::table::{Self, Table};

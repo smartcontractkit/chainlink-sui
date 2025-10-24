@@ -9,7 +9,6 @@ use mcms::mcms_registry::{Self, Registry};
 use std::string;
 use sui::address;
 use sui::bcs;
-use sui::package::Publisher;
 use sui::test_scenario::{Self, Scenario};
 
 const SENDER_1: address = @0x1;
@@ -257,14 +256,9 @@ fun setup_with_mcms_ownership(): (Scenario, Registry, CCIPObjectRef) {
     state_object::accept_ownership(&mut ref, scenario.ctx());
 
     // Step 3: execute_ownership_transfer (registers with MCMS)
-    // Publisher is owned by the original owner (OWNER), need to switch back first
-    scenario.next_tx(OWNER);
-    let publisher = test_scenario::take_from_sender<Publisher>(&scenario);
-    scenario.next_tx(mcms_registry::get_multisig_address());
     state_object::execute_ownership_transfer_to_mcms(
         &mut ref,
         owner_cap,
-        publisher,
         &mut registry,
         @mcms,
         scenario.ctx(),

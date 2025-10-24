@@ -730,13 +730,12 @@ public fun mcms_dispatch_to_account(
     } else if (function_name_bytes == b"execute_ownership_transfer") {
         let target = bcs_stream::deserialize_address(&mut stream);
         bcs_stream::assert_is_consumed(&stream);
-        let (owner_cap, publisher) = mcms_registry::release_cap(
+        let owner_cap = mcms_registry::release_cap(
             registry,
             mcms_account::create_mcms_account_proof(),
         );
         mcms_account::execute_ownership_transfer(
             owner_cap,
-            publisher,
             account_state,
             registry,
             target,

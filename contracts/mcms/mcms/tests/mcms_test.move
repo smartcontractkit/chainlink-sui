@@ -8,7 +8,7 @@ use mcms::mcms_registry::{Self, Registry};
 use mcms::params;
 use std::bcs;
 use std::string::{Self, String};
-use sui::package::{Self, Publisher};
+use sui::package;
 use sui::test_scenario as ts;
 
 const OWNER: address = @0x123;
@@ -262,11 +262,9 @@ public fun test_e2e() {
         x"68c6c85200000000000000000000000000000000000000000000000000000000", // salt
     );
 
-    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
     let ctx = env.scenario.ctx();
     mcms_account::execute_ownership_transfer(
         owner_cap,
-        publisher,
         &mut env.account_state,
         &mut env.registry,
         mcms_registry::get_multisig_address(),
@@ -1380,13 +1378,10 @@ fun test_ownable__transfer_ownership() {
     // Check ownership has not changes
     assert!(mcms_account::owner(&env.account_state) == current_owner);
 
-    // Execute ownership transfer - need to switch back to original owner to get Publisher
-    env.scenario.next_tx(current_owner);
-    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
-    env.scenario.next_tx(new_owner_addr); // Switch back to new owner for execution
+    // Execute ownership transfer
+    env.scenario.next_tx(new_owner_addr);
     mcms_account::execute_ownership_transfer(
         owner_cap,
-        publisher,
         &mut env.account_state,
         &mut env.registry,
         new_owner_addr,
@@ -2816,10 +2811,10 @@ fun test_timelock_dispatch_to_account() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
-    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
+    let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        publisher,
+        publisher_wrapper,
         mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
@@ -2867,10 +2862,10 @@ fun test_timelock_dispatch_to_deployer() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
-    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
+    let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        publisher,
+        publisher_wrapper,
         mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
@@ -2930,10 +2925,10 @@ fun test_timelock_dispatch_to_registry_invalid_module() {
 
     // First, we need to register an owner cap in the registry for dispatch to work
     let owner_cap = ts::take_from_sender<mcms_account::OwnerCap>(&env.scenario);
-    let publisher = ts::take_from_sender<Publisher>(&env.scenario);
+    let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
     mcms_registry::register_entrypoint(
         &mut env.registry,
-        publisher,
+        publisher_wrapper,
         mcms_account::create_mcms_account_proof(),
         owner_cap,
         vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"], // Allowed MCMS modules
@@ -3561,13 +3556,14 @@ fun test_mcms_dispatch_to_registry_add_allowed_modules() {
     {
         let mut registry = ts::take_shared<Registry>(&env.scenario);
         let owner_cap = ts::take_from_sender<OwnerCap>(&env.scenario);
-        let publisher = ts::take_from_sender<Publisher>(&env.scenario);
         let ctx = ts::ctx(&mut env.scenario);
+
+        let publisher_wrapper = mcms_account::test_create_publisher_wrapper(&owner_cap);
 
         // Register MCMS package with McmsProof witness
         mcms_registry::register_entrypoint<mcms_account::McmsAccountProof, OwnerCap>(
             &mut registry,
-            publisher,
+            publisher_wrapper,
             mcms_account::create_mcms_account_proof(),
             owner_cap,
             vector[b"mcms_account", b"mcms_deployer", b"mcms_registry"],

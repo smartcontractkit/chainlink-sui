@@ -8,7 +8,7 @@ use mcms_test::ownable::{OwnerCap};
 
 use std::string;
 use sui::bcs;
-use sui::package;
+use sui::package::{Self};
 use sui::test_scenario::{Self as ts, Scenario};
 use sui::test_utils;
 

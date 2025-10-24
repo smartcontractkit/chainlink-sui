@@ -7,7 +7,7 @@ use std::type_name::{Self, TypeName};
 use sui::address;
 use sui::bag::{Self, Bag};
 use sui::event;
-use sui::package::{Self, Publisher};
+use sui::package::Publisher;
 use sui::table::{Self, Table};
 
 public struct Registry has key {
@@ -27,9 +27,10 @@ public struct Registry has key {
     completed_batches: Table<vector<u8>, bool>,
 }
 
-public struct OwnerData<C: key + store> has store {
-    package_cap: C,
-    publisher: Publisher,
+/// Wrapper for Publisher validation that encodes proof type in type parameter
+/// This allows compile-time enforcement that Publisher matches the proof type
+public struct PublisherWrapper<phantom T: drop> {
+    package_address: ascii::String,
 }
 
 /// Tracks execution progress of a batch to enforce MCMS operation ordering
@@ -131,38 +132,45 @@ fun enforce_execution_order(
     }
 }
 
+/// Having reference to Publisher means you have access to `Publisher` object.
+/// This is only sent to the package deployer, therefore we know only the owner can call this.
+public fun create_publisher_wrapper<T: drop>(
+    publisher: &Publisher,
+    _proof: T,
+): PublisherWrapper<T> {
+    assert!(publisher.from_module<T>(), EProofNotAtPublisherAddressAndModule);
+    PublisherWrapper<T> { package_address: *publisher.package() }
+}
+
 public fun register_entrypoint<T: drop, C: key + store>(
     registry: &mut Registry,
-    publisher: Publisher,
+    publisher_wrapper: PublisherWrapper<T>,
     _proof: T,
     package_cap: C,
     allowed_modules: vector<vector<u8>>,
     _ctx: &mut TxContext,
 ) {
+    let PublisherWrapper { package_address } = publisher_wrapper;
     let proof_type = type_name::with_original_ids<T>();
-    let publisher_address = *publisher.package();
-
-    // Assert proof is at publisher address and module
-    assert!(publisher.from_module<T>(), EProofNotAtPublisherAddressAndModule);
 
     // Assert publisher is not already registered
-    assert!(!registry.package_caps.contains(publisher_address), EPackageCapAlreadyRegistered);
+    assert!(!registry.package_caps.contains(package_address), EPackageCapAlreadyRegistered);
 
-    // Register package cap and publisher for package address
-    registry.package_caps.add(publisher_address, OwnerData { package_cap, publisher });
+    // Register package cap directly (Publisher stays in OwnerCap)
+    registry.package_caps.add(package_address, package_cap);
 
     // Register proof type for package address
-    registry.registered_proof_types.add(publisher_address, proof_type);
+    registry.registered_proof_types.add(package_address, proof_type);
 
     // Register proof type to package address (reverse lookup)
-    registry.proof_type_to_package.add(proof_type, publisher_address);
+    registry.proof_type_to_package.add(proof_type, package_address);
 
     // Register allowed modules for package address
-    registry.allowed_modules.add(publisher_address, allowed_modules);
+    registry.allowed_modules.add(package_address, allowed_modules);
 
     event::emit(EntrypointRegistered {
         registry_id: object::id(registry),
-        account_address: publisher_address,
+        account_address: package_address,
         allowed_modules,
     });
 }
@@ -267,14 +275,11 @@ public fun get_callback_params_with_caps<T: drop, C: key + store>(
     let allowed = registry.allowed_modules.borrow(proof_account_address);
     assert!(allowed.contains(module_name.as_bytes()), EModuleNotAllowed);
 
-    let owner_data: &OwnerData<C> = registry.package_caps.borrow(proof_account_address);
-    (&owner_data.package_cap, function_name, data)
+    let package_cap: &C = registry.package_caps.borrow(proof_account_address);
+    (package_cap, function_name, data)
 }
 
-public fun release_cap<T: drop, C: key + store>(
-    registry: &mut Registry,
-    publitness: T,
-): (C, Publisher) {
+public fun release_cap<T: drop, C: key + store>(registry: &mut Registry, _proof: T): C {
     let proof_type = type_name::with_original_ids<T>();
     let proof_account_address = proof_type.address_string();
 
@@ -289,13 +294,11 @@ public fun release_cap<T: drop, C: key + store>(
     assert!(registry.package_caps.contains(proof_account_address), EPackageCapNotRegistered);
     assert!(registry.registered_proof_types.contains(proof_account_address), EModuleNotRegistered);
 
-    let OwnerData { package_cap, publisher } = registry.package_caps.remove(proof_account_address);
-    (package_cap, publisher)
+    registry.package_caps.remove(proof_account_address)
 }
 
 public(package) fun borrow_owner_cap<C: key + store>(registry: &Registry): &C {
-    let owner_data: &OwnerData<C> = registry.package_caps.borrow(get_multisig_address_ascii());
-    &owner_data.package_cap
+    registry.package_caps.borrow(get_multisig_address_ascii())
 }
 
 /// Only proof with struct name "McmsAcceptOwnershipProof" are allowed to be used with this function.
