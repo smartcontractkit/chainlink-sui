@@ -21,7 +21,19 @@ type PackageManifest struct {
 	DevAddresses any               `toml:"dev-addresses"`
 }
 
-func CompilePackage(packageName contracts.Package, namedAddresses map[string]string) (PackageArtifact, error) {
+// map[string]DependencyAddress
+
+type DependencyAddress struct {
+	originalPackageId string
+	latestPackageId   string
+}
+
+// func CompileUpgradedPackage(packageName contracts.Package, namedAddresses map[string]DependencyAddress, upgradeCapabilityObjectId string) (PackageArtifact, error) {
+// os.Setenv("SUI_CONFIG_DIR", <sui-temp temp dir/config>)
+// os.Setenv("SUI_CONFIG_WITH_RPC_URL", "http://127.0.0.1:9000")
+// sui client new-address ed25519
+
+func CompilePackage(packageName contracts.Package, namedAddresses map[string]DependencyAddress) (PackageArtifact, error) {
 	packageDir, ok := contracts.Contracts[packageName]
 	if !ok {
 		return PackageArtifact{}, fmt.Errorf("unknown package: %s", packageName)
