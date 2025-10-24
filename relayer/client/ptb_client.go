@@ -114,6 +114,7 @@ func NewPTBClient(
 		maxConcurrentRequests = 100 // Default value
 	}
 
+	log.Info("MAXCONCURRENTRATELIMIT: ", maxConcurrentRequests)
 	return &PTBClient{
 		log:                log,
 		client:             client,
