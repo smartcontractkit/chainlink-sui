@@ -2,8 +2,10 @@ package indexer
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-sui/relayer/chainreader/database"
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
+	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
 type EventsIndexer struct {
@@ -183,6 +186,30 @@ func convertMapKeysToCamelCaseWithPath(input any, path string) any {
 		for i, v := range typed {
 			typed[i] = convertMapKeysToCamelCaseWithPath(v, path)
 		}
+	}
+
+	return input
+}
+
+func convertBytesToHex(input any) any {
+	kind := reflect.ValueOf(input).Kind()
+
+	switch kind {
+	case reflect.Map:
+		result := make(map[string]any)
+		for k, v := range input.(map[string]any) {
+			result[k] = convertBytesToHex(v)
+		}
+
+		return result
+
+	case reflect.Slice:
+		bytes, err := codec.AnySliceToBytes(input.([]any))
+		if err != nil {
+			return input
+		}
+
+		return "0x" + hex.EncodeToString(bytes)
 	}
 
 	return input

@@ -33,6 +33,7 @@ public struct CCIPReceiverState has key {
     source_chain_selector: u64,
     sender: vector<u8>,
     data: vector<u8>,
+    message_receiver: address,
     token_receiver: address,
     dest_token_transfer_length: u64,
     dest_token_amounts: vector<TokenAmount>,
@@ -57,6 +58,7 @@ fun init(ctx: &mut TxContext) {
         source_chain_selector: 0,
         sender: vector[],
         data: vector[],
+        message_receiver: @0x0,
         token_receiver: @0x0,
         dest_token_transfer_length: 0,
         dest_token_amounts: vector[],
@@ -142,6 +144,7 @@ public fun ccip_receive(
         source_chain_selector,
         sender,
         data,
+        message_receiver,
         token_receiver,
         dest_token_amounts,
     ) = osh::consume_any2sui_message(ref, message, DummyReceiverProof {});
@@ -153,6 +156,7 @@ public fun ccip_receive(
     state.source_chain_selector = source_chain_selector;
     state.sender = sender;
     state.data = data;
+    state.message_receiver = message_receiver;
     state.token_receiver = token_receiver;
     state.dest_token_transfer_length = dest_token_amounts.length() as u64;
     state.dest_token_amounts = vector[];

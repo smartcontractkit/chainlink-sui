@@ -147,6 +147,7 @@ public fun test_add_dest_token_transfer() {
     // This will fail but we need to call it to consume receiver_params
     offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
         &dest_cap,
+        @0x0,
         receiver_params,
     );
 
@@ -168,6 +169,7 @@ public fun test_populate_message() {
         SOURCE_CHAIN_SELECTOR,
         b"sender_address",
         b"test_data",
+        @0x5432,
         @0x12345,
         vector[], // token_amounts
     );
@@ -179,6 +181,7 @@ public fun test_populate_message() {
     // Use the new test function that can handle populated messages
     offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
         &dest_cap,
+        @0x5432,
         receiver_params,
     );
 
@@ -265,6 +268,7 @@ public fun test_extract_any2sui_message() {
         SOURCE_CHAIN_SELECTOR,
         b"sender_address",
         b"test_data",
+        @0x5432,
         @0x12345,
         vector[],
     );
@@ -275,6 +279,7 @@ public fun test_extract_any2sui_message() {
     // Use the new test function that can handle populated messages
     offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
         &dest_cap,
+        @0x5432,
         receiver_params,
     );
 
@@ -338,6 +343,7 @@ public fun test_add_multiple_dest_token_transfers_should_fail() {
     // The following code won't be reached due to the expected failure above
     offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
         &dest_cap,
+        @0x5432,
         receiver_params,
     );
     cleanup_test(scenario, owner_cap, ref, dest_cap);
@@ -482,6 +488,7 @@ public fun test_new_dest_transfer_cap() {
     // Clean up with the new cap
     offramp_state_helper::deconstruct_receiver_params_with_message_for_test(
         &new_dest_cap,
+        @0x5432,
         receiver_params,
     );
 

@@ -56,6 +56,7 @@ func (tc *TypeConverter) registerStandardConverters() {
 
 	// Array/Slice conversions
 	tc.RegisterConverter("slice_to_slice", tc.sliceToSlice)
+	tc.RegisterConverter("slice_to_hex_string", tc.sliceToHexString)
 
 	// Float64 conversions (JSON unmarshals numbers as float64)
 	tc.RegisterConverter("float64_to_uint", tc.float64ToUint)
@@ -141,6 +142,14 @@ func (tc *TypeConverter) Convert(from reflect.Type, to reflect.Type, data any) (
 		if to.Kind() == reflect.Slice {
 			result, err, handled := tc.handleSlice(from, to, data)
 			if handled {
+				return result, err
+			}
+		}
+
+		// Handle slice to hex string conversions
+		if to.Kind() == reflect.String {
+			result, err := tc.sliceToHexString(from, to, data)
+			if err == nil {
 				return result, err
 			}
 		}
@@ -369,6 +378,15 @@ func (tc *TypeConverter) hexToArray(from, to reflect.Type, data any) (any, error
 	copy(out, byteSlice)
 
 	return out, nil
+}
+
+func (tc *TypeConverter) sliceToHexString(from, to reflect.Type, data any) (any, error) {
+	bytes, err := AnySliceToBytes(data.([]any))
+	if err != nil {
+		return nil, err
+	}
+
+	return "0x" + hex.EncodeToString(bytes), nil
 }
 
 func (tc *TypeConverter) base64ToBytes(from, to reflect.Type, data any) (any, error) {
