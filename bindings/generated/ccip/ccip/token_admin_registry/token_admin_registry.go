@@ -142,8 +142,9 @@ func (c *TokenAdminRegistryContract) DevInspect() ITokenAdminRegistryDevInspect 
 }
 
 type TokenAdminRegistryState struct {
-	Id           string      `move:"sui::object::UID"`
-	TokenConfigs bind.Object `move:"LinkedTable<address, TokenConfig>"`
+	Id                               string      `move:"sui::object::UID"`
+	TokenConfigs                     bind.Object `move:"LinkedTable<address, TokenConfig>"`
+	TokenPoolPackageIdToCoinMetadata bind.Object `move:"LinkedTable<address, address>"`
 }
 
 type TokenConfig struct {
