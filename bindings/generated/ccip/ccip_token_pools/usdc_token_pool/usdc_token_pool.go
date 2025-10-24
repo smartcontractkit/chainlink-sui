@@ -2964,7 +2964,7 @@ func (c usdcTokenPoolEncoder) McmsSetPool(typeArgs []string, ref bind.Object, st
 	}
 	return c.EncodeCallArgsWithGenerics("mcms_set_pool", typeArgsList, typeParamsList, []string{
 		"&mut CCIPObjectRef",
-		"&mut USDCTokenPoolState<T>",
+		"&USDCTokenPoolState<T>",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}, []any{
@@ -2980,7 +2980,7 @@ func (c usdcTokenPoolEncoder) McmsSetPool(typeArgs []string, ref bind.Object, st
 func (c usdcTokenPoolEncoder) McmsSetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error) {
 	expectedParams := []string{
 		"&mut CCIPObjectRef",
-		"&mut USDCTokenPoolState<T>",
+		"&USDCTokenPoolState<T>",
 		"&mut Registry",
 		"ExecutingCallbackParams",
 	}
