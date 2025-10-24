@@ -136,6 +136,43 @@ public fun emit_ccip_message_sent_event(
     });
 }
 
+/// Emit a CCIPMessageSent event
+public fun emit_sample_ccip_message_sent_event() {
+    let header = RampMessageHeader {
+        message_id: x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        source_chain_selector: 1,
+        dest_chain_selector: 137,
+        sequence_number: 1,
+        nonce: 1,
+    };
+    
+    let token_transfer = Sui2AnyTokenTransfer {
+        source_pool_address: @0x123,
+        dest_token_address: x"456789abcdef",
+        extra_data: x"deadbeef",
+        amount: 1000,
+        dest_exec_data: x"cafebabe"
+    };
+    
+    let message = Sui2AnyRampMessage {
+        header,
+        sender: @0x789,
+        data: x"abcdef123456",
+        receiver: x"abcdef123456",
+        extra_args: x"abcdef123456",
+        fee_token: @0xabc,
+        fee_token_amount: 500,
+        fee_value_juels: 1000000,
+        token_amounts: vector[token_transfer]
+    };
+    
+    event::emit(CCIPMessageSent {
+        dest_chain_selector: 137,
+        sequence_number: 1,
+        message
+    });
+}
+
 /// Emit an AllowlistSendersAdded event
 public fun emit_allowlist_senders_added_event(
     dest_chain_selector: u64,

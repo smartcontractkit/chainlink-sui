@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-sui/relayer/client"
 
 	aptosCRConfig "github.com/smartcontractkit/chainlink-aptos/relayer/chainreader/config"
+
 	"github.com/smartcontractkit/chainlink-sui/relayer/codec"
 )
 
@@ -50,6 +51,9 @@ type ChainReaderEvent struct {
 
 	// Renames provided filters to match the event field names (optional). When not provided, the filters are used as-is.
 	EventFilterRenames map[string]string
+
+	// The expected event type (optional). When not provided, the event type is used as-is.
+	ExpectedEventType any
 }
 
 type EventsIndexerConfig struct {
