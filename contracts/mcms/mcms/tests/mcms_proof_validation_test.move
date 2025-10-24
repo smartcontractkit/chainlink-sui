@@ -4,6 +4,7 @@ module mcms::mcms_proof_validation_test;
 use mcms::mcms_registry;
 use mcms::mcms_test;
 use mcms::params;
+use 0x987::mock_cap;
 use std::bcs;
 use std::string;
 use std::type_name;
@@ -215,4 +216,64 @@ fun test_get_accept_ownership_data_expected_proof_type_mcms_proof() {
     );
 
     mcms_test::destroy(env);
+}
+
+#[test]
+#[expected_failure(abort_code = mcms_registry::ECapAddressMismatch, location = mcms_registry)]
+fun test_register_entrypoint_cap_address_mismatch() {
+    // This test verifies that a cap from package B cannot be registered with a PublisherWrapper from package A
+    // The assertion `assert!(cap_address == package_address, ECapAddressMismatch)` in register_entrypoint
+    // ensures that the cap's package address matches the PublisherWrapper's package address
+    //
+    // Test setup:
+    // - Package A = mcms package at address 0x0
+    // - Package B = mock_cap package at address 0x987
+    // - We create a PublisherWrapper from Package A (mcms)
+    // - We try to register a MockCap from Package B (mock_cap)
+    // - This should fail with ECapAddressMismatch
+
+    let mut scenario = sui::test_scenario::begin(@0x1);
+    let ctx = scenario.ctx();
+
+    // Create a registry
+    mcms_registry::test_init(ctx);
+
+    scenario.next_tx(@0x1);
+    let mut registry = scenario.take_shared<mcms_registry::Registry>();
+
+    // Create a Publisher for the mcms package (Package A at address 0x0)
+    // using test_claim with TestPackageWitness from the mcms package
+    let mcms_publisher = sui::package::test_claim(
+        TestPackageWitness {},
+        scenario.ctx(),
+    );
+
+    // Create a PublisherWrapper using TestPackageWitness from mcms package (0x0)
+    let publisher_wrapper = mcms_registry::create_publisher_wrapper(
+        &mcms_publisher,
+        TestPackageWitness {},
+    );
+
+    // Create a MockCap from the mock_cap module (Package B at address 0x987)
+    // This is a DIFFERENT package from mcms (0x0)
+    let mock_cap_from_different_package = mock_cap::new(scenario.ctx());
+
+    // Try to register the MockCap (from 0x987 package) with publisher_wrapper (from 0x0 package)
+    // This should abort with ECapAddressMismatch because:
+    // - publisher_wrapper.package_address corresponds to mcms package (0x0)
+    // - type_name::with_original_ids<MockCap>().address_string() = "0x987" (mock_cap package)
+    // - 0x0 != 0x987, so the assertion fails
+    mcms_registry::register_entrypoint(
+        &mut registry,
+        publisher_wrapper,
+        TestPackageWitness {},
+        mock_cap_from_different_package,
+        vector[b"test_module"],
+        scenario.ctx(),
+    );
+
+    // Cleanup (this code won't be reached due to expected failure)
+    transfer::public_transfer(mcms_publisher, @0x1);
+    sui::test_scenario::return_shared(registry);
+    scenario.end();
 }

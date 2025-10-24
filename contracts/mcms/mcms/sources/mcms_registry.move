@@ -83,6 +83,7 @@ const EOnlyMcmsAcceptOwnershipProofAllowed: u64 = 13;
 const EInvalidModuleName: u64 = 14;
 const EProofNotAtPublisherAddressAndModule: u64 = 15;
 const EProofTypeNotRegistered: u64 = 16;
+const ECapAddressMismatch: u64 = 17;
 
 public struct MCMS_REGISTRY has drop {}
 
@@ -142,6 +143,9 @@ public fun create_publisher_wrapper<T: drop>(
     PublisherWrapper<T> { package_address: *publisher.package() }
 }
 
+/// Registers a package with MCMS.
+/// `PublisherWrapper` asserts that the proof is at the publisher address and module.
+/// `C` must be the same package as the PublisherWrapper.
 public fun register_entrypoint<T: drop, C: key + store>(
     registry: &mut Registry,
     publisher_wrapper: PublisherWrapper<T>,
@@ -152,6 +156,9 @@ public fun register_entrypoint<T: drop, C: key + store>(
 ) {
     let PublisherWrapper { package_address } = publisher_wrapper;
     let proof_type = type_name::with_original_ids<T>();
+
+    let cap_address = type_name::with_original_ids<C>().address_string();
+    assert!(cap_address == package_address, ECapAddressMismatch);
 
     // Assert publisher is not already registered
     assert!(!registry.package_caps.contains(package_address), EPackageCapAlreadyRegistered);

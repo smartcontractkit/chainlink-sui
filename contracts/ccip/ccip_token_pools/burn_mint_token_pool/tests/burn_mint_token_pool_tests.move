@@ -573,12 +573,6 @@ public fun test_destroy_token_pool() {
             scenario.ctx(),
         );
 
-        token_admin_registry::unregister_pool(
-            &mut ccip_ref,
-            burn_mint_token_pool::get_token(&pool_state),
-            scenario.ctx(),
-        );
-
         // Test destroy_token_pool function
         let returned_treasury_cap = burn_mint_token_pool::destroy_token_pool(
             &mut ccip_ref,
