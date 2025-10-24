@@ -42,9 +42,21 @@ var (
 	SuiLinkTokenTreasuryCapID    deployment.ContractType = "SuiLinkTokenTreasuryCapID"
 	SuiMCMSType                  deployment.ContractType = "SuiManyChainMultisig"
 	SuiLinkTokenType             deployment.ContractType = "SuiLinkToken"
-	SuiBnMTokenPoolType          deployment.ContractType = "SuiBnMTokenPool"
-	SuiBnMTokenPoolStateType     deployment.ContractType = "SuiBnMTokenPoolState"
-	SuiBnMTokenPoolOwnerIDType   deployment.ContractType = "SuiBnMTokenPoolOwnerID"
+
+	// BnM Token Pool related
+	SuiBnMTokenPoolType        deployment.ContractType = "SuiBnMTokenPool"
+	SuiBnMTokenPoolStateType   deployment.ContractType = "SuiBnMTokenPoolState"
+	SuiBnMTokenPoolOwnerIDType deployment.ContractType = "SuiBnMTokenPoolOwnerID"
+
+	// LnR Token Pool related
+	SuiLnRTokenPoolType        deployment.ContractType = "SuiLnRTokenPool"
+	SuiLnRTokenPoolStateType   deployment.ContractType = "SuiLnRTokenPoolState"
+	SuiLnRTokenPoolOwnerIDType deployment.ContractType = "SuiLnRTokenPoolOwnerID"
+
+	// Managed Token Pool related
+	SuiManagedTokenPoolType        deployment.ContractType = "SuiManagedTokenPool"
+	SuiManagedTokenPoolStateType   deployment.ContractType = "SuiManagedTokenPoolState"
+	SuiManagedTokenPoolOwnerIDType deployment.ContractType = "SuiManagedTokenPoolOwnerID"
 )
 
 var (
