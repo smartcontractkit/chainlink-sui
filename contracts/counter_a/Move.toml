@@ -1,7 +1,8 @@
 [package]
 name = "counterA"
 edition = "2024" 
-published-at="0x4f9a563b120c09717b76662b4256b10f470abdaf8dc10f0239e6ab5d744ce45e"
+# oldPkgID: 0x477f04c2b5cb1e7a989d7a1ac37b23ebdd86e9588eb2f77d1acdab9a305e214d
+# published-at="0x477f04c2b5cb1e7a989d7a1ac37b23ebdd86e9588eb2f77d1acdab9a305e214d"
 
 [dependencies]
   [dependencies.Sui]
@@ -11,7 +12,5 @@ published-at="0x4f9a563b120c09717b76662b4256b10f470abdaf8dc10f0239e6ab5d744ce45e
  
  
 [addresses]
-# originalPkgID: 0x4f9a563b120c09717b76662b4256b10f470abdaf8dc10f0239e6ab5d744ce45e
-# upgraded To: 0x4c43754f0bf40d1db7b82b977f784b2e26c181d46d162f132333a42b0ee00294
-counter_a = "0x4c43754f0bf40d1db7b82b977f784b2e26c181d46d162f132333a42b0ee00294"
+counter_a = "0x0"
  

@@ -14,7 +14,7 @@ module counter_a::counter {
     }
 
     public fun increment(c: &mut Counter) {
-        c.val = c.val + 1
+        c.val = c.val + 3
     }
 
     public fun decrement(c: &mut Counter) {
