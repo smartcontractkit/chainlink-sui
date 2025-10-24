@@ -30,6 +30,17 @@ module test::counter {
         new_value: u64
     }
 
+    public struct CounterBytes has copy, drop {
+        bytes: vector<u8>,
+        nested: NestedCounterBytes,
+        values: vector<u64>,
+    }
+
+    public struct NestedCounterBytes has copy, drop {
+        value: u64,
+        bytes: vector<u8>,
+    }
+
     public struct DoubleCheckCCIPPointer has copy, drop {
         addresses: vector<address>
     }
@@ -273,6 +284,19 @@ module test::counter {
         event::emit(CounterIncremented {
             counter_id: object::id(counter),
             new_value: counter.value
+        });
+    }
+
+    /// Emit counter bytes
+    public fun emit_counter_bytes(_ctx: &mut TxContext) {
+        // Emit an event
+        event::emit(CounterBytes {
+            bytes: b"test",
+            values: vector[1, 2, 3, 4],
+            nested: NestedCounterBytes {
+                value: 42,
+                bytes: b"test",
+            },
         });
     }
 
