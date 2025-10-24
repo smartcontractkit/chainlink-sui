@@ -19,7 +19,7 @@ var (
 	_ = big.NewInt
 )
 
-const FunctionInfo = `[{"package":"ccip","module":"token_admin_registry","name":"accept_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_all_configured_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"start_key","type":"address"},{"name":"max_count","type":"u64"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pools","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_addresses","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_data","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_struct","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"token_admin_registry","name":"is_administrator","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"administrator","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"is_pool_registered","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"TreasuryCap<T>"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"initial_administrator","type":"address"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"},{"name":"_proof","type":"TypeProof"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool_by_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata_address","type":"address"},{"name":"token_pool_package_id","type":"address"},{"name":"token_pool_module","type":"0x1::string::String"},{"name":"token_type","type":"ascii::String"},{"name":"initial_administrator","type":"address"},{"name":"token_pool_type_proof","type":"ascii::String"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"},{"name":"_","type":"TypeProof"}]},{"package":"ccip","module":"token_admin_registry","name":"transfer_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"new_admin","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"type_and_version","parameters":null},{"package":"ccip","module":"token_admin_registry","name":"unregister_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]}]`
+const FunctionInfo = `[{"package":"ccip","module":"token_admin_registry","name":"accept_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_all_configured_tokens","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"start_key","type":"address"},{"name":"max_count","type":"u64"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_pools","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_addresses","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_data","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"get_token_config_struct","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"initialize","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"owner_cap","type":"OwnerCap"}]},{"package":"ccip","module":"token_admin_registry","name":"is_administrator","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"administrator","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"is_pool_registered","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"TreasuryCap<T>"},{"name":"coin_metadata","type":"CoinMetadata<T>"},{"name":"initial_administrator","type":"address"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"},{"name":"_proof","type":"TypeProof"}]},{"package":"ccip","module":"token_admin_registry","name":"register_pool_by_admin","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"_","type":"state_object::CCIPAdminProof"},{"name":"coin_metadata_address","type":"address"},{"name":"token_pool_package_id","type":"address"},{"name":"token_pool_module","type":"0x1::string::String"},{"name":"token_type","type":"ascii::String"},{"name":"initial_administrator","type":"address"},{"name":"token_pool_type_proof","type":"ascii::String"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"}]},{"package":"ccip","module":"token_admin_registry","name":"set_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"lock_or_burn_params","type":"vector<address>"},{"name":"release_or_mint_params","type":"vector<address>"},{"name":"_","type":"TypeProof"},{"name":"caller","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"transfer_admin_role","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"},{"name":"new_admin","type":"address"}]},{"package":"ccip","module":"token_admin_registry","name":"type_and_version","parameters":null},{"package":"ccip","module":"token_admin_registry","name":"unregister_pool","parameters":[{"name":"ref","type":"CCIPObjectRef"},{"name":"coin_metadata_address","type":"address"}]}]`
 
 type ITokenAdminRegistry interface {
 	TypeAndVersion(ctx context.Context, opts *bind.CallOpts) (*models.SuiTransactionBlockResponse, error)
@@ -33,7 +33,7 @@ type ITokenAdminRegistry interface {
 	RegisterPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, param bind.Object, coinMetadata bind.Object, initialAdministrator string, lockOrBurnParams []string, releaseOrMintParams []string, proof bind.Object) (*models.SuiTransactionBlockResponse, error)
 	RegisterPoolByAdmin(ctx context.Context, opts *bind.CallOpts, ref bind.Object, param bind.Object, coinMetadataAddress string, tokenPoolPackageId string, tokenPoolModule string, tokenType string, initialAdministrator string, tokenPoolTypeProof string, lockOrBurnParams []string, releaseOrMintParams []string) (*models.SuiTransactionBlockResponse, error)
 	UnregisterPool(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
-	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object) (*models.SuiTransactionBlockResponse, error)
+	SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object, caller string) (*models.SuiTransactionBlockResponse, error)
 	TransferAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string, newAdmin string) (*models.SuiTransactionBlockResponse, error)
 	AcceptAdminRole(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
 	IsPoolRegistered(ctx context.Context, opts *bind.CallOpts, ref bind.Object, coinMetadataAddress string) (*models.SuiTransactionBlockResponse, error)
@@ -82,7 +82,7 @@ type TokenAdminRegistryEncoder interface {
 	RegisterPoolByAdminWithArgs(args ...any) (*bind.EncodedCall, error)
 	UnregisterPool(ref bind.Object, coinMetadataAddress string) (*bind.EncodedCall, error)
 	UnregisterPoolWithArgs(args ...any) (*bind.EncodedCall, error)
-	SetPool(typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object) (*bind.EncodedCall, error)
+	SetPool(typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object, caller string) (*bind.EncodedCall, error)
 	SetPoolWithArgs(typeArgs []string, args ...any) (*bind.EncodedCall, error)
 	TransferAdminRole(ref bind.Object, coinMetadataAddress string, newAdmin string) (*bind.EncodedCall, error)
 	TransferAdminRoleWithArgs(args ...any) (*bind.EncodedCall, error)
@@ -634,8 +634,8 @@ func (c *TokenAdminRegistryContract) UnregisterPool(ctx context.Context, opts *b
 }
 
 // SetPool executes the set_pool Move function.
-func (c *TokenAdminRegistryContract) SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object) (*models.SuiTransactionBlockResponse, error) {
-	encoded, err := c.tokenAdminRegistryEncoder.SetPool(typeArgs, ref, coinMetadataAddress, lockOrBurnParams, releaseOrMintParams, param)
+func (c *TokenAdminRegistryContract) SetPool(ctx context.Context, opts *bind.CallOpts, typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object, caller string) (*models.SuiTransactionBlockResponse, error) {
+	encoded, err := c.tokenAdminRegistryEncoder.SetPool(typeArgs, ref, coinMetadataAddress, lockOrBurnParams, releaseOrMintParams, param, caller)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode function call: %w", err)
 	}
@@ -1318,7 +1318,7 @@ func (c tokenAdminRegistryEncoder) UnregisterPoolWithArgs(args ...any) (*bind.En
 }
 
 // SetPool encodes a call to the set_pool Move function.
-func (c tokenAdminRegistryEncoder) SetPool(typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object) (*bind.EncodedCall, error) {
+func (c tokenAdminRegistryEncoder) SetPool(typeArgs []string, ref bind.Object, coinMetadataAddress string, lockOrBurnParams []string, releaseOrMintParams []string, param bind.Object, caller string) (*bind.EncodedCall, error) {
 	typeArgsList := typeArgs
 	typeParamsList := []string{
 		"TypeProof",
@@ -1329,12 +1329,14 @@ func (c tokenAdminRegistryEncoder) SetPool(typeArgs []string, ref bind.Object, c
 		"vector<address>",
 		"vector<address>",
 		"TypeProof",
+		"address",
 	}, []any{
 		ref,
 		coinMetadataAddress,
 		lockOrBurnParams,
 		releaseOrMintParams,
 		param,
+		caller,
 	}, nil)
 }
 
@@ -1347,6 +1349,7 @@ func (c tokenAdminRegistryEncoder) SetPoolWithArgs(typeArgs []string, args ...an
 		"vector<address>",
 		"vector<address>",
 		"TypeProof",
+		"address",
 	}
 
 	if len(args) != len(expectedParams) {
