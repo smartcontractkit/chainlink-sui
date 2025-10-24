@@ -27,6 +27,8 @@ jobs:
             sui_version: mainnet-v1.57.2
           - test_name: Test_CCIPTokenTransfer_EVM2SUI
             sui_version: mainnet-v1.57.2
+          - test_name: Test_CCIPTokenTransfer_Sui2EVM_TPNotConfigured
+            sui_version: mainnet-v1.57.2
 
     env:
       DEFAULT_CORE_REF: develop
