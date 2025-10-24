@@ -31,7 +31,7 @@ jobs:
             sui_version: mainnet-v1.57.2
 
     env:
-      DEFAULT_CORE_REF: develop
+      DEFAULT_CORE_REF: test/nonevm-2581-token-not-configured
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
       GOPRIVATE: github.com/smartcontractkit/chainlink-sui
